@@ -525,15 +525,25 @@ class PostMergeDerivationTests(unittest.TestCase):
         self.assertEqual((result["status"], result["job"]["kind"]), ("claimed", "retrospective"))
 
 
+LIFECYCLE_START = "2000-01-01T00:00:00+00:00"
+
+
 class FakeOps(contour.LifecycleOps):
-    def __init__(self, *, closed=(), lineage=None):
+    def __init__(self, *, closed=(), lineage=None, started=LIFECYCLE_START):
         self.closed, self._lineage = set(closed), lineage or {"requirement": REQUIREMENT, "child": CHILDREN[0]}
+        self.started = started
         self.calls = []
         self.checkpointed = False
         self.cleanup_result = {"status": "cleaned", "removed": ["/w/x"], "errors": []}
 
     def lineage(self, root, branch):
         return self._lineage
+
+    def requirement_started_at(self, root, requirement):
+        return friction.parse_time(self.started)
+
+    def candidate_admitted_at(self, root, number):
+        return friction.parse_time(self.started)
 
     def children(self, root, requirement):
         return list(CHILDREN)
@@ -585,6 +595,42 @@ class FrictionFixture(unittest.TestCase):
 
 
 class FrictionAttributionTests(FrictionFixture):
+    def task_less(self, event_id):
+        with self.log.open("a") as handle:
+            handle.write(json.dumps({"id": event_id, "at": friction.utc_now(), "branch": "main", "category": "x",
+                                     "severity": "medium", "triggers": ["excessive-retry"]}) + "\n")
+
+    def test_attribution_is_append_only_and_resolves_ambiguity(self):
+        self.task_less("e1")
+        before = self.log.read_bytes()
+        self.assertEqual([e["id"] for e in friction.ambiguous_attribution_events()], ["e1"])
+        record = friction.attribute_event("e1", "acme/backlog#5", "observation names that Requirement")
+        self.assertEqual((record["id"], record["task"]), ("e1", "acme/backlog#5"))
+        self.assertEqual(self.log.read_bytes(), before)
+        self.assertEqual(friction.ambiguous_attribution_events(), [])
+        self.assertIn("e1", [e["id"] for e in friction.events_for_task("acme/backlog#5")])
+        self.assertEqual(friction.attribute_event("e1", "acme/backlog#5", "again"), record)
+        self.assertEqual(len(friction.attributions_path().read_text().splitlines()), 1)
+
+    def test_attribution_refuses_unknown_events_conflicts_and_malformed_input(self):
+        self.task_less("e1")
+        with self.assertRaisesRegex(SystemExit, "no recorded friction event"):
+            friction.attribute_event("missing", "acme/backlog#5", "reason")
+        friction.attribute_event("e1", "acme/backlog#5", "reason")
+        with self.assertRaisesRegex(SystemExit, "already attributed to acme/backlog#5"):
+            friction.attribute_event("e1", "acme/backlog#6", "reason")
+        with self.assertRaisesRegex(SystemExit, "owner/repo#N"):
+            friction.attribute_event("e1", "BR-5", "reason")
+        with self.assertRaises(SystemExit):
+            friction.attribute_event("e1", "acme/backlog#5", "   ")
+        self.assertEqual(len(friction.attributions_path().read_text().splitlines()), 1)
+
+    def test_conflicting_attribution_records_fail_when_read(self):
+        friction.attributions_path().write_text(
+            json.dumps({"id": "e1", "task": "acme/backlog#5"}) + "\n" + json.dumps({"id": "e1", "task": "acme/backlog#6"}) + "\n")
+        with self.assertRaisesRegex(SystemExit, "Conflicting friction attributions"):
+            friction.read_attributions()
+
     def test_coordinator_event_carries_task_and_requirement_and_is_recorded_once(self):
         first = self.record()
         again = self.record()
@@ -704,6 +750,48 @@ class PostMergeJobTests(FrictionFixture):
         self.assertEqual(outcome["status"], "blocked")
         self.assertIn("ambiguous", posted[0])
         self.assertFalse(self.state.exists())
+
+    def unattributed(self, event_id, at):
+        with self.log.open("a") as handle:
+            handle.write(json.dumps({"id": event_id, "at": at, "category": "x", "severity": "medium",
+                                     "triggers": ["excessive-retry"]}) + "\n")
+
+    def test_unattributed_event_before_admission_does_not_block_the_candidate(self):
+        self.unattributed("older", "2026-10-01T00:00:00+00:00")
+        outcome, posted = self.run_job("retrospective", FakeOps(started="2026-10-02T00:00:00+00:00"))
+        self.assertNotEqual(outcome["status"], "blocked")
+        self.assertNotIn("ambiguous", posted[0])
+
+    def test_unattributed_event_after_admission_still_blocks(self):
+        self.unattributed("older", "2026-10-01T00:00:00+00:00")
+        self.unattributed("inside", "2026-10-03T00:00:00+00:00")
+        outcome, posted = self.run_job("retrospective", FakeOps(started="2026-10-02T00:00:00+00:00"))
+        self.assertEqual(outcome["status"], "blocked")
+        self.assertIn("inside", posted[0])
+        self.assertNotIn("older", posted[0])
+
+    def test_requirement_window_starts_at_its_pre_authoring(self):
+        self.unattributed("older", "2026-10-01T00:00:00+00:00")
+        ops = FakeOps(started="2026-10-02T00:00:00+00:00")
+        contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
+        self.assertEqual(ops.calls, [("requirement-checkpoint", ())])
+        self.unattributed("inside", "2026-10-03T00:00:00+00:00")
+        with self.assertRaisesRegex(contour.JobBlocked, "ambiguous friction attribution.*inside"):
+            contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
+
+    def test_unknown_lifecycle_start_blocks_explicitly(self):
+        with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when acme/backlog#7 started"):
+            contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT)
+        state = self.root / ".claude/pre-authoring/requirement-7/state.json"
+        state.parent.mkdir(parents=True)
+        state.write_text(json.dumps({"created_at": "2026-10-02T00:00:00+00:00"}))
+        self.assertEqual(contour.LifecycleOps().requirement_started_at(self.root, REQUIREMENT),
+                         friction.parse_time("2026-10-02T00:00:00+00:00"))
+        with mock.patch.object(queue, "_repo", return_value="o/r"), mock.patch.object(queue, "_comments", return_value=[]), \
+                mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
+                mock.patch.object(queue, "trusted_writers", return_value=frozenset()):
+            with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when PR #7 was admitted"):
+                contour.LifecycleOps().candidate_admitted_at(self.root, 7)
 
     def test_unreadable_friction_log_is_not_a_clean_result(self):
         self.log.write_text("{broken\n")

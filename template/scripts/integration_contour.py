@@ -17,6 +17,7 @@ import it at module level; callers import it lazily inside source-only branches.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 import os
 import re
 import shlex
@@ -346,6 +347,32 @@ def recover_integration_repair(root: Path, repo: str, number: int, observed: dic
 class LifecycleOps:
     """Operator-side adapters for post-merge jobs; tests and callers may replace any method."""
 
+    def requirement_started_at(self, root: Path, requirement: str) -> datetime:
+        """When pre-authoring of ``requirement`` was initialized; an unprovable start blocks."""
+        import orchestrate_pre_authoring
+        from agent_friction import parse_time
+
+        number = requirement.rsplit("#", 1)[-1]
+        path = orchestrate_pre_authoring.state_path(orchestrate_pre_authoring.default_base_dir(root) / f"requirement-{number}")
+        try:
+            created = json.loads(path.read_text(encoding="utf-8"))["created_at"]
+            return parse_time(created)
+        except (OSError, KeyError, TypeError, ValueError) as exc:
+            raise JobBlocked(f"cannot prove when {requirement} started (pre-authoring state {path}): {exc}") from exc
+
+    def candidate_admitted_at(self, root: Path, number: int) -> datetime:
+        """When PR #number received its first trusted coordinator record; an unprovable start blocks."""
+        from agent_friction import parse_time
+        from candidate_lifecycle import first_record
+
+        comments = queue._comments(root, queue._repo(root), number)
+        record = first_record(number, comments, trusted_apps=queue.trusted_apps(root),
+                              trusted_writers=queue.trusted_writers(root, comments))
+        try:
+            return parse_time(record["at"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise JobBlocked(f"cannot prove when PR #{number} was admitted: {exc}") from exc
+
     def lineage(self, root: Path, branch: str) -> dict | None:
         return resolve_lineage(root, branch)
 
@@ -439,7 +466,7 @@ def ensure_requirement_checkpoint(ops: LifecycleOps, root: Path, requirement: st
     import agent_friction
     import requirement_retrospective
 
-    ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events()]
+    ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events(ops.requirement_started_at(root, requirement))]
     if ambiguous:
         raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
     try:
@@ -456,7 +483,7 @@ def ensure_requirement_checkpoint(ops: LifecycleOps, root: Path, requirement: st
 def run_retrospective(ops: LifecycleOps, root: Path, number: int, branch: str, head: str) -> str:
     import agent_friction
 
-    ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events()]
+    ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events(ops.candidate_admitted_at(root, number))]
     if ambiguous:
         raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
     ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(branch)))

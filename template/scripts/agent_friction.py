@@ -94,6 +94,60 @@ def state_path() -> Path:
     return local_path("friction_state", ".claude/agent-friction-state.json")
 
 
+def attributions_path() -> Path:
+    """Append-only explicit attributions of recorded events; the event log itself never changes."""
+    return log_path().with_name("agent-friction-attributions.jsonl")
+
+
+ATTRIBUTION_TASK_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*")
+
+
+def read_attributions() -> dict[str, dict]:
+    """Event id -> its explicit attribution; a malformed or conflicting record fails."""
+    path = attributions_path()
+    if not path.exists():
+        return {}
+    found: dict[str, dict] = {}
+    for index, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+            event_id, task = record["id"], record["task"]
+        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            raise SystemExit(f"Invalid friction attribution record at {path}:{index}: {exc}") from exc
+        if not isinstance(event_id, str) or not isinstance(task, str) or not ATTRIBUTION_TASK_RE.fullmatch(task):
+            raise SystemExit(f"Invalid friction attribution record at {path}:{index}")
+        previous = found.get(event_id)
+        if previous is not None and previous["task"] != task:
+            raise SystemExit(f"Conflicting friction attributions for event {event_id} at {path}:{index}")
+        found.setdefault(event_id, record)
+    return found
+
+
+def attribute_event(event_id: str, task: str, reason: str) -> dict:
+    """Attribute one recorded event to ``task`` once; the original event is left untouched."""
+    if not ATTRIBUTION_TASK_RE.fullmatch(task):
+        raise SystemExit(f"attribution task must be owner/repo#N, got {task!r}")
+    reason = normalize_text(reason, "reason")
+    with friction_lock():
+        if event_id not in {str(event.get("id")) for event in read_events(None)}:
+            raise SystemExit(f"no recorded friction event has id {event_id!r}")
+        existing = read_attributions().get(event_id)
+        if existing is not None:
+            if existing["task"] != task:
+                raise SystemExit(f"event {event_id} is already attributed to {existing['task']}")
+            return existing
+        record = {"id": event_id, "task": task, "reason": reason, "at": utc_now()}
+        path = attributions_path()
+        with path.open("a", encoding="utf-8") as fh:
+            ensure_shared_path(path)
+            fh.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+    return record
+
+
 def reports_dir() -> Path:
     return local_path("friction_reports", ".claude/reports/process-improvement")
 
@@ -199,8 +253,9 @@ def event_identities(event: dict) -> set[str]:
     """Attribution evidence a legacy event kept even when its task is empty."""
     excluded = non_task_names()
     run = event.get("run") if isinstance(event.get("run"), dict) else {}
+    attribution = read_attributions().get(str(event.get("id")), {})
     return {
-        value for value in (event.get("branch"), run.get("source_issue"))
+        value for value in (event.get("branch"), run.get("source_issue"), attribution.get("task"))
         if isinstance(value, str) and value and value not in excluded
     }
 
@@ -291,9 +346,15 @@ def inferred_event_ids(task: str) -> list[str]:
     return [str(event.get("id")) for event in events_for_task(task) if not event.get("task")]
 
 
-def ambiguous_attribution_events() -> list[dict]:
-    """Recent events with neither a task nor usable branch/source-issue evidence."""
-    return [event for event in read_events(AMBIGUOUS_WINDOW_DAYS) if not event.get("task") and not event_identities(event)]
+def ambiguous_attribution_events(since: datetime | None = None) -> list[dict]:
+    """Recent events with neither a task nor usable branch/source-issue evidence.
+
+    ``since`` keeps only events recorded at or after a proven lifecycle start: an
+    event recorded before a Requirement or candidate existed cannot belong to it.
+    """
+    return [event for event in read_events(AMBIGUOUS_WINDOW_DAYS)
+            if not event.get("task") and not event_identities(event)
+            and (since is None or parse_time(event["at"]) >= since)]
 
 
 def evidence_source_status(requirement: str | None = None) -> dict[str, str]:
@@ -1431,6 +1492,11 @@ def cmd_promote(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_attribute(args: argparse.Namespace) -> int:
+    print(json.dumps(attribute_event(args.id, args.task, args.reason), sort_keys=True))
+    return 0
+
+
 def main() -> int:
     cooperative_umask()
     parser = argparse.ArgumentParser(description="Record high-signal agent friction and route sanitized process evidence safely.")
@@ -1504,6 +1570,12 @@ def main() -> int:
     p = sub.add_parser("review")
     p.add_argument("--days", type=int, default=7)
     p.set_defaults(func=cmd_review)
+
+    p = sub.add_parser("attribute", help="attribute one recorded task-less event to its owning task (append-only)")
+    p.add_argument("--id", required=True, help="recorded friction event id")
+    p.add_argument("--task", required=True, help="owning Issue as owner/repo#N")
+    p.add_argument("--reason", required=True, help="why the event belongs to that task")
+    p.set_defaults(func=cmd_attribute)
 
     p = sub.add_parser("promote")
     p.add_argument("event", help="event id or 1-based log index")
