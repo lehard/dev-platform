@@ -1,0 +1,59 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+    "base_ref": "origin/main",
+    "candidate_head": "39d10803d935acaec720be5f81e4b0510d895734",
+    "diff_sha256": "61d26ac3306dde9981ff5c3b178e2cc4452e7e5ee53978c98c321ddb79135aab"
+  },
+  "completed_at": "2026-10-10T08:19:38+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py:695\u2013706 validates descriptors solely with os.fstat(fd), and lease() reuses them without acquiring tokens. A pooled payload listing unrelated open descriptors (including stdin/stdout), or distinct descriptors duplicating one slot, passes validation. Descriptor reuse after an intermediate process closes inherited descriptors can therefore silently admit validation without the claimed token coverage.",
+      "id": "lease-descriptor-identity",
+      "severity": "advisory",
+      "summary": "Nested lease validation checks descriptor numbers are open, but does not establish that they hold the claimed pool tokens."
+    }
+  ],
+  "launched_at": "2026-10-10T08:18:17+00:00",
+  "output_sha256": "37c2b583b18d4270d0ddbe6acc051d073c89d1d73ed93c4ce801c7f0c771a197",
+  "perspective": "engineering-quality",
+  "request_id": "58b940a7-a8dc-4a13-aa6d-498f8c4738a5",
+  "reviewer": {
+    "context_id": "01a124e4-33a2-7a92-a89c-d817ff6482bb",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a92f04f3-b58f-4173-b280-e317dfa2bb19",
+    "model": {
+      "source": "selected",
+      "value": "gpt-6.1-sol"
+    },
+    "provider": "codex",
+    "read_only_mechanism": "codex exec --sandbox read-only --ephemeral (no MCP servers)",
+    "runtime": "codex-exec",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cached_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 245888
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 293878
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1533
+      }
+    },
+    "runtime": "codex-exec"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3451188b1be6d94190e3524a511aa55d902955fc0330f62cf288cf20b8b1989c"
+}

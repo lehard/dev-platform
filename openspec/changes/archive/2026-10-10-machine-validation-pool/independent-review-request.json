@@ -1,0 +1,94 @@
+{
+  "candidate": {
+    "base_head": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+    "base_ref": "origin/main",
+    "candidate_head": "39d10803d935acaec720be5f81e4b0510d895734",
+    "diff_sha256": "61d26ac3306dde9981ff5c3b178e2cc4452e7e5ee53978c98c321ddb79135aab"
+  },
+  "change": "openspec/changes/machine-validation-pool",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/machine-validation-pool/automated-checks.json",
+    "openspec/changes/machine-validation-pool/independent-review-request.json",
+    "openspec/changes/machine-validation-pool/independent-reviews/engineering-quality.json",
+    "openspec/changes/machine-validation-pool/independent-reviews/spec-fidelity.json",
+    "openspec/changes/machine-validation-pool/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/machine-validation-pool/design.md",
+        "openspec/changes/machine-validation-pool/proposal.md",
+        "openspec/changes/machine-validation-pool/specs/platform-lifecycle/spec.md",
+        "openspec/changes/machine-validation-pool/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/machine-validation-pool/proposal.md",
+        "openspec/changes/machine-validation-pool/design.md",
+        "openspec/changes/machine-validation-pool/tasks.md",
+        "openspec/changes/machine-validation-pool/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-10T08:17:16+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/machine-validation-pool/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "58b940a7-a8dc-4a13-aa6d-498f8c4738a5",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+    "digest": "3451188b1be6d94190e3524a511aa55d902955fc0330f62cf288cf20b8b1989c",
+    "paths": {
+      "dev-platform/checks.toml": "5c0b1035090382800030235ef1f74d48a26aeab2",
+      "docs/engineering/agent-workflow.md": "77b3ff865d852cbd157940fe9dc8021c93576cb6",
+      "openspec/changes/machine-validation-pool/.managed-task.json": "69bebd5fb688138f5886b54df363d1ccacc76210",
+      "openspec/changes/machine-validation-pool/.openspec.yaml": "81264324b0500978f52f70d701b236a09cb1d808",
+      "openspec/changes/machine-validation-pool/design.md": "c319ac80c1d534d5ef6db6ea72c6a4aecb9335a0",
+      "openspec/changes/machine-validation-pool/proposal.md": "e239a3252d846237e634f1005c9ba9d654d69d92",
+      "openspec/changes/machine-validation-pool/specs/platform-lifecycle/spec.md": "324389d5f5653f0dff53f5120239cd82c769a625",
+      "openspec/changes/machine-validation-pool/tasks.md": "49caeb5557c8d2cf4a48feefb316bb28ae2cb39a",
+      "scripts/machine_pool.py": "cb57831157d3d0bb1b6513e695275f1e45b5c39f",
+      "template/docs/engineering/agent-workflow.md.jinja": "90b2de32c77d8b18284731cef2fecdceeade74ba",
+      "template/scripts/finish_task.py": "1c4fadadc680292763a931c3f509614f1c58a260",
+      "template/scripts/machine_pool.py": "3b16d52465c02a6db69fdae927d5c88ae15d5663",
+      "template/scripts/openspec_lifecycle.py": "921f0eaad48e733034ea947e1efe97640c6a1b8d",
+      "template/scripts/post_review_finalization.py": "edd899e196896695d207013617dba26d51f75bc7",
+      "template/scripts/requirement_integration.py": "00df7ab907f8246e656aaf8ce69e6030f3f9b678",
+      "template/scripts/run_test_groups.py": "920d6542a552e3fd12b7b3c2f9b2fcd8f9ece4eb",
+      "template/scripts/select_checks.py": "7dbedfd1dd749ab45ba2b72cd9493d5f850c2fe5",
+      "tests/_platform_modules.py": "0030f17cc17f3b84ecaaebcf7bf42b3e0cfd8969",
+      "tests/test_affected_precheck.py": "81e92f95f8a01a51c845056bd60cb6ecb43d1d97",
+      "tests/test_git_lifecycle.py": "fe1d5f6b1ca78fae7d9df1e157a908b3b54a8665",
+      "tests/test_machine_pool.py": "7c19a437e2f8bb8e07d8b1c7fdd1d58db53f7482",
+      "tests/test_post_review_finalization.py": "ebb664c0166020a41640664d69dd5009f29afed8",
+      "tests/test_requirement_integration.py": "c6c4c4fb309fcc01f2839d45a78364b0a3801d9e",
+      "tests/test_run_test_groups.py": "f806a2be627dfff685c79913b070488188194583",
+      "tests/test_select_checks.py": "598c3d297fe9f172f416f5ea190b4fd3e8008ccb",
+      "tests/test_shared_writer_guard.py": "81b63a711df04cf45e3680aadad0044adeb8518c"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

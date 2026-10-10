@@ -492,6 +492,11 @@ class TemplateContractTests(unittest.TestCase):
             # specific assertion does not apply there.
             self.skipTest("central .dev-platform.toml is not present in this checkout")
         config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
+        if config == (ROOT / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"):
+            # A disposable lifecycle checkout installs the committed public source contract
+            # as `.dev-platform.toml` (lifecycle_workers.install_source_contract); it carries
+            # no operator sections, so the central-checkout assertion does not apply there.
+            self.skipTest("installed public source contract, not the central operator config")
         template = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         rendered_ci = (ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja").read_text(encoding="utf-8")

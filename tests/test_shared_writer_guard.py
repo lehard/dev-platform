@@ -64,6 +64,15 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Machine pool: machine-local slot/queue files outside the repository, created with an explicit
+    # cross-account mode (fchmod 0o666) rather than shared-workspace semantics; reads only lock and inspect.
+    'machine_pool.py:_open_shared:open': 1,
+    'machine_pool.py:_scan_queue:open': 1,
+    'machine_pool.py:read_holders:open': 1,
+    # Disposable worker checkouts: install the committed public source contract and exclude it locally.
+    'lifecycle_workers.py:commit_writer_worktree:open': 1,
+    'lifecycle_workers.py:install_source_contract:copyfile': 1,
+    'lifecycle_workers.py:install_source_contract:open': 1,
     # Trusted harness manifests/evidence and private reviewer scratch inputs.
     'requirement_composition.py:execute_composition_review:write_text': 4,
     'requirement_composition.py:run_child_review:write_text': 2,
@@ -82,6 +91,9 @@ REVIEWED_BASELINE: dict[str, int] = {
     'capability_manager.py:sync:write_text': 1,
     'capability_manager.py:write_selection:write_text': 1,
     'capability_manager.py:create_from_descriptor:copyfile': 2,
+    # Append-only integration-advance receipts: flock-serialized single-line appends with the shared-path
+    # permission repair, like the friction log (a whole-file atomic rewrite cannot express an append).
+    'delegation_containment.py:record_integration_advance:open': 2,
     'delegated_write_guard.py:_write_writer_state:open': 1,
     'delegated_write_guard.py:_write_writer_state:replace': 1,
     'delegated_write_guard.py:acquire:open': 1,

@@ -5,16 +5,21 @@ import fnmatch
 import json
 import shlex
 import subprocess
+import sys
 import time
 from pathlib import Path
 from typing import Any
 
+import machine_pool
 from _platform_common import (
+    PlatformConfigError,
     TaskFreshnessError,
     current_worktree_root,
+    lifecycle_mode,
     main_root,
     read_platform_config,
     require_fresh_task_base,
+    require_proven_task_base,
     run_git,
     validation_subprocess_env,
 )
@@ -224,11 +229,12 @@ def precheck_paths(config: dict[str, Any], checks: list[dict[str, Any]]) -> list
     return paths
 
 
-def run_precheck(root: Path, paths: list[str]) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
+def run_precheck(root: Path, paths: list[str], pass_fds: tuple[int, ...] = ()) -> tuple[dict[str, Any], subprocess.CompletedProcess[str]]:
     command = "python3 scripts/run_test_groups.py --quiet " + " ".join(f"--changed-file {shlex.quote(path)}" for path in paths)
     print(f"DEV_PLATFORM_PRECHECK_COMMAND: {command}", flush=True)
     started = time.monotonic()
-    result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True, env=validation_subprocess_env())
+    result = subprocess.run(command, cwd=root, shell=True, capture_output=True, text=True, env=validation_subprocess_env(),
+                            pass_fds=pass_fds)
     record = command_result(command, result, time.monotonic() - started)
     record["role"] = "affected-precheck feedback; not validation coverage"
     print("DEV_PLATFORM_PRECHECK_RESULT: " + json.dumps(record, ensure_ascii=False), flush=True)
@@ -353,17 +359,38 @@ def execute(
     precheck: list[str] | None = None,
 ) -> int:
     commands = commands_for(checks)
-    records: list[dict[str, Any]] = []
-    outcome = "success"
     if not commands:
         print("No applicable commands selected.")
         if evidence_path is not None:
-            write_evidence(evidence_path, checks, selection_status(checks), records, "not-applicable", managed_checkout)
+            write_evidence(evidence_path, checks, selection_status(checks), [], "not-applicable", managed_checkout)
         return 0
 
+    from run_test_groups import resolve_jobs
+
+    # One lease around the whole execution (affected-test precheck and command loop): the precheck's and the
+    # commands' test-group runs are nested and reuse it, so a top-level run acquires exactly once.
+    try:
+        with machine_pool.lease(weight=resolve_jobs()[0], purpose="select_checks", bounded=True, root=root) as pool_lease:
+            return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds)
+    except machine_pool.PoolError as exc:
+        print(f"Machine pool blocked validation before any command started: {exc}", file=sys.stderr, flush=True)
+        return 2
+
+
+def _execute_commands(
+    root: Path,
+    checks: list[dict[str, Any]],
+    commands: list[str],
+    evidence_path: Path | None,
+    managed_checkout: object | None,
+    precheck: list[str] | None,
+    pass_fds: tuple[int, ...],
+) -> int:
+    records: list[dict[str, Any]] = []
+    outcome = "success"
     precheck_record = None
     if precheck:
-        precheck_record, result = run_precheck(root, precheck)
+        precheck_record, result = run_precheck(root, precheck, pass_fds)
         precheck_record["outcome"] = precheck_outcome(result)
         if precheck_record["outcome"] == "unavailable":
             # A runner/configuration error leaves no feedback; the full set
@@ -391,6 +418,7 @@ def execute(
             capture_output=True,
             text=True,
             env=validation_subprocess_env(),
+            pass_fds=pass_fds,
         )
         evidence = command_result(command, result, time.monotonic() - started)
         records.append(evidence)
@@ -438,6 +466,33 @@ def write_evidence(
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
+    """Validate the bounded coordinator-finalization freshness contract before any command starts."""
+    refused = "Proven-base freshness contract refused before any command started: "
+    if not args.execute:
+        raise SystemExit(refused + "--proven-base requires --execute")
+    if args.evidence is not None:
+        raise SystemExit(refused + "--proven-base never produces handoff evidence and is refused with --evidence")
+    if args.contribution_base is not None:
+        raise SystemExit(refused + "--proven-base is refused with --contribution-base")
+    if args.mode == "protected-full":
+        raise SystemExit(refused + "--proven-base is refused in protected-full mode")
+    platform = read_platform_config(root)
+    try:
+        mode = lifecycle_mode(platform)
+    except PlatformConfigError as exc:
+        raise SystemExit(refused + f"lifecycle mode is not determinable: {exc}") from exc
+    if mode != "coordinator":
+        raise SystemExit(refused + f"--proven-base is accepted only in coordinator lifecycle mode (found {mode})")
+    main_branch = platform.get("main_branch")
+    if not isinstance(main_branch, str) or not main_branch:
+        raise SystemExit(refused + "main_branch must be a non-empty string in .dev-platform.toml")
+    try:
+        return require_proven_task_base(root, args.proven_base, "origin", main_branch)
+    except TaskFreshnessError as exc:
+        raise SystemExit(refused + str(exc)) from exc
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
@@ -448,6 +503,16 @@ def main() -> int:
             "Requirement contribution candidate: its freshness is the exact recorded integration "
             "base it contributes onto (HEAD must contain this commit), not current main. Current "
             "main is validated later by the Requirement composition candidate."
+        ),
+    )
+    parser.add_argument(
+        "--proven-base",
+        metavar="SHA",
+        help=(
+            "Coordinator finalization only: HEAD must fork from exactly this commit on origin/<main> "
+            "(merge-base(HEAD, origin/<main>) == SHA) instead of containing current main. Requires "
+            "--execute in coordinator lifecycle mode; refused with --evidence, --contribution-base "
+            "and protected-full."
         ),
     )
     parser.add_argument("--changed-file", action="append", default=[])
@@ -474,6 +539,7 @@ def main() -> int:
         args.mode = "protected-full"
 
     root = current_worktree_root()
+    proven_description = require_proven_base_contract(root, args) if args.proven_base is not None else None
     config = load_config(root)
     paths = [] if args.mode == "protected-full" else changed_files(root, args.base, args.changed_file)
     checks = (
@@ -510,7 +576,12 @@ def main() -> int:
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         if harness == "platform" and requires_task_freshness(checks):
-            if args.contribution_base:
+            if proven_description is not None:
+                print(
+                    "Task freshness gate passed (coordinator-finalization proven-base contract): "
+                    f"proven base {args.proven_base} is the {proven_description}."
+                )
+            elif args.contribution_base:
                 if run_git(["merge-base", "--is-ancestor", args.contribution_base, "HEAD"], cwd=root, check=False).returncode:
                     raise SystemExit(
                         "Task freshness gate blocked full/protected validation before any expensive command started: "
