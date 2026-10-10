@@ -264,6 +264,266 @@
         "work_identity": "BR-441/T1"
       },
       "work_identity": "BR-441/T1"
+    },
+    {
+      "change": "add-explorer-lifecycle-journey",
+      "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/add-explorer-lifecycle-journey/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "5c5069fc7eefa4cc2b1f8725080f077dbb40930c"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "ec1b2504624244d079fb1c73a997089cfbe1e0b7",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "explorer/assets/explorer.css:100\u2013104 defines a grid of bordered cards without connectors. The only connector rule, `.flow li + li::before`, is inside the `max-width: 52rem` media query at lines 112\u2013118, so wider viewports have no arrows or connecting lines. design.md decision 2 describes the overview as connected steps.",
+                  "id": "desktop-flow-disconnected",
+                  "severity": "advisory",
+                  "summary": "The desktop lifecycle flow renders as disconnected cards, weakening the visual progression between stages."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "178b5f72eda4409d85dac75c2884c61eb7faeabc2f5541ac091ee66b51f17146"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:8 says a stage id \u201cmay not collide\u201d with an element id. docs/engineering/explorer.md explicitly allows equal ids, and tests/test_build_explorer.py::test_stage_may_share_an_id_with_an_element requires the build to accept them.",
+                  "id": "stage-id-contract-contradiction",
+                  "severity": "advisory",
+                  "summary": "The design contradicts the implemented stage-id namespace rule."
+                },
+                {
+                  "evidence": "openspec/changes/add-explorer-lifecycle-journey/design.md:6 requires an ordered list rendered as connected steps. explorer/assets/explorer.css:100\u2013104 renders separated grid cards; the only connector rule appears at line 118 inside the max-width:52rem media query, so wide-screen steps have no connections.",
+                  "id": "wide-flow-missing-connections",
+                  "severity": "advisory",
+                  "summary": "The wide-screen lifecycle flow lacks the connected steps promised by the design."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "0bf6a7dc26d0c51b8c589d53ca2bbf6b267469406aac5d0c9511d0c4bfecc247"
+            }
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6457,
+            "path": "openspec/changes/add-explorer-lifecycle-journey/automated-checks.json",
+            "sha256": "61e8ec57d3f223daf66b9c56e60240c53e59f9cb0e9a7302c82ba16425dfed41"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2229,
+            "path": "openspec/changes/add-explorer-lifecycle-journey/verification.md",
+            "sha256": "ca988885ce4d664fffb9fc474145f6c0303575f5f5b3350f2b2bec50b35db98b"
+          },
+          "identity": {
+            "change": "add-explorer-lifecycle-journey",
+            "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+            "kind": "contribution",
+            "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+            "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+            "target_branch": "requirement/BR-441",
+            "task_content": {
+              "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+              "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+              "paths": {
+                "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+                "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+                "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+                "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+                "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+                "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+                "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+                "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+                "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+                "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+                "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-441/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "ec1b2504624244d079fb1c73a997089cfbe1e0b7",
+      "integrated_head": "acbe852ab9a0b80af2d2c556bad16073ace7daa6",
+      "pr_number": 475,
+      "reviewed_evidence_digest": "394ec274cb8d3609cd6d0e01eb93a790b716a0e8d427b40586e9cac309bfef16",
+      "source_branch": "agent/br-441-t2-add-explorer-lifecycle-journey",
+      "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+      "task_identity": {
+        "change": "add-explorer-lifecycle-journey",
+        "contribution_base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+        "kind": "contribution",
+        "requirement": "pln_a6e994680e3fd75bbc3c91e4cbbddc95",
+        "source_issue": "pln_b376b70307206f190d2b5614ff1caa35",
+        "target_branch": "requirement/BR-441",
+        "task_content": {
+          "base": "fc92948c443c4dee53a39a56f367cd213a2096f7",
+          "digest": "e36f3147bbcef228643538d62814a6ef122ef78a2b74b08e9d6e868473fd239e",
+          "paths": {
+            "docs/engineering/explorer.md": "9d43b51fdd9c7f0cb1056625a39be0ac94e8625c",
+            "explorer/assets/explorer.css": "98e62c2c594b0c0d9bab33ddef4ec285b2307771",
+            "explorer/map.toml": "69aca51d929f622211f6dc065d1f650430b875be",
+            "openspec/changes/add-explorer-lifecycle-journey/.managed-task.json": "c17b23b9e15dd19facf51b6bedcd320a3784d2c6",
+            "openspec/changes/add-explorer-lifecycle-journey/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+            "openspec/changes/add-explorer-lifecycle-journey/design.md": "a7071d963fec9b8ea433c4f7a78b7c46371c45e3",
+            "openspec/changes/add-explorer-lifecycle-journey/proposal.md": "7e016dfc744f3574c646f8b080b9e4c9215ce4f1",
+            "openspec/changes/add-explorer-lifecycle-journey/specs/platform-explorer/spec.md": "9e89db929c9d01200923747ab2ea254e9d8f3b4c",
+            "openspec/changes/add-explorer-lifecycle-journey/tasks.md": "2c609db9d04edeae7b3747be0be45110e002c08c",
+            "scripts/build_explorer.py": "d5ad147790017107d91a9eabe97eec703e519d89",
+            "tests/test_build_explorer.py": "32135c7da8781c525e1db027a71d23ddd8f00db1"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-441/T2"
+      },
+      "work_identity": "BR-441/T2"
     }
   ],
   "dependencies": {
@@ -275,7 +535,7 @@
       "add-platform-explorer-foundation"
     ]
   },
-  "digest": "b07118204706e75bfe3b24fab9fc59f9c2037bcaf7e031c9755dd4365e69c7d1",
+  "digest": "f7bb30f230130433ce7b2b9cb3813c9940a43ddc89abac222ff722309e359db7",
   "expected_changes": [
     "add-platform-explorer-foundation",
     "add-explorer-lifecycle-journey",
