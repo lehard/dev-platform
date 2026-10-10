@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "7b48b9d304f781454d3f3b530269f924942f1b04",
-    "diff_sha256": "37091b86a027b217debc971b1247fc61900700190594df6168b9b346730a234c"
+    "candidate_head": "62e637a6d5016a32eb158c51875218f0b5b0e0bd",
+    "diff_sha256": "49eef52a346ef081dd02bd608bec99ef4dc68f8663f9eecfdf86b8709d11b5ad"
   },
-  "completed_at": "2026-10-10T00:40:58+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/publication_queue.py:1036\u20131048 computes carried gates only when proven != expected_head, then publishes the superseding admission before publishing its review-pending record. If execution fails after that admission comment but before the transition at lines 1070\u20131071, retry sees proven == expected_head and skips gate carry-forward. The recovery transition uses only the fresh handoff gates with inherit_identity=False, dropping the prior passed review. This contradicts the active completion-lifecycle requirement that the new review-pending record SHALL keep every reusable recorded gate and complete review without launching a reviewer.",
-      "id": "readmission-retry-drops-review",
-      "severity": "material",
-      "summary": "An interrupted superseding admission loses the reusable review gate when retried, causing a new reviewer run for unchanged task content."
-    }
-  ],
-  "launched_at": "2026-10-10T00:40:20+00:00",
-  "output_sha256": "4d6e6c69a17d0cfa978cb800bd332bc5f9a30143e148289b2a21be1bd2df0749",
+  "completed_at": "2026-10-10T00:47:28+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T00:46:57+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "f3d74002-0c08-47f1-8042-28d921b77aa4",
+  "request_id": "4e619389-4d1d-4927-958e-8319f05b7e45",
   "reviewer": {
-    "context_id": "01a12340-ef14-7063-beda-0ab87e1eb14a",
+    "context_id": "01a12346-fd7b-7f91-968c-5c0bb882492b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-98f40428-2ac0-445b-bd36-4246416e30d7",
+    "launch_id": "platform-launch-7f4b30ef-6712-4c53-8dab-f54eb8738b62",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 247168
+        "value": 161536
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 296577
+        "value": 236787
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1122
+        "value": 845
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "4291441bbdc9ff8db741b085d7fc2b2a7236218d8a19b31c8a23739f7739add1"
+  "task_content_digest": "8ad1280ae074830e2f42670043c2db948d9be8d6826ea5a4bc1c1ccdea021eaa"
 }

@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "5f76443bf244cf5ddddee0276751057f59189e4d",
     "base_ref": "origin/main",
-    "candidate_head": "7b48b9d304f781454d3f3b530269f924942f1b04",
-    "diff_sha256": "37091b86a027b217debc971b1247fc61900700190594df6168b9b346730a234c"
+    "candidate_head": "62e637a6d5016a32eb158c51875218f0b5b0e0bd",
+    "diff_sha256": "49eef52a346ef081dd02bd608bec99ef4dc68f8663f9eecfdf86b8709d11b5ad"
   },
-  "completed_at": "2026-10-10T00:41:43+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/publication_queue.py:1036\u20131048 computes carried gates only when proven != expected_head, then publishes the new admission before persisting those gates in the transition at lines 1070\u20131071. If execution fails after the admission comment succeeds but before that transition, a retry sees proven == expected_head, skips _carried_gates, and recovers the missing review-pending record using only the original handoff gates with inherit_identity=False. The passed review is consequently dropped.",
-      "id": "readmission-retry-loses-carried-review",
-      "severity": "advisory",
-      "summary": "An interrupted re-admission loses the reusable review gate when finish is retried, causing another full review of unchanged content."
-    }
-  ],
-  "launched_at": "2026-10-10T00:40:58+00:00",
-  "output_sha256": "2ce0bf6d8469ebcf0dfe842557859a65d18d90e28c4c3e111cab13d5f3ca531e",
+  "completed_at": "2026-10-10T00:48:09+00:00",
+  "findings": [],
+  "launched_at": "2026-10-10T00:47:28+00:00",
+  "output_sha256": "6e96a492bc9fa40d22212c5be0396a203f3dbd4916cf97ebe2f66b6d54fa4a9a",
   "perspective": "engineering-quality",
-  "request_id": "f3d74002-0c08-47f1-8042-28d921b77aa4",
+  "request_id": "4e619389-4d1d-4927-958e-8319f05b7e45",
   "reviewer": {
-    "context_id": "01a12341-8606-7d92-82e8-b6de644cea1e",
+    "context_id": "01a12347-7688-7ec3-952a-6b9e1edb4716",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9f28fc2c-b668-4bd4-9f85-5aafa61311e1",
+    "launch_id": "platform-launch-d375f5fa-31c9-44df-8468-e43e0a197784",
     "model": {
       "source": "selected",
       "value": "gpt-6.1-sol"
@@ -39,21 +32,21 @@
       "cached_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 380928
+        "value": 297472
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 461795
+        "value": 369011
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1398
+        "value": 1127
       }
     },
     "runtime": "codex-exec"
   },
   "schema_version": 1,
-  "task_content_digest": "4291441bbdc9ff8db741b085d7fc2b2a7236218d8a19b31c8a23739f7739add1"
+  "task_content_digest": "8ad1280ae074830e2f42670043c2db948d9be8d6826ea5a4bc1c1ccdea021eaa"
 }
