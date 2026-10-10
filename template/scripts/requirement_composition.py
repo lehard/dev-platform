@@ -41,7 +41,10 @@ def validate_children(checkout: Path, manifest: dict) -> None:
         # Bind the reviewed identity to its preserved contribution head. Later
         # contributions and composition repairs may extend the same files.
         with tempfile.TemporaryDirectory(prefix="composition-child-") as temporary:
-            child_checkout = workers.prepare_checkout(str(checkout), temporary, "harness", child["head"])
+            # The harness contract comes from the trusted composition checkout: a child
+            # head reviewed before the public source contract existed carries none.
+            child_checkout = workers.prepare_checkout(str(checkout), temporary, "harness", child["head"],
+                                                      contract_from=checkout / ".dev-platform.toml")
             from task_content_identity import review_content_identity
             actual = review_content_identity(child_checkout, child["change"], child["contribution_base"])
             if actual != identity["task_content"]:

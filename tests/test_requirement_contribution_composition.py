@@ -47,13 +47,18 @@ def setUpModule() -> None:
 
 
 class Repository:
-    def __init__(self, root):
+    def __init__(self, root, *, committed_contract=True):
         self.root = root
         git(root, "init", "-b", "main")
         git(root, "config", "user.name", "Test")
         git(root, "config", "user.email", "test@example.test")
         (root / "AGENTS.md").write_text("Bounded test repository\n")
         (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
+        if not committed_contract:
+            # A source-repository history from before its public contract was committed:
+            # the composition checkout only carries an installed, locally excluded contract.
+            with (root / ".git" / "info" / "exclude").open("a") as handle:
+                handle.write(".dev-platform.toml\n")
         self.base = self.commit("base")
         self.manifest = contributions.seal({"version": 2, "requirement": REQUIREMENT,
             "repository": "acme/project", "work_identity": "BR-7", "base": self.base,
@@ -282,6 +287,26 @@ class ContributionTests(unittest.TestCase):
                 git(fixture.root, "merge-base", "--is-ancestor", child["head"], "HEAD")
             composition.validate_children(fixture.root, fixture.manifest)
 
+    def test_children_reviewed_before_a_committed_contract_use_the_composition_contract(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp), committed_contract=False)
+            first, second = fixture.child("first", 8), fixture.child("second", 9)
+            fixture.integrate(first)
+            fixture.integrate(second)
+            for child in (first, second):
+                self.assertNotIn(".dev-platform.toml", git(fixture.root, "ls-tree", "--name-only", child["head"]).split())
+            composition.validate_children(fixture.root, fixture.manifest)
+
+    def test_composition_without_a_contract_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp), committed_contract=False)
+            first, second = fixture.child("first", 8), fixture.child("second", 9)
+            fixture.integrate(first)
+            fixture.integrate(second)
+            (fixture.root / ".dev-platform.toml").unlink()
+            with self.assertRaisesRegex(workers.WorkerError, "trusted platform contract .* is missing"):
+                composition.validate_children(fixture.root, fixture.manifest)
+
     def test_changed_removed_reordered_child_and_graph_are_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = Repository(Path(tmp))
@@ -436,8 +461,8 @@ class CompositionTests(unittest.TestCase):
                 _pr=lambda *a: {}, _comments=lambda *a: [], _derive=lambda *a: {},
                 _transition=mock.Mock(return_value={}), publish_job=mock.Mock())
             original_checkout = workers.prepare_checkout
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref:
-                original_checkout(source, temporary, name, ref) if "composition-child-" in temporary else fixture.root), mock.patch.object(
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), mock.patch.object(
                 reviewer, "settings", return_value={}
             ), mock.patch.object(model_routing, "read_durable_route", side_effect=[
                 (SimpleNamespace(provider="codex"), None), (SimpleNamespace(provider="claude"), None)
@@ -724,8 +749,8 @@ class CompositionTests(unittest.TestCase):
             adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
                 _comments=lambda *a: [], _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock())
             original_checkout = workers.prepare_checkout
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref:
-                                   original_checkout(source, temporary, name, ref) if "composition-child-" in temporary else fixture.root):
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, adapter=adapter)
                 self.assertEqual(result["status"], "await-requirement-retrospective")
                 self.assertEqual(adapter.publish_job.call_args.args[3], "retrospective")
@@ -768,8 +793,8 @@ class CompositionTests(unittest.TestCase):
             kwargs = {"adapter": adapter, "checkpoint": lambda *a, **kw: (events.append("checkpoint") or {"result": "none"}),
                       "full_checks": lambda *args: events.append("checks")}
             original_checkout = workers.prepare_checkout
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref:
-                                   original_checkout(source, temporary, name, ref) if "composition-child-" in temporary else fixture.root):
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertEqual(result["status"], "queued")
                 self.assertEqual(events, ["checkpoint", "checks", "ready", "undraft", "admit"])
