@@ -98,7 +98,10 @@ class CiPreflightTests(PreflightFixture):
 
     def test_missing_tool_is_named(self):
         with patch("shutil.which", side_effect=lambda tool, path=None: None if tool == "gh" else "/bin/" + tool):
-            self.assertEqual(self.failed(self.run_preflight("ci", "inputs"))["name"], "tool:gh")
+            result = self.run_preflight("ci", "inputs")
+            self.assertEqual(self.failed(result)["name"], "tool:gh")
+            self.assertIn("[recoverable] publication-preflight: preflight failed: tool:gh", result["reason"])
+            self.assertIn("recovery: supply or correct the named input", result["reason"])
 
     def test_empty_token_and_slug_are_named(self):
         self.assertEqual(self.failed(self.run_preflight("ci", "runtime", {**CI_ENV, "GH_TOKEN": ""}))["name"], "GH_TOKEN")

@@ -418,7 +418,11 @@ class ProvenBaseContractTests(unittest.TestCase):
         self.assertEqual(parent, self.proven)
         for args, reason in cases:
             with self.subTest(args=args):
-                self.assert_refused_before_commands(self.select(*args), reason)
+                refused = self.select(*args)
+                self.assert_refused_before_commands(refused, reason)
+                if reason.startswith("not from its proven base"):
+                    self.assertIn("[hard-stop] proven-base-freshness: ", refused.stderr)
+                    self.assertIn("hard stop: ", refused.stderr)
         self.assertFalse((self.task / "evidence.json").exists())
 
     def test_portable_lifecycle_mode_refuses_the_proven_base(self) -> None:

@@ -175,6 +175,7 @@ targets = [
   "test_protected_surface",
   "test_platform_manifest",
   "test_platform_divergence",
+  "test_blocking_gates",
   "test_task_content_identity",
   "test_module_isolation",
 ]

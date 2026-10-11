@@ -118,6 +118,9 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
     for name in ("_platform_common.py", "delegation_containment.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
+    # The delivered scripts classify their blocking failures from the platform-owned catalog beside them.
+    (repo / "dev-platform").mkdir(exist_ok=True)
+    shutil.copy2(SCRIPT_SOURCE.parent / "dev-platform" / "blocking-gates.toml", repo / "dev-platform" / "blocking-gates.toml")
     (repo / ".dev-platform.toml").write_text(f'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
 
 

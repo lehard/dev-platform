@@ -366,6 +366,12 @@ category = "immutable-releases"
 path = "dev-platform/protected-surface.toml"
 category = "immutable-releases"
 
+# The blocking-gate catalog fixes each blocking check's failure class and recovery. A project must
+# not be able to relabel a hard stop as recoverable or drop a gate locally, so it arrives only by release.
+[[protected]]
+path = "dev-platform/blocking-gates.toml"
+category = "immutable-releases"
+
 [[protected]]
 path = "docs/engineering/change-classes.md"
 category = "immutable-releases"

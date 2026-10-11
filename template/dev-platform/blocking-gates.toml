@@ -1,0 +1,212 @@
+# Catalog of blocking platform checks and their failure class.
+#
+# This file is platform-owned. It is shipped only by immutable platform releases (Copier render
+# and update), is classified protected in protected-surface.toml (immutable-releases: a project
+# must not be able to relabel a hard stop as recoverable, or drop a gate, locally), and is never
+# edited in a downstream project. See docs/engineering/change-classes.md, "Failure classes of
+# blocking checks".
+#
+# Classes:
+#   platform-defect  the check is wrong or misapplied; `hotfix_path` says whether the implementing
+#                    script is "hotfixable" (local hotfix flow) or "protected" (platform release).
+#   recoverable      a legitimate state is blocked and a supported, recorded recovery exists:
+#                    `recovery` names the command or owner step; `recovery_tests` prove it.
+#                    A recovery never disables the gate and never contains a force/skip flag.
+#   hard-stop        no safe exit exists; `justification` states why the stop is intentional and
+#                    what the only exit is.
+#
+# Fields per [[gate]]: id (kebab-case, unique), script (rendered path of the implementing file),
+# class, summary, rejection_tests (test ids proving the violating state is rejected), `migrated`
+# (true when the gate fails through `_platform_common.gate_failure`, so its message carries the
+# class line; false when it still fails in its own words), plus the class fields above. Test ids
+# are `tests/<file>.py::<Class>::<test>` and must resolve; tests/test_blocking_gates.py checks it.
+#
+# Known gaps / follow-ups (recorded, not redesigned here):
+#  1. The Python gates in model_routing.py and publication_queue.py now fail through gate_failure/
+#     gate_message (migrated = true). Gates in lifecycle_workers.py and finish_task.py other than
+#     the migrated scope-overlap text are not inventoried yet.
+#  2. delegated-write-containment: an integration head move that no integration-advance receipt
+#     explains stays a hard stop. The only exit that exists, `model_routing.py
+#     recover-external-advance --owner-approval`, is a historical recovery that is refused once
+#     receipts exist at or after the recorded friction event. Platform friction event to record.
+#  3. merge-commit-hook vs `reconcile_task.py`: reconcile runs `git merge --no-edit origin/<main>`
+#     in the task worktree and sets no override, so where the hook is installed a clean merge of
+#     a diverged task is blocked by the hook (reproduced in a throwaway repository). Resolving a
+#     reconcile merge conflict by committing the merge hits the same hook, and no acceptance test
+#     covers completing a conflict resolution. Platform friction event to record; no gate entry is
+#     claimed recoverable for it.
+#  4. shared-workspace-admission is recoverable for real permission/umask/group findings. A correct
+#     shared workspace that the check rejects wrongly (issue #427) has no local exit: shared_workspace.py
+#     is protected, so that defect needs a platform release.
+#  5. platform_divergence.py prints its own `[kind] path: message` lines and then the catalog class
+#     line for the divergence and protected-touch groups through gate_message.
+#  6. No inventoried gate currently reports itself as platform-defect; the class and its tests exist
+#     for gates that detect their own contradictory contract.
+#  7. The inventory covers the gates named in the Requirement and the ones verified by reading code.
+#     Other blocking checks (for example in finish_task.py, pr_review_gate.py, openspec_lifecycle.py)
+#     are not yet cataloged; completeness is reported here, not asserted. A new or changed blocking
+#     check must be added here and fail through the helper (enforced by review).
+#  8. merge-commit-hook stays migrated = false: a shell script cannot call the helper and editing a
+#     git hook is a protected-surface change reserved for an explicit owner decision.
+# 10. Named checks mapping: the Requirement's "finalize freshness" is the proven-base-freshness entry
+#     (select_checks.py --proven-base); the task-freshness entry covers the developer preflight
+#     freshness that reconcile_task.py restores. Refusals raised inside reconcile_task.py itself are
+#     not inventoried yet (follow-up).
+# 11. A missing or malformed catalog makes gate_failure/gate_message raise BlockingGateCatalogError
+#     instead of the gate's own exception type: an explicit, loud failure (no default message), at the
+#     cost of a different exception type than the uncataloged gate raised.
+#  9. finish_task.py --no-checks is an operator override guarded only by DEV_PLATFORM_ALLOW_NO_CHECKS=1
+#     with no recorded decision; the negative test allowlists it. Follow-up: make the override a
+#     recorded decision or remove it.
+
+[[gate]]
+id = "routing-early-gate"
+script = "scripts/model_routing.py"
+class = "recoverable"
+summary = "Task content exists without a routing record, or supervisor-written content contradicts a delegated-child execution plan."
+recovery = "no routing record: run `python3 scripts/model_routing.py route-codex` or `route-claude` before task content; a record without an execution plan: re-route while task content is unchanged, otherwise the owner decides in chat; supervisor-written content under a delegated-child plan: the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
+migrated = true
+rejection_tests = [
+  "tests/test_model_routing.py::EarlyRoutingGateTests::test_supervisor_content_under_delegated_plan_blocks_every_routing_adjacent_command",
+]
+recovery_tests = [
+  "tests/test_model_routing.py::EarlyRoutingGateTests::test_owner_approved_diff_is_retained_finalized_and_passes_gates",
+  "tests/test_model_routing.py::EarlyRoutingGateTests::test_cli_approve_supervisor_diff_prints_the_approved_route",
+]
+
+[[gate]]
+id = "delegated-write-containment"
+script = "scripts/model_routing.py"
+class = "hard-stop"
+summary = "A delegated write left its assigned worktree: integration paths changed, or the integration head moved without a verified integration-advance receipt chain."
+justification = "This is the integrity of the delegated write boundary: it cannot be waived by the agent whose write it bounds. The only exit is the owner-authorized historical recovery `model_routing.py recover-external-advance`, which is refused once integration-advance receipts exist at or after the recorded friction event, and never applies to a changed path."
+migrated = true
+rejection_tests = [
+  "tests/test_model_routing.py::ModelRoutingTests::test_postcheck_reports_native_worktree_escape",
+  "tests/test_integration_advance_receipts.py::ClaudeRecordingTests::test_missing_receipt_is_a_violation",
+]
+
+[[gate]]
+id = "task-freshness"
+script = "scripts/select_checks.py"
+class = "recoverable"
+summary = "Full or protected validation is refused because the task does not contain freshly observed authoritative main."
+recovery = "python3 scripts/reconcile_task.py (merges current authoritative main into the task without rewriting history), then rerun the validation; if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop, do not override the hook, and record it with `python3 scripts/agent_friction.py record ...`"
+migrated = true
+rejection_tests = [
+  "tests/test_select_checks.py::ProvenBaseContractTests::test_without_proven_base_a_stale_head_is_still_blocked",
+  "tests/test_task_freshness.py::TaskFreshnessTests::test_unavailable_remote_never_claims_the_task_is_fresh",
+]
+recovery_tests = [
+  "tests/test_task_freshness.py::TaskFreshnessTests::test_stale_task_stops_before_full_validation_and_retry_after_reconciliation_runs_it",
+  "tests/test_task_reconciliation.py::TaskReconciliationTests::test_unpublished_task_merges_authoritative_main_without_rewriting_history",
+]
+
+[[gate]]
+id = "contribution-base-freshness"
+script = "scripts/select_checks.py"
+class = "hard-stop"
+summary = "Validation of a Requirement contribution is refused because HEAD does not contain the contribution's exact base."
+justification = "The contribution identity binds the exact base commit, so the platform must not validate content that is not built on it. Rebuild the contribution on its recorded base; a started child whose base moved is restarted from the current Requirement head."
+migrated = true
+rejection_tests = [
+  "tests/test_task_freshness.py::TaskFreshnessTests::test_contribution_missing_its_exact_base_stops_before_validation",
+]
+
+# The justification stays short on purpose: consumers such as post_review_finalization.py keep only the
+# last 400 characters of check output, and a long second line would push the gate's own message out of it.
+# Fuller rationale: only the coordinator finalization contract may validate on a proven base (refused
+# outside coordinator lifecycle mode); that base comes from reviewed lifecycle evidence, never from the
+# checkout, so a mismatch means the head does not descend from the evidence and no agent-side step may repair it.
+[[gate]]
+id = "proven-base-freshness"
+script = "scripts/select_checks.py"
+class = "hard-stop"
+summary = "Coordinator finalization checks are refused because HEAD does not fork from its proven base on authoritative main."
+justification = "intentional: the proven base comes from reviewed evidence; no agent-side repair"
+migrated = true
+rejection_tests = [
+  "tests/test_select_checks.py::ProvenBaseContractTests::test_misuse_is_refused_before_any_command_starts",
+  "tests/test_post_review_finalization.py::PlantedLegacyContextTests::test_planted_legacy_dependent_context_makes_proven_base_refuse_and_finalize_escalate",
+]
+
+[[gate]]
+id = "shared-workspace-admission"
+script = "scripts/shared_workspace.py"
+class = "recoverable"
+summary = "Managed intake is refused before any mutation because the live session or a registered shared path does not satisfy the shared-workspace contract."
+recovery = "have the path owner run the printed `chgrp`/`chmod` repair, or run `python3 scripts/shared_workspace.py fix` where permitted, and correct the launcher group or umask for session findings; then rerun the intake"
+migrated = true
+rejection_tests = [
+  "tests/test_shared_workspace.py::SharedWorkspaceTests::test_admission_aggregates_session_and_every_historical_finding",
+  "tests/test_shared_workspace.py::SharedWorkspaceTests::test_foreign_owned_path_reports_minimal_owner_action",
+]
+recovery_tests = [
+  "tests/test_shared_workspace.py::SharedWorkspaceTests::test_fix_repairs_registered_paths_without_touching_git_config",
+]
+
+[[gate]]
+id = "merge-commit-hook"
+script = "scripts/git_hooks/pre-merge-commit"
+class = "hard-stop"
+summary = "A merge commit in the integration copy or in a task worktree is blocked to keep task history linear."
+justification = "Linear task history and fast-forward-only integration are a Git-history protection. The hook names the supported route (publish through finish_task.py; rebase an unpublished task) and allows an override only after an explicit user decision made through an unrecorded environment flag, which the platform does not treat as a supported recovery. The hook is a shell script and cannot call the Python helper."
+migrated = false
+rejection_tests = [
+  "tests/test_blocking_gates.py::MergeCommitHookTests::test_merge_commit_in_a_task_worktree_is_blocked",
+]
+
+[[gate]]
+id = "publication-preflight"
+script = "scripts/publication_queue.py"
+class = "recoverable"
+summary = "Coordinator configuration preflight stops at the first missing or contradictory input, names it, and exits 2."
+recovery = "supply or correct the named input (tool, token, slug or trust configuration), then rerun `python3 scripts/publication_queue.py preflight --mode <ci|local> --phase <inputs|runtime|all>`"
+migrated = true
+rejection_tests = [
+  "tests/test_coordinator_preflight.py::CiPreflightTests::test_each_missing_input_is_named",
+]
+recovery_tests = [
+  "tests/test_coordinator_preflight.py::CiPreflightTests::test_valid_configuration_passes_all_phases",
+]
+
+[[gate]]
+id = "scope-overlap"
+script = "scripts/agent_board.py"
+class = "recoverable"
+summary = "Costly validation or publication is blocked by an unacknowledged hard scope overlap with an active task."
+recovery = "verify the overlap is safe and record it with `python3 scripts/agent_board.py acknowledge --branch <branch> --worktree <worktree> --with-id <board id> --path <path> --reason <reason>`, or wait for the sibling task to finish"
+migrated = true
+rejection_tests = [
+  "tests/test_worktree_hygiene.py::AgentBoardAcknowledgmentTests::test_acknowledgment_does_not_cover_a_later_unacknowledged_path",
+  "tests/test_worktree_hygiene.py::AgentBoardAcknowledgmentTests::test_hard_scope_gate_keeps_active_or_unavailable_sibling_claims_fail_closed",
+]
+recovery_tests = [
+  "tests/test_worktree_hygiene.py::AgentBoardAcknowledgmentTests::test_acknowledged_overlap_allows_run_without_narrowing_declared_scope",
+]
+
+[[gate]]
+id = "platform-divergence"
+script = "scripts/platform_divergence.py"
+class = "recoverable"
+summary = "A hotfixable platform-owned file differs from the release manifest without a valid, current hotfix record, or the record itself is invalid."
+recovery = "restore the released file, or declare the repair through the temporary local hotfix flow: regression test, `python3 scripts/agent_friction.py record ...` and an entry in dev-platform/local-hotfixes.toml (docs/engineering/change-classes.md)"
+migrated = true
+rejection_tests = [
+  "tests/test_platform_divergence.py::DivergenceCheckTests::test_undeclared_divergence_of_a_hotfixable_file_fails",
+]
+recovery_tests = [
+  "tests/test_platform_divergence.py::HotfixEndToEndTests::test_local_fix_with_regression_evidence_passes_without_a_new_release",
+]
+
+[[gate]]
+id = "platform-divergence-protected"
+script = "scripts/platform_divergence.py"
+class = "hard-stop"
+summary = "A protected platform-owned file, the manifest or the detector differs from the release, or a hotfix record names a protected path."
+justification = "Protected rules have no local change path: a local patch could weaken review, publication, isolation, credential, provenance, history or release guarantees. The only exits are restoring the released bytes (Copier update) or a platform release."
+migrated = true
+rejection_tests = [
+  "tests/test_platform_divergence.py::DivergenceCheckTests::test_protected_file_edit_fails_as_protected_touch_without_a_record",
+  "tests/test_platform_divergence.py::DivergenceCheckTests::test_record_naming_a_protected_path_fails_as_protected_touch_even_with_matching_digest",
+]
