@@ -3,28 +3,40 @@
   "candidate": {
     "base_head": "3533c299f356265154c811491070132e071c95f0",
     "base_ref": "3533c299f356265154c811491070132e071c95f0",
-    "candidate_head": "4fde64abd9848891ad6755a1b575912661e14a9e",
-    "diff_sha256": "d5e19a785a24b69cf9cf39dc4fccf05b9b9c590cc37a167e111df9cc3f15b1fa"
+    "candidate_head": "f1fc09873cd7dc34f9e2ac5c677b88e140355765",
+    "diff_sha256": "9dd44e3ca5c3f7d9efe4a8ca9f4a669bf25f3a04cad461693e9361f5fadbf44b"
   },
-  "completed_at": "2026-10-11T14:06:41+00:00",
+  "completed_at": "2026-10-11T15:17:40+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/platform_divergence.py `FrictionLog._load` reads `agent_friction.log_path()`, which is `local_path(\"friction_log\", \".claude/agent-friction.jsonl\")` (template/scripts/agent_friction.py:89-90). It reports `[missing-friction-event]` when the file is absent or unreadable. The diff's `platform_doctor.check_platform_divergence_contract` calls `check_platform_divergence(root)` and adds a failure per problem. `template/.github/workflows/dev-platform.yml.jinja:53` runs `python3 scripts/platform_doctor.py` in CI. `change-classes.md` and the platform_divergence docstring concede \"The log is machine-local, so run the check where the event was recorded\", but nothing skips or relaxes the friction check under CI. The `platform-divergence` catalog entry lists `recovery_tests` that cover only the local run (`HotfixEndToEndTests::test_local_fix_with_regression_evidence_passes_without_a_new_release`), not a CI-like environment without the log.",
-      "id": "hotfix-friction-check-fails-in-platform-ci",
-      "severity": "material",
-      "summary": "A valid temporary hotfix cannot pass the project's own platform-ci. The T3 divergence check requires the friction event id to be in the machine-local friction log. T3's `platform_doctor` change runs that check, and the platform-ci job runs `platform_doctor`. Every hotfix PR would fail CI with `[missing-friction-event]`, so the hotfix flow that `change-classes.md` describes as an ordinary PR with required checks is unreachable. That undercuts the Requirement outcome of a controlled local hotfix without waiting for a release."
+      "evidence": "template/dev-platform/blocking-gates.toml, `task-freshness`: recovery = \"python3 scripts/reconcile_task.py ... if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop\". Header gap 3 says reconcile 'sets no override, so where the hook is installed a clean merge of a diverged task is blocked' and that 'no gate entry is claimed recoverable for it'. The `task-freshness` entry nevertheless carries class=recoverable, and its recovery_tests do not run with the hook installed. Recording friction is the only exit in that case. Suggest keeping the follow-up friction event visible, or noting the hook interaction in the entry class.",
+      "id": "task-freshness-recovery-blocked-by-hook",
+      "severity": "advisory",
+      "summary": "The `task-freshness` catalog entry is classed `recoverable` with `reconcile_task.py` as its recovery. The same catalog's known gap 3 says the installed `pre-merge-commit` hook can block that very merge. The Requirement asks for no accidental dead ends. This one is disclosed but not resolved."
+    },
+    {
+      "evidence": "protected-surface.toml lists `scripts/shared_workspace.py`, `scripts/model_routing.py`, `scripts/select_checks.py`, `scripts/finish_task.py` and `scripts/agent_board.py` as `[[protected]]`; none are in `hotfixable`. blocking-gates.toml known gap 4: 'A correct shared workspace that the check rejects wrongly (issue #427) has no local exit: shared_workspace.py is protected, so that defect needs a platform release.' Entry `shared-workspace-admission` is class=recoverable. The `platform-defect` class is unused (gap 6), so the Requirement's 'either a verified recovery or a justified hard stop' is not met for the wrongly-rejected case. It is only documented as a gap.",
+      "id": "protected-gate-false-positive-has-no-local-exit",
+      "severity": "advisory",
+      "summary": "The Requirement's motivating defects live in scripts that the protected surface classes as protected (`model_routing.py`, `shared_workspace.py`, `select_checks.py`, `finish_task.py`). The hotfix path therefore cannot repair a wrongly firing blocking check in any of them. For those the only exit is a platform release. This is stated openly, but the shared-workspace gate is catalogued `recoverable` although its false-positive case has no recovery."
+    },
+    {
+      "evidence": "openspec/changes/local-platform-hotfix/design.md decision 6: '`platform_doctor.py` and the project's `full_commands` trigger set include the check'. template/docs/engineering/change-classes.md, Divergence check: 'a project may also add it to the `full_commands` of its own project-owned `dev-platform/checks.toml`'. The only shipped wiring in the diff is `check_platform_divergence_contract` in platform_doctor.py, which returns early when `platform_version == \"source\"`.",
+      "id": "divergence-check-wiring-weaker-than-design",
+      "severity": "advisory",
+      "summary": "The hotfix design says the divergence check runs from `platform_doctor.py` and is included in the project's `full_commands`. The delivered documentation only says a project 'may also add it' to its own `full_commands`. The `full_commands` wiring is not shipped, so the check runs only wherever `platform_doctor` runs."
     }
   ],
-  "launched_at": "2026-10-11T14:05:55+00:00",
-  "output_sha256": "5f32da26579d81fba25081e88cc8118dcd424f0d247886bc182360450be73984",
+  "launched_at": "2026-10-11T15:16:43+00:00",
+  "output_sha256": "adeedfa8afff6a8e414d1bae4451dcf081dd64c7743727d6ddc1a105af8ad2ef",
   "perspective": "engineering-quality",
-  "request_id": "487511cd-fb78-46b5-a0dc-2b4d3065ef01",
+  "request_id": "e941d977-7589-4739-94f0-d4994c9fd4d1",
   "reviewer": {
-    "context_id": "d1e49068-5db1-472c-9443-d48dffad4a6e",
+    "context_id": "fd9189fc-d345-4a89-8216-0974421bc86d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2bce78d9-29c7-4203-8682-82355eb44958",
+    "launch_id": "platform-launch-88cd842c-9da4-40b5-b35d-8dd144c1d1ab",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +51,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 59015
+        "value": 96096
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 387240
+        "value": 346718
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42467
+        "value": 53561
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44838
+        "value": 55760
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4236
+        "value": 5241
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "241db390403f9c1934d7432f2502a83757558ea94966e70ba79090c89e38e00a"
+  "task_content_digest": "eb4faf1a75235751d678e922db390b71b9cb24a91ab94582ac4d6ff4ee2ee355"
 }

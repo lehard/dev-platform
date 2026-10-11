@@ -3,46 +3,28 @@
   "candidate": {
     "base_head": "3533c299f356265154c811491070132e071c95f0",
     "base_ref": "3533c299f356265154c811491070132e071c95f0",
-    "candidate_head": "4fde64abd9848891ad6755a1b575912661e14a9e",
-    "diff_sha256": "d5e19a785a24b69cf9cf39dc4fccf05b9b9c590cc37a167e111df9cc3f15b1fa"
+    "candidate_head": "f1fc09873cd7dc34f9e2ac5c677b88e140355765",
+    "diff_sha256": "9dd44e3ca5c3f7d9efe4a8ca9f4a669bf25f3a04cad461693e9361f5fadbf44b"
   },
-  "completed_at": "2026-10-11T14:05:55+00:00",
+  "completed_at": "2026-10-11T15:16:43+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/platform_divergence.py: FrictionLog._load reads agent_friction.log_path(), which is `.claude/agent-friction.jsonl` (template/scripts/agent_friction.py:89-90). A missing file sets `error = \"friction log ... does not exist\"`, and problem_for returns it as a NO_FRICTION problem. platform_doctor.check_platform_divergence_contract passes every problem to fail(). template/.github/workflows/dev-platform.yml.jinja:53 and template/.gitlab-ci.yml.jinja:10 run `python3 scripts/platform_doctor.py` unconditionally, and the doctor has no CI or log-unavailable mode. The module docstring says the check must run 'where the friction event was recorded (the developer machine)', which contradicts the CI wiring. Every test in tests/test_platform_divergence.py runs locally, including HotfixEndToEndTests::test_local_fix_with_regression_evidence_passes_without_a_new_release. None exercises the CI runner path.",
-      "id": "hotfix-friction-check-fails-in-ci",
-      "severity": "material",
-      "summary": "A valid hotfix cannot pass the project's CI. The divergence check, which runs from platform_doctor.py in the downstream CI workflow, requires the friction event id to exist in a machine-local log. That log is absent on a CI runner, so the check reports missing-friction-event for every hotfix. The hotfix PR then fails CI and cannot merge, which is the dead end the Requirement forbids."
-    },
-    {
-      "evidence": "template/dev-platform/blocking-gates.toml: the task-freshness entry has class = \"recoverable\" and recovery \"python3 scripts/reconcile_task.py ... if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop\". Known gap 3 says reconcile 'sets no override, so where the hook is installed a clean merge of a diverged task is blocked'. Its recovery_tests run without that hook. The merge-commit-hook entry is `hard-stop` with `migrated = false`.",
-      "id": "task-freshness-recovery-blocked-by-merge-hook",
+      "evidence": "openspec/changes/local-platform-hotfix/design.md decision 6 says 'platform_doctor.py and the project's full_commands trigger set include the check'. template/docs/engineering/change-classes.md says 'a project may also add it to the full_commands of its own project-owned dev-platform/checks.toml'. The only mandatory call site in the diff is check_platform_divergence_contract in template/scripts/platform_doctor.py, and it returns early for platform_version == 'source'. A project that never runs the doctor in CI could keep an undeclared or protected-file divergence without a blocking failure. The docs and the design should state the same thing.",
+      "id": "divergence-check-full-validation-wiring-optional",
       "severity": "advisory",
-      "summary": "The catalog marks task-freshness as `recoverable`, and its recovery is `reconcile_task.py`. The same catalog (known gap 3) records that where the pre-merge-commit hook is installed, `reconcile_task.py` is blocked by that hook, and no acceptance test covers the case. So the advertised recovery can be a dead end through another gate. The catalog discloses this and the recovery text says to stop and record friction. Even so, this is an unresolved no-exit state for a gate that is labelled recoverable."
-    },
-    {
-      "evidence": "template/dev-platform/protected-surface.toml hotfixable list contains scripts/run_test_groups.py, scripts/affected_test_groups.py, scripts/dev.py, scripts/check_docs_links.py, docs/engineering/openspec-workflow.md (semantic verification and receipts policy), docs/engineering/model-routing.md and docs/engineering/agent-instructions.md. The routing-provenance-evidence category says verification evidence must stay authentic. The blocking-check-recoverability design (decision 6) names the risk of 'patching an unprotected helper used by a protected gate' as one to mitigate. The hotfix design promises contract tests that protected scripts import only protected or vetted helpers, and I found no such test in the diff.",
-      "id": "hotfixable-includes-validation-and-agent-contract-files",
-      "severity": "advisory",
-      "summary": "The hotfixable list includes files that decide which checks run or define agent rules. A local hotfix could therefore weaken validation or process rules without touching the protected surface. The only remaining safeguard is independent PR review."
-    },
-    {
-      "evidence": "template/dev-platform/blocking-gates.toml known gap 4: 'A correct shared workspace that the check rejects wrongly (issue #427) has no local exit: shared_workspace.py is protected, so that defect needs a platform release.' template/dev-platform/protected-surface.toml classifies scripts/shared_workspace.py under worktree-isolation. No catalog entry has class `platform-defect`, as known gap 6 states.",
-      "id": "shared-workspace-defect-has-no-local-exit",
-      "severity": "advisory",
-      "summary": "A wrongly rejected correct shared workspace (issue #427, one of the motivating defects) still has no local hotfix or recovery path. shared_workspace.py is protected, and the catalog only records the gap. The Requirement allows an explicit justification of a hard stop. The `shared-workspace-admission` entry is classed `recoverable` and does not describe the platform-defect case."
+      "summary": "The hotfix design says the divergence check runs from platform_doctor.py and from the project's full_commands. The shipped wiring only guarantees the doctor. Adding it to full_commands is left to each project."
     }
   ],
-  "launched_at": "2026-10-11T14:04:46+00:00",
-  "output_sha256": "0e8d4758f94da700830af7d9d831bbb9d01db2affcb50b0a28d13511de124181",
+  "launched_at": "2026-10-11T15:16:12+00:00",
+  "output_sha256": "2869dfc796cf1e329a21b508e525c21aa26eab4ed8ce8a1bdefc39fdaa74dc56",
   "perspective": "spec-fidelity",
-  "request_id": "487511cd-fb78-46b5-a0dc-2b4d3065ef01",
+  "request_id": "e941d977-7589-4739-94f0-d4994c9fd4d1",
   "reviewer": {
-    "context_id": "365110aa-23ea-4d0e-8a3c-0aadc9ae69c7",
+    "context_id": "d225f1e4-8d10-4810-af9b-bcf9767e92cd",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-977a6732-689b-46e5-bc9c-31714e424b10",
+    "launch_id": "platform-launch-407c715a-7264-4e78-b8e0-3bd0b068023c",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 76521
+        "value": 52737
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 365658
+        "value": 185298
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 63888
+        "value": 28131
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 67171
+        "value": 29760
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6347
+        "value": 2679
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "241db390403f9c1934d7432f2502a83757558ea94966e70ba79090c89e38e00a"
+  "task_content_digest": "eb4faf1a75235751d678e922db390b71b9cb24a91ab94582ac4d6ff4ee2ee355"
 }
