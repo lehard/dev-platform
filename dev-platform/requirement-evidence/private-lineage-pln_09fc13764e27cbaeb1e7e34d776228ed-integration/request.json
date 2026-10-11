@@ -1,0 +1,222 @@
+{
+  "candidate": {
+    "base_head": "3533c299f356265154c811491070132e071c95f0",
+    "base_ref": "3533c299f356265154c811491070132e071c95f0",
+    "candidate_head": "9b78f9ad30e3f8ecf026620d2a6c3ba940bc357d",
+    "diff_sha256": "b6ebe9634e471fd19c0013db620b5c419b3ae95828c7004e0175d48d63a0a93b"
+  },
+  "change": "private-lineage-pln_09fc13764e27cbaeb1e7e34d776228ed-integration",
+  "children": [
+    {
+      "change": "downstream-change-classes",
+      "head": "a0d221172060743da307e8fa2a550cb6e5e8aef1",
+      "identity": {
+        "change": "downstream-change-classes",
+        "contribution_base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+        "kind": "contribution",
+        "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+        "source_issue": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+        "target_branch": "requirement/BR-526",
+        "task_content": {
+          "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+          "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+          "paths": {
+            "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+            "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+            "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+            "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+            "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+            "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+            "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+            "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+            "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+            "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+            "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+            "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+            "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+            "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+            "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+            "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+            "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-526/T1"
+      },
+      "reviewed_evidence_digest": "34c6e9fc99f0e968f36bed8159d27f4bdcbae3f4ddd0fb13cf98a96522385792"
+    },
+    {
+      "change": "local-platform-hotfix",
+      "head": "9ea844ea3d10786811b4532057ffc6580ed5ce44",
+      "identity": {
+        "change": "local-platform-hotfix",
+        "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+        "kind": "contribution",
+        "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+        "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+        "target_branch": "requirement/BR-526",
+        "task_content": {
+          "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+          "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+          "paths": {
+            "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+            "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+            "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+            "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+            "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+            "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+            "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+            "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+            "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+            "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+            "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+            "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+            "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+            "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+            "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+            "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+            "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+            "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+            "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+            "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-526/T3"
+      },
+      "reviewed_evidence_digest": "19e7cf4c7400cd174d7151c5ba3407664c8918352d49f05d1e33962c5e6fa5aa"
+    },
+    {
+      "change": "blocking-check-recoverability",
+      "head": "3ab8078f99f10d6b809eb68cc0d257135a3c4343",
+      "identity": {
+        "change": "blocking-check-recoverability",
+        "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+        "kind": "contribution",
+        "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+        "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+        "target_branch": "requirement/BR-526",
+        "task_content": {
+          "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+          "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+          "paths": {
+            "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+            "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+            "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+            "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+            "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+            "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+            "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+            "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+            "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+            "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+            "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+            "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+            "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+            "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+            "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+            "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+            "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+            "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+            "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+            "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+            "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+            "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+            "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+            "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+            "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+            "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+            "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+            "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-526/T2"
+      },
+      "reviewed_evidence_digest": "3fc37afc724c334821f2e64ac96804d0213bbb6708f1aec3a7235380d8df6b2b"
+    }
+  ],
+  "fresh_context_required": true,
+  "kind": "requirement-composition",
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: \u041f\u0440\u043e\u0435\u043a\u0442\u044b \u0441 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u043e\u0439 Dev Platform \u043d\u0435 \u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e\u0442 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u0443\u044e \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u043a\u0443 \u0438\u0437-\u0437\u0430 \u0443\u0441\u0442\u0440\u0430\u043d\u0438\u043c\u043e\u0433\u043e \u0434\u0435\u0444\u0435\u043a\u0442\u0430 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0435\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u0445\u0430\u043d\u0438\u0437\u043c\u0430: \u0434\u043b\u044f \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u043d\u043e\u0433\u043e \u043a\u043b\u0430\u0441\u0441\u0430 \u043e\u0448\u0438\u0431\u043e\u043a \u0440\u0430\u0437\u0440\u0435\u0448\u0451\u043d **\u043a\u043e\u043d\u0442\u0440\u043e\u043b\u0438\u0440\u0443\u0435\u043c\u044b\u0439 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 hotfix** \u0431\u0435\u0437 \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u044f \u043e\u0447\u0435\u0440\u0435\u0434\u043d\u043e\u0433\u043e \u0440\u0435\u043b\u0438\u0437\u0430 Dev Platform, \u0441 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435\u043c \u0432\u0441\u0435\u0445 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438, \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u0438 \u043f\u0440\u043e\u0441\u043b\u0435\u0436\u0438\u0432\u0430\u0435\u043c\u043e\u0441\u0442\u0438.\n\n\u041f\u0440\u0438 \u044d\u0442\u043e\u043c \u043d\u043e\u0432\u044b\u0435 \u0431\u043b\u043e\u043a\u0438\u0440\u0443\u044e\u0449\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u044b \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u044e\u0442 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0445 \u0431\u0435\u0437\u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0445 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0439: \u0434\u043b\u044f \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u043d\u043e\u0433\u043e \u043e\u0442\u043a\u0430\u0437\u0430 \u043f\u0440\u0435\u0434\u0443\u0441\u043c\u043e\u0442\u0440\u0435\u043d \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c\u044b\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 \u0441\u043f\u043e\u0441\u043e\u0431 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f **\u043b\u0438\u0431\u043e** \u044f\u0432\u043d\u043e \u043e\u0431\u043e\u0441\u043d\u043e\u0432\u0430\u043d \u043d\u0435\u0438\u0437\u0431\u0435\u0436\u043d\u044b\u0439 \u0436\u0451\u0441\u0442\u043a\u0438\u0439 \u043e\u0441\u0442\u0430\u043d\u043e\u0432. \u0410\u0433\u0435\u043d\u0442 \u043d\u0435 \u0434\u043e\u043b\u0436\u0435\u043d \u0432\u044b\u0431\u0438\u0440\u0430\u0442\u044c \u043c\u0435\u0436\u0434\u0443 \u043d\u0435\u0441\u0430\u043d\u043a\u0446\u0438\u043e\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u043c \u043e\u0431\u0445\u043e\u0434\u043e\u043c \u0437\u0430\u0449\u0438\u0442\u044b \u0438 \u043d\u0435\u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0451\u043d\u043d\u044b\u043c \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u0435\u043c \u0440\u0435\u043b\u0438\u0437\u0430, \u043a\u043e\u0433\u0434\u0430 \u0434\u043e\u043f\u0443\u0441\u0442\u0438\u043c\u044b\u0439 \u043f\u0443\u0442\u044c \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442.\nReviewed children: [{\"change\": \"downstream-change-classes\", \"head\": \"a0d221172060743da307e8fa2a550cb6e5e8aef1\", \"identity\": {\"change\": \"downstream-change-classes\", \"contribution_base\": \"a4d99eab8579e170648f02d1675cd8dde0bfd44b\", \"kind\": \"contribution\", \"requirement\": \"pln_09fc13764e27cbaeb1e7e34d776228ed\", \"source_issue\": \"pln_1eae5c277ccecb82dda5ceb2a5740403\", \"target_branch\": \"requirement/BR-526\", \"task_content\": {\"base\": \"a4d99eab8579e170648f02d1675cd8dde0bfd44b\", \"digest\": \"99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c\", \"paths\": {\"AGENTS.md\": \"98100e4a692dc603838a5d783446a940f0d79325\", \"dev-platform/checks.toml\": \"59d346b8228e790bb5abf06d3a8f5d40861cada4\", \"docs/ownership.md\": \"52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2\", \"openspec/changes/downstream-change-classes/.managed-task.json\": \"0461309ff5eb827019ce8a8f1a2fe4fcdabea36f\", \"openspec/changes/downstream-change-classes/.openspec.yaml\": \"53f62d70601ea15c704cee870a71fc2240581898\", \"openspec/changes/downstream-change-classes/design.md\": \"8a879c03fd49545ef3b2e600f64b3042fb80d395\", \"openspec/changes/downstream-change-classes/proposal.md\": \"cace9a641bcbb5fffc6b879dc585887ab53f455f\", \"openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md\": \"78ca8ba841373772159ea82344f38a13ae13b7ea\", \"openspec/changes/downstream-change-classes/tasks.md\": \"a3afe6b56a5ffb8772717cd662a5b8797fc0d663\", \"template/AGENTS.md.jinja\": \"a6585c1761e540ecaaf90db5623587433d094876\", \"template/dev-platform/protected-surface.toml\": \"fb9152faf3ee0570092096d233ae731acefb2b5e\", \"template/docs/README.md\": \"5fd713497943db5385ce2bac3b5e5089ef1c16d9\", \"template/docs/engineering/change-classes.md\": \"359ba7fb4688010846537e1bcf0523e02394e8c6\", \"tests/test_protected_surface.py\": \"6c75a0b23a98d30550440f09dc88046c021d298c\", \"tests/test_root_guidance_contract.py\": \"daf251b2524ed2bd7695573ce7078df119ac3f1a\", \"tests/test_template_contract.py\": \"272e6bb28c08c92f82d8dab190ea0d255bcd10bd\", \"tests/upgrade_smoke.py\": \"b58faaf460e90458e55baae3bcf95684a4e3e27c\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-526/T1\"}, \"reviewed_evidence_digest\": \"34c6e9fc99f0e968f36bed8159d27f4bdcbae3f4ddd0fb13cf98a96522385792\"}, {\"change\": \"local-platform-hotfix\", \"head\": \"9ea844ea3d10786811b4532057ffc6580ed5ce44\", \"identity\": {\"change\": \"local-platform-hotfix\", \"contribution_base\": \"994174dcdcc7f7b1f473ea952fbc83ba88b7b190\", \"kind\": \"contribution\", \"requirement\": \"pln_09fc13764e27cbaeb1e7e34d776228ed\", \"source_issue\": \"pln_20106e9811f812c090647ada5931f2e1\", \"target_branch\": \"requirement/BR-526\", \"task_content\": {\"base\": \"994174dcdcc7f7b1f473ea952fbc83ba88b7b190\", \"digest\": \"6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10\", \"paths\": {\"copier.yml\": \"51b6d0aba53d89b6edeafa739c206c337616d3ec\", \"dev-platform/checks.toml\": \"64294cbcada2ed6b76c73fbf6bb234baa444833e\", \"openspec/changes/local-platform-hotfix/.managed-task.json\": \"674ed8a1f9d8c8c1896153ea7da6141e86e69ebc\", \"openspec/changes/local-platform-hotfix/.openspec.yaml\": \"a369219628ff8b409dab0cc6549c53080045fd98\", \"openspec/changes/local-platform-hotfix/design.md\": \"83dc9e09b13e8b6f761a12da7ca97979a837fef7\", \"openspec/changes/local-platform-hotfix/proposal.md\": \"1391693cffd74179e3d8a7ef022010f1b30dd83e\", \"openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md\": \"2649512ffddd9bb9eeb04feeb967e6eaee85b3b7\", \"openspec/changes/local-platform-hotfix/tasks.md\": \"745402f11c1cda23cb8d2d0d50c25e861c0f8b84\", \"scripts/generate_platform_manifest.py\": \"d5bda2dc1adec8997cb23012cc372e277a1d2a61\", \"template/dev-platform/local-hotfixes.toml\": \"0a9f888f75b8903622bd2b02463f87026bd59f5c\", \"template/dev-platform/platform-manifest.json\": \"b9f0d993db12ca496e749a7021bfae82dcdbd286\", \"template/dev-platform/protected-surface.toml\": \"2173a7d741d657485ce823d3582afc1940d5469f\", \"template/docs/engineering/change-classes.md\": \"0d92a0b9bebe3e8e69fdf67e854a90d7d612622d\", \"template/scripts/platform_divergence.py\": \"7e7303f0ecc02f11dc75d1f505c7bc71505d833a\", \"template/scripts/platform_doctor.py\": \"bbb6b6433325595676da31657c1c1bdbc2cb09ab\", \"tests/test_platform_divergence.py\": \"2b021e4deb67f69c3529ea06965f0ad2ee37d776\", \"tests/test_platform_manifest.py\": \"446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90\", \"tests/test_protected_surface.py\": \"eaedd0ee75d1f2e3573675da414a4adb6f55a68b\", \"tests/test_template_contract.py\": \"c2736cedd159ebc0ffd3f7a0a81d17b17e294de3\", \"tests/upgrade_smoke.py\": \"10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-526/T3\"}, \"reviewed_evidence_digest\": \"19e7cf4c7400cd174d7151c5ba3407664c8918352d49f05d1e33962c5e6fa5aa\"}, {\"change\": \"blocking-check-recoverability\", \"head\": \"3ab8078f99f10d6b809eb68cc0d257135a3c4343\", \"identity\": {\"change\": \"blocking-check-recoverability\", \"contribution_base\": \"20c3fc5fa729848772063cf18476f89ba43f7cb7\", \"kind\": \"contribution\", \"requirement\": \"pln_09fc13764e27cbaeb1e7e34d776228ed\", \"source_issue\": \"pln_ead93c5f23a43178e888677527c8cd70\", \"target_branch\": \"requirement/BR-526\", \"task_content\": {\"base\": \"20c3fc5fa729848772063cf18476f89ba43f7cb7\", \"digest\": \"0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00\", \"paths\": {\"dev-platform/checks.toml\": \"33ad3adcff318f8a32c095de11a3736d0550e6f9\", \"openspec/changes/blocking-check-recoverability/.managed-task.json\": \"5b45b300f3fa749b29bb6ddfddfc09359069e056\", \"openspec/changes/blocking-check-recoverability/.openspec.yaml\": \"a369219628ff8b409dab0cc6549c53080045fd98\", \"openspec/changes/blocking-check-recoverability/design.md\": \"e3812b67cf39e3fb55809b617dd6da4a0bff75fe\", \"openspec/changes/blocking-check-recoverability/proposal.md\": \"256bf87f353a8d6749f8f74b875b014fff0aba4e\", \"openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md\": \"5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8\", \"openspec/changes/blocking-check-recoverability/tasks.md\": \"3d39e0fddde78111f7b5ced667808536b04693b0\", \"template/dev-platform/blocking-gates.toml\": \"2e2b56a7c29bc108268ae10774f1fb6dfb45ae90\", \"template/dev-platform/platform-manifest.json\": \"1022fa249785b8de26b33b2fc698ac6c817146a6\", \"template/dev-platform/protected-surface.toml\": \"ed97c003262f2b47a538b06e4e0b1e10b76acc47\", \"template/docs/engineering/change-classes.md\": \"5d343b76fa822bf59a15d517d3d6489da2ae647a\", \"template/scripts/_platform_common.py\": \"f3ee955bbfac42d40fb3dc90ae6ef47e83828155\", \"template/scripts/agent_board.py\": \"848c852163aeacceba44684f8956bb7e06382f20\", \"template/scripts/model_routing.py\": \"d7cdce0151d97f71af19ab5ba20e0a875049e375\", \"template/scripts/platform_divergence.py\": \"a9ab17436038fbaa67ff02003408b474aead695e\", \"template/scripts/publication_queue.py\": \"52785c3328282ebb37334e0f2dd3d132026cb9d1\", \"template/scripts/select_checks.py\": \"1bdd97aeae178fb2bfbf1d4c4774e3172015dbec\", \"template/scripts/shared_workspace.py\": \"4dc43ce0d2b2bf729be315730763bd872e46a785\", \"tests/test_blocking_gates.py\": \"f162033093a91977bae1afe18f994df571fa0476\", \"tests/test_coordinator_preflight.py\": \"b40f7747253ab831e7dad74e7fb81acc3b32227f\", \"tests/test_git_lifecycle.py\": \"f4defc8ee730106ecf18a7cac8c395ab315dad16\", \"tests/test_model_routing.py\": \"1a4cbc43f3ade88284b1ef07a3c92d78376aa63a\", \"tests/test_select_checks.py\": \"71aeb41d9911df7ab3c0d136a590125539355a82\", \"tests/test_shared_workspace.py\": \"02075983e7915f40c294b21db3c6e5af41a75280\", \"tests/test_task_freshness.py\": \"5caed99780bf04d42247e2a978533a259b919402\", \"tests/test_template_contract.py\": \"160371ad36fdadead83e0001487722971c1c4ef5\", \"tests/test_worktree_hygiene.py\": \"85b9dfe203f129854efa5fd7dcd3d1f3a36069f1\", \"tests/upgrade_smoke.py\": \"2d7844f23247a8d0668887e53d611072f7dc4a77\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-526/T2\"}, \"reviewed_evidence_digest\": \"3fc37afc724c334821f2e64ac96804d0213bbb6708f1aec3a7235380d8df6b2b\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: \u041f\u0440\u043e\u0435\u043a\u0442\u044b \u0441 \u0443\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u043e\u0439 Dev Platform \u043d\u0435 \u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e\u0442 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u0443\u044e \u0440\u0430\u0437\u0440\u0430\u0431\u043e\u0442\u043a\u0443 \u0438\u0437-\u0437\u0430 \u0443\u0441\u0442\u0440\u0430\u043d\u0438\u043c\u043e\u0433\u043e \u0434\u0435\u0444\u0435\u043a\u0442\u0430 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u0435\u043d\u043d\u043e\u0433\u043e \u043c\u0435\u0445\u0430\u043d\u0438\u0437\u043c\u0430: \u0434\u043b\u044f \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u043d\u043e\u0433\u043e \u043a\u043b\u0430\u0441\u0441\u0430 \u043e\u0448\u0438\u0431\u043e\u043a \u0440\u0430\u0437\u0440\u0435\u0448\u0451\u043d **\u043a\u043e\u043d\u0442\u0440\u043e\u043b\u0438\u0440\u0443\u0435\u043c\u044b\u0439 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 hotfix** \u0431\u0435\u0437 \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u044f \u043e\u0447\u0435\u0440\u0435\u0434\u043d\u043e\u0433\u043e \u0440\u0435\u043b\u0438\u0437\u0430 Dev Platform, \u0441 \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u0438\u0435\u043c \u0432\u0441\u0435\u0445 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u0433\u0430\u0440\u0430\u043d\u0442\u0438\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438, \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u0438 \u043f\u0440\u043e\u0441\u043b\u0435\u0436\u0438\u0432\u0430\u0435\u043c\u043e\u0441\u0442\u0438.\n\n\u041f\u0440\u0438 \u044d\u0442\u043e\u043c \u043d\u043e\u0432\u044b\u0435 \u0431\u043b\u043e\u043a\u0438\u0440\u0443\u044e\u0449\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u044b \u043d\u0435 \u0441\u043e\u0437\u0434\u0430\u044e\u0442 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0445 \u0431\u0435\u0437\u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0445 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0439: \u0434\u043b\u044f \u043e\u0431\u043d\u0430\u0440\u0443\u0436\u0435\u043d\u043d\u043e\u0433\u043e \u043e\u0442\u043a\u0430\u0437\u0430 \u043f\u0440\u0435\u0434\u0443\u0441\u043c\u043e\u0442\u0440\u0435\u043d \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c\u044b\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 \u0441\u043f\u043e\u0441\u043e\u0431 \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f **\u043b\u0438\u0431\u043e** \u044f\u0432\u043d\u043e \u043e\u0431\u043e\u0441\u043d\u043e\u0432\u0430\u043d \u043d\u0435\u0438\u0437\u0431\u0435\u0436\u043d\u044b\u0439 \u0436\u0451\u0441\u0442\u043a\u0438\u0439 \u043e\u0441\u0442\u0430\u043d\u043e\u0432. \u0410\u0433\u0435\u043d\u0442 \u043d\u0435 \u0434\u043e\u043b\u0436\u0435\u043d \u0432\u044b\u0431\u0438\u0440\u0430\u0442\u044c \u043c\u0435\u0436\u0434\u0443 \u043d\u0435\u0441\u0430\u043d\u043a\u0446\u0438\u043e\u043d\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u043c \u043e\u0431\u0445\u043e\u0434\u043e\u043c \u0437\u0430\u0449\u0438\u0442\u044b \u0438 \u043d\u0435\u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0451\u043d\u043d\u044b\u043c \u043e\u0436\u0438\u0434\u0430\u043d\u0438\u0435\u043c \u0440\u0435\u043b\u0438\u0437\u0430, \u043a\u043e\u0433\u0434\u0430 \u0434\u043e\u043f\u0443\u0441\u0442\u0438\u043c\u044b\u0439 \u043f\u0443\u0442\u044c \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u0435\u0442.\nReviewed children: [{\"change\": \"downstream-change-classes\", \"head\": \"a0d221172060743da307e8fa2a550cb6e5e8aef1\", \"identity\": {\"change\": \"downstream-change-classes\", \"contribution_base\": \"a4d99eab8579e170648f02d1675cd8dde0bfd44b\", \"kind\": \"contribution\", \"requirement\": \"pln_09fc13764e27cbaeb1e7e34d776228ed\", \"source_issue\": \"pln_1eae5c277ccecb82dda5ceb2a5740403\", \"target_branch\": \"requirement/BR-526\", \"task_content\": {\"base\": \"a4d99eab8579e170648f02d1675cd8dde0bfd44b\", \"digest\": \"99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c\", \"paths\": {\"AGENTS.md\": \"98100e4a692dc603838a5d783446a940f0d79325\", \"dev-platform/checks.toml\": \"59d346b8228e790bb5abf06d3a8f5d40861cada4\", \"docs/ownership.md\": \"52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2\", \"openspec/changes/downstream-change-classes/.managed-task.json\": \"0461309ff5eb827019ce8a8f1a2fe4fcdabea36f\", \"openspec/changes/downstream-change-classes/.openspec.yaml\": \"53f62d70601ea15c704cee870a71fc2240581898\", \"openspec/changes/downstream-change-classes/design.md\": \"8a879c03fd49545ef3b2e600f64b3042fb80d395\", \"openspec/changes/downstream-change-classes/proposal.md\": \"cace9a641bcbb5fffc6b879dc585887ab53f455f\", \"openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md\": \"78ca8ba841373772159ea82344f38a13ae13b7ea\", \"openspec/changes/downstream-change-classes/tasks.md\": \"a3afe6b56a5ffb8772717cd662a5b8797fc0d663\", \"template/AGENTS.md.jinja\": \"a6585c1761e540ecaaf90db5623587433d094876\", \"template/dev-platform/protected-surface.toml\": \"fb9152faf3ee0570092096d233ae731acefb2b5e\", \"template/docs/README.md\": \"5fd713497943db5385ce2bac3b5e5089ef1c16d9\", \"template/docs/engineering/change-classes.md\": \"359ba7fb4688010846537e1bcf0523e02394e8c6\", \"tests/test_protected_surface.py\": \"6c75a0b23a98d30550440f09dc88046c021d298c\", \"tests/test_root_guidance_contract.py\": \"daf251b2524ed2bd7695573ce7078df119ac3f1a\", \"tests/test_template_contract.py\": \"272e6bb28c08c92f82d8dab190ea0d255bcd10bd\", \"tests/upgrade_smoke.py\": \"b58faaf460e90458e55baae3bcf95684a4e3e27c\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-526/T1\"}, \"reviewed_evidence_digest\": \"34c6e9fc99f0e968f36bed8159d27f4bdcbae3f4ddd0fb13cf98a96522385792\"}, {\"change\": \"local-platform-hotfix\", \"head\": \"9ea844ea3d10786811b4532057ffc6580ed5ce44\", \"identity\": {\"change\": \"local-platform-hotfix\", \"contribution_base\": \"994174dcdcc7f7b1f473ea952fbc83ba88b7b190\", \"kind\": \"contribution\", \"requirement\": \"pln_09fc13764e27cbaeb1e7e34d776228ed\", \"source_issue\": \"pln_20106e9811f812c090647ada5931f2e1\", \"target_branch\": \"requirement/BR-526\", \"task_content\": {\"base\": \"994174dcdcc7f7b1f473ea952fbc83ba88b7b190\", \"digest\": \"6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10\", \"paths\": {\"copier.yml\": \"51b6d0aba53d89b6edeafa739c206c337616d3ec\", \"dev-platform/checks.toml\": \"64294cbcada2ed6b76c73fbf6bb234baa444833e\", \"openspec/changes/local-platform-hotfix/.managed-task.json\": \"674ed8a1f9d8c8c1896153ea7da6141e86e69ebc\", \"openspec/changes/local-platform-hotfix/.openspec.yaml\": \"a369219628ff8b409dab0cc6549c53080045fd98\", \"openspec/changes/local-platform-hotfix/design.md\": \"83dc9e09b13e8b6f761a12da7ca97979a837fef7\", \"openspec/changes/local-platform-hotfix/proposal.md\": \"1391693cffd74179e3d8a7ef022010f1b30dd83e\", \"openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md\": \"2649512ffddd9bb9eeb04feeb967e6eaee85b3b7\", \"openspec/changes/local-platform-hotfix/tasks.md\": \"745402f11c1cda23cb8d2d0d50c25e861c0f8b84\", \"scripts/generate_platform_manifest.py\": \"d5bda2dc1adec8997cb23012cc372e277a1d2a61\", \"template/dev-platform/local-hotfixes.toml\": \"0a9f888f75b8903622bd2b02463f87026bd59f5c\", \"template/dev-platform/platform-manifest.json\": \"b9f0d993db12ca496e749a7021bfae82dcdbd286\", \"template/dev-platform/protected-surface.toml\": \"2173a7d741d657485ce823d3582afc1940d5469f\", \"template/docs/engineering/change-classes.md\": \"0d92a0b9bebe3e8e69fdf67e854a90d7d612622d\", \"template/scripts/platform_divergence.py\": \"7e7303f0ecc02f11dc75d1f505c7bc71505d833a\", \"template/scripts/platform_doctor.py\": \"bbb6b6433325595676da31657c1c1bdbc2cb09ab\", \"tests/test_platform_divergence.py\": \"2b021e4deb67f69c3529ea06965f0ad2ee37d776\", \"tests/test_platform_manifest.py\": \"446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90\", \"tests/test_protected_surface.py\": \"eaedd0ee75d1f2e3573675da414a4adb6f55a68b\", \"tests/test_template_contract.py\": \"c2736cedd159ebc0ffd3f7a0a81d17b17e294de3\", \"tests/upgrade_smoke.py\": \"10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-526/T3\"}, \"reviewed_evidence_digest\": \"19e7cf4c7400cd174d7151c5ba3407664c8918352d49f05d1e33962c5e6fa5aa\"}, {\"change\": \"blocking-check-recoverability\", \"head\": \"3ab8078f99f10d6b809eb68cc0d257135a3c4343\", \"identity\": {\"change\": \"blocking-check-recoverability\", \"contribution_base\": \"20c3fc5fa729848772063cf18476f89ba43f7cb7\", \"kind\": \"contribution\", \"requirement\": \"pln_09fc13764e27cbaeb1e7e34d776228ed\", \"source_issue\": \"pln_ead93c5f23a43178e888677527c8cd70\", \"target_branch\": \"requirement/BR-526\", \"task_content\": {\"base\": \"20c3fc5fa729848772063cf18476f89ba43f7cb7\", \"digest\": \"0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00\", \"paths\": {\"dev-platform/checks.toml\": \"33ad3adcff318f8a32c095de11a3736d0550e6f9\", \"openspec/changes/blocking-check-recoverability/.managed-task.json\": \"5b45b300f3fa749b29bb6ddfddfc09359069e056\", \"openspec/changes/blocking-check-recoverability/.openspec.yaml\": \"a369219628ff8b409dab0cc6549c53080045fd98\", \"openspec/changes/blocking-check-recoverability/design.md\": \"e3812b67cf39e3fb55809b617dd6da4a0bff75fe\", \"openspec/changes/blocking-check-recoverability/proposal.md\": \"256bf87f353a8d6749f8f74b875b014fff0aba4e\", \"openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md\": \"5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8\", \"openspec/changes/blocking-check-recoverability/tasks.md\": \"3d39e0fddde78111f7b5ced667808536b04693b0\", \"template/dev-platform/blocking-gates.toml\": \"2e2b56a7c29bc108268ae10774f1fb6dfb45ae90\", \"template/dev-platform/platform-manifest.json\": \"1022fa249785b8de26b33b2fc698ac6c817146a6\", \"template/dev-platform/protected-surface.toml\": \"ed97c003262f2b47a538b06e4e0b1e10b76acc47\", \"template/docs/engineering/change-classes.md\": \"5d343b76fa822bf59a15d517d3d6489da2ae647a\", \"template/scripts/_platform_common.py\": \"f3ee955bbfac42d40fb3dc90ae6ef47e83828155\", \"template/scripts/agent_board.py\": \"848c852163aeacceba44684f8956bb7e06382f20\", \"template/scripts/model_routing.py\": \"d7cdce0151d97f71af19ab5ba20e0a875049e375\", \"template/scripts/platform_divergence.py\": \"a9ab17436038fbaa67ff02003408b474aead695e\", \"template/scripts/publication_queue.py\": \"52785c3328282ebb37334e0f2dd3d132026cb9d1\", \"template/scripts/select_checks.py\": \"1bdd97aeae178fb2bfbf1d4c4774e3172015dbec\", \"template/scripts/shared_workspace.py\": \"4dc43ce0d2b2bf729be315730763bd872e46a785\", \"tests/test_blocking_gates.py\": \"f162033093a91977bae1afe18f994df571fa0476\", \"tests/test_coordinator_preflight.py\": \"b40f7747253ab831e7dad74e7fb81acc3b32227f\", \"tests/test_git_lifecycle.py\": \"f4defc8ee730106ecf18a7cac8c395ab315dad16\", \"tests/test_model_routing.py\": \"1a4cbc43f3ade88284b1ef07a3c92d78376aa63a\", \"tests/test_select_checks.py\": \"71aeb41d9911df7ab3c0d136a590125539355a82\", \"tests/test_shared_workspace.py\": \"02075983e7915f40c294b21db3c6e5af41a75280\", \"tests/test_task_freshness.py\": \"5caed99780bf04d42247e2a978533a259b919402\", \"tests/test_template_contract.py\": \"160371ad36fdadead83e0001487722971c1c4ef5\", \"tests/test_worktree_hygiene.py\": \"85b9dfe203f129854efa5fd7dcd3d1f3a36069f1\", \"tests/upgrade_smoke.py\": \"2d7844f23247a8d0668887e53d611072f7dc4a77\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-526/T2\"}, \"reviewed_evidence_digest\": \"3fc37afc724c334821f2e64ac96804d0213bbb6708f1aec3a7235380d8df6b2b\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-11T12:08:58+00:00",
+  "request_id": "d2cf20cd-75e0-4b27-8c1b-4bd12d324486",
+  "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+  "schema_version": 1,
+  "task_content": {
+    "base": "8e029719e31b28346cf7810948dabc3477a2d599",
+    "digest": "051ec4a2f20dc332470a94b602c147ce0c742832a7baa89b26ad7c8adf6ea791",
+    "paths": {
+      "AGENTS.md": "ea26cd829525839b4bf6dda55f2a239c76f969e2",
+      "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+      "dev-platform/checks.toml": "25e0df82797f6ef07a96962016291763b3782862",
+      "docs/ownership.md": "4f69261228a53cce5fd9345dc07441cec4367eb1",
+      "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+      "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+      "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+      "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+      "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+      "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+      "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+      "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+      "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+      "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+      "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+      "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+      "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+      "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+      "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+      "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+      "template/AGENTS.md.jinja": "ae6e1ecc54d81b8ca2aa67031d10e00cb9a3c31c",
+      "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+      "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+      "template/dev-platform/platform-manifest.json": "7b2590563c589380d68ec5324d8bce7a077d99ad",
+      "template/dev-platform/protected-surface.toml": "40e4991dbde7244b250807ef75fe7aff521b0e42",
+      "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+      "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+      "template/scripts/_platform_common.py": "42ce6b12bbbc7020d1ad1e985e0f0ffd3eed56a8",
+      "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+      "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+      "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+      "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+      "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+      "template/scripts/select_checks.py": "b48daa1a3dd687c2c1511409b97060d357d49504",
+      "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+      "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+      "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+      "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+      "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+      "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+      "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+      "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+      "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+      "tests/test_select_checks.py": "c6d41cb70b461603201fa0bab78311560f7a345b",
+      "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+      "tests/test_task_freshness.py": "64ce7620a8b1c68ce16f4814f104e02a1e880d93",
+      "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+      "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+      "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+    },
+    "scope": "requirement-composition-v1",
+    "version": 1
+  }
+}

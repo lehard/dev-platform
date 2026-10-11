@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3533c299f356265154c811491070132e071c95f0",
+    "base_ref": "3533c299f356265154c811491070132e071c95f0",
+    "candidate_head": "9b78f9ad30e3f8ecf026620d2a6c3ba940bc357d",
+    "diff_sha256": "b6ebe9634e471fd19c0013db620b5c419b3ae95828c7004e0175d48d63a0a93b"
+  },
+  "completed_at": "2026-10-11T12:09:46+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/platform_divergence.py:2404-2425 and 2556-2565 compare each file with `manifest['files']`, and `MANIFEST_PATH` is not one of those files. generate_platform_manifest.py:787 skips it (`relative == MANIFEST_RENDERED`). `is_protected` (2551) only matters when a hotfix record names the manifest. A local edit that rewrites a protected script and updates its digest in the manifest therefore gives `platform_divergence: OK`. The protected-touch detection that the hotfix and recovery outcome relies on has no anchor outside the project. The only remaining control is independent PR review, which the design presents as a second layer. The spec scenario (local-platform-hotfix spec.md:606) and design.md:538 overstate what is enforced. Either narrow the spec text to say that manifest tampering is covered only by review, or add an external anchor such as a release-tag digest.",
+      "id": "manifest-self-edit-undetected",
+      "severity": "material",
+      "summary": "The spec says the divergence check fails when the manifest is modified, and design decision 6 says a project cannot edit the manifest or check away without the check failing. The check cannot detect an edit to the manifest."
+    },
+    {
+      "evidence": "copier.yml:37-49 adds `ci_runner` and `ci_runner_labels`. docs/ownership.md:20 adds the `explorer/` paragraph. dev-platform/checks.toml adds the targets `test_build_explorer`, `test_explorer_workflow` and `test_ci_runner_selection`. None of these appear in the task_content paths of T1, T2 or T3, so they look like main-line content merged in. Confirm they come from the base merge and not from unreviewed Requirement work.",
+      "id": "unrelated-copier-and-explorer-changes",
+      "severity": "advisory",
+      "summary": "The candidate diff contains `ci_runner` Copier options and a Platform Explorer ownership paragraph. No reviewed child owns them, so they fall outside the three child contracts."
+    },
+    {
+      "evidence": "template/dev-platform/blocking-gates.toml header: notes run 1-8, then 10, 11, 9. Note 1 says other gates 'are not inventoried yet'. Note 7 says completeness is 'reported here, not asserted'. This is consistent with the T2 spec, but the ordering makes the recorded follow-ups, notably 3 (merge hook versus reconcile) and 9 (`--no-checks`), harder to audit.",
+      "id": "blocking-gates-catalog-note-order",
+      "severity": "advisory",
+      "summary": "The known-gaps notes in the gate catalog header are numbered out of order, and the notes mix stale and current statements about what the catalog covers."
+    }
+  ],
+  "launched_at": "2026-10-11T12:09:08+00:00",
+  "output_sha256": "64eb36f3108da4220c7203e807a661aa610dd024840b8f3b2d578601d9266776",
+  "perspective": "spec-fidelity",
+  "request_id": "d2cf20cd-75e0-4b27-8c1b-4bd12d324486",
+  "reviewer": {
+    "context_id": "9457237e-a94e-42cd-963c-6ef5680bd796",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-568372bc-1277-4baa-93b0-4a7c854c8084",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57958
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 233225
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33697
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36403
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3156
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "051ec4a2f20dc332470a94b602c147ce0c742832a7baa89b26ad7c8adf6ea791"
+}

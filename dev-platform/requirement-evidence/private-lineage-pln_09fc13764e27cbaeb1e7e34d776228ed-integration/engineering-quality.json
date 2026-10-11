@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3533c299f356265154c811491070132e071c95f0",
+    "base_ref": "3533c299f356265154c811491070132e071c95f0",
+    "candidate_head": "9b78f9ad30e3f8ecf026620d2a6c3ba940bc357d",
+    "diff_sha256": "b6ebe9634e471fd19c0013db620b5c419b3ae95828c7004e0175d48d63a0a93b"
+  },
+  "completed_at": "2026-10-11T12:10:43+00:00",
+  "findings": [
+    {
+      "evidence": "template/dev-platform/blocking-gates.toml (candidate.diff ~993-1019) puts `contribution-base-freshness` and `proven-base-freshness` in `scripts/select_checks.py` as `hard-stop`. The latter's justification is \"intentional: the proven base comes from reviewed evidence; no agent-side repair\". `scope-overlap` (a worktree-isolation guard) sits in `scripts/agent_board.py`. protected-surface.toml lists `scripts/select_checks.py` and `scripts/agent_board.py` in `hotfixable` (diff lines ~1385 and ~1402). T3's tests even use `select_checks.py` as the example hotfixable path (candidate.diff ~4054-4056). tests/test_blocking_gates.py:`test_every_gate_script_exists_in_the_template_and_is_classified` only asserts the script is \"protected\" or \"hotfixable\". It never requires a hard-stop gate's script to be protected, so nothing detects the contradiction. The `task-freshness` recovery tells the agent to stop and not override the hook, but the same file can be patched locally.",
+      "id": "hard-stop-gates-in-hotfixable-scripts",
+      "severity": "material",
+      "summary": "Cross-child conflict between the T1/T3 hotfix classification and the T2 gate catalog. Three gates cataloged as non-bypassable hard-stops (or no-agent-side-repair) are implemented in scripts that protected-surface.toml lists as `hotfixable`. A local hotfix can therefore weaken them. That contradicts the Requirement's guarantee that a hotfix cannot weaken routing, provenance, evidence or isolation protections."
+    },
+    {
+      "evidence": "blocking-gates.toml known gap 6: \"No inventoried gate currently reports itself as platform-defect\". Gap 4: the shared-workspace #427 false rejection has no local exit because `shared_workspace.py` is protected. The Requirement outcome (no dead end) is met only by a documented follow-up.",
+      "id": "platform-defect-class-unused-and-unreachable",
+      "severity": "advisory",
+      "summary": "The `platform-defect` failure class has no catalog entry, so the 'hotfix when the implementing file is hotfixable' message path is never emitted for real gates. The Requirement's goal of pointing an agent to the hotfix flow for a defective check is only reachable through the generic docs."
+    },
+    {
+      "evidence": "blocking-gates.toml known gaps 2 and 3. The `task-freshness` recovery names `reconcile_task.py`, which gap 3 says is itself blocked by the hook where installed. Gap 3 also notes that no acceptance test covers completing a conflict resolution.",
+      "id": "known-gaps-leave-dead-ends",
+      "severity": "advisory",
+      "summary": "The catalog openly records unresolved dead ends: a clean reconcile merge is blocked by the installed pre-merge-commit hook, and delegated-write containment has only a refused historical recovery. The Requirement's 'verifiable recovery or justified hard stop' is not satisfied for these. Two gates are cataloged as recoverable with caveats, and the `merge-commit-hook` entry is hard-stop while the reconcile recovery relies on it."
+    },
+    {
+      "evidence": "candidate.diff lines 37-49 (copier.yml `ci_runner`), 129 (docs/ownership.md Explorer paragraph), 122-124 and 90-98 and 117 (checks.toml targets). The archive directory also holds matching archived changes `publish-platform-explorer` and `platform-ci-runner-selection`.",
+      "id": "unrelated-scope-in-candidate-diff",
+      "severity": "advisory",
+      "summary": "The candidate diff includes changes outside the three reviewed children: `ci_runner` options in copier.yml, Platform Explorer text in docs/ownership.md, and new test targets (`test_build_explorer`, `test_explorer_workflow`, `test_ci_runner_selection`, `test_requirement_authoring`, `test_finish_merged_queue`). These appear to come from merges of main. The reviewed identities do not cover them, and the platform manifest and checks.toml now mix them with the Requirement's changes."
+    }
+  ],
+  "launched_at": "2026-10-11T12:09:46+00:00",
+  "output_sha256": "b8e19dfd96a50b268a743a78c69624abed162de7a6a35b205ce55805a2f86f42",
+  "perspective": "engineering-quality",
+  "request_id": "d2cf20cd-75e0-4b27-8c1b-4bd12d324486",
+  "reviewer": {
+    "context_id": "009a5e9a-24dd-4531-a711-d31abf754621",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-df009c29-c753-4d02-bf4b-e74d0ec07917",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 64847
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 407363
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52484
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54847
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4909
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "051ec4a2f20dc332470a94b602c147ce0c742832a7baa89b26ad7c8adf6ea791"
+}
