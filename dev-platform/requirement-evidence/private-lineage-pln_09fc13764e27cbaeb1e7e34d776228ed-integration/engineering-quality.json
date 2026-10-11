@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3533c299f356265154c811491070132e071c95f0",
+    "base_ref": "3533c299f356265154c811491070132e071c95f0",
+    "candidate_head": "52d8b6de0fe5c4858ba6e8aaa52050fa0da5b067",
+    "diff_sha256": "6f5ea9e382d4d926db6be8488c7722be4811444f4c4cf117a426540e2f972eee"
+  },
+  "completed_at": "2026-10-11T16:06:49+00:00",
+  "findings": [
+    {
+      "evidence": "local-platform-hotfix design.md (risk 1) says the contract tests assert protected scripts import only protected or explicitly vetted helpers. A search of the diff for an import-closure or vetted-helper test finds none. protected-surface.toml lists scripts/machine_pool.py as hotfixable (line ~1442). The protected scripts/select_checks.py imports it and runs validation inside machine_pool.lease(...). A local hotfix of machine_pool.py would be accepted by platform_divergence.py with only a record and PR review.",
+      "id": "hotfixable-helper-imported-by-protected-gate",
+      "severity": "advisory",
+      "summary": "The hotfix design promises a contract test that protected scripts import only protected or vetted helpers. The diff contains no such test. A hotfixable file can therefore sit under a protected gate without being flagged."
+    },
+    {
+      "evidence": "platform-manifest.json project_harness_owned lists scripts/finish_task.py, scripts/agent_board.py, scripts/git_hooks/pre-merge-commit, scripts/project_publish.py, scripts/merge_to_main.py and others. platform_divergence.py check() sets `skipped = harness_owned if harness == \"project\"`, and the manifest loop at line ~2728 skips them. change-classes.md only says a project-owned file is class (a). Meanwhile protected-surface.toml tags the same paths protected (publication, worktree-isolation, git-history), and blocking-gates.toml routes `scope-overlap` through agent_board.py.",
+      "id": "project-harness-mode-unprotects-protected-surface",
+      "severity": "advisory",
+      "summary": "Under harness_mode=project the divergence check skips the project_harness_owned files. Several of them are classed protected: finish_task, agent_board, the git hooks, project_publish and merge_to_main. The change-classes docs do not say that the protected-surface guarantee does not apply to those files in such projects."
+    },
+    {
+      "evidence": "blocking-gates.toml header gap 4 says a correct shared workspace wrongly rejected has no local exit because shared_workspace.py is protected. Gap 3 says merge-commit-hook blocks `reconcile_task.py`, the stated recovery for task-freshness, and the entry is still classed recoverable with that recovery. Gap 6 says no entry is classed platform-defect. The gaps are disclosed but unresolved. No gate-class change or friction event is recorded for them, so the 'recovery or justified hard stop' outcome is not met for these paths.",
+      "id": "protected-gate-false-positive-has-no-exit",
+      "severity": "advisory",
+      "summary": "Most cataloged gates are implemented in protected scripts. A wrongly-rejecting gate (platform-defect) therefore has neither a local hotfix nor a justified hard stop, and no catalog entry uses the platform-defect class. That leaves the Requirement's dead-end case (#427) as the 'wait for a release' state it aims to remove."
+    },
+    {
+      "evidence": "local-platform-hotfix design.md decision 6 and tasks.md 2.2 say it is wired into the `full_commands` trigger set. change-classes.md says 'a project may also add it to the `full_commands` of its own project-owned dev-platform/checks.toml'. The diff touches no template checks file. Only platform_doctor.check_platform_divergence_contract runs the check.",
+      "id": "divergence-check-wiring-doc-vs-spec",
+      "severity": "advisory",
+      "summary": "The hotfix design and task say the divergence check is wired into the project's full-validation triggers. The shipped doc says the project may add it itself. In the diff, only platform_doctor runs it."
+    }
+  ],
+  "launched_at": "2026-10-11T16:05:58+00:00",
+  "output_sha256": "f5ca7a1563724d94b914e74f82fac68f951dae8bbc2f602dc418829042f74a00",
+  "perspective": "engineering-quality",
+  "request_id": "04c7bba3-a1f3-4a06-95c0-09d61fa56eae",
+  "reviewer": {
+    "context_id": "9d9c2d63-cf80-4863-aea7-c1dff3036012",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0d7e030a-b316-4021-bce6-8bfe503cc4d1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 98754
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 398132
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47844
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50412
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4838
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "835388bbfc44a47c3ddc5aab23d14bc21d19d771f73c82d267ff55651393d318"
+}

@@ -951,8 +951,12 @@ class AgentBoardAcknowledgmentTests(WorktreeHarnessCase):
 
         conflicts = self.hard_conflicts(board, second)
         self.assertEqual(conflicts, [("first-id", "first task", "other.py")])
-        with self.assertRaises(agent_board.HardScopeOverlap):
+        with self.assertRaises(agent_board.HardScopeOverlap) as raised:
             self.enforce_gate(board, second)
+        message = str(raised.exception)
+        self.assertIn("[recoverable] scope-overlap: Unacknowledged hard scope overlap with an active task", message)
+        self.assertIn("recovery: ", message)
+        self.assertIn("agent_board.py acknowledge", message.splitlines()[-1])
 
     def test_hard_scope_gate_ignores_completed_sibling_claim(self) -> None:
         first = self.add_worktree("first")

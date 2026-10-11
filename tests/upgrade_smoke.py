@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -146,6 +148,10 @@ def main() -> int:
 
         local_doc = target / "docs" / "engineering" / "local-only.md"
         local_doc.write_text("# Local-only project documentation\n", encoding="utf-8")
+        # The hotfix record is project-owned: a project that already keeps one must see it survive the update.
+        hotfix_record = target / "dev-platform" / "local-hotfixes.toml"
+        hotfix_record_text = "# project-owned-hotfix-record-sentinel\n"
+        hotfix_record.write_text(hotfix_record_text, encoding="utf-8")
         run(["git", "add", "-A"], target)
         run(["git", "commit", "-m", "Add project-owned customizations"], target)
 
@@ -180,6 +186,33 @@ def main() -> int:
             raise SystemExit("Copier update did not materialize provider-local model routing")
         if not (target / "docs" / "engineering" / "model-routing.md").is_file():
             raise SystemExit("Copier update did not materialize model-routing guidance")
+        if hotfix_record.read_text(encoding="utf-8") != hotfix_record_text:
+            raise SystemExit("Copier update changed the project-owned dev-platform/local-hotfixes.toml")
+        for delivered in (
+            "dev-platform/protected-surface.toml",
+            "docs/engineering/change-classes.md",
+            "dev-platform/platform-manifest.json",
+            "scripts/platform_divergence.py",
+            "dev-platform/blocking-gates.toml",
+        ):
+            if not (target / delivered).is_file():
+                raise SystemExit(f"Copier update did not deliver the change-class contract file {delivered}")
+            if (target / delivered).read_bytes() != (ROOT / "template" / delivered).read_bytes():
+                raise SystemExit(f"Copier update delivered a different {delivered} than the released template")
+        # The blocking-gate catalog must be loadable by the delivered helper, so a gate failure
+        # on an updated project renders its class instead of failing as an unknown gate.
+        gate_probe = run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.path.insert(0, 'scripts'); from _platform_common import load_gate_catalog; "
+                "print(len(load_gate_catalog()))",
+            ],
+            target,
+            capture=True,
+        )
+        if not gate_probe.stdout.strip().isdigit():
+            raise SystemExit("Copier update delivered a blocking-gate catalog the delivered helper cannot load")
         if args.profile == "multi-agent":
             rendered_workflow = (target / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
             if "unreadable or un-lockable board" not in rendered_workflow:
@@ -198,6 +231,33 @@ def main() -> int:
             raise SystemExit("Copier update left .rej files")
 
         run(["python3", "-m", "compileall", "-q", "scripts"], target)
+        divergence = subprocess.run(["python3", "scripts/platform_divergence.py"], cwd=target, text=True, capture_output=True)
+        if divergence.returncode != 0:
+            raise SystemExit("Updated project diverges from its release manifest:\n" + divergence.stdout + divergence.stderr)
+        # Update meeting a hotfix: a record made against another platform version is reported stale, never accepted.
+        patched_script = target / "scripts" / "check_docs_links.py"
+        released_script = patched_script.read_bytes()
+        patched_script.write_bytes(released_script + b"# smoke hotfix\n")
+        stale_digest = hashlib.sha256(patched_script.read_bytes()).hexdigest()
+        stale_record = (
+            "[[hotfix]]\n"
+            'path = "scripts/check_docs_links.py"\n'
+            'platform_version = "0.0.0-smoke"\n'
+            f'patched_sha256 = "{stale_digest}"\n'
+            'defect = "upgrade smoke stale hotfix"\n'
+            'regression_test = "scripts/check_docs_links.py"\n'
+            'friction_event = "000000000000"\n'
+            f'friction_evidence_sha256 = "{"0" * 64}"\n'
+            "temporary = true\n"
+        )
+        hotfix_record.write_text(stale_record, encoding="utf-8")
+        stale = subprocess.run(["python3", "scripts/platform_divergence.py"], cwd=target, text=True, capture_output=True)
+        if stale.returncode == 0 or "[stale-hotfix] scripts/check_docs_links.py" not in stale.stdout:
+            raise SystemExit("Divergence check did not report a hotfix recorded against another platform version as stale:\n" + stale.stdout + stale.stderr)
+        if hotfix_record.read_text(encoding="utf-8") != stale_record:
+            raise SystemExit("Divergence check modified the hotfix record")
+        patched_script.write_bytes(released_script)
+        hotfix_record.write_text(hotfix_record_text, encoding="utf-8")
         doctor = subprocess.run(["python3", "scripts/platform_doctor.py"], cwd=target, text=True)
         if doctor.returncode != 0:
             raise SystemExit(doctor.returncode)

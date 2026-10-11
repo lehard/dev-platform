@@ -16,6 +16,7 @@ from _platform_common import (
     PlatformConfigError,
     TaskFreshnessError,
     current_worktree_root,
+    gate_failure,
     lifecycle_mode,
     main_root,
     read_platform_config,
@@ -512,7 +513,7 @@ def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
     try:
         return require_proven_task_base(root, args.proven_base, "origin", main_branch)
     except TaskFreshnessError as exc:
-        raise SystemExit(refused + str(exc)) from exc
+        raise gate_failure("proven-base-freshness", refused + str(exc), SystemExit) from exc
 
 
 def main() -> int:
@@ -609,9 +610,11 @@ def main() -> int:
                 )
             elif args.contribution_base:
                 if run_git(["merge-base", "--is-ancestor", args.contribution_base, "HEAD"], cwd=root, check=False).returncode:
-                    raise SystemExit(
+                    raise gate_failure(
+                        "contribution-base-freshness",
                         "Task freshness gate blocked full/protected validation before any expensive command started: "
-                        f"HEAD does not contain its exact contribution base {args.contribution_base}"
+                        f"HEAD does not contain its exact contribution base {args.contribution_base}",
+                        SystemExit,
                     )
                 print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
             elif evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root):
@@ -639,8 +642,10 @@ def main() -> int:
                 try:
                     observed = require_fresh_task_base(root, "origin", str(read_platform_config(root).get("main_branch", "main")))
                 except TaskFreshnessError as exc:
-                    raise SystemExit(
-                        "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
+                    raise gate_failure(
+                        "task-freshness",
+                        "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc),
+                        SystemExit,
                     ) from exc
                 print(f"Task freshness gate passed: HEAD contains freshly observed origin/{read_platform_config(root).get('main_branch', 'main')} ({observed}).")
             branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()

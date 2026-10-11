@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+    "base_ref": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+    "candidate_head": "02be13416c2aab8ad6adeff1e1cf6b7252ad5065",
+    "diff_sha256": "dd2fa2457faa00fa7749275b539067dde1b4f9f0e7147b21791b312e47f2781a"
+  },
+  "completed_at": "2026-10-11T10:53:46+00:00",
+  "findings": [
+    {
+      "evidence": "template/dev-platform/blocking-gates.toml, task-freshness `recovery` says: \"if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop...\". Header gap 3 says reconcile_task.py runs `git merge --no-edit`, so \"a clean merge of a diverged task is blocked by the hook (reproduced in a throwaway repository)\". The spec scenario \"Recoverable block\" requires that following the recovery step \"lets the work continue without disabling the gate\". The recovery test `test_unpublished_task_merges_authoritative_main_without_rewriting_history` does not cover the hook-installed case. The gap is disclosed and recorded as follow-up friction, so this is a classification-truthfulness concern, not a missing artifact.",
+      "id": "task-freshness-recovery-known-blocked",
+      "severity": "advisory",
+      "summary": "The task-freshness gate is classed `recoverable`, but the catalog itself says its only recovery can be blocked by the shipped merge-commit hook. That stretches the design's meaning of a recoverable gate, which needs a supported recorded path that lets work continue."
+    }
+  ],
+  "launched_at": "2026-10-11T10:53:29+00:00",
+  "output_sha256": "368796d323e4b977b2ce8f39a293120bc862c0d7b80521d833dfd44977233e6b",
+  "perspective": "spec-fidelity",
+  "request_id": "7532e7f9-18ea-4cc3-b5df-9a92650775a2",
+  "reviewer": {
+    "context_id": "da6d42ce-0ae2-46d0-9da1-4d54a00a7f0b",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-01e1dc90-299c-42d0-b3be-aff52df566b7",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56045
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52446
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16938
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16307
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1670
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00"
+}

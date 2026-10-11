@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+    "base_ref": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+    "candidate_head": "02be13416c2aab8ad6adeff1e1cf6b7252ad5065",
+    "diff_sha256": "dd2fa2457faa00fa7749275b539067dde1b4f9f0e7147b21791b312e47f2781a"
+  },
+  "completed_at": "2026-10-11T10:54:10+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py gate_message/gate_failure raise BlockingGateCatalogError, not the exception_type argument. design.md decision 4 and catalog note 11 accept this. The commit also had to copy blocking-gates.toml into tests/test_git_lifecycle.py and tests/test_model_routing.py fixtures, which shows scripts now depend on the catalog being present beside them. Any caller that catches SharedWorkspaceError, RoutingError, HardScopeOverlap or TaskFreshnessError and prints a clean message would instead surface a traceback or a different exit path when the catalog is absent. It still fails closed, but the exit condition is no longer identical.",
+      "id": "catalog-load-failure-bypasses-callers-exception-handling",
+      "severity": "advisory",
+      "summary": "A missing or malformed catalog makes a gate raise BlockingGateCatalogError (a RuntimeError) in place of the exception type the gate used to raise. Callers that catch the specific type would no longer handle the failure."
+    },
+    {
+      "evidence": "tests/test_blocking_gates.py: test_every_acceptance_test_resolves_to_a_real_test uses resolve_test_id (AST), and test_every_acceptance_test_module_belongs_to_a_test_group checks group membership. Neither executes the named tests. Whether a named test passes therefore depends on the whole-suite run, not on the catalog binding. The weaker guarantee is acceptable but does not match the design wording.",
+      "id": "acceptance-tests-resolved-not-run-by-catalog-test",
+      "severity": "advisory",
+      "summary": "design.md decision 3 says a platform test 'resolves and runs' the acceptance tests listed in the catalog. The new test only resolves them by AST lookup and checks that their module is in a test group."
+    }
+  ],
+  "launched_at": "2026-10-11T10:53:46+00:00",
+  "output_sha256": "d5ef7000892bd4f08ab8aa72b760f8747f308a8505c1c19b19b047db16414b1e",
+  "perspective": "engineering-quality",
+  "request_id": "7532e7f9-18ea-4cc3-b5df-9a92650775a2",
+  "reviewer": {
+    "context_id": "3c9990f8-178f-41b8-92ca-84b5dba4b450",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ef1bc95b-13af-4a21-a3f4-2a0c387a01e8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53830
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 99310
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23008
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23056
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2214
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00"
+}

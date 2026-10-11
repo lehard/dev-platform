@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -548,6 +550,55 @@ class TemplateContractTests(unittest.TestCase):
         self.assertLess(workflow.index("## OpenSpec model used by Dev Platform"), workflow.index("## Contract model"))
         for script in set(re.findall(r"scripts/([a-z_]+\.py)", workflow + docs_map)):
             with self.subTest(script=script): self.assertTrue((template / "scripts" / script).exists(), script)
+
+    def test_change_class_contract_is_platform_owned_pointed_to_and_delivered(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        for relative in ("dev-platform/protected-surface.toml", "docs/engineering/change-classes.md"):
+            with self.subTest(relative=relative):
+                self.assertTrue((ROOT / "template" / relative).is_file(), relative)
+                self.assertNotIn(relative, copier, "the change-class contract must be overwritten by Copier updates, never skipped")
+        agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
+        self.assertIn("(docs/engineering/change-classes.md)", agents)
+        self.assertIn("(engineering/change-classes.md)", (ROOT / "template" / "docs" / "README.md").read_text(encoding="utf-8"))
+        smoke = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
+        self.assertIn("protected-surface.toml", smoke)
+        self.assertIn("change-classes.md", smoke)
+
+    def test_local_hotfix_mechanism_is_delivered_and_its_record_is_project_owned(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        self.assertIn("  - dev-platform/local-hotfixes.toml\n", copier, "the hotfix record must survive Copier updates")
+        for relative in ("dev-platform/platform-manifest.json", "scripts/platform_divergence.py"):
+            with self.subTest(relative=relative):
+                self.assertTrue((ROOT / "template" / relative).is_file(), relative)
+                self.assertNotIn(relative, copier, "the manifest and the divergence check must be overwritten by Copier updates, never skipped")
+        self.assertTrue((ROOT / "template" / "dev-platform" / "local-hotfixes.toml").is_file())
+        doctor = (ROOT / "template" / "scripts" / "platform_doctor.py").read_text(encoding="utf-8")
+        self.assertIn("platform_divergence", doctor)
+        docs = (ROOT / "template" / "docs" / "engineering" / "change-classes.md").read_text(encoding="utf-8")
+        for topic in ("local-hotfixes.toml", "platform_divergence.py", "stale-hotfix", "not an official release"):
+            with self.subTest(topic=topic):
+                self.assertIn(topic, docs)
+        smoke = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
+        for needle in ("local-hotfixes.toml", "platform-manifest.json", "platform_divergence.py", "stale-hotfix"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, smoke)
+
+    def test_blocking_gate_catalog_is_delivered_protected_and_documented(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        catalog = "dev-platform/blocking-gates.toml"
+        self.assertTrue((ROOT / "template" / catalog).is_file(), catalog)
+        self.assertNotIn(catalog, copier, "the gate catalog must be overwritten by Copier updates, never skipped")
+        self.assertFalse((ROOT / "template" / f"{catalog}.jinja").exists(), "the catalog must render byte-identically downstream")
+        surface = tomllib.loads((ROOT / "template" / "dev-platform" / "protected-surface.toml").read_text(encoding="utf-8"))
+        self.assertIn({"path": catalog, "category": "immutable-releases"}, surface["protected"])
+        manifest = json.loads((ROOT / "template" / "dev-platform" / "platform-manifest.json").read_text(encoding="utf-8"))
+        self.assertIn(catalog, manifest["files"])
+        docs = (ROOT / "template" / "docs" / "engineering" / "change-classes.md").read_text(encoding="utf-8")
+        for topic in ("Failure classes of blocking checks", "blocking-gates.toml", "recoverable", "hard-stop", "platform-defect"):
+            with self.subTest(topic=topic):
+                self.assertIn(topic, docs)
+        smoke = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
+        self.assertIn("blocking-gates.toml", smoke)
 
     def test_upgrade_smoke_is_part_of_ci(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"); self.assertIn("tests/upgrade_smoke.py", ci); self.assertIn("fetch-depth: 0", ci)

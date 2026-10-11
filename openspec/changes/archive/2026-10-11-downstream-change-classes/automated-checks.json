@@ -1,0 +1,119 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.118,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.127,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 391.565,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "tests/test_protected_surface.py",
+        "tests/test_root_guidance_contract.py",
+        "tests/test_template_contract.py",
+        "tests/upgrade_smoke.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_1eae5c277ccecb82dda5ceb2a5740403",
+    "change": "downstream-change-classes",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/downstream-change-classes",
+    "branch": "agent/br-526-t1-downstream-change-classes",
+    "head": "8d6f9a037e1f353d4de87c046237794a1188e84c",
+    "task_content": {
+      "version": 1,
+      "digest": "ba42448b01d7c29e8988efd618685757125bdf9a433851e82b9f4fff233a8608",
+      "paths": {
+        "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+        "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+        "dev-platform/requirement-integrations/private-lineage-pln_09fc13764e27cbaeb1e7e34d776228ed-integration.json": "742610cb1a8e8a579e38b2be80db2e4c2d90548e",
+        "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+        "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+        "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+        "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+        "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+        "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+        "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+        "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+        "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+        "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+        "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+        "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+        "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+        "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+        "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+      },
+      "base": "3533c299f356265154c811491070132e071c95f0"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "99f7a57f63a95546962f0918ad32cb06edd7cefea0d9939cb808ceccf3c7a54c",
+    "paths": {
+      "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+      "dev-platform/checks.toml": "59d346b8228e790bb5abf06d3a8f5d40861cada4",
+      "docs/ownership.md": "52aa74336fbe2c5273724e8c85e5f9b2dfbb5fb2",
+      "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+      "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+      "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+      "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+      "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+      "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+      "template/dev-platform/protected-surface.toml": "fb9152faf3ee0570092096d233ae731acefb2b5e",
+      "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+      "template/docs/engineering/change-classes.md": "359ba7fb4688010846537e1bcf0523e02394e8c6",
+      "tests/test_protected_surface.py": "6c75a0b23a98d30550440f09dc88046c021d298c",
+      "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+      "tests/test_template_contract.py": "272e6bb28c08c92f82d8dab190ea0d255bcd10bd",
+      "tests/upgrade_smoke.py": "b58faaf460e90458e55baae3bcf95684a4e3e27c"
+    },
+    "base": "a4d99eab8579e170648f02d1675cd8dde0bfd44b",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_protected_surface.py --changed-file tests/test_root_guidance_contract.py --changed-file tests/test_template_contract.py --changed-file tests/upgrade_smoke.py",
+    "duration_seconds": 22.961,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

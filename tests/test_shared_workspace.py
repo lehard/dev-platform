@@ -226,6 +226,8 @@ class SharedWorkspaceTests(unittest.TestCase):
                 with self.assertRaises(shared_workspace.SharedWorkspaceError) as raised:
                     shared_workspace.admit_managed_intake(root)
             message = str(raised.exception)
+            self.assertTrue(message.startswith("[recoverable] shared-workspace-admission: managed intake admission blocked before mutation:"))
+            self.assertIn("\nrecovery: ", message)
             self.assertIn("live session: launcher lacks group", message)
             self.assertIn(str(first), message)
             self.assertIn(str(second), message)

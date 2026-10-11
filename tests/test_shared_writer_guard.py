@@ -64,6 +64,10 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Hotfix friction export: one explicit operator command writes the sanitized, committed copy of one
+    # machine-local friction event at a fixed project path (dev-platform/hotfix-friction/<id>.json); the
+    # event id is validated against a strict pattern, so the path cannot escape that directory.
+    'platform_divergence.py:export_friction:write_bytes': 1,
     # Machine pool: machine-local slot/queue files outside the repository, created with an explicit
     # cross-account mode (fchmod 0o666) rather than shared-workspace semantics; reads only lock and inspect.
     'machine_pool.py:_open_shared:open': 1,

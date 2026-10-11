@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from _platform_common import current_worktree_root, read_platform_config, run_git
+from _platform_common import current_worktree_root, gate_message, read_platform_config, run_git
 from publication_state import required_check_state_for_ref
 from candidate_lifecycle import CLAIM_STATES, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
@@ -1617,7 +1617,7 @@ def preflight(root: Path, mode: str, phase: str, env: Mapping[str, str]) -> dict
     except PreflightFailure as failure:
         checks.append({"name": failure.name, "status": "failed", "detail": failure.detail})
         return {"state": "error", "mode": mode, "phase": phase, "checks": checks,
-                "reason": f"preflight failed: {failure.name}: {failure.detail}"}
+                "reason": gate_message("publication-preflight", f"preflight failed: {failure.name}: {failure.detail}")}
     return {"state": "ok", "mode": mode, "phase": phase, "checks": checks}
 
 

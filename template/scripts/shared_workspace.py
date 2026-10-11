@@ -602,7 +602,10 @@ def admit_managed_intake(root: Path) -> None:
         lines.append(f"- shared-workspace audit: {audit_failure}")
     elif group is not None:
         lines.extend(format_admission_findings(group, findings))
-    raise SharedWorkspaceError("\n".join(lines))
+    # Imported here: _platform_common imports this module at load time, so a module-level import would be circular.
+    from _platform_common import gate_failure
+
+    raise gate_failure("shared-workspace-admission", "\n".join(lines), SharedWorkspaceError)
 
 
 def _default_integration_serializer(integration: Path) -> ContextManager[object]:

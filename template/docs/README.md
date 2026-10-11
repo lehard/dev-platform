@@ -24,6 +24,7 @@ Target behavior during an active change is `current specs + active delta`, subje
 | Start/publish lifecycle, worktrees, validation, friction, completion | [engineering/agent-workflow.md](engineering/agent-workflow.md) |
 | OpenSpec model, semantic verification, receipts, archive | [engineering/openspec-workflow.md](engineering/openspec-workflow.md) |
 | Executor selection, escalation, delegated write containment | [engineering/model-routing.md](engineering/model-routing.md) |
+| Change classes, protected rules and the protected surface | [engineering/change-classes.md](engineering/change-classes.md) |
 | Optional engineering capabilities | [engineering/engineering-capabilities.md](engineering/engineering-capabilities.md) |
 | Browser verification adapter | [engineering/browser-verification.md](engineering/browser-verification.md) |
 | Project-specific engineering, stack and domain rules | `engineering/project-rules.md` (project-owned) |
