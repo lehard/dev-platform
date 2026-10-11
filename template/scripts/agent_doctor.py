@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import stat
 import subprocess
@@ -280,6 +281,26 @@ def report_publication_status(root: Path, integration: Path, config: dict, gh_en
     return 0
 
 
+def pending_rollout_report(outcome: rollout_preflight.RolloutPreflightResult, branch: str, deferred: bool) -> tuple[str, str]:
+    """Render the pending-rollout preflight line; a green rollout is announced as the next start's merge."""
+    if outcome.state == rollout_preflight.NONE:
+        if outcome.detail:
+            return "warn", f"pending Dev Platform rollout check skipped: {outcome.detail}"
+        return "ok", "no pending Dev Platform rollout PR"
+    if deferred:
+        return "warn", (
+            f"pending Dev Platform rollout ({outcome.state}) will be left unmerged: this session deferred rollout "
+            f"({rollout_preflight.DEFER_ROLLOUT_ENV}=1): {outcome.detail}"
+        )
+    if outcome.state == rollout_preflight.SAFE_TO_ADOPT:
+        return "warn", (
+            f"pending Dev Platform rollout ({outcome.state}): {outcome.detail}; the next task start will merge it and "
+            f"synchronize local {branch}. If the user prohibited rollout in this session, start with "
+            f"{rollout_preflight.DEFER_ROLLOUT_FLAG} ({rollout_preflight.DEFER_ROLLOUT_ENV}=1)"
+        )
+    return "warn", f"pending Dev Platform rollout ({outcome.state}): {outcome.detail}"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check whether an agent can safely start or finish work against current GitHub state.")
     parser.add_argument("--no-fetch", action="store_true")
@@ -361,13 +382,8 @@ def main() -> int:
 
     if gh_env is not None:
         rollout_outcome = rollout_preflight.observe_pending_rollout(root, config, gh_env)
-        if rollout_outcome.state == rollout_preflight.NONE:
-            if rollout_outcome.detail:
-                report("warn", f"pending Dev Platform rollout check skipped: {rollout_outcome.detail}")
-            else:
-                report("ok", "no pending Dev Platform rollout PR")
-        else:
-            report("warn", f"pending Dev Platform rollout ({rollout_outcome.state}): {rollout_outcome.detail}")
+        level, message = pending_rollout_report(rollout_outcome, branch, rollout_preflight.rollout_deferred(os.environ))
+        report(level, message)
 
     if provider == "github" and mode == "pr" and harness == "platform":
         report_publication_status(root, integration, config, gh_env)

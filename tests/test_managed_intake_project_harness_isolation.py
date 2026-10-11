@@ -78,6 +78,59 @@ class ManagedIntakeProjectHarnessIsolationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("standalone-import-ok", result.stdout)
 
+    def _start_with_pending_rollout(self, tmp: Path, extra_env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+        """Run the installed (copied) start_task against a pending green rollout; stdout reports merges."""
+        scripts = self._project_scripts(tmp)
+        for name in ("agent_doctor.py", "project_sync.py"):
+            (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
+        root = tmp
+        for args in (["init", "-q", "-b", "main"], ["config", "user.name", "t"], ["config", "user.email", "t@example.invalid"]):
+            subprocess.run(["git", *args], cwd=root, check=True)
+        (root / ".dev-platform.toml").write_text(
+            'workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8"
+        )
+        subprocess.run(["git", "add", ".dev-platform.toml"], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)
+        probe = (
+            "import pathlib, sys;"
+            "import rollout_preflight as rp, start_task as st;"
+            "merged = [];"
+            "pr = rp.RolloutPR(7, 'https://example.invalid/pr/7', 'dev-platform/rollout-v9.0.0', 'v9.0.0', 'abc');"
+            "rp.observe_pending_rollout = lambda *a, **k: rp.RolloutPreflightResult(rp.SAFE_TO_ADOPT, detail='green', pr=pr);"
+            "rp._load_platform_reconciliation_helpers = lambda: None;"
+            "rp._merge_rollout_pr = lambda *a, **k: (merged.append(7), ('merged', ''))[1];"
+            "rp._synchronize_local_main = lambda *a, **k: (True, '');"
+            "st.require_fresh_task_base = lambda *a, **k: 'a' * 40;"
+            "st.github_cli_env = lambda root: {};"
+            "started = st.start_task(pathlib.Path(sys.argv[1]), 'slug', 'task');"
+            "print('merged=' + str(len(merged)) + ' branch=' + started.branch)"
+        )
+        env = {key: value for key, value in os.environ.items() if key != "DEV_PLATFORM_DEFER_ROLLOUT"}
+        return subprocess.run(
+            [sys.executable, "-c", probe, str(root)],
+            cwd=scripts, capture_output=True, text=True,
+            env={**env, **extra_env, "PYTHONPATH": str(scripts), "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+
+    def test_installed_start_leaves_pending_rollout_unmerged_when_session_defers(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="managed-intake-project-harness-") as tmp:
+            result = self._start_with_pending_rollout(Path(tmp), {"DEV_PLATFORM_DEFER_ROLLOUT": "1"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("merged=0 branch=agent/slug", result.stdout)
+        self.assertIn("rollout PR #7 (v9.0.0) was skipped and left unmerged", result.stdout)
+
+    def test_installed_start_without_deferral_still_merges_pending_rollout(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="managed-intake-project-harness-") as tmp:
+            result = self._start_with_pending_rollout(Path(tmp), {})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("merged=1 branch=agent/slug", result.stdout)
+
+    def test_installed_start_rejects_an_unsupported_deferral_value_before_any_observation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="managed-intake-project-harness-") as tmp:
+            result = self._start_with_pending_rollout(Path(tmp), {"DEV_PLATFORM_DEFER_ROLLOUT": "yes"})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DEV_PLATFORM_DEFER_ROLLOUT", result.stderr)
+
     def test_read_only_observation_works_against_the_project_harness_fixture(self) -> None:
         """`observe_pending_rollout` (used by agent_doctor for every harness) stays usable."""
         with tempfile.TemporaryDirectory(prefix="managed-intake-project-harness-") as tmp:
@@ -88,7 +141,7 @@ class ManagedIntakeProjectHarnessIsolationTests(unittest.TestCase):
                 "{'main_branch': 'main', 'harness_mode': 'project'}, None);"
                 "assert r.state == rp.NONE, r;"
                 "g = rp.reconcile_pending_rollout(__import__('pathlib').Path('/tmp/x'), "
-                "{'main_branch': 'main', 'harness_mode': 'project'}, None);"
+                "{'main_branch': 'main', 'harness_mode': 'project'}, None, defer=False);"
                 "assert g.state == rp.NONE, g;"
                 "assert 'harness_mode=project' in g.detail, g.detail;"
                 "print('project-harness-gate-ok')"
