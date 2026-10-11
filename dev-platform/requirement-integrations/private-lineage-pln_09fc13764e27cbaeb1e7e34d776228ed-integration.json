@@ -615,6 +615,368 @@
         "work_identity": "BR-526/T3"
       },
       "work_identity": "BR-526/T3"
+    },
+    {
+      "change": "blocking-check-recoverability",
+      "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/blocking-check-recoverability/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "02be13416c2aab8ad6adeff1e1cf6b7252ad5065"
+          },
+          "identity": {
+            "change": "blocking-check-recoverability",
+            "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+              "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+              "paths": {
+                "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+                "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+                "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+                "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+                "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+                "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+                "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+                "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+                "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+                "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+                "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+                "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+                "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+                "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+                "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+                "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+                "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+                "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+                "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+                "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+                "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+                "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+                "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+                "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+                "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+                "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+                "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "3ab8078f99f10d6b809eb68cc0d257135a3c4343",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "blocking-check-recoverability",
+            "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+              "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+              "paths": {
+                "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+                "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+                "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+                "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+                "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+                "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+                "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+                "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+                "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+                "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+                "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+                "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+                "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+                "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+                "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+                "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+                "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+                "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+                "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+                "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+                "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+                "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+                "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+                "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+                "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+                "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+                "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/_platform_common.py gate_message/gate_failure raise BlockingGateCatalogError, not the exception_type argument. design.md decision 4 and catalog note 11 accept this. The commit also had to copy blocking-gates.toml into tests/test_git_lifecycle.py and tests/test_model_routing.py fixtures, which shows scripts now depend on the catalog being present beside them. Any caller that catches SharedWorkspaceError, RoutingError, HardScopeOverlap or TaskFreshnessError and prints a clean mess",
+                  "id": "catalog-load-failure-bypasses-callers-exception-handling",
+                  "severity": "advisory",
+                  "summary": "A missing or malformed catalog makes a gate raise BlockingGateCatalogError (a RuntimeError) in place of the exception type the gate used to raise. Callers that catch the specific type would no longer handle the failure."
+                },
+                {
+                  "evidence": "tests/test_blocking_gates.py: test_every_acceptance_test_resolves_to_a_real_test uses resolve_test_id (AST), and test_every_acceptance_test_module_belongs_to_a_test_group checks group membership. Neither executes the named tests. Whether a named test passes therefore depends on the whole-suite run, not on the catalog binding. The weaker guarantee is acceptable but does not match the design wording.",
+                  "id": "acceptance-tests-resolved-not-run-by-catalog-test",
+                  "severity": "advisory",
+                  "summary": "design.md decision 3 says a platform test 'resolves and runs' the acceptance tests listed in the catalog. The new test only resolves them by AST lookup and checks that their module is in a test group."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "4209606504a7fcd64cde8fbf4e698dcf44fe4ae0c626513819f03cb8b95a4bd9"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/dev-platform/blocking-gates.toml, task-freshness `recovery` says: \"if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop...\". Header gap 3 says reconcile_task.py runs `git merge --no-edit`, so \"a clean merge of a diverged task is blocked by the hook (reproduced in a throwaway repository)\". The spec scenario \"Recoverable block\" requires that following the recovery step \"lets the work continue without disabling the gate\". The recovery test `test_un",
+                  "id": "task-freshness-recovery-known-blocked",
+                  "severity": "advisory",
+                  "summary": "The task-freshness gate is classed `recoverable`, but the catalog itself says its only recovery can be blocked by the shipped merge-commit hook. That stretches the design's meaning of a recoverable gate, which needs a supported recorded path that lets work continue."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "fd77dd466efc8dbcec7cee3b478a2118d88d43b550e5cfddcb33070d9b2bb517"
+            }
+          },
+          "identity": {
+            "change": "blocking-check-recoverability",
+            "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+              "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+              "paths": {
+                "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+                "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+                "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+                "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+                "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+                "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+                "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+                "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+                "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+                "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+                "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+                "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+                "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+                "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+                "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+                "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+                "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+                "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+                "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+                "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+                "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+                "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+                "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+                "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+                "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+                "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+                "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 14089,
+            "path": "openspec/changes/blocking-check-recoverability/automated-checks.json",
+            "sha256": "11178943c2971bd1e5fb138b52f4a0702fb0d47ef0024f447e23fc40de032671"
+          },
+          "identity": {
+            "change": "blocking-check-recoverability",
+            "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+              "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+              "paths": {
+                "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+                "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+                "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+                "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+                "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+                "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+                "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+                "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+                "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+                "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+                "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+                "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+                "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+                "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+                "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+                "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+                "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+                "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+                "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+                "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+                "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+                "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+                "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+                "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+                "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+                "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+                "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 6962,
+            "path": "openspec/changes/blocking-check-recoverability/verification.md",
+            "sha256": "61aa0b83b455206634a6c0a2cf37840dcdfa90c833a90a8175c0682f4e9d830f"
+          },
+          "identity": {
+            "change": "blocking-check-recoverability",
+            "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+              "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+              "paths": {
+                "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+                "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+                "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+                "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+                "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+                "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+                "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+                "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+                "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+                "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+                "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+                "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+                "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+                "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+                "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+                "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+                "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+                "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+                "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+                "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+                "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+                "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+                "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+                "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+                "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+                "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+                "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "3ab8078f99f10d6b809eb68cc0d257135a3c4343",
+      "integrated_head": "5f0d95d5e409ca17859ae0c18db24eb89d1e86a1",
+      "pr_number": 515,
+      "reviewed_evidence_digest": "3fc37afc724c334821f2e64ac96804d0213bbb6708f1aec3a7235380d8df6b2b",
+      "source_branch": "agent/br-526-t2-blocking-check-recoverability",
+      "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+      "task_identity": {
+        "change": "blocking-check-recoverability",
+        "contribution_base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+        "kind": "contribution",
+        "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+        "source_issue": "pln_ead93c5f23a43178e888677527c8cd70",
+        "target_branch": "requirement/BR-526",
+        "task_content": {
+          "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+          "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
+          "paths": {
+            "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+            "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+            "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+            "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+            "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+            "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
+            "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
+            "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+            "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
+            "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+            "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+            "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+            "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+            "template/scripts/model_routing.py": "d7cdce0151d97f71af19ab5ba20e0a875049e375",
+            "template/scripts/platform_divergence.py": "a9ab17436038fbaa67ff02003408b474aead695e",
+            "template/scripts/publication_queue.py": "52785c3328282ebb37334e0f2dd3d132026cb9d1",
+            "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+            "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+            "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
+            "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
+            "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+            "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
+            "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+            "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+            "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+            "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+            "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+            "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-526/T2"
+      },
+      "work_identity": "BR-526/T2"
     }
   ],
   "dependencies": {
@@ -626,7 +988,7 @@
       "downstream-change-classes"
     ]
   },
-  "digest": "41447744b13f75641c3e160b20ffd5b57ce12978e7195533ae6fb99ef98feb4a",
+  "digest": "00c6aee7edf4428c752404bb47909593bec7395dcecce759460443349ab950fd",
   "expected_changes": [
     "downstream-change-classes",
     "local-platform-hotfix",
