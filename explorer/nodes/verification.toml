@@ -1,0 +1,24 @@
+id = "verification"
+kind = "stage"
+outline = true
+title = "Проверка и независимое ревью"
+definition = "Тесты, сверка с OpenSpec и правдивый протокол проверки подтверждают результат. Независимые ревьюеры читают код, а их замечания возвращают работу на доработку."
+order = 5
+short_title = "Проверка и ревью"
+tagline = "доказать правильность"
+children = ["verification-checks", "independent-review"]
+sources = [
+  "docs/engineering/agent-workflow.md#Validation",
+  "docs/engineering/openspec-workflow.md#Verify, archive, then publish",
+]
+
+[[transitions]]
+to = "isolated-implementation"
+type = "return"
+reason = "Замечание ревью или упавшая проверка требует доработки"
+label = "замечание → доработка"
+
+[[transitions]]
+to = "publication-integration"
+type = "main"
+reason = "Проверенный и архивированный кандидат готов к интеграции"

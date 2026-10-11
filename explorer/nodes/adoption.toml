@@ -1,0 +1,10 @@
+id = "adoption"
+kind = "topic"
+outline = true
+title = "Подключение проекта"
+definition = "Как новый или существующий репозиторий начинает работать по платформе и какой профиль работы ему подходит."
+order = 2
+sources = [
+  "docs/adoption.md#Primary interface: one-command onboarding",
+  "README.md#Workflow profiles",
+]

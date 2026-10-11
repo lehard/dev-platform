@@ -1,0 +1,18 @@
+id = "release-rollout"
+kind = "stage"
+outline = true
+title = "Релиз и раскатка"
+definition = "Новая версия платформы получает неизменяемый тег, а подключённые проекты получают её отдельными PR через Copier. Обычное изменение этот этап не проходит."
+order = 7
+short_title = "Релиз и раскатка"
+tagline = "только версия платформы"
+children = ["platform-releases", "copier-rollout"]
+sources = [
+  "docs/release-policy.md#Managed rollout",
+  "docs/managed-rollout.md#Automatic release rollout",
+]
+
+[[transitions]]
+to = "feedback-learning"
+type = "conditional"
+reason = "Выпуск версии платформы тоже завершается ретроспективой"

@@ -1,0 +1,24 @@
+id = "publication-integration"
+kind = "stage"
+outline = true
+title = "Публикация и интеграция"
+definition = "Проверенная ветка становится PR и проходит очередь. Доставкой считается только состояние MERGED и синхронизированный локальный main."
+order = 6
+short_title = "Публикация"
+tagline = "PR → очередь → main"
+children = ["pr-queue-integration", "independent-review"]
+sources = [
+  "docs/engineering/agent-workflow.md#Completion",
+  "docs/engineering/agent-workflow.md#Source publication queue",
+]
+
+[[transitions]]
+to = "release-rollout"
+type = "conditional"
+reason = "Только если слит release PR с новой версией платформы"
+
+[[transitions]]
+to = "feedback-learning"
+type = "main"
+reason = "После каждой нетривиальной задачи проводится ретроспектива"
+label = "ретроспектива после каждой задачи"

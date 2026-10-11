@@ -1,0 +1,14 @@
+id = "friction-retrospectives"
+kind = "mechanism"
+outline = true
+title = "Friction и ретроспективы"
+definition = "Значимые затруднения агентов записываются как обезличенные свидетельства, собираются в process issues и разбираются еженедельным обзором; сами задачи из них не создаются."
+order = 11
+role = "mechanism"
+sources = [
+  "docs/engineering/agent-workflow.md#Friction routing",
+  "docs/engineering/agent-workflow.md#Post-task retrospective",
+]
+
+[[used_in]]
+stage = "feedback-learning"

@@ -1,0 +1,14 @@
+id = "executor-routing"
+kind = "mechanism"
+outline = true
+title = "Маршрутизация исполнителей"
+definition = "Уровень R2 или R3 записывается при подготовке задачи, перед реализацией подтверждается проверкой свежести и превращается в профиль и конкретную модель из настроек."
+order = 3
+role = "mechanism"
+sources = [
+  "docs/engineering/model-routing.md#Start-tier authoring (`R1`/`R2`/`R3`)",
+  "docs/engineering/model-routing.md#Execution-time freshness check",
+]
+
+[[used_in]]
+stage = "routing"

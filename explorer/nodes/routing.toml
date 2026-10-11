@@ -1,0 +1,18 @@
+id = "routing"
+kind = "stage"
+outline = true
+title = "Маршрутизация"
+definition = "Перед реализацией платформа подтверждает рекомендованный уровень исполнителя и записывает, какой агент и какая модель отвечают за работу."
+order = 3
+short_title = "Маршрутизация"
+tagline = "кто и на каком уровне"
+children = ["executor-routing", "executors"]
+sources = [
+  "docs/engineering/model-routing.md#Start-tier authoring (`R1`/`R2`/`R3`)",
+  "docs/engineering/model-routing.md#Execution-time freshness check",
+]
+
+[[transitions]]
+to = "isolated-implementation"
+type = "main"
+reason = "Реализация начинается только после записанного маршрута"

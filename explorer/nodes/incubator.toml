@@ -1,0 +1,12 @@
+id = "incubator"
+kind = "part"
+outline = true
+title = "Инкубатор"
+definition = "Место для идей, которые ещё не приняты в работу: короткая запись, причина помнить и условие пересмотра."
+role = "artifact"
+sources = [
+  "docs/engineering/task-intake.md#Incubator",
+]
+
+[[used_in]]
+stage = "requirement-intent"

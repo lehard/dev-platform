@@ -42,6 +42,11 @@ jobs:
       - name: Build Explorer
         run: python3 scripts/build_explorer.py build --out build/explorer
 
+      # Stale editorial explanations are advisory: warning annotations and the job summary, never a failure.
+      - name: Report editorial drift
+        if: github.event_name == 'pull_request'
+        run: python3 scripts/build_explorer.py drift --github
+
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -82,3 +87,27 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # After a merge to main: keep exactly one open issue that lists stale editorial nodes. Isolated from build and
+  # deploy (no `needs` in either direction) so a failure here changes neither; the only extra permission is issues.
+  drift-issue:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    concurrency:
+      group: explorer-drift-issue
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+
+      - name: Update the editorial drift issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/build_explorer.py drift-issue

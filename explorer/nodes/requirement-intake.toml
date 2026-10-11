@@ -1,0 +1,21 @@
+id = "requirement-intake"
+kind = "mechanism"
+outline = true
+title = "Requirement и intake"
+definition = "Как принятая работа хранится в бэклоге, распознаётся, запускается и связывается со своими техническими задачами."
+order = 1
+role = "mechanism"
+children = ["chatgpt-project", "incubator", "goal-refinement"]
+sources = [
+  "docs/engineering/task-intake.md#Requirement-first cross-surface contract",
+  "docs/engineering/task-intake.md#Intent boundary",
+]
+
+[[used_in]]
+stage = "requirement-intent"
+
+[[used_in]]
+stage = "specification"
+
+[[used_in]]
+stage = "publication-integration"

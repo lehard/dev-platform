@@ -1,0 +1,14 @@
+id = "platform-releases"
+kind = "mechanism"
+outline = true
+title = "Релизы платформы"
+definition = "Новая версия появляется только через явный release PR; после слияния создаётся тег vX.Y.Z, который никогда не перемещается и не используется повторно."
+order = 9
+role = "mechanism"
+sources = [
+  "docs/release-policy.md#Release identity",
+  "docs/release-policy.md#Version publication",
+]
+
+[[used_in]]
+stage = "release-rollout"

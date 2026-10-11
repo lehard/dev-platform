@@ -1,0 +1,12 @@
+id = "review-perspectives"
+kind = "part"
+outline = true
+title = "Точки зрения ревью"
+definition = "Что проверяет сверка с контрактом и что проверяет инженерное качество, и почему это два отдельных запуска."
+role = "mechanism"
+sources = [
+  "docs/engineering/openspec-workflow.md#Independent review evidence",
+]
+
+[[used_in]]
+stage = "verification"

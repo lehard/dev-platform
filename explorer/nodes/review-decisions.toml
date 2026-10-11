@@ -1,0 +1,12 @@
+id = "review-decisions"
+kind = "part"
+outline = true
+title = "Решения по замечаниям"
+definition = "Отклонение с обоснованием или сохранённый блокер: неизменяемая запись рядом с отчётом."
+role = "artifact"
+sources = [
+  "docs/engineering/openspec-workflow.md#Independent review evidence",
+]
+
+[[used_in]]
+stage = "verification"

@@ -1,0 +1,14 @@
+id = "copier-rollout"
+kind = "mechanism"
+outline = true
+title = "Copier и управляемая раскатка"
+definition = "Подключённые проекты обновляются до точного тега через Copier отдельным PR в каждом проекте; сбой одного проекта не останавливает остальные, автослияния по умолчанию нет."
+order = 10
+role = "external"
+sources = [
+  "docs/managed-rollout.md#Automatic release rollout",
+  "docs/release-policy.md#Managed rollout",
+]
+
+[[used_in]]
+stage = "release-rollout"

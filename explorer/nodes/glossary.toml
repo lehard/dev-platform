@@ -1,0 +1,11 @@
+id = "glossary"
+kind = "topic"
+outline = true
+title = "Словарь"
+definition = "Requirement, OpenSpec, ADD, worktree, PR, receipt, friction и другие термины с короткими объяснениями."
+order = 4
+children = ["business-requirement"]
+sources = [
+  "AGENTS.md#Task intents",
+  "docs/engineering/openspec-workflow.md#Contract model",
+]

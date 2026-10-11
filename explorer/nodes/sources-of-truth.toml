@@ -1,0 +1,9 @@
+id = "sources-of-truth"
+kind = "topic"
+outline = true
+title = "Источники истины"
+definition = "Где записаны обязательные правила, а где пояснения, и какой источник главнее при расхождении."
+order = 3
+sources = [
+  "AGENTS.md#Sources of truth",
+]

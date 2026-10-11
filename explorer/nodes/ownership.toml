@@ -1,0 +1,11 @@
+id = "ownership"
+kind = "topic"
+outline = true
+title = "Кто за что отвечает"
+definition = "Что принадлежит платформе, что проекту, а что оператору установки, и кто какое решение принимает."
+order = 1
+sources = [
+  "docs/ownership.md#Platform-owned",
+  "docs/ownership.md#Project-owned",
+  "docs/ownership.md#Operator-owned",
+]
