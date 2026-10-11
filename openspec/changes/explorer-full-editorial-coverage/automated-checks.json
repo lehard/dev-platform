@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.742,
+      "duration_seconds": 0.145,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.216,
+      "duration_seconds": 0.156,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 737.863,
+      "duration_seconds": 542.515,
       "outcome": "success",
       "exit_code": 0
     }
@@ -30,8 +30,13 @@
     {
       "id": "full-trigger",
       "paths": [
+        ".github/workflows/explorer.yml",
+        "dev-platform/checks.toml",
         "scripts/build_explorer.py",
-        "tests/test_build_explorer_editorial.py"
+        "scripts/select_checks.py",
+        "tests/test_build_explorer.py",
+        "tests/test_build_explorer_editorial.py",
+        "tests/test_explorer_workflow.py"
       ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
@@ -54,10 +59,10 @@
     "change": "explorer-full-editorial-coverage",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/explorer-full-editorial-coverage",
     "branch": "agent/br-573-t2-explorer-full-editorial-coverage",
-    "head": "731744da246c1a2f8ca9fa64064c2ed46d20f8cb",
+    "head": "ecf59dd13d06dd032f9e5536d6317c8e09d64e22",
     "task_content": {
       "version": 1,
-      "digest": "4e311fb530325479952793db58e79f02e67222fe426a34181cc866fac14c241f",
+      "digest": "b8adcd413e104a52fb1f3444d3fbe5abca0eaedfa74d85fa97820baac1f50563",
       "paths": {
         ".github/workflows/explorer.yml": "8ef8da35aa3da29235adfe721fbdb31c96ad5ade",
         "dev-platform/checks.toml": "9d857c6d7eb6a822f704ceae7c34695eec305bda",
@@ -124,10 +129,12 @@
         "openspec/changes/explorer-editorial-engine/verification.md": "6a330084094c11187a88f7f336c88bce41d719c6",
         "openspec/changes/explorer-full-editorial-coverage/.managed-task.json": "e2bddebe8c57cc4f045f004129703a55e2cf3d03",
         "openspec/changes/explorer-full-editorial-coverage/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+        "openspec/changes/explorer-full-editorial-coverage/automated-checks.json": "600da4f0794d1a2b84f2b735b02de6e6564bab06",
         "openspec/changes/explorer-full-editorial-coverage/design.md": "6a0a24224a7f1b385ba3a32359a4102e68a047f1",
         "openspec/changes/explorer-full-editorial-coverage/proposal.md": "9a0bfd3dbbc9683e7cfad077ab7ce8c3a381dbcc",
         "openspec/changes/explorer-full-editorial-coverage/specs/platform-explorer/spec.md": "c92ddaf99b01d30f3b0a8338da542e1f2bd92c15",
-        "openspec/changes/explorer-full-editorial-coverage/tasks.md": "79a8234a035969d9e4e6f6ad54c98970dbd00dba",
+        "openspec/changes/explorer-full-editorial-coverage/tasks.md": "fcc92a172f416ce4643015fdc1351048f67ff1c3",
+        "openspec/changes/explorer-full-editorial-coverage/verification.md": "d1b7ed1f76bca4bf5cc6942246c3e65bb460d229",
         "scripts/build_explorer.py": "87fea81f5321ae8cbcbce352c686b7563344a453",
         "scripts/select_checks.py": "805f6e73c5e0f5cf9f9885dc5d803caa33c07d94",
         "tests/test_build_explorer.py": "b8134c6e1d118deb589e1934170f85c87974e836",
@@ -139,7 +146,7 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "f1b7ec0b33872c9f520728d0cab2f22e868d8e73f605d280e1bc71c5b2784c1e",
+    "digest": "c5d83be4117b49757eaceae3e723370f54f19227a4ea7cd5cd51f3e8808db1b4",
     "paths": {
       "docs/engineering/explorer.md": "4eb0bd21b8ac3be52561ef58a82629935dbe6b79",
       "explorer/assets/explorer.css": "267c5bb173917667599365127095fbe49fbf18f2",
@@ -188,7 +195,7 @@
       "openspec/changes/explorer-full-editorial-coverage/design.md": "6a0a24224a7f1b385ba3a32359a4102e68a047f1",
       "openspec/changes/explorer-full-editorial-coverage/proposal.md": "9a0bfd3dbbc9683e7cfad077ab7ce8c3a381dbcc",
       "openspec/changes/explorer-full-editorial-coverage/specs/platform-explorer/spec.md": "c92ddaf99b01d30f3b0a8338da542e1f2bd92c15",
-      "openspec/changes/explorer-full-editorial-coverage/tasks.md": "79a8234a035969d9e4e6f6ad54c98970dbd00dba",
+      "openspec/changes/explorer-full-editorial-coverage/tasks.md": "fcc92a172f416ce4643015fdc1351048f67ff1c3",
       "scripts/build_explorer.py": "87fea81f5321ae8cbcbce352c686b7563344a453",
       "tests/test_build_explorer_editorial.py": "7743ffabdca6a47f03f1db8698fdcfc2e8e247a8"
     },
@@ -196,8 +203,8 @@
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
-    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/build_explorer.py --changed-file tests/test_build_explorer_editorial.py",
-    "duration_seconds": 88.113,
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/build_explorer.py --changed-file scripts/select_checks.py --changed-file tests/test_build_explorer.py --changed-file tests/test_build_explorer_editorial.py --changed-file tests/test_explorer_workflow.py",
+    "duration_seconds": 178.317,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
