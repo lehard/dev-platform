@@ -48,6 +48,13 @@ reference that expose it. Runtime-specific text may describe a genuine
 mechanical difference, but it must link back to the shared owner instead of
 restating an equivalent policy.
 
+## Requirement content authoring
+
+`dev-platform/capabilities/requirement-authoring.md` is the sole owner of the
+Business Requirement authoring standard. Task intake, the ChatGPT Project
+protocol and the root map point to it; they do not restate its rules. Update the
+standard there and keep its `template/` mirror identical.
+
 ## Cross-surface managed authoring
 
 `task-intake.md` is the semantic owner. Generic fixation creates or reuses one

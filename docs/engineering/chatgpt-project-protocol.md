@@ -75,6 +75,13 @@ repository, a valid project label, or a valid default priority is absent.
 `verify_connected_requirement` in `requirement_intake.py` are the reference
 model this ordered rule and its read-back must behave equivalently to.
 
+Before composing or materially changing the Requirement body, read and apply
+the same canonical authoring standard a repository agent uses:
+[dev-platform/capabilities/requirement-authoring.md](../../dev-platform/capabilities/requirement-authoring.md)
+in the target repository's default branch (or Dev Platform's own). It is content
+discipline only: it changes none of the sections, labels, routing, read-back or
+Project-membership rules in this document and adds no step for the user.
+
 Before creating a new Issue, search bounded open backlog context for an
 unambiguous existing Requirement with the same accepted outcome/target. Reuse
 that exact Requirement when appropriate; do not create duplicates merely
