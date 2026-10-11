@@ -2229,6 +2229,8 @@ class EarlyRoutingGateTests(unittest.TestCase):
         )
         self.assertEqual(completed.returncode, 2)
         self.assertIn("no delegation is open", completed.stderr)
+        self.assertIn("[recoverable] routing-early-gate:", completed.stderr)
+        self.assertIn("recovery: route first with", completed.stderr)
 
     def test_record_after_the_fact_and_late_begin_are_refused(self) -> None:
         self.handoff()
@@ -2910,7 +2912,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
         payload = json.loads(self.record_path().read_text(encoding="utf-8"))
         del payload["execution_plan"]
         self.record_path().write_text(json.dumps(payload), encoding="utf-8")
-        with self.assertRaisesRegex(routing.RoutingError, "re-route required"):
+        with self.assertRaisesRegex(routing.RoutingError, r"\[recoverable\] routing-early-gate: .*re-route required"):
             self.gate()
         with self.assertRaisesRegex(routing.RoutingError, "no execution plan"):
             routing.escalate(self.task, "x reason")

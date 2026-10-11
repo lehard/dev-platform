@@ -2,7 +2,7 @@
 
 ### Requirement: Blocking checks declare a failure class
 
-Every blocking platform check SHALL be cataloged with a failure class of platform defect, supported recovery or justified hard stop. A recoverable entry SHALL name a recorded recovery step; a hard-stop entry SHALL carry a written justification. A new or changed blocking check without a catalog entry SHALL fail platform validation.
+Every blocking platform check that reports through the shared helper SHALL be cataloged with a failure class of platform defect, supported recovery or justified hard stop, and the catalog SHALL inventory at least the blocking checks named by the Requirement. A recoverable entry SHALL name a recorded recovery step; a hard-stop entry SHALL carry a written justification. A blocking check that reports through the helper without a catalog entry SHALL fail platform validation. A new or changed blocking check SHALL be added to the catalog and fail through the helper; this obligation is enforced by review, and the completeness of the inventory beyond the named checks is reported in the catalog and not asserted by validation.
 
 #### Scenario: Uncataloged blocking check
 

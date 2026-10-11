@@ -22,10 +22,9 @@
 # are `tests/<file>.py::<Class>::<test>` and must resolve; tests/test_blocking_gates.py checks it.
 #
 # Known gaps / follow-ups (recorded, not redesigned here):
-#  1. Gates implemented in model_routing.py, publication_queue.py, lifecycle_workers.py and
-#     finish_task.py are cataloged with migrated = false: those files were under coordination with
-#     other sessions when this catalog was introduced. Move them onto gate_failure in a follow-up
-#     (finish_task.py already shows the migrated scope-overlap text through agent_board.py).
+#  1. The Python gates in model_routing.py and publication_queue.py now fail through gate_failure/
+#     gate_message (migrated = true). Gates in lifecycle_workers.py and finish_task.py other than
+#     the migrated scope-overlap text are not inventoried yet.
 #  2. delegated-write-containment: an integration head move that no integration-advance receipt
 #     explains stays a hard stop. The only exit that exists, `model_routing.py
 #     recover-external-advance --owner-approval`, is a historical recovery that is refused once
@@ -39,13 +38,19 @@
 #  4. shared-workspace-admission is recoverable for real permission/umask/group findings. A correct
 #     shared workspace that the check rejects wrongly (issue #427) has no local exit: shared_workspace.py
 #     is protected, so that defect needs a platform release.
-#  5. platform_divergence.py is a standalone detector that deliberately imports nothing from
-#     _platform_common; its own `[kind] path: message` lines are not rendered from this catalog.
+#  5. platform_divergence.py prints its own `[kind] path: message` lines and then the catalog class
+#     line for the divergence and protected-touch groups through gate_message.
 #  6. No inventoried gate currently reports itself as platform-defect; the class and its tests exist
 #     for gates that detect their own contradictory contract.
 #  7. The inventory covers the gates named in the Requirement and the ones verified by reading code.
 #     Other blocking checks (for example in finish_task.py, pr_review_gate.py, openspec_lifecycle.py)
-#     are not yet cataloged; completeness is reported here, not asserted.
+#     are not yet cataloged; completeness is reported here, not asserted. A new or changed blocking
+#     check must be added here and fail through the helper (enforced by review).
+#  8. merge-commit-hook stays migrated = false: a shell script cannot call the helper and editing a
+#     git hook is a protected-surface change reserved for an explicit owner decision.
+#  9. finish_task.py --no-checks is an operator override guarded only by DEV_PLATFORM_ALLOW_NO_CHECKS=1
+#     with no recorded decision; the negative test allowlists it. Follow-up: make the override a
+#     recorded decision or remove it.
 
 [[gate]]
 id = "routing-early-gate"
@@ -53,7 +58,7 @@ script = "scripts/model_routing.py"
 class = "recoverable"
 summary = "Task content exists without a routing record, or supervisor-written content contradicts a delegated-child execution plan."
 recovery = "route first with `python3 scripts/model_routing.py route-codex` or `route-claude` when no routing record exists; for a supervisor-written diff the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
-migrated = false
+migrated = true
 rejection_tests = [
   "tests/test_model_routing.py::EarlyRoutingGateTests::test_supervisor_content_under_delegated_plan_blocks_every_routing_adjacent_command",
 ]
@@ -68,7 +73,7 @@ script = "scripts/model_routing.py"
 class = "hard-stop"
 summary = "A delegated write left its assigned worktree: integration paths changed, or the integration head moved without a verified integration-advance receipt chain."
 justification = "This is the integrity of the delegated write boundary: it cannot be waived by the agent whose write it bounds. The only exit is the owner-authorized historical recovery `model_routing.py recover-external-advance`, which is refused once integration-advance receipts exist at or after the recorded friction event, and never applies to a changed path."
-migrated = false
+migrated = true
 rejection_tests = [
   "tests/test_model_routing.py::ModelRoutingTests::test_postcheck_reports_native_worktree_escape",
   "tests/test_integration_advance_receipts.py::ClaudeRecordingTests::test_missing_receipt_is_a_violation",
@@ -95,7 +100,7 @@ id = "contribution-base-freshness"
 script = "scripts/select_checks.py"
 class = "hard-stop"
 summary = "Validation of a Requirement contribution is refused because HEAD does not contain the contribution's exact base."
-justification = "The contribution identity binds the exact base commit, so the platform must not validate content that is not built on it. The gate defines no recovery command for this state; that absence is recorded as a follow-up gap, and no supported path is claimed here."
+justification = "The contribution identity binds the exact base commit, so the platform must not validate content that is not built on it. Rebuild the contribution on its recorded base; a started child whose base moved is restarted from the current Requirement head."
 migrated = true
 rejection_tests = [
   "tests/test_task_freshness.py::TaskFreshnessTests::test_contribution_missing_its_exact_base_stops_before_validation",
@@ -150,7 +155,7 @@ script = "scripts/publication_queue.py"
 class = "recoverable"
 summary = "Coordinator configuration preflight stops at the first missing or contradictory input, names it, and exits 2."
 recovery = "supply or correct the named input (tool, token, slug or trust configuration), then rerun `python3 scripts/publication_queue.py preflight --mode <ci|local> --phase <inputs|runtime|all>`"
-migrated = false
+migrated = true
 rejection_tests = [
   "tests/test_coordinator_preflight.py::CiPreflightTests::test_each_missing_input_is_named",
 ]
@@ -179,7 +184,7 @@ script = "scripts/platform_divergence.py"
 class = "recoverable"
 summary = "A hotfixable platform-owned file differs from the release manifest without a valid, current hotfix record, or the record itself is invalid."
 recovery = "restore the released file, or declare the repair through the temporary local hotfix flow: regression test, `python3 scripts/agent_friction.py record ...` and an entry in dev-platform/local-hotfixes.toml (docs/engineering/change-classes.md)"
-migrated = false
+migrated = true
 rejection_tests = [
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_undeclared_divergence_of_a_hotfixable_file_fails",
 ]
@@ -193,7 +198,7 @@ script = "scripts/platform_divergence.py"
 class = "hard-stop"
 summary = "A protected platform-owned file, the manifest or the detector differs from the release, or a hotfix record names a protected path."
 justification = "Protected rules have no local change path: a local patch could weaken review, publication, isolation, credential, provenance, history or release guarantees. The only exits are restoring the released bytes (Copier update) or a platform release."
-migrated = false
+migrated = true
 rejection_tests = [
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_protected_file_edit_fails_as_protected_touch_without_a_record",
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_record_naming_a_protected_path_fails_as_protected_touch_even_with_matching_digest",

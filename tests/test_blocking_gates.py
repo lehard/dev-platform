@@ -208,6 +208,26 @@ class CatalogTests(unittest.TestCase):
                     with self.subTest(gate=gate_id, field=field, test=test_id):
                         self.assertIsNone(resolve_test_id(test_id), f"{gate_id}: {test_id}")
 
+    def test_divergence_failures_print_their_catalog_class_lines(self) -> None:
+        # `platform-divergence` (recoverable) and `platform-divergence-protected` (hard-stop) are rendered
+        # from the catalog after the detector's own per-path lines.
+        text = (SCRIPTS / "platform_divergence.py").read_text(encoding="utf-8")
+        self.assertIn('gate_message("platform-divergence"', text)
+        self.assertIn('gate_message("platform-divergence-protected"', text)
+        self.assertEqual("recoverable", self.gates["platform-divergence"]["class"])
+        self.assertEqual("hard-stop", self.gates["platform-divergence-protected"]["class"])
+
+    def test_every_acceptance_test_module_belongs_to_a_test_group(self) -> None:
+        """A catalog test that no group runs would count as evidence without ever executing."""
+        groups = tomllib.loads((ROOT / "dev-platform" / "checks.toml").read_text(encoding="utf-8"))["test_groups"]
+        grouped = {target for group in groups.values() for target in group["targets"]}
+        for gate_id, entry in self.gates.items():
+            for field in ("rejection_tests", "recovery_tests"):
+                for test_id in entry.get(field, []):
+                    module = test_id.split("::", 1)[0].removeprefix("tests/").removesuffix(".py")
+                    with self.subTest(gate=gate_id, test=test_id):
+                        self.assertIn(module, grouped, f"{gate_id}: {test_id} is in no test group of dev-platform/checks.toml")
+
     def test_every_recovery_names_existing_template_paths(self) -> None:
         for gate_id, entry in self.gates.items():
             if entry["class"] != "recoverable":

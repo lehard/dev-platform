@@ -49,6 +49,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
+from _platform_common import gate_message
+
 MANIFEST_PATH = "dev-platform/platform-manifest.json"
 SURFACE_PATH = "dev-platform/protected-surface.toml"
 RECORD_PATH = "dev-platform/local-hotfixes.toml"
@@ -351,6 +353,12 @@ def main() -> int:
     if result.problems:
         for problem in result.problems:
             print(problem)
+        protected = [line for line in result.problems if line.startswith(f"[{PROTECTED}]")]
+        other = [line for line in result.problems if not line.startswith(f"[{PROTECTED}]")]
+        if other:
+            print(gate_message("platform-divergence", f"{len(other)} divergence problem(s) outside the protected surface"))
+        if protected:
+            print(gate_message("platform-divergence-protected", f"{len(protected)} protected-touch problem(s)"))
         print(f"platform_divergence: FAILED with {len(result.problems)} problem(s)")
         return 1
     print(f"platform_divergence: OK ({result.checked} manifest files checked, {len(result.hotfixes)} declared hotfix(es))")

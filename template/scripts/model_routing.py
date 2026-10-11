@@ -27,7 +27,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Callable
 
-from _platform_common import atomic_write_text, current_worktree_root, main_root, read_platform_config, utc_now
+from _platform_common import atomic_write_text, current_worktree_root, gate_failure, main_root, read_platform_config, utc_now
 from _platform_common import profile as workflow_profile_of
 from delegated_write_guard import (
     CLASSIFICATION_CLEAN,
@@ -828,17 +828,21 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
         content = _task_content_state(root.resolve(), change)
         diverged = _content_differences({"committed": {}, "paths": {}}, content)
         if diverged:
-            raise RoutingError(
+            raise gate_failure(
+                "routing-early-gate",
                 f"no routing record exists for managed change {change} but task content already changed ({_format_paths(diverged)}); "
-                "route before task content: run route-codex or route-claude before implementation"
+                "route before task content: run route-codex or route-claude before implementation",
+                RoutingError,
             )
         return None
     route, _ = _read_route_at(path, source_issue, change)
     if route.execution_plan is None:
         if route.execution is None:
-            raise RoutingError(
+            raise gate_failure(
+                "routing-early-gate",
                 f"routing record for managed change {change} has no execution plan and no execution outcome; "
-                "re-route required (route-codex or route-claude). Re-routing is refused when task content already diverged."
+                "re-route required (route-codex or route-claude). Re-routing is refused when task content already diverged.",
+                RoutingError,
             )
         return route
     plan = route.execution_plan
@@ -848,12 +852,14 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
         return route
     diverged = _task_content_diverged(route)
     if diverged:
-        raise RoutingError(
+        raise gate_failure(
+            "routing-early-gate",
             f"the execution plan for managed change {change} is a delegated child, but no delegation is open and task content "
             f"changed ({_format_paths(diverged)}). Supervisor-written content under a child-executor plan is blocked: "
             "open the delegation first (begin-claude-delegation or route-codex) before the child writes; a supervisor-written "
             "diff cannot be legalized by the supervisor alone: the owner must decide explicitly in chat, and only "
-            "`model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"` records that decision."
+            "`model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"` records that decision.",
+            RoutingError,
         )
     return route
 
@@ -1967,7 +1973,11 @@ def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
         message = format_violation_message(assigned, result)
-        raise RoutingError(f"{message} Head movement was not accepted as a verified concurrent advance: {refusal}." if refusal else message)
+        raise gate_failure(
+            "delegated-write-containment",
+            f"{message} Head movement was not accepted as a verified concurrent advance: {refusal}." if refusal else message,
+            RoutingError,
+        )
     check = {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
     if verified_advance:
         check["integration_advance"] = {"classification": CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE, "before_head": before.head, "after_head": after.head}

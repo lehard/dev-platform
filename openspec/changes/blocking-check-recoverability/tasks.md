@@ -6,7 +6,7 @@
 ## 2. Inventory and migration
 
 - [x] 2.1 Inventory existing blocking gates, including those named in the Requirement, classify each with its current recovery or hard-stop justification, and record follow-ups for gaps instead of redesigning gates.
-- [x] 2.2 Move inventoried gates onto the helper with unchanged exit conditions; add rejection and recovery acceptance tests per gate.
+- [x] 2.2 Move the inventoried gates onto the helper with unchanged exit conditions, except the shell `pre-merge-commit` hook (it cannot call the Python helper and its modification is a sensitive protected-surface edit left to an explicit owner decision); add rejection and recovery acceptance tests per gate.
 
 ## 3. Protected-surface negative tests
 
