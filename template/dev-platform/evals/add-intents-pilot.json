@@ -1,7 +1,7 @@
 {
   "version": 1,
   "capability": "add-intents",
-  "content_sha256": "b3889d767a61a2d4045b2f51927de2e5de1e136ae2e62028de24bab9da28ad4c",
+  "content_sha256": "f05e5c2760edd19c7d3f740513f36853f7bec9ab76f11559a57ff10586db75e6",
   "cases": [
     {"id": "positive-new-integration-contract", "expectation": "trigger", "prompt": "Add a new Kafka event integration between billing and search so search stays in sync with organization profile changes.", "samples": ["triggered", "triggered", "triggered"]},
     {"id": "positive-new-capability-boundary", "expectation": "trigger", "prompt": "Introduce tiered pricing as a new capability that changes how the billing service computes and boundaries with the entitlement service.", "samples": ["triggered", "triggered", "triggered"]},
@@ -48,6 +48,36 @@
       "objective_verifier": "validate-intents rejects a cyclic intent dependency graph and rejects two intents covering the same ADD element without each recording an explicit overlap_reason.",
       "baseline": "not-verified",
       "candidate": "verified"
+    },
+    {
+      "id": "render-state-derived-from-facts",
+      "objective_verifier": "render-add derives the displayed state only from structural validity, open choices/contradictions, the digest-bound approval and proven freshness: a valid fresh approval renders «утверждён», open choices render «нужны решения», an empty ADD renders «предложение», and an invalid ADD fails explicitly instead of rendering.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "product-clarification-shown-apart-from-architecture",
+      "objective_verifier": "An open unresolved choice of kind product renders under its own «Уточнение Business Requirement» heading, never among the architectural questions, still blocks approve-add, and options, trade-offs and the recommendation render only when recorded.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "stale-approval-is-never-presented-as-current",
+      "objective_verifier": "After a material edit of an approved ADD, render-add shows «требует актуализации» (also when freshness cannot be proven); re-approval through approve-add restores «утверждён» for the new content.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "presentation-is-read-only-and-identical-across-routes",
+      "objective_verifier": "Two renders of the same ADD are byte-identical, bound to its content digest, and write no file or status; the output does not depend on the invoking agent or project.",
+      "baseline": "not-verified",
+      "candidate": "verified"
+    },
+    {
+      "id": "agent-keeps-br-product-rules-out-of-add",
+      "objective_verifier": "Live agent judgement that already-defined BR product rules are not restated as ADD deltas and a missing product decision is routed back to the BR. Only the guidance text that states this is pinned by tests; no live multi-agent run is claimed.",
+      "baseline": "not-verified",
+      "candidate": "not-verified"
     },
     {
       "id": "clear-change-bypasses-the-pipeline",

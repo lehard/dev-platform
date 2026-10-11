@@ -60,6 +60,39 @@ second interview mechanism; group related material choices into one bounded
 checkpoint where practical. An evidence-resolvable fact is recorded as an
 already-`resolved` choice and never becomes a question.
 
+### What belongs in the ADD
+
+The Business Requirement (BR) is the source of accepted product and business
+intent: goals, user behavior, screens, navigation, business rules, scenarios,
+constraints and acceptance. Before a candidate enters the ADD, place it with
+evidence (the BR, accepted OpenSpec and active deltas, project context,
+code/tests, the bounded snapshot) in exactly one destination:
+
+| Destination | What goes there | Treatment |
+| --- | --- | --- |
+| Accepted by the BR | Behavior, rules, scenarios and constraints the BR already defines | Use as a constraint; name briefly as context at most. Never re-present it as an architectural alternative to approve. |
+| Existing technical contract | A choice already set by accepted OpenSpec, an active delta, project context or code/tests | Record as a `preserved` element or `reused_constraints` entry; never offer it as a choice. |
+| ADD delta | A `new`/`changed` material system contract, boundary, storage or data ownership, invariant, security concern or NFR that arises from the BR relative to the current accepted state | State what differs from today, how it serves the BR goal, the proposal and the reason. |
+| OpenSpec detail | Handler or function names, file layout, code sequencing, test mechanics | Leave to OpenSpec; it is not ADD material. |
+| Open product question | A material missing decision about user-facing behavior or scope | Record an open `unresolved_choices` entry with `"kind": "product"`; it is a clarification of the BR, not decided in the ADD and not mixed with architectural alternatives. |
+
+The test for an ADD candidate: *what is the new material system decision,
+relative to the currently accepted state, that cannot simply be read from the
+BR and the existing contract?* If there is no answer, it is not a new delta.
+A long BR is not itself a reason to create an ADD; a bounded change without a
+useful design delta still skips ADD and intents.
+
+Contrasting cases: "the user sees a card instead of the step-by-step screen"
+is already a BR product contract, so it is not an ADD decision. Changing an
+existing event contract between two subsystems or the ownership of a record
+for that same behavior is a potential ADD delta if it is material and not set
+by the sources. Not knowing whether the user must confirm an irreversible
+action is a product question for the BR, not a quietly accepted ADD decision.
+Choosing a function name or splitting handlers is usually OpenSpec detail.
+
+This is the agent's evidence-first judgement, not a keyword or category gate,
+and no tool decides it.
+
 ### Approval is bound to exact content, not just a flag
 
 `approved: true` alone is not a valid approval. Approving an ADD writes an
@@ -125,6 +158,41 @@ untracked, missing or edited bound source makes a snapshot-bound ADD stale,
 including uncommitted edits at the prepared revision itself. An ADD without
 snapshot evidence is fresh only at its exact `prepared_against` revision, with
 its existing bound source files unedited.
+
+## Presenting the ADD to the human
+
+Whenever the process shows an ADD to a human for a decision or approval,
+present the output of the read-only projection for the current ADD, in
+Russian, and add nothing that contradicts it:
+
+```bash
+python3 scripts/add_intents.py render-add <add-path> --requirement <owner/repo#N>
+```
+
+Fill `requirement.summary` first (2-4 sentences: which system changes are
+needed and why, without retelling the BR). The projection prints a header with
+the BR, target repository, ADD id and content revision plus a state, then only
+the sections that have content: «Итог», «Существенные изменения» (a table of
+the `new`/`changed` elements only), «Что сохраняется», «Уже решено», «Вопросы
+к человеку» (options, trade-offs and the agent's recommendation),
+«Уточнение Business Requirement» (open `kind: product` choices, shown
+separately) and «Риски и следующий шаг» (one unambiguous action). The table
+columns «Сейчас», «Почему», «Последствия» and «Ссылки» appear only when the
+elements carry the optional `current`, `rationale`, `impact` and `refs`
+fields; an unresolved choice may carry `kind`, `options` (`label`, optional
+`tradeoffs`) and `recommendation`. Absent fields only shorten the output; they
+are never invented, and none is required.
+
+The state is derived, never written by the agent: «утверждён» only for a
+structurally valid ADD whose approval digest matches the current content and
+whose freshness is proven; «требует актуализации» for a stale approval or when
+freshness cannot be proven; otherwise «нужны решения», «готов к утверждению»
+or «предложение» from the content. The projection writes nothing, approves
+nothing and is regenerated from the ADD after every change, so an earlier
+approval is never presented as current. Showing it is not an approval and adds
+no mandatory human stop: approval remains `approve-add` bound to the exact
+content digest, and the existing single bounded checkpoint is the only pause.
+A material product clarification returns to the BR; it is not decided here.
 
 ## Intent decomposition
 
@@ -285,7 +353,8 @@ independently authored, clean-room, provider-neutral implementation.
 
 ## Safety boundary
 
-`add_intents.py` only reads/writes the local JSON files it is pointed at,
+`add_intents.py` only reads/writes the local JSON files it is pointed at
+(`render-add` only reads and prints),
 reads the local Git history for `prepared_against`/freshness comparisons, and
 -- for `project-evidence-snapshot` evidence entries -- reads the referenced
 snapshot file and calls into `project_evidence.py`'s own validation, never
