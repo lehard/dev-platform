@@ -252,6 +252,8 @@ table.tb { border-collapse: collapse; font-size: 13px; width: 100%; min-width: 7
 table.tb th, table.tb td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; color: var(--body); }
 table.tb th { background: var(--card); font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
 table.tb td b { color: var(--ink); }
+table.tb td.srcs { min-width: 240px; font-size: 11px; line-height: 1.5; }
+table.tb td.srcs code { word-break: break-all; }
 table.tb a { text-decoration: none; }
 table.tb a:hover { text-decoration: underline; }
 table.tb .kd, span.kd { font-family: var(--mono); font-size: 11px; color: var(--c); white-space: nowrap; }

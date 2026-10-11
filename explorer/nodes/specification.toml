@@ -1,18 +1,149 @@
 id = "specification"
 kind = "stage"
-outline = true
 title = "Проектирование изменения"
 definition = "Принятое требование становится проверяемым контрактом OpenSpec. Для существенных архитектурных изменений сначала описывается дельта архитектуры (ADD)."
 order = 2
 short_title = "Проектирование"
 tagline = "требование → контракт"
-children = ["add-openspec"]
+children = ["add-openspec", "requirement-intake"]
+terms = ["openspec", "add"]
+lead = "На этом этапе принятое требование превращается в контракт, по которому работу реализуют и проверяют. Для существенного изменения устройства системы сначала готовится ADD, дельта архитектуры, затем она делится на намерения, и каждое намерение становится пакетом OpenSpec."
+thesis = "Реализация не должна зависеть от переписки в чате. Глубину проектирования выбирает агент по самому требованию, и полный путь через ADD нужен только тогда, когда требование действительно меняет устройство системы."
 sources = [
   "docs/engineering/openspec-workflow.md#Author the outcome contract",
   "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline",
+  "docs/engineering/task-intake.md#Requirement-first cross-surface contract",
+  "dev-platform/capabilities/add-intents.md#When it applies",
+  "dev-platform/capabilities/add-intents.md#Handoff to OpenSpec authoring",
 ]
 
 [[transitions]]
 to = "routing"
 type = "main"
 reason = "У каждой управляемой задачи есть рекомендованный уровень исполнителя, его надо подтвердить"
+
+[[inputs]]
+title = "Принятое требование"
+text = "Business Requirement, запущенный командой `requirement_intake.py start`; его стабильная идентичность подготовки `requirement-<номер>`."
+role = "stage"
+node = "requirement-intent"
+note = "← этап 1"
+
+[[inputs]]
+title = "Снимок свидетельств"
+text = "Ограниченный снимок источников проекта, который оркестратор строит или переиспользует для проектирования."
+role = "artifact"
+node = "add-openspec"
+
+[[inputs]]
+title = "Принятая система"
+text = "Принятые спецификации и активные изменения: ADD описывает только то, что отличается от них."
+role = "source"
+note = "openspec/specs/"
+
+[action]
+label = "pre-authoring"
+title = "От требования до пакета OpenSpec"
+steps = [
+  "Запустить `orchestrate_pre_authoring.py --id requirement-<номер> status` и записать объяснимый выбор глубины `select-depth`: `deterministic`, `bounded-evidence` или `material-design`.",
+  "Для материального дизайна построить или переиспользовать свидетельства, составить ADD и утвердить его; при настоящем нерешённом выборе остановиться и спросить человека.",
+  "Разделить утверждённый ADD на атомарные intents и подготовить конверт `prepare-handoff` для каждого готового intent.",
+  "Автор пишет пакет OpenSpec по конверту, а `requirement_intake.py materialize-handoff` создаёт связанный управляемый Issue типа `type:internal-change`.",
+  "При подготовке управляемой задачи в пакет записывается рекомендованный уровень исполнителя `R2` или `R3`.",
+]
+
+[[outputs]]
+title = "Управляемая задача с пакетом OpenSpec"
+text = "Один или несколько дочерних Issue с пакетом `openspec/changes/<change>/`, ссылающихся на Requirement. С этого момента канонический контракт реализации и проверки это пакет."
+role = "artifact"
+consumer = "→ этап 3"
+node = "routing"
+
+[[outputs]]
+title = "Вопрос человеку"
+text = "Если существенный выбор нельзя определить по свидетельствам, оркестратор останавливается и задаёт один ограниченный вопрос, а ответ возвращается в ADD."
+role = "actor"
+consumer = "владелец"
+
+[[outputs]]
+title = "Стадия Requirement"
+text = "Команда `aggregate` читает стадию подготовки и дочерних задач из свидетельств: `pre-authoring`, `design`, `human-decision`, `ready` и другие."
+role = "artifact"
+consumer = "владелец и карточка"
+node = "requirement-intake"
+
+[[fork]]
+title = "Развилка: насколько глубоко проектировать"
+note = "Выбор записывается и привязан ко всему Requirement. Неизменный выбор переиспользуется, а изменённый Requirement делает его и производные артефакты устаревшими."
+
+[[fork.branch]]
+name = "Детерминированный"
+code = "deterministic"
+role = "neutral"
+recognized = "Агент записывает выбор `deterministic`: handoff можно получить без снимка свидетельств и без работы модели."
+creates = "Прямой handoff без снимка свидетельств и без работы модели; ADD и intents не создаются."
+next = "→ управляемая задача"
+next_node = "routing"
+
+[[fork.branch]]
+name = "Ограниченные свидетельства"
+code = "bounded-evidence"
+role = "artifact"
+recognized = "Агент записывает выбор `bounded-evidence` и явно называет область через `--concern`."
+creates = "Строятся только выбранные проекции облегчённым маршрутом только для чтения, затем прямой handoff; ADD и intents не создаются."
+next = "→ управляемая задача"
+next_node = "routing"
+
+[[fork.branch]]
+name = "Материальный дизайн"
+code = "material-design"
+role = "mechanism"
+recognized = "Требование предполагает настоящую дельту проектирования: новые или изменённые возможности, границы компонентов, контракты, владение данными, инварианты, вопросы безопасности или существенное нефункциональное поведение."
+creates = "Свидетельства, ADD, утверждение, intents и handoff для каждого готового intent."
+next = "ADD → intents → OpenSpec"
+next_node = "add-openspec"
+
+[[path]]
+title = "Нужен ответ человека"
+tag = "пауза"
+role = "actor"
+when = "В ADD остался существенный нерешённый выбор или противоречие, которое нельзя определить по свидетельствам."
+outcome = "ADD нельзя утвердить, пока выбор открыт; оркестратор останавливается, задаёт вопрос, а ответ фиксируется в ADD"
+
+[[path]]
+title = "Требование изменилось"
+tag = "пересчёт"
+role = "gate"
+when = "Тело Requirement изменилось после выбора глубины."
+outcome = "выбор и производные артефакты признаются устаревшими, и подготовка продолжается заново от выбора глубины"
+
+[[path]]
+title = "Утверждённого ADD мало"
+tag = "возврат в ADD"
+role = "gate"
+when = "При написании OpenSpec выясняется, что утверждённый ADD недостаточен или должен существенно измениться."
+outcome = "пробел возвращается в ADD и intents и не решается молча в `proposal.md` или `design.md`"
+
+[[path]]
+title = "Возможный дубликат"
+tag = "подтверждение"
+role = "gate"
+when = "В том же проекте уже есть похожая управляемая задача."
+outcome = "нужно явное проверенное подтверждение `--confirm-distinct`; существенный конфликт контрактов по-прежнему останавливает работу"
+
+[[path]]
+title = "Материализация прервалась"
+tag = "повтор"
+role = "neutral"
+when = "Связь между Requirement и дочерним Issue создана только в одну сторону."
+outcome = "повторный запуск достраивает связь и сообщает об успехе только после проверки обеих сторон, не создавая второй Issue"
+
+[example]
+title = "Пример: от требования до двух пакетов"
+steps = [
+  { text = "Продолжим пример: Requirement «Explorer должен объяснять платформу по-русски» уже в работе, а его карточка стоит в «In progress». Агент запускает `orchestrate_pre_authoring.py --id requirement-<номер> status`." },
+  { text = "Допустим, требование меняет публичный контракт между двумя подсистемами. Агент записывает выбор material-design, строит свидетельства и составляет ADD.", emphasis = ["material-design"] },
+  { text = "В ADD остаётся один существенный нерешённый выбор. Оркестратор останавливается и задаёт человеку один вопрос; после ответа агент утверждает ADD командой `approve-add`." },
+  { text = "`decompose` делит ADD на два независимых intent, и для каждого готовится конверт `prepare-handoff`." },
+  { text = "Агент пишет по пакету OpenSpec на каждый конверт и запускает `materialize-handoff`. Появляются два управляемых Issue с меткой `type:internal-change`, связанных с Requirement в обе стороны. Дальше задача идёт к этапу 3.", emphasis = ["два управляемых Issue"] },
+]

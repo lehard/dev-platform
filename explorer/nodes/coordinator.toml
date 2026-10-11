@@ -1,0 +1,8 @@
+id = "coordinator"
+kind = "term"
+title = "координатор"
+definition = "Координатор — workflow GitHub Actions в центральном репозитории, который обрабатывает очередь публикации по одному PR: публикует задания ревью, доработки и финализации, вливает свежий `main`, ждёт обязательный CI и сливает с защитой от сдвига версии. Он просыпается при приёме PR и каждые пять минут."
+sources = [
+  "docs/engineering/agent-workflow.md#Source publication queue",
+  "docs/engineering/agent-workflow.md#Lifecycle workers",
+]

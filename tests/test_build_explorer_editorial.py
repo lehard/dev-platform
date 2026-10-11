@@ -721,13 +721,74 @@ class RealEditorialTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(path, self.outputs)
 
-    def test_node_inventory_full_versus_outline(self) -> None:
-        full = sorted(node.id for node in self.site.ed.values() if not node.outline)
-        self.assertEqual(full, ["business-requirement", "independent-review", "overview", "requirement-intent"])
-        kinds: dict[str, int] = {}
+    def test_no_committed_node_is_an_outline_and_the_semantic_map_is_complete(self) -> None:
+        by_kind: dict[str, list[str]] = {}
         for node in self.site.ed.values():
-            kinds[node.kind] = kinds.get(node.kind, 0) + 1
-        self.assertEqual(kinds, {"overview": 1, "stage": 8, "mechanism": 11, "part": 7, "topic": 4, "term": 1})
+            by_kind.setdefault(node.kind, []).append(node.id)
+        self.assertEqual({kind: len(ids) for kind, ids in by_kind.items()}, {"overview": 1, "stage": 8, "mechanism": 11, "part": 7, "topic": 4, "term": 12})
+        self.assertEqual(sorted(by_kind["stage"]), sorted(LEGACY_STAGE_IDS))
+        self.assertEqual(
+            sorted(by_kind["mechanism"]),
+            sorted((
+                "requirement-intake", "add-openspec", "executor-routing", "executors", "worktrees", "verification-checks",
+                "independent-review", "pr-queue-integration", "platform-releases", "copier-rollout", "friction-retrospectives",
+            )),
+        )
+        self.assertEqual(
+            sorted(by_kind["part"]),
+            sorted((
+                "chatgpt-project", "incubator", "goal-refinement", "review-perspectives", "repair-job", "review-decisions",
+                "lifecycle-workers",
+            )),
+        )
+        self.assertEqual(sorted(by_kind["topic"]), sorted(("ownership", "adoption", "sources-of-truth", "glossary")))
+        outlines = sorted(node.id for node in self.site.ed.values() if node.outline)
+        self.assertEqual(outlines, [])
+        for node in self.site.ed.values():
+            with self.subTest(node=node.id):
+                self.assertTrue(node.definition)
+                if node.kind in ("stage", "mechanism", "part"):
+                    for key in ("lead", "thesis", "inputs", "action", "outputs", "path", "example"):
+                        self.assertIn(key, node.data)
+                elif node.kind == "topic":
+                    for key in ("lead", "thesis", "points"):
+                        self.assertIn(key, node.data)
+                if node.kind in ("mechanism", "part"):
+                    self.assertTrue(node.data["used_in"])
+
+    def test_every_glossary_term_is_wired_as_a_hint_in_at_least_one_node(self) -> None:
+        wired: dict[str, list[str]] = {}
+        for node in self.site.ed.values():
+            for term in node.data.get("terms", []):
+                wired.setdefault(term, []).append(node.id)
+        terms = [node.id for node in self.site.ed.values() if node.kind == "term"]
+        self.assertEqual(sorted(wired), sorted(terms))
+        glossary = self.site.ed["glossary"].data["children"]
+        self.assertEqual(sorted(glossary), sorted(terms))
+
+    def test_coverage_page_shows_every_node_as_full_with_its_bound_sources(self) -> None:
+        coverage = self.outputs["map/index.html"].decode("utf-8")
+        self.assertIn("Набросков: 0.", coverage)
+        self.assertNotIn(">набросок<", coverage)
+        self.assertNotIn("Полное описание этого узла ещё не написано", coverage)
+        self.assertIn("ИСТОЧНИКИ", coverage)
+        for node in self.site.ed.values():
+            for binding in node.sources:
+                with self.subTest(node=node.id, source=binding.ref.label):
+                    self.assertIn(f"<code>{explorer.esc(binding.ref.label)}</code>", coverage)
+        for path, page in self.outputs.items():
+            if path.endswith(".html"):
+                self.assertNotIn("Полное описание этого узла ещё не написано", page.decode("utf-8"), path)
+
+    def test_check_command_reports_no_outlines(self) -> None:
+        import contextlib
+        import io
+
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            code = explorer.main(["--root", str(ROOT), "check"])
+        self.assertEqual(code, 0, stderr.getvalue())
+        self.assertIn("(0 outline node(s))", stdout.getvalue())
 
     def test_every_node_binds_a_source_and_has_a_page(self) -> None:
         for node in self.site.ed.values():

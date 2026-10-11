@@ -2865,10 +2865,12 @@ class Site:
                 else '<span class="kd" style="--c:var(--mech)">полный</span>'
             )
             stale = ' <span class="kd" style="--c:var(--gate)">источник изменился</span>' if node.id in self.stale else ""
+            sources = "<br>".join(f"<code>{esc(binding.ref.label)}</code>" for binding in node.sources)
             body_rows.append(
                 f'<tr><td><a href="{self._node_link(node.id, page_dir)}"><b>{esc(node.title)}</b></a>{stale}</td>'
                 f'<td class="kd"{role_style(kind_role)}>{esc(kind_label)} · {node.level}</td>'
-                f"<td>{status}</td><td>{inline_code(node.definition)}</td><td>{esc(self._where_used(node))}</td></tr>"
+                f"<td>{status}</td><td>{inline_code(node.definition)}</td><td>{esc(self._where_used(node))}</td>"
+                f'<td class="srcs">{sources}</td></tr>'
             )
         transitions = []
         for stage in self.stages:
@@ -2891,10 +2893,11 @@ class Site:
             "<tr><th>УРОВЕНЬ</th><th>ЧТО ЭТО</th><th>ЧТО ВИДНО</th><th>ЧТО СПРЯТАНО ГЛУБЖЕ</th></tr>\n"
             f"{levels}</table></div>\n"
             f'{self._section("Все узлы уровней 0–2", len(rows))}'
-            f'<p class="note">Полных узлов: {len(rows) - outlines}. Набросков: {outlines}. '
-            "Набросок показывает определение, связи и источники; полное описание появляется по той же модели.</p>\n"
+            f'<p class="note">Полных узлов: {len(rows) - outlines}. Набросков: {outlines}.'
+            + (" Набросок показывает определение, связи и источники; полное описание появляется по той же модели." if outlines else "")
+            + "</p>\n"
             '<div class="tw"><table class="tb">\n'
-            "<tr><th>УЗЕЛ</th><th>ТИП · УРОВЕНЬ</th><th>ГОТОВНОСТЬ</th><th>ОПРЕДЕЛЕНИЕ</th><th>ГДЕ УЧАСТВУЕТ</th></tr>\n"
+            "<tr><th>УЗЕЛ</th><th>ТИП · УРОВЕНЬ</th><th>ГОТОВНОСТЬ</th><th>ОПРЕДЕЛЕНИЕ</th><th>ГДЕ УЧАСТВУЕТ</th><th>ИСТОЧНИКИ</th></tr>\n"
             + "\n".join(body_rows) + "\n</table></div>\n"
             f'{self._section("Переходы между этапами и их причины")}<div class="tw"><table class="tb">\n'
             "<tr><th>ПЕРЕХОД</th><th>ТИП</th><th>ПОЧЕМУ</th></tr>\n" + "\n".join(transitions) + "\n</table></div>\n"
@@ -3365,7 +3368,7 @@ def main(argv: list[str] | None = None) -> int:
     verb = "built" if args.command == "build" else "checked"
     print(
         f"explorer {verb}: {pages} pages, {len(site.nodes)} elements, {len(site.ed)} editorial nodes, "
-        f"{len(site.stages)} lifecycle stages at commit {site.repo.commit[:7]}"
+        f"{len(site.stages)} lifecycle stages ({sum(1 for node in site.ed.values() if node.outline)} outline node(s)) at commit {site.repo.commit[:7]}"
         + (f"; {len(site.drift)} editorial drift warning(s)" if site.drift else "")
     )
     return 0
