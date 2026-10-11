@@ -3,52 +3,34 @@
   "candidate": {
     "base_head": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
     "base_ref": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
-    "candidate_head": "86efe5ba35a17db60771a3de3cca2cfd9cb6f8d2",
-    "diff_sha256": "98da0139413aaaae7cc30e7449486ced84a142a09479ff9d89f5cc2345b29a46"
+    "candidate_head": "ccb68b3d7c723c67014b949f02777d3233d62dc1",
+    "diff_sha256": "8e5e6554f3bf06035272df6ced425aec9b27580106a63cb2e121eb9ee1d608c3"
   },
-  "completed_at": "2026-10-11T09:00:48+00:00",
+  "completed_at": "2026-10-11T10:16:34+00:00",
   "findings": [
     {
-      "evidence": "The header of template/dev-platform/blocking-gates.toml (gap 7) says other blocking checks, 'for example in finish_task.py, pr_review_gate.py, openspec_lifecycle.py, are not yet cataloged; completeness is reported here, not asserted'. design.md promises 'a static search for the known failure pattern' that lists uncataloged gates. tests/test_blocking_gates.py only scans calls to gate_failure/gate_message (helper_calls). A check that never uses the helper is invisible to it, so the 'check added without a catalog entry fails validation' scenario is unmet.",
-      "id": "blocking-checks-not-all-cataloged",
+      "evidence": "template/dev-platform/blocking-gates.toml: the `task-freshness` entry has `recovery = \"python3 scripts/reconcile_task.py (merges current authoritative main ...)\"`. Header gap 3 says reconcile \"sets no override, so where the hook is installed a clean merge of a diverged task is blocked by the hook (reproduced in a throwaway repository)\". Spec 'Recoverable block' requires the named step to let the work continue. The recovery test only covers an unhooked case (`test_unpublished_task_merges_authoritative_main_without_rewriting_history`). The gate message printed to the user advertises a recovery the catalog admits can fail.",
+      "id": "task-freshness-recovery-contradicts-catalog-gap",
       "severity": "material",
-      "summary": "The spec says every blocking platform check SHALL be cataloged and that a new or changed blocking check without an entry SHALL fail platform validation. The candidate catalogs only a subset and has no validation that detects an uncataloged blocking check."
+      "summary": "The catalog classifies `task-freshness` as recoverable via `reconcile_task.py`, but its own known-gap #3 says reconcile's `git merge --no-edit origin/<main>` is blocked by the installed `pre-merge-commit` hook. That contradicts the spec scenario that following the named recovery lets work continue."
     },
     {
-      "evidence": "The catalog has migrated = false for routing-early-gate, delegated-write-containment, merge-commit-hook, publication-preflight, platform-divergence and platform-divergence-protected. Gap 1 says the model_routing.py, publication_queue.py, lifecycle_workers.py and finish_task.py gates are deferred. change-classes.md concedes 'Gates whose entry says migrated = false still fail in their own words'. Only task-freshness, contribution-base-freshness, proven-base-freshness, shared-workspace-admission and scope-overlap print the class line. So the 'Recoverable block' scenario (message names the recovery step) does not hold for the routing-early-gate or platform-divergence gates, and tasks.md 2.2 is checked without being fulfilled.",
-      "id": "class-line-missing-for-unmigrated-gates",
-      "severity": "material",
-      "summary": "The spec says a blocking failure SHALL state its class and recovery or justification. Five cataloged gates still fail in their own words, yet tasks.md marks 2.2 'Move inventoried gates onto the helper with unchanged exit conditions' as done."
-    },
-    {
-      "evidence": "test_every_acceptance_test_resolves_to_a_real_test calls resolve_test_id, which parses the AST for the class and method and never executes anything. checks.toml adds only test_blocking_gates to the target list, so the referenced tests in other files run only if their own groups are selected.",
-      "id": "acceptance-tests-resolved-not-run",
+      "evidence": "proposal.md: 'including the gates named in the Requirement (routing early gate, merge-hook/reconcile, shared-workspace ownership, publication preflight, finalize freshness)'. The catalog has no `reconcile_task.py` or `finish_task.py` entries. Header gap 1 says 'Gates in lifecycle_workers.py and finish_task.py ... are not yet inventoried'. `test_inventory_names_the_gates_the_requirement_lists` checks only the ids the author chose, not the Requirement's list. The mapping of 'finalize freshness' to `proven-base-freshness` is not stated.",
+      "id": "named-checks-inventory-incomplete",
       "severity": "advisory",
-      "summary": "The spec says the platform SHALL run each gate's acceptance tests as part of validation. The new test only checks that the named test ids exist. design.md says 'a platform test resolves and runs them', and the proposal says the tests are 'present and passing'."
-    },
-    {
-      "evidence": "contribution-base-freshness: 'The gate defines no recovery command for this state; that absence is recorded as a follow-up gap, and no supported path is claimed here.' merge-commit-hook: the justification admits an override through 'an unrecorded environment flag'. Gap 3 says reconcile_task.py is blocked by that hook on a clean merge, with no recoverable path.",
-      "id": "hard-stop-without-safe-exit-misclassified",
-      "severity": "advisory",
-      "summary": "Some hard-stop entries are justified by the absence of a defined recovery rather than by there being no safe exit. The design reserves hard-stop for gates with no safe exit."
-    },
-    {
-      "evidence": "tests/test_blocking_gates.py ALLOWED_BYPASS_LIKE_OPTIONS keeps template/scripts/finish_task.py '--no-checks', which is described as an 'operator override of the local check run' gated only by DEV_PLATFORM_ALLOW_NO_CHECKS=1. It also keeps start_worktree.py '--skip-sync'. The merge-commit-hook justification describes an unrecorded env-var override.",
-      "id": "bypass-like-options-allowlisted",
-      "severity": "advisory",
-      "summary": "The spec says no universal force option or silent bypass SHALL exist. The negative test allowlists existing bypass-like options instead of removing them."
+      "summary": "The proposal lists reconcile and finalize freshness among the gates the inventory must include. No catalog entry covers reconcile_task.py refusals or finish_task.py finalize freshness. The spec requires the catalog to inventory at least the checks the Requirement names."
     }
   ],
-  "launched_at": "2026-10-11T09:00:20+00:00",
-  "output_sha256": "989df99bfe5554f1a3e130886180a80156057991439752f4e627d5999d0ef318",
+  "launched_at": "2026-10-11T10:16:09+00:00",
+  "output_sha256": "9cecf2f830a12e9442b2ff1ee8ef148a1ad550e22dac3d8a6d81a56b7bd905ea",
   "perspective": "spec-fidelity",
-  "request_id": "74c565fd-ea45-4a46-b3db-6cf8f484dbef",
+  "request_id": "92406e75-2cb0-49a5-958b-38da1af7c717",
   "reviewer": {
-    "context_id": "46d450ab-07ea-4c4d-9618-03c97b1bf1f4",
+    "context_id": "4f30aeb6-4a3f-4aa3-b437-02e2bab7daf6",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-faaf60d2-53dd-4821-87a6-46dfbbac47ed",
+    "launch_id": "platform-launch-64c81cae-ec0c-4f77-aff3-b760752ec01b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -63,27 +45,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52466
+        "value": 56720
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48357
+        "value": 101818
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26733
+        "value": 24474
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26663
+        "value": 23968
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -93,11 +75,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3144
+        "value": 2666
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f372796e95077488a3b6645754644202e238bea75ed9e6b60b90496f89ef8094"
+  "task_content_digest": "d883efce29c30e14ca711bd95ede09b32e3139afe7944bd20ad99996b558bcb1"
 }

@@ -3,52 +3,34 @@
   "candidate": {
     "base_head": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
     "base_ref": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
-    "candidate_head": "86efe5ba35a17db60771a3de3cca2cfd9cb6f8d2",
-    "diff_sha256": "98da0139413aaaae7cc30e7449486ced84a142a09479ff9d89f5cc2345b29a46"
+    "candidate_head": "ccb68b3d7c723c67014b949f02777d3233d62dc1",
+    "diff_sha256": "8e5e6554f3bf06035272df6ced425aec9b27580106a63cb2e121eb9ee1d608c3"
   },
-  "completed_at": "2026-10-11T09:01:19+00:00",
+  "completed_at": "2026-10-11T10:16:53+00:00",
   "findings": [
     {
-      "evidence": "tasks.md marks `[x] 2.2 Move inventoried gates onto the helper`. blocking-gates.toml sets `migrated = false` for routing-early-gate, delegated-write-containment, merge-commit-hook, publication-preflight, platform-divergence and platform-divergence-protected. Header gap #1 defers the work to a follow-up. The spec requirement 'Blocking failure messages distinguish the class' says a blocking failure SHALL state its class. The scenario 'Uncataloged blocking check' is only enforced for helper callers. Gap #7 admits other blocking checks (finish_task.py, pr_review_gate.py, openspec_lifecycle.py) are uncataloged. The test `test_migrated_flag_matches_the_scripts_that_use_the_helper` only scans for helper calls and never detects a new non-helper blocking check, so 'a new or changed blocking check without a catalog entry SHALL fail platform validation' is not met. The contract artifacts should be amended first (AGENTS.md: no silent divergence).",
-      "id": "half-of-inventoried-gates-not-migrated-tasks-marked-done",
-      "severity": "material",
-      "summary": "Task 2.2 and the spec's message requirement are checked off, but 5 of 10 cataloged gates still fail without the class line. Those include routing-early-gate, publication-preflight and merge-commit-hook, which the Requirement names. tasks.md and design.md were not updated to match."
+      "evidence": "template/scripts/publication_queue.py preflight: the `except PreflightFailure` branch now calls gate_message(...) inside the returned dict. A catalog error there propagates, not the documented `state: error` / exit 2 result. template/scripts/platform_divergence.py main(): the gate_message calls sit after the problem lines are printed and before `return 1`. A catalog error there aborts with a traceback. It is still non-zero and fail-closed, but it contradicts the design claim of 'identical exit conditions'. Likewise gate_failure raises BlockingGateCatalogError instead of the caller's exception_type (HardScopeOverlap, RoutingError, SystemExit), so callers that catch those types will not catch it.",
+      "id": "gate-message-catalog-error-changes-exit-path",
+      "severity": "advisory",
+      "summary": "Two call sites use gate_message without catching BlockingGateCatalogError. If the catalog is missing or malformed, the failure surfaces as a traceback or an unexpected exception, not the gate's own handled failure."
     },
     {
-      "evidence": "`gate_message` in `_platform_common.py` wraps catalog errors in `BlockingGateCatalogError(RuntimeError)`, and `gate_failure` only returns `exception_type(...)` on success. Examples: `raise gate_failure(\"shared-workspace-admission\", ..., SharedWorkspaceError)` and `raise gate_failure(\"scope-overlap\", ..., HardScopeOverlap)`. `tests/test_git_lifecycle.py` had to copy the catalog into its fixture repos because delivered scripts now depend on the catalog being present. design.md decision 5 says behavior and exit conditions stay identical.",
-      "id": "catalog-load-failure-changes-gate-exit-type",
+      "evidence": "blocking-gates.toml routing-early-gate has one `recovery`. It is appended to three different messages in model_routing.py _early_routing_gate. One of them says 'Re-routing is refused when task content already diverged', and the recovery line still tells the agent to run route-codex/route-claude.",
+      "id": "routing-early-gate-recovery-overgeneral",
       "severity": "advisory",
-      "summary": "If the catalog is missing or malformed, `gate_failure` raises `BlockingGateCatalogError`, a RuntimeError, instead of the exception type the gate already raised. This contradicts the claim that migrated gates keep unchanged exit conditions. Callers that catch the gate's own type, such as SharedWorkspaceError, HardScopeOverlap, or SystemExit-based CLIs, would see a traceback or an unhandled exception."
-    },
-    {
-      "evidence": "The justification reads: \"The gate defines no recovery command for this state; that absence is recorded as a follow-up gap, and no supported path is claimed here.\" The helper prints it verbatim as `hard stop: ...`. design.md decision 1 says a hard-stop message \"states that the stop is intentional\" and that the catalog carries the justification.",
-      "id": "hard-stop-without-recovery-labelled-intentional",
-      "severity": "advisory",
-      "summary": "`contribution-base-freshness` is classed `hard-stop` and printed as an intentional stop, yet its own justification says no recovery was defined and the gap is only a follow-up. This conflicts with design decision 1, where a hard stop means no safe exit exists, and the message shown to users carries catalog meta-commentary."
-    },
-    {
-      "evidence": "`resolve_test_id` in tests/test_blocking_gates.py only parses the AST and looks for a FunctionDef. The only change to checks.toml is adding the `test_blocking_gates` target. Entries reference tests in other files such as test_model_routing.py and test_worktree_hygiene.py, and nothing verifies that those files are in a run group.",
-      "id": "acceptance-tests-only-resolved-not-run",
-      "severity": "advisory",
-      "summary": "Catalog acceptance tests are only checked for existence, by AST lookup of class and method. The spec says each gate's acceptance tests are run as part of validation, and the proposal says they are \"present and passing\". Nothing in the diff ties the catalog entries to test execution, so a test that is skipped or excluded from the groups would still count as evidence."
-    },
-    {
-      "evidence": "`ALLOWED_BYPASS_LIKE_OPTIONS[(\"template/scripts/finish_task.py\", \"--no-checks\")]` says the option is \"refused unless DEV_PLATFORM_ALLOW_NO_CHECKS=1 is set\" and is \"reported as a follow-up for review\". The `FORBIDDEN_RECOVERY` regex only covers catalog recovery strings.",
-      "id": "no-checks-override-allowlisted-against-no-bypass-spec",
-      "severity": "advisory",
-      "summary": "The negative test allowlists an existing env-gated check-skipping option, `finish_task.py --no-checks`. The spec says no universal force option or silent bypass SHALL exist. The allowlist records a follow-up in a comment, but the gap is not in the catalog or in tasks.md."
+      "summary": "One catalog id covers several distinct failures but prints a single recovery. The 'route first' text is wrong for the failure variants that cannot be fixed by routing."
     }
   ],
-  "launched_at": "2026-10-11T09:00:48+00:00",
-  "output_sha256": "9aa82126e17cf3001fd0f0286c3d3354fbe61907d5fba355831d42c2227277c5",
+  "launched_at": "2026-10-11T10:16:34+00:00",
+  "output_sha256": "a3fa4fd28d75f36bd7925b084c39026c7b697c570a9281ac50e09c621dff1c74",
   "perspective": "engineering-quality",
-  "request_id": "74c565fd-ea45-4a46-b3db-6cf8f484dbef",
+  "request_id": "92406e75-2cb0-49a5-958b-38da1af7c717",
   "reviewer": {
-    "context_id": "5fdf1e7c-c586-4c54-9b42-ba815b953548",
+    "context_id": "636d61ea-e44a-4eed-a286-6808a555afc9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4461c2d9-d13c-410c-8205-156fd3fc6473",
+    "launch_id": "platform-launch-95d6b81d-fe5a-4e31-aae5-b526828902ac",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -63,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45843
+        "value": 38858
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51530
+        "value": 61565
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29730
+        "value": 17102
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30277
+        "value": 17579
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3544
+        "value": 1661
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f372796e95077488a3b6645754644202e238bea75ed9e6b60b90496f89ef8094"
+  "task_content_digest": "d883efce29c30e14ca711bd95ede09b32e3139afe7944bd20ad99996b558bcb1"
 }
