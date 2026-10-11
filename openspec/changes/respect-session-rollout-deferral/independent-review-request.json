@@ -1,13 +1,16 @@
 {
   "candidate": {
-    "base_head": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "origin/main",
-    "candidate_head": "37036d6da3bb290d53842191ffd949ff0930e71f",
-    "diff_sha256": "d39af4220ea42926c6575c687e53daa47eea0127e23dd9efe41e6268ac260752"
+    "candidate_head": "7c4eeaaa4bd6ea68818600a7f19b9c7b28373922",
+    "diff_sha256": "2d37bd2a2a44cf98c097342073fd9d542818ef0f43a9f938862792ba01b2b04e"
   },
   "change": "openspec/changes/respect-session-rollout-deferral",
   "excluded_lifecycle_paths": [
     "openspec/changes/respect-session-rollout-deferral/automated-checks.json",
+    "openspec/changes/respect-session-rollout-deferral/independent-review-request.json",
+    "openspec/changes/respect-session-rollout-deferral/independent-reviews/engineering-quality.json",
+    "openspec/changes/respect-session-rollout-deferral/independent-reviews/spec-fidelity.json",
     "openspec/changes/respect-session-rollout-deferral/verification.md"
   ],
   "fresh_context_required": true,
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-11T19:15:34+00:00",
+  "prepared_at": "2026-10-11T22:21:06+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/respect-session-rollout-deferral/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "21f9a4a7-e0b7-40d9-8473-8e06c494b47e",
+  "request_id": "c2e9bf45-e3e0-4cb3-b7b1-e9567afcd685",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",

@@ -1,39 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "origin/main",
-    "candidate_head": "37036d6da3bb290d53842191ffd949ff0930e71f",
-    "diff_sha256": "d39af4220ea42926c6575c687e53daa47eea0127e23dd9efe41e6268ac260752"
+    "candidate_head": "7c4eeaaa4bd6ea68818600a7f19b9c7b28373922",
+    "diff_sha256": "2d37bd2a2a44cf98c097342073fd9d542818ef0f43a9f938862792ba01b2b04e"
   },
-  "completed_at": "2026-10-11T19:16:22+00:00",
+  "completed_at": "2026-10-11T22:21:47+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_doctor.py in the diff calls `rollout_preflight.rollout_deferred(os.environ)` inside `main()` with no handling. `start_task` validates the value first, so this only affects running the doctor on its own. The failure is still loud and names the variable. Only the traceback presentation is rough.",
-      "id": "doctor-invalid-deferral-traceback",
+      "evidence": "template/scripts/agent_doctor.py in the diff: `pending_rollout_report(rollout_outcome, branch, rollout_preflight.rollout_deferred(os.environ))` inside main(). It is only reached after observe_pending_rollout, and nothing catches RolloutDeferralError. start_task.py validates the value earlier, so this only affects direct doctor runs. A bad value would still fail the doctor and drop the rest of its report.",
+      "id": "doctor-unhandled-invalid-deferral",
       "severity": "advisory",
-      "summary": "A standalone `agent_doctor.py` run with an invalid `DEV_PLATFORM_DEFER_ROLLOUT` value raises `RolloutDeferralError` as an uncaught traceback instead of a clean named error."
+      "summary": "agent_doctor.py calls rollout_preflight.rollout_deferred(os.environ) with no error handling. Run directly with an unsupported DEV_PLATFORM_DEFER_ROLLOUT value, it exits with a RolloutDeferralError traceback instead of a clean diagnostic."
     }
   ],
-  "launched_at": "2026-10-11T19:16:03+00:00",
-  "output_sha256": "45a6ef9356c9821e7b2bc194f140a2f870633dc23da7ea826f3fdffb639a4de1",
+  "launched_at": "2026-10-11T22:21:33+00:00",
+  "output_sha256": "130ab5ead8745e837f97906cde21406ed6b61088148173d5cb68e677e4bd42db",
   "perspective": "engineering-quality",
-  "request_id": "21f9a4a7-e0b7-40d9-8473-8e06c494b47e",
+  "request_id": "c2e9bf45-e3e0-4cb3-b7b1-e9567afcd685",
   "reviewer": {
-    "context_id": "4c4da6bf-d35d-4970-be10-2d90b5a85a30",
+    "context_id": "5aaceac8-aa0c-4dbe-a205-910f59b5cd50",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-6a5fba1f-aa16-4351-b2ad-eb6fbc5a12ab",
+    "launch_id": "platform-launch-6312d0a2-7370-4690-bfb6-407f31dc1d1c",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -42,27 +39,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38982
+        "value": 35130
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55481
+        "value": 92266
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15433
+        "value": 11570
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16067
+        "value": 13146
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -72,7 +69,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1687
+        "value": 1043
       }
     },
     "runtime": "claude-code-print"
