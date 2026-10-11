@@ -287,9 +287,6 @@ class HarnessModeGateTests(unittest.TestCase):
             self.assertTrue(callable(rollout_preflight.sync_after_remote_pr_merge))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 def safe_candidate() -> tuple[rollout_preflight.RolloutPR, rollout_preflight.RolloutPreflightResult]:
     candidate = rollout_preflight.RolloutPR(1, "https://example.invalid/pr/1", "dev-platform/rollout-v1.0.0", "v1.0.0", "abc123")
@@ -412,3 +409,7 @@ class EntrypointAndDoctorTests(unittest.TestCase):
         blocked = rollout_preflight.RolloutPreflightResult(rollout_preflight.BLOCKED, detail="checks failed")
         self.assertNotIn("will merge", agent_doctor.pending_rollout_report(blocked, "main", False)[1])
         self.assertEqual(agent_doctor.pending_rollout_report(rollout_preflight.RolloutPreflightResult(rollout_preflight.NONE), "main", False), ("ok", "no pending Dev Platform rollout PR"))
+
+
+if __name__ == "__main__":
+    unittest.main()
