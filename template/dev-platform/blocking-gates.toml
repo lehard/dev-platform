@@ -48,6 +48,13 @@
 #     check must be added here and fail through the helper (enforced by review).
 #  8. merge-commit-hook stays migrated = false: a shell script cannot call the helper and editing a
 #     git hook is a protected-surface change reserved for an explicit owner decision.
+# 10. Named checks mapping: the Requirement's "finalize freshness" is the proven-base-freshness entry
+#     (select_checks.py --proven-base); the task-freshness entry covers the developer preflight
+#     freshness that reconcile_task.py restores. Refusals raised inside reconcile_task.py itself are
+#     not inventoried yet (follow-up).
+# 11. A missing or malformed catalog makes gate_failure/gate_message raise BlockingGateCatalogError
+#     instead of the gate's own exception type: an explicit, loud failure (no default message), at the
+#     cost of a different exception type than the uncataloged gate raised.
 #  9. finish_task.py --no-checks is an operator override guarded only by DEV_PLATFORM_ALLOW_NO_CHECKS=1
 #     with no recorded decision; the negative test allowlists it. Follow-up: make the override a
 #     recorded decision or remove it.
@@ -57,7 +64,7 @@ id = "routing-early-gate"
 script = "scripts/model_routing.py"
 class = "recoverable"
 summary = "Task content exists without a routing record, or supervisor-written content contradicts a delegated-child execution plan."
-recovery = "route first with `python3 scripts/model_routing.py route-codex` or `route-claude` when no routing record exists; for a supervisor-written diff the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
+recovery = "no routing record: run `python3 scripts/model_routing.py route-codex` or `route-claude` before task content; a record without an execution plan: re-route while task content is unchanged, otherwise the owner decides in chat; supervisor-written content under a delegated-child plan: the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
 migrated = true
 rejection_tests = [
   "tests/test_model_routing.py::EarlyRoutingGateTests::test_supervisor_content_under_delegated_plan_blocks_every_routing_adjacent_command",
@@ -84,7 +91,7 @@ id = "task-freshness"
 script = "scripts/select_checks.py"
 class = "recoverable"
 summary = "Full or protected validation is refused because the task does not contain freshly observed authoritative main."
-recovery = "python3 scripts/reconcile_task.py (merges current authoritative main into the task without rewriting history), then rerun the validation"
+recovery = "python3 scripts/reconcile_task.py (merges current authoritative main into the task without rewriting history), then rerun the validation; if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop, do not override the hook, and record it with `python3 scripts/agent_friction.py record ...`"
 migrated = true
 rejection_tests = [
   "tests/test_select_checks.py::ProvenBaseContractTests::test_without_proven_base_a_stale_head_is_still_blocked",

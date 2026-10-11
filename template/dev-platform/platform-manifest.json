@@ -1,6 +1,6 @@
 {
   "files": {
-    "dev-platform/blocking-gates.toml": "91c52e9f5e72acb7a36382b4c2d057eacd6aa6630512af63ad094f4cb26d53fa",
+    "dev-platform/blocking-gates.toml": "6e13658298cf15b1e5f6be28e67976b23fb6e4a0cf0e78128d5a85cf5272623a",
     "dev-platform/capabilities/add-intents.md": "b3889d767a61a2d4045b2f51927de2e5de1e136ae2e62028de24bab9da28ad4c",
     "dev-platform/capabilities/add-intents.toml": "5b643ecc81c65cef41dd1ea9a443d3f692229585ad526c77f333ed4d299508bf",
     "dev-platform/capabilities/architecture-health-review.md": "b2d06c8898086ca262ca24654270d9c3ec9d6dd73eefde555f54064ff802aae0",
