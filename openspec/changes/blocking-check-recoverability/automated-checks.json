@@ -5,8 +5,27 @@
     "command_count": 3,
     "check_count": 1
   },
-  "outcome": "failure",
-  "executed_commands": [],
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.154,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.172,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 552.29,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
   "selected_checks": [
     {
       "id": "full-trigger",
@@ -57,10 +76,10 @@
     "change": "blocking-check-recoverability",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/blocking-check-recoverability",
     "branch": "agent/br-526-t2-blocking-check-recoverability",
-    "head": "88c6538e53aa721a950677297786630e3a240bb6",
+    "head": "8d7ba5817e0e7645aa41f929271ebd7f999a3fdf",
     "task_content": {
       "version": 1,
-      "digest": "b020a886533a2ec0cb6b71d911e2aab11b20230e5f8b9d2284fec632cdf11f9e",
+      "digest": "e494c6fdb5f7b80030504137e887e68ef778fa292c9f0a6f60496e20a8d3c618",
       "paths": {
         "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
         "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
@@ -69,7 +88,7 @@
         "docs/ownership.md": "4f69261228a53cce5fd9345dc07441cec4367eb1",
         "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
         "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
-        "openspec/changes/blocking-check-recoverability/automated-checks.json": "5f2141df413b672040f96abfa7d5bc1e54dbc9f0",
+        "openspec/changes/blocking-check-recoverability/automated-checks.json": "3fea7d7ebbd504f2aac1d89479158ef75d1674cd",
         "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
         "openspec/changes/blocking-check-recoverability/independent-review-request.json": "af72d019026a27c073e79d7955641c23fc2fed73",
         "openspec/changes/blocking-check-recoverability/independent-reviews/engineering-quality.json": "8981de39ab554de920facb75981ee15cb1eabfce",
@@ -119,7 +138,7 @@
         "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
         "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
         "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
-        "tests/test_model_routing.py": "78d1d1b015caa2ca18586a90d22ded9b50b8f6b4",
+        "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
         "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
         "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
         "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
@@ -136,7 +155,7 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "9b44738d4b7aace6ff42847f8993c517214e047c36fe1224371452446400c3af",
+    "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
     "paths": {
       "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
       "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
@@ -159,7 +178,7 @@
       "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
       "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
       "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
-      "tests/test_model_routing.py": "78d1d1b015caa2ca18586a90d22ded9b50b8f6b4",
+      "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
       "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
       "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
       "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
@@ -172,9 +191,9 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/generate_platform_manifest.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_board.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/platform_divergence.py --changed-file template/scripts/platform_doctor.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file tests/test_blocking_gates.py --changed-file tests/test_coordinator_preflight.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_model_routing.py --changed-file tests/test_platform_divergence.py --changed-file tests/test_platform_manifest.py --changed-file tests/test_protected_surface.py --changed-file tests/test_root_guidance_contract.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_workspace.py --changed-file tests/test_task_freshness.py --changed-file tests/test_template_contract.py --changed-file tests/test_worktree_hygiene.py --changed-file tests/upgrade_smoke.py",
-    "duration_seconds": 453.075,
-    "outcome": "failure",
-    "exit_code": 1,
+    "duration_seconds": 458.97,
+    "outcome": "success",
+    "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
   }
 }
