@@ -190,7 +190,7 @@ id = "platform-divergence"
 script = "scripts/platform_divergence.py"
 class = "recoverable"
 summary = "A hotfixable platform-owned file differs from the release manifest without a valid, current hotfix record, or the record itself is invalid."
-recovery = "restore the released file, or declare the repair through the temporary local hotfix flow: regression test, `python3 scripts/agent_friction.py record ...` and an entry in dev-platform/local-hotfixes.toml (docs/engineering/change-classes.md)"
+recovery = "restore the released file, or declare the repair through the temporary local hotfix flow: regression test, `python3 scripts/agent_friction.py record ...` with `python3 scripts/platform_divergence.py export-friction <id>`, and an entry in dev-platform/local-hotfixes.toml (docs/engineering/change-classes.md)"
 migrated = true
 rejection_tests = [
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_undeclared_divergence_of_a_hotfixable_file_fails",

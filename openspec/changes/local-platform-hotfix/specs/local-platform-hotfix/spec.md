@@ -12,7 +12,7 @@ Each platform release SHALL carry a manifest of the sha256 of every plain-copied
 
 ### Requirement: Local hotfix is declared, traceable and temporary
 
-The platform SHALL allow a downstream project to repair a reproducible defect in a hotfixable platform-owned script only through its ordinary PR, CI and independent review, and only with a project-owned hotfix record naming the patched paths, the source platform version, the patched digests, a regression test that exposes the defect, the friction event id and an explicit statement that the divergence is temporary and not an official release.
+The platform SHALL allow a downstream project to repair a reproducible defect in a hotfixable platform-owned script only through its ordinary PR, CI and independent review, and only with a project-owned hotfix record naming the patched paths, the source platform version, the patched digests, a regression test that exposes the defect, the friction event id together with a committed, sanitized copy of that friction event bound by digest, and an explicit statement that the divergence is temporary and not an official release.
 
 #### Scenario: Valid hotfix
 
@@ -22,7 +22,7 @@ The platform SHALL allow a downstream project to repair a reproducible defect in
 
 ### Requirement: Divergence check fails explicitly on undeclared or unsafe divergence
 
-The divergence check SHALL fail with a message naming the class and path when a platform-owned file differs from the manifest without a valid record, a record touches a protected or unknown path, a protected file, including the protected surface, the divergence check and the blocking-gate catalog, differs from the manifest, a record's platform version differs from the installed version, a patched digest does not match, or the regression test or friction reference is missing or unreadable. It SHALL NOT report a failed condition as a passed check and SHALL NOT substitute a default.
+The divergence check SHALL fail with a message naming the class and path when a platform-owned file differs from the manifest without a valid record, a record touches a protected or unknown path, a protected file, including the protected surface, the divergence check and the blocking-gate catalog, differs from the manifest, a record's platform version differs from the installed version, a patched digest does not match, or the regression test or the committed friction evidence is missing, invalid or does not match its recorded digest. It SHALL NOT report a failed condition as a passed check and SHALL NOT substitute a default.
 
 #### Scenario: Patch to a protected file
 
@@ -46,6 +46,29 @@ The platform SHALL document that the divergence check compares files with a mani
 - **WHEN** the divergence check runs
 - **THEN** the check does not report it
 - **AND** the documentation names the Copier update diff and independent review as the detection path.
+
+### Requirement: Friction evidence is verifiable from committed data
+
+The divergence check SHALL verify a hotfix's friction evidence only from data committed in the project, so that it behaves identically on a developer machine and on CI. It SHALL NOT read, require or silently skip the machine-local friction log in its default mode. Cross-checking the event against the machine-local friction log SHALL be an explicit, separately requested mode that fails when the log is absent or unreadable.
+
+#### Scenario: Valid hotfix on CI
+
+- **GIVEN** a valid hotfix whose sanitized friction evidence is committed and matches its recorded digest
+- **AND** the runner has no machine-local friction log
+- **WHEN** the divergence check runs in its default mode
+- **THEN** it passes.
+
+#### Scenario: Altered or missing evidence
+
+- **GIVEN** the committed friction evidence is absent, malformed, names another event, is not platform scope, or was edited after the record was written
+- **WHEN** the divergence check runs
+- **THEN** it fails with the missing-friction-event class naming the cause.
+
+#### Scenario: Explicit local mode
+
+- **GIVEN** the explicit local-log mode is requested and the machine-local log is absent, unreadable or lacks the event
+- **WHEN** the divergence check runs
+- **THEN** it fails and never accepts the event silently.
 
 ### Requirement: Hotfix uses existing mechanisms only
 

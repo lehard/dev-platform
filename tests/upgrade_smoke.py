@@ -247,6 +247,7 @@ def main() -> int:
             'defect = "upgrade smoke stale hotfix"\n'
             'regression_test = "scripts/check_docs_links.py"\n'
             'friction_event = "000000000000"\n'
+            f'friction_evidence_sha256 = "{"0" * 64}"\n'
             "temporary = true\n"
         )
         hotfix_record.write_text(stale_record, encoding="utf-8")

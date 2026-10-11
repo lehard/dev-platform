@@ -34,8 +34,8 @@ A reproducible defect in a `hotfixable` platform-owned file may block a project 
 1. Reproduce the defect and confirm the file is listed `hotfixable` in `protected-surface.toml`. A protected file, a project-owned file or a templated file is not eligible; stop and report class (c).
 2. Patch only that hotfixable file, narrowly, inside the ordinary project task and PR. Never edit `protected-surface.toml`, `platform-manifest.json`, `platform_divergence.py` or `platform_doctor.py`.
 3. Add a regression test that fails without the patch and passes with it.
-4. Record the defect with `python3 scripts/agent_friction.py record ...` so the platform learns of it, and keep the printed event id.
-5. Add a `[[hotfix]]` entry to the project-owned `dev-platform/local-hotfixes.toml` with `path`, `platform_version` (the installed `.dev-platform.toml` version), `patched_sha256` (the sha256 of the patched file), `defect`, `regression_test`, `friction_event` and `temporary = true`. The file survives Copier updates; its header lists the fields.
+4. Record the defect with `python3 scripts/agent_friction.py record ...` so the platform learns of it, then run `python3 scripts/platform_divergence.py export-friction <event-id>` on that machine: it writes the sanitized copy `dev-platform/hotfix-friction/<event-id>.json` (commit it) and prints its digest.
+5. Add a `[[hotfix]]` entry to the project-owned `dev-platform/local-hotfixes.toml` with `path`, `platform_version` (the installed `.dev-platform.toml` version), `patched_sha256` (the sha256 of the patched file), `defect`, `regression_test`, `friction_event`, `friction_evidence_sha256` (the digest printed by the export) and `temporary = true`. The file survives Copier updates; its header lists the fields.
 6. Open the ordinary PR. Required checks and independent review run unchanged and judge whether the patch is bounded and the regression test really exposes the defect.
 
 A hotfix is temporary and is not an official release: the installed platform release is unchanged. It expires on the next platform update, after which its entry is reported stale until a human or agent re-evaluates it (usually by deleting the entry once the release carries the fix). Report the defect upstream through the friction event rather than keeping the patch.
@@ -52,7 +52,7 @@ A hotfix is temporary and is not an official release: the installed platform rel
 | `stale-hotfix` | The entry was made against another platform version than the installed one. The check never edits the record. |
 | `digest-mismatch` | The recorded `patched_sha256` is not the file's current digest. |
 | `missing-regression-test` | The named regression test file does not exist. The check proves presence only, not adequacy. |
-| `missing-friction-event` | The friction event id is not in the machine-local friction log, or that log cannot be read. The log is machine-local, so run the check where the event was recorded. |
+| `missing-friction-event` | The committed friction evidence `dev-platform/hotfix-friction/<id>.json` is missing, invalid, names another event, is not platform scope, or does not match `friction_evidence_sha256`. Only committed data is checked, so CI behaves like a developer machine; `--verify-local-friction-log` additionally requires the event in the machine-local log. |
 | `invalid-record` | The manifest, protected surface, config or record is missing, malformed or has a missing or unknown field. |
 
 The check is local and compares files with a local manifest: an agent that edits a protected file and the manifest consistently is not detected by it. The Copier update diff against the released template and independent PR review detect that, and they stay mandatory.

@@ -24,10 +24,16 @@ Failure classes:
 - missing-regression-test: the entry's `regression_test` is not an existing file.
   Only presence is verified; the independent PR review judges whether the test
   really fails without the patch.
-- missing-friction-event: the entry's `friction_event` is not in the machine-local
-  friction log used by `agent_friction.py`, or that log cannot be read. An
-  unreadable or absent log is reported, never accepted. The log is machine-local,
-  so run this check where the friction event was recorded (the developer machine).
+- missing-friction-event: the entry's friction evidence is not committed or is invalid.
+  Every entry names an `agent_friction.py` event id (`friction_event`) and carries a
+  committed sanitized copy of that event in `dev-platform/hotfix-friction/<id>.json`,
+  bound by `friction_evidence_sha256`. The check verifies only committed data, so it
+  behaves identically on a developer machine and on CI; it never reads the
+  machine-local friction log unless asked. `scripts/platform_divergence.py
+  export-friction <id>` writes the committed copy from the local log and prints the
+  digest for the record. `--verify-local-friction-log` is the explicit local mode: it
+  additionally requires the event in the machine-local log and fails if that log is
+  absent or unreadable (never silently accepted).
 - invalid-record: the manifest, the protected surface, `.dev-platform.toml` or the
   record is missing, malformed or has a missing/unknown field. No default is
   substituted for any of them.
@@ -41,6 +47,7 @@ release, and this check does not claim a regression test proves the fix.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import re
@@ -56,7 +63,11 @@ SURFACE_PATH = "dev-platform/protected-surface.toml"
 RECORD_PATH = "dev-platform/local-hotfixes.toml"
 CONFIG_PATH = ".dev-platform.toml"
 MANIFEST_VERSION = 1
-ENTRY_FIELDS = frozenset({"path", "platform_version", "patched_sha256", "defect", "regression_test", "friction_event", "temporary"})
+ENTRY_FIELDS = frozenset({"path", "platform_version", "patched_sha256", "defect", "regression_test", "friction_event", "friction_evidence_sha256", "temporary"})
+EVIDENCE_DIR = "dev-platform/hotfix-friction"
+EVIDENCE_VERSION = 1
+EVIDENCE_TEXT_FIELDS = ("id", "at", "category", "scope", "severity", "observation", "hypothesis", "proposal")
+EVENT_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 SHA256_RE = re.compile(r"[0-9a-f]{64}")
 
 UNDECLARED = "undeclared-divergence"
@@ -204,9 +215,13 @@ def entry_shape_problems(entry: dict) -> list[str]:
     for name in ("path", "regression_test"):
         if isinstance(entry.get(name), str) and entry[name].strip() and not is_project_relative(entry[name]):
             problems.append(f"{name} must be a normalized project-relative path")
-    digest = entry.get("patched_sha256")
-    if isinstance(digest, str) and digest.strip() and not SHA256_RE.fullmatch(digest):
-        problems.append("patched_sha256 must be 64 lowercase hex characters")
+    for name in ("patched_sha256", "friction_evidence_sha256"):
+        digest = entry.get(name)
+        if isinstance(digest, str) and digest.strip() and not SHA256_RE.fullmatch(digest):
+            problems.append(f"{name} must be 64 lowercase hex characters")
+    event_id = entry.get("friction_event")
+    if isinstance(event_id, str) and event_id.strip() and not EVENT_ID_RE.fullmatch(event_id):
+        problems.append("friction_event must be a plain event id (letters, digits, '.', '_', '-')")
     return problems
 
 
@@ -257,7 +272,82 @@ class FrictionLog:
         return f"friction event {event_id!r} is not in {self.location}{suffix}"
 
 
-def check(root: Path) -> Result:
+def friction_evidence_path(event_id: str) -> str:
+    return f"{EVIDENCE_DIR}/{event_id}.json"
+
+
+def committed_friction_problem(root: Path, entry: dict) -> str | None:
+    """Verify the committed, sanitized friction evidence of one entry; None when it is valid."""
+    event_id = entry["friction_event"]
+    relative = friction_evidence_path(event_id)
+    target = root / relative
+    if not target.is_file():
+        return f"friction evidence {relative} is not committed; run `python3 scripts/platform_divergence.py export-friction {event_id}` where the event was recorded and commit the file"
+    try:
+        raw = target.read_bytes()
+        evidence = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return f"friction evidence {relative} cannot be read as JSON: {exc}"
+    if not isinstance(evidence, dict):
+        return f"friction evidence {relative} must be a JSON object"
+    if evidence.get("version") != EVIDENCE_VERSION:
+        return f"friction evidence {relative} has unsupported version {evidence.get('version')!r}"
+    for name in EVIDENCE_TEXT_FIELDS:
+        if not isinstance(evidence.get(name), str) or not evidence[name].strip():
+            return f"friction evidence {relative} field {name!r} must be a non-empty string"
+    unknown = sorted(set(evidence) - set(EVIDENCE_TEXT_FIELDS) - {"version"})
+    if unknown:
+        return f"friction evidence {relative} has unknown field(s) {unknown}"
+    if evidence["id"] != event_id:
+        return f"friction evidence {relative} names event {evidence['id']!r}, not {event_id!r}"
+    if evidence["scope"] != "platform":
+        return f"friction evidence {relative} must report a platform-scope defect, found scope {evidence['scope']!r}"
+    actual = hashlib.sha256(raw).hexdigest()
+    if actual != entry["friction_evidence_sha256"]:
+        return f"friction evidence {relative} sha256 {actual} does not equal the recorded friction_evidence_sha256 {entry['friction_evidence_sha256']}"
+    return None
+
+
+def export_friction(root: Path, event_id: str) -> tuple[str, str]:
+    """Write the sanitized committed copy of a machine-local friction event; return (path, sha256)."""
+    if not EVENT_ID_RE.fullmatch(event_id):
+        raise RecordError(f"{event_id!r} is not a plain friction event id")
+    import agent_friction
+
+    try:
+        log = agent_friction.log_path()
+    except (Exception, SystemExit) as exc:
+        raise RecordError(f"the friction log location cannot be resolved through agent_friction.py: {exc!r}") from exc
+    try:
+        lines = log.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RecordError(f"friction log {log} cannot be read: {exc}") from exc
+    event = None
+    for line in lines:
+        if not line.strip():
+            continue
+        try:
+            candidate = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(candidate, dict) and candidate.get("id") == event_id:
+            event = candidate
+    if event is None:
+        raise RecordError(f"friction event {event_id!r} is not in {log}")
+    evidence = {"version": EVIDENCE_VERSION}
+    for name in EVIDENCE_TEXT_FIELDS:
+        if not isinstance(event.get(name), str) or not event[name].strip():
+            raise RecordError(f"friction event {event_id!r} has no usable {name!r} field; it cannot be exported")
+        evidence[name] = event[name]
+    relative = friction_evidence_path(event_id)
+    target = root / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = (json.dumps(evidence, indent=2, sort_keys=True, ensure_ascii=False) + "\n").encode("utf-8")
+    target.write_bytes(payload)
+    return relative, hashlib.sha256(payload).hexdigest()
+
+
+def check(root: Path, *, verify_local_friction_log: bool = False) -> Result:
     result = Result()
     try:
         version, harness = load_platform_config(root)
@@ -328,11 +418,15 @@ def check(root: Path) -> Result:
             result.problems.append(Problem(DIGEST, path, "the recorded patched_sha256 equals the release digest; the entry describes no divergence"))
         if not (root / entry["regression_test"]).is_file():
             result.problems.append(Problem(NO_TEST, path, f"regression test {entry['regression_test']} does not exist (only its presence is checked)"))
-        if friction is None:
-            friction = FrictionLog()
-        reason = friction.problem_for(entry["friction_event"])
+        reason = committed_friction_problem(root, entry)
         if reason is not None:
             result.problems.append(Problem(NO_FRICTION, path, reason))
+        elif verify_local_friction_log:
+            if friction is None:
+                friction = FrictionLog()
+            reason = friction.problem_for(entry["friction_event"])
+            if reason is not None:
+                result.problems.append(Problem(NO_FRICTION, path, reason))
         if not any(problem.path == path for problem in result.problems):
             result.hotfixes.append(Hotfix(path, entry["platform_version"], entry["defect"]))
 
@@ -348,8 +442,23 @@ def check(root: Path) -> Result:
     return result
 
 
-def main() -> int:
-    result = check(Path.cwd().resolve())
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Check local divergence from the installed platform release.")
+    parser.add_argument("--verify-local-friction-log", action="store_true",
+                        help="also require each hotfix's friction event in the machine-local friction log (developer machine)")
+    sub = parser.add_subparsers(dest="command")
+    export = sub.add_parser("export-friction", help="write the committed sanitized copy of a local friction event")
+    export.add_argument("event_id")
+    args = parser.parse_args(argv)
+    if args.command == "export-friction":
+        try:
+            relative, digest = export_friction(Path.cwd().resolve(), args.event_id)
+        except RecordError as exc:
+            print(f"platform_divergence: {exc}", file=sys.stderr)
+            return 1
+        print(f"wrote {relative}\nfriction_evidence_sha256 = \"{digest}\"")
+        return 0
+    result = check(Path.cwd().resolve(), verify_local_friction_log=args.verify_local_friction_log)
     if result.problems:
         for problem in result.problems:
             print(problem)

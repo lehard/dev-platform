@@ -31,6 +31,25 @@ SURFACE_PATH = "dev-platform/protected-surface.toml"
 RECORD_PATH = "dev-platform/local-hotfixes.toml"
 FRICTION_LOG = ".claude/agent-friction.jsonl"
 FRICTION_ID = "0123456789ab"
+EVIDENCE_PATH = f"dev-platform/hotfix-friction/{FRICTION_ID}.json"
+EVIDENCE = {
+    "version": 1,
+    "id": FRICTION_ID,
+    "at": "2026-01-01T00:00:00Z",
+    "category": "observed-drift",
+    "scope": "platform",
+    "severity": "medium",
+    "observation": "docs link check scans vendored markdown",
+    "hypothesis": "EXCLUDED_DIRS lacks vendor",
+    "proposal": "exclude vendor in the released script",
+}
+
+
+def evidence_bytes(**overrides: object) -> bytes:
+    return (json.dumps({**EVIDENCE, **overrides}, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+EVIDENCE_SHA = hashlib.sha256(evidence_bytes()).hexdigest()
 REGRESSION_TEST = "tests/test_hotfix_regression.py"
 ENV = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
 
@@ -51,6 +70,7 @@ def hotfix_toml(**overrides: object) -> str:
         "defect": "docs link check scans vendored markdown",
         "regression_test": REGRESSION_TEST,
         "friction_event": FRICTION_ID,
+        "friction_evidence_sha256": EVIDENCE_SHA,
         "temporary": True,
     }
     fields.update(overrides)
@@ -86,13 +106,18 @@ class DivergenceTestCase(unittest.TestCase):
         self.write_config()
         (self.root / REGRESSION_TEST.rsplit("/", 1)[0]).mkdir(exist_ok=True)
         (self.root / REGRESSION_TEST).write_text("# regression test placeholder\n", encoding="utf-8")
-        self.write_friction_log([FRICTION_ID])
+        self.write_friction_evidence()
 
     def write_config(self, *, version: str = PLATFORM_VERSION, harness: str = "platform") -> None:
         (self.root / ".dev-platform.toml").write_text(
             f'platform_version = "{version}"\nharness_mode = "{harness}"\n\n[paths]\nfriction_log = "{FRICTION_LOG}"\n',
             encoding="utf-8",
         )
+
+    def write_friction_evidence(self, payload: bytes | None = None) -> None:
+        target = self.root / EVIDENCE_PATH
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(evidence_bytes() if payload is None else payload)
 
     def write_friction_log(self, ids: list[str]) -> None:
         log = self.root / FRICTION_LOG
@@ -110,11 +135,11 @@ class DivergenceTestCase(unittest.TestCase):
         record = self.root / RECORD_PATH
         record.write_text(record.read_text(encoding="utf-8") + "\n" + hotfix_toml(**overrides), encoding="utf-8")
 
-    def run_check(self) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([sys.executable, "scripts/platform_divergence.py"], cwd=self.root, text=True, capture_output=True, env=ENV)
+    def run_check(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, "scripts/platform_divergence.py", *args], cwd=self.root, text=True, capture_output=True, env=ENV)
 
-    def assert_fails(self, kind: str, path: str, *, contains: str = "") -> str:
-        completed = self.run_check()
+    def assert_fails(self, kind: str, path: str, *, contains: str = "", args: tuple[str, ...] = ()) -> str:
+        completed = self.run_check(*args)
         self.assertNotEqual(0, completed.returncode, completed.stdout + completed.stderr)
         self.assertRegex(completed.stdout, rf"(?m)^\[{re.escape(kind)}\] {re.escape(path)}: .*{re.escape(contains)}")
         self.assertNotIn("platform_divergence: OK", completed.stdout)
@@ -202,22 +227,51 @@ class DivergenceCheckTests(DivergenceTestCase):
         self.declare(regression_test="tests/test_does_not_exist.py")
         self.assert_fails("missing-regression-test", HOTFIXABLE, contains="tests/test_does_not_exist.py")
 
-    def test_missing_friction_event_fails(self) -> None:
-        self.write_friction_log(["another-event"])
+    def test_hotfix_passes_in_ci_without_any_local_friction_log(self) -> None:
+        """CI has no machine-local friction log: committed evidence alone must be enough."""
         self.patch(HOTFIXABLE)
         self.declare()
-        self.assert_fails("missing-friction-event", HOTFIXABLE, contains=FRICTION_ID)
+        self.assertFalse((self.root / FRICTION_LOG).exists())
+        self.assert_passes()
 
-    def test_unreadable_or_absent_friction_log_is_reported_never_accepted(self) -> None:
+    def test_missing_committed_friction_evidence_fails(self) -> None:
         self.patch(HOTFIXABLE)
         self.declare()
+        (self.root / EVIDENCE_PATH).unlink()
+        self.assert_fails("missing-friction-event", HOTFIXABLE, contains="is not committed")
+
+    def test_invalid_committed_friction_evidence_fails(self) -> None:
+        self.patch(HOTFIXABLE)
+        self.declare()
+        cases = {
+            "not json": (b"{nope", "cannot be read as JSON"),
+            "wrong event id": (evidence_bytes(id="ffffffffffff"), "names event"),
+            "not platform scope": (evidence_bytes(scope="project"), "platform-scope"),
+            "empty observation": (evidence_bytes(observation=" "), "'observation' must be a non-empty string"),
+            "unknown field": (evidence_bytes(extra="x"), "unknown field(s)"),
+            "edited after recording": (evidence_bytes(hypothesis="something else"), "does not equal the recorded friction_evidence_sha256"),
+        }
+        for name, (payload, message) in cases.items():
+            with self.subTest(name=name):
+                self.write_friction_evidence(payload)
+                self.assert_fails("missing-friction-event", HOTFIXABLE, contains=message)
+        self.write_friction_evidence()
+        self.assert_passes()
+
+    def test_local_friction_log_mode_is_explicit_and_never_silently_accepted(self) -> None:
+        self.patch(HOTFIXABLE)
+        self.declare()
+        flag = ("--verify-local-friction-log",)
         log = self.root / FRICTION_LOG
+        self.assert_fails("missing-friction-event", HOTFIXABLE, contains="does not exist", args=flag)
+        self.write_friction_log(["another-event"])
+        self.assert_fails("missing-friction-event", HOTFIXABLE, contains=FRICTION_ID, args=flag)
         log.write_bytes(b"\xff\xfe not utf-8 \x00\n")
-        self.assert_fails("missing-friction-event", HOTFIXABLE, contains="cannot be read")
-        log.unlink()
-        self.assert_fails("missing-friction-event", HOTFIXABLE, contains="does not exist")
-        log.mkdir()
-        self.assert_fails("missing-friction-event", HOTFIXABLE, contains="does not exist")
+        self.assert_fails("missing-friction-event", HOTFIXABLE, contains="cannot be read", args=flag)
+        self.write_friction_log([FRICTION_ID])
+        completed = self.run_check(*flag)
+        self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("platform_divergence: OK", completed.stdout)
 
     def test_missing_manifest_fails_explicitly(self) -> None:
         (self.root / "dev-platform" / "platform-manifest.json").unlink()
@@ -250,6 +304,9 @@ class DivergenceCheckTests(DivergenceTestCase):
         digest = sha256(self.root / HOTFIXABLE)
         cases = {
             "missing field": (hotfix_toml(patched_sha256=digest, friction_event=None), "missing field(s) ['friction_event']"),
+            "missing evidence digest": (hotfix_toml(patched_sha256=digest, friction_evidence_sha256=None), "missing field(s) ['friction_evidence_sha256']"),
+            "bad evidence digest": (hotfix_toml(patched_sha256=digest, friction_evidence_sha256="XYZ"), "friction_evidence_sha256 must be 64 lowercase hex"),
+            "path-like event id": (hotfix_toml(patched_sha256=digest, friction_event="../x"), "friction_event must be a plain event id"),
             "unknown field": (hotfix_toml(patched_sha256=digest, owner="me"), "unknown field(s) ['owner']"),
             "not temporary": (hotfix_toml(patched_sha256=digest, temporary=False), "temporary must be true"),
             "bad digest": (hotfix_toml(patched_sha256="XYZ"), "64 lowercase hex"),
@@ -342,7 +399,7 @@ if __name__ == "__main__":
         return subprocess.run([sys.executable, REGRESSION_TEST], cwd=self.root, text=True, capture_output=True, env=ENV)
 
     def record_friction_event(self) -> str:
-        (self.root / FRICTION_LOG).unlink()
+        (self.root / FRICTION_LOG).unlink(missing_ok=True)
         completed = subprocess.run(
             [
                 sys.executable, "scripts/agent_friction.py", "record", "--no-route",
@@ -376,7 +433,13 @@ if __name__ == "__main__":
         self.assert_fails("undeclared-divergence", HOTFIXABLE)
 
         event = self.record_friction_event()
-        self.declare(friction_event=event, defect="check_docs_links scans vendored markdown")
+        exported = subprocess.run([sys.executable, "scripts/platform_divergence.py", "export-friction", event],
+                                  cwd=self.root, text=True, capture_output=True, env=ENV)
+        self.assertEqual(0, exported.returncode, exported.stdout + exported.stderr)
+        digest = re.search(r'friction_evidence_sha256 = "([0-9a-f]{64})"', exported.stdout).group(1)
+        self.assertTrue((self.root / f"dev-platform/hotfix-friction/{event}.json").is_file())
+        (self.root / FRICTION_LOG).unlink()  # CI has no machine-local log: the committed evidence must be enough
+        self.declare(friction_event=event, friction_evidence_sha256=digest, defect="check_docs_links scans vendored markdown")
         output = self.assert_passes()
         self.assertIn(f"hotfix: {HOTFIXABLE} patched from platform {PLATFORM_VERSION}", output)
         self.assertEqual(
