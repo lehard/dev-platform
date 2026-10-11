@@ -9,4 +9,4 @@
 
 ## 4. Coverage and verification
 - [x] 4.1 Generate the coverage page; record review stamps after checking each node against its bindings.
-- [ ] 4.2 Walk the four BR scenarios on the built site and capture desktop and mobile screenshots; run full validation and semantic OpenSpec verification.
+- [x] 4.2 Walk the four BR scenarios on the built site and capture desktop and mobile screenshots; run full validation and semantic OpenSpec verification.
