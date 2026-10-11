@@ -1,0 +1,84 @@
+{
+  "candidate": {
+    "base_head": "8e029719e31b28346cf7810948dabc3477a2d599",
+    "base_ref": "origin/main",
+    "candidate_head": "ee7bc7a298661ffff6e7c398f88ee777ccc2554d",
+    "diff_sha256": "924d2abe7fa82435f83c8279b0a3a55d845dfc0061bc07d5320d9ed53254c373"
+  },
+  "change": "openspec/changes/standardize-add-presentation",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/standardize-add-presentation/automated-checks.json",
+    "openspec/changes/standardize-add-presentation/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/standardize-add-presentation/design.md",
+        "openspec/changes/standardize-add-presentation/proposal.md",
+        "openspec/changes/standardize-add-presentation/specs/agent-workflow/spec.md",
+        "openspec/changes/standardize-add-presentation/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/standardize-add-presentation/proposal.md",
+        "openspec/changes/standardize-add-presentation/design.md",
+        "openspec/changes/standardize-add-presentation/tasks.md",
+        "openspec/changes/standardize-add-presentation/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-11T11:32:51+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/standardize-add-presentation/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "214716ad-7f48-4528-baf0-2a7b1375d886",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "8e029719e31b28346cf7810948dabc3477a2d599",
+    "digest": "c05692dc4d340399f4f21ee5fb91804a85d361dddf8d8cd22e40d5393045c3fb",
+    "paths": {
+      "AGENTS.md": "e509201287f8cf3bc46cb1f6ee4b0d8cf92070d0",
+      "dev-platform/capabilities/add-intents.md": "7a5141611e69539a734a3adc3f6ad26862b753e1",
+      "dev-platform/capabilities/add-intents.toml": "4fd5382ed81c7ac1a4316ce09e8bd4ccfeb7ca51",
+      "dev-platform/evals/add-intents-pilot.json": "ea9b4a6e043ef6fda667a83313e4f73273cb7f4a",
+      "docs/engineering/agent-workflow.md": "83cf9b97b5bb606a90c2ec57d8a52098eb5224ea",
+      "docs/engineering/engineering-capabilities.md": "98d90dfc67b06ffc978f244e6cee683095f81432",
+      "openspec/changes/standardize-add-presentation/.managed-task.json": "9d17a488ffc2438466923dc2b0aacf22bb020739",
+      "openspec/changes/standardize-add-presentation/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/standardize-add-presentation/design.md": "165c159433efe7f58439016b170b152fe4bd65d4",
+      "openspec/changes/standardize-add-presentation/proposal.md": "ef7771359532df90a4c1dc1f68fc72e32b52c3a6",
+      "openspec/changes/standardize-add-presentation/specs/agent-workflow/spec.md": "111822777759858c2ba03271e6e6bb5e152426ed",
+      "openspec/changes/standardize-add-presentation/tasks.md": "1236d1397d7049991edb0d9c95a2f984759132bd",
+      "template/AGENTS.md.jinja": "8a215cf4c43adfbbed58d90d2660041369565923",
+      "template/dev-platform/capabilities/add-intents.md": "7a5141611e69539a734a3adc3f6ad26862b753e1",
+      "template/dev-platform/capabilities/add-intents.toml": "4fd5382ed81c7ac1a4316ce09e8bd4ccfeb7ca51",
+      "template/dev-platform/evals/add-intents-pilot.json": "ea9b4a6e043ef6fda667a83313e4f73273cb7f4a",
+      "template/docs/engineering/engineering-capabilities.md": "98d90dfc67b06ffc978f244e6cee683095f81432",
+      "template/scripts/add_intents.py": "8859c4b825d6fa743f829853b4540dab8c79b419",
+      "tests/test_add_intents.py": "886dfaa32f5485b5d5539f8e0f0144c4890f76d1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
