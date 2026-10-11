@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.113,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.2,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 433.383,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "tests/test_requirement_authoring.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_edcaa0d43ea097f86ff10da025412fb8",
+    "change": "requirement-authoring-standard",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/requirement-authoring-standard",
+    "branch": "agent/br-582-t1-requirement-authoring-standard",
+    "head": "39602fb22fbb8aabf24c791b4030e888cd0430cc",
+    "task_content": {
+      "version": 1,
+      "digest": "5435bda22a84993509787a90724ea271d4098e3220b465da79745b76e21daf3e",
+      "paths": {
+        "AGENTS.md": "7bc9a5e0e13056f1abd95d88af7b1bd9c0760bb2",
+        "dev-platform/capabilities/requirement-authoring.md": "8823c2706890647c30d34e212c7f03f7e6ba8419",
+        "dev-platform/capabilities/requirement-authoring.toml": "e85d56a11732a3b404b1458e912ecf48137b90df",
+        "dev-platform/checks.toml": "ed54bccf04e0cdbbfc5419ece8f24d838c3b2dff",
+        "dev-platform/evals/requirement-authoring-pilot.json": "b3345bc1ce6631013e098314d1285984756905ed",
+        "docs/engineering/agent-instructions.md": "5a3a8a44b9d73f82234e763d966d4e01bade94a2",
+        "docs/engineering/chatgpt-project-protocol.md": "2e1938f83fdf8e95872ae7cfc28e94ccc7b38510",
+        "docs/engineering/engineering-capabilities.md": "c9a20dc5559e23852aff88b35b811c833e4babbf",
+        "docs/engineering/task-intake.md": "f51120a3027055a80bae96edbfedc5bebbc3fe1a",
+        "openspec/changes/requirement-authoring-standard/.managed-task.json": "15501b0971b0e4c14f6306c9d680aa08bb7297ad",
+        "openspec/changes/requirement-authoring-standard/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+        "openspec/changes/requirement-authoring-standard/design.md": "32cb5c9a8be66821d8bd1ac4250b3cfca26c9f84",
+        "openspec/changes/requirement-authoring-standard/proposal.md": "dfa329a59841bae5a1d7dda8edc98c6ca863e34b",
+        "openspec/changes/requirement-authoring-standard/specs/engineering-capabilities/spec.md": "bdba0d4b575cd049e2f6ac73764f10542b51d69c",
+        "openspec/changes/requirement-authoring-standard/specs/managed-task-intake/spec.md": "5b7ef7d0974a28b1e82b334a4e92ecca05c08c77",
+        "openspec/changes/requirement-authoring-standard/tasks.md": "bb14b67dc819385ff57c1cca1632f4e20c7cd907",
+        "template/AGENTS.md.jinja": "0c2e3f6dba1f0c8ab850fb41dd602ae871bb1ffd",
+        "template/dev-platform/capabilities/requirement-authoring.md": "8823c2706890647c30d34e212c7f03f7e6ba8419",
+        "template/dev-platform/capabilities/requirement-authoring.toml": "e85d56a11732a3b404b1458e912ecf48137b90df",
+        "template/dev-platform/evals/requirement-authoring-pilot.json": "b3345bc1ce6631013e098314d1285984756905ed",
+        "template/docs/engineering/agent-instructions.md": "7f1e57293f1d5412964f423225229670b2876900",
+        "template/docs/engineering/chatgpt-project-protocol.md": "a6de569d25580898606f45c054ac2912075cc185",
+        "template/docs/engineering/engineering-capabilities.md": "c9a20dc5559e23852aff88b35b811c833e4babbf",
+        "template/docs/engineering/task-intake.md.jinja": "6587a9e5277ca6d96fd9033b8f5443aea70e9c1b",
+        "tests/test_requirement_authoring.py": "426ceb36a05d7df937c3b983d9819a4d30043023"
+      },
+      "base": "f4fa508a0f991179a163db641023113353fb9c6f"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "8097a03ca262ee18321877718c14bd93ba58a6694c687d06b1209bb4065ef60d",
+    "paths": {
+      "AGENTS.md": "7bc9a5e0e13056f1abd95d88af7b1bd9c0760bb2",
+      "dev-platform/capabilities/requirement-authoring.md": "8823c2706890647c30d34e212c7f03f7e6ba8419",
+      "dev-platform/capabilities/requirement-authoring.toml": "e85d56a11732a3b404b1458e912ecf48137b90df",
+      "dev-platform/checks.toml": "ed54bccf04e0cdbbfc5419ece8f24d838c3b2dff",
+      "dev-platform/evals/requirement-authoring-pilot.json": "b3345bc1ce6631013e098314d1285984756905ed",
+      "docs/engineering/agent-instructions.md": "5a3a8a44b9d73f82234e763d966d4e01bade94a2",
+      "docs/engineering/chatgpt-project-protocol.md": "2e1938f83fdf8e95872ae7cfc28e94ccc7b38510",
+      "docs/engineering/engineering-capabilities.md": "c9a20dc5559e23852aff88b35b811c833e4babbf",
+      "docs/engineering/task-intake.md": "f51120a3027055a80bae96edbfedc5bebbc3fe1a",
+      "openspec/changes/requirement-authoring-standard/.managed-task.json": "15501b0971b0e4c14f6306c9d680aa08bb7297ad",
+      "openspec/changes/requirement-authoring-standard/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/requirement-authoring-standard/design.md": "32cb5c9a8be66821d8bd1ac4250b3cfca26c9f84",
+      "openspec/changes/requirement-authoring-standard/proposal.md": "dfa329a59841bae5a1d7dda8edc98c6ca863e34b",
+      "openspec/changes/requirement-authoring-standard/specs/engineering-capabilities/spec.md": "bdba0d4b575cd049e2f6ac73764f10542b51d69c",
+      "openspec/changes/requirement-authoring-standard/specs/managed-task-intake/spec.md": "5b7ef7d0974a28b1e82b334a4e92ecca05c08c77",
+      "openspec/changes/requirement-authoring-standard/tasks.md": "bb14b67dc819385ff57c1cca1632f4e20c7cd907",
+      "template/AGENTS.md.jinja": "0c2e3f6dba1f0c8ab850fb41dd602ae871bb1ffd",
+      "template/dev-platform/capabilities/requirement-authoring.md": "8823c2706890647c30d34e212c7f03f7e6ba8419",
+      "template/dev-platform/capabilities/requirement-authoring.toml": "e85d56a11732a3b404b1458e912ecf48137b90df",
+      "template/dev-platform/evals/requirement-authoring-pilot.json": "b3345bc1ce6631013e098314d1285984756905ed",
+      "template/docs/engineering/agent-instructions.md": "7f1e57293f1d5412964f423225229670b2876900",
+      "template/docs/engineering/chatgpt-project-protocol.md": "a6de569d25580898606f45c054ac2912075cc185",
+      "template/docs/engineering/engineering-capabilities.md": "c9a20dc5559e23852aff88b35b811c833e4babbf",
+      "template/docs/engineering/task-intake.md.jinja": "6587a9e5277ca6d96fd9033b8f5443aea70e9c1b",
+      "tests/test_requirement_authoring.py": "426ceb36a05d7df937c3b983d9819a4d30043023"
+    },
+    "base": "f4fa508a0f991179a163db641023113353fb9c6f",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_requirement_authoring.py",
+    "duration_seconds": 19.646,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
