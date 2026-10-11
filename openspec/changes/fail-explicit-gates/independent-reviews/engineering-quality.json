@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
+    "base_ref": "origin/main",
+    "candidate_head": "eba801276769e480854bfa9d034a05bb3582cb1f",
+    "diff_sha256": "c166fef92f34c5a44bd7dd2710dc5311ca3d6d570b75f0a7b39571b568a3595b"
+  },
+  "completed_at": "2026-10-11T22:22:48+00:00",
+  "findings": [
+    {
+      "evidence": "`scope_gate_required` in template/scripts/agent_board.py raises SystemExit \"Scope gate unavailable: [capabilities] is missing\". `dev-platform/source-contract.toml` and `.dev-platform.toml` have `workflow_profile = \"multi-agent\"` and `[paths] agent_board`, but no `[capabilities]` (grep finds only `agent_board = \".claude/agents-board.json\"` at line 23). `.github/workflows/publication-queue.yml:35` copies this file to `.dev-platform.toml` in clean CI checkouts. Any path there that reaches `enforce_scope_gate`, `warn_current_worktree_scope_overlap` or `hard_scope_conflicts` without the new flag or a coordinator base mode will fail. Examples are `finish_task.py` and `select_checks.py` without `--scope-gate`. The diff touches `.github/workflows/project-ci.yml` but not `dev-platform/source-contract.toml`. The file's header says to keep its values identical to the installed contract, so it needs `[capabilities] agent_board = true`. Without that, the platform repo's own contract is unusable for the gate it ships.",
+      "id": "source-contract-missing-capabilities",
+      "severity": "material",
+      "summary": "The committed public source contract has no `[capabilities]` section, but the new scope gate treats a missing section or key as a hard error. The candidate does not update that file."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py (about lines 1109-1122 of the diff): `elif args.scope_gate == \"not-applicable\"` only prints and skips `enforce_scope_gate`. There is no check that the run is in CI or a disposable checkout. design.md states \"local task worktrees always enforce\", but nothing in the code enforces that. This is the \"no new switches\" escape hatch the design rules out. The flag is also hard-coded into the template's GitHub and GitLab pipelines.",
+      "id": "scope-gate-cli-flag-bypass-unscoped",
+      "severity": "advisory",
+      "summary": "`--scope-gate not-applicable` is a free CLI flag that skips the required gate in any checkout, so a local task worktree can bypass it. The design says local worktrees always enforce."
+    },
+    {
+      "evidence": "template/scripts/agent_board.py: four replacements of `str(config.get(\"main_branch\", \"main\"))` with `require_main_branch(config, SystemExit)`. The helper in _platform_common.py raises `exception_type(\"main_branch must be a non-empty string in .dev-platform.toml\")` with no gate classification. The release note and upgrade path for existing projects without `main_branch` are not mentioned in the change.",
+      "id": "main-branch-error-type-in-agent-board",
+      "severity": "advisory",
+      "summary": "`require_main_branch(config, SystemExit)` in `scope_overlap_diagnostics`, `cmd_admit`, `cmd_acknowledge` and `cmd_doctor` turns a config error into a bare SystemExit with an unclassified message. Other gate failures in the same file go through `gate_failure`. A downstream project whose contract lacks `main_branch` now fails in many commands that previously defaulted to \"main\"."
+    }
+  ],
+  "launched_at": "2026-10-11T22:22:02+00:00",
+  "output_sha256": "affa3cd4e843ffe486b6db0efbc54ddc17c2c42114e42cee2e4f796561a67fe1",
+  "perspective": "engineering-quality",
+  "request_id": "ee897c77-d0c2-4ae5-bbec-73d29f842ee4",
+  "reviewer": {
+    "context_id": "19d6200f-001e-4334-906c-7939f1adc3fe",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f7e7d12e-6175-4c56-ac97-2d840602b386",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56024
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 330268
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42112
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44126
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4226
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e48997a0ef9b08a9db8f5f3548ced76e17c261b38a2c261aca631ebe78abcf3d"
+}

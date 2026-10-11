@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
+    "base_ref": "origin/main",
+    "candidate_head": "eba801276769e480854bfa9d034a05bb3582cb1f",
+    "diff_sha256": "c166fef92f34c5a44bd7dd2710dc5311ca3d6d570b75f0a7b39571b568a3595b"
+  },
+  "completed_at": "2026-10-11T22:22:02+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/delegation_containment.py:310-313: `except Exception: return False` on config read, then `main_branch = str(config.get(\"main_branch\") or \"main\")`. Lines 319-330 turn every non-zero git exit, including 128, into `return False`. The docstring at 303-305 says it 'Fails closed (returns False, never raises)'. design.md's inventory lists only `verify_remote_fast_forward`. The same applies to `agent_board._merged_into` (agent_board.py:322-324), which reads any non-zero `--is-ancestor` exit as 'not merged'. Neither is fixed or recorded as kept by owner decision.",
+      "id": "external-advance-sibling-fail-open-uninventoried",
+      "severity": "advisory",
+      "summary": "The sibling verifier next to verify_remote_fast_forward in delegation_containment.py (the historical external-advance check) still has the masking pattern the change removes. It is not in the decision inventory. This conflicts with the 'Fail-open decisions are inventoried' and 'Protected checks require main_branch' requirements."
+    },
+    {
+      "evidence": "template/scripts/_platform_common.py:231-233 returns defaults including `\"main_branch\": \"main\"` when the file is absent. The retained test tests/test_delegation_containment.py:328-340 `test_verify_remote_fast_forward_uses_default_main_branch_without_platform_config` asserts True in that case. Its comment says read_platform_config 'must still resolve a default main_branch of \"main\"'. The design.md inventory does not record this as an owner decision.",
+      "id": "missing-platform-config-still-assumes-main",
+      "severity": "advisory",
+      "summary": "The spec says a protected check must not assume `main` when `main_branch` is absent from the platform configuration. `require_main_branch` only checks the dict it is given. `read_platform_config` returns a hard-coded dict with `main_branch = \"main\"` when `.dev-platform.toml` does not exist. So a missing contract file still yields an assumed `main` in `verify_remote_fast_forward` and in the protected checks."
+    }
+  ],
+  "launched_at": "2026-10-11T22:21:14+00:00",
+  "output_sha256": "cfe29ee456499102ea000d777b11d71670aff9da630777c83535e7db62ca1eb0",
+  "perspective": "spec-fidelity",
+  "request_id": "ee897c77-d0c2-4ae5-bbec-73d29f842ee4",
+  "reviewer": {
+    "context_id": "2efb8550-8684-47fe-a58f-cac5d1bb6f2a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-fc7bf738-a770-4d70-bcc8-7c4c51aea0da",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 66074
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 504476
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44863
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46531
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4640
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e48997a0ef9b08a9db8f5f3548ced76e17c261b38a2c261aca631ebe78abcf3d"
+}
