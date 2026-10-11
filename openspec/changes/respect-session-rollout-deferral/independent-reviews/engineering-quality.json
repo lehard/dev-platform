@@ -3,43 +3,34 @@
   "candidate": {
     "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "origin/main",
-    "candidate_head": "54795abb4d27cbaf52a46dc0de4abdc5de3833f9",
-    "diff_sha256": "4d47441cab6e7986088b917ba92cd6f141ffb32da2204b39927a2f9c6a332816"
+    "candidate_head": "5f239141b4c495dd30cfd5ead241f17ab01501ee",
+    "diff_sha256": "51ec811bdc14e37b4c43f235a28a122e0b255e1e01a39d25bfb169712e272bd9"
   },
-  "completed_at": "2026-10-11T22:45:23+00:00",
+  "completed_at": "2026-10-11T22:53:27+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_doctor.py main(): `level, message = pending_rollout_report(rollout_outcome, branch, rollout_preflight.rollout_deferred(os.environ))`. There is no try/except, and the tests only cover the error through start_task.",
-      "id": "doctor-invalid-deferral-traceback",
+      "evidence": "template/scripts/agent_doctor.py in the diff: `level, message = pending_rollout_report(rollout_outcome, branch, rollout_preflight.rollout_deferred(os.environ))`. The call sits in main() with no try/except. rollout_deferred raises RolloutDeferralError (a RuntimeError) for any value other than empty or '1'. Only start_task.py's main catches RuntimeError.",
+      "id": "doctor-unguarded-invalid-deferral-value",
       "severity": "advisory",
-      "summary": "agent_doctor.py calls rollout_deferred(os.environ) with no handler, so a malformed DEV_PLATFORM_DEFER_ROLLOUT value surfaces as a raw RolloutDeferralError traceback when the doctor runs standalone. start_task catches it as a RuntimeError, so the start path is unaffected."
-    },
-    {
-      "evidence": "template/scripts/rollout_preflight.py apply_defer_rollout: `os.environ[DEFER_ROLLOUT_ENV] = \"1\"`. It is called from main() in four entrypoints. execute_requirement advance runs its child starts in-process, so they inherit the value, which is intended.",
-      "id": "deferral-env-flag-leaks-in-process",
-      "severity": "advisory",
-      "summary": "apply_defer_rollout writes os.environ permanently. That is correct for the CLI mains, but the helper has no scope or undo. If it is ever called from a long-lived or in-process caller, the deferral would persist and silently suppress later rollouts. The design says the deferral is per process and never persisted."
+      "summary": "agent_doctor.py calls rollout_preflight.rollout_deferred(os.environ) without handling RolloutDeferralError. A standalone doctor run with an invalid DEV_PLATFORM_DEFER_ROLLOUT value crashes with a traceback instead of a clean report line. Under start_task this is masked, because start_task validates the variable before it runs the doctor."
     }
   ],
-  "launched_at": "2026-10-11T22:45:06+00:00",
-  "output_sha256": "b67cb0c0dfa08046a8613ac88b83e1496ec03b8ed2c9e4b41662a798b2bfc19f",
+  "launched_at": "2026-10-11T22:53:11+00:00",
+  "output_sha256": "5c40261e4ef2bc64b89246690740cbf0b61946dca53c419a3d1698d394bd3be3",
   "perspective": "engineering-quality",
-  "request_id": "a82a1c0b-24e9-4d76-a4e2-d9185dac385f",
+  "request_id": "435657e9-5793-4e6d-8f93-17da74442508",
   "reviewer": {
-    "context_id": "c987ce79-2911-4af2-9923-44879f439f5d",
+    "context_id": "24cc2409-4ae6-4159-b35b-eae18fe6018e",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7530816b-d571-4bfc-8fcc-a0eab6c980b9",
+    "launch_id": "platform-launch-4755080e-38be-4831-afce-676f512d18d5",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -48,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37065
+        "value": 35329
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 97139
+        "value": 92189
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13497
+        "value": 12953
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14059
+        "value": 14220
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -78,7 +69,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1333
+        "value": 1335
       }
     },
     "runtime": "claude-code-print"

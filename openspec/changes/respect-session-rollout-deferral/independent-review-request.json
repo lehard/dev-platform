@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "origin/main",
-    "candidate_head": "54795abb4d27cbaf52a46dc0de4abdc5de3833f9",
-    "diff_sha256": "4d47441cab6e7986088b917ba92cd6f141ffb32da2204b39927a2f9c6a332816"
+    "candidate_head": "5f239141b4c495dd30cfd5ead241f17ab01501ee",
+    "diff_sha256": "51ec811bdc14e37b4c43f235a28a122e0b255e1e01a39d25bfb169712e272bd9"
   },
   "change": "openspec/changes/respect-session-rollout-deferral",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-11T22:44:37+00:00",
+  "prepared_at": "2026-10-11T22:52:35+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/respect-session-rollout-deferral/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "a82a1c0b-24e9-4d76-a4e2-d9185dac385f",
+  "request_id": "435657e9-5793-4e6d-8f93-17da74442508",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
