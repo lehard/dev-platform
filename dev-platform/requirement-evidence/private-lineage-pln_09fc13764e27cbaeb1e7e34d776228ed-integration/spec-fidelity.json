@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "3533c299f356265154c811491070132e071c95f0",
     "base_ref": "3533c299f356265154c811491070132e071c95f0",
-    "candidate_head": "e0901b75bbddaf8abf4a03bd1ec1bf72c6fc8a8a",
-    "diff_sha256": "b36d1fd7022a3b2aa47009910bda1d3053fb71a95d33aa4820c6ac740dacc0f7"
+    "candidate_head": "52d8b6de0fe5c4858ba6e8aaa52050fa0da5b067",
+    "diff_sha256": "6f5ea9e382d4d926db6be8488c7722be4811444f4c4cf117a426540e2f972eee"
   },
-  "completed_at": "2026-10-11T15:40:41+00:00",
-  "findings": [
-    {
-      "evidence": "template/dev-platform/blocking-gates.toml, known gap 3 (diff lines ~956-961) and the task-freshness recovery text (~1018). The gap is disclosed and the recovery text says to stop and record friction, so the Requirement's 'justified hard stop' wording is partly met. The platform defect itself is not fixed in this change.",
-      "id": "freshness-recovery-blocked-by-merge-hook",
-      "severity": "advisory",
-      "summary": "The task-freshness gate is cataloged as recoverable through reconcile_task.py. The same catalog records that the merge-commit hook can block that reconcile merge, and the hook is a hard stop that has no supported exit. For a diverged task, the recoverable path can therefore end in an unresolved hard stop."
-    }
-  ],
-  "launched_at": "2026-10-11T15:40:00+00:00",
-  "output_sha256": "84ffdafa114e6dd97d7072c1bd1edc93506210a98057249a653acd9c67ebb0b5",
+  "completed_at": "2026-10-11T16:05:58+00:00",
+  "findings": [],
+  "launched_at": "2026-10-11T16:05:29+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "5549969a-f82c-4604-a219-7d33fb37853c",
+  "request_id": "04c7bba3-a1f3-4a06-95c0-09d61fa56eae",
   "reviewer": {
-    "context_id": "bf09e7c8-b71b-4570-9a13-eb35667018e8",
+    "context_id": "4bc1de5b-1bac-4d45-a6f4-02bbded179d9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-87d59e71-9879-446d-93c3-0c4f6f819069",
+    "launch_id": "platform-launch-ecf45bbd-bdd4-4089-bad9-d5252383ae96",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50882
+        "value": 61167
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 231483
+        "value": 260379
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37689
+        "value": 26120
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39470
+        "value": 27823
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3163
+        "value": 2197
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c29b0d108e4274c7bdb133bcaea8be6ed73cfab4426d6caeb5000ad521a98b93"
+  "task_content_digest": "835388bbfc44a47c3ddc5aab23d14bc21d19d771f73c82d267ff55651393d318"
 }

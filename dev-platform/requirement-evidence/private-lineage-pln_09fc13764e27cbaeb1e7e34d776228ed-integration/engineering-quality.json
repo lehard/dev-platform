@@ -3,40 +3,46 @@
   "candidate": {
     "base_head": "3533c299f356265154c811491070132e071c95f0",
     "base_ref": "3533c299f356265154c811491070132e071c95f0",
-    "candidate_head": "e0901b75bbddaf8abf4a03bd1ec1bf72c6fc8a8a",
-    "diff_sha256": "b36d1fd7022a3b2aa47009910bda1d3053fb71a95d33aa4820c6ac740dacc0f7"
+    "candidate_head": "52d8b6de0fe5c4858ba6e8aaa52050fa0da5b067",
+    "diff_sha256": "6f5ea9e382d4d926db6be8488c7722be4811444f4c4cf117a426540e2f972eee"
   },
-  "completed_at": "2026-10-11T15:41:20+00:00",
+  "completed_at": "2026-10-11T16:06:49+00:00",
   "findings": [
     {
-      "evidence": "template/dev-platform/blocking-gates.toml: the task-freshness `recovery` text says \"if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop\". Header gap 3 says reconcile's `git merge --no-edit` is blocked by the hook where it is installed, and that no acceptance test covers completing a conflict resolution. The `recovery_tests` for this entry cover only the unhooked path.",
-      "id": "task-freshness-recovery-blocked-by-hook",
+      "evidence": "local-platform-hotfix design.md (risk 1) says the contract tests assert protected scripts import only protected or explicitly vetted helpers. A search of the diff for an import-closure or vetted-helper test finds none. protected-surface.toml lists scripts/machine_pool.py as hotfixable (line ~1442). The protected scripts/select_checks.py imports it and runs validation inside machine_pool.lease(...). A local hotfix of machine_pool.py would be accepted by platform_divergence.py with only a record and PR review.",
+      "id": "hotfixable-helper-imported-by-protected-gate",
       "severity": "advisory",
-      "summary": "The task-freshness gate is cataloged as `recoverable`, but its recovery (`reconcile_task.py`) is blocked by the pre-merge-commit hook. The catalog itself says so, in known gap 3. This is the dead end the Requirement wants removed, and it is only reported, not resolved."
+      "summary": "The hotfix design promises a contract test that protected scripts import only protected or vetted helpers. The diff contains no such test. A hotfixable file can therefore sit under a protected gate without being flagged."
     },
     {
-      "evidence": "template/dev-platform/protected-surface.toml lists scripts/model_routing.py (routing-provenance-evidence) and scripts/shared_workspace.py (worktree-isolation) as protected. Catalog header gap 4 says a wrongly rejected shared workspace \"has no local exit: shared_workspace.py is protected, so that defect needs a platform release\". The Requirement outcome is therefore met for hotfixable files only, and for protected ones only where the gate already defines a recovery.",
-      "id": "named-defects-outside-hotfix-reach",
+      "evidence": "platform-manifest.json project_harness_owned lists scripts/finish_task.py, scripts/agent_board.py, scripts/git_hooks/pre-merge-commit, scripts/project_publish.py, scripts/merge_to_main.py and others. platform_divergence.py check() sets `skipped = harness_owned if harness == \"project\"`, and the manifest loop at line ~2728 skips them. change-classes.md only says a project-owned file is class (a). Meanwhile protected-surface.toml tags the same paths protected (publication, worktree-isolation, git-history), and blocking-gates.toml routes `scope-overlap` through agent_board.py.",
+      "id": "project-harness-mode-unprotects-protected-surface",
       "severity": "advisory",
-      "summary": "Two of the defects that motivated the Requirement are in protected files: #425 (routing, `model_routing.py`) and #427 (shared workspace, `shared_workspace.py`). Class (b) hotfix therefore cannot cover them. #427 has no local exit at all, and the catalog admits this."
+      "summary": "Under harness_mode=project the divergence check skips the project_harness_owned files. Several of them are classed protected: finish_task, agent_board, the git hooks, project_publish and merge_to_main. The change-classes docs do not say that the protected-surface guarantee does not apply to those files in such projects."
     },
     {
-      "evidence": "blocking-gates.toml header gaps 1 and 7 and item 10 say these gates are \"not yet cataloged; completeness is reported here, not asserted\". The T2 spec requires the new-gate obligation to be \"enforced by review\" only. The `merge-commit-hook` entry is `migrated = false`.",
-      "id": "catalog-completeness-unasserted",
+      "evidence": "blocking-gates.toml header gap 4 says a correct shared workspace wrongly rejected has no local exit because shared_workspace.py is protected. Gap 3 says merge-commit-hook blocks `reconcile_task.py`, the stated recovery for task-freshness, and the entry is still classed recoverable with that recovery. Gap 6 says no entry is classed platform-defect. The gaps are disclosed but unresolved. No gate-class change or friction event is recorded for them, so the 'recovery or justified hard stop' outcome is not met for these paths.",
+      "id": "protected-gate-false-positive-has-no-exit",
       "severity": "advisory",
-      "summary": "The gate inventory is partial, and completeness is explicitly not validated. Blocking checks in finish_task.py, pr_review_gate.py, openspec_lifecycle.py and reconcile_task.py are not cataloged. Their failures can still be free-form dead ends that are not classified."
+      "summary": "Most cataloged gates are implemented in protected scripts. A wrongly-rejecting gate (platform-defect) therefore has neither a local hotfix nor a justified hard stop, and no catalog entry uses the platform-defect class. That leaves the Requirement's dead-end case (#427) as the 'wait for a release' state it aims to remove."
+    },
+    {
+      "evidence": "local-platform-hotfix design.md decision 6 and tasks.md 2.2 say it is wired into the `full_commands` trigger set. change-classes.md says 'a project may also add it to the `full_commands` of its own project-owned dev-platform/checks.toml'. The diff touches no template checks file. Only platform_doctor.check_platform_divergence_contract runs the check.",
+      "id": "divergence-check-wiring-doc-vs-spec",
+      "severity": "advisory",
+      "summary": "The hotfix design and task say the divergence check is wired into the project's full-validation triggers. The shipped doc says the project may add it itself. In the diff, only platform_doctor runs it."
     }
   ],
-  "launched_at": "2026-10-11T15:40:41+00:00",
-  "output_sha256": "2d78b869bca0fbf78193153680f7ee1df05b3a95c42cab993b8643d22cb18c4f",
+  "launched_at": "2026-10-11T16:05:58+00:00",
+  "output_sha256": "f5ca7a1563724d94b914e74f82fac68f951dae8bbc2f602dc418829042f74a00",
   "perspective": "engineering-quality",
-  "request_id": "5549969a-f82c-4604-a219-7d33fb37853c",
+  "request_id": "04c7bba3-a1f3-4a06-95c0-09d61fa56eae",
   "reviewer": {
-    "context_id": "056db157-76ad-4461-90ce-d0159028b8de",
+    "context_id": "9d9c2d63-cf80-4863-aea7-c1dff3036012",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-77b3ce09-1261-4853-8014-6b26f3aa2b53",
+    "launch_id": "platform-launch-0d7e030a-b316-4021-bce6-8bfe503cc4d1",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,41 +57,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 68950
+        "value": 98754
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 234677
+        "value": 398132
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35411
+        "value": 47844
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38337
+        "value": 50412
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3283
+        "value": 4838
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c29b0d108e4274c7bdb133bcaea8be6ed73cfab4426d6caeb5000ad521a98b93"
+  "task_content_digest": "835388bbfc44a47c3ddc5aab23d14bc21d19d771f73c82d267ff55651393d318"
 }
