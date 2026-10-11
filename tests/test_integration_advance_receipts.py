@@ -106,6 +106,11 @@ class IntegrationRepoMixin:
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
         git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
+        # Head-move verification reads the integration root's platform contract and never assumes a default one.
+        # It is excluded from Git so snapshots and task worktrees see exactly the state they did before.
+        (self.integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
+        with (self.integration / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+            handle.write("/.dev-platform.toml\n")
         routing_fixtures.route_ready(self.integration)
         self.sibling = Path(self.tmp.name) / "sibling"
         git(self.integration, "worktree", "add", "-qb", "agent/sibling", str(self.sibling), "main")

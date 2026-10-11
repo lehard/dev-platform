@@ -399,7 +399,7 @@ class GitLifecycleTests(unittest.TestCase):
         remote_before = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=explicit_bypass_env(), check=False)
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Scope gate unavailable", result.stderr + result.stdout)
+        self.assertIn("scope-gate-unavailable", result.stderr + result.stdout)
         self.assertIn("does not exist", result.stderr + result.stdout)
         self.assertEqual(run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(), remote_before)
 

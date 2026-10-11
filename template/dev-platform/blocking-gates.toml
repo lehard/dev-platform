@@ -186,6 +186,23 @@ recovery_tests = [
 ]
 
 [[gate]]
+id = "scope-gate-unavailable"
+script = "scripts/agent_board.py"
+class = "recoverable"
+summary = "The multi-agent scope gate is required ([capabilities] agent_board = true) but a precondition is unmet: capability or main_branch missing, board path unconfigured, board file missing or unreadable, no item list, or no claim for this worktree and branch."
+recovery = "fix the named input: declare `[capabilities] agent_board` and `main_branch` in .dev-platform.toml, or register this task with `python3 scripts/agent_board.py start ...`; a plain disposable checkout such as CI declares the gate not applicable with `select_checks.py --scope-gate not-applicable`"
+migrated = true
+rejection_tests = [
+  "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_corrupt_board_stops_the_gate_instead_of_reporting_no_conflicts",
+  "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_missing_claim_for_the_current_worktree_stops_the_gate",
+  "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_missing_main_branch_is_an_error_not_an_assumed_main",
+]
+recovery_tests = [
+  "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_a_claimed_worktree_with_a_valid_board_still_passes",
+  "tests/test_select_checks.py::BehindDisjointEvidenceTests::test_not_applicable_flag_declares_a_ci_checkout_without_a_board",
+]
+
+[[gate]]
 id = "platform-divergence"
 script = "scripts/platform_divergence.py"
 class = "recoverable"

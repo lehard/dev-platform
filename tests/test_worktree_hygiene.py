@@ -1177,8 +1177,26 @@ class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
         self.configure("agent_board = true\n", main_branch=False)
         worktree = self.add_worktree("only")
         self.board(json.dumps({"version": 1, "items": [self.claim(worktree)]}))
-        with self.assertRaisesRegex(SystemExit, "main_branch"):
+        with self.assertRaisesRegex(SystemExit, r"\[recoverable\] scope-gate-unavailable: main_branch must be a non-empty string"):
             self.conflicts(worktree)
+
+    def test_every_board_command_reads_main_branch_through_the_classified_helper(self) -> None:
+        self.configure("agent_board = true\n", main_branch=False)
+        config = agent_board.read_platform_config(self.root)
+        with self.assertRaisesRegex(SystemExit, r"\[recoverable\] scope-gate-unavailable: main_branch"):
+            agent_board._main_branch(config)
+        self.configure("agent_board = true\n")
+        self.assertEqual(agent_board._main_branch(agent_board.read_platform_config(self.root)), "main")
+
+    def test_merged_into_is_three_valued_and_a_git_failure_raises(self) -> None:
+        merged = self.add_worktree("merged")
+        git(self.root, "merge", "--ff-only", "agent/merged")
+        unmerged = self.add_worktree("unmerged")
+        self.assertTrue(agent_board._merged_into(self.root, "agent/merged", "main"))
+        self.assertFalse(agent_board._merged_into(self.root, "agent/unmerged", "main"))
+        self.assertTrue(merged.exists() and unmerged.exists())
+        with self.assertRaisesRegex(SystemExit, r"Agent board check blocked: git merge-base --is-ancestor .* exited 128"):
+            agent_board._merged_into(self.root, "agent/unmerged", "no-such-main")
 
 
 if __name__ == "__main__":

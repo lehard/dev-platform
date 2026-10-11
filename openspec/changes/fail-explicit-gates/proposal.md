@@ -24,6 +24,8 @@ Mandatory gates for publication and verification must not let work through when 
 
 Touches `template/scripts/{agent_board,select_checks,finish_task,publication_queue,candidate_lifecycle,delegation_containment,run_test_groups,integration_state,_platform_common}.py` and their tests. Rendered downstream projects receive stricter behavior through the normal release; a project with `agent_board = false` is unaffected.
 
+Upgrade note: a project whose `.dev-platform.toml` lacks `main_branch` (or has no `.dev-platform.toml` at the integration root for head-move verification) now fails explicitly instead of assuming `main`, and must add the key. Projects rendered from the template are not affected: `template/.dev-platform.toml.jinja` always renders `main_branch` (the copier question defaults to `main`). The public source contract `dev-platform/source-contract.toml` now carries the same `[capabilities]` table as the installed contract, since a clean CI checkout installs it as `.dev-platform.toml`.
+
 ## Non-goals
 
 Friction routing and its config handling (separate requirement); an audit of every platform script for fallbacks (only publication and verification gates); changing gate semantics beyond failing explicitly; adding configuration switches that re-enable the removed fallbacks.

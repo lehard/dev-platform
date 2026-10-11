@@ -510,6 +510,23 @@ def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
         raise gate_failure("proven-base-freshness", refused + str(exc), SystemExit) from exc
 
 
+def require_disposable_checkout(root: Path) -> None:
+    """Refuse ``--scope-gate not-applicable`` in a task checkout: only a plain, disposable checkout may declare it.
+
+    A linked task worktree (git dir differs from the common git dir) or a checkout holding managed task
+    state is a local task worktree, which always enforces the multi-agent scope gate.
+    """
+    refused = "--scope-gate not-applicable is refused: "
+    git_dir = run_git(["rev-parse", "--absolute-git-dir"], cwd=root).stdout.strip()
+    common_dir = run_git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root).stdout.strip()
+    if Path(git_dir).resolve() != Path(common_dir).resolve():
+        raise SystemExit(refused + f"{root} is a linked task worktree, which always enforces the scope gate; "
+                         "the flag is for plain disposable checkouts such as CI")
+    if (root / ".managed-task-state.json").exists():
+        raise SystemExit(refused + f"{root} holds managed task state (.managed-task-state.json), so it is a task "
+                         "checkout that always enforces the scope gate")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
@@ -546,7 +563,8 @@ def main() -> int:
         help=(
             "enforce (default): the multi-agent scope gate is required whenever [capabilities] agent_board is true and "
             "every unmet precondition stops the run. not-applicable: declare a disposable checkout with no machine-local "
-            "board (CI); the run prints that the gate was not applied. --proven-base and --contribution-base "
+            "board (CI); the run prints that the gate was not applied, and the flag is refused in a linked task worktree "
+            "or a checkout with managed task state. --proven-base and --contribution-base "
             "(coordinator disposable checkouts) declare the same by their mode."
         ),
     )
@@ -656,6 +674,7 @@ def main() -> int:
             if args.proven_base is not None or args.contribution_base is not None:
                 declared = "coordinator disposable checkout (--proven-base/--contribution-base)"
             elif args.scope_gate == "not-applicable":
+                require_disposable_checkout(root)
                 declared = "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
             else:
                 declared = None

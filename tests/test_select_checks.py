@@ -506,10 +506,10 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
         self.git(self.other, "push", "-q", "origin", "HEAD:main")
         return self.git(self.other, "rev-parse", "HEAD")
 
-    def select(self, *args: str, candidate: bool) -> tuple[int, str]:
+    def select(self, *args: str, candidate: bool, cwd: Path | None = None) -> tuple[int, str]:
         output = StringIO()
         previous = Path.cwd()
-        os.chdir(self.task)
+        os.chdir(cwd or self.task)
         self.addCleanup(os.chdir, previous)
         argv = ["select_checks.py", "--base", "origin/main", "--execute", *args]
         with mock.patch.object(sys, "argv", argv), redirect_stdout(output), \
@@ -605,7 +605,7 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
                 code, output = self.select("--evidence", "evidence.json", *arguments, candidate=False)
 
                 self.assertNotEqual(code, 0, output)
-                self.assertIn("Scope gate unavailable", output)
+                self.assertIn("scope-gate-unavailable", output)
                 self.assertNotIn("Scope gate not applicable", output)
                 self.assertFalse((self.task / "validation-ran.txt").exists())
                 self.assertFalse((self.task / "evidence.json").exists())
@@ -620,6 +620,29 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
         self.assertEqual(code, 0, output)
         self.assertIn("Scope gate not applicable: declared by --scope-gate not-applicable", output)
         self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
+
+    def test_not_applicable_flag_is_refused_in_a_linked_task_worktree(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        (self.task / ".dev-platform.toml").write_text(
+            SOURCE_CONTRACT.replace("agent_board = false", "agent_board = true"), encoding="utf-8")
+        self.git(self.task, "add", ".dev-platform.toml")
+        self.git(self.task, "-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-qm", "require the board")
+        linked = self.base / "linked"
+        self.git(self.task, "worktree", "add", "-q", "-b", "agent/linked", str(linked))
+
+        code, output = self.select("--scope-gate", "not-applicable", candidate=False, cwd=linked)
+
+        self.assertNotEqual(code, 0, output)
+        self.assertIn("--scope-gate not-applicable is refused", output)
+        self.assertIn("linked task worktree", output)
+        self.assertNotIn("Scope gate not applicable", output)
+        self.assertFalse((linked / "validation-ran.txt").exists())
+
+    def test_disposable_checkout_requirement_refuses_managed_task_state_and_allows_a_plain_clone(self) -> None:
+        select_checks.require_disposable_checkout(self.task)  # a plain clone is allowed
+        (self.task / ".managed-task-state.json").write_text("{}", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "--scope-gate not-applicable is refused.*holds managed task state"):
+            select_checks.require_disposable_checkout(self.task)
 
     def test_scope_gate_capability_is_required_to_be_a_boolean(self) -> None:
         self.commit(self.task, "task.txt", "task\n")

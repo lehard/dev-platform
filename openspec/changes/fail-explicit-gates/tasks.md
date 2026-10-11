@@ -1,7 +1,7 @@
 ## 1. Scope gate
 
 - [x] 1.1 Add the explicit-mode helper and make `hard_scope_conflicts`/`enforce_scope_gate` raise on every unmet precondition when the capability is on; keep the documented non-gate when off.
-- [x] 1.2 Remove the `agent_board` stand-ins from `select_checks.py` and `finish_task.py`; read `main_branch` without a default in protected/coordinator checks; add `select_checks.py --scope-gate {enforce,not-applicable}` (default `enforce`; coordinator base modes imply not-applicable) and pass `not-applicable` in the CI workflows.
+- [x] 1.2 Remove the `agent_board` stand-ins from `select_checks.py` and `finish_task.py`; read `main_branch` without a default in protected/coordinator checks; add `select_checks.py --scope-gate {enforce,not-applicable}` (default `enforce`; coordinator base modes imply not-applicable) and pass `not-applicable` in the CI workflows (refused in linked task worktrees and managed task checkouts).
 
 ## 2. Publication gates
 

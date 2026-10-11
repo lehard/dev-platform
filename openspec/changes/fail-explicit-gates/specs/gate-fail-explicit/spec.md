@@ -21,7 +21,8 @@ When `[capabilities] agent_board` is `true`, the multi-agent scope gate SHALL st
 - **GIVEN** `agent_board = true` and a checkout with no machine-local board (a CI run or a coordinator proven-base or contribution-base run)
 - **WHEN** `select_checks.py` runs with `--scope-gate not-applicable` or with `--proven-base` or `--contribution-base`
 - **THEN** it prints `Scope gate not applicable: <reason>` and does not fail on the missing board
-- **AND** without that explicit declaration (`--scope-gate enforce`, the default) the missing board still stops the run.
+- **AND** without that explicit declaration (`--scope-gate enforce`, the default) the missing board still stops the run
+- **AND** `--scope-gate not-applicable` is refused with an explicit error in a linked task worktree or a checkout holding `.managed-task-state.json`, and accepted only in a plain checkout.
 
 ### Requirement: Protected checks require main_branch
 
@@ -35,7 +36,7 @@ A protected or coordinator check that needs the main branch SHALL read it from p
 
 ### Requirement: Publication gates do not mask lost records or git failures
 
-The publication queue SHALL fail when the lineage record of a superseded head is missing, and SHALL treat a git ancestry check as three-valued: success is ancestor, exit status 1 is not an ancestor, and any other status is an error naming the command and its output. A malformed trusted candidate record SHALL raise the malformed-marker error naming the comment instead of being skipped. `verify_remote_fast_forward` SHALL raise on unreadable configuration or a git failure instead of returning false.
+The publication queue SHALL fail when the lineage record of a superseded head is missing, and SHALL treat a git ancestry check as three-valued: success is ancestor, exit status 1 is not an ancestor, and any other status is an error naming the command and its output. A malformed trusted candidate record SHALL raise the malformed-marker error naming the comment instead of being skipped. `verify_remote_fast_forward` and `verify_historical_external_advance` SHALL raise on an absent or unreadable `.dev-platform.toml`, a missing `main_branch` or a git failure instead of returning false, and SHALL return false only for a definite negative answer.
 
 #### Scenario: Git failure during preparation
 
