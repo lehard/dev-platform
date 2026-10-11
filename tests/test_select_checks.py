@@ -321,11 +321,22 @@ class SelectChecksTests(unittest.TestCase):
         self.assertIn("--mode protected-full --execute", workflow)
         self.assertNotIn("--base \"origin/${{ github.base_ref }}\" --execute", workflow)
 
+    def test_ci_checkouts_declare_the_scope_gate_not_applicable_explicitly(self) -> None:
+        for relative in (".github/workflows/project-ci.yml", "template/.github/workflows/dev-platform.yml.jinja",
+                         "template/.gitlab-ci.yml.jinja"):
+            with self.subTest(workflow=relative):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                commands = [line for line in text.splitlines() if "scripts/select_checks.py" in line and "protected-full" in line]
+                self.assertTrue(commands)
+                for line in commands:
+                    self.assertTrue(line.rstrip().endswith("--mode protected-full --execute --scope-gate not-applicable"), line)
+
 
 
 SOURCE_CONTRACT = (
     'platform_version = "source"\nmain_branch = "main"\nworkflow_profile = "standard"\n'
     'harness_mode = "platform"\npublish_mode = "pr"\nscm_provider = "github"\n'
+    '[capabilities]\nagent_board = false\n'
 )
 
 
@@ -391,6 +402,23 @@ class ProvenBaseContractTests(unittest.TestCase):
         self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
         # The contract never fetches: remote-tracking main is exactly what finalization observed.
         self.assertEqual(self.git(self.task, "rev-parse", "origin/main"), self.moved)
+
+    def require_board(self) -> None:
+        """The source contract with the scope gate required, and no machine-local board anywhere."""
+        (self.task / ".dev-platform.toml").write_text(
+            SOURCE_CONTRACT.replace("agent_board = false", "agent_board = true"), encoding="utf-8")
+
+    def test_coordinator_base_modes_declare_the_scope_gate_not_applicable_without_a_board(self) -> None:
+        self.require_board()
+        for flag, expected in (("--proven-base", "coordinator disposable checkout"),
+                               ("--contribution-base", "coordinator disposable checkout")):
+            with self.subTest(flag=flag):
+                (self.task / "validation-ran.txt").unlink(missing_ok=True)
+                result = self.select("--execute", flag, self.proven)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(f"Scope gate not applicable: {expected}", result.stdout)
+                self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
+                self.assertFalse((self.task / ".claude" / "agents-board.json").exists())
 
     def test_failing_command_under_the_proven_base_fails_the_invocation(self) -> None:
         self.write_checks("exit 3")
@@ -553,6 +581,56 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
         self.assertIn(f"HEAD contains freshly observed origin/main ({self.seed})", output)
         self.predicate.assert_not_called()
         self.assertNotIn("task_base", json.loads((self.task / "evidence.json").read_text()))
+
+    def test_protected_check_requires_main_branch_instead_of_assuming_main(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        (self.task / ".dev-platform.toml").write_text(
+            SOURCE_CONTRACT.replace('main_branch = "main"\n', ""), encoding="utf-8")
+
+        # With evidence a coordinator candidate takes the handoff branch; without it every head takes the fresh-base branch.
+        for arguments in (("--evidence", "evidence.json"), ()):
+            with self.subTest(arguments=arguments):
+                code, output = self.select(*arguments, candidate=False)
+                self.assertNotEqual(code, 0, output)
+                self.assertIn("main_branch must be a non-empty string", output)
+                self.assertFalse((self.task / "validation-ran.txt").exists())
+
+    def test_required_scope_gate_without_a_board_stops_validation_before_any_command(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        (self.task / ".dev-platform.toml").write_text(
+            SOURCE_CONTRACT.replace("agent_board = false", "agent_board = true"), encoding="utf-8")
+
+        for arguments in ((), ("--scope-gate", "enforce")):
+            with self.subTest(arguments=arguments):
+                code, output = self.select("--evidence", "evidence.json", *arguments, candidate=False)
+
+                self.assertNotEqual(code, 0, output)
+                self.assertIn("Scope gate unavailable", output)
+                self.assertNotIn("Scope gate not applicable", output)
+                self.assertFalse((self.task / "validation-ran.txt").exists())
+                self.assertFalse((self.task / "evidence.json").exists())
+
+    def test_not_applicable_flag_declares_a_ci_checkout_without_a_board(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        (self.task / ".dev-platform.toml").write_text(
+            SOURCE_CONTRACT.replace("agent_board = false", "agent_board = true"), encoding="utf-8")
+
+        code, output = self.select("--evidence", "evidence.json", "--scope-gate", "not-applicable", candidate=False)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("Scope gate not applicable: declared by --scope-gate not-applicable", output)
+        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
+
+    def test_scope_gate_capability_is_required_to_be_a_boolean(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        (self.task / ".dev-platform.toml").write_text(
+            SOURCE_CONTRACT.replace("agent_board = false", 'agent_board = "no"'), encoding="utf-8")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=False)
+
+        self.assertNotEqual(code, 0, output)
+        self.assertIn("agent_board must be true or false", output)
+        self.assertFalse((self.task / "validation-ran.txt").exists())
 
 
 if __name__ == "__main__":

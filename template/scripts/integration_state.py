@@ -10,7 +10,7 @@ from typing import Iterator
 
 try:
     import fcntl
-except ImportError:  # pragma: no cover - Windows fallback
+except ImportError:  # pragma: no cover - platform without POSIX locking; serialized_integration fails explicitly
     fcntl = None
 
 from _platform_common import ensure_shared_path, fetch_main, resolve_shared_group, run_git
@@ -73,6 +73,11 @@ def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> 
     relative = _lock_path(config)
     path = (root / relative).resolve()
     key = str(path)
+    if fcntl is None:
+        raise SystemExit(
+            "Serialized integration requires POSIX fcntl.flock locking, which this platform does not provide; "
+            "refusing to integrate without the lock."
+        )
     if key in _HELD_INTEGRATION_LOCKS:
         # Already serialized in this process; run the nested section directly.
         yield
@@ -82,13 +87,6 @@ def serialized_integration(root: Path, config: dict, timeout_seconds: float) -> 
     ensure_shared_path(path.parent, group=group)
     with path.open("a+", encoding="utf-8") as lock_file:
         ensure_shared_path(path, group=group)
-        if fcntl is None:
-            _HELD_INTEGRATION_LOCKS.add(key)
-            try:
-                yield
-            finally:
-                _HELD_INTEGRATION_LOCKS.discard(key)
-            return
         deadline = time.monotonic() + timeout_seconds
         while True:
             try:

@@ -18,6 +18,8 @@ SCRIPTS = ROOT / "template" / "scripts"
 # them project-owned without the platform publication API.
 MANAGED_START_IMPORT_GRAPH = (
     "_platform_common.py",
+    "shared_workspace.py",
+    "local_workspace.py",
     "integration_state.py",
     "publication_state.py",
     "rollout_identity.py",

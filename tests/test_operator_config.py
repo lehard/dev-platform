@@ -8,7 +8,10 @@ from pathlib import Path
 from unittest import mock
 
 
+import sys
+
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "template" / "scripts"))  # _platform_common imports shared_workspace as a sibling module
 MODULE_PATH = ROOT / "template" / "scripts" / "_platform_common.py"
 SPEC = importlib.util.spec_from_file_location("operator_config_common", MODULE_PATH)
 assert SPEC and SPEC.loader

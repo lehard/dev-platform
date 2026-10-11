@@ -316,6 +316,55 @@ class WorkerTests(unittest.TestCase):
         self.assertIn("update-branch", gh.call_args.args[-1])
         comment.assert_called_once()
 
+    def test_earlier_slot_record_raises_when_a_found_record_is_no_longer_readable(self) -> None:
+        with patch.object(queue, "_record_comment_id", return_value=50), \
+             patch.object(queue, "_latest", return_value=None):
+            with self.assertRaisesRegex(queue.QueueError, "no longer readable"):
+                queue._earlier_slot_record(ROOT_PATH, REPO, 1, [], HEAD, {"comment_id": 20})
+
+    def test_requirement_composition_admission_without_a_coordinator_record_names_the_lost_record(self) -> None:
+        composition = {**pr(1), "head": {"ref": "requirement/BR-9", "sha": HEAD}}
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_pr", return_value=composition), \
+             patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_latest", return_value=None):
+            with self.assertRaisesRegex(queue.QueueError, "no trusted coordinator record"):
+                queue.admit(ROOT_PATH, 1, HEAD)
+
+    def test_git_failure_during_ancestry_check_raises_instead_of_updating_the_branch(self) -> None:
+        from subprocess import CompletedProcess
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "diff":
+                return CompletedProcess(args, 0, "other.py\n", "")
+            if args[0] == "merge-base" and args[2] == NEW_HEAD:
+                return CompletedProcess(args, 128, "", "fatal: Not a valid commit name")
+            return CompletedProcess(args, 0, "", "")
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=NEW_HEAD), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_task_paths", return_value={"task.py"}), \
+             patch.object(queue, "_gh") as gh, \
+             patch.object(queue, "_pr", return_value=pr(1, NEW_HEAD)), \
+             patch.object(queue, "_comment") as comment:
+            with self.assertRaisesRegex(queue.QueueError, r"git merge-base --is-ancestor .*exited 128.*Not a valid commit name"):
+                queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        gh.assert_not_called()
+        comment.assert_not_called()
+
+    def test_git_failure_proving_main_descends_from_the_admitted_base_is_not_reported_as_divergence(self) -> None:
+        from subprocess import CompletedProcess
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-base" and args[2] == BASE:
+                return CompletedProcess(args, 128, "", "fatal: bad object")
+            return CompletedProcess(args, 0, "", "")
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=NEW_HEAD), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_gh") as gh:
+            with self.assertRaisesRegex(queue.QueueError, r"exited 128.*bad object"):
+                queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        gh.assert_not_called()
+
     def test_admitted_head_lacking_its_recorded_base_is_updated(self) -> None:
         # A composition head admitted on an older main records the then-current main as its base.
         from subprocess import CompletedProcess
@@ -487,6 +536,20 @@ class TransitionRecordTests(unittest.TestCase):
                                        gates={"required-checks": {"result": "passed", "identity": HEAD, "evidence": "ok"}}
                                        if comments else None)
         return posted, record
+
+    def test_transition_over_a_malformed_trusted_record_raises_instead_of_writing_over_it(self) -> None:
+        broken = {"id": 5, "author_association": "OWNER", "body": "dev-platform-publication-queue:v2 {broken"}
+        with self.assertRaisesRegex(queue.MalformedMarkerError, "malformed marker comment 5"):
+            self._observe([broken])
+
+    def test_transition_refusing_other_ownership_reports_a_malformed_record_as_an_ownership_change(self) -> None:
+        broken = {"id": 5, "author_association": "OWNER", "body": "dev-platform-publication-queue:v2 {broken"}
+        observed = {"number": 7, "state": "open", "head": {"sha": HEAD}, "labels": []}
+        with patch.object(queue, "_gh") as gh, patch.object(queue, "_label"), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_comments", return_value=[broken]):
+            with self.assertRaisesRegex(queue.LifecycleOwnershipChanged, "malformed marker comment 5"):
+                queue._transition(ROOT_PATH, REPO, 7, "integrating", HEAD, task_identity={"head": HEAD}, refuse_from=queue.STATES)
+        gh.assert_not_called()
 
     def test_transition_carries_forward_and_skips_unchanged_or_moved_head(self) -> None:
         from candidate_lifecycle import build_handoff_record, marker_body

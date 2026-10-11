@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -284,10 +285,45 @@ class DelegationContainmentTests(unittest.TestCase):
         git("add", "second.txt", cwd=self.integration)
         git("commit", "-m", "second", cwd=self.integration)
         after_head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
-        # No refs/remotes/origin/main exists at all.
+        # No refs/remotes/origin/main exists at all: a definite negative answer, nothing proves the head accepted.
         self.assertFalse(
             delegation_containment.verify_remote_fast_forward(self.integration, before_head, after_head)
         )
+
+    def test_verify_remote_fast_forward_raises_when_reading_the_remote_ref_fails(self) -> None:
+        self._with_main_branch_config()
+        head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
+        real = delegation_containment.run_git
+
+        def failing(cwd, *arguments, check=True):
+            if arguments[:1] == ("rev-parse",):
+                return subprocess.CompletedProcess(["git", *arguments], 128, "", "fatal: corrupt ref storage")
+            return real(cwd, *arguments, check=check)
+
+        with mock.patch.object(delegation_containment, "run_git", side_effect=failing):
+            with self.assertRaisesRegex(delegation_containment.ContainmentError, r"git rev-parse .*exited 128.*corrupt ref storage"):
+                delegation_containment.verify_remote_fast_forward(self.integration, head, head)
+
+    def test_verify_remote_fast_forward_requires_main_branch_in_platform_config(self) -> None:
+        (self.integration / ".dev-platform.toml").write_text('workflow_profile = "standard"\n', encoding="utf-8")
+        head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
+        git("update-ref", "refs/remotes/origin/main", head, cwd=self.integration)
+        with self.assertRaisesRegex(delegation_containment.ContainmentError, "main_branch"):
+            delegation_containment.verify_remote_fast_forward(self.integration, head, head)
+
+    def test_verify_remote_fast_forward_raises_on_unreadable_platform_config(self) -> None:
+        (self.integration / ".dev-platform.toml").write_text("main_branch = [unterminated\n", encoding="utf-8")
+        head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
+        with self.assertRaisesRegex(delegation_containment.ContainmentError, "platform config .* is unusable"):
+            delegation_containment.verify_remote_fast_forward(self.integration, head, head)
+
+    def test_verify_remote_fast_forward_raises_on_a_git_failure_instead_of_returning_false(self) -> None:
+        self._with_main_branch_config()
+        head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
+        git("update-ref", "refs/remotes/origin/main", head, cwd=self.integration)
+        # An object that does not exist makes `git merge-base --is-ancestor` exit 128, not 1.
+        with self.assertRaisesRegex(delegation_containment.ContainmentError, "exited 128"):
+            delegation_containment.verify_remote_fast_forward(self.integration, "d" * 40, head)
 
     def test_verify_remote_fast_forward_uses_default_main_branch_without_platform_config(self) -> None:
         before_head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
@@ -401,7 +437,7 @@ class DelegationContainmentTests(unittest.TestCase):
     def test_record_containment_friction_writes_local_event_without_github(self) -> None:
         target = self.integration / "scripts"
         target.mkdir()
-        for name in ("_platform_common.py", "agent_friction.py"):
+        for name in ("_platform_common.py", "shared_workspace.py", "agent_friction.py"):
             (target / name).write_bytes((ROOT / "template" / "scripts" / name).read_bytes())
         (self.integration / ".dev-platform.toml").write_text(
             'main_branch = "main"\nharness_mode = "platform"\n\n[paths]\n'

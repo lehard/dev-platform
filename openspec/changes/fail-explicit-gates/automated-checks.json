@@ -1,0 +1,114 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.154,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.175,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 585.985,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/project-ci.yml",
+        "template/.github/workflows/dev-platform.yml.jinja",
+        "template/scripts/_platform_common.py",
+        "template/scripts/agent_board.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/delegation_containment.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/integration_state.py",
+        "template/scripts/publication_queue.py",
+        "template/scripts/run_test_groups.py",
+        "template/scripts/select_checks.py",
+        "tests/test_candidate_lifecycle.py",
+        "tests/test_delegated_write_guard.py",
+        "tests/test_delegation_containment.py",
+        "tests/test_downstream_boundary.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_integration_advance_receipts.py",
+        "tests/test_managed_intake_project_harness_isolation.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_operator_config.py",
+        "tests/test_platform_common.py",
+        "tests/test_post_review_finalization.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_protected_main_zero_handoff.py",
+        "tests/test_publication_queue.py",
+        "tests/test_publication_recovery_cli.py",
+        "tests/test_run_test_groups.py",
+        "tests/test_select_checks.py",
+        "tests/test_shared_writer_guard.py",
+        "tests/test_task_freshness.py",
+        "tests/test_worktree_hygiene.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b629539de3d899cda0a2c2e3dffb417a",
+    "change": "fail-explicit-gates",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fail-explicit-gates",
+    "branch": "agent/br-598-t1-fail-explicit-gates",
+    "head": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "task_content": {
+      "version": 1,
+      "digest": "c364028a39cc22d23cfeebbf1905e61a77067d0b9c6685745d6d1eb5b199fb7d",
+      "paths": {},
+      "base": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "4eba9475bc04ad6732ce2bdf19fb71489f1619c4a5565f59d1b5d99ca18ddfec",
+    "paths": {},
+    "base": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_board.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/delegation_containment.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/integration_state.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/run_test_groups.py --changed-file template/scripts/select_checks.py --changed-file tests/test_candidate_lifecycle.py --changed-file tests/test_delegated_write_guard.py --changed-file tests/test_delegation_containment.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_operator_config.py --changed-file tests/test_platform_common.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_run_test_groups.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_writer_guard.py --changed-file tests/test_task_freshness.py --changed-file tests/test_worktree_hygiene.py",
+    "duration_seconds": 485.146,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-disjoint",
+    "main": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
+    "base": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5"
+  }
+}

@@ -230,23 +230,38 @@ def verify_remote_fast_forward(integration_root: Path, before_head: str, after_h
     of `before_head`, and `after_head` exactly equals this checkout's own
     already-recorded remote-tracking ref for the configured base branch
     (`refs/remotes/origin/<main_branch>`) -- never a fresh network round-trip,
-    since this must stay a read of local state the checkout already has. Fails
-    closed (returns False) on any git error, missing config, or mismatch; a
-    verification failure is never treated as proof.
-    """
-    try:
-        from _platform_common import read_platform_config  # local import: avoid a hard dependency for callers that never need config.
+    since this must stay a read of local state the checkout already has.
 
-        config = read_platform_config(integration_root)
-    except Exception:
-        return False
-    main_branch = str(config.get("main_branch") or "main")
+    Returns False only for a definite negative answer (`before_head` is not an
+    ancestor of `after_head`, or the recorded remote-tracking ref is absent or
+    names another commit). Unreadable platform configuration, a missing
+    `main_branch`, or any git failure other than those definite answers raises
+    `ContainmentError`: a verification that could not run is never reported as
+    a negative answer.
+    """
+    from _platform_common import read_platform_config, require_main_branch  # local import: avoid a hard dependency for callers that never need config.
+
+    try:
+        main_branch = require_main_branch(read_platform_config(integration_root))
+    except (OSError, RuntimeError, ValueError) as exc:  # PlatformConfigError is a RuntimeError; tomllib.TOMLDecodeError a ValueError
+        raise ContainmentError(f"cannot verify a remote fast-forward: platform config for {integration_root} is unusable: {exc}") from exc
     ancestry = run_git(integration_root, "merge-base", "--is-ancestor", before_head, after_head, check=False)
+    if ancestry.returncode == 1:
+        return False
     if ancestry.returncode != 0:
-        return False
-    remote_ref = run_git(integration_root, "rev-parse", f"refs/remotes/origin/{main_branch}", check=False)
+        raise ContainmentError(
+            f"cannot verify a remote fast-forward: git merge-base --is-ancestor {before_head} {after_head} "
+            f"exited {ancestry.returncode}: {(ancestry.stderr.strip() or ancestry.stdout.strip())}"
+        )
+    ref = f"refs/remotes/origin/{main_branch}"
+    remote_ref = run_git(integration_root, "rev-parse", "--verify", "--quiet", ref, check=False)
+    if remote_ref.returncode == 1:
+        return False  # `--verify --quiet` exit 1: no such ref, so nothing proves `after_head` is accepted remote history
     if remote_ref.returncode != 0:
-        return False
+        raise ContainmentError(
+            f"cannot verify a remote fast-forward: git rev-parse {ref} exited {remote_ref.returncode}: "
+            f"{(remote_ref.stderr.strip() or remote_ref.stdout.strip())}"
+        )
     return remote_ref.stdout.strip() == after_head
 
 

@@ -117,11 +117,11 @@ def configure(repo: Path) -> None:
 
 def install_scripts(repo: Path, profile: str = "light", publish: str = "direct") -> None:
     target = repo / "scripts"; target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "delegation_containment.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
+    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_sync.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"): shutil.copy2(SCRIPT_SOURCE / name, target / name)
     # The delivered scripts classify their blocking failures from the platform-owned catalog beside them.
     (repo / "dev-platform").mkdir(exist_ok=True)
     shutil.copy2(SCRIPT_SOURCE.parent / "dev-platform" / "blocking-gates.toml", repo / "dev-platform" / "blocking-gates.toml")
-    (repo / ".dev-platform.toml").write_text(f'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n', encoding="utf-8")
+    (repo / ".dev-platform.toml").write_text(f'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "{profile}"\nharness_mode = "platform"\npublish_mode = "{publish}"\n[capabilities]\nagent_board = false\n', encoding="utf-8")
 
 
 def explicit_bypass_env() -> dict[str, str]:
@@ -219,11 +219,18 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("DEV_PLATFORM_ALLOW_NO_CHECKS", result.stderr + result.stdout)
 
-    def test_finish_task_tolerates_legacy_agent_board_without_overlap_helper(self) -> None:
-        """Copier updates can retain an older conflicting board script."""
+    def test_finish_task_fails_explicitly_when_the_agent_board_module_lacks_the_scope_gate(self) -> None:
+        """A retained older board script is no longer replaced by no-op stand-ins."""
         (self.repo / "scripts" / "agent_board.py").write_text("# legacy board\n", encoding="utf-8")
         result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo, check=False)
-        self.assertNotIn("cannot import name 'warn_current_worktree_scope_overlap'", result.stderr + result.stdout)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("cannot import name", result.stderr + result.stdout)
+
+    def test_finish_task_fails_explicitly_when_the_agent_board_module_is_missing(self) -> None:
+        (self.repo / "scripts" / "agent_board.py").unlink()
+        result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo, check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("agent_board", result.stderr + result.stdout)
 
     def test_multi_agent_direct_finish_blocks_then_resolves_new_hard_overlap(self) -> None:
         """Reproduces dev-platform#220/#224: a hard overlap discovered after admission
@@ -238,6 +245,8 @@ class GitLifecycleTests(unittest.TestCase):
             'harness_mode = "platform"\n'
             'protected_main = false\n'
             'publish_mode = "direct"\n'
+            '[capabilities]\n'
+            'agent_board = true\n'
             '[paths]\n'
             'agent_board = ".claude/agents-board.json"\n'
         )
@@ -314,6 +323,8 @@ class GitLifecycleTests(unittest.TestCase):
             'platform_version = "1.0.0"\nmain_branch = "main"\n'
             'workflow_profile = "multi-agent"\n'
             'harness_mode = "platform"\n'
+            '[capabilities]\n'
+            'agent_board = true\n'
             '[paths]\n'
             'agent_board = ".claude/agents-board.json"\n'
             'checks = "dev-platform/checks.toml"\n'
@@ -374,7 +385,7 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
 
     def test_standard_direct_finish_integrates_and_pushes(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
+        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "direct"\n[capabilities]\nagent_board = false\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "standard profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature", cwd=self.repo)
         result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=explicit_bypass_env()); self.assertIn("Integrated agent/test -> main", result.stdout); self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(); local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip(); self.assertEqual(remote_sha, local_sha)
@@ -382,8 +393,18 @@ class GitLifecycleTests(unittest.TestCase):
         (receipt,) = self._receipts()
         self.assertEqual((receipt["after"], receipt["origin_main"], receipt["tool"]), (local_sha, local_sha, "finish_task.integrate_and_publish_direct"))
 
+    def test_required_scope_gate_without_a_board_stops_finish_before_publication(self) -> None:
+        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\npublish_mode = "direct"\n[capabilities]\nagent_board = true\n[paths]\nagent_board = ".claude/agents-board.json"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "multi-agent profile", cwd=self.repo); git("push", cwd=self.repo)
+        git("switch", "-c", "agent/test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature", cwd=self.repo)
+        remote_before = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=explicit_bypass_env(), check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Scope gate unavailable", result.stderr + result.stdout)
+        self.assertIn("does not exist", result.stderr + result.stdout)
+        self.assertEqual(run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip(), remote_before)
+
     def test_standard_pr_finish_returns_to_main(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
+        (self.repo / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n', encoding="utf-8"); git("add", ".dev-platform.toml", cwd=self.repo); git("commit", "-m", "pr profile", cwd=self.repo); git("push", cwd=self.repo)
         git("switch", "-c", "agent/pr-test", cwd=self.repo); (self.repo / "feature.txt").write_text("feature\n", encoding="utf-8"); git("add", "feature.txt", cwd=self.repo); git("commit", "-m", "feature pr", cwd=self.repo)
         fake_bin = self.base / "fake-bin"; fake_bin.mkdir(); fake_gh = fake_bin / "gh"
         fake_gh.write_text('#!/bin/sh\n' + EXACT_OPEN_PR_LIST_SHIM + 'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\nif [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\nif [ "$1" = "pr" ] && [ "$2" = "create" ]; then echo "https://example.invalid/pr/1"; exit 0; fi\nexit 1\n', encoding="utf-8"); fake_gh.chmod(0o755)
@@ -400,6 +421,8 @@ class GitLifecycleTests(unittest.TestCase):
             'protected_main = true\n'
             'publish_mode = "pr"\n'
             'pr_merge_mode = "auto"\n'
+            '[capabilities]\n'
+            'agent_board = false\n'
             '[paths]\n'
             'agent_board = ".claude/agents-board.json"\n'
             'main_merge_lock = ".claude/main-merge.lock"\n'
@@ -472,6 +495,8 @@ class GitLifecycleTests(unittest.TestCase):
             'protected_main = true\n'
             'publish_mode = "pr"\n'
             'pr_merge_mode = "auto"\n'
+            '[capabilities]\n'
+            'agent_board = false\n'
             '[paths]\n'
             'agent_board = ".claude/agents-board.json"\n'
             'main_merge_lock = ".claude/main-merge.lock"\n'
@@ -617,6 +642,8 @@ class GitLifecycleTests(unittest.TestCase):
             'harness_mode = "platform"\n'
             'protected_main = false\n'
             'publish_mode = "direct"\n'
+            '[capabilities]\n'
+            'agent_board = true\n'
             '[paths]\n'
             'agent_board = ".claude/agents-board.json"\n'
             'checks = "dev-platform/checks.toml"\n',
@@ -705,7 +732,7 @@ class GitLifecycleTests(unittest.TestCase):
         shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(
             'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
-            'publish_mode = "direct"\n[development_backlog]\nrepository = "example/internal-tasks"\n'
+            'publish_mode = "direct"\n[capabilities]\nagent_board = false\n[development_backlog]\nrepository = "example/internal-tasks"\n'
             '[paths]\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",
         )
@@ -743,7 +770,7 @@ class GitLifecycleTests(unittest.TestCase):
         shutil.copy2(ROOT / "scripts" / "check_private_backlog_refs.py", self.repo / "scripts" / "check_private_backlog_refs.py")
         (self.repo / ".dev-platform.toml").write_text(
             'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n'
-            'publish_mode = "direct"\n[development_backlog]\nrepository = "example/internal-tasks"\n'
+            'publish_mode = "direct"\n[capabilities]\nagent_board = false\n[development_backlog]\nrepository = "example/internal-tasks"\n'
             '[paths]\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",
         )

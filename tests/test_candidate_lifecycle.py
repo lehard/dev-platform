@@ -389,5 +389,43 @@ class TrustAndMergeTests(unittest.TestCase):
         self.assertEqual(derived["state"], "merged")
 
 
+class MalformedTrustedRecordTests(unittest.TestCase):
+    """A damaged trusted record is never skipped, so a later record cannot stand in for it."""
+
+    def malformed(self, ident, trusted=True):
+        return {"id": ident, "author_association": "OWNER" if trusted else "NONE",
+                "body": lifecycle.PREFIX + "{broken"}
+
+    def test_first_record_raises_naming_a_malformed_trusted_record_instead_of_taking_a_later_admission(self):
+        rows = [self.malformed(1), comment(handoff(), 2)]
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "malformed marker comment 1"):
+            lifecycle.first_record(7, rows)
+
+    def test_latest_record_raises_naming_a_malformed_trusted_record_instead_of_returning_an_older_one(self):
+        rows = [comment(handoff(), 1), self.malformed(2)]
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "malformed marker comment 2"):
+            lifecycle.latest_record(7, rows)
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "malformed marker comment 2"):
+            lifecycle.latest_record(7, rows, head=HEAD)
+
+    def test_a_record_failing_validation_raises_too(self):
+        invalid = {**handoff(), "attempts": {"review": -1}}
+        rows = [{"id": 3, "author_association": "OWNER", "body": lifecycle.PREFIX + json.dumps(invalid)}]
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "malformed marker comment 3"):
+            lifecycle.latest_record(7, rows)
+
+    def test_untrusted_malformed_comments_are_not_gate_input_and_stay_ignored(self):
+        rows = [self.malformed(1, trusted=False), comment(handoff(), 2)]
+        self.assertEqual(lifecycle.first_record(7, rows)["head"], HEAD)
+        self.assertEqual(lifecycle.latest_record(7, rows)["head"], HEAD)
+
+    def test_valid_records_still_resolve(self):
+        rows = [comment(handoff("reviewing"), 1), comment(handoff("repair-pending", NEW_HEAD), 2)]
+        self.assertEqual(lifecycle.first_record(7, rows)["head"], HEAD)
+        self.assertEqual(lifecycle.latest_record(7, rows)["head"], NEW_HEAD)
+        self.assertEqual(lifecycle.latest_record(7, rows, head=HEAD)["state"], "reviewing")
+        self.assertIsNone(lifecycle.first_record(7, []))
+
+
 if __name__ == "__main__":
     unittest.main()

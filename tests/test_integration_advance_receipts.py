@@ -73,6 +73,16 @@ class ReceiptSchemaTests(unittest.TestCase):
                 containment.record_integration_advance(Path("/integration"), "a", "b",
                     tool="test", actor_worktree=Path("/actor"), remote="origin")
 
+    def test_serialized_integration_without_posix_locking_fails_instead_of_running_unlocked(self) -> None:
+        integration_state = load_platform_module("integration_state", SCRIPTS / "integration_state.py")
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(integration_state, "fcntl", None):
+            entered = []
+            with self.assertRaisesRegex(SystemExit, "requires POSIX fcntl.flock"):
+                with integration_state.serialized_integration(Path(directory), {}, 0):
+                    entered.append(True)
+            self.assertEqual(entered, [])
+            self.assertEqual(list(Path(directory).iterdir()), [])  # no lock file was created either
+
     def test_remote_argument_is_required(self) -> None:
         with self.assertRaises(TypeError):
             containment.record_integration_advance(Path("/integration"), "a", "b",
