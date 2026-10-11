@@ -21,7 +21,7 @@
     {"id": "negative-implement", "expectation": "not-trigger", "prompt": "Implement the already specified endpoint exactly as described in the managed task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-technical-managed-task", "expectation": "not-trigger", "prompt": "Create a technical managed task for the lifecycle script fix as requested.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-discuss", "expectation": "not-trigger", "prompt": "Let us compare two designs for the cache; do not record anything yet.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
-    {"id": "negative-start-requirement", "expectation": "not-trigger", "prompt": "Start executing the existing Requirement lehard/development-backlog#582.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-start-requirement", "expectation": "not-trigger", "prompt": "Start executing the Business Requirement that is already recorded in the backlog.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
     {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
   ],
   "quality_comparisons": [
