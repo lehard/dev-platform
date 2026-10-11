@@ -1,0 +1,85 @@
+{
+  "candidate": {
+    "base_head": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "base_ref": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "candidate_head": "6101bff3771f38ae07fb7c4d14803ed49c15c386",
+    "diff_sha256": "2bb0a0df7bee2e53668efdaf5988c646e135d2dd328eef36b3ddad34ae769083"
+  },
+  "change": "openspec/changes/local-platform-hotfix",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/local-platform-hotfix/automated-checks.json",
+    "openspec/changes/local-platform-hotfix/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/local-platform-hotfix/design.md",
+        "openspec/changes/local-platform-hotfix/proposal.md",
+        "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md",
+        "openspec/changes/local-platform-hotfix/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/local-platform-hotfix/proposal.md",
+        "openspec/changes/local-platform-hotfix/design.md",
+        "openspec/changes/local-platform-hotfix/tasks.md",
+        "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-11T05:49:35+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/local-platform-hotfix/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "12555532-574d-48ac-961c-22854d1e8fe9",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+    "paths": {
+      "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+      "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+      "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+      "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+      "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+      "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+      "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+      "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+      "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+      "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+      "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+      "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+      "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+      "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+      "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+      "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+      "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+      "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+      "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

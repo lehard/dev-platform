@@ -21,6 +21,7 @@ _skip_if_exists:
   - dev-platform/capabilities.toml
   - dev-platform/browser-verification.toml
   - dev-platform/retrospective.toml
+  - dev-platform/local-hotfixes.toml
   - "{{ 'docs/engineering/openspec-workflow.md' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'docs/engineering/agent-workflow.md' if harness_mode == 'project' else '.copier-managed-harness' }}"
   - "{{ 'scripts/agent_board.py' if harness_mode == 'project' else '.copier-managed-harness' }}"

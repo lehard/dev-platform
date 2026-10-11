@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "base_ref": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "candidate_head": "6101bff3771f38ae07fb7c4d14803ed49c15c386",
+    "diff_sha256": "2bb0a0df7bee2e53668efdaf5988c646e135d2dd328eef36b3ddad34ae769083"
+  },
+  "completed_at": "2026-10-11T05:50:29+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/platform_divergence.py FrictionLog._load reports 'friction log ... does not exist' as an error, and every entry then gets a missing-friction-event problem. change-classes.md says to run the check 'where the event was recorded' but also suggests adding it to `full_commands`. The design.md decision 5 accepts this, but it makes the CI/full-validation placement contradictory for any project that has a hotfix.",
+      "id": "friction-log-machine-local-breaks-ci",
+      "severity": "advisory",
+      "summary": "The hotfix check requires the friction event id to exist in a machine-local log. A project with a valid hotfix would fail `platform_doctor.py` or the divergence check on CI or on any other machine than the one that recorded the event."
+    },
+    {
+      "evidence": "platform_divergence.py sha256_of uses path.read_bytes(); the manifest digests come from the LF template bytes, and the design assumes plain files are byte-identical downstream. There is no normalization and no diagnostic hint for this case.",
+      "id": "byte-digest-line-ending-sensitivity",
+      "severity": "advisory",
+      "summary": "Divergence detection compares raw-byte sha256 with the manifest. Checkout-time newline conversion (for example autocrlf or .gitattributes eol) would make every plain file look like an undeclared divergence or protected-touch."
+    }
+  ],
+  "launched_at": "2026-10-11T05:50:10+00:00",
+  "output_sha256": "eb7769744dd9d646db4a9415859d2eb747978036fd6260a8743975757fc6cdec",
+  "perspective": "engineering-quality",
+  "request_id": "12555532-574d-48ac-961c-22854d1e8fe9",
+  "reviewer": {
+    "context_id": "ecb6cabe-9945-4e4a-8f38-ac1f8d69e6c5",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4abfc985-3499-4384-84c2-baf95956495b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40931
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55210
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17898
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18172
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1679
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10"
+}

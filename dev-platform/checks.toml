@@ -45,13 +45,15 @@ instruction_behavior_surface_patterns = [
 # change also gets a Jinja render smoke so a broken template still fails.
 [checks.docs]
 patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "template/**/*.md", "template/**/*.md.jinja"]
-commands = ["git diff --check", "python3 scripts/check_docs_links.py"]
-evidence_types = ["configuration", "configuration"]
+# Template docs and prose are in the release manifest, so a docs-only template edit
+# must also keep it current (a cheap digest comparison, no test suite).
+commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check"]
+evidence_types = ["configuration", "configuration", "configuration"]
 
 [checks.docs-template-render]
 patterns = ["template/AGENTS.md.jinja"]
-commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/render_agents_md_smoke.py"]
-evidence_types = ["configuration", "configuration", "configuration"]
+commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check", "python3 scripts/render_agents_md_smoke.py"]
+evidence_types = ["configuration", "configuration", "configuration", "configuration"]
 
 [checks.python]
 patterns = ["**/*.py"]
@@ -171,6 +173,8 @@ targets = [
   "test_task_freshness",
   "test_template_contract",
   "test_protected_surface",
+  "test_platform_manifest",
+  "test_platform_divergence",
   "test_task_content_identity",
   "test_module_isolation",
 ]

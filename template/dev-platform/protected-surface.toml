@@ -62,7 +62,6 @@ hotfixable = [
   "dev-platform/evals/selective-domain-interrogation-pilot.json",
   "dev-platform/evals/systematic-bug-diagnosis-pilot.json",
   "dev-platform/evals/ui-quality-review-pilot.json",
-  "docs/README.md",
   "docs/engineering/agent-instructions.md",
   "docs/engineering/browser-verification.md",
   "docs/engineering/chatgpt-project-protocol.md",
@@ -77,27 +76,22 @@ hotfixable = [
   "scripts/add_intents.py",
   "scripts/affected_test_groups.py",
   "scripts/agent_board.py",
-  "scripts/agent_friction.py",
   "scripts/browser_verification.py",
   "scripts/capability_evals.py",
   "scripts/capability_manager.py",
   "scripts/check_docs_links.py",
   "scripts/deepseek_harness_adapter.py",
   "scripts/dev.py",
-  "scripts/execute_managed_task.py",
   "scripts/harness_replay.py",
   "scripts/machine_pool.py",
   "scripts/managed_project_status.py",
-  "scripts/orchestrate_pre_authoring.py",
   "scripts/parallel_lifecycle_acceptance.py",
   "scripts/platform_bootstrap.py",
   "scripts/project_context.py",
   "scripts/render_agents_md_smoke.py",
   "scripts/repository_goal_scan.py",
   "scripts/requirement_board.py",
-  "scripts/requirement_intake.py",
   "scripts/requirement_metrics.py",
-  "scripts/requirement_retrospective.py",
   "scripts/run_test_groups.py",
   "scripts/select_checks.py",
 ]
@@ -300,6 +294,29 @@ category = "routing-provenance-evidence"
 path = "scripts/managed_task.py"
 category = "routing-provenance-evidence"
 
+# These scripts enforce friction, retrospective and intake evidence and the
+# mandatory completion gates of managed work, so they are protected rather than
+# hotfixable: a local patch could weaken the evidence a task must leave behind.
+[[protected]]
+path = "scripts/agent_friction.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/requirement_retrospective.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/requirement_intake.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/execute_managed_task.py"
+category = "routing-provenance-evidence"
+
+[[protected]]
+path = "scripts/orchestrate_pre_authoring.py"
+category = "routing-provenance-evidence"
+
 # git-history
 [[protected]]
 path = "scripts/git_hooks/*"
@@ -332,6 +349,17 @@ category = "immutable-releases"
 
 [[protected]]
 path = "scripts/platform_doctor.py"
+category = "immutable-releases"
+
+# The divergence check and the release manifest it compares against are the
+# detector for local edits of platform-owned files: a hotfix must not be able to
+# patch the detector or its reference digests, so both arrive only by release.
+[[protected]]
+path = "scripts/platform_divergence.py"
+category = "immutable-releases"
+
+[[protected]]
+path = "dev-platform/platform-manifest.json"
 category = "immutable-releases"
 
 [[protected]]
