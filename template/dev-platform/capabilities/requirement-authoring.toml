@@ -1,0 +1,25 @@
+[capability]
+id = "requirement-authoring"
+name = "Requirement authoring"
+description = "Write or materially change a Business Requirement as a self-contained current product contract that keeps accepted details and references, drops obsolete history, and asks only about unresolved material product choices."
+kind = "instruction-only"
+applicability = "Fixing accepted work as a Business Requirement (зафиксируй / добавь в бэклог / создай задачу) or materially changing an existing Requirement body; not quick tasks, technical managed tasks, OpenSpec authoring or implementation."
+invocation = "auto+explicit"
+visibility = "project"
+owner = "dev-platform"
+safety_boundary = "Instruction-only author discipline; reads only the conversation and materials the user provided, creates no storage, gate, status, validator, approval, interview or per-project setting, never changes the Requirement format, routing, labels or children block, and never starts implementation."
+dependencies = []
+materialization = "provider-skill-markdown"
+update_policy = "replace-derived"
+removal_policy = "remove-derived-only"
+
+[provenance]
+source = "dev-platform"
+revision = "platform-managed"
+path = "dev-platform/capabilities/requirement-authoring.md"
+license = "Apache-2.0"
+content_sha256 = "71b4c9663ceac52ef4f8c717b39c39ac23d718ff9191f0236a6e330c68c38ff6"
+
+[eval]
+evidence = "dev-platform/evals/requirement-authoring-pilot.json"
+live_eval = "deterministic-fixture"

@@ -97,6 +97,22 @@ The semantics are identical across agent surfaces:
 - A fixation-only request stops as soon as the Requirement is durably created
   or the exact existing Requirement is reused.
 
+### Requirement content authoring
+
+Before a Business Requirement body is written (fixation) or materially changed
+(refinement), the author applies the single canonical standard in
+[dev-platform/capabilities/requirement-authoring.md](../../dev-platform/capabilities/requirement-authoring.md),
+on every surface: a repository agent before `requirement_intake.py create`, a
+ChatGPT Project before its connected-GitHub write. The standard governs content
+only -- the current agreed contract with material detail and references kept,
+obsolete history dropped, binding made visible and questions limited to
+unresolved material product choices. It is an author's discipline, not a stage:
+it adds no gate, validator, status, approval, interview, storage or per-project
+setting, leaves the Requirement format, routing, labels, children block and
+revision binding as specified here, and does not start implementation.
+Enabling the capability only adds the same text as a native provider skill; the
+file is read without enabling it.
+
 When the user asks to execute a Business Requirement, the ordered flow is:
 
 The target checkout must first prove its managed lifecycle: valid Backlog

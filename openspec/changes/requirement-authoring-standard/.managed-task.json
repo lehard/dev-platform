@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/managed-task-intake/spec.md",
+    "specs/engineering-capabilities/spec.md"
+  ],
+  "change": "requirement-authoring-standard",
+  "imported_at": "2026-10-11T07:35:43+00:00",
+  "package_revision": "488532efb35334b7cb1041b4a3e8526a214729109b265fa15c9ef36e973b5f6e",
+  "prepared_against": "f4fa508a0f991179a163db641023113353fb9c6f",
+  "private_lineage_handle": "pln_edcaa0d43ea097f86ff10da025412fb8",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "74e73ca1ecea37a6a3dd8ea968374f57c63ef23ac7255560065f9f136617ae72",
+    "updated_at": "2026-10-11T07:27:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-582/T1"
+}
