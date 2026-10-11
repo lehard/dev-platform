@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f4fa508a0f991179a163db641023113353fb9c6f",
+    "base_ref": "origin/main",
+    "candidate_head": "f59f97911d8670438c0f1f3fe5fd679bd27d27e7",
+    "diff_sha256": "a1a55dceecd88dc84d4e10d966927a17e83b89ebd63aa74fb5d83071a6432afc"
+  },
+  "completed_at": "2026-10-11T09:34:22+00:00",
+  "findings": [
+    {
+      "evidence": "The delta spec (specs/managed-task-intake/spec.md, scenario \"Fixed text versus example\") says the Requirement \"does not promote the optional example to a requirement\". In dev-platform/capabilities/requirement-authoring.md, section 1 only lists \"Examples and references\" as a category. Section 4 level 2 uses \"for example\u2026\" as a marker of meaning-fixed wording. Neither section says an example offered only as optional must not become a requirement. The \"Long discussion\" case covers the verbatim-versus-meaning split but not the optional-example half. The tests in tests/test_requirement_authoring.py do not assert any such rule either.",
+      "id": "optional-example-not-promoted-rule-missing",
+      "severity": "advisory",
+      "summary": "The managed-task-intake scenario \"Fixed text versus example\" requires that an optional example is not promoted to a requirement. The canonical standard has no matching rule, and no test covers it."
+    }
+  ],
+  "launched_at": "2026-10-11T09:34:05+00:00",
+  "output_sha256": "ee0d3c501b505fdc006994f43cb9da7151b58d3ae1bccfeee9bb69aace2fb901",
+  "perspective": "spec-fidelity",
+  "request_id": "2811bf17-7e6e-49f3-9326-c73e0701cf92",
+  "reviewer": {
+    "context_id": "2bd73861-7d14-4097-8fd5-a2203123e4ea",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-dd3dd836-3c62-4cf0-978e-6202565d67b0",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50112
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 59338
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14973
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15717
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1697
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ad130858110fbaf764a3457c381240997c643a52de9a003747358ed89df82cbc"
+}

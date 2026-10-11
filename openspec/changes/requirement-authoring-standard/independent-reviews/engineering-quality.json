@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f4fa508a0f991179a163db641023113353fb9c6f",
+    "base_ref": "origin/main",
+    "candidate_head": "f59f97911d8670438c0f1f3fe5fd679bd27d27e7",
+    "diff_sha256": "a1a55dceecd88dc84d4e10d966927a17e83b89ebd63aa74fb5d83071a6432afc"
+  },
+  "completed_at": "2026-10-11T09:34:38+00:00",
+  "findings": [
+    {
+      "evidence": "dev-platform/capabilities/requirement-authoring.md line 3 names `requirement_intake.py create` and `docs/engineering/task-intake.md`; section 6 names the \"Incubator contract\". tests/test_requirement_authoring.py (RenderedProjectTests) comments: \"The portable render has no Requirement flow, so its task-intake carries no pointer\". template/AGENTS.md.jinja still adds the unconditional concern row for the standard.",
+      "id": "portable-render-dangling-references",
+      "severity": "advisory",
+      "summary": "The canonical standard is shipped to portable (light, non-operator) projects. It refers to `requirement_intake.py create`, `docs/engineering/task-intake.md` and the \"Incubator contract\". The change's own test and tasks.md 3.3 say that render has no Requirement flow and no task-intake pointer. Those projects get the AGENTS.md concern row but may have no matching Requirement or Incubator machinery to apply the standard against."
+    }
+  ],
+  "launched_at": "2026-10-11T09:34:22+00:00",
+  "output_sha256": "64d0c5bbfe59f7b7b70cbade6cfb2f7b176d376e36010b6d5f21fcc038444a27",
+  "perspective": "engineering-quality",
+  "request_id": "2811bf17-7e6e-49f3-9326-c73e0701cf92",
+  "reviewer": {
+    "context_id": "1455cef3-55b4-4ad1-8903-f75e2d0a2c4f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bd28c6d4-b96f-4c59-a241-ab3012a98f6d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43486
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 103051
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13468
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14680
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1182
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ad130858110fbaf764a3457c381240997c643a52de9a003747358ed89df82cbc"
+}
