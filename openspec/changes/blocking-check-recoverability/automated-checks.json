@@ -1,0 +1,181 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.139,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.158,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 472.883,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/generate_platform_manifest.py",
+        "template/scripts/_platform_common.py",
+        "template/scripts/agent_board.py",
+        "template/scripts/platform_divergence.py",
+        "template/scripts/platform_doctor.py",
+        "template/scripts/select_checks.py",
+        "template/scripts/shared_workspace.py",
+        "tests/test_blocking_gates.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_platform_divergence.py",
+        "tests/test_platform_manifest.py",
+        "tests/test_protected_surface.py",
+        "tests/test_root_guidance_contract.py",
+        "tests/test_select_checks.py",
+        "tests/test_shared_workspace.py",
+        "tests/test_task_freshness.py",
+        "tests/test_template_contract.py",
+        "tests/test_worktree_hygiene.py",
+        "tests/upgrade_smoke.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_ead93c5f23a43178e888677527c8cd70",
+    "change": "blocking-check-recoverability",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/blocking-check-recoverability",
+    "branch": "agent/br-526-t2-blocking-check-recoverability",
+    "head": "8f8a2f6120e731a7f1f9dab356b5d5d5b1d44028",
+    "task_content": {
+      "version": 1,
+      "digest": "71923b91a7f8c0bc4c508a793f35ef4366e02589d4cd433ae6973438a3e955af",
+      "paths": {
+        "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
+        "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+        "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+        "dev-platform/requirement-integrations/private-lineage-pln_09fc13764e27cbaeb1e7e34d776228ed-integration.json": "ff63939b3f6af5958d4f931257c601130e7becbe",
+        "docs/ownership.md": "4f69261228a53cce5fd9345dc07441cec4367eb1",
+        "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+        "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+        "openspec/changes/blocking-check-recoverability/design.md": "b5377d22d16903ab7c3901dea365290523d17ce3",
+        "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+        "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "76d6a915a2a2933081c449bd399604a51816224f",
+        "openspec/changes/blocking-check-recoverability/tasks.md": "d2d94e118ea781e6573f5758f66c57533c802297",
+        "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
+        "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+        "openspec/changes/downstream-change-classes/automated-checks.json": "f9b936b203451ae4060162f59e9016f6c2677472",
+        "openspec/changes/downstream-change-classes/design.md": "8a879c03fd49545ef3b2e600f64b3042fb80d395",
+        "openspec/changes/downstream-change-classes/independent-review-request.json": "5c8b86484ebdc84e4d0f36fa63fc7ee6ddee9901",
+        "openspec/changes/downstream-change-classes/independent-reviews/engineering-quality.json": "459c101fe1a459751c63061580ab92be462a3e21",
+        "openspec/changes/downstream-change-classes/independent-reviews/spec-fidelity.json": "72738811ec17f050fadfd28a683b7fdb9039db41",
+        "openspec/changes/downstream-change-classes/proposal.md": "cace9a641bcbb5fffc6b879dc585887ab53f455f",
+        "openspec/changes/downstream-change-classes/specs/downstream-change-classes/spec.md": "78ca8ba841373772159ea82344f38a13ae13b7ea",
+        "openspec/changes/downstream-change-classes/tasks.md": "a3afe6b56a5ffb8772717cd662a5b8797fc0d663",
+        "openspec/changes/downstream-change-classes/verification.md": "9b81840ed2726ddf47c1bf314714e30ca7cc34db",
+        "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+        "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+        "openspec/changes/local-platform-hotfix/automated-checks.json": "2ab6e81fd8473f65cba3ac7e2497dd7b03d3f2b6",
+        "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+        "openspec/changes/local-platform-hotfix/independent-review-request.json": "f0d5ab9d7b2c2c28171f0843ee7c5d39d93f76c9",
+        "openspec/changes/local-platform-hotfix/independent-reviews/engineering-quality.json": "7c0eb48c668662d29054b2368bf83c522070a531",
+        "openspec/changes/local-platform-hotfix/independent-reviews/spec-fidelity.json": "d2443d790112eaa6b45ebc3477aca1d67af63b76",
+        "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+        "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+        "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+        "openspec/changes/local-platform-hotfix/verification.md": "a66bc087467d50cc8213404effc50ae3e98e56ff",
+        "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+        "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
+        "template/dev-platform/blocking-gates.toml": "372e00e0660e3a5231f77d72334d8e8ff89b4f1c",
+        "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+        "template/dev-platform/platform-manifest.json": "72e690fac3bd97683eb57aad6177fc15dc968231",
+        "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+        "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
+        "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+        "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+        "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+        "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+        "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+        "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+        "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+        "tests/test_blocking_gates.py": "7cd965f3bf93f0b5a1059a4757b3b5dd3515214a",
+        "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+        "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+        "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+        "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+        "tests/test_root_guidance_contract.py": "daf251b2524ed2bd7695573ce7078df119ac3f1a",
+        "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+        "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+        "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+        "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+        "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+        "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+      },
+      "base": "a8de1f5e65a81b30cea410825ad218496f40ffa9"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f372796e95077488a3b6645754644202e238bea75ed9e6b60b90496f89ef8094",
+    "paths": {
+      "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
+      "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
+      "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/blocking-check-recoverability/design.md": "b5377d22d16903ab7c3901dea365290523d17ce3",
+      "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
+      "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "76d6a915a2a2933081c449bd399604a51816224f",
+      "openspec/changes/blocking-check-recoverability/tasks.md": "d2d94e118ea781e6573f5758f66c57533c802297",
+      "template/dev-platform/blocking-gates.toml": "372e00e0660e3a5231f77d72334d8e8ff89b4f1c",
+      "template/dev-platform/platform-manifest.json": "72e690fac3bd97683eb57aad6177fc15dc968231",
+      "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
+      "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
+      "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
+      "template/scripts/agent_board.py": "848c852163aeacceba44684f8956bb7e06382f20",
+      "template/scripts/select_checks.py": "1bdd97aeae178fb2bfbf1d4c4774e3172015dbec",
+      "template/scripts/shared_workspace.py": "4dc43ce0d2b2bf729be315730763bd872e46a785",
+      "tests/test_blocking_gates.py": "7cd965f3bf93f0b5a1059a4757b3b5dd3515214a",
+      "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
+      "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
+      "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
+      "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
+      "tests/test_template_contract.py": "160371ad36fdadead83e0001487722971c1c4ef5",
+      "tests/test_worktree_hygiene.py": "85b9dfe203f129854efa5fd7dcd3d1f3a36069f1",
+      "tests/upgrade_smoke.py": "2d7844f23247a8d0668887e53d611072f7dc4a77"
+    },
+    "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/generate_platform_manifest.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_board.py --changed-file template/scripts/platform_divergence.py --changed-file template/scripts/platform_doctor.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file tests/test_blocking_gates.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_platform_divergence.py --changed-file tests/test_platform_manifest.py --changed-file tests/test_protected_surface.py --changed-file tests/test_root_guidance_contract.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_workspace.py --changed-file tests/test_task_freshness.py --changed-file tests/test_template_contract.py --changed-file tests/test_worktree_hygiene.py --changed-file tests/upgrade_smoke.py",
+    "duration_seconds": 285.781,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
