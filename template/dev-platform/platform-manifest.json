@@ -52,7 +52,7 @@
     "dev-platform/evals/selective-domain-interrogation-pilot.json": "3978af17d1ff6b6f867f64ccd1bb0add7319b65e6dc9efaa0f806f5c9a4e4edb",
     "dev-platform/evals/systematic-bug-diagnosis-pilot.json": "e0f21994a0c2f7e04b42fb05d50c21574aaf7e387cfb61136293197250a3fb88",
     "dev-platform/evals/ui-quality-review-pilot.json": "6bdef75c7ded97aa6611cd30df070317626cad81245d0951a46b81314abd1835",
-    "dev-platform/protected-surface.toml": "18f218b2a21a5506aea21c7b7b705edcb2d7c92a2ef3963fc80c5f5a6cb358dd",
+    "dev-platform/protected-surface.toml": "87924f16a6d5b011da97e0c95bc770b8cdd19f5d4b2370e8edbfecba2f43c238",
     "docs/engineering/agent-instructions.md": "dd8d2e07936e0ca39bea3658282f8340759991a6f9c00982593b0bc51f8566b7",
     "docs/engineering/browser-verification.md": "816d7a079212500c50d1ac1b9655a56c3a73b064e569184a3c7b58749d20e5b3",
     "docs/engineering/change-classes.md": "478c8cab523b98c591598e8f44eeafa83226ff9c8d90d00a494987bd6848f4eb",

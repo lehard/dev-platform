@@ -22,7 +22,7 @@ The platform SHALL allow a downstream project to repair a reproducible defect in
 
 ### Requirement: Divergence check fails explicitly on undeclared or unsafe divergence
 
-The divergence check SHALL fail with a message naming the class and path when a platform-owned file differs from the manifest without a valid record, a record touches a protected or unknown path, the protected surface or manifest is modified, a record's platform version differs from the installed version, a patched digest does not match, or the regression test or friction reference is missing or unreadable. It SHALL NOT report a failed condition as a passed check and SHALL NOT substitute a default.
+The divergence check SHALL fail with a message naming the class and path when a platform-owned file differs from the manifest without a valid record, a record touches a protected or unknown path, a protected file, including the protected surface, the divergence check and the blocking-gate catalog, differs from the manifest, a record's platform version differs from the installed version, a patched digest does not match, or the regression test or friction reference is missing or unreadable. It SHALL NOT report a failed condition as a passed check and SHALL NOT substitute a default.
 
 #### Scenario: Patch to a protected file
 
@@ -35,6 +35,17 @@ The divergence check SHALL fail with a message naming the class and path when a 
 - **GIVEN** the platform version changed after the record was written
 - **WHEN** the check runs
 - **THEN** it fails as a stale hotfix and does not modify the record.
+
+### Requirement: The local divergence check states the limit of local self-attestation
+
+The platform SHALL document that the divergence check compares files with a manifest that is itself a local file, so an edit that changes a protected file, the manifest and the check consistently cannot be detected locally; the check SHALL NOT claim to detect that edit. Such tampering SHALL remain covered by the Copier update diff against the released template and by the mandatory independent review of every PR.
+
+#### Scenario: Consistent local forgery
+
+- **GIVEN** an agent edits a protected file and regenerates the manifest consistently
+- **WHEN** the divergence check runs
+- **THEN** the check does not report it
+- **AND** the documentation names the Copier update diff and independent review as the detection path.
 
 ### Requirement: Hotfix uses existing mechanisms only
 

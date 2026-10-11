@@ -201,6 +201,16 @@ class CatalogTests(unittest.TestCase):
                 self.assertTrue((TEMPLATE / entry["script"]).is_file(), f"{gate_id}: script {entry['script']} is not in the template")
                 self.assertIn(classify(entry["script"]), {"protected", "hotfixable"})
 
+    def test_every_gate_is_implemented_in_a_protected_script(self) -> None:
+        """A local hotfix must not be able to weaken a blocking gate, so no gate lives in a hotfixable script."""
+        for gate_id, entry in self.gates.items():
+            with self.subTest(gate=gate_id, script=entry["script"]):
+                self.assertEqual(
+                    "protected", classify(entry["script"]),
+                    f"{gate_id}: its script {entry['script']} is hotfixable, so a local hotfix could weaken the gate; "
+                    "classify the script as protected in dev-platform/protected-surface.toml",
+                )
+
     def test_every_acceptance_test_resolves_to_a_real_test(self) -> None:
         for gate_id, entry in self.gates.items():
             for field in ("rejection_tests", "recovery_tests"):

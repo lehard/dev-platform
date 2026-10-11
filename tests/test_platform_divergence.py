@@ -273,7 +273,7 @@ class DivergenceCheckTests(DivergenceTestCase):
         owned = MANIFEST["project_harness_owned"]
         self.assertIn("scripts/select_checks.py", owned)
         self.patch("scripts/select_checks.py")
-        self.assert_fails("undeclared-divergence", "scripts/select_checks.py")
+        self.assert_fails("protected-touch", "scripts/select_checks.py")
         self.write_config(harness="project")
         self.assert_passes()
         self.patch(HOTFIXABLE)

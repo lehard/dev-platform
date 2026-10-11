@@ -78,7 +78,6 @@ hotfixable = [
   "requirements/deepseek-harness.txt",
   "scripts/add_intents.py",
   "scripts/affected_test_groups.py",
-  "scripts/agent_board.py",
   "scripts/browser_verification.py",
   "scripts/capability_evals.py",
   "scripts/capability_manager.py",
@@ -96,7 +95,6 @@ hotfixable = [
   "scripts/requirement_board.py",
   "scripts/requirement_metrics.py",
   "scripts/run_test_groups.py",
-  "scripts/select_checks.py",
 ]
 
 [categories]
@@ -216,6 +214,10 @@ path = "scripts/shared_workspace.py"
 category = "worktree-isolation"
 
 [[protected]]
+path = "scripts/agent_board.py"
+category = "worktree-isolation"
+
+[[protected]]
 path = "scripts/worktree_cleanup.py"
 category = "worktree-isolation"
 
@@ -261,6 +263,10 @@ path = "scripts/independent_review_runner.py"
 category = "credentials"
 
 # routing-provenance-evidence
+[[protected]]
+path = "scripts/select_checks.py"
+category = "routing-provenance-evidence"
+
 [[protected]]
 path = "scripts/model_routing.py"
 category = "routing-provenance-evidence"
