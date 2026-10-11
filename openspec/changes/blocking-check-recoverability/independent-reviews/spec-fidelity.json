@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
     "base_ref": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
-    "candidate_head": "ccb68b3d7c723c67014b949f02777d3233d62dc1",
-    "diff_sha256": "8e5e6554f3bf06035272df6ced425aec9b27580106a63cb2e121eb9ee1d608c3"
+    "candidate_head": "02be13416c2aab8ad6adeff1e1cf6b7252ad5065",
+    "diff_sha256": "dd2fa2457faa00fa7749275b539067dde1b4f9f0e7147b21791b312e47f2781a"
   },
-  "completed_at": "2026-10-11T10:16:34+00:00",
+  "completed_at": "2026-10-11T10:53:46+00:00",
   "findings": [
     {
-      "evidence": "template/dev-platform/blocking-gates.toml: the `task-freshness` entry has `recovery = \"python3 scripts/reconcile_task.py (merges current authoritative main ...)\"`. Header gap 3 says reconcile \"sets no override, so where the hook is installed a clean merge of a diverged task is blocked by the hook (reproduced in a throwaway repository)\". Spec 'Recoverable block' requires the named step to let the work continue. The recovery test only covers an unhooked case (`test_unpublished_task_merges_authoritative_main_without_rewriting_history`). The gate message printed to the user advertises a recovery the catalog admits can fail.",
-      "id": "task-freshness-recovery-contradicts-catalog-gap",
-      "severity": "material",
-      "summary": "The catalog classifies `task-freshness` as recoverable via `reconcile_task.py`, but its own known-gap #3 says reconcile's `git merge --no-edit origin/<main>` is blocked by the installed `pre-merge-commit` hook. That contradicts the spec scenario that following the named recovery lets work continue."
-    },
-    {
-      "evidence": "proposal.md: 'including the gates named in the Requirement (routing early gate, merge-hook/reconcile, shared-workspace ownership, publication preflight, finalize freshness)'. The catalog has no `reconcile_task.py` or `finish_task.py` entries. Header gap 1 says 'Gates in lifecycle_workers.py and finish_task.py ... are not yet inventoried'. `test_inventory_names_the_gates_the_requirement_lists` checks only the ids the author chose, not the Requirement's list. The mapping of 'finalize freshness' to `proven-base-freshness` is not stated.",
-      "id": "named-checks-inventory-incomplete",
+      "evidence": "template/dev-platform/blocking-gates.toml, task-freshness `recovery` says: \"if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop...\". Header gap 3 says reconcile_task.py runs `git merge --no-edit`, so \"a clean merge of a diverged task is blocked by the hook (reproduced in a throwaway repository)\". The spec scenario \"Recoverable block\" requires that following the recovery step \"lets the work continue without disabling the gate\". The recovery test `test_unpublished_task_merges_authoritative_main_without_rewriting_history` does not cover the hook-installed case. The gap is disclosed and recorded as follow-up friction, so this is a classification-truthfulness concern, not a missing artifact.",
+      "id": "task-freshness-recovery-known-blocked",
       "severity": "advisory",
-      "summary": "The proposal lists reconcile and finalize freshness among the gates the inventory must include. No catalog entry covers reconcile_task.py refusals or finish_task.py finalize freshness. The spec requires the catalog to inventory at least the checks the Requirement names."
+      "summary": "The task-freshness gate is classed `recoverable`, but the catalog itself says its only recovery can be blocked by the shipped merge-commit hook. That stretches the design's meaning of a recoverable gate, which needs a supported recorded path that lets work continue."
     }
   ],
-  "launched_at": "2026-10-11T10:16:09+00:00",
-  "output_sha256": "9cecf2f830a12e9442b2ff1ee8ef148a1ad550e22dac3d8a6d81a56b7bd905ea",
+  "launched_at": "2026-10-11T10:53:29+00:00",
+  "output_sha256": "368796d323e4b977b2ce8f39a293120bc862c0d7b80521d833dfd44977233e6b",
   "perspective": "spec-fidelity",
-  "request_id": "92406e75-2cb0-49a5-958b-38da1af7c717",
+  "request_id": "7532e7f9-18ea-4cc3-b5df-9a92650775a2",
   "reviewer": {
-    "context_id": "4f30aeb6-4a3f-4aa3-b437-02e2bab7daf6",
+    "context_id": "da6d42ce-0ae2-46d0-9da1-4d54a00a7f0b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-64c81cae-ec0c-4f77-aff3-b760752ec01b",
+    "launch_id": "platform-launch-01e1dc90-299c-42d0-b3be-aff52df566b7",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56720
+        "value": 56045
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 101818
+        "value": 52446
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24474
+        "value": 16938
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23968
+        "value": 16307
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2666
+        "value": 1670
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "d883efce29c30e14ca711bd95ede09b32e3139afe7944bd20ad99996b558bcb1"
+  "task_content_digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00"
 }

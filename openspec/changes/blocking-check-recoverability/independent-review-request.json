@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
     "base_ref": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
-    "candidate_head": "ccb68b3d7c723c67014b949f02777d3233d62dc1",
-    "diff_sha256": "8e5e6554f3bf06035272df6ced425aec9b27580106a63cb2e121eb9ee1d608c3"
+    "candidate_head": "02be13416c2aab8ad6adeff1e1cf6b7252ad5065",
+    "diff_sha256": "dd2fa2457faa00fa7749275b539067dde1b4f9f0e7147b21791b312e47f2781a"
   },
   "change": "openspec/changes/blocking-check-recoverability",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-11T10:16:03+00:00",
+  "prepared_at": "2026-10-11T10:53:22+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/blocking-check-recoverability/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "92406e75-2cb0-49a5-958b-38da1af7c717",
+  "request_id": "7532e7f9-18ea-4cc3-b5df-9a92650775a2",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,17 +59,17 @@
   "schema_version": 1,
   "task_content": {
     "base": "20c3fc5fa729848772063cf18476f89ba43f7cb7",
-    "digest": "d883efce29c30e14ca711bd95ede09b32e3139afe7944bd20ad99996b558bcb1",
+    "digest": "0ec2397b3e852d6648640e1b9cf0c1fcd5a49906d08001b0ffedb422a9940c00",
     "paths": {
       "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
       "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
       "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
-      "openspec/changes/blocking-check-recoverability/design.md": "835820a48295b4eeca5927b3eb19ea3d1d69edf2",
+      "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
       "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
       "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
       "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
-      "template/dev-platform/blocking-gates.toml": "9685fe731e66aef63d1f6740e4ec490d0c7b7884",
-      "template/dev-platform/platform-manifest.json": "8179999eeab81a6c6519ac988f19c2518fe4afad",
+      "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+      "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
       "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
       "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
       "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
@@ -82,7 +82,7 @@
       "tests/test_blocking_gates.py": "f162033093a91977bae1afe18f994df571fa0476",
       "tests/test_coordinator_preflight.py": "b40f7747253ab831e7dad74e7fb81acc3b32227f",
       "tests/test_git_lifecycle.py": "f4defc8ee730106ecf18a7cac8c395ab315dad16",
-      "tests/test_model_routing.py": "78d1d1b015caa2ca18586a90d22ded9b50b8f6b4",
+      "tests/test_model_routing.py": "1a4cbc43f3ade88284b1ef07a3c92d78376aa63a",
       "tests/test_select_checks.py": "71aeb41d9911df7ab3c0d136a590125539355a82",
       "tests/test_shared_workspace.py": "02075983e7915f40c294b21db3c6e5af41a75280",
       "tests/test_task_freshness.py": "5caed99780bf04d42247e2a978533a259b919402",
