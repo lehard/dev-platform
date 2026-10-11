@@ -15,4 +15,4 @@ Downstream check: the template was rendered with Copier at the installed release
 
 Not verified: the live GitHub merge path of an actual rollout PR with and without the deferral; the real-session check that an agent passes the flag after a user prohibition (instruction-level guidance only).
 
-Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/respect-session-rollout-deferral/automated-checks.json` on the committed head: compileall success, ruff success, `run_test_groups.py --all` success (780 s).
+Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/respect-session-rollout-deferral/automated-checks.json` on the committed head: compileall success, ruff success, `run_test_groups.py --all` success (676 s).
