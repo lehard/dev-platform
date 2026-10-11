@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.251,
+      "duration_seconds": 0.155,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.256,
+      "duration_seconds": 0.154,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 657.729,
+      "duration_seconds": 779.601,
       "outcome": "success",
       "exit_code": 0
     }
@@ -61,18 +61,20 @@
     "change": "respect-session-rollout-deferral",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/respect-session-rollout-deferral",
     "branch": "agent/br-579-t1-respect-session-rollout-deferral",
-    "head": "dfa224ea386b054b901302e6c69059d1b0516548",
+    "head": "5f39b3b85766b1605cdc593c5f291837ac2b5929",
     "task_content": {
       "version": 1,
-      "digest": "3ff564e41199bf2d686e8545cf7f6c89930689c46ebd061c1c87d53d9683fb11",
+      "digest": "deb895fd89684a9b7226052c9dcf3b76a01070398a9d019fbefc62475ab5921c",
       "paths": {
         "docs/engineering/agent-workflow.md": "0c10d6eaccbf151a97f5af83a5736780884ae2d2",
         "openspec/changes/respect-session-rollout-deferral/.managed-task.json": "fb5b463b7df0672f51523b891cb4d2365b4d7815",
         "openspec/changes/respect-session-rollout-deferral/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+        "openspec/changes/respect-session-rollout-deferral/automated-checks.json": "cf3d94899f085212c168a58eb4c11cd63e5dad55",
         "openspec/changes/respect-session-rollout-deferral/design.md": "18a5ec3298a543ea2ee52feaae17dc3f3cba1de4",
         "openspec/changes/respect-session-rollout-deferral/proposal.md": "2816db19b18cc807bd210d7aab8fae43941dcf1a",
         "openspec/changes/respect-session-rollout-deferral/specs/platform-lifecycle/spec.md": "2c0fa1adc58842efd47f067711c6e2475a6008f0",
         "openspec/changes/respect-session-rollout-deferral/tasks.md": "96e0b86ac6af33032f27b34b9b68506b44447de3",
+        "openspec/changes/respect-session-rollout-deferral/verification.md": "7062accf1f463b2756ec332828dfb480dc069e7a",
         "template/AGENTS.md.jinja": "f4f29ab45d0996f34a9d15df4308f2cbd7e7bc22",
         "template/dev-platform/platform-manifest.json": "4dc474f1ceb1f56dcc1b4b51bded8e880e6046d8",
         "template/scripts/agent_doctor.py": "e35a65433f97c884bb58badfdcf9eef05b548ef1",
@@ -83,14 +85,14 @@
         "template/scripts/start_task.py": "94cbe8f080eb1dfdf85a0338b779cd4e6bf27d60",
         "tests/test_managed_intake_project_harness_isolation.py": "f31432fe7e5a3c8ccddfee602782aca9cb1842ed",
         "tests/test_managed_task.py": "10cd69b15d35108b678781188da40d9916148ba2",
-        "tests/test_rollout_preflight.py": "0ad015e369869239f4c4377d949f1245dca69cc7"
+        "tests/test_rollout_preflight.py": "5d7ef44b106c91da9f1513038567b69cd6ca8287"
       },
       "base": "d3fc408540881dafb61b764924e46e9617d1d556"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "bb0ebc69627560cd8c1bb1e018362a907e03035c8726c21675e4dd45cbec6bfb",
+    "digest": "6c036a622c2fb5e0ea313bdc85d051ab002c1bcf954190a671a2bf15d012d27f",
     "paths": {
       "docs/engineering/agent-workflow.md": "0c10d6eaccbf151a97f5af83a5736780884ae2d2",
       "openspec/changes/respect-session-rollout-deferral/.managed-task.json": "fb5b463b7df0672f51523b891cb4d2365b4d7815",
@@ -109,16 +111,21 @@
       "template/scripts/start_task.py": "94cbe8f080eb1dfdf85a0338b779cd4e6bf27d60",
       "tests/test_managed_intake_project_harness_isolation.py": "f31432fe7e5a3c8ccddfee602782aca9cb1842ed",
       "tests/test_managed_task.py": "10cd69b15d35108b678781188da40d9916148ba2",
-      "tests/test_rollout_preflight.py": "0ad015e369869239f4c4377d949f1245dca69cc7"
+      "tests/test_rollout_preflight.py": "5d7ef44b106c91da9f1513038567b69cd6ca8287"
     },
     "base": "d3fc408540881dafb61b764924e46e9617d1d556",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_doctor.py --changed-file template/scripts/execute_managed_task.py --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/rollout_preflight.py --changed-file template/scripts/start_managed_task.py --changed-file template/scripts/start_task.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_managed_task.py --changed-file tests/test_rollout_preflight.py",
-    "duration_seconds": 233.224,
+    "duration_seconds": 179.783,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-disjoint",
+    "main": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "base": "d3fc408540881dafb61b764924e46e9617d1d556"
   }
 }

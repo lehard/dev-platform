@@ -1,5 +1,5 @@
 OpenSpec-Verify: PASS
-Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the supervisor-written diff against the platform-lifecycle delta, proposal, design and tasks; repository-owned selected checks on the committed head. No separate independent-review run was performed by the developer; review runs as a coordinator candidate job.
+Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the supervisor-written diff against the platform-lifecycle delta, proposal, design and tasks; repository-owned selected checks on the committed head. A local independent review (spec-fidelity, engineering-quality) ran on the head before the last test-ordering fix and returned only advisory findings (tests appended after the `__main__` guard: fixed; deferral variable parsed before the harness_mode gate and an uncaught explicit error in a standalone doctor on an invalid value: kept deliberately, because the invalid-value scenario requires failing before any observation and the no-fallback rule requires an explicit error); a fresh review ran on the final content.
 Automated-Checks-Evidence: automated-checks.json
 
 Process note: the supervisor wrote the implementation before opening a delegation under a delegated-child routing plan; the routing gate blocked the checks and the owner explicitly approved the supervisor diff in chat (`model_routing.py approve-supervisor-diff`).
@@ -14,4 +14,4 @@ Downstream check: the template was rendered with Copier at the installed release
 
 Not verified: the live GitHub merge path of an actual rollout PR with and without the deferral; the real-session check that an agent passes the flag after a user prohibition (instruction-level guidance only).
 
-Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/respect-session-rollout-deferral/automated-checks.json` on the committed head: compileall success, ruff success, `run_test_groups.py --all` success (658 s).
+Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/respect-session-rollout-deferral/automated-checks.json` on the committed head: compileall success, ruff success, `run_test_groups.py --all` success (780 s).
