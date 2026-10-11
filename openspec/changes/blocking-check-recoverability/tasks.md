@@ -15,4 +15,4 @@
 ## 4. Documentation and delivery
 
 - [x] 4.1 Document failure classes in `change-classes.md`; Copier render/update coverage for the new files.
-- [ ] 4.2 Required platform checks, truthful semantic verification, archive, retrospectives, publication.
+- [x] 4.2 Required platform checks, truthful semantic verification, archive, retrospectives, publication.

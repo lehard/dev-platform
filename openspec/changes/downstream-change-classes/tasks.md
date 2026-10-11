@@ -13,4 +13,4 @@
 
 ## 4. Verification and delivery
 
-- [ ] 4.1 Required platform checks, truthful semantic verification, archive, retrospectives, publication.
+- [x] 4.1 Required platform checks, truthful semantic verification, archive, retrospectives, publication.
