@@ -6,6 +6,16 @@ Platform updates reach downstream repositories through reviewed Copier updates, 
 
 Copier releases use immutable SemVer Git tags such as `v1.0.0` and `v1.0.1`. Published tags must never move or be reused; GitHub Immutable Releases should remain enabled.
 
+### Choosing the version
+
+The author of a release PR classifies every change since the previous tag and bumps the highest component any change requires. The point of view is an existing downstream project updating from the previous tag.
+
+- **MAJOR** — an existing project cannot update without a manual action or breaks after the ordinary rollout PR: a removed or renamed command, subcommand, flag or template file it still uses; a Copier question whose answer must be given by hand (no safe default, or a changed meaning of a recorded answer); a persistent record, receipt or config that the new code no longer accepts; a new required config, environment variable or credential; a raised minimum Copier, Git or Python version; a CI behavior that turns a previously green project red.
+- **MINOR** — new capability that existing projects absorb through the ordinary rollout PR without manual steps: a new command, subcommand or flag; a new Copier question with a default that preserves current behavior; a new optional config, environment variable or capability; a new persistent file or optional field; a new lifecycle state, gate or recovery path.
+- **PATCH** — only repairs that restore behavior already established by an accepted spec or documented contract, plus documentation and test changes. A change that adds anything listed under MINOR is not a patch, even when it was delivered as a fix.
+
+The release PR description lists the changes that determined the bump, and for MAJOR the manual action each affected project needs. When the classification is uncertain, choose the higher component.
+
 ## Downstream CI ownership
 
 Starting with `v1.0.1`, generated project CI is self-contained: the Copier-managed workflow runs the Copier-managed `scripts/select_checks.py` from the downstream checkout using SHA-pinned GitHub Actions. It does not require private cross-repository reusable-workflow access.
