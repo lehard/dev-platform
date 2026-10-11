@@ -1,3 +1,9 @@
+# local-platform-hotfix Specification
+
+## Purpose
+
+Let an installed project repair a reproducible defect in a hotfixable platform-owned script without waiting for a release, through a declared, traceable and temporary hotfix whose divergence from the release manifest is checked explicitly.
+
 ## ADDED Requirements
 
 ### Requirement: Platform release carries a file manifest

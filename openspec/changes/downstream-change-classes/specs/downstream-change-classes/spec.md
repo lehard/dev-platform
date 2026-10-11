@@ -1,3 +1,9 @@
+# downstream-change-classes Specification
+
+## Purpose
+
+Define the downstream contract that separates ordinary project changes, temporary local hotfixes of platform-owned mechanisms and protected rules, with a platform-shipped protected surface and a fail-closed classification of every platform-owned file.
+
 ## ADDED Requirements
 
 ### Requirement: Downstream contract distinguishes three change classes

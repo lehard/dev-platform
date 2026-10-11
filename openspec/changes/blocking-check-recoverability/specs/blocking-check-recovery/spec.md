@@ -1,3 +1,9 @@
+# blocking-check-recovery Specification
+
+## Purpose
+
+Make every blocking platform check state whether a failure is a platform defect, a recoverable state with a recorded recovery step, or an intentional hard stop, so that no failure ends in an unexplained dead end and no recovery weakens a protected gate.
+
 ## ADDED Requirements
 
 ### Requirement: Blocking checks declare a failure class
