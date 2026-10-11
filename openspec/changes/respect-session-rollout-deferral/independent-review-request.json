@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "origin/main",
-    "candidate_head": "7c4eeaaa4bd6ea68818600a7f19b9c7b28373922",
-    "diff_sha256": "2d37bd2a2a44cf98c097342073fd9d542818ef0f43a9f938862792ba01b2b04e"
+    "candidate_head": "54795abb4d27cbaf52a46dc0de4abdc5de3833f9",
+    "diff_sha256": "4d47441cab6e7986088b917ba92cd6f141ffb32da2204b39927a2f9c6a332816"
   },
   "change": "openspec/changes/respect-session-rollout-deferral",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-11T22:21:06+00:00",
+  "prepared_at": "2026-10-11T22:44:37+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/respect-session-rollout-deferral/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "c2e9bf45-e3e0-4cb3-b7b1-e9567afcd685",
+  "request_id": "a82a1c0b-24e9-4d76-a4e2-d9185dac385f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "d3fc408540881dafb61b764924e46e9617d1d556",
-    "digest": "6c036a622c2fb5e0ea313bdc85d051ab002c1bcf954190a671a2bf15d012d27f",
+    "digest": "f7c5196d98d22cf546a31d0e9ac03d620138b0caf3a9d26c4d226957d6a3a240",
     "paths": {
       "docs/engineering/agent-workflow.md": "0c10d6eaccbf151a97f5af83a5736780884ae2d2",
       "openspec/changes/respect-session-rollout-deferral/.managed-task.json": "fb5b463b7df0672f51523b891cb4d2365b4d7815",
@@ -67,7 +67,7 @@
       "openspec/changes/respect-session-rollout-deferral/design.md": "18a5ec3298a543ea2ee52feaae17dc3f3cba1de4",
       "openspec/changes/respect-session-rollout-deferral/proposal.md": "2816db19b18cc807bd210d7aab8fae43941dcf1a",
       "openspec/changes/respect-session-rollout-deferral/specs/platform-lifecycle/spec.md": "2c0fa1adc58842efd47f067711c6e2475a6008f0",
-      "openspec/changes/respect-session-rollout-deferral/tasks.md": "96e0b86ac6af33032f27b34b9b68506b44447de3",
+      "openspec/changes/respect-session-rollout-deferral/tasks.md": "11b0a6e3f8b41e70bfe75b370acd97e00d321593",
       "template/AGENTS.md.jinja": "f4f29ab45d0996f34a9d15df4308f2cbd7e7bc22",
       "template/dev-platform/platform-manifest.json": "4dc474f1ceb1f56dcc1b4b51bded8e880e6046d8",
       "template/scripts/agent_doctor.py": "e35a65433f97c884bb58badfdcf9eef05b548ef1",

@@ -3,34 +3,37 @@
   "candidate": {
     "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "origin/main",
-    "candidate_head": "7c4eeaaa4bd6ea68818600a7f19b9c7b28373922",
-    "diff_sha256": "2d37bd2a2a44cf98c097342073fd9d542818ef0f43a9f938862792ba01b2b04e"
+    "candidate_head": "54795abb4d27cbaf52a46dc0de4abdc5de3833f9",
+    "diff_sha256": "4d47441cab6e7986088b917ba92cd6f141ffb32da2204b39927a2f9c6a332816"
   },
-  "completed_at": "2026-10-11T22:21:33+00:00",
+  "completed_at": "2026-10-11T22:45:06+00:00",
   "findings": [
     {
-      "evidence": "candidate.diff, agent_doctor.py main(): `pending_rollout_report(rollout_outcome, branch, rollout_preflight.rollout_deferred(os.environ))` sits in no try/except. rollout_deferred raises RolloutDeferralError (a RuntimeError subclass) for any value other than empty or '1'.",
-      "id": "doctor-invalid-deferral-uncaught",
+      "evidence": "template/scripts/start_task.py: `defer_rollout = rollout_deferred(os.environ)` is the first statement of start_task, before the `harness_mode(config) != \"platform\"` branch. For an invalid value the project-harness start therefore raises RolloutDeferralError where it used to proceed. The spec's invalid-value scenario (\"start fails before any rollout observation\") does not cover project harnesses, and no test exercises the combination. This is only a minor ambiguity in the contract. Failing loudly is consistent with strict parsing.",
+      "id": "invalid-deferral-value-checked-before-harness-gate",
       "severity": "advisory",
-      "summary": "agent_doctor.py calls rollout_deferred(os.environ) without handling RolloutDeferralError. When the doctor runs standalone with an invalid DEV_PLATFORM_DEFER_ROLLOUT value, it ends in a raw traceback instead of a reported error. The spec's invalid-value scenario covers only task start, and start_task resolves the value before invoking the doctor, so the start path is correct."
+      "summary": "An invalid DEV_PLATFORM_DEFER_ROLLOUT value makes start_task fail even for harness_mode=project. The spec says platform reconciliation is skipped \"exactly as before\" for project harnesses \"with or without the deferral\"."
     }
   ],
-  "launched_at": "2026-10-11T22:21:13+00:00",
-  "output_sha256": "f9a3a3e950038c036d2f4da7e046e72c2547abcec66838d6b26a7c6763513c75",
+  "launched_at": "2026-10-11T22:44:45+00:00",
+  "output_sha256": "f3d4782f4036eec14c96920a02c6b76b0ca54ff8168194f67a4fba4b81d7eb4e",
   "perspective": "spec-fidelity",
-  "request_id": "c2e9bf45-e3e0-4cb3-b7b1-e9567afcd685",
+  "request_id": "a82a1c0b-24e9-4d76-a4e2-d9185dac385f",
   "reviewer": {
-    "context_id": "4fb5f8db-0127-4cff-b383-c0db17efcfc4",
+    "context_id": "385103da-8fe7-4c71-af94-32d46cbd0aba",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0ceb3f68-bb4d-4c2a-89f9-6785182c124b",
+    "launch_id": "platform-launch-dabb6183-74a1-4a2f-9884-4ce927f03739",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -39,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40570
+        "value": 42931
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 96915
+        "value": 101666
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16664
+        "value": 17580
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17543
+        "value": 17922
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -69,11 +72,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1705
+        "value": 1779
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "6c036a622c2fb5e0ea313bdc85d051ab002c1bcf954190a671a2bf15d012d27f"
+  "task_content_digest": "f7c5196d98d22cf546a31d0e9ac03d620138b0caf3a9d26c4d226957d6a3a240"
 }
