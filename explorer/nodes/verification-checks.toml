@@ -1,0 +1,17 @@
+id = "verification-checks"
+kind = "mechanism"
+outline = true
+title = "Проверки и протокол верификации"
+definition = "Выбранные проверки дают быструю обратную связь, полный набор защищает публикацию, а verification.md честно записывает, что и каким методом проверено."
+order = 6
+role = "mechanism"
+sources = [
+  "docs/engineering/agent-workflow.md#Validation",
+  "docs/engineering/openspec-workflow.md#Verify, archive, then publish",
+]
+
+[[used_in]]
+stage = "verification"
+
+[[used_in]]
+stage = "publication-integration"

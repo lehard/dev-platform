@@ -1,0 +1,8 @@
+id = "business-requirement"
+kind = "term"
+title = "Business Requirement"
+definition = "Business Requirement — Issue в бэклоге с меткой type:requirement: что нужно получить, как понять, что готово, и что не входит. Без технического плана."
+sources = [
+  "docs/engineering/task-intake.md#Requirement-first cross-surface contract",
+  "dev-platform/capabilities/requirement-authoring.md",
+]

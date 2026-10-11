@@ -1,0 +1,20 @@
+id = "add-openspec"
+kind = "mechanism"
+outline = true
+title = "ADD и OpenSpec"
+definition = "Существенное изменение сначала описывается как дельта архитектуры (ADD) и делится на намерения; каждое становится пакетом OpenSpec, который управляет реализацией, проверкой и архивом."
+order = 2
+role = "mechanism"
+sources = [
+  "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline",
+  "docs/engineering/openspec-workflow.md#Contract model",
+]
+
+[[used_in]]
+stage = "specification"
+
+[[used_in]]
+stage = "verification"
+
+[[used_in]]
+stage = "publication-integration"

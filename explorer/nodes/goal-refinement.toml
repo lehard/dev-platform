@@ -1,0 +1,12 @@
+id = "goal-refinement"
+kind = "part"
+outline = true
+title = "Уточнение цели"
+definition = "Короткий шаг для неясного существенного запроса: какой результат нужен и чем он подтверждается."
+role = "mechanism"
+sources = [
+  "docs/engineering/agent-workflow.md#Selective goal definition",
+]
+
+[[used_in]]
+stage = "requirement-intent"

@@ -1,0 +1,12 @@
+id = "repair-job"
+kind = "part"
+outline = true
+title = "Задание на доработку"
+definition = "Как исполнитель получает находки, в каких файлах ему можно работать и как платформа принимает результат."
+role = "gate"
+sources = [
+  "docs/engineering/agent-workflow.md#Completion",
+]
+
+[[used_in]]
+stage = "verification"

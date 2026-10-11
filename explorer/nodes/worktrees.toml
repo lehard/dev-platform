@@ -1,0 +1,14 @@
+id = "worktrees"
+kind = "mechanism"
+outline = true
+title = "Worktrees и параллельная работа"
+definition = "Каждая задача получает свою ветку и рабочую копию; доска агентов и заявки на файлы не дают двум писателям менять одно и то же, а чужое состояние никогда не очищается."
+order = 5
+role = "mechanism"
+sources = [
+  "docs/engineering/agent-workflow.md#Central source dogfood lifecycle",
+  "docs/engineering/agent-workflow.md#Scope discipline and capabilities",
+]
+
+[[used_in]]
+stage = "isolated-implementation"

@@ -10,6 +10,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "explorer.yml"
 BUILD_COMMAND = "python3 scripts/build_explorer.py build --out build/explorer"
+DRIFT_COMMAND = "python3 scripts/build_explorer.py drift --github"
+DRIFT_ISSUE_COMMAND = "python3 scripts/build_explorer.py drift-issue"
 PAGES_SOURCE_STEP = "Require the GitHub Actions Pages source"
 PINNED_USES = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40} # v\d+(\.\d+)*$")
 EXPECTED_PR_PATHS = {
@@ -43,10 +45,15 @@ class ExplorerWorkflowTests(unittest.TestCase):
         cls.workflow = load_workflow()
         cls.build = cls.workflow["jobs"]["build"]
         cls.deploy = cls.workflow["jobs"]["deploy"]
+        cls.drift = cls.workflow["jobs"]["drift-issue"]
 
-    def test_jobs_are_exactly_build_and_deploy(self) -> None:
-        self.assertEqual(set(self.workflow["jobs"]), {"build", "deploy"})
+    def test_jobs_are_exactly_build_deploy_and_drift_issue(self) -> None:
+        self.assertEqual(set(self.workflow["jobs"]), {"build", "deploy", "drift-issue"})
         self.assertEqual(self.deploy["needs"], "build")
+        # The drift job is isolated: nothing depends on it and it depends on nothing.
+        self.assertNotIn("needs", self.drift)
+        for job in (self.build, self.deploy):
+            self.assertNotEqual(job.get("needs"), "drift-issue")
 
     def test_triggers(self) -> None:
         triggers = self.workflow["on"]
@@ -62,6 +69,10 @@ class ExplorerWorkflowTests(unittest.TestCase):
         self.assertEqual(
             self.deploy["permissions"], {"contents": "read", "pages": "write", "id-token": "write"}
         )
+        # Issue write is granted only to the isolated post-merge drift job, and nothing else.
+        self.assertEqual(self.drift["permissions"], {"contents": "read", "issues": "write"})
+        self.assertNotIn("issues", self.deploy["permissions"])
+        self.assertNotIn("issues", self.workflow["permissions"])
         self.assertEqual(self.deploy["environment"]["name"], "github-pages")
         self.assertEqual(self.deploy["environment"]["url"], "${{ steps.deployment.outputs.page_url }}")
 
@@ -75,7 +86,7 @@ class ExplorerWorkflowTests(unittest.TestCase):
         for entry in uses_lines:
             with self.subTest(uses=entry):
                 self.assertRegex(entry, PINNED_USES)
-        for job in (self.build, self.deploy):
+        for job in (self.build, self.deploy, self.drift):
             for step in job["steps"]:
                 if "uses" in step:
                     self.assertRegex(step["uses"], r"@[0-9a-f]{40}$")
@@ -132,11 +143,31 @@ class ExplorerWorkflowTests(unittest.TestCase):
         self.assertTrue(python["uses"].startswith("actions/setup-python@"))
         self.assertEqual(python["with"]["python-version"], "3.11")
 
-        self.assertEqual([s["run"] for s in self.build["steps"] if "run" in s], [BUILD_COMMAND])
+        self.assertEqual([s["run"] for s in self.build["steps"] if "run" in s], [BUILD_COMMAND, DRIFT_COMMAND])
+        self.assertEqual([s["run"] for s in self.drift["steps"] if "run" in s], [DRIFT_ISSUE_COMMAND])
         self.assertEqual([s["name"] for s in self.deploy["steps"] if "run" in s], [PAGES_SOURCE_STEP])
         self.assertTrue((ROOT / "scripts" / "build_explorer.py").is_file())
-        for forbidden in ("|", "&&", ";", "pip install", "npm ", "git "):
-            self.assertNotIn(forbidden, BUILD_COMMAND)
+        for command in (BUILD_COMMAND, DRIFT_COMMAND, DRIFT_ISSUE_COMMAND):
+            for forbidden in ("|", "&&", ";", "pip install", "npm ", "git "):
+                self.assertNotIn(forbidden, command)
+
+    def test_drift_is_reported_in_pull_requests_without_failing_them(self) -> None:
+        report = [s for s in self.build["steps"] if s.get("run") == DRIFT_COMMAND]
+        self.assertEqual(len(report), 1)
+        self.assertEqual(report[0]["if"], "github.event_name == 'pull_request'")
+        self.assertNotIn("continue-on-error", report[0])  # the command itself never exits non-zero for drift
+
+    def test_drift_issue_job_runs_only_after_a_push_to_the_default_branch(self) -> None:
+        condition = self.drift["if"]
+        self.assertIn("github.ref == 'refs/heads/main'", condition)
+        self.assertIn("github.event_name == 'push'", condition)
+        self.assertNotIn("workflow_dispatch", condition)
+        self.assertNotIn("pull_request", condition)
+        update = [s for s in self.drift["steps"] if s.get("run") == DRIFT_ISSUE_COMMAND]
+        self.assertEqual(len(update), 1)
+        self.assertEqual(update[0]["env"], {"GH_TOKEN": "${{ github.token }}"})
+        self.assertEqual(self.drift["concurrency"], {"group": "explorer-drift-issue", "cancel-in-progress": False})
+        self.assertNotIn("pages", self.drift["permissions"])
 
     def test_workflow_is_platform_only_and_not_rendered_downstream(self) -> None:
         template = ROOT / "template"

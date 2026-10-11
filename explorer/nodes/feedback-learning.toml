@@ -1,0 +1,19 @@
+id = "feedback-learning"
+kind = "stage"
+outline = true
+title = "Обратная связь и улучшение"
+definition = "После каждой задачи агент проводит ретроспективу. Значимые затруднения записываются, разбираются и, если улучшение принято, возвращаются в цикл новой работой."
+order = 8
+short_title = "Обратная связь"
+tagline = "уроки → улучшения"
+children = ["friction-retrospectives"]
+sources = [
+  "docs/engineering/agent-workflow.md#Friction routing",
+  "README.md#Continuous improvement / friction loop",
+]
+
+[[transitions]]
+to = "requirement-intent"
+type = "return"
+reason = "Принятое улучшение процесса становится новой работой"
+label = "новая работа"

@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "base_ref": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "candidate_head": "6d0af9d2313485bbd853dda63802a110ce297e70",
+    "diff_sha256": "442392178cf8b9457cb07ff1eb3bbf8a0494643b57a9482041ad8c0d2171fb05"
+  },
+  "completed_at": "2026-10-11T21:42:53+00:00",
+  "findings": [
+    {
+      "evidence": "dev-platform/checks.toml (diff lines 55-58) sets patterns = [AGENTS.md, README.md, docs/**, openspec/specs/**, dev-platform/capabilities/**]. It omits explorer/nodes/**, explorer/map.toml, explorer/editorial-review.json, explorer/assets/** and scripts/build_explorer.py. A malformed node, such as an unfinished sentence, is therefore not caught by selected checks. It is caught only by the test group or the Explorer workflow.",
+      "id": "explorer-check-pattern-omits-explorer-inputs",
+      "severity": "advisory",
+      "summary": "The new `explorer` check fires only on edits to bound source files. It does not fire on edits to the Explorer's own inputs."
+    },
+    {
+      "evidence": "scripts/select_checks.py main() (diff lines 4593-4603) sets `code = exit_request.code`. That value may be None or a string. If `run_template` ends the process another way, such as `os.exec*` or a process-level exit, the drift step is skipped without notice. The wrapper also runs `build_explorer.py drift --base`, which builds the full site and aborts on any editorial error. A selected-checks run unrelated to the Explorer can therefore fail on an editorial or tooling problem, which contradicts the 'tool error only' docstring.",
+      "id": "select-checks-wrapper-systemexit-handling",
+      "severity": "advisory",
+      "summary": "The `select_checks.py` wrapper catches `SystemExit` from `run_template`, and its exit-code handling is fragile. It also builds the whole site for every `--execute` run."
+    },
+    {
+      "evidence": "scripts/build_explorer.py mark_reviewed (diff lines 4360-4376) copies `site.digests` verbatim into the review record. The review is a single committed JSON blob with no reviewer or commit metadata. A one-line `--all` run silences all drift, so the advisory signal is easy to defeat. The note in the drift-issue body encourages running it per node, but nothing enforces that.",
+      "id": "mark-reviewed-writes-unvalidated-digest-baseline",
+      "severity": "advisory",
+      "summary": "`mark-reviewed --all` stamps whatever the sources currently contain, and it prunes obsolete records. Nothing links the stamp to an actual review."
+    }
+  ],
+  "launched_at": "2026-10-11T21:42:16+00:00",
+  "output_sha256": "65e1c70fd76a892b70affacec5b25709294155a08ee473266c3f0792eb90fa5e",
+  "perspective": "engineering-quality",
+  "request_id": "87d32e1a-8e1d-4e1d-822b-953fc336ac42",
+  "reviewer": {
+    "context_id": "c9386a0a-87f2-4c4c-9710-a91957938588",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-35bd3d26-7c9a-4f31-af40-19e1f1422759",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49572
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 237721
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33009
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35205
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3097
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a3ee0bbe5addb780f49e4ce92746ffd8116023ff05cd14b80853f8947cd92e6f"
+}

@@ -1,0 +1,12 @@
+id = "chatgpt-project"
+kind = "part"
+outline = true
+title = "Проект ChatGPT"
+definition = "Тот же Requirement можно создать из проекта ChatGPT через подключённый GitHub, без локальной копии репозитория."
+role = "external"
+sources = [
+  "docs/engineering/chatgpt-project-protocol.md#Connected-GitHub authoring",
+]
+
+[[used_in]]
+stage = "requirement-intent"

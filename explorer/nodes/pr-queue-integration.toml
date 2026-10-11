@@ -1,0 +1,14 @@
+id = "pr-queue-integration"
+kind = "mechanism"
+outline = true
+title = "PR, очередь и интеграция"
+definition = "finish публикует PR точной версии; координатор по одному вливает свежий main, гоняет обязательный CI на итоговой версии и сливает с защитой от сдвига версии."
+order = 8
+role = "mechanism"
+sources = [
+  "docs/engineering/agent-workflow.md#Completion",
+  "docs/engineering/agent-workflow.md#Source publication queue",
+]
+
+[[used_in]]
+stage = "publication-integration"

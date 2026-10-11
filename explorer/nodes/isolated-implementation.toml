@@ -1,0 +1,18 @@
+id = "isolated-implementation"
+kind = "stage"
+outline = true
+title = "Исполнение"
+definition = "Агент работает в собственной ветке и рабочей копии. Заявки на файлы не дают двум агентам одновременно менять одно и то же."
+order = 4
+short_title = "Исполнение"
+tagline = "изолированная работа"
+children = ["worktrees", "executors"]
+sources = [
+  "docs/engineering/agent-workflow.md#Central source dogfood lifecycle",
+  "docs/engineering/agent-workflow.md#Scope discipline and capabilities",
+]
+
+[[transitions]]
+to = "verification"
+type = "main"
+reason = "Работа завершена, когда это доказано, а не когда закончились задачи"

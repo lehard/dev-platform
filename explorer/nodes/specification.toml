@@ -1,0 +1,18 @@
+id = "specification"
+kind = "stage"
+outline = true
+title = "Проектирование изменения"
+definition = "Принятое требование становится проверяемым контрактом OpenSpec. Для существенных архитектурных изменений сначала описывается дельта архитектуры (ADD)."
+order = 2
+short_title = "Проектирование"
+tagline = "требование → контракт"
+children = ["add-openspec"]
+sources = [
+  "docs/engineering/openspec-workflow.md#Author the outcome contract",
+  "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline",
+]
+
+[[transitions]]
+to = "routing"
+type = "main"
+reason = "У каждой управляемой задачи есть рекомендованный уровень исполнителя, его надо подтвердить"

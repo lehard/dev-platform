@@ -1,0 +1,15 @@
+id = "lifecycle-workers"
+kind = "part"
+outline = true
+title = "Воркеры жизненного цикла"
+definition = "Кто берёт задания на ревью, доработку и финализацию и почему два воркера не возьмут одно задание."
+role = "actor"
+sources = [
+  "docs/engineering/agent-workflow.md#Lifecycle workers",
+]
+
+[[used_in]]
+stage = "verification"
+
+[[used_in]]
+stage = "publication-integration"

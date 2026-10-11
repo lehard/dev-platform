@@ -1,0 +1,21 @@
+id = "executors"
+kind = "mechanism"
+outline = true
+title = "Исполнители Codex и Claude Code"
+definition = "Два провайдера работают по одному контракту AGENTS.md; платформа запускает их с ограниченными правами и записывает, кто фактически выполнял работу."
+order = 4
+role = "actor"
+sources = [
+  "docs/engineering/model-routing.md#Codex entrypoint",
+  "docs/engineering/model-routing.md#Claude Code entrypoint",
+  "docs/engineering/model-routing.md#Execution provenance",
+]
+
+[[used_in]]
+stage = "routing"
+
+[[used_in]]
+stage = "isolated-implementation"
+
+[[used_in]]
+stage = "verification"
