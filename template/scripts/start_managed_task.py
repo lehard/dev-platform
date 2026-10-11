@@ -40,6 +40,7 @@ from requirement_integration import ReadyForIntegrationReceipt, RequirementInteg
 from requirement_child_context import refresh_context
 from requirement_integration import _registered_worktrees as _registered_worktree_branches
 import managed_work_identity
+from rollout_preflight import add_defer_rollout_argument, apply_defer_rollout
 from start_task import StartedTask, cleanup_started_task, start_task
 from start_task import admission_reason, admit_task
 from shared_workspace import admit_managed_intake
@@ -527,7 +528,9 @@ def main() -> int:
         help="explicitly keep this package's existing scope despite source-Issue drift; "
         "value must equal the currently observed body_sha256 from the blocking diagnostic",
     )
+    add_defer_rollout_argument(parser)
     args = parser.parse_args()
+    apply_defer_rollout(args)
     root = current_worktree_root()
     try:
         started, current_main, reused = start_managed_task(

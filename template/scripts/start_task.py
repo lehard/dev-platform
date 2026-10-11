@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -17,7 +18,15 @@ from _platform_common import (
     require_fresh_task_base,
     run_git,
 )
-from rollout_preflight import NONE, RECONCILED, reconcile_pending_rollout
+from rollout_preflight import (
+    DEFERRED,
+    NONE,
+    RECONCILED,
+    add_defer_rollout_argument,
+    apply_defer_rollout,
+    reconcile_pending_rollout,
+    rollout_deferred,
+)
 from start_worktree import StartedWorktree, create_worktree
 
 
@@ -89,6 +98,7 @@ def admission_reason(decision: dict[str, object]) -> str:
 
 def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True, branch_name: str | None = None, base_ref: str | None = None) -> StartedTask:
     root = root.resolve()
+    defer_rollout = rollout_deferred(os.environ)
     preflight(root)
     config = read_platform_config(root)
     if harness_mode(config) != "platform":
@@ -99,8 +109,8 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
     if doctor.returncode != 0:
         raise RuntimeError("agent doctor failed; task start was not attempted")
     subprocess.run(["python3", str(root / "scripts" / "project_sync.py")], cwd=root, check=True, stdin=subprocess.DEVNULL)
-    rollout_outcome = reconcile_pending_rollout(root, config, github_cli_env(root))
-    if rollout_outcome.state == RECONCILED:
+    rollout_outcome = reconcile_pending_rollout(root, config, github_cli_env(root), defer=defer_rollout)
+    if rollout_outcome.state in (RECONCILED, DEFERRED):
         print(rollout_outcome.detail)
     elif rollout_outcome.state == NONE:
         if rollout_outcome.detail:
@@ -155,7 +165,9 @@ def main() -> int:
     parser.add_argument("slug", type=slug)
     parser.add_argument("--task", required=True)
     parser.add_argument("--scope", default="")
+    add_defer_rollout_argument(parser)
     args = parser.parse_args()
+    apply_defer_rollout(args)
     try:
         started = start_task(current_worktree_root(), args.slug, args.task, args.scope)
     except (RuntimeError, subprocess.CalledProcessError) as exc:

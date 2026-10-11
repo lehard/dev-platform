@@ -871,6 +871,31 @@ class ManagedPackageTests(unittest.TestCase):
             reconcile.assert_called_once()
             self.assertEqual(started.branch, "agent/managed-intake")
 
+    def test_session_deferral_leaves_pending_green_rollout_unmerged_and_start_completes(self) -> None:
+        candidate = rollout_preflight.RolloutPR(48, "https://example.invalid/pr/48", "dev-platform/rollout-v1.2.3", "v1.2.3", "abc123")
+        observed = rollout_preflight.RolloutPreflightResult(rollout_preflight.SAFE_TO_ADOPT, detail="green", pr=candidate)
+        for deferral, expect_merge in (({"DEV_PLATFORM_DEFER_ROLLOUT": "1"}, False), ({}, True)):
+            with self.subTest(deferral=deferral), tempfile.TemporaryDirectory() as tmp:
+                root = self._bare_platform_repo(tmp)
+                with (
+                    patch.dict("os.environ", deferral),
+                    patch.object(rollout_preflight, "observe_pending_rollout", return_value=observed),
+                    patch.object(rollout_preflight, "_load_platform_reconciliation_helpers"),
+                    patch.object(rollout_preflight, "_merge_rollout_pr", return_value=("merged", "")) as merge,
+                    patch.object(rollout_preflight, "_synchronize_local_main", return_value=(True, "")) as sync,
+                    patch.object(task_start, "github_cli_env", return_value={}),
+                    patch.object(task_start, "require_fresh_task_base", return_value="a" * 40),
+                    redirect_stdout(StringIO()) as out,
+                ):
+                    if not deferral:
+                        __import__("os").environ.pop("DEV_PLATFORM_DEFER_ROLLOUT", None)
+                    started = task_start.start_task(root, "managed-intake", "Managed task")
+                self.assertEqual(started.branch, "agent/managed-intake")
+                self.assertEqual(merge.called, expect_merge)
+                self.assertEqual(sync.called, expect_merge)
+                if not expect_merge:
+                    self.assertIn("rollout PR #48 (v1.2.3) was skipped and left unmerged", out.getvalue())
+
     def test_blocked_rollout_stops_task_start_before_any_branch_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = self._bare_platform_repo(tmp)
