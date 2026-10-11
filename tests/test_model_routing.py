@@ -2951,6 +2951,9 @@ class EarlyRoutingGateTemplateParityTests(unittest.TestCase):
             git(project, "config", "user.email", "routing@example.test")
             git(project, "config", "user.name", "Routing Test")
             shutil.copytree(SCRIPTS, project / "scripts", ignore=shutil.ignore_patterns("__pycache__", "*.jinja"))
+            # The rendered scripts classify their blocking failures from the platform-owned catalog beside them.
+            (project / "dev-platform").mkdir()
+            shutil.copy2(SCRIPTS.parent / "dev-platform" / "blocking-gates.toml", project / "dev-platform" / "blocking-gates.toml")
             (project / ".gitignore").write_text(".claude/\n.managed-task-state.json\n__pycache__/\n", encoding="utf-8")
             (project / ".dev-platform.toml").write_text('workflow_profile = "multi-agent"\nmain_branch = "main"\n', encoding="utf-8")
             git(project, "add", "-A")
