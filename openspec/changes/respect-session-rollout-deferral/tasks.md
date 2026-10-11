@@ -19,4 +19,4 @@
 
 ## 4. Delivery
 
-- [ ] 4.1 Required platform checks, truthful verification, archive, retrospectives, publication.
+- [x] 4.1 Required platform checks, truthful verification, archive, retrospectives, publication.
