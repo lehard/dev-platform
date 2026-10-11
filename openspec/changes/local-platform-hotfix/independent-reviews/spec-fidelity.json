@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "base_ref": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+    "candidate_head": "6101bff3771f38ae07fb7c4d14803ed49c15c386",
+    "diff_sha256": "2bb0a0df7bee2e53668efdaf5988c646e135d2dd328eef36b3ddad34ae769083"
+  },
+  "completed_at": "2026-10-11T05:50:10+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md 2.2 is marked [x] and requires wiring into 'the full-validation triggers in dev-platform/checks.toml'. design.md decision 6 says the project's `full_commands` trigger set includes the check. The diff changes only the source repo's dev-platform/checks.toml, and only to add test targets and the manifest --check. It adds no template checks entry that runs platform_divergence.py. change-classes.md says only that 'a project may also add it to the full_commands of its own project-owned checks.toml'. That is optional, so only platform_doctor.py runs the check by default.",
+      "id": "full-validation-trigger-not-wired",
+      "severity": "advisory",
+      "summary": "The divergence check is not wired into the project's full-validation triggers. Task 2.2 and design decision 6 say it should be."
+    },
+    {
+      "evidence": "design.md decision 7 says `release_intent.py`/the release step regenerates the manifest. Task 1.1 says to generate it 'in the release preparation step'. The diff adds scripts/generate_platform_manifest.py, which must be run by hand with --write. It touches no release script. The only enforcement added is the platform test and `--check` in the docs checks.",
+      "id": "manifest-not-in-release-step",
+      "severity": "advisory",
+      "summary": "Manifest generation is not hooked into release preparation. A stale manifest is caught by a test and a docs check, not by the release step."
+    },
+    {
+      "evidence": "design.md decision 1: 'writes platform-manifest.json (path -> sha256, plus the release version)'. The spec says each platform release carries a manifest. The generated manifest has only `version` (the schema version 1), `files` and `project_harness_owned`, and generate_platform_manifest.py says 'The installed platform version is not stored here'. The stale check compares the entry's platform_version only with .dev-platform.toml platform_version. It cannot tell whether the manifest itself belongs to another release.",
+      "id": "manifest-lacks-release-version",
+      "severity": "advisory",
+      "summary": "The manifest does not carry the release version, though design decision 1 says it does. Stale detection instead trusts the local .dev-platform.toml."
+    },
+    {
+      "evidence": "template/dev-platform/protected-surface.toml removes scripts/agent_friction.py, execute_managed_task.py, orchestrate_pre_authoring.py, requirement_intake.py and requirement_retrospective.py, plus docs/README.md, from `hotfixable`. It adds the first five as new [[protected]] entries. It also protects platform_divergence.py and platform-manifest.json. proposal.md and the delta spec describe no change to the accepted protected-surface contract. The docs/README.md removal has no stated rationale. The narrowing is safe, but it changes accepted behavior without an artifact change first, contrary to the AGENTS.md 'no silent divergence' invariant.",
+      "id": "unproposed-protected-surface-reclassification",
+      "severity": "advisory",
+      "summary": "The change moves several files from hotfixable to protected and drops docs/README.md from hotfixable. The proposal, spec and tasks do not mention this."
+    }
+  ],
+  "launched_at": "2026-10-11T05:49:41+00:00",
+  "output_sha256": "32e9241df449e7da45270d15dbc30f3d5038d741a9f0f1e42d0cc2f7f3f602dd",
+  "perspective": "spec-fidelity",
+  "request_id": "12555532-574d-48ac-961c-22854d1e8fe9",
+  "reviewer": {
+    "context_id": "f812e5b6-caed-43c4-94e4-2ad5ea1018bb",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d5ae0402-0101-47a7-ab23-764b6fbceb65",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55484
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 106374
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27889
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27608
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3132
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10"
+}
