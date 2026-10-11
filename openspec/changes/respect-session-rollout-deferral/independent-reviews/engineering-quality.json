@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "base_ref": "origin/main",
+    "candidate_head": "37036d6da3bb290d53842191ffd949ff0930e71f",
+    "diff_sha256": "d39af4220ea42926c6575c687e53daa47eea0127e23dd9efe41e6268ac260752"
+  },
+  "completed_at": "2026-10-11T19:16:22+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_doctor.py in the diff calls `rollout_preflight.rollout_deferred(os.environ)` inside `main()` with no handling. `start_task` validates the value first, so this only affects running the doctor on its own. The failure is still loud and names the variable. Only the traceback presentation is rough.",
+      "id": "doctor-invalid-deferral-traceback",
+      "severity": "advisory",
+      "summary": "A standalone `agent_doctor.py` run with an invalid `DEV_PLATFORM_DEFER_ROLLOUT` value raises `RolloutDeferralError` as an uncaught traceback instead of a clean named error."
+    }
+  ],
+  "launched_at": "2026-10-11T19:16:03+00:00",
+  "output_sha256": "45a6ef9356c9821e7b2bc194f140a2f870633dc23da7ea826f3fdffb639a4de1",
+  "perspective": "engineering-quality",
+  "request_id": "21f9a4a7-e0b7-40d9-8473-8e06c494b47e",
+  "reviewer": {
+    "context_id": "4c4da6bf-d35d-4970-be10-2d90b5a85a30",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6a5fba1f-aa16-4351-b2ad-eb6fbc5a12ab",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38982
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55481
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15433
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16067
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1687
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6c036a622c2fb5e0ea313bdc85d051ab002c1bcf954190a671a2bf15d012d27f"
+}

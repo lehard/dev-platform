@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "base_ref": "origin/main",
+    "candidate_head": "37036d6da3bb290d53842191ffd949ff0930e71f",
+    "diff_sha256": "d39af4220ea42926c6575c687e53daa47eea0127e23dd9efe41e6268ac260752"
+  },
+  "change": "openspec/changes/respect-session-rollout-deferral",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/respect-session-rollout-deferral/automated-checks.json",
+    "openspec/changes/respect-session-rollout-deferral/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/respect-session-rollout-deferral/design.md",
+        "openspec/changes/respect-session-rollout-deferral/proposal.md",
+        "openspec/changes/respect-session-rollout-deferral/specs/platform-lifecycle/spec.md",
+        "openspec/changes/respect-session-rollout-deferral/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/respect-session-rollout-deferral/proposal.md",
+        "openspec/changes/respect-session-rollout-deferral/design.md",
+        "openspec/changes/respect-session-rollout-deferral/tasks.md",
+        "openspec/changes/respect-session-rollout-deferral/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-11T19:15:34+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/respect-session-rollout-deferral/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "21f9a4a7-e0b7-40d9-8473-8e06c494b47e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d3fc408540881dafb61b764924e46e9617d1d556",
+    "digest": "6c036a622c2fb5e0ea313bdc85d051ab002c1bcf954190a671a2bf15d012d27f",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "0c10d6eaccbf151a97f5af83a5736780884ae2d2",
+      "openspec/changes/respect-session-rollout-deferral/.managed-task.json": "fb5b463b7df0672f51523b891cb4d2365b4d7815",
+      "openspec/changes/respect-session-rollout-deferral/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/respect-session-rollout-deferral/design.md": "18a5ec3298a543ea2ee52feaae17dc3f3cba1de4",
+      "openspec/changes/respect-session-rollout-deferral/proposal.md": "2816db19b18cc807bd210d7aab8fae43941dcf1a",
+      "openspec/changes/respect-session-rollout-deferral/specs/platform-lifecycle/spec.md": "2c0fa1adc58842efd47f067711c6e2475a6008f0",
+      "openspec/changes/respect-session-rollout-deferral/tasks.md": "96e0b86ac6af33032f27b34b9b68506b44447de3",
+      "template/AGENTS.md.jinja": "f4f29ab45d0996f34a9d15df4308f2cbd7e7bc22",
+      "template/dev-platform/platform-manifest.json": "4dc474f1ceb1f56dcc1b4b51bded8e880e6046d8",
+      "template/scripts/agent_doctor.py": "e35a65433f97c884bb58badfdcf9eef05b548ef1",
+      "template/scripts/execute_managed_task.py": "b353054cebfb448b0d0ce278aec67471e5d2b603",
+      "template/scripts/execute_requirement.py": "725256abc6dddfeb6c0400098364d3913e4caa78",
+      "template/scripts/rollout_preflight.py": "af6a930a4fdd51727a463a25a43392e8de1322f9",
+      "template/scripts/start_managed_task.py": "0d28e6b75376ad7ec8b284b82dd2fb01f6a03d36",
+      "template/scripts/start_task.py": "94cbe8f080eb1dfdf85a0338b779cd4e6bf27d60",
+      "tests/test_managed_intake_project_harness_isolation.py": "f31432fe7e5a3c8ccddfee602782aca9cb1842ed",
+      "tests/test_managed_task.py": "10cd69b15d35108b678781188da40d9916148ba2",
+      "tests/test_rollout_preflight.py": "5d7ef44b106c91da9f1513038567b69cd6ca8287"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

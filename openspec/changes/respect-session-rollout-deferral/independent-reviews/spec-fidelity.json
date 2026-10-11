@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+    "base_ref": "origin/main",
+    "candidate_head": "37036d6da3bb290d53842191ffd949ff0930e71f",
+    "diff_sha256": "d39af4220ea42926c6575c687e53daa47eea0127e23dd9efe41e6268ac260752"
+  },
+  "completed_at": "2026-10-11T19:16:03+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/start_task.py: `defer_rollout = rollout_deferred(os.environ)` is the first line of start_task, ahead of `preflight(root)` and the `harness_mode(config) != \"platform\"` check. The spec scenario \"Deferral does not affect project-owned harnesses\" says platform reconciliation is skipped exactly as before. The invalid-value scenario only requires failing before rollout observation. The edge case (project harness plus invalid value) is untested and unspecified.",
+      "id": "invalid-deferral-value-fails-project-harness",
+      "severity": "advisory",
+      "summary": "start_task validates the deferral variable before the harness_mode gate. A harness_mode=project repository therefore fails on an invalid DEV_PLATFORM_DEFER_ROLLOUT value, although the spec says project-owned harnesses are unaffected \"with or without the deferral\"."
+    },
+    {
+      "evidence": "template/scripts/agent_doctor.py main(): `pending_rollout_report(rollout_outcome, branch, rollout_preflight.rollout_deferred(os.environ))` has no try/except, and it runs after the observation. The observation therefore happens before the value is validated, on that standalone path.",
+      "id": "doctor-unhandled-invalid-deferral",
+      "severity": "advisory",
+      "summary": "agent_doctor.main calls rollout_deferred(os.environ) without handling RolloutDeferralError. Run standalone with an invalid value, it exits with a traceback instead of a clear named error. The spec only covers failure at task start."
+    }
+  ],
+  "launched_at": "2026-10-11T19:15:43+00:00",
+  "output_sha256": "c4a825f6cf50d6655377f28265c258eefcb74ed8d1b7211ff007a885431f22fe",
+  "perspective": "spec-fidelity",
+  "request_id": "21f9a4a7-e0b7-40d9-8473-8e06c494b47e",
+  "reviewer": {
+    "context_id": "83b405e6-8d0b-4870-840e-3604f55cd88f",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-dc84c680-0b97-4f43-9f96-83aa1b8856bd",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41124
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 102666
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17168
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17537
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1933
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6c036a622c2fb5e0ea313bdc85d051ab002c1bcf954190a671a2bf15d012d27f"
+}

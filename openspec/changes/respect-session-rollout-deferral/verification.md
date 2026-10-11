@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the supervisor-written diff against the platform-lifecycle delta, proposal, design and tasks; repository-owned selected checks on the committed head. A local independent review (spec-fidelity, engineering-quality) ran on the head before the last test-ordering fix and returned only advisory findings (tests appended after the `__main__` guard: fixed; deferral variable parsed before the harness_mode gate and an uncaught explicit error in a standalone doctor on an invalid value: kept deliberately, because the invalid-value scenario requires failing before any observation and the no-fallback rule requires an explicit error); a fresh review ran on the final content.
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 Process note: the supervisor wrote the implementation before opening a delegation under a delegated-child routing plan; the routing gate blocked the checks and the owner explicitly approved the supervisor diff in chat (`model_routing.py approve-supervisor-diff`).
 
