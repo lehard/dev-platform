@@ -177,6 +177,17 @@ The reviewed upstream is [`mattpocock/skills`](https://github.com/mattpocock/ski
 | Delegate the grilling loop to a subagent that answers on the user's behalf | Reject | Product/intent choices are surfaced to the human, not auto-answered; the capability never invents requirements. |
 | Mandatory grilling before every task | Reject | A sufficiently clear request proceeds with no interrogation ceremony. |
 
+## Requirement authoring
+
+`requirement-authoring` is an instruction-only capability whose Markdown is the single canonical standard for writing or materially changing a Business Requirement body: use the whole available context, keep only the current agreed result, carry accepted detail and references across without loss, make fixed / meaning-fixed / delegated levels visible, ask only about unresolved material product choices, and run a light coverage/consistency/scope/autonomy/portability/truthfulness check. Unlike other optional capabilities its file is reachable without enabling it: `docs/engineering/task-intake.md`, the ChatGPT Project protocol and the `AGENTS.md` concern map point to `dev-platform/capabilities/requirement-authoring.md`, so repository agents, ChatGPT Project and managed projects apply the same text with no project edit. Enabling it adds only the native provider skill:
+
+```bash
+python3 scripts/capability_manager.py enable requirement-authoring
+python3 scripts/capability_manager.py evaluate requirement-authoring --fixture dev-platform/evals/requirement-authoring-pilot.json --runtime fixture
+```
+
+The fixture is deterministic (trigger and hard-negative prompts plus text-level verifiers); it is not a live multi-provider behavioral run and is not reported as one. The capability creates no storage, gate, status, validator, approval, interview or application dependency, and it does not change the Requirement format, routing or lifecycle.
+
 ## ADD -> Intents pipeline
 
 `add-intents` is an opt-in, tool-backed capability that translates a material business requirement into OpenSpec authoring through two bounded pre-authoring stages: an Architecture Design Delta (ADD) against the current accepted system, then atomic Intent decomposition of the approved ADD. Enable it only where a repository wants this pre-authoring separation:

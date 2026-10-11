@@ -131,6 +131,7 @@ mode = "parallel"
 targets = [
   "test_agent_instruction_architecture",
   "test_requirement_first_intake_contract",
+  "test_requirement_authoring",
   "test_project_context",
   "test_project_evidence",
   "test_repository_goal_scan",

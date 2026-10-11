@@ -1,0 +1,92 @@
+{
+  "candidate": {
+    "base_head": "f4fa508a0f991179a163db641023113353fb9c6f",
+    "base_ref": "origin/main",
+    "candidate_head": "f59f97911d8670438c0f1f3fe5fd679bd27d27e7",
+    "diff_sha256": "a1a55dceecd88dc84d4e10d966927a17e83b89ebd63aa74fb5d83071a6432afc"
+  },
+  "change": "openspec/changes/requirement-authoring-standard",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/requirement-authoring-standard/automated-checks.json",
+    "openspec/changes/requirement-authoring-standard/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/requirement-authoring-standard/design.md",
+        "openspec/changes/requirement-authoring-standard/proposal.md",
+        "openspec/changes/requirement-authoring-standard/specs/engineering-capabilities/spec.md",
+        "openspec/changes/requirement-authoring-standard/specs/managed-task-intake/spec.md",
+        "openspec/changes/requirement-authoring-standard/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/requirement-authoring-standard/proposal.md",
+        "openspec/changes/requirement-authoring-standard/design.md",
+        "openspec/changes/requirement-authoring-standard/tasks.md",
+        "openspec/changes/requirement-authoring-standard/specs/engineering-capabilities/spec.md",
+        "openspec/changes/requirement-authoring-standard/specs/managed-task-intake/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-11T09:33:57+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/requirement-authoring-standard/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "2811bf17-7e6e-49f3-9326-c73e0701cf92",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "f4fa508a0f991179a163db641023113353fb9c6f",
+    "digest": "ad130858110fbaf764a3457c381240997c643a52de9a003747358ed89df82cbc",
+    "paths": {
+      "AGENTS.md": "7bc9a5e0e13056f1abd95d88af7b1bd9c0760bb2",
+      "dev-platform/capabilities/requirement-authoring.md": "8823c2706890647c30d34e212c7f03f7e6ba8419",
+      "dev-platform/capabilities/requirement-authoring.toml": "e85d56a11732a3b404b1458e912ecf48137b90df",
+      "dev-platform/checks.toml": "ed54bccf04e0cdbbfc5419ece8f24d838c3b2dff",
+      "dev-platform/evals/requirement-authoring-pilot.json": "fb49e140c4b95ae30c21856ae3cc00dd62616b63",
+      "docs/engineering/agent-instructions.md": "5a3a8a44b9d73f82234e763d966d4e01bade94a2",
+      "docs/engineering/chatgpt-project-protocol.md": "2e1938f83fdf8e95872ae7cfc28e94ccc7b38510",
+      "docs/engineering/engineering-capabilities.md": "c9a20dc5559e23852aff88b35b811c833e4babbf",
+      "docs/engineering/task-intake.md": "f51120a3027055a80bae96edbfedc5bebbc3fe1a",
+      "openspec/changes/requirement-authoring-standard/.managed-task.json": "15501b0971b0e4c14f6306c9d680aa08bb7297ad",
+      "openspec/changes/requirement-authoring-standard/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/requirement-authoring-standard/design.md": "32cb5c9a8be66821d8bd1ac4250b3cfca26c9f84",
+      "openspec/changes/requirement-authoring-standard/proposal.md": "dfa329a59841bae5a1d7dda8edc98c6ca863e34b",
+      "openspec/changes/requirement-authoring-standard/specs/engineering-capabilities/spec.md": "bdba0d4b575cd049e2f6ac73764f10542b51d69c",
+      "openspec/changes/requirement-authoring-standard/specs/managed-task-intake/spec.md": "5b7ef7d0974a28b1e82b334a4e92ecca05c08c77",
+      "openspec/changes/requirement-authoring-standard/tasks.md": "bb14b67dc819385ff57c1cca1632f4e20c7cd907",
+      "template/AGENTS.md.jinja": "0c2e3f6dba1f0c8ab850fb41dd602ae871bb1ffd",
+      "template/dev-platform/capabilities/requirement-authoring.md": "8823c2706890647c30d34e212c7f03f7e6ba8419",
+      "template/dev-platform/capabilities/requirement-authoring.toml": "e85d56a11732a3b404b1458e912ecf48137b90df",
+      "template/dev-platform/evals/requirement-authoring-pilot.json": "fb49e140c4b95ae30c21856ae3cc00dd62616b63",
+      "template/docs/engineering/agent-instructions.md": "7f1e57293f1d5412964f423225229670b2876900",
+      "template/docs/engineering/chatgpt-project-protocol.md": "a6de569d25580898606f45c054ac2912075cc185",
+      "template/docs/engineering/engineering-capabilities.md": "c9a20dc5559e23852aff88b35b811c833e4babbf",
+      "template/docs/engineering/task-intake.md.jinja": "6587a9e5277ca6d96fd9033b8f5443aea70e9c1b",
+      "tests/test_requirement_authoring.py": "426ceb36a05d7df937c3b983d9819a4d30043023"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

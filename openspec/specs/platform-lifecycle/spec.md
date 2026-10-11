@@ -927,7 +927,7 @@ For a Development Backlog managed task, platform-owned terminal reconciliation S
 
 For platform-owned task execution, the lifecycle SHALL refresh its observation of the configured remote integration branch and verify that the current task head is based on the authoritative remote history before running expensive full/protected validation intended as delivery evidence.
 
-One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. Developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
+One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. A second bounded exception SHALL exist for a coordinator-managed candidate, whose integration the publication queue performs by merging the current integration branch and gating on required checks of the integrated head. Its developer evidence-producing validation, handoff and admission SHALL accept a head that does not contain the current remote integration branch when the files that branch changed since the head's merge base are disjoint from the files the task changed since that merge base and a trial merge is clean; the lifecycle SHALL report that contract with the observed integration head and merge base and record it in the evidence. Overlapping files, a conflicting trial merge or a missing merge base SHALL block before any expensive command, naming the files or the conflict. Outside these two exceptions, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
 
 #### Scenario: Task remains fresh before full validation
 
@@ -971,6 +971,28 @@ One bounded exception SHALL exist, for trusted coordinator finalization of a rev
 - **WHEN** a proven base is passed together with evidence output, a contribution base or protected-full validation, without execution, outside the coordinator lifecycle mode, or with a commit that is not the merge base of the head and `origin/<main>`
 - **THEN** the invocation fails before any command starts, naming the violated condition
 - **AND** an invocation without a proven base on a stale head is still blocked by the fresh-base requirement
+
+#### Scenario: Coordinator candidate behind a disjoint main is handed off without reconcile
+
+- **GIVEN** a coordinator-managed candidate whose head does not contain the freshly fetched `origin/<main>`
+- **AND** the files `origin/<main>` changed since the merge base are disjoint from the candidate's changed files and a trial merge is clean
+- **WHEN** evidence-producing selected checks or the developer handoff run
+- **THEN** the freshness gate passes, naming the behind-disjoint contract, the observed main and the merge base
+- **AND** the evidence records that contract
+- **AND** no reconcile is required
+
+#### Scenario: Coordinator candidate overlapping main must reconcile
+
+- **GIVEN** a coordinator-managed candidate whose head does not contain `origin/<main>`
+- **AND** `origin/<main>` changed at least one file the candidate changed, or a trial merge conflicts
+- **WHEN** evidence-producing selected checks or the developer handoff run
+- **THEN** the lifecycle stops before any expensive command, naming the overlapping files or the conflict and the reconcile command
+
+#### Scenario: Non-coordinator task keeps the fresh-base rule
+
+- **GIVEN** a task published without the coordinator queue whose head does not contain `origin/<main>`
+- **WHEN** evidence-producing validation is requested
+- **THEN** it is blocked by the fresh-base requirement even when the changed files are disjoint
 
 ### Requirement: Task start establishes an explicit freshness observation
 
@@ -1259,7 +1281,7 @@ The platform SHALL provide an explicit managed-task reconciliation operation for
 
 ### Requirement: Freshness drift is visible before another expensive validation run
 
-Supported task status/preflight SHALL expose when the current managed task head is behind authoritative main before the platform begins a new expensive authoritative validation cycle. A stale observation SHALL remain resumable rather than being reported as terminal task failure.
+Supported task status/preflight SHALL expose when the current managed task head is behind authoritative main before the platform begins a new expensive authoritative validation cycle. For a coordinator-managed candidate whose head is behind a disjoint, cleanly mergeable main, status SHALL report that state as not requiring reconciliation. A stale observation SHALL remain resumable rather than being reported as terminal task failure.
 
 #### Scenario: Main advanced after prior task work
 
@@ -1268,6 +1290,12 @@ Supported task status/preflight SHALL expose when the current managed task head 
 - **WHEN** the operator asks for task status or begins the finish path
 - **THEN** the platform reports that reconciliation is required before expensive validation
 - **AND** points to the supported reconcile operation
+
+#### Scenario: Coordinator candidate behind a disjoint main
+
+- **GIVEN** a coordinator-managed candidate whose head is behind `origin/<main>` with disjoint changed files and a clean trial merge
+- **WHEN** the operator asks for task status
+- **THEN** status reports the behind-disjoint state and that no reconciliation is required
 
 ### Requirement: Reconciliation preserves validation and publication authority
 

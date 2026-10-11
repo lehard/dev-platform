@@ -1,0 +1,84 @@
+{
+  "candidate": {
+    "base_head": "a8de1f5e65a81b30cea410825ad218496f40ffa9",
+    "base_ref": "origin/main",
+    "candidate_head": "596428176d5485c93c046cdadac104abff9decf8",
+    "diff_sha256": "9d958e2c4a9ce5832142d34f0756a0d20cade2152988e90077df9d6f23cb5646"
+  },
+  "change": "openspec/changes/handoff-behind-disjoint-main",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/handoff-behind-disjoint-main/automated-checks.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-review-dispositions.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-review-request.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-reviews/engineering-quality.json",
+    "openspec/changes/handoff-behind-disjoint-main/independent-reviews/spec-fidelity.json",
+    "openspec/changes/handoff-behind-disjoint-main/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/handoff-behind-disjoint-main/design.md",
+        "openspec/changes/handoff-behind-disjoint-main/proposal.md",
+        "openspec/changes/handoff-behind-disjoint-main/specs/platform-lifecycle/spec.md",
+        "openspec/changes/handoff-behind-disjoint-main/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/handoff-behind-disjoint-main/proposal.md",
+        "openspec/changes/handoff-behind-disjoint-main/design.md",
+        "openspec/changes/handoff-behind-disjoint-main/tasks.md",
+        "openspec/changes/handoff-behind-disjoint-main/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-10T22:08:20+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/handoff-behind-disjoint-main/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e65ad4e6-0547-4f81-bfa6-fe1efa981c89",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
+    "digest": "9b8d23bf13f44d1293186ab0829642a264fbf3ac58c243bee40fa0d7daeffa09",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "d3fd8a6fc18b111bad0d33851e6a5dc8dc7fb227",
+      "openspec/changes/handoff-behind-disjoint-main/.managed-task.json": "acb77a6e795b2cec8d4fdc3fa53943e36c48c9c4",
+      "openspec/changes/handoff-behind-disjoint-main/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
+      "openspec/changes/handoff-behind-disjoint-main/design.md": "1a4c9a7d158f5dcc7f9cb1ffc45f7e681b783c72",
+      "openspec/changes/handoff-behind-disjoint-main/proposal.md": "b9aeec970c3257d56db9a691cbc04b314da578db",
+      "openspec/changes/handoff-behind-disjoint-main/specs/platform-lifecycle/spec.md": "bb4dfb27de09ef063a2f2251f8534f39a254bef6",
+      "openspec/changes/handoff-behind-disjoint-main/tasks.md": "24d367f9f47553688d10c0c19153fa5152f88702",
+      "template/scripts/_platform_common.py": "f500e6da88f0be7dca14cb361a21e7417c066104",
+      "template/scripts/finish_task.py": "c5a6587d4618d83d50279edf7ed13ded39043353",
+      "template/scripts/project_publish.py": "1998759bf8863b9ac34982942ac5795f20b1d88a",
+      "template/scripts/select_checks.py": "fe5cf96a199febd99db7957e475408d066553ee2",
+      "template/scripts/task_reconciliation.py": "43f0cc2e14d26f2b5edd70773332810004b94228",
+      "tests/test_select_checks.py": "92b207ad510fc8d8de9b5f173b9872a838f51b57",
+      "tests/test_task_freshness.py": "106853fe3dd4fa4844b95878064cf8b18dd608d8",
+      "tests/test_task_reconciliation.py": "1f45b2cab33d4e8a0fac057ed4aadd04770f9be1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

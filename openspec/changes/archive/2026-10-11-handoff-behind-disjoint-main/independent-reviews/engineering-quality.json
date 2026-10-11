@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8de1f5e65a81b30cea410825ad218496f40ffa9",
+    "base_ref": "origin/main",
+    "candidate_head": "596428176d5485c93c046cdadac104abff9decf8",
+    "diff_sha256": "9d958e2c4a9ce5832142d34f0756a0d20cade2152988e90077df9d6f23cb5646"
+  },
+  "completed_at": "2026-10-10T22:09:18+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/task_reconciliation.py `observe_candidate` calls `coordinator_candidate(root)` with no handling. template/scripts/pr_review_gate.py:16-25 `managed_candidate` calls `lifecycle_mode`, which raises when `platform_version` is missing, and `resolve_canonical_provenance`. template/scripts/finish_task.py:438-439 `except Exception` sets `reconcile_required: False`. The candidate's own edit to tests/test_task_reconciliation.py adds `platform_version` to the test config to avoid this.",
+      "id": "status-hides-reconcile-when-candidacy-undeterminable",
+      "severity": "advisory",
+      "summary": "For any head behind main, `task_reconciliation.observe_candidate` now calls `coordinator_candidate`, which can raise. `finish_task.run_status` turns every exception into `task_freshness: unavailable` with `reconcile_required: False`. A non-candidate task that used to show `behind` with the reconcile hint can now show neither."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py in `main()`: `handoff_evidence = bool(checks) and evidence_path is not None and args.mode == \"local-affected\" and coordinator_contract(root)`. `coordinator_contract` raises SystemExit on `PlatformConfigError`, which `lifecycle_mode` raises when `platform_version` is absent (_platform_common.py:742-744). The design says a fresh head never depends on the contract.",
+      "id": "select-checks-new-hard-failure-on-missing-platform-version",
+      "severity": "advisory",
+      "summary": "The `handoff_evidence` guard calls `coordinator_contract(root)` for every evidence-producing `local-affected` run. That includes runs whose head already contains main. A config without `platform_version` now fails with SystemExit before any check, where the old path only needed freshness. The spec says other paths keep the fresh-base gate unchanged."
+    }
+  ],
+  "launched_at": "2026-10-10T22:08:49+00:00",
+  "output_sha256": "1c8f6574f1f8a7e5696491fecb709c6fcb931eaf1153ce144ab67e5623bfa724",
+  "perspective": "engineering-quality",
+  "request_id": "e65ad4e6-0547-4f81-bfa6-fe1efa981c89",
+  "reviewer": {
+    "context_id": "ee76de6d-0902-4e02-adae-f5b0a4d3e1a1",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7eaefcd5-89c6-426c-8db2-392a8c2fad25",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43125
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 192307
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26824
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28028
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2875
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9b8d23bf13f44d1293186ab0829642a264fbf3ac58c243bee40fa0d7daeffa09"
+}

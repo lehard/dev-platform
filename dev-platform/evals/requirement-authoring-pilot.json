@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "capability": "requirement-authoring",
+  "content_sha256": "71b4c9663ceac52ef4f8c717b39c39ac23d718ff9191f0236a6e330c68c38ff6",
+  "cases": [
+    {"id": "positive-fix-long-discussion", "expectation": "trigger", "prompt": "Зафиксируй всё, что мы согласовали выше: точные тексты экрана, порядок шагов и права менеджера.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-add-to-backlog", "expectation": "trigger", "prompt": "Добавь в бэклог изменение, которое мы обсуждали последний час, со всеми принятыми деталями.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-create-task-detailed", "expectation": "trigger", "prompt": "Создай задачу по этому макету и описанию сценария; макет приложен.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-refine-existing", "expectation": "trigger", "prompt": "Мы отменили прежнее решение — обнови существующий Business Requirement целиком вместе с критериями приёмки.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-superseded-options", "expectation": "trigger", "prompt": "Из трёх обсуждавшихся вариантов принят второй; зафиксируй результат без хроники обсуждения.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-reference-screenshot", "expectation": "trigger", "prompt": "Зафиксируй требование по этому скриншоту и ссылке на референс, сохрани обязательные свойства.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-verbatim-text", "expectation": "trigger", "prompt": "Зафиксируй требование и сохрани дословно согласованную реплику бота.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-chatgpt-fixation", "expectation": "trigger", "prompt": "Отправь в бэклог: нужен запрет рассылки клиентам вне рабочего времени.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-update-acceptance", "expectation": "trigger", "prompt": "Новое решение меняет Outcome; убедись, что Acceptance evidence больше не требует старого поведения.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "positive-explicit-request", "expectation": "trigger", "prompt": "Apply the Requirement authoring standard before you record this change as a Business Requirement.", "samples": ["triggered", "triggered", "triggered"]},
+    {"id": "negative-quick-rename", "expectation": "not-trigger", "prompt": "Rename this helper function to match the naming convention across its call sites.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-bug-fix", "expectation": "not-trigger", "prompt": "Fix the off-by-one in this pagination offset; the cause is already established.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-run-tests", "expectation": "not-trigger", "prompt": "Run the focused unit tests for the parser module.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-review", "expectation": "not-trigger", "prompt": "Review this authentication change for security issues.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-openspec-authoring", "expectation": "not-trigger", "prompt": "Write the design.md and delta specs for this existing managed task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-implement", "expectation": "not-trigger", "prompt": "Implement the already specified endpoint exactly as described in the managed task.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-technical-managed-task", "expectation": "not-trigger", "prompt": "Create a technical managed task for the lifecycle script fix as requested.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-discuss", "expectation": "not-trigger", "prompt": "Let us compare two designs for the cache; do not record anything yet.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-start-requirement", "expectation": "not-trigger", "prompt": "Start executing the Business Requirement that is already recorded in the backlog.", "samples": ["not-triggered", "not-triggered", "not-triggered"]},
+    {"id": "negative-format", "expectation": "not-trigger", "prompt": "Format this module with the repository formatter.", "samples": ["not-triggered", "not-triggered", "not-triggered"]}
+  ],
+  "quality_comparisons": [
+    {"id": "accepted-detail-survives-long-discussion", "objective_verifier": "The capability test asserts the standard requires material accepted detail (texts, order, rights, constraints, references) to be carried over without loss and forbids replacing an exact decision with a generic quality phrase.", "baseline": "not-verified", "candidate": "verified"},
+    {"id": "superseded-decisions-leave-no-history-or-stale-criteria", "objective_verifier": "The capability test asserts that only explicit acceptance supersedes, that negotiation history is dropped except an active boundary, and that a changed decision rewrites Outcome, scenarios, Exclusions and Acceptance evidence together.", "baseline": "not-verified", "candidate": "verified"},
+    {"id": "binding-levels-and-references-are-explicit", "objective_verifier": "The capability test asserts the three binding levels, preserved reachable references, explicit unavailable-attachment handling and the ban on substituting a mutable site root.", "baseline": "not-verified", "candidate": "verified"},
+    {"id": "questions-are-selective-and-no-ritual-is-added", "objective_verifier": "The capability test asserts questions only for unresolved material choices (one to three grouped), no mandatory interview, and no new gate, status, validator, ledger, storage or per-project setting; the fixture's ten hard-negative prompts never trigger the standard.", "baseline": "not-verified", "candidate": "verified"}
+  ]
+}

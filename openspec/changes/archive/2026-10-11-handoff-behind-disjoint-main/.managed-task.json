@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "handoff-behind-disjoint-main",
+  "imported_at": "2026-10-10T20:35:09+00:00",
+  "package_revision": "7662328b6af4a03312e38565c30b33b50efc75d0b36befdf3fa0f6e73b7a1a0e",
+  "prepared_against": "28ecf66b9e7593ed80bb0b8560bc2129fa304791",
+  "private_lineage_handle": "pln_6a2f8aad9bfb1f2184e8ec5b2f8b3380",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "14c568f99fbe4fe873a33ab4d344113d9048a6e49f0c98580aa10d7396f43e00",
+    "updated_at": "2026-10-10T20:28:22Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-567/T1"
+}

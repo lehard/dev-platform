@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8de1f5e65a81b30cea410825ad218496f40ffa9",
+    "base_ref": "origin/main",
+    "candidate_head": "596428176d5485c93c046cdadac104abff9decf8",
+    "diff_sha256": "9d958e2c4a9ce5832142d34f0756a0d20cade2152988e90077df9d6f23cb5646"
+  },
+  "completed_at": "2026-10-10T22:08:49+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md:4.1 reads `- [x] 4.1 Real dogfood is observed after this change reaches main: ... It is recorded in the Requirement retrospective, because it can only happen after this change merges.` The candidate has not merged, so the checked box claims something that cannot yet be true. I found no other spec, design or code mismatch in the diff.",
+      "id": "readiness-task-checked-before-observable",
+      "severity": "advisory",
+      "summary": "tasks.md marks 4.1 as done even though the task text says the real dogfood can only be observed after this change reaches main."
+    }
+  ],
+  "launched_at": "2026-10-10T22:08:30+00:00",
+  "output_sha256": "ee8e68899881d46b53b54ca7f0a938af898e095c09aa1893fea55c4a069aa782",
+  "perspective": "spec-fidelity",
+  "request_id": "e65ad4e6-0547-4f81-bfa6-fe1efa981c89",
+  "reviewer": {
+    "context_id": "ddf67322-4778-4ac1-9374-1249d7fd2d4c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-918a81a9-90e3-401a-ba51-3a5bccf4fa07",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48992
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 101044
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16657
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17418
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1614
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9b8d23bf13f44d1293186ab0829642a264fbf3ac58c243bee40fa0d7daeffa09"
+}

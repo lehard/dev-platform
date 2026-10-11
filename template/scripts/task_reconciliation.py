@@ -5,7 +5,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _platform_common import (
+    RECONCILE_COMMAND,
+    TASK_BASE_BEHIND_DISJOINT,
+    TaskFreshnessError,
+    classify_task_base_currency,
+    coordinator_candidate,
     current_worktree_root,
+    fetch_commit_objects,
     fetch_main,
     github_cli_env,
     harness_mode,
@@ -27,7 +33,6 @@ except ModuleNotFoundError:  # Compatibility while older renders are upgraded.
 import publication_state
 
 
-RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 TASK_KIND_MANAGED = "managed"
 TASK_KIND_QUICK = "quick"
 MANAGED_PROVENANCE_FILE = ".managed-task.json"
@@ -37,6 +42,10 @@ MANAGED_PROVENANCE_FILE = ".managed-task.json"
 class Freshness:
     state: str
     authoritative_sha: str
+    # Set for a coordinator candidate's head that does not contain main: the
+    # merge base of ``behind-disjoint``, or why reconciliation is required.
+    merge_base: str | None = None
+    detail: str | None = None
 
     @property
     def reconcile_required(self) -> bool:
@@ -60,15 +69,43 @@ def observe(root: Path, *, read_only: bool = False) -> Freshness:
     return Freshness(state=state, authoritative_sha=authoritative_sha)
 
 
+def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
+    """``observe``, where a coordinator candidate behind a disjoint main is ``behind-disjoint``.
+
+    The publication queue merges main into a coordinator candidate and gates on
+    the integrated head, so such a head needs no reconcile. Candidacy is read
+    only for a head that does not contain main. ``reconcile`` keeps ``observe``:
+    an explicit reconcile still merges main into any head behind it.
+    """
+    freshness = observe(root, read_only=read_only)
+    if not freshness.reconcile_required or not coordinator_candidate(root):
+        return freshness
+    main_branch = read_platform_config(root).get("main_branch")
+    if not isinstance(main_branch, str) or not main_branch:
+        raise TaskFreshnessError("main_branch must be a non-empty string in .dev-platform.toml")
+    if read_only:
+        fetch_commit_objects(root, "origin", main_branch, freshness.authoritative_sha)
+    currency = classify_task_base_currency(root, freshness.authoritative_sha)
+    if currency.state == TASK_BASE_BEHIND_DISJOINT:
+        return Freshness(state=TASK_BASE_BEHIND_DISJOINT, authoritative_sha=currency.main, merge_base=currency.base)
+    # Main's objects are now present, so the exact relation replaces a read-only "behind".
+    return Freshness(state=relation(root, "HEAD", currency.main), authoritative_sha=currency.main,
+                     merge_base=currency.base, detail=currency.describe(f"origin/{main_branch}"))
+
+
 def status_payload(root: Path) -> dict[str, object]:
     """Return bounded freshness evidence for status/preflight callers."""
-    freshness = observe(root, read_only=True)
+    freshness = observe_candidate(root, read_only=True)
     payload: dict[str, object] = {
         "task_freshness": freshness.state,
         "authoritative_main": freshness.authoritative_sha,
         "reconcile_required": freshness.reconcile_required,
         "reconcile_command": RECONCILE_COMMAND if freshness.reconcile_required else None,
     }
+    if freshness.merge_base is not None:
+        payload["task_merge_base"] = freshness.merge_base
+    if freshness.detail is not None:
+        payload["freshness_detail"] = freshness.detail
     try:
         provenance = resolve_canonical_provenance(root)
     except ManagedTaskError as exc:
