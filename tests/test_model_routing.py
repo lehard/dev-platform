@@ -2230,7 +2230,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 2)
         self.assertIn("no delegation is open", completed.stderr)
         self.assertIn("[recoverable] routing-early-gate:", completed.stderr)
-        self.assertIn("recovery: route first with", completed.stderr)
+        self.assertIn("recovery: no routing record: run", completed.stderr)
 
     def test_record_after_the_fact_and_late_begin_are_refused(self) -> None:
         self.handoff()

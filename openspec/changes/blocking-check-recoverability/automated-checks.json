@@ -5,27 +5,8 @@
     "command_count": 3,
     "check_count": 1
   },
-  "outcome": "success",
-  "executed_commands": [
-    {
-      "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.273,
-      "outcome": "success",
-      "exit_code": 0
-    },
-    {
-      "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.17,
-      "outcome": "success",
-      "exit_code": 0
-    },
-    {
-      "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 505.625,
-      "outcome": "success",
-      "exit_code": 0
-    }
-  ],
+  "outcome": "failure",
+  "executed_commands": [],
   "selected_checks": [
     {
       "id": "full-trigger",
@@ -76,10 +57,10 @@
     "change": "blocking-check-recoverability",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/blocking-check-recoverability",
     "branch": "agent/br-526-t2-blocking-check-recoverability",
-    "head": "a2e0bc04c85ef90ba14f716872e7cdf6b34aced4",
+    "head": "88c6538e53aa721a950677297786630e3a240bb6",
     "task_content": {
       "version": 1,
-      "digest": "8c96598505c11d615247f770479e8d1774d200c79e6daf7c6458f1b6b16a46d0",
+      "digest": "b020a886533a2ec0cb6b71d911e2aab11b20230e5f8b9d2284fec632cdf11f9e",
       "paths": {
         "AGENTS.md": "98100e4a692dc603838a5d783446a940f0d79325",
         "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
@@ -88,15 +69,15 @@
         "docs/ownership.md": "4f69261228a53cce5fd9345dc07441cec4367eb1",
         "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
         "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
-        "openspec/changes/blocking-check-recoverability/automated-checks.json": "33e7848c69fd5c7c7966da0660054a8aaa8371ea",
-        "openspec/changes/blocking-check-recoverability/design.md": "835820a48295b4eeca5927b3eb19ea3d1d69edf2",
-        "openspec/changes/blocking-check-recoverability/independent-review-request.json": "acf74b0287e0128547585b9e0338287e22657c08",
-        "openspec/changes/blocking-check-recoverability/independent-reviews/engineering-quality.json": "687d9ec1f5e3f29d4bfede1bbc57293f19775cbf",
-        "openspec/changes/blocking-check-recoverability/independent-reviews/spec-fidelity.json": "640820f7643b82ba4b63dfa0c0a6696a8848f080",
+        "openspec/changes/blocking-check-recoverability/automated-checks.json": "5f2141df413b672040f96abfa7d5bc1e54dbc9f0",
+        "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
+        "openspec/changes/blocking-check-recoverability/independent-review-request.json": "af72d019026a27c073e79d7955641c23fc2fed73",
+        "openspec/changes/blocking-check-recoverability/independent-reviews/engineering-quality.json": "8981de39ab554de920facb75981ee15cb1eabfce",
+        "openspec/changes/blocking-check-recoverability/independent-reviews/spec-fidelity.json": "e6c10ffd86c59edacca4a1ae1dc32760d047a107",
         "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
         "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
         "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
-        "openspec/changes/blocking-check-recoverability/verification.md": "999876e911ef0bd54907423d761a6cd3e2ff2223",
+        "openspec/changes/blocking-check-recoverability/verification.md": "e41b6aa4d3785429ad29f296b5a5b719d0d0e0f0",
         "openspec/changes/downstream-change-classes/.managed-task.json": "0461309ff5eb827019ce8a8f1a2fe4fcdabea36f",
         "openspec/changes/downstream-change-classes/.openspec.yaml": "53f62d70601ea15c704cee870a71fc2240581898",
         "openspec/changes/downstream-change-classes/automated-checks.json": "f9b936b203451ae4060162f59e9016f6c2677472",
@@ -121,9 +102,9 @@
         "openspec/changes/local-platform-hotfix/verification.md": "a66bc087467d50cc8213404effc50ae3e98e56ff",
         "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
         "template/AGENTS.md.jinja": "a6585c1761e540ecaaf90db5623587433d094876",
-        "template/dev-platform/blocking-gates.toml": "9685fe731e66aef63d1f6740e4ec490d0c7b7884",
+        "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
         "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
-        "template/dev-platform/platform-manifest.json": "8179999eeab81a6c6519ac988f19c2518fe4afad",
+        "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
         "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
         "template/docs/README.md": "5fd713497943db5385ce2bac3b5e5089ef1c16d9",
         "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
@@ -155,17 +136,17 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "d883efce29c30e14ca711bd95ede09b32e3139afe7944bd20ad99996b558bcb1",
+    "digest": "9b44738d4b7aace6ff42847f8993c517214e047c36fe1224371452446400c3af",
     "paths": {
       "dev-platform/checks.toml": "33ad3adcff318f8a32c095de11a3736d0550e6f9",
       "openspec/changes/blocking-check-recoverability/.managed-task.json": "5b45b300f3fa749b29bb6ddfddfc09359069e056",
       "openspec/changes/blocking-check-recoverability/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
-      "openspec/changes/blocking-check-recoverability/design.md": "835820a48295b4eeca5927b3eb19ea3d1d69edf2",
+      "openspec/changes/blocking-check-recoverability/design.md": "e3812b67cf39e3fb55809b617dd6da4a0bff75fe",
       "openspec/changes/blocking-check-recoverability/proposal.md": "256bf87f353a8d6749f8f74b875b014fff0aba4e",
       "openspec/changes/blocking-check-recoverability/specs/blocking-check-recovery/spec.md": "5bced9fa26bc7ede650458c5c2b12f3f2b97d6d8",
       "openspec/changes/blocking-check-recoverability/tasks.md": "3d39e0fddde78111f7b5ced667808536b04693b0",
-      "template/dev-platform/blocking-gates.toml": "9685fe731e66aef63d1f6740e4ec490d0c7b7884",
-      "template/dev-platform/platform-manifest.json": "8179999eeab81a6c6519ac988f19c2518fe4afad",
+      "template/dev-platform/blocking-gates.toml": "2e2b56a7c29bc108268ae10774f1fb6dfb45ae90",
+      "template/dev-platform/platform-manifest.json": "1022fa249785b8de26b33b2fc698ac6c817146a6",
       "template/dev-platform/protected-surface.toml": "ed97c003262f2b47a538b06e4e0b1e10b76acc47",
       "template/docs/engineering/change-classes.md": "5d343b76fa822bf59a15d517d3d6489da2ae647a",
       "template/scripts/_platform_common.py": "f3ee955bbfac42d40fb3dc90ae6ef47e83828155",
@@ -191,9 +172,9 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/generate_platform_manifest.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_board.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/platform_divergence.py --changed-file template/scripts/platform_doctor.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file tests/test_blocking_gates.py --changed-file tests/test_coordinator_preflight.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_model_routing.py --changed-file tests/test_platform_divergence.py --changed-file tests/test_platform_manifest.py --changed-file tests/test_protected_surface.py --changed-file tests/test_root_guidance_contract.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_workspace.py --changed-file tests/test_task_freshness.py --changed-file tests/test_template_contract.py --changed-file tests/test_worktree_hygiene.py --changed-file tests/upgrade_smoke.py",
-    "duration_seconds": 332.944,
-    "outcome": "success",
-    "exit_code": 0,
+    "duration_seconds": 453.075,
+    "outcome": "failure",
+    "exit_code": 1,
     "role": "affected-precheck feedback; not validation coverage"
   }
 }
