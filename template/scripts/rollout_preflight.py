@@ -11,6 +11,8 @@ blocks new work with an explicit, resumable state instead of being silently
 ignored or force-adopted.
 """
 
+import os
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -38,8 +40,15 @@ BLOCKED = "blocked"
 SAFE_TO_ADOPT = "safe_to_adopt"
 MERGED_NEEDS_LOCAL_SYNC = "merged_needs_local_sync"
 RECONCILED = "reconciled"
+DEFERRED = "deferred"
 
 MAIN_LOCK_TIMEOUT_SECONDS = 120.0
+
+# A session carries an explicit prohibition on rollout adoption through this
+# variable (set directly or through the `--defer-rollout` entrypoint flag, which
+# is inherited by child processes). It is per process, never persisted.
+DEFER_ROLLOUT_ENV = "DEV_PLATFORM_DEFER_ROLLOUT"
+DEFER_ROLLOUT_FLAG = "--defer-rollout"
 
 
 @dataclass(frozen=True)
@@ -47,6 +56,34 @@ class RolloutPreflightResult:
     state: str
     detail: str = ""
     pr: RolloutPR | None = None
+
+
+class RolloutDeferralError(RuntimeError):
+    """The session's rollout deferral variable holds an unsupported value."""
+
+
+def rollout_deferred(environ: Mapping[str, str]) -> bool:
+    """Return whether this session explicitly deferred rollout adoption.
+
+    Unset or empty means no deferral; `1` means deferral. Any other value is an
+    explicit error rather than a guessed truthy/falsy reading.
+    """
+    value = environ.get(DEFER_ROLLOUT_ENV, "")
+    if value in ("", "1"):
+        return value == "1"
+    raise RolloutDeferralError(f"{DEFER_ROLLOUT_ENV}={value!r} is not supported; set it to 1 to defer rollout adoption or unset it")
+
+
+def add_defer_rollout_argument(parser: Any) -> None:
+    parser.add_argument(
+        DEFER_ROLLOUT_FLAG, action="store_true",
+        help=f"the user prohibited platform rollout in this session: do not merge a pending rollout PR (sets {DEFER_ROLLOUT_ENV}=1 for this process and its children)",
+    )
+
+
+def apply_defer_rollout(args: Any) -> None:
+    if args.defer_rollout:
+        os.environ[DEFER_ROLLOUT_ENV] = "1"
 
 
 class PlatformPublicationUnavailable(RuntimeError):
@@ -188,8 +225,12 @@ def _synchronize_local_main(root: Path, config: dict[str, Any]) -> tuple[bool, s
     return True, ""
 
 
-def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, str] | None) -> RolloutPreflightResult:
+def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, str] | None, *, defer: bool) -> RolloutPreflightResult:
     """Observe, and when unambiguously safe, merge and synchronize a pending rollout.
+
+    With `defer` (the session's explicit prohibition) this only observes: the
+    rollout PR and local integration are left untouched and a pending rollout is
+    reported as `DEFERRED` instead of blocking.
 
     Never force-pushes, bypasses required checks/review, or merges a rollout
     whose head changed since observation -- `request_protected_merge` re-reads
@@ -207,6 +248,17 @@ def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str,
             detail="harness_mode=project: the project-owned harness owns pending-rollout adoption; skipped platform reconciliation",
         )
     observed = observe_pending_rollout(root, config, env)
+    if defer and observed.state != NONE:
+        pr = observed.pr
+        subject = f"pending rollout PR #{pr.number} ({pr.version})" if pr is not None else "pending rollout"
+        return RolloutPreflightResult(
+            DEFERRED,
+            detail=(
+                f"{subject} was skipped and left unmerged because this session deferred rollout "
+                f"({DEFER_ROLLOUT_ENV}=1); observed state {observed.state}: {observed.detail}"
+            ),
+            pr=pr,
+        )
     if observed.state != SAFE_TO_ADOPT:
         return observed
     assert observed.pr is not None and env is not None
@@ -216,6 +268,12 @@ def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str,
     except PlatformPublicationUnavailable as exc:
         return RolloutPreflightResult(BLOCKED, detail=str(exc), pr=observed.pr)
 
+    print(
+        f"Preflight: merging pending Dev Platform rollout PR #{observed.pr.number} ({observed.pr.version}) and "
+        f"synchronizing local {config.get('main_branch', 'main')} before starting new work. "
+        f"A session that prohibits rollout declines this merge with {DEFER_ROLLOUT_FLAG} ({DEFER_ROLLOUT_ENV}=1) before start.",
+        flush=True,
+    )
     merge_result, merge_detail = _merge_rollout_pr(root, env, observed.pr)
     if merge_result != "merged":
         return RolloutPreflightResult(

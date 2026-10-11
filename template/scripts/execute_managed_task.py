@@ -23,6 +23,7 @@ from managed_task import (
     create_task,
 )
 from managed_project_status import ManagedProjectStatusError
+from rollout_preflight import add_defer_rollout_argument, apply_defer_rollout
 from shared_workspace import admit_managed_intake
 from start_managed_task import ManagedAdmissionWait, start_managed_task
 
@@ -90,7 +91,9 @@ def main() -> int:
         "--acknowledge-source-issue-revision", metavar="BODY_SHA256",
         help="explicitly keep the already-authored package after the source Issue body changed",
     )
+    add_defer_rollout_argument(parser)
     args = parser.parse_args()
+    apply_defer_rollout(args)
     try:
         source, author_reused, package_reused, started, current_main, start_reused = execute_managed_task(
             current_worktree_root(), args
