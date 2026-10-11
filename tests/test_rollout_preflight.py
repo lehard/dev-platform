@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
 import rollout_preflight  # noqa: E402
+from _platform_modules import load_platform_module  # noqa: E402
 from publication_state import RequiredCheckState  # noqa: E402
 
 
@@ -398,7 +399,7 @@ class EntrypointAndDoctorTests(unittest.TestCase):
                 self.assertIn(rollout_preflight.DEFER_ROLLOUT_FLAG, result.stdout)
 
     def test_doctor_announces_green_rollout_merge_and_the_deferral(self) -> None:
-        import agent_doctor
+        agent_doctor = load_platform_module("agent_doctor", ROOT / "template" / "scripts" / "agent_doctor.py")
 
         _, green = safe_candidate()
         level, message = agent_doctor.pending_rollout_report(green, "main", False)
