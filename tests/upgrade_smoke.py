@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
@@ -192,11 +193,26 @@ def main() -> int:
             "docs/engineering/change-classes.md",
             "dev-platform/platform-manifest.json",
             "scripts/platform_divergence.py",
+            "dev-platform/blocking-gates.toml",
         ):
             if not (target / delivered).is_file():
                 raise SystemExit(f"Copier update did not deliver the change-class contract file {delivered}")
             if (target / delivered).read_bytes() != (ROOT / "template" / delivered).read_bytes():
                 raise SystemExit(f"Copier update delivered a different {delivered} than the released template")
+        # The blocking-gate catalog must be loadable by the delivered helper, so a gate failure
+        # on an updated project renders its class instead of failing as an unknown gate.
+        gate_probe = run(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.path.insert(0, 'scripts'); from _platform_common import load_gate_catalog; "
+                "print(len(load_gate_catalog()))",
+            ],
+            target,
+            capture=True,
+        )
+        if not gate_probe.stdout.strip().isdigit():
+            raise SystemExit("Copier update delivered a blocking-gate catalog the delivered helper cannot load")
         if args.profile == "multi-agent":
             rendered_workflow = (target / "docs" / "engineering" / "agent-workflow.md").read_text(encoding="utf-8")
             if "unreadable or un-lockable board" not in rendered_workflow:

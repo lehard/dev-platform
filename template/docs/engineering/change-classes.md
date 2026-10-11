@@ -57,6 +57,25 @@ A hotfix is temporary and is not an official release: the installed platform rel
 
 The check is local and compares files with a local manifest: an agent that edits a protected file and the manifest consistently is not detected by it. The Copier update diff against the released template and independent PR review detect that, and they stay mandatory.
 
+## Failure classes of blocking checks
+
+A blocking platform check does not fail in free-form words only. Each one is cataloged in [dev-platform/blocking-gates.toml](../../dev-platform/blocking-gates.toml) (platform-owned, protected, shipped only by releases) with a failure class, and a check that fails through the shared helper `gate_failure` in `scripts/_platform_common.py` prints that class:
+
+```text
+[<class>] <gate-id>: <what blocked the work>
+recovery: <command or owner step>          (recoverable)
+hard stop: <why the stop is intentional>   (hard-stop)
+platform defect: <how to report or hotfix> (platform-defect)
+```
+
+| Class | Meaning | What to do |
+| --- | --- | --- |
+| `recoverable` | A legitimate state is blocked and a supported, recorded recovery exists. | Run the named `recovery` step (a command or an owner decision recorded through the gate's own command), then continue. The recovery never disables the gate and never involves `--force` or a skip flag. |
+| `hard-stop` | No safe exit exists; the stop is intentional and the catalog carries the justification. | Do not look for a bypass. Stop, report the gate and the exact output, and continue work that does not depend on it. |
+| `platform-defect` | The check itself is wrong or misapplied. | A defect in a `hotfixable` script goes through the [hotfix flow](#temporary-local-hotfix-flow); in a protected script it is recorded with `python3 scripts/agent_friction.py record ...` and fixed by a platform release (class (c)). |
+
+The catalog entry lists the acceptance tests for rejection and, for recoverable gates, for recovery, and the platform's own validation resolves them. A gate that fails through `gate_failure` with an id absent from the catalog (or with a missing or malformed catalog) fails explicitly with `unknown blocking gate <id>`; nothing is reported as passed and no default is applied. Gates whose entry says `migrated = false` still fail in their own words; their class is the one in the catalog. The catalog header lists the known gaps. Read it before treating a blocked state as unrecoverable.
+
 ## When a protected rule blocks the work
 
 Stop and report the blocking gate, the exact command output and that the change is class (c). The fix is a Dev Platform release delivered by Copier update, or the recovery path the gate itself documents (such as an owner-recorded decision). Continue product work that does not depend on the blocked gate.

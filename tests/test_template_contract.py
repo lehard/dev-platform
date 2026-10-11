@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -580,6 +582,23 @@ class TemplateContractTests(unittest.TestCase):
         for needle in ("local-hotfixes.toml", "platform-manifest.json", "platform_divergence.py", "stale-hotfix"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, smoke)
+
+    def test_blocking_gate_catalog_is_delivered_protected_and_documented(self) -> None:
+        copier = (ROOT / "copier.yml").read_text(encoding="utf-8")
+        catalog = "dev-platform/blocking-gates.toml"
+        self.assertTrue((ROOT / "template" / catalog).is_file(), catalog)
+        self.assertNotIn(catalog, copier, "the gate catalog must be overwritten by Copier updates, never skipped")
+        self.assertFalse((ROOT / "template" / f"{catalog}.jinja").exists(), "the catalog must render byte-identically downstream")
+        surface = tomllib.loads((ROOT / "template" / "dev-platform" / "protected-surface.toml").read_text(encoding="utf-8"))
+        self.assertIn({"path": catalog, "category": "immutable-releases"}, surface["protected"])
+        manifest = json.loads((ROOT / "template" / "dev-platform" / "platform-manifest.json").read_text(encoding="utf-8"))
+        self.assertIn(catalog, manifest["files"])
+        docs = (ROOT / "template" / "docs" / "engineering" / "change-classes.md").read_text(encoding="utf-8")
+        for topic in ("Failure classes of blocking checks", "blocking-gates.toml", "recoverable", "hard-stop", "platform-defect"):
+            with self.subTest(topic=topic):
+                self.assertIn(topic, docs)
+        smoke = (ROOT / "tests" / "upgrade_smoke.py").read_text(encoding="utf-8")
+        self.assertIn("blocking-gates.toml", smoke)
 
     def test_upgrade_smoke_is_part_of_ci(self) -> None:
         ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"); self.assertIn("tests/upgrade_smoke.py", ci); self.assertIn("fetch-depth: 0", ci)

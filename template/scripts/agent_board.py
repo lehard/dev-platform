@@ -11,6 +11,7 @@ from pathlib import Path
 
 from _platform_common import (
     current_worktree_root,
+    gate_failure,
     github_cli_env,
     locked_json,
     machine_path,
@@ -673,10 +674,12 @@ def enforce_scope_gate(root: Path, worktree: Path, branch: str) -> None:
     if not conflicts:
         return
     rendered = "; ".join(f"{item_id} ({task}): {path}" for item_id, task, path in conflicts)
-    raise HardScopeOverlap(
+    raise gate_failure(
+        "scope-overlap",
         "Unacknowledged hard scope overlap with an active task blocks further costly validation/publication: "
         f"{rendered}. Verify the overlap is safe and acknowledge it with `agent_board.py acknowledge`, "
-        "or wait for the sibling task to finish, then retry."
+        "or wait for the sibling task to finish, then retry.",
+        HardScopeOverlap,
     )
 
 

@@ -86,6 +86,8 @@ class TaskFreshnessTests(unittest.TestCase):
         self.assertNotEqual(stale.returncode, 0)
         self.assertIn("Task freshness gate blocked full/protected validation before any expensive command started", stale.stderr + stale.stdout)
         self.assertIn("behind relative", stale.stderr + stale.stdout)
+        self.assertIn("[recoverable] task-freshness: ", stale.stderr)
+        self.assertIn("recovery: python3 scripts/reconcile_task.py", stale.stderr)
         self.assertFalse((self.task / "validation-ran.txt").exists())
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", stale.stdout)
 
@@ -121,6 +123,7 @@ class TaskFreshnessTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(f"HEAD does not contain its exact contribution base {foreign}", result.stderr + result.stdout)
+        self.assertIn("[hard-stop] contribution-base-freshness: ", result.stderr)
         self.assertFalse((self.task / "validation-ran.txt").exists())
 
     def test_unavailable_remote_never_claims_the_task_is_fresh(self) -> None:

@@ -541,6 +541,146 @@ def require_proven_task_base(root: Path, sha: str, remote: str, main_branch: str
     return f"merge base of HEAD and {authoritative} ({main_sha})"
 
 
+# --- Blocking-gate failure classes -------------------------------------------
+#
+# Every blocking platform check that reports through ``gate_failure`` must be cataloged in
+# ``dev-platform/blocking-gates.toml`` (platform-owned, shipped only by releases). The helper only
+# validates and formats; it never decides, retries, substitutes a default or prints success.
+
+GATE_CATALOG_RELATIVE = "dev-platform/blocking-gates.toml"
+GATE_CLASSES = ("platform-defect", "recoverable", "hard-stop")
+GATE_HOTFIX_PATHS = ("hotfixable", "protected")
+_GATE_ID = re.compile(r"[a-z][a-z0-9]*(-[a-z0-9]+)*")
+_GATE_COMMON_FIELDS = frozenset({"id", "script", "class", "summary", "rejection_tests", "migrated"})
+_GATE_CLASS_FIELDS = {
+    "recoverable": frozenset({"recovery", "recovery_tests"}),
+    "hard-stop": frozenset({"justification"}),
+    "platform-defect": frozenset({"hotfix_path"}),
+}
+_GATE_TEST_ID = re.compile(r"tests/[A-Za-z0-9_]+\.py::[A-Za-z_][A-Za-z0-9_]*::test[A-Za-z0-9_]*")
+
+
+class BlockingGateCatalogError(RuntimeError):
+    """The blocking-gate catalog is missing, malformed, or does not contain the requested gate id."""
+
+
+def default_gate_catalog_path() -> Path:
+    """The catalog that ships beside these scripts: ``<project root>/dev-platform/blocking-gates.toml``."""
+    return Path(__file__).resolve().parent.parent / GATE_CATALOG_RELATIVE
+
+
+def _gate_text(entry: dict[str, Any], field: str, where: str) -> str:
+    value = entry.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise BlockingGateCatalogError(f"{where}: field {field!r} must be a non-empty string")
+    return value
+
+
+def _gate_test_ids(entry: dict[str, Any], field: str, where: str) -> list[str]:
+    value = entry.get(field)
+    if not isinstance(value, list) or not value:
+        raise BlockingGateCatalogError(f"{where}: field {field!r} must be a non-empty list of test ids")
+    for item in value:
+        if not isinstance(item, str) or not _GATE_TEST_ID.fullmatch(item):
+            raise BlockingGateCatalogError(f"{where}: {field!r} entry {item!r} is not a test id tests/<file>.py::<Class>::<test>")
+    if len(set(value)) != len(value):
+        raise BlockingGateCatalogError(f"{where}: field {field!r} lists a test id more than once")
+    return value
+
+
+def load_gate_catalog(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    """Read and strictly validate the catalog; return its gates keyed by id. No default is applied."""
+    import tomllib
+
+    catalog_path = default_gate_catalog_path() if path is None else path
+    try:
+        raw = tomllib.loads(catalog_path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise BlockingGateCatalogError(f"blocking-gate catalog {catalog_path} cannot be read: {exc}") from exc
+    except tomllib.TOMLDecodeError as exc:
+        raise BlockingGateCatalogError(f"blocking-gate catalog {catalog_path} is not valid TOML: {exc}") from exc
+    if set(raw) != {"gate"} or not isinstance(raw["gate"], list) or not raw["gate"]:
+        raise BlockingGateCatalogError(f"blocking-gate catalog {catalog_path} must contain exactly a non-empty [[gate]] array")
+    gates: dict[str, dict[str, Any]] = {}
+    for index, entry in enumerate(raw["gate"], start=1):
+        if not isinstance(entry, dict):
+            raise BlockingGateCatalogError(f"blocking-gate catalog {catalog_path}: gate #{index} is not a table")
+        gate_id = entry.get("id")
+        where = f"blocking-gate catalog {catalog_path}: gate {gate_id if isinstance(gate_id, str) else '#' + str(index)}"
+        if not isinstance(gate_id, str) or not _GATE_ID.fullmatch(gate_id):
+            raise BlockingGateCatalogError(f"{where}: field 'id' must be a kebab-case string")
+        if gate_id in gates:
+            raise BlockingGateCatalogError(f"{where}: duplicate gate id")
+        gate_class = entry.get("class")
+        if gate_class not in GATE_CLASSES:
+            raise BlockingGateCatalogError(f"{where}: field 'class' must be one of {list(GATE_CLASSES)}, found {gate_class!r}")
+        expected = _GATE_COMMON_FIELDS | _GATE_CLASS_FIELDS[gate_class]
+        missing, unknown = sorted(expected - set(entry)), sorted(set(entry) - expected)
+        if missing or unknown:
+            raise BlockingGateCatalogError(f"{where}: class {gate_class!r} requires exactly {sorted(expected)}; missing={missing} unknown={unknown}")
+        _gate_text(entry, "script", where)
+        _gate_text(entry, "summary", where)
+        if not isinstance(entry["migrated"], bool):
+            raise BlockingGateCatalogError(f"{where}: field 'migrated' must be a boolean")
+        _gate_test_ids(entry, "rejection_tests", where)
+        if gate_class == "recoverable":
+            _gate_text(entry, "recovery", where)
+            _gate_test_ids(entry, "recovery_tests", where)
+        elif gate_class == "hard-stop":
+            _gate_text(entry, "justification", where)
+        elif entry["hotfix_path"] not in GATE_HOTFIX_PATHS:
+            raise BlockingGateCatalogError(f"{where}: field 'hotfix_path' must be one of {list(GATE_HOTFIX_PATHS)}")
+        gates[gate_id] = entry
+    return gates
+
+
+def gate_message(gate_id: str, detail: str, *, catalog: Path | None = None) -> str:
+    """Render ``[<class>] <gate-id>: <detail>`` plus the class-specific second line; the id must be cataloged."""
+    catalog_path = default_gate_catalog_path() if catalog is None else catalog
+    try:
+        gates = load_gate_catalog(catalog_path)
+    except BlockingGateCatalogError as exc:
+        raise BlockingGateCatalogError(f"unknown blocking gate {gate_id}: {exc}; the blocked check reported: {detail}") from exc
+    entry = gates.get(gate_id)
+    if entry is None:
+        raise BlockingGateCatalogError(
+            f"unknown blocking gate {gate_id}: not listed in {catalog_path}; the blocked check reported: {detail}"
+        )
+    gate_class = entry["class"]
+    if gate_class == "recoverable":
+        second = f"recovery: {entry['recovery']}"
+    elif gate_class == "hard-stop":
+        second = f"hard stop: {entry['justification']}"
+    elif entry["hotfix_path"] == "hotfixable":
+        second = (
+            "platform defect: the implementing script is hotfixable; follow the temporary local hotfix flow in "
+            "docs/engineering/change-classes.md and record the defect with scripts/agent_friction.py"
+        )
+    else:
+        second = (
+            "platform defect: the implementing script is protected and has no local change path; record the defect "
+            "with scripts/agent_friction.py and wait for a platform release (docs/engineering/change-classes.md)"
+        )
+    return f"[{gate_class}] {gate_id}: {detail}\n{second}"
+
+
+def gate_failure(
+    gate_id: str,
+    detail: str,
+    exception_type: type[BaseException],
+    *,
+    catalog: Path | None = None,
+) -> BaseException:
+    """Build the failure of a blocking gate; the caller raises it (``raise gate_failure(...)``).
+
+    ``exception_type`` is the exception the gate already raised, so exit conditions stay unchanged
+    (``SystemExit`` exits non-zero with the message on stderr). An uncataloged id, or a missing or
+    malformed catalog, raises ``BlockingGateCatalogError`` instead. Nothing here retries, substitutes a
+    default or reports the blocked check as passed.
+    """
+    return exception_type(gate_message(gate_id, detail, catalog=catalog))
+
+
 def require_origin(root: Path, remote: str = "origin") -> None:
     result = run_git(["remote", "get-url", remote], cwd=root, check=False)
     if result.returncode != 0:

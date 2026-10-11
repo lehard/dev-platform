@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/blocking-check-recovery/spec.md",
+    "tasks.md"
+  ],
+  "change": "blocking-check-recoverability",
+  "imported_at": "2026-10-11T06:40:51+00:00",
+  "package_revision": "1d6692943807b901b1e01c02b771496c55278890eb2dcf525611d109befa6844",
+  "prepared_against": "401f3ce699a1aee6c0131a6b321a5eedfb973fb8",
+  "private_lineage_handle": "pln_ead93c5f23a43178e888677527c8cd70",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8ce42b60bc51dfd0b48a88cdef4e87517dd9a6d9b472773ecbb2b0622428f1d3",
+    "updated_at": "2026-10-10T07:42:37Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-526/T2"
+}
