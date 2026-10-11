@@ -1,0 +1,15 @@
+OpenSpec-Verify: PASS
+Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the committed diff against the agent-workflow delta, proposal, design and tasks; deterministic behavioural tests; repository-owned selected checks on the committed head
+Automated-Checks-Evidence: automated-checks.json
+
+Implementation: authored by the supervisor. The routed plan was a delegated child; the supervisor wrote the diff before opening delegation, the early routing gate stopped validation, and the owner explicitly chose in chat to keep the supervisor diff (recorded with `model_routing.py approve-supervisor-diff` and `record-retained-execution`, policy `owner-approved`). This is a process deviation, recorded as friction.
+
+Completeness: `template/scripts/add_intents.py` adds `render-add` (fixed Russian section order, state derived from existing validation, content digest approval and freshness, read-only) and type validation of the optional element (`current`, `rationale`, `impact`, `refs`) and choice (`kind`, `options`, `recommendation`) fields. `dev-platform/capabilities/add-intents.md` carries the five-destination boundary, the test question, the contrasting examples, the judgement-not-gate statement and the presentation contract; `.toml` hash, eval fixture and byte-identical `template/` mirrors are updated. `AGENTS.md` (+ template), `engineering-capabilities.md` (+ template) and `agent-workflow.md` point to the capability file.
+
+Correctness: `ADD_SCHEMA_VERSION`, `approve-add`, `decompose`, `validate-*`, orchestrator stages and the Requirement format are unchanged; a test pins the exact CLI command set (existing plus `render-add`). A stale approval renders «требует актуализации», also when open choices are added after approval; unprovable freshness never renders «утверждён»; an invalid ADD or a missing summary fails explicitly. No new gate, status store, registry, report file, UI or project configuration exists.
+
+Coherence: the delta requirements (ADD content boundary; standard read-only projection) match the guidance, renderer and tests; the state mapping in the delta and design was aligned with the implementation (ready state requires proven freshness).
+
+Limits stated plainly: the BR/ADD classification is agent judgement and is not verified by a live multi-agent run; the eval fixture marks it `not-verified`, and tests only pin the guidance text. Cross-agent identity is shown by deterministic, byte-identical rendering of the same ADD, not by live agent runs. Copier delivery is covered by the existing template-contract tests; no separate downstream project render was added.
+
+Checks actually run: `python3 -m compileall -q template/scripts scripts`; `managed_projects.py validate` OK; `run_test_groups.py --all` success (17 groups, including `test_add_intents` with the new renderer and guidance tests, `test_capability_manager`, `test_template_contract`); `openspec_lifecycle.py check` OK; `capability_manager.py audit` OK and the add-intents fixture evaluation passes.
