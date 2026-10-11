@@ -3,46 +3,28 @@
   "candidate": {
     "base_head": "3533c299f356265154c811491070132e071c95f0",
     "base_ref": "3533c299f356265154c811491070132e071c95f0",
-    "candidate_head": "9b78f9ad30e3f8ecf026620d2a6c3ba940bc357d",
-    "diff_sha256": "b6ebe9634e471fd19c0013db620b5c419b3ae95828c7004e0175d48d63a0a93b"
+    "candidate_head": "4fde64abd9848891ad6755a1b575912661e14a9e",
+    "diff_sha256": "d5e19a785a24b69cf9cf39dc4fccf05b9b9c590cc37a167e111df9cc3f15b1fa"
   },
-  "completed_at": "2026-10-11T12:10:43+00:00",
+  "completed_at": "2026-10-11T14:06:41+00:00",
   "findings": [
     {
-      "evidence": "template/dev-platform/blocking-gates.toml (candidate.diff ~993-1019) puts `contribution-base-freshness` and `proven-base-freshness` in `scripts/select_checks.py` as `hard-stop`. The latter's justification is \"intentional: the proven base comes from reviewed evidence; no agent-side repair\". `scope-overlap` (a worktree-isolation guard) sits in `scripts/agent_board.py`. protected-surface.toml lists `scripts/select_checks.py` and `scripts/agent_board.py` in `hotfixable` (diff lines ~1385 and ~1402). T3's tests even use `select_checks.py` as the example hotfixable path (candidate.diff ~4054-4056). tests/test_blocking_gates.py:`test_every_gate_script_exists_in_the_template_and_is_classified` only asserts the script is \"protected\" or \"hotfixable\". It never requires a hard-stop gate's script to be protected, so nothing detects the contradiction. The `task-freshness` recovery tells the agent to stop and not override the hook, but the same file can be patched locally.",
-      "id": "hard-stop-gates-in-hotfixable-scripts",
+      "evidence": "template/scripts/platform_divergence.py `FrictionLog._load` reads `agent_friction.log_path()`, which is `local_path(\"friction_log\", \".claude/agent-friction.jsonl\")` (template/scripts/agent_friction.py:89-90). It reports `[missing-friction-event]` when the file is absent or unreadable. The diff's `platform_doctor.check_platform_divergence_contract` calls `check_platform_divergence(root)` and adds a failure per problem. `template/.github/workflows/dev-platform.yml.jinja:53` runs `python3 scripts/platform_doctor.py` in CI. `change-classes.md` and the platform_divergence docstring concede \"The log is machine-local, so run the check where the event was recorded\", but nothing skips or relaxes the friction check under CI. The `platform-divergence` catalog entry lists `recovery_tests` that cover only the local run (`HotfixEndToEndTests::test_local_fix_with_regression_evidence_passes_without_a_new_release`), not a CI-like environment without the log.",
+      "id": "hotfix-friction-check-fails-in-platform-ci",
       "severity": "material",
-      "summary": "Cross-child conflict between the T1/T3 hotfix classification and the T2 gate catalog. Three gates cataloged as non-bypassable hard-stops (or no-agent-side-repair) are implemented in scripts that protected-surface.toml lists as `hotfixable`. A local hotfix can therefore weaken them. That contradicts the Requirement's guarantee that a hotfix cannot weaken routing, provenance, evidence or isolation protections."
-    },
-    {
-      "evidence": "blocking-gates.toml known gap 6: \"No inventoried gate currently reports itself as platform-defect\". Gap 4: the shared-workspace #427 false rejection has no local exit because `shared_workspace.py` is protected. The Requirement outcome (no dead end) is met only by a documented follow-up.",
-      "id": "platform-defect-class-unused-and-unreachable",
-      "severity": "advisory",
-      "summary": "The `platform-defect` failure class has no catalog entry, so the 'hotfix when the implementing file is hotfixable' message path is never emitted for real gates. The Requirement's goal of pointing an agent to the hotfix flow for a defective check is only reachable through the generic docs."
-    },
-    {
-      "evidence": "blocking-gates.toml known gaps 2 and 3. The `task-freshness` recovery names `reconcile_task.py`, which gap 3 says is itself blocked by the hook where installed. Gap 3 also notes that no acceptance test covers completing a conflict resolution.",
-      "id": "known-gaps-leave-dead-ends",
-      "severity": "advisory",
-      "summary": "The catalog openly records unresolved dead ends: a clean reconcile merge is blocked by the installed pre-merge-commit hook, and delegated-write containment has only a refused historical recovery. The Requirement's 'verifiable recovery or justified hard stop' is not satisfied for these. Two gates are cataloged as recoverable with caveats, and the `merge-commit-hook` entry is hard-stop while the reconcile recovery relies on it."
-    },
-    {
-      "evidence": "candidate.diff lines 37-49 (copier.yml `ci_runner`), 129 (docs/ownership.md Explorer paragraph), 122-124 and 90-98 and 117 (checks.toml targets). The archive directory also holds matching archived changes `publish-platform-explorer` and `platform-ci-runner-selection`.",
-      "id": "unrelated-scope-in-candidate-diff",
-      "severity": "advisory",
-      "summary": "The candidate diff includes changes outside the three reviewed children: `ci_runner` options in copier.yml, Platform Explorer text in docs/ownership.md, and new test targets (`test_build_explorer`, `test_explorer_workflow`, `test_ci_runner_selection`, `test_requirement_authoring`, `test_finish_merged_queue`). These appear to come from merges of main. The reviewed identities do not cover them, and the platform manifest and checks.toml now mix them with the Requirement's changes."
+      "summary": "A valid temporary hotfix cannot pass the project's own platform-ci. The T3 divergence check requires the friction event id to be in the machine-local friction log. T3's `platform_doctor` change runs that check, and the platform-ci job runs `platform_doctor`. Every hotfix PR would fail CI with `[missing-friction-event]`, so the hotfix flow that `change-classes.md` describes as an ordinary PR with required checks is unreachable. That undercuts the Requirement outcome of a controlled local hotfix without waiting for a release."
     }
   ],
-  "launched_at": "2026-10-11T12:09:46+00:00",
-  "output_sha256": "b8e19dfd96a50b268a743a78c69624abed162de7a6a35b205ce55805a2f86f42",
+  "launched_at": "2026-10-11T14:05:55+00:00",
+  "output_sha256": "5f32da26579d81fba25081e88cc8118dcd424f0d247886bc182360450be73984",
   "perspective": "engineering-quality",
-  "request_id": "d2cf20cd-75e0-4b27-8c1b-4bd12d324486",
+  "request_id": "487511cd-fb78-46b5-a0dc-2b4d3065ef01",
   "reviewer": {
-    "context_id": "009a5e9a-24dd-4531-a711-d31abf754621",
+    "context_id": "d1e49068-5db1-472c-9443-d48dffad4a6e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-df009c29-c753-4d02-bf4b-e74d0ec07917",
+    "launch_id": "platform-launch-2bce78d9-29c7-4203-8682-82355eb44958",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 64847
+        "value": 59015
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 407363
+        "value": 387240
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52484
+        "value": 42467
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 54847
+        "value": 44838
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18
+        "value": 20
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 15
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4909
+        "value": 4236
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "051ec4a2f20dc332470a94b602c147ce0c742832a7baa89b26ad7c8adf6ea791"
+  "task_content_digest": "241db390403f9c1934d7432f2502a83757558ea94966e70ba79090c89e38e00a"
 }
