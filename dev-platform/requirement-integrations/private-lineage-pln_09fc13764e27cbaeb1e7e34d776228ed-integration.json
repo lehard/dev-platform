@@ -283,6 +283,338 @@
         "work_identity": "BR-526/T1"
       },
       "work_identity": "BR-526/T1"
+    },
+    {
+      "change": "local-platform-hotfix",
+      "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/local-platform-hotfix/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "6101bff3771f38ae07fb7c4d14803ed49c15c386"
+          },
+          "identity": {
+            "change": "local-platform-hotfix",
+            "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+              "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+              "paths": {
+                "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+                "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+                "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+                "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+                "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+                "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+                "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+                "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+                "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+                "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+                "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+                "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+                "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+                "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+                "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+                "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+                "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+                "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+                "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T3"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "9ea844ea3d10786811b4532057ffc6580ed5ce44",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "local-platform-hotfix",
+            "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+              "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+              "paths": {
+                "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+                "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+                "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+                "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+                "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+                "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+                "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+                "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+                "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+                "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+                "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+                "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+                "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+                "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+                "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+                "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+                "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+                "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+                "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T3"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/platform_divergence.py FrictionLog._load reports 'friction log ... does not exist' as an error, and every entry then gets a missing-friction-event problem. change-classes.md says to run the check 'where the event was recorded' but also suggests adding it to `full_commands`. The design.md decision 5 accepts this, but it makes the CI/full-validation placement contradictory for any project that has a hotfix.",
+                  "id": "friction-log-machine-local-breaks-ci",
+                  "severity": "advisory",
+                  "summary": "The hotfix check requires the friction event id to exist in a machine-local log. A project with a valid hotfix would fail `platform_doctor.py` or the divergence check on CI or on any other machine than the one that recorded the event."
+                },
+                {
+                  "evidence": "platform_divergence.py sha256_of uses path.read_bytes(); the manifest digests come from the LF template bytes, and the design assumes plain files are byte-identical downstream. There is no normalization and no diagnostic hint for this case.",
+                  "id": "byte-digest-line-ending-sensitivity",
+                  "severity": "advisory",
+                  "summary": "Divergence detection compares raw-byte sha256 with the manifest. Checkout-time newline conversion (for example autocrlf or .gitattributes eol) would make every plain file look like an undeclared divergence or protected-touch."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "e1ded9de3be27b702141e90bac9fb9f7e965952fbb6b913d52fb2e466e90b719"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "tasks.md 2.2 is marked [x] and requires wiring into 'the full-validation triggers in dev-platform/checks.toml'. design.md decision 6 says the project's `full_commands` trigger set includes the check. The diff changes only the source repo's dev-platform/checks.toml, and only to add test targets and the manifest --check. It adds no template checks entry that runs platform_divergence.py. change-classes.md says only that 'a project may also add it to the full_commands of its own project-owned checks",
+                  "id": "full-validation-trigger-not-wired",
+                  "severity": "advisory",
+                  "summary": "The divergence check is not wired into the project's full-validation triggers. Task 2.2 and design decision 6 say it should be."
+                },
+                {
+                  "evidence": "design.md decision 7 says `release_intent.py`/the release step regenerates the manifest. Task 1.1 says to generate it 'in the release preparation step'. The diff adds scripts/generate_platform_manifest.py, which must be run by hand with --write. It touches no release script. The only enforcement added is the platform test and `--check` in the docs checks.",
+                  "id": "manifest-not-in-release-step",
+                  "severity": "advisory",
+                  "summary": "Manifest generation is not hooked into release preparation. A stale manifest is caught by a test and a docs check, not by the release step."
+                },
+                {
+                  "evidence": "design.md decision 1: 'writes platform-manifest.json (path -> sha256, plus the release version)'. The spec says each platform release carries a manifest. The generated manifest has only `version` (the schema version 1), `files` and `project_harness_owned`, and generate_platform_manifest.py says 'The installed platform version is not stored here'. The stale check compares the entry's platform_version only with .dev-platform.toml platform_version. It cannot tell whether the manifest itself belongs",
+                  "id": "manifest-lacks-release-version",
+                  "severity": "advisory",
+                  "summary": "The manifest does not carry the release version, though design decision 1 says it does. Stale detection instead trusts the local .dev-platform.toml."
+                },
+                {
+                  "evidence": "template/dev-platform/protected-surface.toml removes scripts/agent_friction.py, execute_managed_task.py, orchestrate_pre_authoring.py, requirement_intake.py and requirement_retrospective.py, plus docs/README.md, from `hotfixable`. It adds the first five as new [[protected]] entries. It also protects platform_divergence.py and platform-manifest.json. proposal.md and the delta spec describe no change to the accepted protected-surface contract. The docs/README.md removal has no stated rationale. Th",
+                  "id": "unproposed-protected-surface-reclassification",
+                  "severity": "advisory",
+                  "summary": "The change moves several files from hotfixable to protected and drops docs/README.md from hotfixable. The proposal, spec and tasks do not mention this."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "636ec97c712c6441d978983a3f67756dbd696f3626c532e6812b2d5a2413c98c"
+            }
+          },
+          "identity": {
+            "change": "local-platform-hotfix",
+            "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+              "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+              "paths": {
+                "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+                "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+                "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+                "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+                "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+                "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+                "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+                "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+                "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+                "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+                "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+                "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+                "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+                "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+                "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+                "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+                "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+                "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+                "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T3"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 8734,
+            "path": "openspec/changes/local-platform-hotfix/automated-checks.json",
+            "sha256": "1343e2e159bdbfc17f98250fed852c3cb5a7bfbe2e1190493b0fe26605ccba26"
+          },
+          "identity": {
+            "change": "local-platform-hotfix",
+            "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+              "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+              "paths": {
+                "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+                "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+                "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+                "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+                "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+                "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+                "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+                "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+                "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+                "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+                "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+                "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+                "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+                "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+                "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+                "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+                "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+                "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+                "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T3"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 4645,
+            "path": "openspec/changes/local-platform-hotfix/verification.md",
+            "sha256": "e7177388d07e3d12179185443d23b43ef19b3d27dec3cb48d94aaa7e9c94198a"
+          },
+          "identity": {
+            "change": "local-platform-hotfix",
+            "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+            "kind": "contribution",
+            "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+            "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+            "target_branch": "requirement/BR-526",
+            "task_content": {
+              "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+              "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+              "paths": {
+                "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+                "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+                "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+                "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+                "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+                "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+                "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+                "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+                "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+                "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+                "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+                "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+                "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+                "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+                "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+                "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+                "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+                "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+                "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+                "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-526/T3"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "9ea844ea3d10786811b4532057ffc6580ed5ce44",
+      "integrated_head": "a8c6768add3cb01d5c8bf001165544b27af64284",
+      "pr_number": 508,
+      "reviewed_evidence_digest": "19e7cf4c7400cd174d7151c5ba3407664c8918352d49f05d1e33962c5e6fa5aa",
+      "source_branch": "agent/br-526-t3-local-platform-hotfix",
+      "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+      "task_identity": {
+        "change": "local-platform-hotfix",
+        "contribution_base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+        "kind": "contribution",
+        "requirement": "pln_09fc13764e27cbaeb1e7e34d776228ed",
+        "source_issue": "pln_20106e9811f812c090647ada5931f2e1",
+        "target_branch": "requirement/BR-526",
+        "task_content": {
+          "base": "994174dcdcc7f7b1f473ea952fbc83ba88b7b190",
+          "digest": "6cf76453ad8e8e4bbf6bd3b1bbe02473c4581f3fb1ba920c0bcde84ba9100e10",
+          "paths": {
+            "copier.yml": "51b6d0aba53d89b6edeafa739c206c337616d3ec",
+            "dev-platform/checks.toml": "64294cbcada2ed6b76c73fbf6bb234baa444833e",
+            "openspec/changes/local-platform-hotfix/.managed-task.json": "674ed8a1f9d8c8c1896153ea7da6141e86e69ebc",
+            "openspec/changes/local-platform-hotfix/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+            "openspec/changes/local-platform-hotfix/design.md": "83dc9e09b13e8b6f761a12da7ca97979a837fef7",
+            "openspec/changes/local-platform-hotfix/proposal.md": "1391693cffd74179e3d8a7ef022010f1b30dd83e",
+            "openspec/changes/local-platform-hotfix/specs/local-platform-hotfix/spec.md": "2649512ffddd9bb9eeb04feeb967e6eaee85b3b7",
+            "openspec/changes/local-platform-hotfix/tasks.md": "745402f11c1cda23cb8d2d0d50c25e861c0f8b84",
+            "scripts/generate_platform_manifest.py": "d5bda2dc1adec8997cb23012cc372e277a1d2a61",
+            "template/dev-platform/local-hotfixes.toml": "0a9f888f75b8903622bd2b02463f87026bd59f5c",
+            "template/dev-platform/platform-manifest.json": "b9f0d993db12ca496e749a7021bfae82dcdbd286",
+            "template/dev-platform/protected-surface.toml": "2173a7d741d657485ce823d3582afc1940d5469f",
+            "template/docs/engineering/change-classes.md": "0d92a0b9bebe3e8e69fdf67e854a90d7d612622d",
+            "template/scripts/platform_divergence.py": "7e7303f0ecc02f11dc75d1f505c7bc71505d833a",
+            "template/scripts/platform_doctor.py": "bbb6b6433325595676da31657c1c1bdbc2cb09ab",
+            "tests/test_platform_divergence.py": "2b021e4deb67f69c3529ea06965f0ad2ee37d776",
+            "tests/test_platform_manifest.py": "446e39c5a3b9ef35f80b7cf71d7c37dd3002dc90",
+            "tests/test_protected_surface.py": "eaedd0ee75d1f2e3573675da414a4adb6f55a68b",
+            "tests/test_template_contract.py": "c2736cedd159ebc0ffd3f7a0a81d17b17e294de3",
+            "tests/upgrade_smoke.py": "10bb26a0ffedb52d8a5b6de21f1b3ba4556a65d7"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-526/T3"
+      },
+      "work_identity": "BR-526/T3"
     }
   ],
   "dependencies": {
@@ -294,7 +626,7 @@
       "downstream-change-classes"
     ]
   },
-  "digest": "5ef8f2f480454ebb0bbd9e1ebcd43a0d2201251c212e53d79d2fc9de31ae0535",
+  "digest": "41447744b13f75641c3e160b20ffd5b57ce12978e7195533ae6fb99ef98feb4a",
   "expected_changes": [
     "downstream-change-classes",
     "local-platform-hotfix",
