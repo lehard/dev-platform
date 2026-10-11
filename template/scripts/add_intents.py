@@ -66,6 +66,17 @@ PROJECTION_STATUSES = ("fresh", "escalation-required", "requires-extraction")
 # the reviewed design content.
 _ADD_DIGEST_EXCLUDED_KEYS = frozenset({"approval", "approved"})
 
+_STALE_APPROVAL_ERROR = (
+    "ADD approval is stale: the approval's recorded content digest no longer matches the current "
+    "ADD content (the ADD was mutated after it was approved); re-run approve-add"
+)
+
+# Optional presentation fields on existing ADD entries (see render_add). Absence only shortens
+# the projection; they are validated for type when present and are part of the content digest.
+ELEMENT_TEXT_FIELDS = ("current", "rationale", "impact", "refs")
+CHOICE_KINDS = ("architecture", "product")
+REQUIREMENT_REF_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+")
+
 
 class AddIntentsError(RuntimeError):
     """A structural ADD/Intents authoring or validation failure."""
@@ -412,6 +423,9 @@ def _validate_add_document(root: Path, document: dict[str, Any], *, check_freshn
             _require_str(item, "statement", where)
         except AddIntentsError as exc:
             errors.append(str(exc))
+        for field in ELEMENT_TEXT_FIELDS:
+            if field in item and (not isinstance(item[field], str) or not item[field].strip()):
+                errors.append(f"{where}: optional {field} must be a non-empty string when present")
 
     unresolved = document.get("unresolved_choices", [])
     if not isinstance(unresolved, list):
@@ -434,6 +448,24 @@ def _validate_add_document(root: Path, document: dict[str, Any], *, check_freshn
             open_choices += 1
         elif status == "resolved" and not isinstance(item.get("resolution"), str):
             errors.append(f"{where}: resolved choice must record a non-empty resolution")
+        if "kind" in item and item["kind"] not in CHOICE_KINDS:
+            errors.append(f"{where}: optional kind must be one of {', '.join(CHOICE_KINDS)}")
+        if "recommendation" in item and (not isinstance(item["recommendation"], str) or not item["recommendation"].strip()):
+            errors.append(f"{where}: optional recommendation must be a non-empty string when present")
+        if "options" in item:
+            options = item["options"]
+            if not isinstance(options, list) or not options:
+                errors.append(f"{where}: optional options must be a non-empty list when present")
+            else:
+                for option_index, option in enumerate(options):
+                    option_where = f"{where}.options[{option_index}]"
+                    if not isinstance(option, dict):
+                        errors.append(f"{option_where}: must be an object")
+                        continue
+                    for field, required in (("label", True), ("tradeoffs", False)):
+                        if field in option or required:
+                            if not isinstance(option.get(field), str) or not option[field].strip():
+                                errors.append(f"{option_where}: {field} must be a non-empty string")
 
     contradictions = document.get("contradictions", [])
     if not isinstance(contradictions, list):
@@ -472,10 +504,7 @@ def _validate_add_document(root: Path, document: dict[str, Any], *, check_freshn
             if not isinstance(approved_digest, str) or not approved_digest:
                 errors.append("ADD approval receipt must record a non-empty content digest")
             elif approved_digest != add_content_digest(document):
-                errors.append(
-                    "ADD approval is stale: the approval's recorded content digest no longer matches the current "
-                    "ADD content (the ADD was mutated after it was approved); re-run approve-add"
-                )
+                errors.append(_STALE_APPROVAL_ERROR)
             if not isinstance(approval.get("approved_at"), str) or not approval.get("approved_at"):
                 errors.append("ADD approval receipt must record a non-empty approved_at timestamp")
     elif document.get("approved") is not False:
@@ -511,6 +540,148 @@ def approve_add(root: Path, path: Path, *, approved_by: str | None = None) -> di
         raise AddIntentsError("cannot approve ADD: " + "; ".join(report.errors))
     _write_json(path, candidate)
     return candidate
+
+
+# --- Standard human presentation ------------------------------------------
+
+STATE_PROPOSAL = "предложение"
+STATE_NEEDS_DECISIONS = "нужны решения"
+STATE_READY = "готов к утверждению"
+STATE_APPROVED = "утверждён"
+STATE_NEEDS_REFRESH = "требует актуализации"
+
+
+def _cell(value: str) -> str:
+    return " ".join(value.split()).replace("|", "\\|")
+
+
+def _is_open(item: Any) -> bool:
+    return isinstance(item, dict) and item.get("status") == "open"
+
+
+def _choice_lines(item: dict[str, Any]) -> list[str]:
+    lines = [f"- **{' '.join(item['question'].split())}**"]
+    for option in item.get("options", []):
+        tradeoffs = f" — {' '.join(option['tradeoffs'].split())}" if "tradeoffs" in option else ""
+        lines.append(f"  - Вариант: {' '.join(option['label'].split())}{tradeoffs}")
+    recommendation = item.get("recommendation")
+    lines.append(f"  - Рекомендация агента: {' '.join(recommendation.split()) if recommendation else 'не указана'}")
+    return lines
+
+
+def render_add(root: Path, path: Path, *, requirement: str) -> str:
+    """Read-only Russian projection of the current ADD for a human decision.
+
+    The state is derived only from existing facts (structural validity, open
+    choices/contradictions, the digest-bound approval receipt and freshness);
+    nothing is written, approved or stored. An approval whose digest no longer
+    matches the content is treated as void and shown as requiring refresh.
+    """
+    if not REQUIREMENT_REF_RE.fullmatch(requirement):
+        raise AddIntentsError(f"requirement must look like owner/repo#N, got {requirement!r}")
+    document = _load_json(path, "ADD document")
+    digest = add_content_digest(document)
+    approval = document.get("approval")
+    stale_approval = (
+        document.get("approved") is True
+        and isinstance(approval, dict)
+        and isinstance(approval.get("digest"), str)
+        and approval["digest"] != digest
+    )
+    candidate = dict(document)
+    if stale_approval:
+        candidate["approved"] = False
+        candidate["approval"] = None
+    report = _validate_add_document(root, candidate, check_freshness=True)
+    if not report.ok:
+        raise AddIntentsError("cannot render ADD: " + "; ".join(report.errors))
+    fresh = report.freshness == "fresh"
+
+    elements = document.get("elements", [])
+    deltas = [item for item in elements if item["status"] in COVERAGE_REQUIRED_STATUSES]
+    preserved = [item for item in elements if item["status"] == "preserved"]
+    choices = document.get("unresolved_choices", [])
+    open_choices = [item for item in choices if _is_open(item)]
+    open_product = [item for item in open_choices if item.get("kind") == "product"]
+    open_architecture = [item for item in open_choices if item.get("kind") != "product"]
+    resolved = [item for item in choices if not _is_open(item)]
+    open_contradictions = [item for item in document.get("contradictions", []) if item["resolved"] is False]
+
+    if stale_approval:
+        state, next_step = STATE_NEEDS_REFRESH, (
+            "Содержимое ADD изменилось после согласования: прежнее согласование не действует. "
+            "Просмотрите текущую версию и согласуйте её заново."
+        )
+    elif open_choices or open_contradictions:
+        state = STATE_NEEDS_DECISIONS
+        next_step = "Выберите вариант по каждому вопросу выше или дайте замечания; после ответа ADD будет обновлён и показан заново."
+        if open_product:
+            next_step += " Продуктовые уточнения требуют обновления исходного Business Requirement."
+    elif document["approved"] is True:
+        if fresh:
+            state, next_step = STATE_APPROVED, "Действий не требуется: эта версия ADD согласована; можно переходить к Intents."
+        else:
+            state, next_step = STATE_NEEDS_REFRESH, (
+                "Актуальность согласованного ADD не подтверждена (источники или ревизия изменились): "
+                "актуализируйте ADD и согласуйте заново."
+            )
+    elif not elements and not choices:
+        state, next_step = STATE_PROPOSAL, "ADD пока не содержит существенных дельт и вопросов: дополните его или подтвердите, что ADD не нужен."
+    elif not fresh:
+        state, next_step = STATE_NEEDS_REFRESH, "Актуальность ADD не подтверждена: актуализируйте его перед согласованием."
+    else:
+        state, next_step = STATE_READY, "Согласуйте ADD в текущем виде или дайте замечания; открытых вопросов нет."
+
+    summary = document["requirement"].get("summary")
+    summary = summary.strip() if isinstance(summary, str) else ""
+    if (elements or choices) and not summary:
+        raise AddIntentsError("cannot render ADD: requirement.summary (2-4 sentences on the system changes and why) is required")
+
+    out = [
+        f"# ADD {document['add_id']}",
+        "",
+        f"**Business Requirement:** {requirement} · **Репозиторий:** {document['target_repository']} · "
+        f"**Ревизия ADD:** `{digest[:12]}` (основа `{document['prepared_against'][:12]}`)",
+        f"**Состояние:** {state}",
+    ]
+    if summary:
+        out += ["", "## Итог", "", " ".join(summary.split())]
+    if deltas:
+        columns = [("Область", None), ("Сейчас", "current"), ("Предлагается", None), ("Почему", "rationale"),
+                   ("Последствия", "impact"), ("Ссылки", "refs")]
+        shown = [(title, key) for title, key in columns if key is None or any(key in item for item in deltas)]
+        out += ["", "## Существенные изменения", "", "| " + " | ".join(title for title, _ in shown) + " |",
+                "|" + "|".join("---" for _ in shown) + "|"]
+        for item in deltas:
+            cells = []
+            for title, key in shown:
+                if title == "Область":
+                    cells.append(_cell(f"{item['id']} ({item['category']}, {item['status']})"))
+                elif title == "Предлагается":
+                    cells.append(_cell(item["statement"]))
+                else:
+                    cells.append(_cell(item.get(key, "")))
+            out.append("| " + " | ".join(cells) + " |")
+    kept = [_cell(item["statement"]) + (f" ({_cell(item['refs'])})" if "refs" in item else "") for item in preserved]
+    kept += [f"{_cell(item['statement'])} ({_cell(item['source'])})" for item in document.get("reused_constraints", [])]
+    if kept:
+        out += ["", "## Что сохраняется", ""] + [f"- {line}" for line in kept]
+    if resolved:
+        out += ["", "## Уже решено", ""] + [f"- {' '.join(item['question'].split())} → {' '.join(item['resolution'].split())}" for item in resolved]
+    if open_architecture:
+        out += ["", "## Вопросы к человеку", ""]
+        for item in open_architecture:
+            out += _choice_lines(item)
+    if open_product:
+        out += ["", "## Уточнение Business Requirement", "", "Продуктовые вопросы решаются в исходном BR, а не в ADD.", ""]
+        for item in open_product:
+            out += _choice_lines(item)
+    risks = [f"Допущение: {' '.join(item.split())}" for item in document.get("assumptions", [])]
+    risks += [f"Противоречие: {' '.join(item['statement'].split())}" for item in open_contradictions]
+    if not fresh and state in (STATE_PROPOSAL, STATE_NEEDS_DECISIONS):
+        risks.append("Актуальность ADD не подтверждена: перед согласованием его нужно актуализировать.")
+    out += ["", "## Риски и следующий шаг", ""] + [f"- {line}" for line in risks] + [f"- **Следующий шаг:** {next_step}"]
+    return "\n".join(out) + "\n"
 
 
 # --- Intents ---------------------------------------------------------------
@@ -968,6 +1139,10 @@ def main() -> int:
     approve_add_parser.add_argument("path", type=Path)
     approve_add_parser.add_argument("--approved-by", default=None)
 
+    render_add_parser = sub.add_parser("render-add", help="print the standard read-only Russian presentation of the current ADD")
+    render_add_parser.add_argument("path", type=Path)
+    render_add_parser.add_argument("--requirement", required=True, help="Business Requirement reference, owner/repo#N")
+
     decompose_parser = sub.add_parser("decompose", help="scaffold an intent-set document from an approved, fresh ADD")
     decompose_parser.add_argument("--add", required=True, type=Path, dest="add_path")
     decompose_parser.add_argument("--out", required=True, type=Path)
@@ -1026,6 +1201,9 @@ def main() -> int:
             payload["content_digest"] = add_content_digest(document)
             print(json.dumps(payload, ensure_ascii=False, indent=2))
             return 0 if report.ok else 2
+        if args.command == "render-add":
+            print(render_add(root, args.path, requirement=args.requirement), end="")
+            return 0
         if args.command == "decompose":
             payload = decompose(root, add_path=args.add_path, out=args.out, business_context=args.business_context)
             print(f"Intent set scaffolded for {payload['add_id']} -> {args.out}")

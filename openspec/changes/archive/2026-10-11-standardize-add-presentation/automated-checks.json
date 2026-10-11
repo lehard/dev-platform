@@ -1,0 +1,120 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.154,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.158,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 537.72,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/add_intents.py",
+        "tests/test_add_intents.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_d01fd034181b1b697d5df3b0bab80643",
+    "change": "standardize-add-presentation",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/standardize-add-presentation",
+    "branch": "agent/br-581-t1-standardize-add-presentation",
+    "head": "a9edac80a685b0813af6e48aa41d255435824146",
+    "task_content": {
+      "version": 1,
+      "digest": "5a9d2955dd33ac700c047064c2e2e8e2d5088c7530dc5acd47a388e315dec80e",
+      "paths": {
+        "AGENTS.md": "e509201287f8cf3bc46cb1f6ee4b0d8cf92070d0",
+        "dev-platform/capabilities/add-intents.md": "7a5141611e69539a734a3adc3f6ad26862b753e1",
+        "dev-platform/capabilities/add-intents.toml": "4fd5382ed81c7ac1a4316ce09e8bd4ccfeb7ca51",
+        "dev-platform/evals/add-intents-pilot.json": "ea9b4a6e043ef6fda667a83313e4f73273cb7f4a",
+        "docs/engineering/agent-workflow.md": "83cf9b97b5bb606a90c2ec57d8a52098eb5224ea",
+        "docs/engineering/engineering-capabilities.md": "98d90dfc67b06ffc978f244e6cee683095f81432",
+        "openspec/changes/standardize-add-presentation/.managed-task.json": "9d17a488ffc2438466923dc2b0aacf22bb020739",
+        "openspec/changes/standardize-add-presentation/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+        "openspec/changes/standardize-add-presentation/design.md": "165c159433efe7f58439016b170b152fe4bd65d4",
+        "openspec/changes/standardize-add-presentation/proposal.md": "ef7771359532df90a4c1dc1f68fc72e32b52c3a6",
+        "openspec/changes/standardize-add-presentation/specs/agent-workflow/spec.md": "111822777759858c2ba03271e6e6bb5e152426ed",
+        "openspec/changes/standardize-add-presentation/tasks.md": "1236d1397d7049991edb0d9c95a2f984759132bd",
+        "openspec/changes/standardize-add-presentation/verification.md": "e2be0cb03237e757656db86116e49afdacf42e4f",
+        "template/AGENTS.md.jinja": "8a215cf4c43adfbbed58d90d2660041369565923",
+        "template/dev-platform/capabilities/add-intents.md": "7a5141611e69539a734a3adc3f6ad26862b753e1",
+        "template/dev-platform/capabilities/add-intents.toml": "4fd5382ed81c7ac1a4316ce09e8bd4ccfeb7ca51",
+        "template/dev-platform/evals/add-intents-pilot.json": "ea9b4a6e043ef6fda667a83313e4f73273cb7f4a",
+        "template/docs/engineering/engineering-capabilities.md": "98d90dfc67b06ffc978f244e6cee683095f81432",
+        "template/scripts/add_intents.py": "8859c4b825d6fa743f829853b4540dab8c79b419",
+        "tests/test_add_intents.py": "886dfaa32f5485b5d5539f8e0f0144c4890f76d1"
+      },
+      "base": "8e029719e31b28346cf7810948dabc3477a2d599"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "c05692dc4d340399f4f21ee5fb91804a85d361dddf8d8cd22e40d5393045c3fb",
+    "paths": {
+      "AGENTS.md": "e509201287f8cf3bc46cb1f6ee4b0d8cf92070d0",
+      "dev-platform/capabilities/add-intents.md": "7a5141611e69539a734a3adc3f6ad26862b753e1",
+      "dev-platform/capabilities/add-intents.toml": "4fd5382ed81c7ac1a4316ce09e8bd4ccfeb7ca51",
+      "dev-platform/evals/add-intents-pilot.json": "ea9b4a6e043ef6fda667a83313e4f73273cb7f4a",
+      "docs/engineering/agent-workflow.md": "83cf9b97b5bb606a90c2ec57d8a52098eb5224ea",
+      "docs/engineering/engineering-capabilities.md": "98d90dfc67b06ffc978f244e6cee683095f81432",
+      "openspec/changes/standardize-add-presentation/.managed-task.json": "9d17a488ffc2438466923dc2b0aacf22bb020739",
+      "openspec/changes/standardize-add-presentation/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/standardize-add-presentation/design.md": "165c159433efe7f58439016b170b152fe4bd65d4",
+      "openspec/changes/standardize-add-presentation/proposal.md": "ef7771359532df90a4c1dc1f68fc72e32b52c3a6",
+      "openspec/changes/standardize-add-presentation/specs/agent-workflow/spec.md": "111822777759858c2ba03271e6e6bb5e152426ed",
+      "openspec/changes/standardize-add-presentation/tasks.md": "1236d1397d7049991edb0d9c95a2f984759132bd",
+      "template/AGENTS.md.jinja": "8a215cf4c43adfbbed58d90d2660041369565923",
+      "template/dev-platform/capabilities/add-intents.md": "7a5141611e69539a734a3adc3f6ad26862b753e1",
+      "template/dev-platform/capabilities/add-intents.toml": "4fd5382ed81c7ac1a4316ce09e8bd4ccfeb7ca51",
+      "template/dev-platform/evals/add-intents-pilot.json": "ea9b4a6e043ef6fda667a83313e4f73273cb7f4a",
+      "template/docs/engineering/engineering-capabilities.md": "98d90dfc67b06ffc978f244e6cee683095f81432",
+      "template/scripts/add_intents.py": "8859c4b825d6fa743f829853b4540dab8c79b419",
+      "tests/test_add_intents.py": "886dfaa32f5485b5d5539f8e0f0144c4890f76d1"
+    },
+    "base": "8e029719e31b28346cf7810948dabc3477a2d599",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/add_intents.py --changed-file tests/test_add_intents.py",
+    "duration_seconds": 37.792,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

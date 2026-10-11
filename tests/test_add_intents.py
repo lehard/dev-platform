@@ -1056,5 +1056,218 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
 
 
+class RenderAddTests(unittest.TestCase):
+    """Behavioural tests of the read-only standard ADD projection (BR-581).
+
+    They assert the displayed state and sections from the actual ADD content, never that an
+    ADD is architecturally right: classification of BR vs ADD content stays agent judgement.
+    """
+
+    REQ = "acme/backlog#581"
+    SUMMARY = "Нужно изменить контракт событий между подсистемами и закрепить владение записью, чтобы утверждённый сценарий не дублировал данные."
+
+    def setUp(self) -> None:
+        self.tmp = init_repo()
+        self.root = Path(self.tmp.name)
+        self.path = self.root / "add.json"
+        self.head = add_intents.current_revision(self.root)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    def _doc(self, approved: bool = False, **overrides: object) -> dict[str, object]:
+        overrides.setdefault("prepared_against", self.head)
+        overrides.setdefault("requirement", {"digest": "a" * 64, "summary": self.SUMMARY})
+        return (_approved_add if approved else _valid_add)(**overrides)
+
+    def _render(self, document: dict[str, object]) -> str:
+        self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        return add_intents.render_add(self.root, self.path, requirement=self.REQ)
+
+    def test_ready_state_shows_only_material_delta_with_optional_columns(self) -> None:
+        output = self._render(self._doc(elements=[
+            {"id": "event-contract", "category": "integration", "status": "changed", "statement": "order.updated gets a version",
+             "current": "event without version", "rationale": "idempotency"},
+            {"id": "keep-gateway", "category": "preserved-constraint", "status": "preserved", "statement": "Gateway keeps authorization"},
+        ]))
+        self.assertIn("**Состояние:** готов к утверждению", output)
+        self.assertIn(f"**Business Requirement:** {self.REQ}", output)
+        self.assertIn("| Область | Сейчас | Предлагается | Почему |", output)
+        self.assertNotIn("Последствия", output)
+        self.assertIn("## Что сохраняется", output)
+        self.assertIn("Gateway keeps authorization", output)
+        self.assertNotIn("keep-gateway", output.split("## Что сохраняется")[0])
+        self.assertNotIn("## Вопросы к человеку", output)
+        self.assertNotIn("## Уточнение Business Requirement", output)
+        self.assertIn("открытых вопросов нет", output)
+
+    def test_open_architecture_choice_shows_options_and_recommendation_and_product_is_separate(self) -> None:
+        output = self._render(self._doc(unresolved_choices=[
+            {"question": "Where to keep the version?", "status": "open",
+             "options": [{"label": "database", "tradeoffs": "durable, slower"}, {"label": "cache"}],
+             "recommendation": "database: durability"},
+            {"question": "Confirm irreversible action?", "status": "open", "kind": "product"},
+        ]))
+        self.assertIn("**Состояние:** нужны решения", output)
+        questions, product = output.split("## Вопросы к человеку")[1].split("## Уточнение Business Requirement")
+        self.assertIn("Where to keep the version?", questions)
+        self.assertIn("Вариант: database — durable, slower", questions)
+        self.assertIn("Рекомендация агента: database: durability", questions)
+        self.assertNotIn("Confirm irreversible action?", questions)
+        self.assertIn("Confirm irreversible action?", product)
+        self.assertIn("Рекомендация агента: не указана", product)
+        self.assertIn("обновления исходного Business Requirement", output)
+
+    def test_resolved_choice_is_listed_as_decided_not_asked(self) -> None:
+        output = self._render(self._doc(unresolved_choices=[
+            {"question": "Which event bus?", "status": "resolved", "resolution": "the existing bus per accepted spec"},
+        ]))
+        self.assertIn("**Состояние:** готов к утверждению", output)
+        self.assertIn("## Уже решено", output)
+        self.assertNotIn("## Вопросы к человеку", output)
+
+    def test_empty_add_is_a_proposal_without_summary_requirement_or_empty_sections(self) -> None:
+        output = self._render(self._doc(elements=[], requirement={"digest": "a" * 64, "summary": ""}))
+        self.assertIn("**Состояние:** предложение", output)
+        for heading in ("## Итог", "## Существенные изменения", "## Что сохраняется", "## Вопросы к человеку"):
+            self.assertNotIn(heading, output)
+
+    def test_valid_approval_renders_approved(self) -> None:
+        output = self._render(self._doc(approved=True))
+        self.assertIn("**Состояние:** утверждён", output)
+
+    def test_edit_after_approval_requires_refresh_and_reapproval_restores_approved(self) -> None:
+        document = self._doc(approved=True)
+        document["elements"][0]["statement"] = "Changed after approval."  # type: ignore[index]
+        self.assertIn("**Состояние:** требует актуализации", self._render(document))
+        # even a newly added open choice must not hide the void approval behind a validation error
+        document["unresolved_choices"] = [{"question": "New?", "status": "open"}]  # type: ignore[index]
+        self.assertIn("**Состояние:** требует актуализации", self._render(document))
+        document["unresolved_choices"] = []  # type: ignore[index]
+        self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        add_intents.approve_add(self.root, self.path)
+        output = add_intents.render_add(self.root, self.path, requirement=self.REQ)
+        self.assertIn("**Состояние:** утверждён", output)
+        self.assertIn("Changed after approval.", output)
+
+    def test_unprovable_freshness_never_renders_approved(self) -> None:
+        git("commit", "-q", "--allow-empty", "-m", "moves head", cwd=self.root)
+        output = self._render(self._doc(approved=True))
+        self.assertIn("**Состояние:** требует актуализации", output)
+        self.assertNotIn("**Состояние:** утверждён", output)
+
+    def test_invalid_add_fails_explicitly(self) -> None:
+        with self.assertRaises(AddIntentsError):
+            self._render(self._doc(elements=[{"id": "x", "category": "nope", "status": "new", "statement": "s"}]))
+        with self.assertRaises(AddIntentsError):
+            self._render(self._doc(requirement={"digest": "a" * 64, "summary": ""}))
+        with self.assertRaises(AddIntentsError):
+            self._render(self._doc(unresolved_choices=[{"question": "q", "status": "open", "kind": "ux"}]))
+        with self.assertRaises(AddIntentsError):
+            add_intents.render_add(self.root, self.path, requirement="not-a-reference")
+
+    def test_optional_field_types_are_validated(self) -> None:
+        for bad in (
+            {"elements": [{"id": "e", "category": "boundary", "status": "new", "statement": "s", "impact": 3}]},
+            {"unresolved_choices": [{"question": "q", "status": "open", "options": []}]},
+            {"unresolved_choices": [{"question": "q", "status": "open", "options": [{"tradeoffs": "t"}]}]},
+            {"unresolved_choices": [{"question": "q", "status": "open", "recommendation": " "}]},
+        ):
+            report = add_intents._validate_add_document(self.root, self._doc(**bad), check_freshness=False)
+            self.assertFalse(report.ok, bad)
+
+    def test_projection_is_read_only_deterministic_and_binds_to_content(self) -> None:
+        document = self._doc()
+        self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        before = self.path.read_bytes()
+        files_before = sorted(p.name for p in self.root.iterdir())
+        first = add_intents.render_add(self.root, self.path, requirement=self.REQ)
+        second = add_intents.render_add(self.root, self.path, requirement=self.REQ)
+        self.assertEqual(first, second)
+        self.assertEqual(before, self.path.read_bytes())
+        self.assertEqual(files_before, sorted(p.name for p in self.root.iterdir()))
+        digest = add_intents.add_content_digest(document)
+        self.assertIn(digest[:12], first)
+        document["elements"][0]["statement"] = "Another delta."  # type: ignore[index]
+        self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        changed = add_intents.render_add(self.root, self.path, requirement=self.REQ)
+        self.assertNotIn(digest[:12], changed)
+        self.assertIn("Another delta.", changed)
+
+    def test_optional_fields_do_not_change_schema_version_or_existing_gates(self) -> None:
+        self.assertEqual(add_intents.ADD_SCHEMA_VERSION, 1)
+        document = self._doc(unresolved_choices=[{"question": "q", "status": "open", "kind": "product"}])
+        self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
+        with self.assertRaises(AddIntentsError):
+            add_intents.approve_add(self.root, self.path)
+
+    def test_cli_exposes_render_add_only_as_new_command(self) -> None:
+        self.path.write_text(json.dumps(self._doc(), ensure_ascii=False), encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, str(TEMPLATE_SCRIPTS / "add_intents.py"), "render-add", str(self.path), "--requirement", self.REQ],
+            cwd=self.root, text=True, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("## Риски и следующий шаг", result.stdout)
+        missing = subprocess.run(
+            [sys.executable, str(TEMPLATE_SCRIPTS / "add_intents.py"), "render-add", str(self.path)],
+            cwd=self.root, text=True, capture_output=True,
+        )
+        self.assertNotEqual(missing.returncode, 0)
+
+
+class AddBoundaryGuidanceTests(unittest.TestCase):
+    """Documentation-contract assertions for BR-581: the guidance an agent must apply is
+    present and consistent with the renderer. They do not claim that any agent applies it."""
+
+    def setUp(self) -> None:
+        self.doc = (ROOT / "dev-platform" / "capabilities" / "add-intents.md").read_text(encoding="utf-8")
+
+    def test_five_destinations_test_question_and_examples_are_documented(self) -> None:
+        for phrase in (
+            "What belongs in the ADD", "Accepted by the BR", "Existing technical contract", "ADD delta",
+            "OpenSpec detail", "Open product question", "what is the new material system decision",
+            "relative to the currently accepted state", "is already a BR product contract",
+            "potential ADD delta", "product question for the BR", "usually OpenSpec detail",
+            "not a keyword or category gate", "A long BR is not itself a reason",
+        ):
+            self.assertIn(phrase, self.doc.replace("\n", " "), phrase)
+
+    def test_guidance_names_the_renderer_sections_and_states(self) -> None:
+        text = self.doc.replace("\n", " ")
+        script = (TEMPLATE_SCRIPTS / "add_intents.py").read_text(encoding="utf-8")
+        for label in ("Итог", "Существенные изменения", "Что сохраняется", "Уже решено", "Вопросы к человеку",
+                      "Уточнение Business Requirement", "Риски и следующий шаг"):
+            self.assertIn(label, text, label)
+            self.assertIn(f"## {label}", script, label)
+        for state in (add_intents.STATE_PROPOSAL, add_intents.STATE_NEEDS_DECISIONS, add_intents.STATE_READY,
+                      add_intents.STATE_APPROVED, add_intents.STATE_NEEDS_REFRESH):
+            self.assertIn(f"«{state}»", text, state)
+
+    def test_presentation_adds_no_gate_stop_or_storage(self) -> None:
+        text = self.doc.replace("\n", " ")
+        for phrase in ("writes nothing, approves nothing", "adds no mandatory human stop", "approve-add"):
+            self.assertIn(phrase, text, phrase)
+        helped = subprocess.run([sys.executable, str(TEMPLATE_SCRIPTS / "add_intents.py"), "--help"], text=True, capture_output=True, check=True).stdout
+        choices = helped.split("{", 1)[1].split("}", 1)[0].split(",")
+        self.assertEqual(
+            sorted(choices),
+            sorted(["new-add", "validate-add", "approve-add", "render-add", "decompose", "validate-intents", "prepare-handoff", "validate-handoff"]),
+        )
+
+    def test_template_mirror_and_eval_hash_follow_the_canonical_file(self) -> None:
+        import hashlib
+        canonical = ROOT / "dev-platform" / "capabilities" / "add-intents.md"
+        self.assertEqual(canonical.read_bytes(), (ROOT / "template" / "dev-platform" / "capabilities" / "add-intents.md").read_bytes())
+        digest = hashlib.sha256(canonical.read_bytes()).hexdigest()
+        fixture = json.loads((ROOT / "dev-platform" / "evals" / "add-intents-pilot.json").read_text(encoding="utf-8"))
+        self.assertEqual(fixture["content_sha256"], digest)
+
+    def test_unverified_live_judgement_is_declared_not_claimed(self) -> None:
+        fixture = json.loads((ROOT / "dev-platform" / "evals" / "add-intents-pilot.json").read_text(encoding="utf-8"))
+        judgement = next(c for c in fixture["quality_comparisons"] if c["id"] == "agent-keeps-br-product-rules-out-of-add")
+        self.assertEqual(judgement["candidate"], "not-verified")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -7,7 +7,7 @@ applicability = "A business requirement that implies new/changed capabilities, b
 invocation = "auto+explicit"
 visibility = "project"
 owner = "dev-platform"
-safety_boundary = "Reads/writes only the local JSON ADD/intent-set files it is pointed at and reads local Git history for prepared_against/freshness; never calls a provider API, opens a network connection, mutates openspec/changes/, Backlog, or Project state, or introduces a second backlog/registry/status ledger."
+safety_boundary = "Reads/writes only the local JSON ADD/intent-set files it is pointed at (render-add only prints a read-only projection to stdout) and reads local Git history for prepared_against/freshness; never calls a provider API, opens a network connection, mutates openspec/changes/, Backlog, or Project state, or introduces a second backlog/registry/status ledger."
 dependencies = ["scripts/capability_manager.py"]
 materialization = "provider-skill-markdown"
 tool_adapter = "scripts/add_intents.py"
@@ -19,7 +19,7 @@ source = "dev-platform"
 revision = "platform-managed"
 path = "dev-platform/capabilities/add-intents.md"
 license = "Apache-2.0"
-content_sha256 = "b3889d767a61a2d4045b2f51927de2e5de1e136ae2e62028de24bab9da28ad4c"
+content_sha256 = "f05e5c2760edd19c7d3f740513f36853f7bec9ab76f11559a57ff10586db75e6"
 
 [eval]
 evidence = "dev-platform/evals/add-intents-pilot.json"

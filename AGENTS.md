@@ -85,6 +85,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | Maintaining agent-facing instructions, pointers and surface ownership | [docs/engineering/agent-instructions.md](docs/engineering/agent-instructions.md) |
 | Task intake and intent transitions | [docs/engineering/task-intake.md](docs/engineering/task-intake.md) |
 | Writing or materially changing a Business Requirement body | [dev-platform/capabilities/requirement-authoring.md](dev-platform/capabilities/requirement-authoring.md) |
+| Preparing, presenting or approving an ADD (BR/ADD/OpenSpec boundary, standard Russian presentation) | [dev-platform/capabilities/add-intents.md](dev-platform/capabilities/add-intents.md) |
 | ChatGPT Project authoring through connected GitHub | [docs/engineering/chatgpt-project-protocol.md](docs/engineering/chatgpt-project-protocol.md) |
 | Goal refinement, dogfood lifecycle, scope discipline, validation, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
 | OpenSpec contract model, semantic verification, receipts, archive, dependency policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
