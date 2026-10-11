@@ -1,0 +1,20 @@
+{
+  "base": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
+  "children": [],
+  "dependencies": {
+    "explorer-editorial-engine": [],
+    "explorer-full-editorial-coverage": [
+      "explorer-editorial-engine"
+    ]
+  },
+  "digest": "c12abe35ef55858ae7e616846820eb920caf674bb9e8b3370298a45e88c1bd4e",
+  "expected_changes": [
+    "explorer-editorial-engine",
+    "explorer-full-editorial-coverage"
+  ],
+  "integration_branch": "requirement/BR-573",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_b51efa9f337ed3d0c788adb7fb5e4dcd",
+  "version": 2,
+  "work_identity": "BR-573"
+}
