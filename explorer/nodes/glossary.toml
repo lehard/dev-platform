@@ -1,11 +1,25 @@
 id = "glossary"
 kind = "topic"
-outline = true
 title = "Словарь"
-definition = "Requirement, OpenSpec, ADD, worktree, PR, receipt, friction и другие термины с короткими объяснениями."
+definition = "Business Requirement, OpenSpec, ADD, worktree, PR, протокол проверки, friction и другие термины с короткими объяснениями."
 order = 4
-children = ["business-requirement"]
+children = ["business-requirement", "openspec", "add", "quick-task", "worktree", "pr", "coordinator", "verification-receipt", "friction", "copier", "immutable-tag", "managed-rollout"]
+lead = "Платформа использует слова из нескольких миров: бэклога, спецификаций, Git и релизов. Словарь собирает короткие определения терминов, которые нужны, чтобы читать остальные страницы без знакомства с репозиторием."
+thesis = "Каждый термин определён один раз и подсвечивается в тексте этапов и механизмов, где он встречается. Определение объясняет слово и ведёт к источнику, но не вводит собственных правил."
 sources = [
   "AGENTS.md#Task intents",
   "docs/engineering/openspec-workflow.md#Contract model",
+  "docs/engineering/explorer.md#Editorial nodes",
 ]
+
+[[points]]
+title = "Подсказка в тексте"
+text = "Термин во вступлении и в главной мысли страницы подчёркнут пунктиром. При наведении или фокусе показывается определение, а клик ведёт на страницу термина."
+
+[[points]]
+title = "Где встречается"
+text = "Страница термина перечисляет узлы, где он подсвечен, поэтому от слова легко перейти к этапу или механизму, который его использует."
+
+[[points]]
+title = "Откуда определения"
+text = "Каждое определение привязано к каноническому разделу. Если раздел изменился, узел получает пометку, что источник изменился после последней сверки."

@@ -1,0 +1,8 @@
+id = "worktree"
+kind = "term"
+title = "worktree"
+definition = "worktree — отдельная рабочая копия репозитория на собственной ветке. Каждая управляемая задача выполняется в своём worktree в каталоге `.claude/worktrees/<change>/`, поэтому параллельные задачи не делят изменяемое состояние с интеграционной копией `main`."
+sources = [
+  "docs/engineering/agent-workflow.md#Central source dogfood lifecycle",
+  "README.md#Core capabilities",
+]

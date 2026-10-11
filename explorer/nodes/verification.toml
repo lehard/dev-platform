@@ -1,15 +1,20 @@
 id = "verification"
 kind = "stage"
-outline = true
 title = "Проверка и независимое ревью"
 definition = "Тесты, сверка с OpenSpec и правдивый протокол проверки подтверждают результат. Независимые ревьюеры читают код, а их замечания возвращают работу на доработку."
 order = 5
 short_title = "Проверка и ревью"
 tagline = "доказать правильность"
-children = ["verification-checks", "independent-review"]
+children = ["verification-checks", "independent-review", "add-openspec", "executors"]
+terms = ["verification-receipt", "openspec"]
+lead = "На этом этапе платформа доказывает, что результат соответствует контракту. Сначала запускаются проверки и записывается протокол проверки, затем для существенного управляемого изменения независимые ревьюеры читают точную версию, и каждое существенное замечание исправляется или отклоняется с обоснованием."
+thesis = "Задача не завершена оттого, что отмечены все пункты `tasks.md`. Завершение подтверждают уместные проверки, семантическая сверка с OpenSpec и честный протокол, который называет, что и каким методом проверено."
 sources = [
   "docs/engineering/agent-workflow.md#Validation",
+  "docs/engineering/agent-workflow.md#Completion",
   "docs/engineering/openspec-workflow.md#Verify, archive, then publish",
+  "docs/engineering/openspec-workflow.md#Independent review evidence",
+  "openspec/specs/completion-lifecycle/spec.md#Requirement: Developer completion is a handoff at a verified PR",
 ]
 
 [[transitions]]
@@ -22,3 +27,144 @@ label = "замечание → доработка"
 to = "publication-integration"
 type = "main"
 reason = "Проверенный и архивированный кандидат готов к интеграции"
+
+[[inputs]]
+title = "Ветка с изменением"
+text = "Закоммиченный результат исполнителя вместе с обновлёнными артефактами OpenSpec."
+role = "stage"
+node = "isolated-implementation"
+note = "← этап 4"
+
+[[inputs]]
+title = "Контракт задачи"
+text = "Пакет OpenSpec, с которым сверяют результат по заявленному итогу, полноте, корректности и связности."
+role = "artifact"
+node = "add-openspec"
+
+[[inputs]]
+title = "Таблица проверок"
+text = "`dev-platform/checks.toml` и `select_checks.py` выбирают проверки по изменённым путям."
+role = "source"
+node = "verification-checks"
+note = "dev-platform/checks.toml"
+
+[[inputs]]
+title = "Настройки ревью"
+text = "Независимое ревью требуется для существенного управляемого изменения, если репозиторий включил `[independent_review] enabled = true`; центральный репозиторий включил."
+role = "source"
+node = "independent-review"
+note = ".dev-platform.toml"
+
+[action]
+label = "verify"
+title = "Проверка, протокол и ревью"
+steps = [
+  "Запустить выбранные проверки командой `select_checks.py --base origin/main --execute`; для ограниченного изменения набор уже полного.",
+  "Выполнить семантическую проверку OpenSpec, предпочтительно `/opsx:verify`; структурная команда `openspec validate` её не заменяет.",
+  "Записать в `verification.md` результат `OpenSpec-Verify: PASS` и `Verification-Method`, не выдумывая проверенного.",
+  "Для существенного управляемого изменения платформа сама запускает двух независимых ревьюеров на точной версии, и каждое существенное замечание исправляется или отклоняется с обоснованием.",
+]
+
+[[outputs]]
+title = "Протокол проверки"
+text = "`verification.md` с `OpenSpec-Verify: PASS`, `Verification-Method` и, для платформенного harness, ссылкой на `automated-checks.json`."
+role = "artifact"
+consumer = "архив и `finish`"
+node = "verification-checks"
+
+[[outputs]]
+title = "Отчёты ревью и решения"
+text = "Неизменяемые отчёты двух точек зрения и записи отклонений, привязанные к содержимому задачи."
+role = "artifact"
+consumer = "финализация и архив"
+node = "independent-review"
+
+[[outputs]]
+title = "Проверенный кандидат"
+text = "Ветка с протоколом и доказательствами, которую `finish` передаёт в очередь."
+role = "stage"
+consumer = "→ этап 6"
+node = "publication-integration"
+
+[[outputs]]
+title = "Возврат на доработку"
+text = "Упавшая проверка или существенное замечание возвращают работу исполнителю."
+role = "gate"
+consumer = "→ этап 4"
+node = "isolated-implementation"
+
+[[fork]]
+title = "Развилка: что вернуло работу"
+note = "После доработки проверки и ревью проходят заново для изменённого содержимого."
+
+[[fork.branch]]
+name = "Упала проверка"
+code = "check failed"
+role = "gate"
+recognized = "Выбранная или полная проверка завершилась ошибкой."
+creates = "Падение классифицируется относительно авторитетной базы как `introduced`, `pre-existing` или `unknown`; `pre-existing` утверждается только при воспроизводимом доказательстве и не оправдывает новые регрессии."
+next = "→ 4 Исполнение"
+next_node = "isolated-implementation"
+
+[[fork.branch]]
+name = "Существенное замечание"
+code = "review finding"
+role = "mechanism"
+recognized = "Ревьюер вернул находку с `severity: material`."
+creates = "Задание на доработку или отклонение с обоснованием; изменённое содержимое проходит ревью заново."
+next = "Независимое ревью и доработка"
+next_node = "independent-review"
+
+[[fork.branch]]
+name = "Всё подтверждено"
+code = "pass"
+role = "stage"
+recognized = "Проверки зелёные, протокол записан, существенных замечаний нет или они отклонены с обоснованием."
+creates = "Кандидат передаётся на публикацию и финализацию."
+next = "→ 6 Публикация"
+next_node = "publication-integration"
+
+[[path]]
+title = "Ревьюер недоступен"
+tag = "блок"
+role = "gate"
+when = "Нет входа в CLI, исчерпан лимит или процесс ревьюера не запустился."
+outcome = "отчёт `unavailable` блокирует архив и публикацию; кандидат координатора остаётся `blocked-retryable`, а платформа не подделывает независимое доказательство"
+
+[[path]]
+title = "Ревью не включено"
+tag = "по настройке"
+role = "neutral"
+when = "Репозиторий не включил `[independent_review] enabled = true`; шаблон для проектов по умолчанию его не включает."
+outcome = "независимое ревью не требуется, остаются проверки и протокол"
+
+[[path]]
+title = "Быстрая задача"
+tag = "не требуется"
+role = "neutral"
+when = "Работа идёт без управляемого пакета OpenSpec."
+outcome = "независимое ревью не проводится, остаются проверки"
+
+[[path]]
+title = "Ручной отчёт ревью"
+tag = "не засчитывается"
+role = "gate"
+when = "Отчёт написан вручную, без запуска, который наблюдала платформа."
+outcome = "он не удовлетворяет требуемому ревью"
+
+[[path]]
+title = "Содержимое изменилось после ревью"
+tag = "новое ревью"
+role = "gate"
+when = "Изменён любой путь, который входит в идентичность содержимого задачи."
+outcome = "прежнее ревью устарело и нужно новое; архив, записи жизненного цикла и чистое слияние `main` его не отменяют"
+
+[example]
+title = "Пример: проверка управляемой задачи"
+steps = [
+  { text = "Разработчик закончил реализацию и запускает `select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json`. Изменён Python-файл, поэтому выбирается полный набор.", emphasis = ["полный набор"] },
+  { text = "Одна проверка падает. Агент проверяет её на чистой базе: падение воспроизводится, значит оно `pre-existing`. Падения, внесённые изменением, всё равно остаются на изменении." },
+  { text = "Агент выполняет семантическую проверку и записывает в `verification.md` результат `OpenSpec-Verify: PASS` и реальный `Verification-Method`." },
+  { text = "Разработчик коммитит кандидата с доказательствами и выполняет `finish`. Платформа запускает двух ревьюеров; один находит существенную ошибку, и кандидат уходит на доработку." },
+  { text = "После правки ревью проходит заново и замечаний не находит. Кандидат идёт на финализацию и интеграцию.", emphasis = ["замечаний не находит"] },
+]

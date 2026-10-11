@@ -13,7 +13,7 @@ python3 scripts/build_explorer.py mark-reviewed --all
 python3 scripts/build_explorer.py drift-issue
 ```
 
-`check` validates the map, every editorial node, every source reference, every link and the generated output without writing anything. `build` does the same and then writes the site. Both exit non-zero with a message naming the node (or element) and the field or source that failed. `build --out` refuses a non-empty output directory and never deletes anything. `build/` is git-ignored. `drift`, `mark-reviewed` and `drift-issue` are described under "Editorial drift". The generator uses only the Python standard library and has no Node toolchain, framework, CDN or remote font.
+`check` validates the map, every editorial node, every source reference, every link and the generated output without writing anything. `build` does the same and then writes the site. Both exit non-zero with a message naming the node (or element) and the field or source that failed, and both report on success how many outline nodes remain. `build --out` refuses a non-empty output directory and never deletes anything. `build/` is git-ignored. `drift`, `mark-reviewed` and `drift-issue` are described under "Editorial drift". The generator uses only the Python standard library and has no Node toolchain, framework, CDN or remote font.
 
 ## Levels
 
@@ -21,7 +21,7 @@ python3 scripts/build_explorer.py drift-issue
 - **Level 1, lifecycle stage** (`lifecycle/<stage-id>/`): the purpose, what comes in, what happens, what goes out and who uses it, forks, conditional and error paths, an example and the mechanisms inside.
 - **Level 2, mechanism, part, topic, term** (`m/<id>/` for mechanisms and parts, `t/<id>/` for topics and terms): the stages that use it, what comes in and goes out, guarantees, a normal scenario, exceptions and its parts.
 - **Level 3, engineering sources** (`e/<id>/`): the source-derived elements and collections described under "What the map owns". Rendered from the referenced files, opened from a node's collapsed "ИНЖЕНЕРНЫЕ ИСТОЧНИКИ" block or from the tree.
-- **Coverage** (`map/`): generated from node data: every node of levels 0 to 2 with its definition, where it takes part, whether it is full or an outline and whether its source changed, plus the stage transitions with their reasons.
+- **Coverage** (`map/`): generated from node data: every node of levels 0 to 2 with its definition, where it takes part, whether it is full or an outline, whether its source changed and the canonical sections it is bound to, plus the stage transitions with their reasons.
 
 Previously published `lifecycle/index.html`, `lifecycle/<stage-id>/` and `e/<id>/` URLs keep resolving; `tests/test_build_explorer_editorial.py` asserts it.
 
@@ -48,7 +48,7 @@ Every node has `id`, `kind`, `title`, `definition` and `sources`. The `definitio
 
 ### Outlines
 
-A node may declare `outline = true`. It then carries its relation data (`order`, `role`, `used_in`, `children`, and for a stage `short_title`, `tagline`, `transitions`, so the tree and the lifecycle schema stay complete) plus `kind`, `title`, `definition` and `sources`, and no explanation text. It renders as an outline page with its definition, relations and a notice that the full explanation is pending, and the coverage page lists it as an outline. Writing an explanation into an outline fails the build; to promote an outline, remove `outline = true` and add the explanation. The overview, the stage `requirement-intent`, the mechanism `independent-review` and the term `business-requirement` are full today; every other node is an outline until the follow-up coverage change replaces it.
+A node may declare `outline = true`. It then carries its relation data (`order`, `role`, `used_in`, `children`, and for a stage `short_title`, `tagline`, `transitions`, so the tree and the lifecycle schema stay complete) plus `kind`, `title`, `definition` and `sources`, and no explanation text. It renders as an outline page with its definition, relations and a notice that the full explanation is pending, and the coverage page lists it as an outline. Writing an explanation into an outline fails the build; to promote an outline, remove `outline = true` and add the explanation. Every committed node is full today and `tests/test_build_explorer_editorial.py` fails if one becomes an outline again; the outline form remains available for a node whose explanation is still being written.
 
 ## What the map owns
 
