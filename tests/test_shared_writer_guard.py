@@ -106,6 +106,8 @@ REVIEWED_BASELINE: dict[str, int] = {
     'disposable_repository_sandbox.py:create:write_text': 1,
     'harness_replay.py:isolated_workspace:write_text': 1,
     'harness_replay.py:main:write_text': 1,
+    # Reviewed: appends the outcome to the runner-provided GITHUB_STEP_SUMMARY file; no shared workspace state.
+    'hosted_workers.py:run_command:open': 1,
     # Disposable LLM checkout and its scratch HOME live in a private worker temp directory.
     'lifecycle_workers.py:import_worktree:copyfile': 1,
     'lifecycle_workers.py:prepare_checkout:open': 1,

@@ -1000,7 +1000,12 @@ def main(argv: list[str] | None = None) -> int:
     nxt.add_argument("--allow", action="append", default=[], help="path a write result may change (repeatable)")
     nxt.add_argument("--llm-home-file", action="append", default=[],
                      help="file under HOME the LLM CLI needs for its own login, e.g. .codex/auth.json (repeatable)")
+    import hosted_workers
+
+    hosted_workers.add_parsers(sub)
     args = parser.parse_args(argv)
+    if args.command != "work-next":
+        return hosted_workers.run_command(args, Path.cwd())
     repo = args.repo
     try:
         args.worker = resolve_worker_identity(args.worker, os.environ, hostname=socket.gethostname(),

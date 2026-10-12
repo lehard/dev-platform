@@ -1,0 +1,121 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.131,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.144,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 624.963,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/lifecycle-workers.yml",
+        "dev-platform/checks.toml",
+        "template/scripts/_platform_common.py",
+        "template/scripts/hosted_workers.py",
+        "template/scripts/lifecycle_workers.py",
+        "tests/test_hosted_workers.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6967f2306ee5fd86fad623dd21f12b3e",
+    "change": "hosted-lifecycle-workers-pilot",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/hosted-lifecycle-workers-pilot",
+    "branch": "agent/br-610-t1-hosted-lifecycle-workers-pilot",
+    "head": "6c986afdd4e858324f311274602580e7cb63cd76",
+    "task_content": {
+      "version": 1,
+      "digest": "40e6d3d33d8957f03d0feaa64e22786d4304cec98b6f838df2921fbb97b90b4c",
+      "paths": {
+        ".github/workflows/lifecycle-workers.yml": "c969bd9515f8ff24e7f75031048fe9e8dbecb5e9",
+        "dev-platform/checks.toml": "1ee1ecc1a130203f0ed26dc152f9b8fa3d539e18",
+        "docs/engineering/agent-workflow.md": "5b5fbb9df43e7b9ea5edf65c0b230aa68ca7f3fd",
+        "docs/engineering/hosted-lifecycle-workers.md": "9c5be9d449b33094e7751463bee7918e97fbce91",
+        "openspec/changes/hosted-lifecycle-workers-pilot/.managed-task.json": "d8097742b583ac880285847ab1730238f034763e",
+        "openspec/changes/hosted-lifecycle-workers-pilot/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+        "openspec/changes/hosted-lifecycle-workers-pilot/automated-checks.json": "fe224780f74dd784f880fe3d96d2f8527691f13a",
+        "openspec/changes/hosted-lifecycle-workers-pilot/design.md": "36dedd62a8f872a5d3657287eac9f0d9e4baad8c",
+        "openspec/changes/hosted-lifecycle-workers-pilot/proposal.md": "fd728f2f23ae6085ff206fb23dd70d59538e2ce6",
+        "openspec/changes/hosted-lifecycle-workers-pilot/specs/lifecycle-workers/spec.md": "e980cb6212e2dd966d3fff658382cc1a7f5a3ba2",
+        "openspec/changes/hosted-lifecycle-workers-pilot/tasks.md": "1f3264cd513006cabab24d43d04831739bf235c6",
+        "template/dev-platform/platform-manifest.json": "7bb683efbde24f03dcb955ea0bb6f0e49f7acf67",
+        "template/dev-platform/protected-surface.toml": "02006cb67fd5610949694cc990a2af38c3c22590",
+        "template/scripts/_platform_common.py": "7c79eacc4aadc3c6996eba85edf65d8ab5f89abf",
+        "template/scripts/hosted_workers.py": "9409164e3dc545a57b750dacf2080d19cfdf89f5",
+        "template/scripts/lifecycle_workers.py": "e5cf891208068479b62b68e94574cc9adffa4a8b",
+        "tests/test_hosted_workers.py": "f8229e98e5ee750e4b120c527eaf5b29c7d14332",
+        "tests/test_shared_writer_guard.py": "03b5c99e8e4e0446dfd1d5453bce850881e19c73"
+      },
+      "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "dc74dbc79d63253bd9858a4411e31ee2d0c4bdb5d3eee2ef4858c8f2f22fd5fb",
+    "paths": {
+      ".github/workflows/lifecycle-workers.yml": "c969bd9515f8ff24e7f75031048fe9e8dbecb5e9",
+      "dev-platform/checks.toml": "1ee1ecc1a130203f0ed26dc152f9b8fa3d539e18",
+      "docs/engineering/agent-workflow.md": "5b5fbb9df43e7b9ea5edf65c0b230aa68ca7f3fd",
+      "docs/engineering/hosted-lifecycle-workers.md": "9c5be9d449b33094e7751463bee7918e97fbce91",
+      "openspec/changes/hosted-lifecycle-workers-pilot/.managed-task.json": "d8097742b583ac880285847ab1730238f034763e",
+      "openspec/changes/hosted-lifecycle-workers-pilot/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+      "openspec/changes/hosted-lifecycle-workers-pilot/design.md": "36dedd62a8f872a5d3657287eac9f0d9e4baad8c",
+      "openspec/changes/hosted-lifecycle-workers-pilot/proposal.md": "fd728f2f23ae6085ff206fb23dd70d59538e2ce6",
+      "openspec/changes/hosted-lifecycle-workers-pilot/specs/lifecycle-workers/spec.md": "e980cb6212e2dd966d3fff658382cc1a7f5a3ba2",
+      "openspec/changes/hosted-lifecycle-workers-pilot/tasks.md": "1f3264cd513006cabab24d43d04831739bf235c6",
+      "template/dev-platform/platform-manifest.json": "7bb683efbde24f03dcb955ea0bb6f0e49f7acf67",
+      "template/dev-platform/protected-surface.toml": "02006cb67fd5610949694cc990a2af38c3c22590",
+      "template/scripts/_platform_common.py": "7c79eacc4aadc3c6996eba85edf65d8ab5f89abf",
+      "template/scripts/hosted_workers.py": "9409164e3dc545a57b750dacf2080d19cfdf89f5",
+      "template/scripts/lifecycle_workers.py": "e5cf891208068479b62b68e94574cc9adffa4a8b",
+      "tests/test_hosted_workers.py": "f8229e98e5ee750e4b120c527eaf5b29c7d14332",
+      "tests/test_shared_writer_guard.py": "03b5c99e8e4e0446dfd1d5453bce850881e19c73"
+    },
+    "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/hosted_workers.py --changed-file template/scripts/lifecycle_workers.py --changed-file tests/test_hosted_workers.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 244.432,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

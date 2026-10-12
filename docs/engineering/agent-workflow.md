@@ -407,6 +407,7 @@ writer's final argument, commits edits the writer left uncommitted (see the writ
 validates the result and pushes it; changed content repeats review. Material
 rejection proposals or three unsuccessful review rounds require human escalation.
 Unavailable reviewer runtimes publish a new retryable review attempt automatically.
+The same `work-next` contract can run on GitHub-hosted runners for the `review` and `finalize` kinds; enabling it is an owner step documented in [hosted-lifecycle-workers.md](hosted-lifecycle-workers.md).
 
 Review and repair provider operations. A candidate's review/repair job keeps the provider it
 was first published with. A worker selects only what it can run:

@@ -1,0 +1,139 @@
+name: Dev Platform lifecycle workers
+
+# GitHub-hosted placement of the existing lifecycle worker contract (`lifecycle_workers.py work-next`).
+# Delivered with manual dispatch only: enabling automatic triggers (workflow_run of the publication
+# queue and a schedule), the provider secret and DEV_PLATFORM_HOSTED_KINDS is a separate owner step,
+# see docs/engineering/hosted-lifecycle-workers.md.
+#
+# Every job runs default-branch code only. No step checks out or executes pull-request content while a
+# token is held: the worker harness fetches the PR head into a disposable credential-free checkout.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Install the source contract
+        run: |
+          test ! -e .dev-platform.toml
+          cp dev-platform/source-contract.toml .dev-platform.toml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - name: Plan hosted classes from the enabling setting
+        id: plan
+        # No token and no secret in this job. A missing or unknown setting fails here, naming it.
+        env:
+          DEV_PLATFORM_HOSTED_KINDS: ${{ vars.DEV_PLATFORM_HOSTED_KINDS }}
+        run: |
+          matrix="$(python3 scripts/lifecycle_workers.py hosted-plan --kinds "$DEV_PLATFORM_HOSTED_KINDS")"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  work:
+    needs: plan
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    # Shorter than the 1800 second claim lifetime, so a live run is never reclaimed and a dead one is.
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    concurrency:
+      group: dev-platform-lifecycle-worker-${{ matrix.class }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      HOSTED_CLASS: ${{ matrix.class }}
+      HOSTED_KINDS: ${{ matrix.kinds }}
+      DEV_PLATFORM_HOSTED_KINDS: ${{ vars.DEV_PLATFORM_HOSTED_KINDS }}
+      DEV_PLATFORM_WORKER: gha-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.class }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install the source contract
+        run: |
+          test ! -e .dev-platform.toml
+          cp dev-platform/source-contract.toml .dev-platform.toml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '20.19.0'
+          package-manager-cache: false
+      - name: Install the pinned Claude CLI
+        if: matrix.class == 'review'
+        run: npm install --global @anthropic-ai/claude-code@2.1.287
+      - name: Install the pinned finalization tools
+        if: matrix.class == 'finalize'
+        run: |
+          npm install --global @fission-ai/openspec@1.13.2
+          python3 -m pip install "ruff==0.11.13" jinja2 "copier==9.18.2"
+      - name: Resolve current repository name
+        id: repo
+        run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+      - name: Preflight inputs
+        # Presence flags only: no secret value enters this process.
+        env:
+          PREFLIGHT_APP_CLIENT_ID_SET: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID != '' }}
+          PREFLIGHT_APP_PRIVATE_KEY_SET: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY != '' }}
+          PREFLIGHT_PROVIDER_SECRET_SET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+        run: python3 scripts/lifecycle_workers.py hosted-preflight --mode ci --class "$HOSTED_CLASS" --phase inputs
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          app-id: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID }}
+          private-key: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ steps.repo.outputs.name }}
+          # Both hosted classes comment on the PR and push an evidence commit to the candidate branch.
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Preflight runtime
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
+          PREFLIGHT_APP_CLIENT_ID_SET: ${{ vars.DEV_PLATFORM_APP_CLIENT_ID != '' }}
+          PREFLIGHT_APP_PRIVATE_KEY_SET: ${{ secrets.DEV_PLATFORM_APP_PRIVATE_KEY != '' }}
+          PREFLIGHT_PROVIDER_SECRET_SET: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.class == 'review' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+        run: python3 scripts/lifecycle_workers.py hosted-preflight --mode ci --class "$HOSTED_CLASS" --phase runtime
+      - name: Run one claimed job
+        # The outcome step below decides the conclusion: an idle or resulted run is green, a refused,
+        # unavailable or escalated run is red with its cause. Neither says the candidate is done.
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DEV_PLATFORM_COORDINATOR_APP: ${{ steps.app-token.outputs.app-slug }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.class == 'review' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+        run: |
+          set +e
+          args=(work-next --repo "$GITHUB_REPOSITORY" --kinds "$HOSTED_KINDS" --run)
+          if [ "$HOSTED_CLASS" = "review" ]; then
+            args+=(--providers claude)
+          fi
+          python3 scripts/lifecycle_workers.py "${args[@]}" > "$RUNNER_TEMP/work-next.log"
+          code=$?
+          cat "$RUNNER_TEMP/work-next.log"
+          echo "$code" > "$RUNNER_TEMP/work-next.code"
+          exit 0
+      - name: Report the outcome
+        run: |
+          python3 scripts/lifecycle_workers.py hosted-outcome --class "$HOSTED_CLASS" \
+            --result "$RUNNER_TEMP/work-next.log" --exit-code "$(cat "$RUNNER_TEMP/work-next.code")" \
+            --summary "$GITHUB_STEP_SUMMARY"
