@@ -332,7 +332,10 @@ def recover_integration_repair(root: Path, repo: str, number: int, observed: dic
     if not str(current.get("reason", "")).startswith("recover validated integration-repair push"):
         return False
     head = current["head"]
-    lineage = adapter._latest(root, number, comments) or {}
+    lineage = adapter._latest(root, number, comments)
+    if lineage is None:
+        # The derived candidate recognised this repair push from a recorded job, so a missing record is a lost record.
+        raise adapter.QueueError(f"integration repair recovery for PR #{number} has no recorded lineage head")
     if not any(event.get("kind") == "update" and event.get("head") == head
                for event in adapter._events(root, repo, number)):
         adapter._comment(root, repo, number, {"kind": "update", "previous": lineage.get("head"), "head": head,
@@ -361,11 +364,14 @@ class LifecycleOps:
     def candidate_admitted_at(self, root: Path, number: int) -> datetime:
         """When PR #number received its first trusted coordinator record; an unprovable start blocks."""
         from agent_friction import parse_time
-        from candidate_lifecycle import first_record
+        from candidate_lifecycle import MalformedMarkerError, first_record
 
         comments = queue._comments(root, queue._repo(root), number)
-        record = first_record(number, comments, trusted_apps=queue.trusted_apps(root),
-                              trusted_writers=queue.trusted_writers(root, comments))
+        try:
+            record = first_record(number, comments, trusted_apps=queue.trusted_apps(root),
+                                  trusted_writers=queue.trusted_writers(root, comments))
+        except MalformedMarkerError as exc:
+            raise JobBlocked(f"cannot prove when PR #{number} was admitted: {exc}") from exc
         try:
             return parse_time(record["at"])
         except (KeyError, TypeError, ValueError) as exc:

@@ -51,7 +51,7 @@ class TaskFreshnessTests(unittest.TestCase):
         run("git", "clone", str(self.remote), str(self.task), cwd=self.base)
         configure(self.task)
         (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n', encoding="utf-8"
+            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n[capabilities]\nagent_board = false\n', encoding="utf-8"
         )
         checks = self.task / "dev-platform" / "checks.toml"
         checks.parent.mkdir()
@@ -185,7 +185,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         configure(self.task)
         git("checkout", "-q", "-b", "main", cwd=self.task)
         (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n',
+            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n',
             encoding="utf-8",
         )
         (self.task / "shared.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")

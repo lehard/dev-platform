@@ -184,9 +184,18 @@ def trusted_marker_comment(row: dict, trusted_apps: frozenset[str] = frozenset()
     return isinstance(app, dict) and app.get("slug") in trusted_apps
 
 
-def first_record(number: int, comments: list[dict], *, trusted_apps: frozenset[str] = frozenset(),
-                 trusted_writers: frozenset[str] = frozenset()) -> dict | None:
-    """The earliest valid trusted v2 record for this PR: its admission."""
+class MalformedMarkerError(RuntimeError):
+    """A trusted v2 coordinator record cannot be parsed or fails validation; it is never skipped."""
+
+
+def _trusted_records(number: int, comments: list[dict], trusted_apps: frozenset[str],
+                     trusted_writers: frozenset[str]):
+    """Yield, oldest first, each trusted valid v2 record of PR ``number``.
+
+    Untrusted comments are not gate input and are ignored. A trusted marker that fails parsing or
+    validation raises ``MalformedMarkerError`` naming the comment, so a damaged record can neither
+    be skipped nor let a later record stand in for it.
+    """
     for row in sorted(comments, key=lambda item: item.get("id", 0)):
         body = row.get("body", "")
         if not isinstance(body, str) or not body.startswith(PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
@@ -194,10 +203,17 @@ def first_record(number: int, comments: list[dict], *, trusted_apps: frozenset[s
         try:
             record = _expand_identity(json.loads(body[len(PREFIX):]))
             validate_marker(record)
-        except (ValueError, TypeError):
-            continue
+        except (ValueError, TypeError) as exc:
+            raise MalformedMarkerError(f"malformed marker comment {row.get('id')}: {exc}") from exc
         if record.get("number") == number:
-            return deepcopy(record)
+            yield record
+
+
+def first_record(number: int, comments: list[dict], *, trusted_apps: frozenset[str] = frozenset(),
+                 trusted_writers: frozenset[str] = frozenset()) -> dict | None:
+    """The earliest valid trusted v2 record for this PR: its admission."""
+    for record in _trusted_records(number, comments, trusted_apps, trusted_writers):
+        return deepcopy(record)
     return None
 
 
@@ -205,16 +221,8 @@ def latest_record(number: int, comments: list[dict], *, trusted_apps: frozenset[
                   head: str | None = None, trusted_writers: frozenset[str] = frozenset()) -> dict | None:
     """The latest valid trusted v2 record for this PR, for ``head`` or for any head (lineage)."""
     latest = None
-    for row in sorted(comments, key=lambda item: item.get("id", 0)):
-        body = row.get("body", "")
-        if not isinstance(body, str) or not body.startswith(PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
-            continue
-        try:
-            record = _expand_identity(json.loads(body[len(PREFIX):]))
-            validate_marker(record)
-        except (ValueError, TypeError):
-            continue
-        if record.get("number") == number and (head is None or record.get("head") == head):
+    for record in _trusted_records(number, comments, trusted_apps, trusted_writers):
+        if head is None or record.get("head") == head:
             latest = record
     return deepcopy(latest) if latest is not None else None
 
