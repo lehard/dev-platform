@@ -1,0 +1,253 @@
+{
+  "add": {
+    "dev-platform/capabilities/add-intents.md#ADD (Architecture Design Delta)": "729c22a7d794476c7c2fd66e4b1610eee719dcb439d5aff17d8b49668546dbb0",
+    "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline": "61eaf4867936d1d4ec76b058119da9785b5b28152da36f00948c6f5c78b54eb1"
+  },
+  "add-openspec": {
+    "dev-platform/capabilities/add-intents.md#Handoff to OpenSpec authoring": "c0d60d2171bd20b6c768563da07c1cac8673b1d18b2da70a6f30daa2fb6cf6da",
+    "dev-platform/capabilities/add-intents.md#Intent decomposition": "66edb002ec09f7a103e32efbec675d6ef490b1429d388e476489f7ffdd69802c",
+    "dev-platform/capabilities/add-intents.md#What belongs in the ADD": "f2d44f2062ba5c1809545ec1f470040967fda2cbb6fbf3c2b695b959d28a77fd",
+    "dev-platform/capabilities/add-intents.md#When it applies": "ade65b925b9ff9311f03690f62bff6dcf9047b3e2e33e345b7e18dda2c1e1a2f",
+    "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline": "61eaf4867936d1d4ec76b058119da9785b5b28152da36f00948c6f5c78b54eb1",
+    "docs/engineering/openspec-workflow.md#Author the outcome contract": "32db31c2b894ad63e81b37328fb2ceaca5b482794ba695c796b933040d60069e",
+    "docs/engineering/openspec-workflow.md#Contract model": "901651c235189412c4a99092f23ca9347d171a5f30bb5aef6412a0003a7f8bd0",
+    "docs/engineering/openspec-workflow.md#No silent divergence": "803eab1f6b1158e34b375c3c5a5090d8f3a55d9ab1d81414885e102e41752530"
+  },
+  "adoption": {
+    "README.md#Workflow profiles": "ff27e0bd835cf174fdaa3ef166a331a7ddff4da337057004807e7109c00fbf19",
+    "docs/adoption.md#Existing-project cautious path": "c3a8855c6ac9d00d3fcd2e75d344d7c96208f5c937538e5ac91d722d54934906",
+    "docs/adoption.md#Fresh fast path": "76f299d6855a68fc8c8bca8c19882529a70447f63a94b9cbab90e6a2d93c920d",
+    "docs/adoption.md#Local developer readiness": "c49320835ed6c05e5208a7ead778f0ffc930f120c81b2850e82e9853499acb1b",
+    "docs/adoption.md#Primary interface: one-command onboarding": "44ffcc0b7a2d305e506ad65ddb80d1b97b4ae2d6be45d7b700703ef6c6c3c90c",
+    "docs/adoption.md#Upgrade": "0000a28e07b2bcf3a168e06b634eff66eb58777973c31ba7eb2ef2cd2986e88c"
+  },
+  "business-requirement": {
+    "dev-platform/capabilities/requirement-authoring.md": "78d4976f58f1fbbfbfa15d20dfe56059e9829c0394c364e4bc9148366bf71983",
+    "docs/engineering/task-intake.md#Requirement-first cross-surface contract": "a2164de44eedaf85e72c4fd4467f663cc682864eb48c93960d4f5164a948570f"
+  },
+  "chatgpt-project": {
+    "docs/engineering/chatgpt-project-protocol.md#Connected-GitHub authoring": "8eb5e2598464d5635948de59f19db0ddbf7bb97bd56c17775214c2009138243a",
+    "docs/engineering/chatgpt-project-protocol.md#Project parameters": "a9bc387908a6806f70d59291a92ec305614f0f0db78d32abe0f951075f72cce9"
+  },
+  "coordinator": {
+    "docs/engineering/agent-workflow.md#Lifecycle workers": "a462b3ba7efe69e9a1afe803f61b17a294bce18823d68d814c2fc63fc66a884a",
+    "docs/engineering/agent-workflow.md#Source publication queue": "327098a0f7aee03d1f51203d04d7b90b93b3cee86bd28b5513bf13372d36e0e9"
+  },
+  "copier": {
+    "docs/managed-rollout.md#Template ownership boundary": "e79f172e8044964301e217424b1c4382cb65236b57f4d410ca7004552be5c64f",
+    "docs/release-policy.md#Copier version": "f6753d3369d6551e1c140dc583ddda7f88f57931d2595bdd95888d3222abecf5"
+  },
+  "copier-rollout": {
+    "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
+    "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
+    "docs/managed-rollout.md#Failure handling": "1d9cbbe8de447a780ca2ae4612c144c34ecafe86d71303f7c6ecb333c3ddb0ac",
+    "docs/managed-rollout.md#Registry": "ecc444e60edd50db77a930966a5f7636d0ae5dc70215bb4b1f3446f0e5995551",
+    "docs/managed-rollout.md#Repeated-failure alerting": "5f0a7bc2becaeac956c7ae871dd0880539b6ddbfe2a9bf43aa60031e8ed816a0",
+    "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f"
+  },
+  "executor-routing": {
+    "docs/engineering/model-routing.md#Changing bindings and rollback": "13e28480e6e065048ed59c10b00a5b3c894c1e02158cede591af9fbd6d9fd2d6",
+    "docs/engineering/model-routing.md#Execution-time freshness check": "9c3084fe69dd89fb2b13a553f0daa11f90f08ea06202e6282a9a4deb096aa9c1",
+    "docs/engineering/model-routing.md#Review and escalation": "ffa2e63208134b583a25206cddf54f81e5cb8f27c49933ccd34dcd4b8972ea5c",
+    "docs/engineering/model-routing.md#Routing calibration": "b22108ae36f94f115f13231d368fefeb637d6f189305dada2869ad722b2c5067",
+    "docs/engineering/model-routing.md#Start-tier authoring (`R1`/`R2`/`R3`)": "a1e80509f1cd2b605d468d0aad09604b45203b752bb91a7855ef4529d5e81fe0"
+  },
+  "executors": {
+    "docs/engineering/model-routing.md#Claude Code entrypoint": "2564890a9bfe64d73e61803d4d1db87e16711c0b4f97ffc65902f523ca4c30ad",
+    "docs/engineering/model-routing.md#Codex entrypoint": "5a9744102debea4a6f078af87ff928bdaaa7d517b11724e097878645e8457a87",
+    "docs/engineering/model-routing.md#Delegated write containment": "bd1b4f5a2783538e7bac4acda6d4b9b29f1b63bd2524c431521412802453ca06",
+    "docs/engineering/model-routing.md#Execution provenance": "494b1eb35d807ef2e4ff42b3127ce34f8a45a0db0c76beab4094887690ba8105",
+    "docs/engineering/model-routing.md#Integration-advance receipts and concurrent main advances": "a84f2a6ba74948656f4cb3abd3dbb1358da28f80d21febd30e8a13e1c3da6486",
+    "docs/engineering/openspec-workflow.md#Independent review evidence": "0749aeec21f66b4b96e09261fd51fcae69e9a72a05a4fa93c4c0304704b03021"
+  },
+  "feedback-learning": {
+    "README.md#Continuous improvement / friction loop": "e865e7ead4d23a20a83745b05b540169f3ddc001dc0fd06602a528b478fc88da",
+    "docs/engineering/agent-workflow.md#Friction routing": "663e254aee1344669cb3222b205870d4cfbe863f83466abf9916fb95e6018ed2",
+    "docs/engineering/agent-workflow.md#Post-task retrospective": "0f37558db33f5c32ee2dd8966e2cc5c87598557eb4a51a55455104c8650586e7",
+    "docs/promotion-loop.md": "3e3baa0cc86ac0ab8fc73712f28b6aa557c7ed2274337ca66d767bedc42691dd"
+  },
+  "friction": {
+    "README.md#Continuous improvement / friction loop": "e865e7ead4d23a20a83745b05b540169f3ddc001dc0fd06602a528b478fc88da",
+    "docs/engineering/agent-workflow.md#Friction routing": "663e254aee1344669cb3222b205870d4cfbe863f83466abf9916fb95e6018ed2"
+  },
+  "friction-retrospectives": {
+    "README.md#Continuous improvement / friction loop": "e865e7ead4d23a20a83745b05b540169f3ddc001dc0fd06602a528b478fc88da",
+    "docs/engineering/agent-workflow.md#Friction routing": "663e254aee1344669cb3222b205870d4cfbe863f83466abf9916fb95e6018ed2",
+    "docs/engineering/agent-workflow.md#Post-task retrospective": "0f37558db33f5c32ee2dd8966e2cc5c87598557eb4a51a55455104c8650586e7",
+    "docs/promotion-loop.md": "3e3baa0cc86ac0ab8fc73712f28b6aa557c7ed2274337ca66d767bedc42691dd"
+  },
+  "glossary": {
+    "AGENTS.md#Task intents": "5453a02e8ccf2bd3f50dd56808ec315c6743d4ffb9353a1a8b01855413bd9dd9",
+    "docs/engineering/explorer.md#Editorial nodes": "f162d74fb903b6ee5324f7afe082517cf93ffca3abcc187fe0c32d3a555917a3",
+    "docs/engineering/openspec-workflow.md#Contract model": "901651c235189412c4a99092f23ca9347d171a5f30bb5aef6412a0003a7f8bd0"
+  },
+  "goal-refinement": {
+    "docs/engineering/agent-workflow.md#Selective goal definition": "482e30fb4e3664c1472c9e22620463cb71c5105bdbf31895cc347e71b6a28cbd"
+  },
+  "immutable-tag": {
+    "docs/release-policy.md#Release identity": "8eba03c35056e7362908d50d1661668af7a1fa47ccd81948d0461639927d8b18"
+  },
+  "incubator": {
+    "docs/engineering/task-intake.md#Incubator": "3acbc05be3b346e2fa292dbd3c8d3af7cfe72599ef17e349a9943584f6e2a328"
+  },
+  "independent-review": {
+    "docs/engineering/agent-workflow.md#Candidate and integration contours": "aa78ffd2b80d9c498bfdab05c787138abf3f984a891f5048758ccc747cbc8320",
+    "docs/engineering/agent-workflow.md#Completion": "d0f52b43473e87015500ed9c57251f3ed98a2be50b9b08370fade4f747ec255c",
+    "docs/engineering/agent-workflow.md#Lifecycle workers": "a462b3ba7efe69e9a1afe803f61b17a294bce18823d68d814c2fc63fc66a884a",
+    "docs/engineering/openspec-workflow.md#Independent review evidence": "0749aeec21f66b4b96e09261fd51fcae69e9a72a05a4fa93c4c0304704b03021"
+  },
+  "isolated-implementation": {
+    "AGENTS.md#Always-on invariants": "6534b57b4ee322d680156983f5ade751581abbbd315abc949d31e417a273a82c",
+    "docs/engineering/agent-workflow.md#Central source dogfood lifecycle": "25e96be47a16331b3fe14f8bf8eb85ccc57350b9a2801aff12488808de9e2a19",
+    "docs/engineering/agent-workflow.md#Scope discipline and capabilities": "56b6e40bf5dff378492ef27d785440296d1e7ad95e837cfc6cf175369df4e78e",
+    "docs/engineering/openspec-workflow.md#No silent divergence": "803eab1f6b1158e34b375c3c5a5090d8f3a55d9ab1d81414885e102e41752530",
+    "openspec/specs/worktree-coordination/spec.md#Requirement: Concrete multi-agent scope claims are admission-controlled atomically": "d68c02d5ef426ba93fa9505d6a04f8c050ca114548595055f946be3540b6882d"
+  },
+  "lifecycle-workers": {
+    "docs/engineering/agent-workflow.md#Lifecycle workers": "a462b3ba7efe69e9a1afe803f61b17a294bce18823d68d814c2fc63fc66a884a",
+    "openspec/specs/lifecycle-workers/spec.md#Requirement: Lifecycle work is published as head-bound jobs": "fbedbd15870f5e47ec43bf33c23ca2f5590dcb6a254471a61b76b7f7dc168aed",
+    "openspec/specs/lifecycle-workers/spec.md#Requirement: Replaceable workers claim jobs through one contract": "ca965750c005d424bce8b6946c3e1d79079088eb0c91117ad411a381201e5fa7",
+    "openspec/specs/lifecycle-workers/spec.md#Requirement: Worker claim identity is unique and validated": "663303200a63c06b0940b1219b85396eeed5ceae882e6d73605d173a5944bb9b"
+  },
+  "managed-rollout": {
+    "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
+    "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f"
+  },
+  "openspec": {
+    "docs/engineering/openspec-workflow.md#Contract model": "901651c235189412c4a99092f23ca9347d171a5f30bb5aef6412a0003a7f8bd0",
+    "docs/engineering/openspec-workflow.md#No silent divergence": "803eab1f6b1158e34b375c3c5a5090d8f3a55d9ab1d81414885e102e41752530"
+  },
+  "overview": {
+    "README.md#Core capabilities": "115e3e56ccfcba2742762dae1758f54216faff739ee68224120e86bdc15fbf70",
+    "README.md#How it works": "01e7444f08d09f7d8f365fc9f8111406bad03fab8fcd9cb3866461ae8188302a",
+    "README.md#Why a platform instead of `AGENTS.md` + scripts?": "4b321b5b58609a0edd73e73b244f81b586b81f77c5efdbad4dc1625a01cec307"
+  },
+  "ownership": {
+    "docs/managed-rollout.md#Template ownership boundary": "e79f172e8044964301e217424b1c4382cb65236b57f4d410ca7004552be5c64f",
+    "docs/ownership.md#Operator-owned": "01e43457bbe5a454814f117447fc7f212b3a7d661195a87bbf07159056a1db92",
+    "docs/ownership.md#Override rule": "b8afd3125861ce3c3a270b5280786ff3480b3e609b5709e487dade486b5f9009",
+    "docs/ownership.md#Platform-owned": "03be826762b6c99d27ccdbf7041117d58618430563431f15968b28ee89be30eb",
+    "docs/ownership.md#Project-owned": "d45e971bdce6497e25939c384f13320107036a04ebb907317b73f505ccebbd35"
+  },
+  "platform-releases": {
+    "docs/release-policy.md#Choosing the version": "cefd837530445a2b799e482db7791d8f8db4a6f617077e7e9d5acbd9930d72c4",
+    "docs/release-policy.md#Copier version": "f6753d3369d6551e1c140dc583ddda7f88f57931d2595bdd95888d3222abecf5",
+    "docs/release-policy.md#Release identity": "8eba03c35056e7362908d50d1661668af7a1fa47ccd81948d0461639927d8b18",
+    "docs/release-policy.md#Upgrade safety": "d204ed6839927e9fd7044c8e67a147d7817f28f3265df067d0b09382cfac220e",
+    "docs/release-policy.md#Version publication": "ab1be1c564d11c6b378b8a43c9cb4266b59f6d1062c15f3aba73605256b6a734"
+  },
+  "pr": {
+    "AGENTS.md#Entrypoints": "a8eb3b8ddb717f1fbb417d56cca2a8dca86e4f91b892a92828a9a19ba0466cc9",
+    "docs/engineering/agent-workflow.md#Central source dogfood lifecycle": "25e96be47a16331b3fe14f8bf8eb85ccc57350b9a2801aff12488808de9e2a19"
+  },
+  "pr-queue-integration": {
+    "docs/engineering/agent-workflow.md#Candidate and integration contours": "aa78ffd2b80d9c498bfdab05c787138abf3f984a891f5048758ccc747cbc8320",
+    "docs/engineering/agent-workflow.md#Completion": "d0f52b43473e87015500ed9c57251f3ed98a2be50b9b08370fade4f747ec255c",
+    "docs/engineering/agent-workflow.md#Source publication queue": "327098a0f7aee03d1f51203d04d7b90b93b3cee86bd28b5513bf13372d36e0e9",
+    "openspec/specs/publication-queue/spec.md#Requirement: Coordinator configuration preflight": "3be19aa76cb79555b3b7ded3cdb5eafb8e966058781f7076c329b20178087a5f",
+    "openspec/specs/publication-queue/spec.md#Requirement: Coordinator verifies the actual current-base candidate": "18e32967c6894f9fd433e069cd02961f94754c2301608823509c3bcc877c93bd",
+    "openspec/specs/publication-queue/spec.md#Requirement: Integration repairs real conflicts within a bound": "3c9f333d033429835296153be93802b2f6918ac3ff9a3c1f9b47f16b4871279e",
+    "openspec/specs/publication-queue/spec.md#Requirement: Queue recovers to an unambiguous outcome": "7c358c90f3b4cc0f968aa4ad7f1a576f7c1fe118c356e5ad62185c8194c3928b",
+    "openspec/specs/publication-queue/spec.md#Requirement: Ready candidates have durable ordered admission": "c44bc5e50c45f2f8e76bb3644304839c83450f9fca408f8e45c866d17c2b2156"
+  },
+  "publication-integration": {
+    "docs/engineering/agent-workflow.md#Candidate and integration contours": "aa78ffd2b80d9c498bfdab05c787138abf3f984a891f5048758ccc747cbc8320",
+    "docs/engineering/agent-workflow.md#Central source dogfood lifecycle": "25e96be47a16331b3fe14f8bf8eb85ccc57350b9a2801aff12488808de9e2a19",
+    "docs/engineering/agent-workflow.md#Completion": "d0f52b43473e87015500ed9c57251f3ed98a2be50b9b08370fade4f747ec255c",
+    "docs/engineering/agent-workflow.md#Source publication queue": "327098a0f7aee03d1f51203d04d7b90b93b3cee86bd28b5513bf13372d36e0e9",
+    "docs/engineering/task-intake.md#Requirement-first cross-surface contract": "a2164de44eedaf85e72c4fd4467f663cc682864eb48c93960d4f5164a948570f",
+    "openspec/specs/publication-queue/spec.md#Requirement: Coordinator verifies the actual current-base candidate": "18e32967c6894f9fd433e069cd02961f94754c2301608823509c3bcc877c93bd"
+  },
+  "quick-task": {
+    "AGENTS.md#Task intents": "5453a02e8ccf2bd3f50dd56808ec315c6743d4ffb9353a1a8b01855413bd9dd9",
+    "docs/engineering/task-intake.md#Escalating quick work": "3fd1df769cbaa2b394b589d8f4c17faa5cba18faf00b878a844cb26e72615b0d"
+  },
+  "release-rollout": {
+    "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
+    "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
+    "docs/release-policy.md#Choosing the version": "cefd837530445a2b799e482db7791d8f8db4a6f617077e7e9d5acbd9930d72c4",
+    "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f",
+    "docs/release-policy.md#Release identity": "8eba03c35056e7362908d50d1661668af7a1fa47ccd81948d0461639927d8b18",
+    "docs/release-policy.md#Version publication": "ab1be1c564d11c6b378b8a43c9cb4266b59f6d1062c15f3aba73605256b6a734"
+  },
+  "repair-job": {
+    "docs/engineering/agent-workflow.md#Completion": "d0f52b43473e87015500ed9c57251f3ed98a2be50b9b08370fade4f747ec255c",
+    "docs/engineering/agent-workflow.md#Lifecycle workers": "a462b3ba7efe69e9a1afe803f61b17a294bce18823d68d814c2fc63fc66a884a",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Review and repair run as candidate jobs": "63703f8766c2379b7c808dfcdd63b7e18a09432e30ff9ec299b95a5a8d4be76d",
+    "openspec/specs/lifecycle-workers/spec.md#Requirement: LLM workers hold no publication or repository credential": "6eb9b85218f6a68358a5e73e2b677aa36da9ca7aeb755d0f06fab33f93bc09d7",
+    "openspec/specs/lifecycle-workers/spec.md#Requirement: Repair work runs only under the originating authorized provider": "cf6af55a9133279eb98623a5b4ee451757a9e31072af1c1b42312818c25853e3"
+  },
+  "requirement-intake": {
+    "dev-platform/capabilities/requirement-authoring.md": "78d4976f58f1fbbfbfa15d20dfe56059e9829c0394c364e4bc9148366bf71983",
+    "docs/engineering/task-intake.md#Intent boundary": "f4dcbc7032860af763d12c039aff5bd3d1eea5caab52283e1f125b7be38e7c2c",
+    "docs/engineering/task-intake.md#Readable managed work identity": "069a34e953d6ce45c874848c0237dea95e7c4c66cce2042cf147b964b42946e0",
+    "docs/engineering/task-intake.md#Requirement-first cross-surface contract": "a2164de44eedaf85e72c4fd4467f663cc682864eb48c93960d4f5164a948570f"
+  },
+  "requirement-intent": {
+    "AGENTS.md#Task intents": "5453a02e8ccf2bd3f50dd56808ec315c6743d4ffb9353a1a8b01855413bd9dd9",
+    "dev-platform/capabilities/requirement-authoring.md": "78d4976f58f1fbbfbfa15d20dfe56059e9829c0394c364e4bc9148366bf71983",
+    "docs/engineering/task-intake.md#Escalating quick work": "3fd1df769cbaa2b394b589d8f4c17faa5cba18faf00b878a844cb26e72615b0d",
+    "docs/engineering/task-intake.md#Intent boundary": "f4dcbc7032860af763d12c039aff5bd3d1eea5caab52283e1f125b7be38e7c2c",
+    "docs/engineering/task-intake.md#Requirement-first cross-surface contract": "a2164de44eedaf85e72c4fd4467f663cc682864eb48c93960d4f5164a948570f"
+  },
+  "review-decisions": {
+    "docs/engineering/openspec-workflow.md#Independent review evidence": "0749aeec21f66b4b96e09261fd51fcae69e9a72a05a4fa93c4c0304704b03021",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Material review findings require explicit disposition": "cf4e2da54fee29fa8ca6440d1f74cf6c592ccf8ad220edd2b12d82494e4282d1"
+  },
+  "review-perspectives": {
+    "docs/engineering/openspec-workflow.md#Independent review evidence": "0749aeec21f66b4b96e09261fd51fcae69e9a72a05a4fa93c4c0304704b03021",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Independent review runs in a proven fresh read-only context": "27babfebcad8034730dba8ebcd94e3f8b1e6c32624416fae1a01923a7400458a",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Reviewer context excludes lifecycle-generated evidence": "5b8819dc6bdfe1194769fc40f36058f58c0d58e1b2500625382e9f4a7c7f09e0"
+  },
+  "routing": {
+    "AGENTS.md#Always-on invariants": "6534b57b4ee322d680156983f5ade751581abbbd315abc949d31e417a273a82c",
+    "docs/engineering/model-routing.md#Execution plan and early routing gate": "e686ba0b465a66f2d3f4d0538ef9d2f118c0b808e5094eba7eacb175973209cb",
+    "docs/engineering/model-routing.md#Execution-time freshness check": "9c3084fe69dd89fb2b13a553f0daa11f90f08ea06202e6282a9a4deb096aa9c1",
+    "docs/engineering/model-routing.md#Review and escalation": "ffa2e63208134b583a25206cddf54f81e5cb8f27c49933ccd34dcd4b8972ea5c",
+    "docs/engineering/model-routing.md#Start-tier authoring (`R1`/`R2`/`R3`)": "a1e80509f1cd2b605d468d0aad09604b45203b752bb91a7855ef4529d5e81fe0"
+  },
+  "sources-of-truth": {
+    "AGENTS.md#Sources of truth": "d9f1b235429b7e05bb33cd51c0a144c7cd4f20a028a7dbc19d83236b1b8830e9",
+    "docs/engineering/explorer.md#Editorial nodes": "f162d74fb903b6ee5324f7afe082517cf93ffca3abcc187fe0c32d3a555917a3",
+    "docs/engineering/openspec-workflow.md#Contract model": "901651c235189412c4a99092f23ca9347d171a5f30bb5aef6412a0003a7f8bd0",
+    "docs/engineering/task-intake.md#Requirement-first cross-surface contract": "a2164de44eedaf85e72c4fd4467f663cc682864eb48c93960d4f5164a948570f"
+  },
+  "specification": {
+    "dev-platform/capabilities/add-intents.md#Handoff to OpenSpec authoring": "c0d60d2171bd20b6c768563da07c1cac8673b1d18b2da70a6f30daa2fb6cf6da",
+    "dev-platform/capabilities/add-intents.md#When it applies": "ade65b925b9ff9311f03690f62bff6dcf9047b3e2e33e345b7e18dda2c1e1a2f",
+    "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline": "61eaf4867936d1d4ec76b058119da9785b5b28152da36f00948c6f5c78b54eb1",
+    "docs/engineering/openspec-workflow.md#Author the outcome contract": "32db31c2b894ad63e81b37328fb2ceaca5b482794ba695c796b933040d60069e",
+    "docs/engineering/task-intake.md#Requirement-first cross-surface contract": "a2164de44eedaf85e72c4fd4467f663cc682864eb48c93960d4f5164a948570f"
+  },
+  "verification": {
+    "docs/engineering/agent-workflow.md#Completion": "d0f52b43473e87015500ed9c57251f3ed98a2be50b9b08370fade4f747ec255c",
+    "docs/engineering/agent-workflow.md#Validation": "9fbc2b443319423f05f93d53cdafec5dfc9c90c69ac3825db722ede419aca566",
+    "docs/engineering/openspec-workflow.md#Independent review evidence": "0749aeec21f66b4b96e09261fd51fcae69e9a72a05a4fa93c4c0304704b03021",
+    "docs/engineering/openspec-workflow.md#Verify, archive, then publish": "ac6c79f87d21ac0e739575184755d49a78dd550dfa47807aeacd474d8e163f96",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Developer completion is a handoff at a verified PR": "140137406c2440522c68b09363e64e084b5e35f8ae398529146c9398e8743822"
+  },
+  "verification-checks": {
+    "docs/engineering/agent-workflow.md#Machine validation pool": "7ff3acff1606eeaa31944d6d74f9f46438c8dd5c6c773b35331b0700b5050a17",
+    "docs/engineering/agent-workflow.md#Validation": "9fbc2b443319423f05f93d53cdafec5dfc9c90c69ac3825db722ede419aca566",
+    "docs/engineering/openspec-workflow.md#Verify, archive, then publish": "ac6c79f87d21ac0e739575184755d49a78dd550dfa47807aeacd474d8e163f96",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Archive requires semantic verification evidence": "197c6170b84a09913e4f804a5da6481ed0a70ab52fd102c776a93368777f7b7a",
+    "openspec/specs/completion-lifecycle/spec.md#Requirement: Verification evidence is truthful about executed automated coverage": "a53b364918f56351d8515e4d02651216fcca3ae0bf7e6317d8173018c81e98e2"
+  },
+  "verification-receipt": {
+    "AGENTS.md#Always-on invariants": "6534b57b4ee322d680156983f5ade751581abbbd315abc949d31e417a273a82c",
+    "docs/engineering/openspec-workflow.md#Verify, archive, then publish": "ac6c79f87d21ac0e739575184755d49a78dd550dfa47807aeacd474d8e163f96"
+  },
+  "worktree": {
+    "README.md#Core capabilities": "115e3e56ccfcba2742762dae1758f54216faff739ee68224120e86bdc15fbf70",
+    "docs/engineering/agent-workflow.md#Central source dogfood lifecycle": "25e96be47a16331b3fe14f8bf8eb85ccc57350b9a2801aff12488808de9e2a19"
+  },
+  "worktrees": {
+    "README.md#Workflow profiles": "ff27e0bd835cf174fdaa3ef166a331a7ddff4da337057004807e7109c00fbf19",
+    "docs/engineering/agent-workflow.md#Central source dogfood lifecycle": "25e96be47a16331b3fe14f8bf8eb85ccc57350b9a2801aff12488808de9e2a19",
+    "docs/engineering/agent-workflow.md#Scope discipline and capabilities": "56b6e40bf5dff378492ef27d785440296d1e7ad95e837cfc6cf175369df4e78e",
+    "openspec/specs/central-dogfood-lifecycle/spec.md#Requirement: Managed source tasks start in an isolated workspace": "57c14480d27ef2ccc437d8d3dcd827f0bf3968c8cad7c3b5b8e63c396e2f1cba",
+    "openspec/specs/worktree-coordination/spec.md#Requirement: Concrete multi-agent scope claims are admission-controlled atomically": "d68c02d5ef426ba93fa9505d6a04f8c050ca114548595055f946be3540b6882d",
+    "openspec/specs/worktree-coordination/spec.md#Requirement: Hard and soft overlap are classified deterministically": "9f7cf9fcb6c5a1da9fd9cb4cdee1f01d28cd2a0599ccd55546107e04656db4ca",
+    "openspec/specs/worktree-coordination/spec.md#Requirement: Known same-file overlap can be acknowledged without falsifying scope": "822e3ddd6f6a1c52b4b01f359734696c9ac9851b7e9f94b2ff5b990480b0eb6c"
+  }
+}

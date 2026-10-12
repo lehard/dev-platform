@@ -1,0 +1,8 @@
+id = "verification-receipt"
+kind = "term"
+title = "протокол проверки"
+definition = "Протокол проверки (verification receipt) — файл `verification.md` в пакете OpenSpec. Он содержит `OpenSpec-Verify: PASS` и `Verification-Method` и должен честно называть, что реально проверено и каким методом; выдумывать его или заполнять формально нельзя."
+sources = [
+  "docs/engineering/openspec-workflow.md#Verify, archive, then publish",
+  "AGENTS.md#Always-on invariants",
+]

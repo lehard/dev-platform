@@ -50,6 +50,13 @@ patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "template/**/*.md", "
 commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check"]
 evidence_types = ["configuration", "configuration", "configuration"]
 
+# explorer: every file an Explorer editorial node binds is an Explorer input. Renaming a bound heading must fail
+# here, not only in the Explorer workflow. Stale explanations (editorial drift) are reported but never fail.
+[checks.explorer]
+patterns = ["AGENTS.md", "README.md", "docs/**", "openspec/specs/**", "dev-platform/capabilities/**"]
+commands = ["python3 scripts/build_explorer.py check"]
+evidence_types = ["configuration"]
+
 [checks.docs-template-render]
 patterns = ["template/AGENTS.md.jinja"]
 commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check", "python3 scripts/render_agents_md_smoke.py"]
@@ -123,6 +130,7 @@ targets = [
   "test_requirement_flow_e2e",
   "test_requirement_card_claim",
   "test_build_explorer",
+  "test_build_explorer_editorial",
   "test_explorer_workflow",
 ]
 mode = "parallel"
