@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "hosted-lifecycle-workers-pilot-run",
+  "imported_at": "2026-10-12T08:17:08+00:00",
+  "package_revision": "6ffdcc5e232d7fa95289057595247da4e93d6f9fc5d327855a86a8866c3589a6",
+  "prepared_against": "d71b0690ac1d05cfa44871f213167913b04fc390",
+  "private_lineage_handle": "pln_abbea4e4e9a3cb0d778e5a09ec3ac18f",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "0010affbea0ae0d7f94cf2e9be2dd5ae268290f4191d30ef88d343097684af96",
+    "updated_at": "2026-10-12T08:12:05Z"
+  },
+  "supersedes": "09407280c8b14b89dcd15a11e6a0a2b9929286d6994543f47bb241f0569a29b2",
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-610/T2"
+}

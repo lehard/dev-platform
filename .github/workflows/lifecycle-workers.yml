@@ -1,14 +1,20 @@
 name: Dev Platform lifecycle workers
 
 # GitHub-hosted placement of the existing lifecycle worker contract (`lifecycle_workers.py work-next`).
-# Delivered with manual dispatch only: enabling automatic triggers (workflow_run of the publication
-# queue and a schedule), the provider secret and DEV_PLATFORM_HOSTED_KINDS is a separate owner step,
-# see docs/engineering/hosted-lifecycle-workers.md.
+# Triggers: manual dispatch, completion of the publication queue workflow, and a 10-minute schedule
+# as a backstop for missed events. Rollback = remove the workflow_run and schedule triggers in a
+# reviewed change. DEV_PLATFORM_HOSTED_KINDS is still required: a missing one fails the run explicitly.
+# See docs/engineering/hosted-lifecycle-workers.md.
 #
 # Every job runs default-branch code only. No step checks out or executes pull-request content while a
 # token is held: the worker harness fetches the PR head into a disposable credential-free checkout.
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Dev Platform publication queue"]
+    types: [completed]
+  schedule:
+    - cron: "*/10 * * * *"
 
 permissions:
   contents: read
@@ -75,7 +81,7 @@ jobs:
           python-version: '3.11'
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: '20.19.0'
+          node-version: '22.12.0'
           package-manager-cache: false
       - name: Install the pinned Claude CLI
         if: matrix.class == 'review'
