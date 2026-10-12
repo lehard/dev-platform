@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
     "base_ref": "origin/main",
-    "candidate_head": "3eae5b3a427122a04ebaa0a1734aa68c9f7980d5",
-    "diff_sha256": "0f4fb0e724f6ff0b38c14ba055178f5ce7272397711185d72ca869a2b96a22a7"
+    "candidate_head": "2398610f1a20356ec214bb36d7b9231c97d1ca09",
+    "diff_sha256": "aeee65314241e2f996a8244201b2d15b52397c9d747a6eb4383bd985e01f18df"
   },
-  "completed_at": "2026-10-12T00:02:32+00:00",
-  "findings": [
-    {
-      "evidence": "specs/gate-fail-explicit/spec.md, 'Fail-open decisions are inventoried': 'kept only by an explicit owner decision with the location of that decision'. design.md line 26 (inventory row for the other `_latest(...) or {}` sites): '(no owner decision involved: absence there is a normal state, not a lost record)' and a list of **Kept** sites. design.md line 38: 'No site is kept without one.' design.md line 14 supports the classification (legitimate absence stays as an explicit None branch). Either the spec requirement or the inventory wording needs reconciling. The `Kept site` scenario cannot be satisfied for these rows as written.",
-      "id": "inventory-kept-sites-contradict-owner-decision-rule",
-      "severity": "advisory",
-      "summary": "The delta spec says a fail-open site may be kept only by an explicit owner decision with its location recorded. design.md keeps about eight publication_queue `or {}` sites as 'legitimate absence' and states 'no owner decision involved'. The same file's closing sentence says 'No site is kept without one', and that sentence is stale. The spec, the design prose and the inventory row disagree."
-    }
-  ],
-  "launched_at": "2026-10-12T00:02:12+00:00",
-  "output_sha256": "46194f9de3ca45ae5f8881a8f9e2b4b8c029561adb5ffc9070349858671a6f60",
+  "completed_at": "2026-10-12T00:27:15+00:00",
+  "findings": [],
+  "launched_at": "2026-10-12T00:27:03+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "06c211d5-1c78-49e2-be0d-e9d2f6a996b6",
+  "request_id": "a3c31a7a-cfeb-45c5-b190-a8a7edc52c41",
   "reviewer": {
-    "context_id": "551139d0-7ea9-482a-bc4e-b60ef9578130",
+    "context_id": "42dbd16e-a44d-4f24-8875-4c6bf0a7bcee",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8a095686-6e25-4be2-b713-efe35fc1a6c2",
+    "launch_id": "platform-launch-dc581a0a-b55c-4e46-83a1-1efed1ad5a42",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56519
+        "value": 55608
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 57710
+        "value": 56788
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17565
+        "value": 10375
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18788
+        "value": 11260
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,16 +57,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2097
+        "value": 1044
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "560ea2dc47bb05d797a5c33c93f6e3ccb9ad42f0041ce9f1d33c13f5a8c56b6e"
+  "task_content_digest": "fa1ac7aac3f87cd26cd9a9f6e3fc6f781452a14139ae53a695a71ecd236f2d17"
 }

@@ -3,46 +3,34 @@
   "candidate": {
     "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
     "base_ref": "origin/main",
-    "candidate_head": "3eae5b3a427122a04ebaa0a1734aa68c9f7980d5",
-    "diff_sha256": "0f4fb0e724f6ff0b38c14ba055178f5ce7272397711185d72ca869a2b96a22a7"
+    "candidate_head": "2398610f1a20356ec214bb36d7b9231c97d1ca09",
+    "diff_sha256": "aeee65314241e2f996a8244201b2d15b52397c9d747a6eb4383bd985e01f18df"
   },
-  "completed_at": "2026-10-12T00:03:09+00:00",
+  "completed_at": "2026-10-12T00:27:38+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py:1945-1988: `verified_advance = ... and verify_remote_fast_forward(...)` is evaluated before `record_containment_friction(...)` and `gate_failure(\"delegated-write-containment\", ...)`. The same applies to `delegation_containment.py:608`, where `assess_head_move` calls it without a guard. A missing `.dev-platform.toml`, a missing `main_branch` or a git error during a head-move violation therefore raises an unclassified `ContainmentError`. It is only caught at the top level (model_routing.py:3860). It still fails closed, but the containment friction event and the recoverable-gate classification are lost. Only the two `verify_historical_external_advance` callers were wrapped to convert the error to `RoutingError`.",
-      "id": "containment-postcheck-error-skips-violation-record",
+      "evidence": "template/scripts/integration_contour.py:367-372 calls first_record outside the try block. Only KeyError, TypeError and ValueError from parse_time are converted to JobBlocked. first_record now raises MalformedMarkerError (candidate_lifecycle.py, _trusted_records), a RuntimeError that is not caught there. The same function already uses JobBlocked for 'cannot prove when PR was admitted'.",
+      "id": "malformed-marker-escapes-admitted-at",
       "severity": "advisory",
-      "summary": "`verify_remote_fast_forward` now raises `ContainmentError` where it used to return False. In the live containment postcheck, that error escapes before the violation is recorded and before the classified `delegated-write-containment` gate failure is raised."
+      "summary": "A malformed trusted record now raises MalformedMarkerError out of integration_contour's candidate_admitted_at as a raw RuntimeError, not the blocked-job outcome used for other unprovable starts."
     },
     {
-      "evidence": "template/scripts/agent_board.py:692-707 calls `_required_scope_inputs`, which raises. template/scripts/finish_task.py:1092 calls it unconditionally before the completion preflight. The behavior matches the spec's 'stop checks and finish'. The helper's name and its 'advisory' docstring no longer match what it does, and `finish_task.py` has no handling for the new `SystemExit` besides the stop itself.",
-      "id": "advisory-warning-now-hard-stop-in-finish",
+      "evidence": "template/scripts/publication_queue.py:277-284 loops over every comment and calls latest_record per row. A malformed trusted comment now raises MalformedMarkerError. The diff handles that error in _transition and worker, but not in _earlier_slot_record or _record_comment_id. design.md says malformed records are handled by 'transition reports ownership change / worker blocks', which leaves these paths uncovered.",
+      "id": "record-comment-id-malformed-uncaught",
       "severity": "advisory",
-      "summary": "`warn_current_worktree_scope_overlap` is documented and called as an advisory pre-publication warning, but it now raises `scope-gate-unavailable` for every unmet board precondition when `agent_board = true`. In `finish_task.py` this makes a missing claim or board a hard stop at the earliest step, before the consolidated preflight."
-    },
-    {
-      "evidence": "Hard-coded in .github/workflows/project-ci.yml, template/.github/workflows/dev-platform.yml.jinja and template/.gitlab-ci.yml.jinja. `select_checks.py` defaults to `enforce`. Existing downstream projects with `agent_board = true` and their own CI invocation break until they update. The design's Risks section mentions only the `main_branch` and `fcntl` upgrade impacts, not this one.",
-      "id": "enforce-default-in-ci-flag-spread-across-templates",
-      "severity": "advisory",
-      "summary": "`--scope-gate not-applicable` has to be hard-coded in every CI entrypoint. Any downstream or custom CI that runs `select_checks.py --mode protected-full --execute` without the flag will now fail on the missing board."
-    },
-    {
-      "evidence": "template/scripts/select_checks.py:513-526 checks only `git-dir != git-common-dir` and the existence of `.managed-task-state.json`. The `STANDALONE_CLONE` topology that `model_routing.py:1936` handles is a plain clone, so the guard does not cover it. The design calls the flag 'not a free bypass', but the guard is a heuristic.",
-      "id": "disposable-checkout-guard-is-weak",
-      "severity": "advisory",
-      "summary": "`require_disposable_checkout` only rejects linked worktrees and checkouts holding `.managed-task-state.json`. A plain clone, such as a standalone task clone or any developer's main checkout, can still pass `--scope-gate not-applicable` and skip the gate."
+      "summary": "_record_comment_id and its callers (_earlier_slot_record) do not handle the MalformedMarkerError that latest_record can now raise, so a damaged trusted comment aborts queue scheduling with a raw exception."
     }
   ],
-  "launched_at": "2026-10-12T00:02:32+00:00",
-  "output_sha256": "edbc40bdd6249a29b33372fa43d8348293209a46929e1b15e92d443590136683",
+  "launched_at": "2026-10-12T00:27:15+00:00",
+  "output_sha256": "3132ee61b8820cd1f023ae250c943a827428a9668eaccb2c24b1aad1baa724aa",
   "perspective": "engineering-quality",
-  "request_id": "06c211d5-1c78-49e2-be0d-e9d2f6a996b6",
+  "request_id": "a3c31a7a-cfeb-45c5-b190-a8a7edc52c41",
   "reviewer": {
-    "context_id": "b102824e-993a-4eca-90da-07e8c0e598c1",
+    "context_id": "e9122f0c-04a1-4af2-983a-dcecece45ffe",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a562c04d-0289-4a18-969f-09cfde26909d",
+    "launch_id": "platform-launch-d67fe14b-e748-4fce-9160-5c3fad1ce72d",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56186
+        "value": 51421
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 221031
+        "value": 161587
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31899
+        "value": 20375
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35708
+        "value": 21867
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3353
+        "value": 1866
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "560ea2dc47bb05d797a5c33c93f6e3ccb9ad42f0041ce9f1d33c13f5a8c56b6e"
+  "task_content_digest": "fa1ac7aac3f87cd26cd9a9f6e3fc6f781452a14139ae53a695a71ecd236f2d17"
 }
