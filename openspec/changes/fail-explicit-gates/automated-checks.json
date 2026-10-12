@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.308,
+      "duration_seconds": 0.161,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.282,
+      "duration_seconds": 0.141,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 794.956,
+      "duration_seconds": 474.162,
       "outcome": "success",
       "exit_code": 0
     }
@@ -87,23 +87,23 @@
     "change": "fail-explicit-gates",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fail-explicit-gates",
     "branch": "agent/br-598-t1-fail-explicit-gates",
-    "head": "47bf786a69adeca8525d1ec0bb4e8134921eeefe",
+    "head": "7fe19d15c7d8a9a125d0cae502b66bbcd62b6b2a",
     "task_content": {
       "version": 1,
-      "digest": "088e843898bdf5d81cef08dec79384046e22d906b55e646e45260a4362a18945",
+      "digest": "599ee0e2b45b732da4965984f2a7515f2db63dc5cec803e31d9f73e016043a51",
       "paths": {
         ".github/workflows/project-ci.yml": "06dfeab43a418a0324c6f433a27ba0645ef99dd0",
         "dev-platform/source-contract.toml": "1d5e03cd4c360bc325be04c223bdee1055b2dfc6",
         "openspec/changes/fail-explicit-gates/.managed-task.json": "eb92ff0256a2a17aa87dec07cc58a9ca125c0442",
         "openspec/changes/fail-explicit-gates/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
-        "openspec/changes/fail-explicit-gates/automated-checks.json": "40310d72b8b4a1118681559c5540c6873f19d773",
+        "openspec/changes/fail-explicit-gates/automated-checks.json": "e518c140574f52e4a330d34bef34fb2ef3cfe613",
         "openspec/changes/fail-explicit-gates/design.md": "fb03bf01f4bc85cc6e58341c2018fc6b759d41aa",
-        "openspec/changes/fail-explicit-gates/independent-review-request.json": "38ed04140b20dd002604c2c79c4b6da88d4eb5a9",
-        "openspec/changes/fail-explicit-gates/independent-reviews/engineering-quality.json": "a1e653a6f621164e8ecc795669468f880fefb2ba",
-        "openspec/changes/fail-explicit-gates/independent-reviews/spec-fidelity.json": "2affe0626e1f789eb2292beb9c457da1578fc62a",
+        "openspec/changes/fail-explicit-gates/independent-review-request.json": "7312b53d07ad9b6f2ba9b79e3c6f36528a2bfe07",
+        "openspec/changes/fail-explicit-gates/independent-reviews/engineering-quality.json": "aa8813486efb0fa07fef3c91163d0c3ae36118ac",
+        "openspec/changes/fail-explicit-gates/independent-reviews/spec-fidelity.json": "430ccc681a20cbd4832aadb10ca94c18c681e0c5",
         "openspec/changes/fail-explicit-gates/proposal.md": "62dc43b620cc97dbef0d53f4a7e63e6acf531b8f",
         "openspec/changes/fail-explicit-gates/specs/gate-fail-explicit/spec.md": "438056e3ff9825ea7389719edb0b97a6bad8a1c7",
-        "openspec/changes/fail-explicit-gates/tasks.md": "e30ff0ce99949377fa5c8a36f1db0643bf0a1e32",
+        "openspec/changes/fail-explicit-gates/tasks.md": "eaf3c441fd914013d2cf64cf2026c87600c5eb60",
         "openspec/changes/fail-explicit-gates/verification.md": "a9cf07d51578dd9b32fb2cf71104b47f9f806206",
         "template/.github/workflows/dev-platform.yml.jinja": "02a736a5bcc64fec27b52878c09ab37b0f521b0f",
         "template/.gitlab-ci.yml.jinja": "6674aad8545413650e681c3003b0488555355145",
@@ -148,7 +148,7 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "560ea2dc47bb05d797a5c33c93f6e3ccb9ad42f0041ce9f1d33c13f5a8c56b6e",
+    "digest": "fa1ac7aac3f87cd26cd9a9f6e3fc6f781452a14139ae53a695a71ecd236f2d17",
     "paths": {
       ".github/workflows/project-ci.yml": "06dfeab43a418a0324c6f433a27ba0645ef99dd0",
       "dev-platform/source-contract.toml": "1d5e03cd4c360bc325be04c223bdee1055b2dfc6",
@@ -157,7 +157,7 @@
       "openspec/changes/fail-explicit-gates/design.md": "fb03bf01f4bc85cc6e58341c2018fc6b759d41aa",
       "openspec/changes/fail-explicit-gates/proposal.md": "62dc43b620cc97dbef0d53f4a7e63e6acf531b8f",
       "openspec/changes/fail-explicit-gates/specs/gate-fail-explicit/spec.md": "438056e3ff9825ea7389719edb0b97a6bad8a1c7",
-      "openspec/changes/fail-explicit-gates/tasks.md": "e30ff0ce99949377fa5c8a36f1db0643bf0a1e32",
+      "openspec/changes/fail-explicit-gates/tasks.md": "eaf3c441fd914013d2cf64cf2026c87600c5eb60",
       "template/.github/workflows/dev-platform.yml.jinja": "02a736a5bcc64fec27b52878c09ab37b0f521b0f",
       "template/.gitlab-ci.yml.jinja": "6674aad8545413650e681c3003b0488555355145",
       "template/dev-platform/blocking-gates.toml": "cdff21b52c84013a2c10f6af3b6814fbf7724ca2",
@@ -201,7 +201,7 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_board.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/delegation_containment.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/integration_state.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/run_test_groups.py --changed-file template/scripts/select_checks.py --changed-file tests/test_candidate_lifecycle.py --changed-file tests/test_coordinator_preflight.py --changed-file tests/test_delegated_write_guard.py --changed-file tests/test_delegation_containment.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_model_routing.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_operator_config.py --changed-file tests/test_platform_common.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_run_test_groups.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_writer_guard.py --changed-file tests/test_task_freshness.py --changed-file tests/test_worktree_hygiene.py",
-    "duration_seconds": 628.106,
+    "duration_seconds": 417.969,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
