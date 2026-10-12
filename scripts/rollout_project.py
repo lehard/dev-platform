@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import ast
 import hashlib
+import importlib.util
 import json
 import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -1381,6 +1383,153 @@ def ensure_legacy_baseline_tag_available(
     )
 
 
+RUNNER_WORKFLOWS = (
+    (".github/workflows/dev-platform.yml", "platform-ci", "PLATFORM_CI_RUNS_ON_RE"),
+    (".github/workflows/process-health-labels.yml", "provision", "PROVISION_RUNS_ON_RE"),
+)
+DEFAULT_RUNNER = "ubuntu-latest"
+
+
+def platform_doctor_module() -> Any:
+    """Load the shipped doctor so the rollout applies the exact runner-label rule CI will enforce."""
+    scripts = PLATFORM_ROOT / "template" / "scripts"
+    spec = importlib.util.spec_from_file_location("rollout_platform_doctor", scripts / "platform_doctor.py")
+    if spec is None or spec.loader is None:
+        raise ValueError(f"cannot load {scripts / 'platform_doctor.py'}")
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(scripts))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(scripts))
+    return module
+
+
+def parse_runner_labels(doctor: Any, value: str) -> list[str] | None:
+    """Labels of a simple `runs-on` value, or None when it is not a plain label, quoted label or flow list of them."""
+    value = value.strip()
+    if not value or " #" in value:
+        return None
+    inner = value[1:-1] if value.startswith("[") and value.endswith("]") else value
+    labels: list[str] = []
+    for item in inner.split(","):
+        item = item.strip()
+        quoted = len(item) >= 2 and item[0] == item[-1] and item[0] in {"'", '"'}
+        if quoted:
+            item = item[1:-1]
+        elif item.lower() in doctor.YAML_PLAIN_SPECIAL_WORDS or not item[:1].isalpha():
+            return None  # YAML would not read this unquoted scalar as the label string
+        labels.append(item)
+    entries, problems = doctor.ci_runner_label_problems(",".join(labels))
+    return None if problems else entries
+
+
+def runner_migration_block(repository: str, relative: str, found: str, action: str) -> ValueError:
+    return ValueError(
+        f"{repository}: {relative}: {found}. The target release records the platform CI runner as the Copier "
+        f"answers ci_runner/ci_runner_labels, and this rollout will not replace it with github-hosted. "
+        f"Next action: {action}. The default branch was not changed."
+    )
+
+
+def migrate_ci_runner_answers(
+    project_root: Path,
+    repository: str,
+    current_tag: str,
+    version: str,
+    *,
+    env: dict[str, str],
+    legacy_repository: str | None = None,
+) -> str:
+    """Carry a hand-edited platform CI runner into the Copier answers, or stop, before `copier update`.
+
+    Returns `skipped` (not applicable), `default` (every present runner is ubuntu-latest) or `migrated`.
+    The migration reverts only the `runs-on` value to the baseline and records the answers in one rollout
+    branch commit, so Copier replays no downstream diff on those files; this is identical for both
+    harness modes and needs no recopy.
+    """
+    answers_path = project_root / ".copier-answers.yml"
+    answers_text = answers_path.read_text(encoding="utf-8")
+    answers = parse_answers(answers_text)
+    if "ci_runner" in answers or answers.get("scm_provider", "github") != "github":
+        return "skipped"
+    ensure_platform_tag_available(version, env=env, legacy_repository=legacy_repository)
+    target_copier = subprocess.run(
+        ["git", "show", f"{version}:copier.yml"], cwd=PLATFORM_ROOT, text=True, capture_output=True, check=False
+    )
+    if target_copier.returncode != 0:
+        raise ValueError(f"could not read copier.yml of target {version}: {target_copier.stderr.strip()}")
+    if not re.search(r"^ci_runner:\s*$", target_copier.stdout, re.MULTILINE):
+        return "skipped"
+
+    doctor = platform_doctor_module()
+    found: dict[str, tuple[str, re.Match[str], str]] = {}
+    for relative, job, regex_name in RUNNER_WORKFLOWS:
+        path = project_root / relative
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding="utf-8")
+        match = getattr(doctor, regex_name).search(text)
+        if match:
+            found[relative] = (job, match, text)
+    custom = {relative: item for relative, item in found.items() if item[1].group(1) != DEFAULT_RUNNER}
+    if not custom:
+        return "default"
+
+    labels_by_file: dict[str, list[str]] = {}
+    for relative, (job, match, _text) in custom.items():
+        value = match.group(1)
+        labels = parse_runner_labels(doctor, value)
+        if labels is None:
+            raise runner_migration_block(
+                repository, relative,
+                f"job {job} has runs-on {value!r}, which is not a plain label or a list of plain labels",
+                f"keep {relative} equal to the platform render with `runs-on: {DEFAULT_RUNNER}` and record the runner "
+                "yourself as ci_runner: self-hosted and ci_runner_labels: <comma-separated labels> in "
+                ".copier-answers.yml on the project's default branch, or move the custom runner out of the "
+                "platform-owned workflow; then rerun the rollout",
+            )
+        labels_by_file[relative] = labels
+    distinct = {tuple(labels) for labels in labels_by_file.values()}
+    if len(distinct) != 1 or len(custom) != len(found):
+        raise runner_migration_block(
+            repository, sorted(custom)[0],
+            "the platform CI runners disagree: "
+            + ", ".join(f"{relative} job {job} uses {match.group(1)!r}" for relative, (job, match, _t) in sorted(found.items())),
+            "give platform-ci and provision the same runner (or both ubuntu-latest) and rerun the rollout",
+        )
+    labels = list(distinct.pop())
+
+    restored: dict[str, str] = {}
+    for relative, (_job, match, text) in custom.items():
+        restored[relative] = text[: match.start(1)] + DEFAULT_RUNNER + text[match.end(1):]
+    baseline = rendered_template_fingerprints(
+        current_tag, answers_text, set(restored), env=env, baseline_equivalence=True, legacy_repository=legacy_repository
+    )
+    for relative, text in restored.items():
+        digest = hashlib.sha256(normalize_baseline_bytes(relative, text.encode("utf-8"))).hexdigest()
+        if baseline[relative] != ("file", digest):
+            raise runner_migration_block(
+                repository, relative,
+                f"the runner is {custom[relative][1].group(1)!r} but the file also differs from the {current_tag} platform render",
+                f"remove the other edits from {relative} (it is platform-owned) so that only runs-on differs, or "
+                "record ci_runner/ci_runner_labels yourself and resolve the file by hand; then rerun the rollout",
+            )
+
+    for relative, text in restored.items():
+        (project_root / relative).write_text(text, encoding="utf-8")
+    separator = "" if answers_text.endswith("\n") else "\n"
+    answers_path.write_text(
+        answers_text + separator + "ci_runner: self-hosted\n" + f"ci_runner_labels: {json.dumps(','.join(labels))}\n",
+        encoding="utf-8",
+    )
+    run(["git", "add", ".copier-answers.yml", *sorted(restored)], project_root)
+    run(["git", "commit", "-m", "chore: record the platform CI runner as Copier answers before the dev-platform update"], project_root)
+    ensure_clean(project_root)
+    print(f"Migrated hand-edited CI runner {labels} into ci_runner/ci_runner_labels answers", flush=True)
+    return "migrated"
+
+
 def copier_update_with_guarded_recopy(
     project_root: Path,
     version: str,
@@ -1673,6 +1822,14 @@ def apply_rollout(
     run(["git", "checkout", "-b", branch, f"origin/{base_branch}"], project_root)
     ensure_clean(project_root)
 
+    migrate_ci_runner_answers(
+        project_root,
+        repository,
+        current_tag,
+        version,
+        env=private_source_git_env(),
+        legacy_repository=legacy_repository,
+    )
     strategy = copier_update_with_guarded_recopy(
         project_root,
         version,

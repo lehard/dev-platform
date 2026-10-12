@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import re
 import shutil
 import subprocess
@@ -9,12 +10,15 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Callable
+from unittest import mock
 
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.append(str(ROOT / "scripts"))
+import rollout_project  # noqa: E402
 SPEC = importlib.util.spec_from_file_location("platform_doctor_runner", SCRIPTS / "platform_doctor.py")
 assert SPEC and SPEC.loader
 platform_doctor = importlib.util.module_from_spec(SPEC)
@@ -140,6 +144,43 @@ class CiRunnerRenderTests(unittest.TestCase):
             copier_copy(self.source, target, {"ci_runner": "self-hosted", "ci_runner_labels": " "})
         self.assertIn("ci_runner_labels", raised.exception.stderr + raised.exception.stdout)
 
+    LABEL_TABLE = [
+        "my-runner", "self-hosted,linux", " a , b ", "a.b_c-1", "123", "a,,b", "a,", ",a", "self hosted", "a,a",
+        "a!", "[a]", "a;b", "é", "a b,c",
+    ]
+
+    def test_copier_validator_and_doctor_reject_the_same_labels(self) -> None:
+        for labels in self.LABEL_TABLE:
+            with self.subTest(labels=labels):
+                _entries, problems = platform_doctor.ci_runner_label_problems(labels)
+                target = Path(self._shared.name) / "parity"
+                shutil.rmtree(target, ignore_errors=True)
+                try:
+                    copier_copy(self.source, target, {"ci_runner": "self-hosted", "ci_runner_labels": labels})
+                    accepted = True
+                    output = ""
+                except subprocess.CalledProcessError as error:
+                    accepted = False
+                    output = error.stderr + error.stdout
+                self.assertEqual(accepted, not problems, f"Copier accepted={accepted}, doctor problems={problems}")
+                if not accepted:
+                    self.assertIn("ci_runner_labels", output)
+
+    def test_empty_entry_and_inner_whitespace_fail_at_the_copier_question(self) -> None:
+        for labels in ("a,,b", "self hosted"):
+            with self.subTest(labels=labels), self.assertRaises(subprocess.CalledProcessError) as raised:
+                copier_copy(self.source, Path(self._shared.name) / "bad-labels", {"ci_runner": "self-hosted", "ci_runner_labels": labels})
+            self.assertIn("ci_runner_labels", raised.exception.stderr + raised.exception.stdout)
+
+    def test_gitlab_project_is_not_asked_about_a_github_runner(self) -> None:
+        target = self.render("gitlab", {"scm_provider": "gitlab"})
+        answers = (target / ".copier-answers.yml").read_text(encoding="utf-8")
+        self.assertNotIn("ci_runner", answers)
+        self.assertFalse((target / ".github" / "workflows" / "dev-platform.yml").exists())
+        # A runner answer supplied for GitLab is neither asked nor recorded.
+        target = self.render("gitlab-ignored", {"scm_provider": "gitlab", "ci_runner": "self-hosted", "ci_runner_labels": "ok"})
+        self.assertNotIn("ci_runner", (target / ".copier-answers.yml").read_text(encoding="utf-8"))
+
     def doctor_failures(self, target: Path) -> int:
         failures = [0]
         platform_doctor.check_ci_runner_agreement(target, {"scm_provider": "github", "platform_version": "1.0.0"}, failures)
@@ -213,7 +254,17 @@ def strip_runner_support(source: Path) -> None:
 class CiRunnerMigrationTests(unittest.TestCase):
     """Rollout path: a project rendered before the runner questions existed is updated with the rollout's Copier flags."""
 
-    def migrate(self, preseed: dict[str, str] | None, hand_edit: Callable[[Path], None] | None = None) -> Path:
+    rollout_outcome: str | None = None
+    rollout_error: ValueError | None = None
+
+    def migrate(
+        self,
+        preseed: dict[str, str] | None,
+        hand_edit: Callable[[Path], None] | None = None,
+        *,
+        rollout_to: str | None = None,
+    ) -> Path:
+        """Render a pre-feature project and update it; with `rollout_to`, run the rollout's runner preflight first."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         tmp_path = Path(tmp.name).resolve()
@@ -256,6 +307,21 @@ class CiRunnerMigrationTests(unittest.TestCase):
         git(source, "add", "-A")
         git(source, "commit", "-q", "-m", "template with runner questions")
         git(source, "tag", "v1.0.1")
+        if rollout_to:
+            identity = {
+                "GIT_AUTHOR_NAME": "ci-runner-test", "GIT_AUTHOR_EMAIL": "ci-runner-test@example.invalid",
+                "GIT_COMMITTER_NAME": "ci-runner-test", "GIT_COMMITTER_EMAIL": "ci-runner-test@example.invalid",
+            }
+            with mock.patch.object(rollout_project, "PLATFORM_ROOT", source), mock.patch.dict(os.environ, identity):
+                try:
+                    self.rollout_outcome = rollout_project.migrate_ci_runner_answers(
+                        target, "owner/project", "v1.0.0", rollout_to, env=dict(os.environ)
+                    )
+                except ValueError as error:
+                    self.rollout_error = error
+                    return target
+            if rollout_to == "v1.0.0":
+                return target
         # Same flags as scripts/rollout_project.py copier_update_with_guarded_recopy.
         subprocess.run(
             ["copier", "update", "--trust", "--defaults", "--skip-tasks", "--vcs-ref", "v1.0.1", "--conflict", "rej", str(target)],
@@ -267,6 +333,105 @@ class CiRunnerMigrationTests(unittest.TestCase):
         failures = [0]
         platform_doctor.check_ci_runner_agreement(target, {"scm_provider": "github", "platform_version": "1.0.1"}, failures)
         return failures[0]
+
+    def edit_runners(self, replacements: dict[str, str], *, extra: Callable[[str], str] | None = None) -> Callable[[Path], None]:
+        """Hand edit `runs-on` of the given workflow files (name -> new value), as a pre-feature project would."""
+        def hand_edit(target: Path) -> None:
+            for name, value in replacements.items():
+                path = target / ".github" / "workflows" / name
+                text = path.read_text(encoding="utf-8")
+                self.assertEqual(text.count("runs-on: ubuntu-latest\n"), 1)
+                text = text.replace("runs-on: ubuntu-latest\n", f"runs-on: {value}\n")
+                path.write_text(extra(text) if extra else text, encoding="utf-8")
+        return hand_edit
+
+    def set_harness_mode(self, hand_edit: Callable[[Path], None], mode: str) -> Callable[[Path], None]:
+        def edit(target: Path) -> None:
+            config = target / ".dev-platform.toml"
+            text = config.read_text(encoding="utf-8")
+            text = re.sub(r'^harness_mode = ".*"$', f'harness_mode = "{mode}"', text, flags=re.MULTILINE)
+            config.write_text(text, encoding="utf-8")
+            hand_edit(target)
+        return edit
+
+    def assert_unmigrated_untouched(self, target: Path) -> None:
+        self.assertNotIn("ci_runner", (target / ".copier-answers.yml").read_text(encoding="utf-8"))
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=target, check=True, capture_output=True, text=True)
+        self.assertEqual(status.stdout, "")
+        count = subprocess.run(["git", "rev-list", "--count", "HEAD"], cwd=target, check=True, capture_output=True, text=True)
+        self.assertEqual(count.stdout.strip(), "2")  # baseline and hand edit only: the preflight committed nothing
+
+    def test_rollout_migrates_a_hand_edited_runner_in_both_harness_modes(self) -> None:
+        for mode in ("platform", "project"):
+            for value, labels, expected in (
+                ("my-runner", "my-runner", "my-runner"),
+                ("[self-hosted, linux]", "self-hosted,linux", ["self-hosted", "linux"]),
+            ):
+                with self.subTest(mode=mode, runs_on=value):
+                    edits = {"dev-platform.yml": value, "process-health-labels.yml": value}
+                    target = self.migrate(None, self.set_harness_mode(self.edit_runners(edits), mode), rollout_to="v1.0.1")
+                    self.assertIsNone(self.rollout_error)
+                    self.assertEqual(self.rollout_outcome, "migrated")
+                    answers = yaml.safe_load((target / ".copier-answers.yml").read_text(encoding="utf-8"))
+                    self.assertEqual((answers["ci_runner"], answers["ci_runner_labels"]), ("self-hosted", labels))
+                    self.assertEqual(list(target.rglob("*.rej")), [])
+                    self.assertEqual(load_jobs(target, "dev-platform.yml")["platform-ci"]["runs-on"], expected)
+                    self.assertEqual(load_jobs(target, "process-health-labels.yml")["provision"]["runs-on"], expected)
+                    self.assertIn(REPAIR_NAME, step_names(load_jobs(target, "dev-platform.yml")["platform-ci"]))
+                    self.assertEqual(self.doctor_failures(target), 0)
+
+    def test_rollout_leaves_a_project_without_runner_edits_on_the_ordinary_path(self) -> None:
+        target = self.migrate(None, rollout_to="v1.0.1")
+        self.assertEqual(self.rollout_outcome, "default")
+        answers = yaml.safe_load((target / ".copier-answers.yml").read_text(encoding="utf-8"))
+        self.assertEqual(answers["ci_runner"], "github-hosted")
+        self.assertEqual(self.doctor_failures(target), 0)
+
+    def test_rollout_stops_when_the_runner_cannot_be_migrated_safely(self) -> None:
+        cases = {
+            "expression": (
+                self.edit_runners({"dev-platform.yml": "${{ vars.RUNNER }}", "process-health-labels.yml": "${{ vars.RUNNER }}"}),
+                "dev-platform.yml",
+            ),
+            "block list": (
+                self.edit_runners({"dev-platform.yml": "[a, b, a]", "process-health-labels.yml": "[a, b, a]"}),
+                "dev-platform.yml",
+            ),
+            "jobs disagree": (self.edit_runners({"dev-platform.yml": "my-runner"}), "dev-platform.yml"),
+            "other edit in the file": (
+                self.edit_runners({"dev-platform.yml": "my-runner", "process-health-labels.yml": "my-runner"},
+                                  extra=lambda text: text.replace("timeout-minutes: 90", "timeout-minutes: 45")),
+                "dev-platform.yml",
+            ),
+        }
+        for name, (edit, filename) in cases.items():
+            with self.subTest(case=name):
+                self.rollout_error = None
+                target = self.migrate(None, edit, rollout_to="v1.0.1")
+                self.assertIsNotNone(self.rollout_error)
+                message = str(self.rollout_error)
+                self.assertIn("owner/project", message)
+                self.assertIn(filename, message)
+                self.assertIn("Next action:", message)
+                self.assertIn("default branch was not changed", message)
+                self.assertNotIn("github-hosted", (target / ".copier-answers.yml").read_text(encoding="utf-8"))
+                self.assert_unmigrated_untouched(target)
+
+    def test_rollout_preflight_does_not_apply_without_a_runner_question_or_for_gitlab(self) -> None:
+        edits = {"dev-platform.yml": "my-runner", "process-health-labels.yml": "my-runner"}
+        self.migrate(None, self.edit_runners(edits), rollout_to="v1.0.0")
+        self.assertEqual(self.rollout_outcome, "skipped")
+
+        def gitlab(target: Path) -> None:
+            answers = target / ".copier-answers.yml"
+            answers.write_text(answers.read_text(encoding="utf-8").replace("scm_provider: github", "scm_provider: gitlab"), encoding="utf-8")
+            self.edit_runners(edits)(target)
+
+        self.migrate(None, gitlab, rollout_to="v1.0.1")
+        self.assertEqual(self.rollout_outcome, "skipped")
+
+        self.migrate({"ci_runner": "self-hosted", "ci_runner_labels": "my-runner"}, self.edit_runners(edits), rollout_to="v1.0.1")
+        self.assertEqual(self.rollout_outcome, "skipped")
 
     def test_update_records_github_hosted_default_for_pre_feature_project(self) -> None:
         target = self.migrate(None)

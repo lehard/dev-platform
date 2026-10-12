@@ -175,6 +175,26 @@ def rendered_runs_on(labels: list[str]) -> str:
     return json.dumps(labels)
 
 
+def ci_runner_label_problems(raw: str | None) -> tuple[list[str], list[str]]:
+    """The one runner-label rule: returns (entries, problems); an empty problem list means the labels are valid.
+
+    copier.yml's ci_runner_labels validator mirrors this rule, and rollout_project.py reuses it before recording
+    migrated answers; tests/test_ci_runner_selection.py keeps the three equal.
+    """
+    entries = [item.strip() for item in (raw or "").split(",")]
+    problems: list[str] = []
+    if not raw or not raw.strip():
+        return entries, ["is empty"]
+    if any(not item for item in entries):
+        problems.append("contains an empty entry")
+    bad = [item for item in entries if item and not CI_RUNNER_LABEL_RE.fullmatch(item)]
+    if bad:
+        problems.append(f"contains invalid labels {bad}; allowed characters are [A-Za-z0-9._-]")
+    if len({item for item in entries if item}) != len([item for item in entries if item]):
+        problems.append("contains duplicate labels")
+    return entries, problems
+
+
 def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> None:
     """Prove the committed platform-ci and label-provision runners agree with the recorded Copier answers."""
     if scm_provider(config) == "gitlab":
@@ -188,18 +208,7 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
         return
     if kind == "self-hosted":
         raw = copier_answer(root, "ci_runner_labels")
-        entries = [item.strip() for item in (raw or "").split(",")]
-        problems = []
-        if not raw or not raw.strip():
-            problems.append("is empty")
-        else:
-            if any(not item for item in entries):
-                problems.append("contains an empty entry")
-            bad = [item for item in entries if item and not CI_RUNNER_LABEL_RE.fullmatch(item)]
-            if bad:
-                problems.append(f"contains invalid labels {bad}; allowed characters are [A-Za-z0-9._-]")
-            if len({item for item in entries if item}) != len([item for item in entries if item]):
-                problems.append("contains duplicate labels")
+        entries, problems = ci_runner_label_problems(raw)
         if problems:
             fail(f".copier-answers.yml ci_runner_labels={raw!r} {'; '.join(problems)}"); failures[0] += 1
             return
