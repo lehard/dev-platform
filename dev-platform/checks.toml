@@ -163,6 +163,7 @@ targets = [
   "test_platform_module_identity",
   "test_lifecycle_workers",
   "test_lifecycle_overview",
+  "test_hosted_workers",
 ]
 mode = "parallel"
 

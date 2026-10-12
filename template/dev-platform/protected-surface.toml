@@ -152,6 +152,10 @@ path = "scripts/lifecycle_workers.py"
 category = "protected-publication"
 
 [[protected]]
+path = "scripts/hosted_workers.py"
+category = "protected-publication"
+
+[[protected]]
 path = "scripts/integration_contour.py"
 category = "protected-publication"
 
@@ -251,6 +255,10 @@ category = "credentials"
 
 [[protected]]
 path = "scripts/lifecycle_workers.py"
+category = "credentials"
+
+[[protected]]
+path = "scripts/hosted_workers.py"
 category = "credentials"
 
 [[protected]]

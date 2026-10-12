@@ -1,0 +1,82 @@
+{
+  "candidate": {
+    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_ref": "origin/main",
+    "candidate_head": "c2cec9b719142669e542329b0e0dc76d079f3822",
+    "diff_sha256": "5ddcb29678d30eaaca483483fec11b43f180164d2e6bb8921df2a6dd52bef4a8"
+  },
+  "change": "openspec/changes/hosted-lifecycle-workers-pilot",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/hosted-lifecycle-workers-pilot/automated-checks.json",
+    "openspec/changes/hosted-lifecycle-workers-pilot/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/design.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/specs/lifecycle-workers/spec.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/hosted-lifecycle-workers-pilot/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/design.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/tasks.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-12T06:56:59+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/hosted-lifecycle-workers-pilot/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "63f52c02-cf94-4165-b30c-6ae882b7b4d4",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "digest": "dc74dbc79d63253bd9858a4411e31ee2d0c4bdb5d3eee2ef4858c8f2f22fd5fb",
+    "paths": {
+      ".github/workflows/lifecycle-workers.yml": "c969bd9515f8ff24e7f75031048fe9e8dbecb5e9",
+      "dev-platform/checks.toml": "1ee1ecc1a130203f0ed26dc152f9b8fa3d539e18",
+      "docs/engineering/agent-workflow.md": "5b5fbb9df43e7b9ea5edf65c0b230aa68ca7f3fd",
+      "docs/engineering/hosted-lifecycle-workers.md": "9c5be9d449b33094e7751463bee7918e97fbce91",
+      "openspec/changes/hosted-lifecycle-workers-pilot/.managed-task.json": "d8097742b583ac880285847ab1730238f034763e",
+      "openspec/changes/hosted-lifecycle-workers-pilot/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+      "openspec/changes/hosted-lifecycle-workers-pilot/design.md": "36dedd62a8f872a5d3657287eac9f0d9e4baad8c",
+      "openspec/changes/hosted-lifecycle-workers-pilot/proposal.md": "fd728f2f23ae6085ff206fb23dd70d59538e2ce6",
+      "openspec/changes/hosted-lifecycle-workers-pilot/specs/lifecycle-workers/spec.md": "e980cb6212e2dd966d3fff658382cc1a7f5a3ba2",
+      "openspec/changes/hosted-lifecycle-workers-pilot/tasks.md": "1f3264cd513006cabab24d43d04831739bf235c6",
+      "template/dev-platform/platform-manifest.json": "7bb683efbde24f03dcb955ea0bb6f0e49f7acf67",
+      "template/dev-platform/protected-surface.toml": "02006cb67fd5610949694cc990a2af38c3c22590",
+      "template/scripts/_platform_common.py": "7c79eacc4aadc3c6996eba85edf65d8ab5f89abf",
+      "template/scripts/hosted_workers.py": "9409164e3dc545a57b750dacf2080d19cfdf89f5",
+      "template/scripts/lifecycle_workers.py": "e5cf891208068479b62b68e94574cc9adffa4a8b",
+      "tests/test_hosted_workers.py": "f8229e98e5ee750e4b120c527eaf5b29c7d14332",
+      "tests/test_shared_writer_guard.py": "03b5c99e8e4e0446dfd1d5453bce850881e19c73"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
