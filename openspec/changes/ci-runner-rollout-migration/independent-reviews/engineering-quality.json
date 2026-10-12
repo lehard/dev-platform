@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "fd11057eea5cbc12f84c2474f2fc82e283f59cf9",
-    "diff_sha256": "6c3ccacd858277b2ec316fac919b092a58c43c75d07d4ce3c10d6232d3ee4870"
+    "candidate_head": "211f90b38d3a967652b7752d51113d3b315da2f9",
+    "diff_sha256": "abe6aafffcf85d9dd893c7ed9d7a003a28212bbb3cf2e5d7089331aa44440f74"
   },
-  "completed_at": "2026-10-12T07:15:17+00:00",
+  "completed_at": "2026-10-12T07:20:26+00:00",
   "findings": [
     {
-      "evidence": "scripts/rollout_project.py, migrate_ci_runner_answers: `if scm_provider is None: raise ValueError(...)` comes before `if \"ci_runner\" in answers or scm_provider != \"github\": return \"skipped\"` and before the target copier.yml check for `ci_runner`. copier.yml declares `scm_provider` with `default: github`, so Copier itself treats an absent answer as github. The new test only asserts the error for a v1.0.1 target with no ci_runner, so it does not cover the older-target or already-migrated cases. The raise should come only after the project is known to be in scope: target asks ci_runner and answers lack ci_runner.",
-      "id": "scm-provider-stop-before-applicability",
-      "severity": "material",
-      "summary": "migrate_ci_runner_answers raises on a missing scm_provider answer before checking whether the preflight applies at all. Every rollout of a project whose answers lack scm_provider now fails, including rollouts to older targets and projects that already record ci_runner. This contradicts the spec ('Older target and GitLab are unaffected') and the design's applicability rule (decision 5)."
+      "evidence": "scripts/rollout_project.py parse_runner_labels: `inner = value[1:-1] if value.startswith(\"[\") and value.endswith(\"]\") else value` followed by `inner.split(\",\")`. The split applies to both the list and non-list cases. The `custom` filter only treats a value as default when `group(1).strip(\"'\\\"\") == DEFAULT_RUNNER`, so the bracketed `[ubuntu-latest]` is not recognised as the default. The tests cover neither case. The fix is to reject a comma in a non-bracketed value, and to decide explicitly what `[ubuntu-latest]` means.",
+      "id": "unbracketed-comma-runs-on-misparsed",
+      "severity": "advisory",
+      "summary": "parse_runner_labels splits an unbracketed plain scalar on commas, so `runs-on: a, b` is treated as two labels, but YAML reads it as the single string \"a, b\". The same happens for `[ubuntu-latest]`: it counts as a custom runner and migrates to self-hosted. The migration could record answers that differ from what GitHub was actually using."
     }
   ],
-  "launched_at": "2026-10-12T07:15:03+00:00",
-  "output_sha256": "dbaf3cb4d0daaef1c0568d8b15d76bf9925ce77831b78108da3b0cd8fdcb6542",
+  "launched_at": "2026-10-12T07:20:05+00:00",
+  "output_sha256": "d409a87a00dc811b94996149ec53c8618dc1594505f5239b105a467448fa84ff",
   "perspective": "engineering-quality",
-  "request_id": "ce84920e-e688-41db-8bdd-08d31ab6818f",
+  "request_id": "4e8e016c-3dfd-42b0-8641-678c6db96dd8",
   "reviewer": {
-    "context_id": "5a8a6ed3-4479-429f-ad34-e8095ad3393c",
+    "context_id": "7ff47085-cd34-4fa7-9916-daf0c74a4ee2",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-be6a45bc-716c-4ae4-8653-340c495e6f6f",
+    "launch_id": "platform-launch-c0b4a361-08fb-4bca-9b2a-466e7be31bbc",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33394
+        "value": 33124
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56674
+        "value": 18921
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10426
+        "value": 17994
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10961
+        "value": 18468
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 926
+        "value": 1958
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "d5eebc672a3e17920fad0e8085d4c0d5b8529e97599da4f5a0db9608ea994f16"
+  "task_content_digest": "8b5b50aa8c7a6480a6d4a2788648f17033eba30fa4979bdba9ad5a0df28de86d"
 }

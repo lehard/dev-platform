@@ -133,7 +133,7 @@ ci_runner_labels:
     {%- if not ci_runner_labels | trim -%}ci_runner_labels must list at least one runner label when ci_runner=self-hosted
     {%- elif '' in labels -%}ci_runner_labels contains an empty entry
     {%- elif ns.bad -%}ci_runner_labels contains invalid labels {{ ns.bad }}; allowed characters are [A-Za-z0-9._-]
-    {%- elif labels | length != labels | unique | list | length -%}ci_runner_labels contains duplicate labels
+    {%- elif labels | length != labels | unique(case_sensitive=true) | list | length -%}ci_runner_labels contains duplicate labels
     {%- endif -%}
 
 agent_tools:

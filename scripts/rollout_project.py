@@ -1410,9 +1410,11 @@ def parse_runner_labels(doctor: Any, value: str) -> list[str] | None:
     value = value.strip()
     if not value or " #" in value:
         return None
-    inner = value[1:-1] if value.startswith("[") and value.endswith("]") else value
+    is_list = value.startswith("[") and value.endswith("]")
+    if not is_list and "," in value:
+        return None  # YAML reads an unbracketed `a, b` as the single string "a, b"
     labels: list[str] = []
-    for item in inner.split(","):
+    for item in (value[1:-1] if is_list else value).split(","):
         item = item.strip()
         quoted = len(item) >= 2 and item[0] == item[-1] and item[0] in {"'", '"'}
         if quoted:
@@ -1421,7 +1423,9 @@ def parse_runner_labels(doctor: Any, value: str) -> list[str] | None:
             return None  # YAML would not read this unquoted scalar as the label string
         labels.append(item)
     entries, problems = doctor.ci_runner_label_problems(",".join(labels))
-    return None if problems else entries
+    if problems or DEFAULT_RUNNER in entries:
+        return None  # `[ubuntu-latest]` is the hosted runner in list form, not a self-hosted label
+    return entries
 
 
 def runner_migration_block(repository: str, relative: str, found: str, action: str) -> ValueError:

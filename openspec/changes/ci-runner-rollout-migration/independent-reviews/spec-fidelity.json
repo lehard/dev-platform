@@ -3,30 +3,36 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "fd11057eea5cbc12f84c2474f2fc82e283f59cf9",
-    "diff_sha256": "6c3ccacd858277b2ec316fac919b092a58c43c75d07d4ce3c10d6232d3ee4870"
+    "candidate_head": "211f90b38d3a967652b7752d51113d3b315da2f9",
+    "diff_sha256": "abe6aafffcf85d9dd893c7ed9d7a003a28212bbb3cf2e5d7089331aa44440f74"
   },
-  "completed_at": "2026-10-12T07:15:03+00:00",
+  "completed_at": "2026-10-12T07:20:05+00:00",
   "findings": [
     {
-      "evidence": "In scripts/rollout_project.py `migrate_ci_runner_answers`, `if scm_provider is None: raise ValueError(...)` comes before `if \"ci_runner\" in answers or scm_provider != \"github\": return \"skipped\"` and before the check that the target `copier.yml` asks `ci_runner`. The managed-rollout spec scenario \"Older target and GitLab are unaffected\" says that when the target does not ask `ci_runner`, \"the runner preflight does not run\". Design decision 5 says the preflight runs only when the target defines `ci_runner`, the answers lack it and the project is not GitLab, and that otherwise \"behavior is exactly today's\". As written, a project whose `.copier-answers.yml` has no `scm_provider` is blocked on every rollout. That includes rollouts to older targets and projects that already record `ci_runner`. The stop was added in the latest commit, fd11057e. The spec and design do not mention it, and design decision 5 says only \"`scm_provider` is not `gitlab`\", so the stop contradicts the contract unless the contract is updated first.",
-      "id": "scm-provider-stop-precedes-applicability",
+      "evidence": "copier.yml validator: `labels | unique | list | length`. Jinja's `unique` filter defaults to `case_sensitive=False`, so `A,a` counts as a duplicate. `ci_runner_label_problems` in template/scripts/platform_doctor.py compares with `len({item for item in entries if item})`, which is case-sensitive, so `A,a` has no problems. specs/ci-safety/spec.md says: 'Copier and the doctor agree on a table of values ... both accept exactly the same values'. LABEL_TABLE in tests/test_ci_runner_selection.py has no case-variant entry, so the parity test cannot catch this. I did not run Copier. This comes from reading the code and Jinja's documented default.",
+      "id": "copier-validator-case-insensitive-duplicates",
       "severity": "material",
-      "summary": "The new missing-`scm_provider` stop runs before the applicability checks. It blocks rollouts the contract says the preflight must not touch."
+      "summary": "The Copier ci_runner_labels validator rejects labels that differ only by case (for example `A,a`), but `platform_doctor` accepts them. This breaks the spec requirement that both accept exactly the same values."
+    },
+    {
+      "evidence": "scripts/rollout_project.py, migrate_ci_runner_answers: `if scm_provider is None: raise ValueError(...)`. design.md decision 5: '`scm_provider` is not `gitlab`'. docs/managed-rollout.md lists the stop conditions and omits this one.",
+      "id": "missing-scm-provider-stop-not-in-contract",
+      "severity": "advisory",
+      "summary": "The implementation stops the rollout when `.copier-answers.yml` has no `scm_provider`. The design and spec do not describe this case. Design decision 5 says the preflight applies whenever `scm_provider` is not gitlab, which would treat a missing answer as applicable. The docs also do not mention the stop."
     }
   ],
-  "launched_at": "2026-10-12T07:14:43+00:00",
-  "output_sha256": "c12d9aa9558c57de80a87441397c6519f65e2ddf7432b813f18f8ab277c2c411",
+  "launched_at": "2026-10-12T07:19:46+00:00",
+  "output_sha256": "4530c2e41590181e57fe0439d0497ee278d410808f8d8c59640234d892f1f56e",
   "perspective": "spec-fidelity",
-  "request_id": "ce84920e-e688-41db-8bdd-08d31ab6818f",
+  "request_id": "4e8e016c-3dfd-42b0-8641-678c6db96dd8",
   "reviewer": {
-    "context_id": "5fcbdcbc-9ea0-49c9-a48a-e55ce0da5585",
+    "context_id": "e1765bcb-5a7e-4193-9d9b-ff562eae9c1c",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8d73e48e-62be-40c4-98c7-382b9185042d",
+    "launch_id": "platform-launch-600520ae-9c92-420b-85c5-fe55b6c23644",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37748
+        "value": 37984
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18853
+        "value": 18847
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18129
+        "value": 17047
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18276
+        "value": 17230
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,11 +78,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1967
+        "value": 2198
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "d5eebc672a3e17920fad0e8085d4c0d5b8529e97599da4f5a0db9608ea994f16"
+  "task_content_digest": "8b5b50aa8c7a6480a6d4a2788648f17033eba30fa4979bdba9ad5a0df28de86d"
 }

@@ -146,7 +146,7 @@ class CiRunnerRenderTests(unittest.TestCase):
 
     LABEL_TABLE = [
         "my-runner", "self-hosted,linux", " a , b ", "a.b_c-1", "123", "a,,b", "a,", ",a", "self hosted", "a,a",
-        "a!", "[a]", "a;b", "é", "a b,c",
+        "a!", "[a]", "a;b", "é", "a b,c", "A,a",
     ]
 
     def test_copier_validator_and_doctor_reject_the_same_labels(self) -> None:
@@ -386,6 +386,17 @@ class CiRunnerMigrationTests(unittest.TestCase):
         answers = yaml.safe_load((target / ".copier-answers.yml").read_text(encoding="utf-8"))
         self.assertEqual(answers["ci_runner"], "github-hosted")
         self.assertEqual(self.doctor_failures(target), 0)
+
+    def test_rollout_runs_on_parser_accepts_only_what_yaml_reads_as_labels(self) -> None:
+        doctor = rollout_project.platform_doctor_module()
+        parse = lambda value: rollout_project.parse_runner_labels(doctor, value)  # noqa: E731
+        self.assertEqual(parse("my-runner"), ["my-runner"])
+        self.assertEqual(parse('"my-runner"'), ["my-runner"])
+        self.assertEqual(parse("[self-hosted, linux]"), ["self-hosted", "linux"])
+        self.assertEqual(parse('["a", \'b\']'), ["a", "b"])
+        for value in ("a, b", "[ubuntu-latest]", "[a, a]", "true", "123", "${{ vars.R }}", "", "a # note", "[a, ]"):
+            with self.subTest(value=value):
+                self.assertIsNone(parse(value))
 
     def test_rollout_treats_a_quoted_default_runner_as_the_default(self) -> None:
         edits = {"dev-platform.yml": '"ubuntu-latest"', "process-health-labels.yml": "'ubuntu-latest'"}
