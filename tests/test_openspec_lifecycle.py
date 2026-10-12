@@ -637,7 +637,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         shutil.copy(ROOT / "template" / "dev-platform" / "checks.toml", root / "dev-platform" / "checks.toml")
         (root / ".dev-platform.toml").write_text(
             'schema_version = 2\nplatform_version = "customer"\nproject_name = "p"\nproject_slug = "p"\n'
-            'main_branch = "main"\nharness_mode = "platform"\n',
+            'main_branch = "main"\nharness_mode = "platform"\n[capabilities]\nagent_board = false\n',
             encoding="utf-8",
         )
         bin_dir = root / "bin"

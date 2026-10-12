@@ -81,8 +81,6 @@ REVIEWED_BASELINE: dict[str, int] = {
     'requirement_composition.py:execute_composition_review:write_text': 4,
     'requirement_composition.py:run_child_review:write_text': 2,
     'requirement_contributions.py:write_manifest:write_text': 1,
-    '_platform_common.py:atomic_write_text:mkstemp': 1,
-    '_platform_common.py:atomic_write_text:replace': 1,
     '_platform_common.py:locked_json:open': 1,
     'agent_doctor.py:ensure_git_hooks:write_bytes': 1,
     'agent_friction.py:cmd_promote:NamedTemporaryFile': 1,

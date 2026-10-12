@@ -294,7 +294,7 @@ class GuardedDelegationTests(unittest.TestCase):
         # scripts/, not another agent's in-progress uncommitted work.
         scripts_dir = self.integration / "scripts"
         scripts_dir.mkdir()
-        for name in ("_platform_common.py", "agent_friction.py"):
+        for name in ("_platform_common.py", "shared_workspace.py", "agent_friction.py"):
             (scripts_dir / name).write_bytes((SCRIPT_ROOT / name).read_bytes())
         (self.integration / ".dev-platform.toml").write_text(
             'main_branch = "main"\nharness_mode = "platform"\n\n[paths]\n'

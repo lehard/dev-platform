@@ -73,7 +73,7 @@ IMPORT_DRIVER = BLOCKER + textwrap.dedent(
 def contract(version: str, **extra: str) -> str:
     lines = [f'platform_version = "{version}"', 'harness_mode = "platform"']
     lines += [f'{key} = "{value}"' for key, value in extra.items()]
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines) + "\n[capabilities]\nagent_board = false\n"
 
 
 class SelectorTests(unittest.TestCase):
@@ -270,7 +270,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
 
     def test_portable_archive_completes_real_checks_and_archive(self) -> None:
-        root = self.make_checkout(contract("1.0.0"))
+        root = self.make_checkout(contract("1.0.0", main_branch="main"))
         for name in COORDINATOR_MODULES:
             (root / "scripts" / (name + ".py")).unlink()
         (root / "dev-platform").mkdir()

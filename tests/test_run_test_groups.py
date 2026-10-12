@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import sys
 import tempfile
 import unittest
@@ -223,6 +224,28 @@ class DefaultParallelismTests(unittest.TestCase):
                 mock.patch.dict(run_test_groups.os.environ, {"DEV_PLATFORM_TEST_JOBS": "9"}):
             jobs, source = run_test_groups.resolve_jobs()
         self.assertEqual((jobs, source), (9, "DEV_PLATFORM_TEST_JOBS"))
+
+    def test_invalid_operator_job_count_is_an_error_naming_the_variable_and_value(self) -> None:
+        for value in ("abc", "0", "-1", "2.5", "", " 3", "٣"):
+            with self.subTest(value=value), \
+                    mock.patch.dict(run_test_groups.os.environ, {"DEV_PLATFORM_TEST_JOBS": value}):
+                with self.assertRaisesRegex(run_test_groups.TestGroupError, r"DEV_PLATFORM_TEST_JOBS.*" + repr(value).replace("\\", "\\\\")):
+                    run_test_groups.resolve_jobs()
+
+    def test_invalid_operator_job_count_stops_the_runner_before_any_group_runs(self) -> None:
+        groups = {"alpha": {"targets": ["test_alpha"], "mode": "parallel"}}
+        with mock.patch.dict(run_test_groups.os.environ, {"DEV_PLATFORM_TEST_JOBS": "abc"}), \
+                mock.patch.object(run_test_groups, "current_worktree_root", return_value=Path("/unused")), \
+                mock.patch.object(run_test_groups, "load_check_config", return_value={}), \
+                mock.patch.object(run_test_groups, "read_groups", return_value=groups), \
+                mock.patch.object(run_test_groups, "start_dir_name", return_value="tests"), \
+                mock.patch.object(run_test_groups, "execute", side_effect=AssertionError("a group ran")), \
+                mock.patch.object(run_test_groups.sys, "argv", ["run_test_groups.py", "--group", "alpha"]), \
+                mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            code = run_test_groups.main()
+        self.assertEqual(code, 2)
+        self.assertIn("DEV_PLATFORM_TEST_JOBS", stderr.getvalue())
+        self.assertIn("'abc'", stderr.getvalue())
 
 
 if __name__ == "__main__":

@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
+    "base_ref": "origin/main",
+    "candidate_head": "f4ebcc52a36cf332008a52356acbc6f6570f8e66",
+    "diff_sha256": "65f9623dc34e4476b84b6c8cb8254e2caa5128d01c5425d749781a90a9fd6f78"
+  },
+  "completed_at": "2026-10-12T01:26:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py in worker(): `blocked = _block(root, repo, number, str(exc))` followed by `skipped.append(f\"#{number} blocked: {exc}\"[:300])` and `continue`.",
+      "id": "worker-unused-block-result",
+      "severity": "advisory",
+      "summary": "In the worker's malformed-record path the result of `_block(...)` is assigned to `blocked` and never used. The path then appends to `skipped` and continues. This is dead code and makes it unclear whether the block outcome should be reported."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py require_disposable_checkout(): it checks only `git_dir != common_dir` and the existence of `.managed-task-state.json`.",
+      "id": "scope-gate-not-applicable-allowed-in-main-checkout",
+      "severity": "advisory",
+      "summary": "`--scope-gate not-applicable` is refused only in linked worktrees and checkouts holding `.managed-task-state.json`. A plain non-linked checkout, such as a developer's primary clone, can still declare the gate not applicable and skip it. The design describes this as 'accepted only in a plain checkout such as CI', but the check cannot distinguish CI from a local primary clone. This is a residual bypass of the scope gate."
+    }
+  ],
+  "launched_at": "2026-10-12T01:25:58+00:00",
+  "output_sha256": "a292672fb16dcf76becebf146a937d01faf4182eef0222024df5e20ed870d3e7",
+  "perspective": "engineering-quality",
+  "request_id": "504af94c-e5a8-436a-91c0-e734853e4af2",
+  "reviewer": {
+    "context_id": "0cf9afe3-afa3-4265-a80e-71c54a952f71",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b8154dbf-624a-4aa0-8ab4-84f7357aad76",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54011
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 166011
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19938
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21791
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1998
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f0fb3b7985beb5d37216d4762015a34da76e187967c3dd8f87e6ce11a3b76491"
+}

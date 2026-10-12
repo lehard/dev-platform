@@ -73,6 +73,16 @@ class ReceiptSchemaTests(unittest.TestCase):
                 containment.record_integration_advance(Path("/integration"), "a", "b",
                     tool="test", actor_worktree=Path("/actor"), remote="origin")
 
+    def test_serialized_integration_without_posix_locking_fails_instead_of_running_unlocked(self) -> None:
+        integration_state = load_platform_module("integration_state", SCRIPTS / "integration_state.py")
+        with tempfile.TemporaryDirectory() as directory, mock.patch.object(integration_state, "fcntl", None):
+            entered = []
+            with self.assertRaisesRegex(SystemExit, "requires POSIX fcntl.flock"):
+                with integration_state.serialized_integration(Path(directory), {}, 0):
+                    entered.append(True)
+            self.assertEqual(entered, [])
+            self.assertEqual(list(Path(directory).iterdir()), [])  # no lock file was created either
+
     def test_remote_argument_is_required(self) -> None:
         with self.assertRaises(TypeError):
             containment.record_integration_advance(Path("/integration"), "a", "b",
@@ -96,6 +106,11 @@ class IntegrationRepoMixin:
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
         git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
+        # Head-move verification reads the integration root's platform contract and never assumes a default one.
+        # It is excluded from Git so snapshots and task worktrees see exactly the state they did before.
+        (self.integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
+        with (self.integration / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+            handle.write("/.dev-platform.toml\n")
         routing_fixtures.route_ready(self.integration)
         self.sibling = Path(self.tmp.name) / "sibling"
         git(self.integration, "worktree", "add", "-qb", "agent/sibling", str(self.sibling), "main")

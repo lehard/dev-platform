@@ -184,9 +184,18 @@ def trusted_marker_comment(row: dict, trusted_apps: frozenset[str] = frozenset()
     return isinstance(app, dict) and app.get("slug") in trusted_apps
 
 
-def first_record(number: int, comments: list[dict], *, trusted_apps: frozenset[str] = frozenset(),
-                 trusted_writers: frozenset[str] = frozenset()) -> dict | None:
-    """The earliest valid trusted v2 record for this PR: its admission."""
+class MalformedMarkerError(RuntimeError):
+    """A trusted v2 coordinator record cannot be parsed or fails validation; it is never skipped."""
+
+
+def _trusted_records(number: int, comments: list[dict], trusted_apps: frozenset[str],
+                     trusted_writers: frozenset[str]):
+    """Yield, oldest first, each trusted valid v2 record of PR ``number``.
+
+    Untrusted comments are not gate input and are ignored. A trusted marker that fails parsing or
+    validation raises ``MalformedMarkerError`` naming the comment, so a damaged record can neither
+    be skipped nor let a later record stand in for it.
+    """
     for row in sorted(comments, key=lambda item: item.get("id", 0)):
         body = row.get("body", "")
         if not isinstance(body, str) or not body.startswith(PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
@@ -194,10 +203,17 @@ def first_record(number: int, comments: list[dict], *, trusted_apps: frozenset[s
         try:
             record = _expand_identity(json.loads(body[len(PREFIX):]))
             validate_marker(record)
-        except (ValueError, TypeError):
-            continue
+        except (ValueError, TypeError) as exc:
+            raise MalformedMarkerError(f"malformed marker comment {row.get('id')}: {exc}") from exc
         if record.get("number") == number:
-            return deepcopy(record)
+            yield record
+
+
+def first_record(number: int, comments: list[dict], *, trusted_apps: frozenset[str] = frozenset(),
+                 trusted_writers: frozenset[str] = frozenset()) -> dict | None:
+    """The earliest valid trusted v2 record for this PR: its admission."""
+    for record in _trusted_records(number, comments, trusted_apps, trusted_writers):
+        return deepcopy(record)
     return None
 
 
@@ -205,16 +221,8 @@ def latest_record(number: int, comments: list[dict], *, trusted_apps: frozenset[
                   head: str | None = None, trusted_writers: frozenset[str] = frozenset()) -> dict | None:
     """The latest valid trusted v2 record for this PR, for ``head`` or for any head (lineage)."""
     latest = None
-    for row in sorted(comments, key=lambda item: item.get("id", 0)):
-        body = row.get("body", "")
-        if not isinstance(body, str) or not body.startswith(PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
-            continue
-        try:
-            record = _expand_identity(json.loads(body[len(PREFIX):]))
-            validate_marker(record)
-        except (ValueError, TypeError):
-            continue
-        if record.get("number") == number and (head is None or record.get("head") == head):
+    for record in _trusted_records(number, comments, trusted_apps, trusted_writers):
+        if head is None or record.get("head") == head:
             latest = record
     return deepcopy(latest) if latest is not None else None
 
@@ -436,6 +444,58 @@ MAX_POST_MERGE_ATTEMPTS = 3
 POST_MERGE_FLAG = "post-merge"
 
 
+def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
+                 trusted_writers: frozenset[str] = frozenset()) -> dict[str, list[str]]:
+    """Outcomes of trusted job result receipts for ``head``, keyed by job id in comment order.
+
+    Untrusted comments are not gate input and are ignored; a trusted receipt that cannot be parsed
+    raises ``MalformedMarkerError`` naming the comment instead of being skipped.
+    """
+    from lifecycle_workers import RESULT_PREFIX
+
+    outcomes: dict[str, list[str]] = {}
+    for row in sorted(comments, key=lambda item: item.get("id", 0)):
+        body = row.get("body", "")
+        if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
+            continue
+        try:
+            receipt = json.loads(body[len(RESULT_PREFIX):])
+        except ValueError as exc:
+            raise MalformedMarkerError(f"malformed trusted job result comment {row.get('id')}: {exc}") from exc
+        if not isinstance(receipt, dict):
+            raise MalformedMarkerError(f"trusted job result comment {row.get('id')} is not an object")
+        outcome = str(receipt.get("outcome", ""))
+        if (receipt.get("head") == head
+                and outcome != "validated-push" and not outcome.startswith("discarded")):
+            outcomes.setdefault(str(receipt.get("job")), []).append(outcome)
+    return outcomes
+
+
+def premerge_retrospective_attempt(number: int, head: str, comments: list[dict],
+                                   trusted_apps: frozenset[str] = frozenset(),
+                                   trusted_writers: frozenset[str] = frozenset()) -> int:
+    """The attempt to offer for the exact-head pre-merge Requirement retrospective.
+
+    Same bounded rule as a post-merge obligation: an attempt without a trusted result is offered
+    (again); one whose last outcome starts with ``failed`` or ``blocked`` moves to the next attempt,
+    up to ``MAX_POST_MERGE_ATTEMPTS``. Exhaustion, or a completed attempt the caller still needs,
+    is an explicit error naming the operator action.
+    """
+    from lifecycle_workers import job_id
+
+    outcomes = job_outcomes(head, comments, trusted_apps, trusted_writers)
+    for attempt in range(MAX_POST_MERGE_ATTEMPTS):
+        job = {"number": number, "kind": "retrospective", "head": head, "attempt": attempt, "phase": "pre-merge"}
+        seen = outcomes.get(job_id(job))
+        if not seen:
+            return attempt
+        if not seen[-1].startswith(("failed", "blocked")):
+            raise ValueError(f"pre-merge retrospective {job_id(job)} completed with {seen[-1]!r} but the candidate "
+                             "has no current retrospective gate; inspect its result and the candidate record")
+    raise ValueError(f"pre-merge retrospective of PR #{number} at {head} exhausted {MAX_POST_MERGE_ATTEMPTS} "
+                     "attempts; operator action required")
+
+
 def post_merge_job(candidate: dict, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
                    trusted_writers: frozenset[str] = frozenset()) -> tuple[dict | None, str]:
     """The next post-merge obligation of a merged candidate, derived only from trusted result receipts.
@@ -446,24 +506,12 @@ def post_merge_job(candidate: dict, comments: list[dict], trusted_apps: frozense
     obligation open for a new attempt, bounded by ``MAX_POST_MERGE_ATTEMPTS``; any other outcome
     completes it. Nothing is stored, so an interrupted run resumes by re-deriving.
     """
-    from lifecycle_workers import RESULT_PREFIX, job_id
+    from lifecycle_workers import job_id
 
     identity = candidate.get("task_identity")
     if candidate.get("attempts", {}).get(POST_MERGE_FLAG) != 1 or identity is None:
         return None, ""
-    outcomes: dict[str, list[str]] = {}
-    for row in sorted(comments, key=lambda item: item.get("id", 0)):
-        body = row.get("body", "")
-        if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
-            continue
-        try:
-            receipt = json.loads(body[len(RESULT_PREFIX):])
-        except ValueError:
-            continue
-        outcome = str(receipt.get("outcome", "")) if isinstance(receipt, dict) else ""
-        if (isinstance(receipt, dict) and receipt.get("head") == candidate["head"]
-                and outcome != "validated-push" and not outcome.startswith("discarded")):
-            outcomes.setdefault(str(receipt.get("job")), []).append(outcome)
+    outcomes = job_outcomes(candidate["head"], comments, trusted_apps, trusted_writers)
     for kind in POST_MERGE_KINDS:
         for attempt in range(MAX_POST_MERGE_ATTEMPTS):
             job = {"number": candidate["number"], "kind": kind, "head": candidate["head"], "attempt": attempt}
