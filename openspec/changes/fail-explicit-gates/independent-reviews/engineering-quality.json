@@ -1,42 +1,48 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
+    "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
     "base_ref": "origin/main",
-    "candidate_head": "eba801276769e480854bfa9d034a05bb3582cb1f",
-    "diff_sha256": "c166fef92f34c5a44bd7dd2710dc5311ca3d6d570b75f0a7b39571b568a3595b"
+    "candidate_head": "3eae5b3a427122a04ebaa0a1734aa68c9f7980d5",
+    "diff_sha256": "0f4fb0e724f6ff0b38c14ba055178f5ce7272397711185d72ca869a2b96a22a7"
   },
-  "completed_at": "2026-10-11T22:22:48+00:00",
+  "completed_at": "2026-10-12T00:03:09+00:00",
   "findings": [
     {
-      "evidence": "`scope_gate_required` in template/scripts/agent_board.py raises SystemExit \"Scope gate unavailable: [capabilities] is missing\". `dev-platform/source-contract.toml` and `.dev-platform.toml` have `workflow_profile = \"multi-agent\"` and `[paths] agent_board`, but no `[capabilities]` (grep finds only `agent_board = \".claude/agents-board.json\"` at line 23). `.github/workflows/publication-queue.yml:35` copies this file to `.dev-platform.toml` in clean CI checkouts. Any path there that reaches `enforce_scope_gate`, `warn_current_worktree_scope_overlap` or `hard_scope_conflicts` without the new flag or a coordinator base mode will fail. Examples are `finish_task.py` and `select_checks.py` without `--scope-gate`. The diff touches `.github/workflows/project-ci.yml` but not `dev-platform/source-contract.toml`. The file's header says to keep its values identical to the installed contract, so it needs `[capabilities] agent_board = true`. Without that, the platform repo's own contract is unusable for the gate it ships.",
-      "id": "source-contract-missing-capabilities",
-      "severity": "material",
-      "summary": "The committed public source contract has no `[capabilities]` section, but the new scope gate treats a missing section or key as a hard error. The candidate does not update that file."
+      "evidence": "template/scripts/model_routing.py:1945-1988: `verified_advance = ... and verify_remote_fast_forward(...)` is evaluated before `record_containment_friction(...)` and `gate_failure(\"delegated-write-containment\", ...)`. The same applies to `delegation_containment.py:608`, where `assess_head_move` calls it without a guard. A missing `.dev-platform.toml`, a missing `main_branch` or a git error during a head-move violation therefore raises an unclassified `ContainmentError`. It is only caught at the top level (model_routing.py:3860). It still fails closed, but the containment friction event and the recoverable-gate classification are lost. Only the two `verify_historical_external_advance` callers were wrapped to convert the error to `RoutingError`.",
+      "id": "containment-postcheck-error-skips-violation-record",
+      "severity": "advisory",
+      "summary": "`verify_remote_fast_forward` now raises `ContainmentError` where it used to return False. In the live containment postcheck, that error escapes before the violation is recorded and before the classified `delegated-write-containment` gate failure is raised."
     },
     {
-      "evidence": "template/scripts/select_checks.py (about lines 1109-1122 of the diff): `elif args.scope_gate == \"not-applicable\"` only prints and skips `enforce_scope_gate`. There is no check that the run is in CI or a disposable checkout. design.md states \"local task worktrees always enforce\", but nothing in the code enforces that. This is the \"no new switches\" escape hatch the design rules out. The flag is also hard-coded into the template's GitHub and GitLab pipelines.",
-      "id": "scope-gate-cli-flag-bypass-unscoped",
+      "evidence": "template/scripts/agent_board.py:692-707 calls `_required_scope_inputs`, which raises. template/scripts/finish_task.py:1092 calls it unconditionally before the completion preflight. The behavior matches the spec's 'stop checks and finish'. The helper's name and its 'advisory' docstring no longer match what it does, and `finish_task.py` has no handling for the new `SystemExit` besides the stop itself.",
+      "id": "advisory-warning-now-hard-stop-in-finish",
       "severity": "advisory",
-      "summary": "`--scope-gate not-applicable` is a free CLI flag that skips the required gate in any checkout, so a local task worktree can bypass it. The design says local worktrees always enforce."
+      "summary": "`warn_current_worktree_scope_overlap` is documented and called as an advisory pre-publication warning, but it now raises `scope-gate-unavailable` for every unmet board precondition when `agent_board = true`. In `finish_task.py` this makes a missing claim or board a hard stop at the earliest step, before the consolidated preflight."
     },
     {
-      "evidence": "template/scripts/agent_board.py: four replacements of `str(config.get(\"main_branch\", \"main\"))` with `require_main_branch(config, SystemExit)`. The helper in _platform_common.py raises `exception_type(\"main_branch must be a non-empty string in .dev-platform.toml\")` with no gate classification. The release note and upgrade path for existing projects without `main_branch` are not mentioned in the change.",
-      "id": "main-branch-error-type-in-agent-board",
+      "evidence": "Hard-coded in .github/workflows/project-ci.yml, template/.github/workflows/dev-platform.yml.jinja and template/.gitlab-ci.yml.jinja. `select_checks.py` defaults to `enforce`. Existing downstream projects with `agent_board = true` and their own CI invocation break until they update. The design's Risks section mentions only the `main_branch` and `fcntl` upgrade impacts, not this one.",
+      "id": "enforce-default-in-ci-flag-spread-across-templates",
       "severity": "advisory",
-      "summary": "`require_main_branch(config, SystemExit)` in `scope_overlap_diagnostics`, `cmd_admit`, `cmd_acknowledge` and `cmd_doctor` turns a config error into a bare SystemExit with an unclassified message. Other gate failures in the same file go through `gate_failure`. A downstream project whose contract lacks `main_branch` now fails in many commands that previously defaulted to \"main\"."
+      "summary": "`--scope-gate not-applicable` has to be hard-coded in every CI entrypoint. Any downstream or custom CI that runs `select_checks.py --mode protected-full --execute` without the flag will now fail on the missing board."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py:513-526 checks only `git-dir != git-common-dir` and the existence of `.managed-task-state.json`. The `STANDALONE_CLONE` topology that `model_routing.py:1936` handles is a plain clone, so the guard does not cover it. The design calls the flag 'not a free bypass', but the guard is a heuristic.",
+      "id": "disposable-checkout-guard-is-weak",
+      "severity": "advisory",
+      "summary": "`require_disposable_checkout` only rejects linked worktrees and checkouts holding `.managed-task-state.json`. A plain clone, such as a standalone task clone or any developer's main checkout, can still pass `--scope-gate not-applicable` and skip the gate."
     }
   ],
-  "launched_at": "2026-10-11T22:22:02+00:00",
-  "output_sha256": "affa3cd4e843ffe486b6db0efbc54ddc17c2c42114e42cee2e4f796561a67fe1",
+  "launched_at": "2026-10-12T00:02:32+00:00",
+  "output_sha256": "edbc40bdd6249a29b33372fa43d8348293209a46929e1b15e92d443590136683",
   "perspective": "engineering-quality",
-  "request_id": "ee897c77-d0c2-4ae5-bbec-73d29f842ee4",
+  "request_id": "06c211d5-1c78-49e2-be0d-e9d2f6a996b6",
   "reviewer": {
-    "context_id": "19d6200f-001e-4334-906c-7939f1adc3fe",
+    "context_id": "b102824e-993a-4eca-90da-07e8c0e598c1",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f7e7d12e-6175-4c56-ac97-2d840602b386",
+    "launch_id": "platform-launch-a562c04d-0289-4a18-969f-09cfde26909d",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,41 +57,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56024
+        "value": 56186
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 330268
+        "value": 221031
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42112
+        "value": 31899
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44126
+        "value": 35708
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4226
+        "value": 3353
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "e48997a0ef9b08a9db8f5f3548ced76e17c261b38a2c261aca631ebe78abcf3d"
+  "task_content_digest": "560ea2dc47bb05d797a5c33c93f6e3ccb9ad42f0041ce9f1d33c13f5a8c56b6e"
 }
