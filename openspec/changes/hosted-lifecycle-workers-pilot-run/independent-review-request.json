@@ -1,0 +1,74 @@
+{
+  "candidate": {
+    "base_head": "d71b0690ac1d05cfa44871f213167913b04fc390",
+    "base_ref": "origin/main",
+    "candidate_head": "32745240c4d3cf45221ce65ff014a3fd4785b6aa",
+    "diff_sha256": "5192258b2dff49f161dcaae0d2aca5fda48506b9160119dd5f947d63d0465f20"
+  },
+  "change": "openspec/changes/hosted-lifecycle-workers-pilot-run",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/hosted-lifecycle-workers-pilot-run/automated-checks.json",
+    "openspec/changes/hosted-lifecycle-workers-pilot-run/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/design.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/specs/lifecycle-workers/spec.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/design.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/tasks.md",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-12T08:50:31+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/hosted-lifecycle-workers-pilot-run/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "c52e5df8-b99a-453b-951e-20328395d2a0",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d71b0690ac1d05cfa44871f213167913b04fc390",
+    "digest": "2dca5a9151e43f7b399ad76fd783a0348d29bf96b616548a7972864f0ddf2556",
+    "paths": {
+      ".github/workflows/lifecycle-workers.yml": "addd53b33613f6ee1e31d9c676941f60bb1e56a3",
+      "docs/engineering/hosted-lifecycle-workers.md": "f180bef16d9aa5ef5a3141c01dc674398eb387c2",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/.managed-task.json": "e07c1a44a7a7bf1a5a0cce86b16eab661170212a",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/design.md": "a411b13ccb93247a4cf3ca7f783e8cfba9ffda6b",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/proposal.md": "e289a5b1e8ed6d320b5d1669b08e6c1065c3cea1",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/specs/lifecycle-workers/spec.md": "4ae4e9e7fc8b2c193fc576f42ab889cc02515813",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/tasks.md": "bafa67870973107df23f502fe34f99638bf7b6d5",
+      "tests/test_hosted_workers.py": "cb5dc083bf7d8e5f1951310cb5c5945c5ab7801a"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

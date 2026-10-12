@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d71b0690ac1d05cfa44871f213167913b04fc390",
+    "base_ref": "origin/main",
+    "candidate_head": "32745240c4d3cf45221ce65ff014a3fd4785b6aa",
+    "diff_sha256": "5192258b2dff49f161dcaae0d2aca5fda48506b9160119dd5f947d63d0465f20"
+  },
+  "completed_at": "2026-10-12T08:51:05+00:00",
+  "findings": [
+    {
+      "evidence": "design.md says the queue runs on `pull_request_target[labeled]`, a 5-minute schedule and dispatch, and decision 4 runs the worker on every queue completion regardless of conclusion. The workflow adds `workflow_run: types: [completed]` plus `cron: \"*/10 * * * *\"`. design.md's own risk note covers cost, but the mitigation is only to remove the triggers later. A cheaper pre-check for claimable jobs, or a `conclusion` filter, would reduce idle runs.",
+      "id": "unattended-run-volume",
+      "severity": "advisory",
+      "summary": "The workflow now starts on every queue completion, whatever its conclusion, and on a 10-minute schedule. The queue itself runs on a 5-minute schedule, so a hosted runner (two matrix classes) starts roughly every 5 minutes even when nothing is published. Nothing bounds this volume or alerts on it."
+    }
+  ],
+  "launched_at": "2026-10-12T08:50:53+00:00",
+  "output_sha256": "84c4d5f84ef5ee5c48d323950826872b1b6a4daab62ae30abefbf50dfd320a8e",
+  "perspective": "engineering-quality",
+  "request_id": "c52e5df8-b99a-453b-951e-20328395d2a0",
+  "reviewer": {
+    "context_id": "c6215c65-b14e-46d5-9466-61ec76275da8",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ef7a303c-bc60-457c-b9c2-0e9f9cc804c2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16686
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38287
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10541
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11199
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1044
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2dca5a9151e43f7b399ad76fd783a0348d29bf96b616548a7972864f0ddf2556"
+}
