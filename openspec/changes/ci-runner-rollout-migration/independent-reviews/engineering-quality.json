@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_ref": "origin/main",
+    "candidate_head": "360246813a91ff6951ad7ac5ac60440258c2058b",
+    "diff_sha256": "2a4caeea5705632ea76fb3a7ff82c344dc6a057a9dda78dc6a4b90816b32e465"
+  },
+  "completed_at": "2026-10-12T07:03:28+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_ci_runner_selection.py, in test_rollout_stops_when_the_runner_cannot_be_migrated_safely: `\"block list\": (self.edit_runners({... \"[a, b, a]\" ...}), ...)`. In scripts/rollout_project.py a block or mapping form yields an empty `runs-on:` capture, which `parse_runner_labels` rejects (it returns None for an empty value). That reasoning is sound but untested.",
+      "id": "block-list-case-not-exercised",
+      "severity": "advisory",
+      "summary": "The rollout stop test named \"block list\" does not use a block-form runs-on. It uses the flow list `[a, b, a]`, so it only exercises the duplicate-label rejection. The block-list and `labels`/`group` mapping stops, which the spec and docs promise, have no test."
+    },
+    {
+      "evidence": "tests/test_ci_runner_selection.py test_copier_validator_and_doctor_reject_the_same_labels: each LABEL_TABLE entry calls copier_copy(self.source, target, ...).",
+      "id": "parity-test-spawns-many-copier-runs",
+      "severity": "advisory",
+      "summary": "The Jinja/doctor parity test runs a full `copier copy` for each of 15 table values, which makes the suite slower. The check could run only the validator."
+    }
+  ],
+  "launched_at": "2026-10-12T07:03:02+00:00",
+  "output_sha256": "5c6e7e4f242b5f2a8a5992dbf29285f77af0f3592eb04dace8fb684a6ed44b47",
+  "perspective": "engineering-quality",
+  "request_id": "51b16675-50a4-4ff7-b5b3-f58400345637",
+  "reviewer": {
+    "context_id": "3e0f23a6-07a8-4fba-b145-2e7c30859f06",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bfa13629-d2a9-4611-b5a6-c819bd8792b3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32684
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55338
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23019
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23573
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2504
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f75aea1594c10ec2ec27b104e128aebd3e87a01a4445ba7f37947ac5af268664"
+}

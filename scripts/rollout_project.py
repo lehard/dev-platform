@@ -1470,9 +1470,18 @@ def migrate_ci_runner_answers(
             continue
         text = path.read_text(encoding="utf-8")
         match = getattr(doctor, regex_name).search(text)
-        if match:
-            found[relative] = (job, match, text)
-    custom = {relative: item for relative, item in found.items() if item[1].group(1) != DEFAULT_RUNNER}
+        if not match:
+            raise runner_migration_block(
+                repository, relative,
+                f"job {job} has no runs-on the rollout can read",
+                f"restore the platform-rendered {job} job with a `runs-on:` line in {relative} (it is platform-owned) "
+                "and rerun the rollout",
+            )
+        found[relative] = (job, match, text)
+    custom = {
+        relative: item for relative, item in found.items()
+        if item[1].group(1).strip("'\"") != DEFAULT_RUNNER
+    }
     if not custom:
         return "default"
 

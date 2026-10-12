@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_ref": "origin/main",
+    "candidate_head": "360246813a91ff6951ad7ac5ac60440258c2058b",
+    "diff_sha256": "2a4caeea5705632ea76fb3a7ff82c344dc6a057a9dda78dc6a4b90816b32e465"
+  },
+  "change": "openspec/changes/ci-runner-rollout-migration",
+  "excluded_lifecycle_paths": [],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/ci-runner-rollout-migration/design.md",
+        "openspec/changes/ci-runner-rollout-migration/proposal.md",
+        "openspec/changes/ci-runner-rollout-migration/specs/ci-safety/spec.md",
+        "openspec/changes/ci-runner-rollout-migration/specs/managed-rollout/spec.md",
+        "openspec/changes/ci-runner-rollout-migration/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/ci-runner-rollout-migration/proposal.md",
+        "openspec/changes/ci-runner-rollout-migration/design.md",
+        "openspec/changes/ci-runner-rollout-migration/tasks.md",
+        "openspec/changes/ci-runner-rollout-migration/specs/ci-safety/spec.md",
+        "openspec/changes/ci-runner-rollout-migration/specs/managed-rollout/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-12T07:02:29+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/ci-runner-rollout-migration/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "51b16675-50a4-4ff7-b5b3-f58400345637",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "digest": "f75aea1594c10ec2ec27b104e128aebd3e87a01a4445ba7f37947ac5af268664",
+    "paths": {
+      "copier.yml": "e7191036413017d4ceb5c1591faf05ab96521a25",
+      "docs/managed-rollout.md": "37f3d4b9fc6b680c1079b2f6894aa403a93d676f",
+      "openspec/changes/ci-runner-rollout-migration/.managed-task.json": "e3c722b1fb97712d87f9ac37563646163c5c8026",
+      "openspec/changes/ci-runner-rollout-migration/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+      "openspec/changes/ci-runner-rollout-migration/design.md": "69a6d91b8cbe252b42a0ce6a23dce221b4edfd0a",
+      "openspec/changes/ci-runner-rollout-migration/proposal.md": "501a3e77b18cbb5416d15f3a77a7debe0b4449c1",
+      "openspec/changes/ci-runner-rollout-migration/specs/ci-safety/spec.md": "97f19eba7d06e55bd9dba67554142be8f79b50e9",
+      "openspec/changes/ci-runner-rollout-migration/specs/managed-rollout/spec.md": "b4d2f6d0de43bf87d68a1a7e728851520901ae81",
+      "openspec/changes/ci-runner-rollout-migration/tasks.md": "247ba8d9013efb04edf6f2d97a1fb5e16c61fb16",
+      "scripts/rollout_project.py": "2056d153e1795859830ac9e4380cf2489a184520",
+      "template/dev-platform/platform-manifest.json": "15fe45007344171e5d2f1cc9613a218bb56f08d3",
+      "template/scripts/platform_doctor.py": "ecf5a56cfa10962877fa24589ed81f626b1e06e2",
+      "tests/test_ci_runner_selection.py": "0b207e9c16f73f2ff1c8152b0de91fcfa9e454a4"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

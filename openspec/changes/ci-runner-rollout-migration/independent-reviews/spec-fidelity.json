@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_ref": "origin/main",
+    "candidate_head": "360246813a91ff6951ad7ac5ac60440258c2058b",
+    "diff_sha256": "2a4caeea5705632ea76fb3a7ff82c344dc6a057a9dda78dc6a4b90816b32e465"
+  },
+  "completed_at": "2026-10-12T07:03:02+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/rollout_project.py (diff lines 398-399) compares the raw `match.group(1) != DEFAULT_RUNNER`. A quoted value is not equal to the bare string. `parse_runner_labels` then strips the quotes and returns [\"ubuntu-latest\"], which is accepted as a label.",
+      "id": "quoted-ubuntu-latest-migrated-as-self-hosted",
+      "severity": "advisory",
+      "summary": "A quoted default runner (`runs-on: \"ubuntu-latest\"`) is treated as a custom runner. The contract says all-`ubuntu-latest` projects take the ordinary path with no new step. Here the preflight would record `ci_runner: self-hosted` with the label `ubuntu-latest`, or stop if only one job is quoted."
+    },
+    {
+      "evidence": "scripts/rollout_project.py diff lines 390-400: `if match: found[...] = ...` has no else branch. `if not custom: return \"default\"` follows.",
+      "id": "unmatched-runner-job-silently-ignored",
+      "severity": "advisory",
+      "summary": "If an existing platform workflow does not match the doctor's runs-on regex, for example because the job is renamed or restructured, the preflight silently skips that file. When no file matches, it returns `default`. The update then records `github-hosted` without the explicit stop that the 'SHALL NOT record github-hosted for a non-ubuntu-latest runner' rule asks for. The design only covers absent files."
+    },
+    {
+      "evidence": "tests/test_ci_runner_selection.py diff lines 714-717: `\"block list\": (self.edit_runners({... \"[a, b, a]\" ...}))`. No test case uses a `group:` or `labels:` mapping.",
+      "id": "stop-scenarios-test-coverage-gap",
+      "severity": "advisory",
+      "summary": "The spec scenario and docs name a block-form list and a `group`/`labels` mapping as stop cases. The stop test never exercises either. The case labelled \"block list\" actually uses the flow list `[a, b, a]`, which is a duplicate-label case. The mapping and block-list stop paths, which depend on the regex yielding an empty value, are therefore untested."
+    }
+  ],
+  "launched_at": "2026-10-12T07:02:35+00:00",
+  "output_sha256": "38f9bb5512092a4bb9d66da5e5d7b815f0d893099da4e9a2fc6bb81687e24359",
+  "perspective": "spec-fidelity",
+  "request_id": "51b16675-50a4-4ff7-b5b3-f58400345637",
+  "reviewer": {
+    "context_id": "30ee6f83-a568-49f0-a154-e9015c8ebbf7",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-71e2d686-2e88-4f71-9e44-29b49473c524",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39749
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 58518
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24326
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24553
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2864
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f75aea1594c10ec2ec27b104e128aebd3e87a01a4445ba7f37947ac5af268664"
+}

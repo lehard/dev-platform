@@ -387,14 +387,35 @@ class CiRunnerMigrationTests(unittest.TestCase):
         self.assertEqual(answers["ci_runner"], "github-hosted")
         self.assertEqual(self.doctor_failures(target), 0)
 
+    def test_rollout_treats_a_quoted_default_runner_as_the_default(self) -> None:
+        edits = {"dev-platform.yml": '"ubuntu-latest"', "process-health-labels.yml": "'ubuntu-latest'"}
+        self.migrate(None, self.edit_runners(edits), rollout_to="v1.0.1")
+        self.assertIsNone(self.rollout_error)
+        self.assertEqual(self.rollout_outcome, "default")
+
     def test_rollout_stops_when_the_runner_cannot_be_migrated_safely(self) -> None:
         cases = {
             "expression": (
                 self.edit_runners({"dev-platform.yml": "${{ vars.RUNNER }}", "process-health-labels.yml": "${{ vars.RUNNER }}"}),
                 "dev-platform.yml",
             ),
-            "block list": (
+            "duplicate labels": (
                 self.edit_runners({"dev-platform.yml": "[a, b, a]", "process-health-labels.yml": "[a, b, a]"}),
+                "dev-platform.yml",
+            ),
+            "block list": (
+                self.edit_runners({"dev-platform.yml": "\n      - a\n      - b", "process-health-labels.yml": "\n      - a\n      - b"}),
+                "dev-platform.yml",
+            ),
+            "group mapping": (
+                self.edit_runners({"dev-platform.yml": "\n      group: ci\n      labels: a", "process-health-labels.yml": "\n      group: ci\n      labels: a"}),
+                "dev-platform.yml",
+            ),
+            "job not readable": (
+                lambda target: (target / ".github" / "workflows" / "dev-platform.yml").write_text(
+                    (target / ".github" / "workflows" / "dev-platform.yml").read_text(encoding="utf-8").replace("  platform-ci:\n", "  renamed-ci:\n"),
+                    encoding="utf-8",
+                ),
                 "dev-platform.yml",
             ),
             "jobs disagree": (self.edit_runners({"dev-platform.yml": "my-runner"}), "dev-platform.yml"),

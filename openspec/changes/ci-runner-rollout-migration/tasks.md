@@ -21,4 +21,4 @@
 
 ## 5. Verification and delivery
 
-- [ ] 5.1 Regenerate the platform manifest; run the required platform checks; truthful semantic verification; archive; retrospectives; publication. The change must be released before the tag that first contains `ci_runner`.
+- [x] 5.1 Regenerate the platform manifest; run the required platform checks; truthful semantic verification; archive; retrospectives; publication. The change must be released before the tag that first contains `ci_runner`.
