@@ -53,6 +53,14 @@ class LifecycleOwnershipChanged(QueueError):
     """Another lifecycle job took the candidate between observation and transition."""
 
 
+class MalformedRecord(QueueError):
+    """A trusted coordinator record is malformed.
+
+    ``candidate_lifecycle.MalformedMarkerError`` converted at the queue boundary (`_latest`, `_record_comment_id`)
+    so every queue path that maps ``QueueError`` handles it, with the message naming the comment id.
+    """
+
+
 def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
     cmd = ["gh", *args]
     if data:
@@ -154,8 +162,11 @@ def _derive(root: Path, pr: dict[str, Any], comments: list[dict[str, Any]], chec
 
 
 def _latest(root: Path, number: int, comments: list[dict[str, Any]], head: str | None = None) -> dict[str, Any] | None:
-    return latest_record(number, comments, trusted_apps=trusted_apps(root), head=head,
-                         trusted_writers=trusted_writers(root, comments))
+    try:
+        return latest_record(number, comments, trusted_apps=trusted_apps(root), head=head,
+                             trusted_writers=trusted_writers(root, comments))
+    except MalformedMarkerError as exc:
+        raise MalformedRecord(str(exc)) from exc
 
 
 def _repo(root: Path) -> str:
@@ -279,7 +290,11 @@ def _record_comment_id(root: Path, number: int, comments: list[dict[str, Any]], 
     apps, writers = trusted_apps(root), trusted_writers(root, comments)
     found = None
     for row in sorted(comments, key=lambda item: item.get("id", 0)):
-        if latest_record(number, [row], trusted_apps=apps, head=head, trusted_writers=writers) is not None:
+        try:
+            record = latest_record(number, [row], trusted_apps=apps, head=head, trusted_writers=writers)
+        except MalformedMarkerError as exc:
+            raise MalformedRecord(str(exc)) from exc
+        if record is not None:
             found = row.get("id")
     return found
 
@@ -507,7 +522,7 @@ def _transition(
     try:
         previous = _latest(root, number, comments, head)
         lineage = _latest(root, number, comments)
-    except MalformedMarkerError as exc:
+    except MalformedRecord as exc:
         if refuse_from:
             raise LifecycleOwnershipChanged(f"candidate is now {current['state']}; {exc}") from exc
         raise
@@ -1713,7 +1728,7 @@ def worker(root: Path) -> dict[str, Any]:
         comments = _comments(root, repo, number)
         try:
             newest_record = _latest(root, number, comments)
-        except MalformedMarkerError as exc:
+        except MalformedRecord as exc:
             if pr.get("merged"):  # a confirmed merge stays authoritative over a malformed record
                 _label(root, repo, number, QUEUE, present=False)
                 return {"state": "merged", "number": number}
@@ -1973,7 +1988,10 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
     head_now = observed.get("head", {}).get("sha")
     comments = _comments(root, repo, number)
     current = _derive(root, observed, comments)
-    lineage = _latest(root, number, comments)
+    try:
+        lineage = _latest(root, number, comments)
+    except MalformedRecord as exc:
+        return _block(root, repo, number, f"integration repair cannot read the lifecycle record: {exc}"[:500], head=head_now)
     if lineage is None:
         lineage = {}  # legitimate absence: an admission that predates v2 records has no attempts to count
     spent = max(current.get("attempts", {}).get("integration-repair", 0),

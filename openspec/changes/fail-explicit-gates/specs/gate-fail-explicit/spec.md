@@ -42,7 +42,7 @@ A protected or coordinator check that needs the main branch SHALL read it from p
 
 ### Requirement: Publication gates do not mask lost records or git failures
 
-The publication queue SHALL fail when the lineage record of a superseded head is missing, and SHALL treat a git ancestry check as three-valued: success is ancestor, exit status 1 is not an ancestor, and any other status is an error naming the command and its output. A malformed trusted candidate record SHALL raise the malformed-marker error naming the comment instead of being skipped. `verify_remote_fast_forward` and `verify_historical_external_advance` SHALL raise on an absent or unreadable `.dev-platform.toml`, a missing `main_branch` or a git failure instead of returning false, and SHALL return false only for a definite negative answer.
+The publication queue SHALL fail when the lineage record of a superseded head is missing, and SHALL treat a git ancestry check as three-valued: success is ancestor, exit status 1 is not an ancestor, and any other status is an error naming the command and its output. A malformed trusted candidate record SHALL raise `MalformedMarkerError` (a new error class in `candidate_lifecycle.py`) naming the comment instead of being skipped, and the queue and integration contour SHALL surface it as an explicit blocked or `QueueError` outcome naming the comment, never as a bare exception. `verify_remote_fast_forward` and `verify_historical_external_advance` SHALL raise on an absent or unreadable `.dev-platform.toml`, a missing `main_branch` or a git failure instead of returning false, and SHALL return false only for a definite negative answer.
 
 #### Scenario: Git failure during preparation
 
@@ -54,7 +54,7 @@ The publication queue SHALL fail when the lineage record of a superseded head is
 
 - **GIVEN** a trusted candidate comment whose payload fails validation
 - **WHEN** the admission record is read
-- **THEN** the malformed-marker error names that comment and the admission time is not taken from a later record.
+- **THEN** `MalformedMarkerError` names that comment and the admission time is not taken from a later record.
 
 ### Requirement: Verification and integration prerequisites are enforced
 
@@ -68,10 +68,17 @@ An invalid `DEV_PLATFORM_TEST_JOBS` SHALL be an error naming the value. Serializ
 
 ### Requirement: Fail-open decisions are inventoried
 
-Every examined fail-open site in the publication and verification gates SHALL have a recorded decision: fixed to an explicit error, or kept only by an explicit owner decision with the location of that decision.
+Every examined fail-open site in the publication and verification gates SHALL be classified in the design inventory into exactly one of two categories. FIXED: absence or corruption is now an explicit error. LEGITIMATE ABSENCE (not fail-open): the state is a normal part of the lifecycle, nothing is substituted, the code has an explicit `None` branch, and the inventory records a per-site justification of why absence there is not a lost record. There SHALL be no other category, and a site where absence would mean a lost record SHALL be FIXED.
 
-#### Scenario: Kept site
+#### Scenario: Legitimate absence site
 
-- **GIVEN** a site that is not changed
+- **GIVEN** a site that still handles an absent record without raising
 - **WHEN** the inventory is read
-- **THEN** it names the owner decision and where it is recorded.
+- **THEN** it names the category "legitimate absence" and states why absence there is a normal lifecycle state and not a lost record
+- **AND** the code at that site has an explicit `None` branch and substitutes nothing.
+
+#### Scenario: Fixed site
+
+- **GIVEN** a site where absence or corruption would hide a lost record
+- **WHEN** the inventory is read
+- **THEN** it names the category "fixed" and the explicit error raised.
