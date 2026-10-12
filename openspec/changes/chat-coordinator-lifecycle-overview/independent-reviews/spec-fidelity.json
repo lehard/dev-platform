@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_ref": "origin/main",
+    "candidate_head": "246ae518c53d7b0597832ded1ebe62df57902a89",
+    "diff_sha256": "b74fa1e7991e6818082005b097b93d5775beb966f50aaf5faa7539f6b627b7c3"
+  },
+  "completed_at": "2026-10-12T06:36:21+00:00",
+  "findings": [
+    {
+      "evidence": "spec.md scenario 'No claim': 'THEN the overview prints `executor not confirmed` and the job's age'. In template/scripts/lifecycle_overview.py, `assess_candidate` sets `executor[\"job_age_minutes\"]`. `render_candidate` prints only `executor['activity']` when `claimed_by` is None, and the age appears nowhere else in the text output. A fresh `handed-off` item below the threshold therefore shows no age, because no finding carries it.",
+      "id": "job-age-not-rendered-for-unclaimed-job",
+      "severity": "material",
+      "summary": "The spec requires the overview to print `executor not confirmed` and the job's age when a published job has no claim. The human-readable output never prints the age. It exists only in the `--json` field `executor.job_age_minutes`."
+    },
+    {
+      "evidence": "spec.md 'Escalations leave one human-readable GitHub indication': 'idempotent per PR, head, state and reason'. In template/scripts/publication_queue.py, `attention_key` hashes `[number, head, state, red.get('name'), sorted(attempts)]`. Neither `candidate['reason']` nor the gate evidence goes into the hash. design.md decision 8 describes the same key, so the spec and design disagree.",
+      "id": "attention-key-omits-reason",
+      "severity": "advisory",
+      "summary": "The spec makes the attention comment idempotent per PR, head, state and reason. The implemented key does not include the reason text. It uses the PR number, head, state, red-gate name and the attempt counters. Two escalations with the same gate name and counters but different reasons would share one comment."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py defines `class AttentionError(RuntimeError)`. The `except QueueError` handlers in `main` (around line 2167) do not catch it. lifecycle_workers.py `main` catches only `(WorkerError, ValueError)` around the `ensure_post_merge_attention` call at line 1167.",
+      "id": "attention-failure-surfaces-as-uncaught-traceback",
+      "severity": "advisory",
+      "summary": "`AttentionError` is deliberately not a `QueueError` or `WorkerError`. In the `publication_queue.py` CLI `main` and the `lifecycle_workers` CLI `main`, the handlers I checked do not catch it. The run therefore ends non-zero through an unhandled-exception traceback, not a controlled 'stating the failure' message. This meets the 'fails visibly' requirement only loosely."
+    }
+  ],
+  "launched_at": "2026-10-12T06:35:34+00:00",
+  "output_sha256": "24d0c5657c9aa2650f7089dee4d993ae89abfd479575327baf88d20e5b65de69",
+  "perspective": "spec-fidelity",
+  "request_id": "e0269372-8eee-40f2-9df0-c586bceac409",
+  "reviewer": {
+    "context_id": "d4dc1cc5-d71a-401e-9923-f0bf82156af9",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d6d05355-c6f4-4e45-8dc9-d89f8a877284",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 76023
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 270976
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41368
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45169
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4704
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "84f66432935c54e8a45936c9d6719d47726559a7f5818c0508d3cef51a5d5d52"
+}
