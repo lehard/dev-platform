@@ -1451,14 +1451,7 @@ def migrate_ci_runner_answers(
     answers_path = project_root / ".copier-answers.yml"
     answers_text = answers_path.read_text(encoding="utf-8")
     answers = parse_answers(answers_text)
-    scm_provider = answers.get("scm_provider")
-    if scm_provider is None:
-        raise ValueError(
-            f"{repository}: .copier-answers.yml records no scm_provider answer, so the rollout cannot tell whether the "
-            "platform CI runner applies. Next action: record scm_provider: github (or gitlab) in .copier-answers.yml "
-            "on the project's default branch and rerun the rollout. The default branch was not changed."
-        )
-    if "ci_runner" in answers or scm_provider != "github":
+    if "ci_runner" in answers:
         return "skipped"
     ensure_platform_tag_available(version, env=env, legacy_repository=legacy_repository)
     target_copier = subprocess.run(
@@ -1467,6 +1460,15 @@ def migrate_ci_runner_answers(
     if target_copier.returncode != 0:
         raise ValueError(f"could not read copier.yml of target {version}: {target_copier.stderr.strip()}")
     if not re.search(r"^ci_runner:\s*$", target_copier.stdout, re.MULTILINE):
+        return "skipped"
+    scm_provider = answers.get("scm_provider")
+    if scm_provider is None:
+        raise ValueError(
+            f"{repository}: .copier-answers.yml records no scm_provider answer, so the rollout cannot tell whether the "
+            "platform CI runner applies. Next action: record scm_provider: github (or gitlab) in .copier-answers.yml "
+            "on the project's default branch and rerun the rollout. The default branch was not changed."
+        )
+    if scm_provider != "github":
         return "skipped"
 
     doctor = platform_doctor_module()

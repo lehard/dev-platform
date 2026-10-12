@@ -1,38 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "f6f035784ef1edf3a9d005cae845a552d1472470",
-    "diff_sha256": "393f1b8900774179d9f7e7145abd65419ea708e97131c75c81eb747a32ebe3ef"
+    "candidate_head": "fd11057eea5cbc12f84c2474f2fc82e283f59cf9",
+    "diff_sha256": "6c3ccacd858277b2ec316fac919b092a58c43c75d07d4ce3c10d6232d3ee4870"
   },
-  "completed_at": "2026-10-12T07:11:03+00:00",
+  "completed_at": "2026-10-12T07:15:17+00:00",
   "findings": [
     {
-      "evidence": "scripts/rollout_project.py migrate_ci_runner_answers: `answers.get(\"scm_provider\", \"github\") != \"github\"`. The user's no-fallback rule asks for a loud failure on missing required input, or an explicit decision to keep this default.",
-      "id": "rollout-scm-provider-implicit-default",
-      "severity": "advisory",
-      "summary": "The preflight silently treats a missing scm_provider answer as github, which is a default that masks a missing input. It is the same as Copier's own default, but the code doesn't say so or fail on a missing answer."
-    },
-    {
-      "evidence": "platform_doctor_module() loads PLATFORM_ROOT/template/scripts/platform_doctor.py. The design says the rollout must not record answers the doctor would reject, but the target tag's doctor is never consulted. The parity test only covers the current checkout.",
-      "id": "rollout-doctor-rule-from-platform-checkout",
-      "severity": "advisory",
-      "summary": "The label rule and runs-on regexes come from the doctor in the rollout tool's own PLATFORM_ROOT checkout, not from the doctor shipped in the target release. If the two diverge, the rollout could record answers the target's doctor rejects."
+      "evidence": "scripts/rollout_project.py, migrate_ci_runner_answers: `if scm_provider is None: raise ValueError(...)` comes before `if \"ci_runner\" in answers or scm_provider != \"github\": return \"skipped\"` and before the target copier.yml check for `ci_runner`. copier.yml declares `scm_provider` with `default: github`, so Copier itself treats an absent answer as github. The new test only asserts the error for a v1.0.1 target with no ci_runner, so it does not cover the older-target or already-migrated cases. The raise should come only after the project is known to be in scope: target asks ci_runner and answers lack ci_runner.",
+      "id": "scm-provider-stop-before-applicability",
+      "severity": "material",
+      "summary": "migrate_ci_runner_answers raises on a missing scm_provider answer before checking whether the preflight applies at all. Every rollout of a project whose answers lack scm_provider now fails, including rollouts to older targets and projects that already record ci_runner. This contradicts the spec ('Older target and GitLab are unaffected') and the design's applicability rule (decision 5)."
     }
   ],
-  "launched_at": "2026-10-12T07:10:34+00:00",
-  "output_sha256": "f4bb924a4aca86ceffcfd4379d70cdfb8b325033559007ed948300594210c095",
+  "launched_at": "2026-10-12T07:15:03+00:00",
+  "output_sha256": "dbaf3cb4d0daaef1c0568d8b15d76bf9925ce77831b78108da3b0cd8fdcb6542",
   "perspective": "engineering-quality",
-  "request_id": "b53eb9bc-d896-4611-bd8e-f1b8e602a806",
+  "request_id": "ce84920e-e688-41db-8bdd-08d31ab6818f",
   "reviewer": {
-    "context_id": "3ffeb1e0-e430-4a54-9a6a-4beccd3dc217",
+    "context_id": "5a8a6ed3-4479-429f-ad34-e8095ad3393c",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2a243682-72da-406a-a011-e0324c2a9b95",
+    "launch_id": "platform-launch-be6a45bc-716c-4ae4-8653-340c495e6f6f",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32517
+        "value": 33394
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18924
+        "value": 56674
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25213
+        "value": 10426
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25744
+        "value": 10961
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2059
+        "value": 926
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "242a0351f306f5f6c5979c89bd1c96f1df87c12653d5b51297452544f0388d93"
+  "task_content_digest": "d5eebc672a3e17920fad0e8085d4c0d5b8529e97599da4f5a0db9608ea994f16"
 }

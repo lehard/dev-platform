@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "f6f035784ef1edf3a9d005cae845a552d1472470",
-    "diff_sha256": "393f1b8900774179d9f7e7145abd65419ea708e97131c75c81eb747a32ebe3ef"
+    "candidate_head": "fd11057eea5cbc12f84c2474f2fc82e283f59cf9",
+    "diff_sha256": "6c3ccacd858277b2ec316fac919b092a58c43c75d07d4ce3c10d6232d3ee4870"
   },
   "change": "openspec/changes/ci-runner-rollout-migration",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-12T07:10:08+00:00",
+  "prepared_at": "2026-10-12T07:14:37+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/ci-runner-rollout-migration/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "b53eb9bc-d896-4611-bd8e-f1b8e602a806",
+  "request_id": "ce84920e-e688-41db-8bdd-08d31ab6818f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
-    "digest": "242a0351f306f5f6c5979c89bd1c96f1df87c12653d5b51297452544f0388d93",
+    "digest": "d5eebc672a3e17920fad0e8085d4c0d5b8529e97599da4f5a0db9608ea994f16",
     "paths": {
       "copier.yml": "e7191036413017d4ceb5c1591faf05ab96521a25",
       "docs/managed-rollout.md": "37f3d4b9fc6b680c1079b2f6894aa403a93d676f",
@@ -71,10 +71,10 @@
       "openspec/changes/ci-runner-rollout-migration/specs/ci-safety/spec.md": "97f19eba7d06e55bd9dba67554142be8f79b50e9",
       "openspec/changes/ci-runner-rollout-migration/specs/managed-rollout/spec.md": "b4d2f6d0de43bf87d68a1a7e728851520901ae81",
       "openspec/changes/ci-runner-rollout-migration/tasks.md": "57e18dc2e6ee7b98d05a34dbc2ac418dcd40b190",
-      "scripts/rollout_project.py": "f2ebbf048e1227ac9f745da16ea43fbffd2843fc",
+      "scripts/rollout_project.py": "635fb5d92987d3ef788e4cc14a5c96f6d820ec8b",
       "template/dev-platform/platform-manifest.json": "15fe45007344171e5d2f1cc9613a218bb56f08d3",
       "template/scripts/platform_doctor.py": "ecf5a56cfa10962877fa24589ed81f626b1e06e2",
-      "tests/test_ci_runner_selection.py": "7dc7445179ee8a46e896dac2e997d2a24cf256e9"
+      "tests/test_ci_runner_selection.py": "8ef043c64932ebb6f6734bb07a0b66e47394aa85"
     },
     "scope": "independent-review-v1",
     "version": 1

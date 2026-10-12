@@ -1,25 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "f6f035784ef1edf3a9d005cae845a552d1472470",
-    "diff_sha256": "393f1b8900774179d9f7e7145abd65419ea708e97131c75c81eb747a32ebe3ef"
+    "candidate_head": "fd11057eea5cbc12f84c2474f2fc82e283f59cf9",
+    "diff_sha256": "6c3ccacd858277b2ec316fac919b092a58c43c75d07d4ce3c10d6232d3ee4870"
   },
-  "completed_at": "2026-10-12T07:10:34+00:00",
-  "findings": [],
-  "launched_at": "2026-10-12T07:10:16+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-12T07:15:03+00:00",
+  "findings": [
+    {
+      "evidence": "In scripts/rollout_project.py `migrate_ci_runner_answers`, `if scm_provider is None: raise ValueError(...)` comes before `if \"ci_runner\" in answers or scm_provider != \"github\": return \"skipped\"` and before the check that the target `copier.yml` asks `ci_runner`. The managed-rollout spec scenario \"Older target and GitLab are unaffected\" says that when the target does not ask `ci_runner`, \"the runner preflight does not run\". Design decision 5 says the preflight runs only when the target defines `ci_runner`, the answers lack it and the project is not GitLab, and that otherwise \"behavior is exactly today's\". As written, a project whose `.copier-answers.yml` has no `scm_provider` is blocked on every rollout. That includes rollouts to older targets and projects that already record `ci_runner`. The stop was added in the latest commit, fd11057e. The spec and design do not mention it, and design decision 5 says only \"`scm_provider` is not `gitlab`\", so the stop contradicts the contract unless the contract is updated first.",
+      "id": "scm-provider-stop-precedes-applicability",
+      "severity": "material",
+      "summary": "The new missing-`scm_provider` stop runs before the applicability checks. It blocks rollouts the contract says the preflight must not touch."
+    }
+  ],
+  "launched_at": "2026-10-12T07:14:43+00:00",
+  "output_sha256": "c12d9aa9558c57de80a87441397c6519f65e2ddf7432b813f18f8ab277c2c411",
   "perspective": "spec-fidelity",
-  "request_id": "b53eb9bc-d896-4611-bd8e-f1b8e602a806",
+  "request_id": "ce84920e-e688-41db-8bdd-08d31ab6818f",
   "reviewer": {
-    "context_id": "a2364cb3-7914-4737-91e5-49299c6c7a5f",
+    "context_id": "5fcbdcbc-9ea0-49c9-a48a-e55ce0da5585",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-dbc6fc8d-f78a-43fa-9a56-a683617c3247",
+    "launch_id": "platform-launch-8d73e48e-62be-40c4-98c7-382b9185042d",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37373
+        "value": 37748
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18846
+        "value": 18853
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15595
+        "value": 18129
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15792
+        "value": 18276
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -65,11 +72,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1754
+        "value": 1967
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "242a0351f306f5f6c5979c89bd1c96f1df87c12653d5b51297452544f0388d93"
+  "task_content_digest": "d5eebc672a3e17920fad0e8085d4c0d5b8529e97599da4f5a0db9608ea994f16"
 }

@@ -462,6 +462,15 @@ class CiRunnerMigrationTests(unittest.TestCase):
         self.migrate(None, no_scm_provider, rollout_to="v1.0.1")
         self.assertIn("no scm_provider answer", str(self.rollout_error))
 
+        # The missing answer only matters when the preflight would otherwise apply.
+        self.rollout_error = None
+        self.migrate(None, no_scm_provider, rollout_to="v1.0.0")
+        self.assertIsNone(self.rollout_error)
+        self.assertEqual(self.rollout_outcome, "skipped")
+        self.migrate({"ci_runner": "github-hosted"}, no_scm_provider, rollout_to="v1.0.1")
+        self.assertIsNone(self.rollout_error)
+        self.assertEqual(self.rollout_outcome, "skipped")
+
     def test_update_records_github_hosted_default_for_pre_feature_project(self) -> None:
         target = self.migrate(None)
         answers = yaml.safe_load((target / ".copier-answers.yml").read_text(encoding="utf-8"))
