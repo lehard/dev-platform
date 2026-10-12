@@ -939,6 +939,20 @@ class CompositionTests(unittest.TestCase):
             with self.assertRaisesRegex(workers.WorkerError, "completed with 'passed' but the candidate has no current retrospective gate"):
                 self.offer_premerge_retrospective_after(Path(tmp), ["passed"])
 
+    def test_malformed_trusted_result_receipt_fails_explicitly(self):
+        head = "a" * 40
+        broken = {"id": 7, "body": workers.RESULT_PREFIX + "{not json", "user": {"login": "owner"}, "author_association": "OWNER"}
+        listed = {"id": 8, "body": workers.RESULT_PREFIX + "[1]", "user": {"login": "owner"}, "author_association": "OWNER"}
+        untrusted = {"id": 9, "body": workers.RESULT_PREFIX + "{not json", "user": {"login": "someone"}, "author_association": "NONE"}
+        self.assertEqual(lifecycle.job_outcomes(head, [untrusted]), {})
+        with self.assertRaisesRegex(lifecycle.MalformedReceiptError, "malformed trusted job result comment 7"):
+            lifecycle.job_outcomes(head, [broken])
+        with self.assertRaisesRegex(lifecycle.MalformedReceiptError, "comment 8 is not an object"):
+            lifecycle.premerge_retrospective_attempt(11, head, [listed])
+        merged = {"number": 11, "head": head, "task_identity": {"change": "x"}, "attempts": {"post-merge": 1}}
+        with self.assertRaisesRegex(lifecycle.MalformedReceiptError, "comment 7"):
+            lifecycle.post_merge_job(merged, [broken])
+
     def test_full_final_head_checks_and_checkpoint_precede_ready_and_admission(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = self.fixture(Path(tmp))
