@@ -1,13 +1,16 @@
 {
   "candidate": {
-    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "246ae518c53d7b0597832ded1ebe62df57902a89",
-    "diff_sha256": "b74fa1e7991e6818082005b097b93d5775beb966f50aaf5faa7539f6b627b7c3"
+    "candidate_head": "1fe6c76450174003d7591d2d6696ef2d6618ff6a",
+    "diff_sha256": "adf1765ef015d3bdd07aa5610da033c4460a017b2a2da970d67afa986bd397ef"
   },
   "change": "openspec/changes/chat-coordinator-lifecycle-overview",
   "excluded_lifecycle_paths": [
     "openspec/changes/chat-coordinator-lifecycle-overview/automated-checks.json",
+    "openspec/changes/chat-coordinator-lifecycle-overview/independent-review-request.json",
+    "openspec/changes/chat-coordinator-lifecycle-overview/independent-reviews/engineering-quality.json",
+    "openspec/changes/chat-coordinator-lifecycle-overview/independent-reviews/spec-fidelity.json",
     "openspec/changes/chat-coordinator-lifecycle-overview/verification.md"
   ],
   "fresh_context_required": true,
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-12T06:35:25+00:00",
+  "prepared_at": "2026-10-12T07:35:42+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/chat-coordinator-lifecycle-overview/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e0269372-8eee-40f2-9df0-c586bceac409",
+  "request_id": "f9816dd9-dfdc-46be-a69d-59abee8d3ff8",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -55,27 +58,27 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
-    "digest": "84f66432935c54e8a45936c9d6719d47726559a7f5818c0508d3cef51a5d5d52",
+    "base": "72c82fb5485a343c688084fc63ad388b64288e6e",
+    "digest": "33b637b108c706363c65f739b419c399193f8019daf92a82aa57f1bf5e689cbd",
     "paths": {
       "AGENTS.md": "435e7f263c22bee12bde509ff4e2612f4e58a64a",
-      "dev-platform/checks.toml": "d99fedea3009b0713131f9cf48c6a179bd177665",
+      "dev-platform/checks.toml": "62facd7dda3d236e3f6843ffe9fd25b009805bec",
       "dev-platform/source-contract.toml": "b11fe26553a0ac7ab224a22fd61942cf278de15d",
       "docs/engineering/chat-coordinator.md": "228ce41a5404e3ad44ede0d6a23e7bd13bceb0a3",
       "openspec/changes/chat-coordinator-lifecycle-overview/.managed-task.json": "00a853faa026784fb00ac02c88c295efaab99446",
       "openspec/changes/chat-coordinator-lifecycle-overview/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
-      "openspec/changes/chat-coordinator-lifecycle-overview/design.md": "f090955f5048b24288f6e2ca1cc380c1d044f1f0",
+      "openspec/changes/chat-coordinator-lifecycle-overview/design.md": "2ec5009eba6f1d35b238b3fb6a7cb274a3dab928",
       "openspec/changes/chat-coordinator-lifecycle-overview/proposal.md": "56b6b3b074ff7c319ade1a792419dbd6a75b188c",
-      "openspec/changes/chat-coordinator-lifecycle-overview/specs/chat-coordinator/spec.md": "a7d273ed67cd56a338e9f4a62da085fb8a4876a6",
+      "openspec/changes/chat-coordinator-lifecycle-overview/specs/chat-coordinator/spec.md": "c973637d256778959eb5d874714e4e8b79bb05c7",
       "openspec/changes/chat-coordinator-lifecycle-overview/tasks.md": "213e05d7111e05e5689f89b31cf6563ad960c0fc",
       "scripts/lifecycle_overview.py": "6601a5651f736324c64b2c39247adb8d271368d1",
-      "template/dev-platform/platform-manifest.json": "8afce657567456ad0cd8683c43b6c70ccb85fdca",
-      "template/dev-platform/protected-surface.toml": "b07f6f37966ef3f586d193187a565e6f7eb8d01b",
-      "template/scripts/lifecycle_overview.py": "632f77de2090162bed96f2d0e0db4d3d34245a66",
-      "template/scripts/lifecycle_workers.py": "48bf5be7fc9de0ab4720f55ef4457ee934c349a8",
+      "template/dev-platform/platform-manifest.json": "68e4d22f3076b8cc3158a88fb7ef21f087b3806e",
+      "template/dev-platform/protected-surface.toml": "6d494a35d2b9643a299046a69f96b52fc6e2a679",
+      "template/scripts/lifecycle_overview.py": "ead9a741e774959996c12d5c72679915439422a8",
+      "template/scripts/lifecycle_workers.py": "cbb45eea027a4ef23d346ec81b646e1b49d3650f",
       "template/scripts/pr_review_gate.py": "4976e73a3c3bed8d96bf2a5dbf99a98b67319404",
-      "template/scripts/publication_queue.py": "0133603fb3f2b75b7edcfe5b124f0267079d3c52",
-      "tests/test_lifecycle_overview.py": "1fd1a587bb890f06eed19dbdcf78ceae575c30fd",
+      "template/scripts/publication_queue.py": "44e3bdb44967923bb062a97ad7ecb82ed982494a",
+      "tests/test_lifecycle_overview.py": "41dc12a590faac112ce68a0e113ba869f4591ecf",
       "tests/test_pr_review_gate.py": "110f0923fd315e99de660fde90d85aa00bb185e4",
       "tests/test_publication_queue.py": "c7837937ab73a7b693dad7dc8d97513a38dfc1c2"
     },

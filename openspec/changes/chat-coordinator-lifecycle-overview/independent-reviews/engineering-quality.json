@@ -1,48 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "246ae518c53d7b0597832ded1ebe62df57902a89",
-    "diff_sha256": "b74fa1e7991e6818082005b097b93d5775beb966f50aaf5faa7539f6b627b7c3"
+    "candidate_head": "1fe6c76450174003d7591d2d6696ef2d6618ff6a",
+    "diff_sha256": "adf1765ef015d3bdd07aa5610da033c4460a017b2a2da970d67afa986bd397ef"
   },
-  "completed_at": "2026-10-12T06:37:17+00:00",
+  "completed_at": "2026-10-12T07:37:19+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_overview.py:171 `reason.startswith(\"malformed marker\")`, :184-185 `reason.startswith(\"post-merge\") and \"exhausted\" in reason`, :195 `reason.startswith((\"claim recorded on earlier head\", \"checks do not match candidate head\"))`. These strings are produced in candidate_lifecycle.py:264, 331, 438 and 525. publication_queue.ensure_post_merge_attention also matches `\"post-merge\"`/`\"exhausted\"`. No shared constant or structured field links the producer and the consumer. A reword would degrade stage `needs-intervention` to `delivering` or `closed`, which is the unsafe direction.",
-      "id": "exception-detection-coupled-to-reason-strings",
+      "evidence": "template/scripts/lifecycle_overview.py: observe_candidate catches `(queue.QueueError, MalformedMarkerError, ValueError)`. overview() runs `list(pool.map(lambda pr: observe_candidate(...), prs))`. main() catches only `(OverviewError, QueueError)`.",
+      "id": "overview-one-bad-pr-aborts-summary",
       "severity": "advisory",
-      "summary": "The overview detects stale-head, malformed-marker and post-merge-exhausted findings by matching free-text `reason` prefixes from the derivation. A reworded reason in candidate_lifecycle.py would silently stop the finding."
+      "summary": "observe_candidate only converts QueueError, MalformedMarkerError and ValueError into an `unknown` item. Any other exception in a worker thread (for example KeyError on a malformed PR payload, or an OSError from a gh call) propagates through pool.map and aborts the whole summary. The spec says an unreadable source should make that item `unknown`, not fail the report."
     },
     {
-      "evidence": "publication_queue.py `attention_key` hashes only [number, head, state, red.name, sorted(attempts)]. The spec requirement 'Escalations leave one human-readable GitHub indication' says 'idempotent per PR, head, state and reason'. Escalations that do not bump counters, such as malformed-marker or other `escalated-other` causes, can change reason without changing the key.",
-      "id": "attention-key-omits-reason",
+      "evidence": "lifecycle_overview.py: `reason.startswith(\"malformed marker\")`, `reason.startswith((\"claim recorded on earlier head\", \"checks do not match candidate head\"))`, `reason.startswith(\"post-merge\") and \"exhausted\" in reason`. The matching producer strings are in candidate_lifecycle.py lines 264, 331, 438 and 525. They are not shared constants.",
+      "id": "overview-reason-string-coupling",
       "severity": "advisory",
-      "summary": "The attention comment key does not include the escalation reason, although the spec and design say it is idempotent per PR, head, state and reason. Two different escalation reasons with the same head, state, red-gate name and attempt counters share one key, so the second one's comment is suppressed."
-    },
-    {
-      "evidence": "publication_queue.py `ensure_attention`: it scans the `comments` snapshot passed in (taken before the transition), then POSTs. The same function is called from both the new-transition path and the idempotent re-observation path of `_transition`.",
-      "id": "attention-comment-check-then-post-race",
-      "severity": "advisory",
-      "summary": "`ensure_attention` reads the comments and then posts, with no atomic guard. Concurrent coordinator runs, or the `_transition` re-observation path running alongside the first publication, can post duplicate attention comments. The 'exactly one' scenario holds only for serialized runs."
-    },
-    {
-      "evidence": "publication_queue.py `_transition` idempotent branch `if state == \"blocked-escalation\" and previous: ensure_attention(...)`. `class AttentionError(RuntimeError)` is documented as 'Deliberately not a QueueError'. In lifecycle_workers.main the new `ensure_post_merge_attention` call is outside the `except (WorkerError, ValueError)` handler, so a failure surfaces as an uncaught traceback after the outcome was computed and before it is printed.",
-      "id": "attention-failure-repeats-on-every-observation",
-      "severity": "advisory",
-      "summary": "The re-observation path calls `ensure_attention` for every `_transition` that finds an existing blocked-escalation record. If posting keeps failing (permissions, API outage), every later observation of that candidate raises `AttentionError` after the transition, which may block unrelated lifecycle operations on that PR. Because `AttentionError` is deliberately not a `QueueError`, callers that normally recover from queue failures will not handle it."
+      "summary": "The overview detects `stale-head`, `post-merge-exhausted` and `unknown-source` (malformed marker) by matching free-text prefixes of `candidate['reason']`. The prefixes currently match candidate_lifecycle.py. If the derivation wording changes, these exceptions silently stop being reported, and the item could be classified `delivering` or `blocked` without the named finding."
     }
   ],
-  "launched_at": "2026-10-12T06:36:21+00:00",
-  "output_sha256": "9055ff2366ddaffe3652556692afc622df3be2eb1dd9552ffbd36ed99b51c760",
+  "launched_at": "2026-10-12T07:36:52+00:00",
+  "output_sha256": "588ec28f743a2bd3243ac52bbd37396896ede8eb1b0ba7a8ec3524db05e052b3",
   "perspective": "engineering-quality",
-  "request_id": "e0269372-8eee-40f2-9df0-c586bceac409",
+  "request_id": "f9816dd9-dfdc-46be-a69d-59abee8d3ff8",
   "reviewer": {
-    "context_id": "8007a0ad-9d9f-4bfa-bacd-95ed3c2ced8f",
+    "context_id": "a292d89e-65f5-4332-b508-e4e9507bf6bc",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9031056a-fb67-44c8-bed1-2674cf103ed3",
+    "launch_id": "platform-launch-d894ab6a-ed7e-43a8-b149-6af6874318c2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 64570
+        "value": 52872
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 369630
+        "value": 110241
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50825
+        "value": 25176
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53800
+        "value": 26744
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5438
+        "value": 2887
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "84f66432935c54e8a45936c9d6719d47726559a7f5818c0508d3cef51a5d5d52"
+  "task_content_digest": "33b637b108c706363c65f739b419c399193f8019daf92a82aa57f1bf5e689cbd"
 }
