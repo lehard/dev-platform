@@ -89,6 +89,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | ChatGPT Project authoring through connected GitHub | [docs/engineering/chatgpt-project-protocol.md](docs/engineering/chatgpt-project-protocol.md) |
 | Goal refinement, dogfood lifecycle, scope discipline, validation, friction, completion | [docs/engineering/agent-workflow.md](docs/engineering/agent-workflow.md) |
 | OpenSpec contract model, semantic verification, receipts, archive, dependency policy | [docs/engineering/openspec-workflow.md](docs/engineering/openspec-workflow.md) |
+| Acting as the chat coordinator: reading delivery state, naming exceptions, safe operator decisions | [docs/engineering/chat-coordinator.md](docs/engineering/chat-coordinator.md) |
 | Optional engineering capability lifecycle and the browser verification adapter | [docs/engineering/engineering-capabilities.md](docs/engineering/engineering-capabilities.md), [docs/engineering/browser-verification.md](docs/engineering/browser-verification.md) |
 | Evaluating an external upstream as a substitute for own infrastructure | [docs/engineering/upstream-substitution.md](docs/engineering/upstream-substitution.md) |
 | Informational PR code-erosion signal, its limits and baseline | [docs/engineering/code-erosion.md](docs/engineering/code-erosion.md) |

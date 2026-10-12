@@ -36,3 +36,9 @@ friction_log = ".claude/agent-friction.jsonl"
 friction_state = ".claude/agent-friction-state.json"
 friction_reports = ".claude/reports/process-improvement"
 checks = "dev-platform/checks.toml"
+
+[chat_coordinator]
+# Read-only lifecycle overview (scripts/lifecycle_overview.py): a published lifecycle job with
+# no claim for longer than this is reported as an unclaimed-next-job exception. Required, no
+# default; matches the 30-minute worker claim TTL.
+unclaimed_job_after_minutes = 30

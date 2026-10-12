@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
+    "base_ref": "origin/main",
+    "candidate_head": "1fe6c76450174003d7591d2d6696ef2d6618ff6a",
+    "diff_sha256": "adf1765ef015d3bdd07aa5610da033c4460a017b2a2da970d67afa986bd397ef"
+  },
+  "completed_at": "2026-10-12T07:36:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_overview.py `assess_candidate`: `stage = \"merged-open-obligations\" if candidate.get(\"next_job\") or state.startswith(\"contribution\") else \"closed\"`. This branch never sees the Requirement. The correct separation exists only in `assess_requirement` (`merged_not_done`). Per-PR output, including `show --pr` and the candidate list, can therefore show `[closed]` for a merged PR whose Requirement is not Done. Contract: spec.md \"Delivery stages\" (\"a merged PR whose Requirement is not `Done` ... as `merged-open-obligations`, distinct from `closed`\"); design.md decision 3 (`closed`: PR merged with no obligation, Requirement `Done`).",
+      "id": "candidate-closed-ignores-requirement-done",
+      "severity": "advisory",
+      "summary": "A merged PR with no open obligation is classified `closed` at candidate level without checking the parent Requirement's `Done` status. The spec and design say `closed` needs the Requirement to be `Done`, and a merged PR whose Requirement is not `Done` must be `merged-open-obligations`."
+    }
+  ],
+  "launched_at": "2026-10-12T07:35:49+00:00",
+  "output_sha256": "1ca0d9c0c08dac8c1981e01a7cf73300597ad31223dc4f5b09fd630900321d83",
+  "perspective": "spec-fidelity",
+  "request_id": "f9816dd9-dfdc-46be-a69d-59abee8d3ff8",
+  "reviewer": {
+    "context_id": "4cc6722a-d8f7-4f59-a249-587a69368d57",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-11fa4750-279b-4ae7-a037-47b9d80e8060",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 63007
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 123949
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 60545
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 61616
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3989
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "33b637b108c706363c65f739b419c399193f8019daf92a82aa57f1bf5e689cbd"
+}
