@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
     "base_ref": "origin/main",
-    "candidate_head": "217288ddbba2c7cd836556f45cfa356c24e1275a",
-    "diff_sha256": "69ce837b30cdfcc6d32f7d0f87e093f58327338c30a8680923235e913000360a"
+    "candidate_head": "f4ebcc52a36cf332008a52356acbc6f6570f8e66",
+    "diff_sha256": "65f9623dc34e4476b84b6c8cb8254e2caa5128d01c5425d749781a90a9fd6f78"
   },
-  "completed_at": "2026-10-12T00:50:26+00:00",
-  "findings": [
-    {
-      "evidence": "spec.md, requirement 'Fail-open decisions are inventoried': 'fixed to an explicit error, or kept only by an explicit owner decision with the location of that decision'. design.md inventory row for `publication_queue` other `_latest(...) or {}` sites: 'Kept (legitimate absence)... (no owner decision involved: absence there is a normal state, not a lost record)'. design.md just below the table: 'No site is kept without one.' The kept sites are `_transition` exact-head and lineage, `_raise_if_owned_elsewhere`, `_awaiting_readmission`, `worker` (two sites) and `_integration_repair`. In publication_queue.py they became explicit `None` branches. Either the spec needs a 'legitimate absence' category or the kept sites need a recorded owner decision.",
-      "id": "inventory-kept-sites-contradict-owner-decision-rule",
-      "severity": "material",
-      "summary": "The spec says a fail-open site may be kept only by an explicit owner decision with a recorded location. design.md keeps several `or {}` sites explicitly without one, and the same file says no site is kept without one."
-    }
-  ],
-  "launched_at": "2026-10-12T00:50:08+00:00",
-  "output_sha256": "992157c30d0c32c0666ae8712206d5163873818143d90ac10d6f522668730861",
+  "completed_at": "2026-10-12T01:25:58+00:00",
+  "findings": [],
+  "launched_at": "2026-10-12T01:25:39+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "ea9d8c4a-4af5-4724-b520-50eaae442bbc",
+  "request_id": "504af94c-e5a8-436a-91c0-e734853e4af2",
   "reviewer": {
-    "context_id": "20849951-edc0-4d2b-a743-f80da240f7d3",
+    "context_id": "9c1e0c0b-a669-4537-83a8-81177de2a9dc",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4f3c6cb7-934e-4b50-a4a6-e8a4411e6469",
+    "launch_id": "platform-launch-cca9b190-0fed-47b6-ae5a-2dee280bd7bc",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56667
+        "value": 61767
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 54430
+        "value": 182361
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15819
+        "value": 17896
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16825
+        "value": 18846
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1818
+        "value": 1726
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0a4825c724b479b00e58345dcc62bcc26d0392f52947b37c56f03e01c482f196"
+  "task_content_digest": "f0fb3b7985beb5d37216d4762015a34da76e187967c3dd8f87e6ce11a3b76491"
 }
