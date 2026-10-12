@@ -90,6 +90,11 @@ class StageTests(unittest.TestCase):
         self.assertEqual(item["executor"]["job_age_minutes"], 10)
         self.assertEqual([s["status"] for s in item["chain"]][:1], ["current"])
 
+    def test_text_output_for_an_unclaimed_job_shows_not_confirmed_and_its_age(self):
+        item = assess([marker(record("review-pending", next_job=job()), 1)])
+        text = overview.render_candidate(item, detail=False)
+        self.assertIn("executor: executor not confirmed; job published 10 min ago", text)
+
     def test_live_claim_is_delivering_and_never_claimed_as_running(self):
         comments = [marker(record("reviewing", next_job=job()), 1)]
         candidate = lifecycle.derive_candidate(pull(), comments)
@@ -392,6 +397,15 @@ class AttentionCommentTests(unittest.TestCase):
         self.escalate()
         self.assertEqual(len([c for c in self.comments if c["author_association"] == "OWNER"
                               and c["body"].startswith(queue.ATTENTION_PREFIX)]), 1)
+
+    def test_cli_reports_a_failed_indication_with_a_message_and_nonzero_exit(self):
+        out = io.StringIO()
+        with mock.patch.object(queue, "current_worktree_root", return_value=ROOT), \
+                mock.patch.object(queue, "admit", side_effect=queue.AttentionError("PR #7 attention comment failed")), \
+                mock.patch("sys.argv", ["publication_queue", "admit", "--pr", "7", "--head", HEAD]), \
+                mock.patch("sys.stdout", out):
+            self.assertEqual(queue.main(), 2)
+        self.assertIn("attention comment failed", out.getvalue())
 
     def test_post_merge_exhaustion_is_indicated_once(self):
         outcomes = [{"id": 10 + n, "author_association": "OWNER", "body": workers.result_body(

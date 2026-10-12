@@ -1164,7 +1164,10 @@ def main(argv: list[str] | None = None) -> int:
                     outcome = run_claimed_post_merge(
                         Path.cwd(), repo, candidate, job, branch=args.branch or pr_info(job["number"])["head"]["ref"],
                         post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
-                    publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
+                    try:
+                        publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
+                    except publication_queue.AttentionError as exc:
+                        raise WorkerError(str(exc)) from exc
                 else:
                     outcome = execute_job(
                         job, source_repo=args.source or f"https://github.com/{repo}.git",

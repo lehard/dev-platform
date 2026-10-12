@@ -115,7 +115,7 @@ The overview SHALL list as permitted only actions that the existing operator com
 
 ### Requirement: Escalations leave one human-readable GitHub indication
 
-When the coordinator first publishes `blocked-escalation` for an exact head and reason, and when it first observes an exhausted post-merge obligation, it SHALL post one human-readable PR comment stating the reason, evidence links and the permitted actions or the human decision needed, idempotent per PR, head, state and reason. A successful stage SHALL post nothing. A failure to post SHALL be raised after the transition is published and SHALL fail the run visibly, without a second channel or a swallowed error. Final Requirement closure SHALL keep using the existing close of the Requirement Issue.
+When the coordinator first publishes `blocked-escalation` for an exact head and reason, and when it first observes an exhausted post-merge obligation, it SHALL post one human-readable PR comment stating the reason, evidence links and the permitted actions or the human decision needed, idempotent per PR, head, state, red gate and attempt counters of that escalation round. A successful stage SHALL post nothing. A failure to post SHALL be raised after the transition is published and SHALL fail the run visibly, without a second channel or a swallowed error. Final Requirement closure SHALL keep using the existing close of the Requirement Issue.
 
 #### Scenario: Escalation
 - **WHEN** a candidate transitions to `blocked-escalation`

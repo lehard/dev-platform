@@ -2164,7 +2164,7 @@ def main() -> int:
         else:
             # Real coordinator runs record friction automatically (install_sink).
             result = run_worker(root, args.mode, os.environ, install_sink=True)
-    except QueueError as exc:
+    except (QueueError, AttentionError) as exc:
         print(json.dumps({"state": "error", "reason": str(exc)}))
         return 2
     if args.command == "status":

@@ -425,8 +425,11 @@ def render_candidate(item: dict, *, detail: bool) -> str:
     head = f"PR #{item['number']} [{item['stage']}] {item.get('state') or '?'} head {str(item.get('head'))[:12]}  {item['url']}"
     lines = [head]
     executor = item["executor"]
-    lines.append("  executor: " + (f"claimed by {executor['claimed_by']} until {executor['claim_expires_at']}; {executor['activity']}"
-                                   if executor.get("claimed_by") else executor["activity"]))
+    if executor.get("claimed_by"):
+        lines.append(f"  executor: claimed by {executor['claimed_by']} until {executor['claim_expires_at']}; {executor['activity']}")
+    else:
+        age = executor.get("job_age_minutes")
+        lines.append(f"  executor: {executor['activity']}" + (f"; job published {age} min ago" if age is not None else ""))
     lines.append(f"  next: {item.get('next_operation')} | expected automation: {item.get('expected_automation')}")
     for finding in item["findings"]:
         lines.append(f"  ! {finding['kind']}: {finding['detail']} ({finding['evidence']})")
