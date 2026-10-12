@@ -861,13 +861,15 @@ class CompositionTests(unittest.TestCase):
             candidate = {"number": 11, "head": head, "task_identity": identity,
                          "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
             adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
-                _comments=lambda *a: [], _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock())
+                _comments=lambda *a: [], _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock(),
+                trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
             original_checkout = workers.prepare_checkout
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
                                    original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, adapter=adapter)
                 self.assertEqual(result["status"], "await-requirement-retrospective")
                 self.assertEqual(adapter.publish_job.call_args.args[3], "retrospective")
+                self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 0)
                 candidate["next_job"] = workers.job_record("retrospective", head, identity, 0, phase="pre-merge")
                 job = workers.build_job(candidate)
                 ops, post = mock.Mock(), mock.Mock()
@@ -886,6 +888,56 @@ class CompositionTests(unittest.TestCase):
                     "user": {"login": "owner"}, "author_association": "OWNER"}])
                 self.assertEqual(postmerge["kind"], "retrospective")
                 self.assertNotEqual(workers.job_id({**postmerge, "number": 11}), workers.job_id(job))
+
+    def premerge_retrospective_receipts(self, head, outcomes):
+        rows = []
+        for attempt, outcome in enumerate(outcomes):
+            job = {"number": 11, "kind": "retrospective", "head": head, "attempt": attempt, "phase": "pre-merge"}
+            body = workers.RESULT_PREFIX + json.dumps({"job": workers.job_id(job), "head": head, "outcome": outcome})
+            rows.append({"id": attempt + 1, "body": body, "user": {"login": "owner"}, "author_association": "OWNER"})
+        return rows
+
+    def offer_premerge_retrospective_after(self, tmp, outcomes):
+        fixture = self.fixture(tmp)
+        head = git(fixture.root, "rev-parse", "HEAD")
+        identity = composition.composition_identity(fixture.root, fixture.manifest)
+        gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+        candidate = {"number": 11, "head": head, "task_identity": identity,
+                     "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
+        receipts = self.premerge_retrospective_receipts(head, outcomes)
+        adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
+            _comments=lambda *a: receipts, _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock(),
+            trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
+        original_checkout = workers.prepare_checkout
+        with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                               original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
+            result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, adapter=adapter)
+        return result, adapter
+
+    def test_blocked_premerge_retrospective_is_offered_again_at_the_next_attempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result, adapter = self.offer_premerge_retrospective_after(Path(tmp), ["blocked: ambiguous friction attribution"])
+            self.assertEqual(result["status"], "await-requirement-retrospective")
+            self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 1)
+            self.assertEqual(adapter.publish_job.call_args.kwargs["phase"], "pre-merge")
+
+    def test_unanswered_premerge_retrospective_attempt_is_offered_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _, adapter = self.offer_premerge_retrospective_after(Path(tmp), ["failed: transport"])
+            self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 1)
+        with tempfile.TemporaryDirectory() as tmp:
+            _, adapter = self.offer_premerge_retrospective_after(Path(tmp), [])
+            self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 0)
+
+    def test_premerge_retrospective_attempts_are_bounded(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(workers.WorkerError, "exhausted 3 attempts; operator action required"):
+                self.offer_premerge_retrospective_after(Path(tmp), ["blocked: a", "blocked: b", "failed: c"])
+
+    def test_completed_premerge_retrospective_without_a_gate_fails_explicitly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(workers.WorkerError, "completed with 'passed' but the candidate has no current retrospective gate"):
+                self.offer_premerge_retrospective_after(Path(tmp), ["passed"])
 
     def test_full_final_head_checks_and_checkpoint_precede_ready_and_admission(self):
         with tempfile.TemporaryDirectory() as tmp:
