@@ -1,3 +1,9 @@
+# gate-fail-explicit Specification
+
+## Purpose
+
+Make the platform's required publication and verification gates stop with an explicit diagnostic when a dependency, configuration value or record they need is missing or corrupt, instead of passing through a no-op, a masking default or a swallowed error.
+
 ## ADDED Requirements
 
 ### Requirement: Required scope gate fails explicitly
