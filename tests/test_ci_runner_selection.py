@@ -454,6 +454,14 @@ class CiRunnerMigrationTests(unittest.TestCase):
         self.migrate({"ci_runner": "self-hosted", "ci_runner_labels": "my-runner"}, self.edit_runners(edits), rollout_to="v1.0.1")
         self.assertEqual(self.rollout_outcome, "skipped")
 
+        def no_scm_provider(target: Path) -> None:
+            answers = target / ".copier-answers.yml"
+            answers.write_text(re.sub(r"^scm_provider:.*\n", "", answers.read_text(encoding="utf-8"), flags=re.MULTILINE), encoding="utf-8")
+
+        self.rollout_error = None
+        self.migrate(None, no_scm_provider, rollout_to="v1.0.1")
+        self.assertIn("no scm_provider answer", str(self.rollout_error))
+
     def test_update_records_github_hosted_default_for_pre_feature_project(self) -> None:
         target = self.migrate(None)
         answers = yaml.safe_load((target / ".copier-answers.yml").read_text(encoding="utf-8"))
