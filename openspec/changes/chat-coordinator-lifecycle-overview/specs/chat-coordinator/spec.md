@@ -1,3 +1,9 @@
+# chat-coordinator Specification
+
+## Purpose
+
+Let the owner assign any new Codex or Claude session as the chat coordinator, which reads the true delivery state of Requirements and PRs from GitHub alone, names exceptions with evidence, and applies only the existing validated recovery commands after an explicit owner decision, without a persistent chat, a second state store or a new step on the happy path.
+
 ## ADDED Requirements
 
 ### Requirement: Lifecycle overview is a read-only projection of GitHub state
