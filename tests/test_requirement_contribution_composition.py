@@ -945,12 +945,12 @@ class CompositionTests(unittest.TestCase):
         listed = {"id": 8, "body": workers.RESULT_PREFIX + "[1]", "user": {"login": "owner"}, "author_association": "OWNER"}
         untrusted = {"id": 9, "body": workers.RESULT_PREFIX + "{not json", "user": {"login": "someone"}, "author_association": "NONE"}
         self.assertEqual(lifecycle.job_outcomes(head, [untrusted]), {})
-        with self.assertRaisesRegex(lifecycle.MalformedReceiptError, "malformed trusted job result comment 7"):
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "malformed trusted job result comment 7"):
             lifecycle.job_outcomes(head, [broken])
-        with self.assertRaisesRegex(lifecycle.MalformedReceiptError, "comment 8 is not an object"):
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "comment 8 is not an object"):
             lifecycle.premerge_retrospective_attempt(11, head, [listed])
         merged = {"number": 11, "head": head, "task_identity": {"change": "x"}, "attempts": {"post-merge": 1}}
-        with self.assertRaisesRegex(lifecycle.MalformedReceiptError, "comment 7"):
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "comment 7"):
             lifecycle.post_merge_job(merged, [broken])
 
     def test_full_final_head_checks_and_checkpoint_precede_ready_and_admission(self):

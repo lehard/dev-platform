@@ -444,16 +444,12 @@ MAX_POST_MERGE_ATTEMPTS = 3
 POST_MERGE_FLAG = "post-merge"
 
 
-class MalformedReceiptError(RuntimeError):
-    """A trusted job result receipt cannot be parsed; it is never skipped."""
-
-
 def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
                  trusted_writers: frozenset[str] = frozenset()) -> dict[str, list[str]]:
     """Outcomes of trusted job result receipts for ``head``, keyed by job id in comment order.
 
     Untrusted comments are not gate input and are ignored; a trusted receipt that cannot be parsed
-    raises ``MalformedReceiptError`` naming the comment instead of being skipped.
+    raises ``MalformedMarkerError`` naming the comment instead of being skipped.
     """
     from lifecycle_workers import RESULT_PREFIX
 
@@ -465,9 +461,9 @@ def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] =
         try:
             receipt = json.loads(body[len(RESULT_PREFIX):])
         except ValueError as exc:
-            raise MalformedReceiptError(f"malformed trusted job result comment {row.get('id')}: {exc}") from exc
+            raise MalformedMarkerError(f"malformed trusted job result comment {row.get('id')}: {exc}") from exc
         if not isinstance(receipt, dict):
-            raise MalformedReceiptError(f"trusted job result comment {row.get('id')} is not an object")
+            raise MalformedMarkerError(f"trusted job result comment {row.get('id')} is not an object")
         outcome = str(receipt.get("outcome", ""))
         if (receipt.get("head") == head
                 and outcome != "validated-push" and not outcome.startswith("discarded")):
