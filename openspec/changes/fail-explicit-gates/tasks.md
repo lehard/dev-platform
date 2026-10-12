@@ -21,4 +21,4 @@
 
 ## 5. Verification and delivery
 
-- [ ] 5.1 Required platform checks, truthful semantic verification, archive, retrospectives, publication.
+- [x] 5.1 Required platform checks, truthful semantic verification, archive, retrospectives, publication.
