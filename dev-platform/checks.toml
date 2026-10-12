@@ -154,6 +154,7 @@ targets = [
   "test_root_guidance_contract",
   "test_platform_module_identity",
   "test_lifecycle_workers",
+  "test_hosted_workers",
 ]
 mode = "parallel"
 

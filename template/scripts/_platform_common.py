@@ -23,10 +23,13 @@ _CREDENTIAL_PATTERN = re.compile(r"^(GH|GITHUB)_|(GH|GITHUB)\w*_(TOKEN|API_KEY)$
 
 
 
+def is_credential_name(name: str) -> bool:
+    """True for an environment variable name that the credential-free environment removes."""
+    return name in CREDENTIAL_VARS or bool(_CREDENTIAL_PATTERN.search(name)) or name.startswith("GIT_CONFIG_")
+
+
 def credential_free_env(env: dict[str, str], home: Path | None = None) -> dict[str, str]:
-    clean = {key: value for key, value in env.items()
-             if key not in CREDENTIAL_VARS and not _CREDENTIAL_PATTERN.search(key)
-             and not key.startswith("GIT_CONFIG_")}
+    clean = {key: value for key, value in env.items() if not is_credential_name(key)}
     clean.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
                  GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1")
     if home is not None:
@@ -79,7 +82,7 @@ def _unmet(kind: str, name: str, reason: str) -> ProjectCheckRuntimeError:
 def check_runtime_declaration(runtime: dict[str, list[str]]) -> None:
     """Refuse credential variables and credential or escaping home paths, whatever was declared or granted."""
     for name in runtime.get("required_env", []):
-        if name in CREDENTIAL_VARS or _CREDENTIAL_PATTERN.search(name) or name.startswith("GIT_CONFIG_"):
+        if is_credential_name(name):
             raise _unmet("env", name, "GitHub and publication credentials are never provided to project checks")
     for relative in runtime.get("home_paths", []):
         reason = refused_home_path(relative)
