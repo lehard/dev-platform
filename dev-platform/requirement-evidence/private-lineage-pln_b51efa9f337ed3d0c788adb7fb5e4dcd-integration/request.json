@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
     "base_ref": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
-    "candidate_head": "c8d187e300204b906a149187b6320e7564abea95",
-    "diff_sha256": "1fff2c9f56ccd8a36b8a7d83f1dee210ab8152540db80495f0982c7982b931c9"
+    "candidate_head": "1232058e2101739bce2b254ad7cd8ee9121f22c4",
+    "diff_sha256": "0eb9b0656dd2dbe91009311afa685ac0e88c3193dd6fcad88fc70438df6f62aa"
   },
   "change": "private-lineage-pln_b51efa9f337ed3d0c788adb7fb5e4dcd-integration",
   "children": [
@@ -169,12 +169,12 @@
       ]
     }
   },
-  "prepared_at": "2026-10-11T23:43:54+00:00",
-  "request_id": "446f34cc-3d80-4262-95f4-a70924a55c06",
+  "prepared_at": "2026-10-12T03:22:44+00:00",
+  "request_id": "09014210-f362-45dc-8bbb-2eeda806f7d0",
   "requirement": "pln_b51efa9f337ed3d0c788adb7fb5e4dcd",
   "schema_version": 1,
   "task_content": {
-    "base": "c0ee8f00b45f5d2798dd1e7e4b20ac7c71278a38",
+    "base": "4e047dc8a2bc3e0c6aa5e117d752103492807dec",
     "digest": "50879e2d2d5313383c52976b3027b1387acdd9b33dce7e122752d4c108c8126a",
     "paths": {
       ".github/workflows/explorer.yml": "8ef8da35aa3da29235adfe721fbdb31c96ad5ade",
