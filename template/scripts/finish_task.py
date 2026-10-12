@@ -63,17 +63,7 @@ except ImportError:  # Compatibility while an existing project is being upgraded
     _read_deferred_cleanup = None
     defer_completed_task = None
     targeted_cleanup_command = None
-try:
-    from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
-except (ImportError, ModuleNotFoundError):  # Compatibility while older rendered projects are upgraded.
-    class HardScopeOverlap(RuntimeError):
-        pass
-
-    def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
-        return None
-
-    def enforce_scope_gate(root: Path, worktree: Path, branch: str) -> None:
-        return None
+from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
 try:
     from managed_task import (
         ManagedTaskError,

@@ -16,7 +16,9 @@ from _platform_common import (
     locked_json,
     machine_path,
     main_root,
+    PlatformConfigError,
     read_platform_config,
+    require_main_branch,
     run_git,
     utc_now,
 )
@@ -32,6 +34,19 @@ TERMINAL_BOARD_PROBLEMS = frozenset({"merged-branch", "merged-pr"})
 
 class HardScopeOverlap(RuntimeError):
     """A newly observed, unacknowledged hard file overlap blocks costly work."""
+
+
+def _scope_gate_unavailable(detail: str) -> SystemExit:
+    """The classified (recoverable) failure of an unmet scope-gate or board-coordination precondition."""
+    return gate_failure("scope-gate-unavailable", detail, SystemExit)
+
+
+def _main_branch(config: dict) -> str:
+    """``main_branch`` from the committed contract; absence is a classified failure, never an assumed ``main``."""
+    try:
+        return require_main_branch(config)
+    except PlatformConfigError as exc:
+        raise _scope_gate_unavailable(str(exc)) from exc
 
 
 def board_path(root: Path | None = None) -> Path:
@@ -202,7 +217,7 @@ def scope_overlap_diagnostics(
 ) -> list[tuple[str, str, str]]:
     """Return bounded repo-relative conflicts with valid other board entries."""
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = _main_branch(config)
     current_paths = _normalized_scope_paths(scope, root) | _factual_scope_paths(worktree, root, main_branch)
     if not current_paths:
         return []
@@ -319,8 +334,17 @@ def _worktree_clean(worktree: Path) -> bool:
 
 
 def _merged_into(root: Path, branch: str, main_branch: str) -> bool:
-    result = run_git(["merge-base", "--is-ancestor", f"refs/heads/{branch}", f"refs/heads/{main_branch}"], cwd=root, check=False)
-    return result.returncode == 0
+    """Whether ``branch`` is an ancestor of ``main_branch``: exit 0 true, exit 1 false, any other exit raises."""
+    command = ["merge-base", "--is-ancestor", f"refs/heads/{branch}", f"refs/heads/{main_branch}"]
+    result = run_git(command, cwd=root, check=False)
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    raise SystemExit(
+        f"Agent board check blocked: git {' '.join(command)} exited {result.returncode}: "
+        + (result.stderr or result.stdout).strip()[:300]
+    )
 
 
 def _exact_task_pr_is_merged(root: Path, branch: str, main_branch: str) -> bool:
@@ -462,7 +486,7 @@ def cmd_admit(args: argparse.Namespace) -> int:
     worktree = validate_worktree_identity(args.worktree, args.branch, root)
     path = board_path(root)
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = _main_branch(config)
     with locked_json(path) as data:
         items = data.setdefault("items", [])
         current = _find_item(items, worktree, args.branch)
@@ -488,7 +512,7 @@ def cmd_acknowledge(args: argparse.Namespace) -> int:
     worktree = validate_worktree_identity(args.worktree, args.branch, root)
     path = board_path(root)
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = _main_branch(config)
     reason = (args.reason or "").strip()
     if not reason:
         raise SystemExit("Agent board acknowledgment blocked: --reason must be a non-empty bounded justification.")
@@ -565,7 +589,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             print("agent-board: ok (empty)")
         return 0
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = _main_branch(config)
 
     with locked_json(path) as data:
         items = data.setdefault("items", [])
@@ -615,24 +639,67 @@ def find_id_for_current_worktree() -> str | None:
     return None
 
 
-def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
-    """Emit an advisory conflict diagnostic at the pre-publication boundary."""
-    path = board_path(root)
+def scope_gate_required(config: dict) -> bool:
+    """Whether the multi-agent scope gate applies, from ``[capabilities] agent_board``.
+
+    ``true`` makes the gate required; ``false`` is the documented non-gate (a project that does
+    not use multi-agent coordination). A missing section, a missing key or a non-boolean value is
+    an error: the mode is never inferred from the presence of a board file or path.
+    """
+    capabilities = config.get("capabilities")
+    if not isinstance(capabilities, dict):
+        raise _scope_gate_unavailable("[capabilities] is missing from .dev-platform.toml; set agent_board = true or false")
+    required = capabilities.get("agent_board")
+    if not isinstance(required, bool):
+        raise _scope_gate_unavailable(
+            f"[capabilities] agent_board must be true or false in .dev-platform.toml, found {required!r}"
+        )
+    return required
+
+
+def _required_scope_inputs(root: Path, worktree: Path, branch: str, config: dict) -> tuple[list[dict], dict, str]:
+    """Board items, this worktree's claim and ``main_branch`` for a required scope gate.
+
+    Every precondition is checked and an unmet one stops the caller with a diagnostic: configured
+    board path, existing and readable board file, JSON object with an ``items`` list, a claim for
+    this worktree and branch, and ``main_branch``.
+    """
+    try:
+        path = board_path(root)
+    except KeyError as exc:
+        raise _scope_gate_unavailable(f"agent_board is enabled but {exc.args[0]}") from exc
     if not path.exists():
-        return
+        raise _scope_gate_unavailable(f"agent_board is enabled but the board file {path} does not exist")
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return
-    items = data.get("items", [])
+    except (OSError, json.JSONDecodeError) as exc:
+        raise _scope_gate_unavailable(f"the agent board {path} is unreadable or invalid JSON: {exc}") from exc
+    if not isinstance(data, dict):
+        raise _scope_gate_unavailable(f"the agent board {path} must contain a JSON object")
+    items = data.get("items")
     if not isinstance(items, list):
+        raise _scope_gate_unavailable(f"the agent board {path} has no valid 'items' list")
+    main_branch = _main_branch(config)
+    current = _find_item(items, worktree, branch)
+    if current is None:
+        raise _scope_gate_unavailable(
+            f"agent_board is enabled but the board {path} has no claim for worktree {worktree} "
+            f"and branch {branch}"
+        )
+    return items, current, main_branch
+
+
+def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
+    """Emit an advisory conflict diagnostic at the pre-publication boundary.
+
+    Applies only when the scope gate is required; an unmet precondition stops with the same
+    diagnostic as the gate itself.
+    """
+    config = read_platform_config(root)
+    if not scope_gate_required(config):
         return
-    scope = ""
-    for item in items:
-        if Path(str(item.get("worktree", ""))).expanduser().resolve() == worktree.resolve():
-            scope = str(item.get("scope", ""))
-            break
-    _print_overlap_warning(scope_overlap_diagnostics(root, worktree, branch, scope, items))
+    items, current, _ = _required_scope_inputs(root, worktree, branch, config)
+    _print_overlap_warning(scope_overlap_diagnostics(root, worktree, branch, str(current.get("scope", "")), items))
 
 
 def hard_scope_conflicts(root: Path, worktree: Path, branch: str) -> list[tuple[str, str, str]]:
@@ -642,29 +709,17 @@ def hard_scope_conflicts(root: Path, worktree: Path, branch: str) -> list[tuple[
     immediately before publication so a concrete file overlap introduced
     after admission is not silently carried through to expensive or delivery
     work.  Acknowledged pairs and stale/completed sibling claims are excluded,
-    matching ``_admission_conflicts`` used at admission time.  A platform
-    config that never wires up ``paths.agent_board`` (a profile that does not
-    use multi-agent coordination) has no board to recheck, so it is treated
-    the same as a missing board file rather than as an error.
+    matching ``_admission_conflicts`` used at admission time.
+
+    The gate is required exactly when ``[capabilities] agent_board`` is true;
+    then every precondition (see ``_required_scope_inputs``) must hold or the
+    check stops with a diagnostic.  When the capability is false the gate does
+    not apply and no conflict is reported.
     """
-    try:
-        path = board_path(root)
-    except KeyError:
-        return []
-    if not path.exists():
-        return []
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-    items = data.get("items", [])
-    if not isinstance(items, list):
-        return []
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
-    current = _find_item(items, worktree, branch)
-    if current is None:
+    if not scope_gate_required(config):
         return []
+    items, current, main_branch = _required_scope_inputs(root, worktree, branch, config)
     return _admission_conflicts(root, current, items, main_branch=main_branch)
 
 

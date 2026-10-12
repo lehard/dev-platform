@@ -223,6 +223,36 @@ def check_containment(before: GitSnapshot, after: GitSnapshot) -> ContainmentRes
     )
 
 
+def _verification_main_branch(integration_root: Path, what: str) -> str:
+    """``main_branch`` for a head-move verification, from an existing, readable ``.dev-platform.toml``.
+
+    ``read_platform_config`` substitutes a default contract when the file is absent; a verification
+    must not run against an assumed one, so the file must exist and name ``main_branch``.
+    """
+    from _platform_common import read_platform_config, require_main_branch  # local import: avoid a hard dependency for callers that never need config.
+
+    contract = integration_root / ".dev-platform.toml"
+    if not contract.is_file():
+        raise ContainmentError(f"cannot verify {what}: {contract} does not exist")
+    try:
+        return require_main_branch(read_platform_config(integration_root))
+    except (OSError, RuntimeError, ValueError) as exc:  # PlatformConfigError is a RuntimeError; tomllib.TOMLDecodeError a ValueError
+        raise ContainmentError(f"cannot verify {what}: platform config for {integration_root} is unusable: {exc}") from exc
+
+
+def _is_ancestor(integration_root: Path, ancestor: str, descendant: str, what: str) -> bool:
+    """Three-valued ancestry: exit 0 true, exit 1 false, any other exit raises ``ContainmentError``."""
+    done = run_git(integration_root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
+    if done.returncode == 0:
+        return True
+    if done.returncode == 1:
+        return False
+    raise ContainmentError(
+        f"cannot verify {what}: git merge-base --is-ancestor {ancestor} {descendant} "
+        f"exited {done.returncode}: {(done.stderr.strip() or done.stdout.strip())}"
+    )
+
+
 def verify_remote_fast_forward(integration_root: Path, before_head: str, after_head: str) -> bool:
     """Whether `after_head` is a verified concurrent fast-forward of `before_head`.
 
@@ -230,23 +260,28 @@ def verify_remote_fast_forward(integration_root: Path, before_head: str, after_h
     of `before_head`, and `after_head` exactly equals this checkout's own
     already-recorded remote-tracking ref for the configured base branch
     (`refs/remotes/origin/<main_branch>`) -- never a fresh network round-trip,
-    since this must stay a read of local state the checkout already has. Fails
-    closed (returns False) on any git error, missing config, or mismatch; a
-    verification failure is never treated as proof.
-    """
-    try:
-        from _platform_common import read_platform_config  # local import: avoid a hard dependency for callers that never need config.
+    since this must stay a read of local state the checkout already has.
 
-        config = read_platform_config(integration_root)
-    except Exception:
+    Returns False only for a definite negative answer (`before_head` is not an
+    ancestor of `after_head`, or the recorded remote-tracking ref is absent or
+    names another commit). Unreadable platform configuration, a missing
+    `main_branch`, or any git failure other than those definite answers raises
+    `ContainmentError`: a verification that could not run is never reported as
+    a negative answer.
+    """
+    what = "a remote fast-forward"
+    main_branch = _verification_main_branch(integration_root, what)
+    if not _is_ancestor(integration_root, before_head, after_head, what):
         return False
-    main_branch = str(config.get("main_branch") or "main")
-    ancestry = run_git(integration_root, "merge-base", "--is-ancestor", before_head, after_head, check=False)
-    if ancestry.returncode != 0:
-        return False
-    remote_ref = run_git(integration_root, "rev-parse", f"refs/remotes/origin/{main_branch}", check=False)
+    ref = f"refs/remotes/origin/{main_branch}"
+    remote_ref = run_git(integration_root, "rev-parse", "--verify", "--quiet", ref, check=False)
+    if remote_ref.returncode == 1:
+        return False  # `--verify --quiet` exit 1: no such ref, so nothing proves `after_head` is accepted remote history
     if remote_ref.returncode != 0:
-        return False
+        raise ContainmentError(
+            f"cannot verify a remote fast-forward: git rev-parse {ref} exited {remote_ref.returncode}: "
+            f"{(remote_ref.stderr.strip() or remote_ref.stdout.strip())}"
+        )
     return remote_ref.stdout.strip() == after_head
 
 
@@ -285,50 +320,51 @@ def verify_historical_external_advance(
     such as a specific PR or commit timestamp -- or the caller has nothing legitimate
     to bind against.
 
-    Fails closed (returns False, never raises) on any git error, missing/unparseable
-    platform config, an unparseable `not_before`/`not_after`, an expired/missing
-    reflog, or no matching entry inside the window.
+    Returns False only for a definite negative answer: `before_head` is not an
+    ancestor of `after_head`, `after_head` is not contained in the remote-tracking
+    ref, or no reflog entry for `after_head` falls inside the window. A missing
+    `.dev-platform.toml`, a missing `main_branch`, an unparseable
+    `not_before`/`not_after`, or any git failure other than a definite
+    negative raises `ContainmentError`.
     """
-    try:
-        from _platform_common import read_platform_config, remote_ref  # local import: same reasoning as verify_remote_fast_forward.
+    from _platform_common import remote_ref  # local import: same reasoning as verify_remote_fast_forward.
 
-        config = read_platform_config(integration_root)
-    except Exception:
-        return False
-    main_branch = str(config.get("main_branch") or "main")
-
+    what = "a historical external advance"
+    main_branch = _verification_main_branch(integration_root, what)
     try:
         lower = datetime.fromisoformat(not_before)
         upper = datetime.fromisoformat(not_after)
+    except ValueError as exc:
+        raise ContainmentError(f"cannot verify {what}: unparseable window {not_before!r}..{not_after!r}: {exc}") from exc
 
-        forward = run_git(integration_root, "merge-base", "--is-ancestor", before_head, after_head, check=False)
-        if forward.returncode != 0:
-            return False
+    if not _is_ancestor(integration_root, before_head, after_head, what):
+        return False
+    ref = remote_ref("origin", main_branch)
+    if not _is_ancestor(integration_root, after_head, ref, what):
+        return False
 
-        ref = remote_ref("origin", main_branch)
-        contained = run_git(integration_root, "merge-base", "--is-ancestor", after_head, ref, check=False)
-        if contained.returncode != 0:
-            return False
-
-        reflog = run_git(integration_root, "log", "-g", "--format=%H %gd", "--date=iso-strict", ref, check=False)
-        if reflog.returncode != 0:
-            return False
-
-        for line in reflog.stdout.splitlines():
-            if not line.strip():
-                continue
-            sha, _, rest = line.partition(" ")
-            if sha != after_head:
-                continue
-            match = re.search(r"@\{([^}]+)\}", rest)
-            if not match:
-                continue
+    reflog = run_git(integration_root, "log", "-g", "--format=%H %gd", "--date=iso-strict", ref, check=False)
+    if reflog.returncode != 0:
+        raise ContainmentError(
+            f"cannot verify {what}: git log -g {ref} exited {reflog.returncode}: "
+            f"{(reflog.stderr.strip() or reflog.stdout.strip())}"
+        )
+    for line in reflog.stdout.splitlines():
+        if not line.strip():
+            continue
+        sha, _, rest = line.partition(" ")
+        if sha != after_head:
+            continue
+        match = re.search(r"@\{([^}]+)\}", rest)
+        if not match:
+            continue
+        try:
             when = datetime.fromisoformat(match.group(1))
-            if lower <= when <= upper:
-                return True
-        return False
-    except Exception:
-        return False
+        except ValueError as exc:
+            raise ContainmentError(f"cannot verify {what}: unparseable reflog date {match.group(1)!r}: {exc}") from exc
+        if lower <= when <= upper:
+            return True
+    return False
 
 
 # --- Integration-advance receipts and the shared head-move classifier ----------

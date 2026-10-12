@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/gate-fail-explicit/spec.md"
+  ],
+  "change": "fail-explicit-gates",
+  "imported_at": "2026-10-11T19:20:15+00:00",
+  "package_revision": "3a7bbd6612b6178cf3fc85ee413b521861f8c6cdc470236aa75c8889089b75c8",
+  "prepared_against": "0ec91ea9ce7de0e3a49bba6f9ddcb57640e2c8d5",
+  "private_lineage_handle": "pln_b629539de3d899cda0a2c2e3dffb417a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8e4f4777c32f2ab2f3c236f20c5a74038863b41d1ff34d2461a07d6cb1239c69",
+    "updated_at": "2026-10-11T19:12:56Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-598/T1"
+}
