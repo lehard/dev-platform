@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "66f1d5b138fe45dfd3a9c2ee41921b4b7330034f",
-    "diff_sha256": "a38c91b0200d557c3e139a64575ea81f15fbac0d1298762bc7afdb84de4c9a53"
+    "candidate_head": "ec0c8fe49b01532ff4b36d15fea1d04f17ec019c",
+    "diff_sha256": "b04616821fbb525c911ed668abbc7f41e9902c70bbf8f67fc3a2345f2076ce8e"
   },
   "change": "openspec/changes/ci-runner-rollout-migration",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-12T07:22:18+00:00",
+  "prepared_at": "2026-10-12T07:25:30+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/ci-runner-rollout-migration/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "2049f342-06a2-4364-ba41-41774ebfd015",
+  "request_id": "ee8174cd-f313-459c-b9b7-4a6176ac4074",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,8 +59,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
-    "digest": "c72d2e20fbc96d75bab3cea6619ac3d6ad64c5009bed9dc91defef604978945b",
+    "base": "72c82fb5485a343c688084fc63ad388b64288e6e",
+    "digest": "5000384608e56aa077a562c0ce54dee644b6b71ab5786c688779d30eaa96a2e8",
     "paths": {
       "copier.yml": "3794cf7666e58b41cc18eef73511afe4704a56f0",
       "docs/managed-rollout.md": "667526d906cdfc01cb0b2347356cf67bd0b073b7",
@@ -72,7 +72,7 @@
       "openspec/changes/ci-runner-rollout-migration/specs/managed-rollout/spec.md": "b4d2f6d0de43bf87d68a1a7e728851520901ae81",
       "openspec/changes/ci-runner-rollout-migration/tasks.md": "57e18dc2e6ee7b98d05a34dbc2ac418dcd40b190",
       "scripts/rollout_project.py": "7f8cc377838d34f5419b7432be85788721f77283",
-      "template/dev-platform/platform-manifest.json": "15fe45007344171e5d2f1cc9613a218bb56f08d3",
+      "template/dev-platform/platform-manifest.json": "bfe5b9fac137aa9cebd9dd8f4386090381745d8b",
       "template/scripts/platform_doctor.py": "ecf5a56cfa10962877fa24589ed81f626b1e06e2",
       "tests/test_ci_runner_selection.py": "b26b204c9888fff2941c72c69bb0d2dbe1cbd685"
     },

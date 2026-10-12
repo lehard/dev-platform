@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "66f1d5b138fe45dfd3a9c2ee41921b4b7330034f",
-    "diff_sha256": "a38c91b0200d557c3e139a64575ea81f15fbac0d1298762bc7afdb84de4c9a53"
+    "candidate_head": "ec0c8fe49b01532ff4b36d15fea1d04f17ec019c",
+    "diff_sha256": "b04616821fbb525c911ed668abbc7f41e9902c70bbf8f67fc3a2345f2076ce8e"
   },
-  "completed_at": "2026-10-12T07:23:11+00:00",
+  "completed_at": "2026-10-12T07:26:16+00:00",
   "findings": [
     {
-      "evidence": "scripts/rollout_project.py:417-422 strips quotes before comparing to DEFAULT_RUNNER, so quoted values return \"default\". The rendered baseline has the unquoted form. The file is still a hand edit on the `runs-on` line that the new render changes next to. That is the same Copier replay conflict the change exists to avoid. The test test_rollout_treats_a_quoted_default_runner_as_the_default (tests/test_ci_runner_selection.py) stops after the preflight and never runs `copier update` or the doctor. I could not confirm that the update then conflicts or that the doctor fails.",
-      "id": "quoted-default-runner-unmigrated",
+      "evidence": "scripts/rollout_project.py: `item[1].group(1).strip(\"'\\\"\") != DEFAULT_RUNNER` treats a quoted value as the default. docs/managed-rollout.md says all-`ubuntu-latest` projects need \"no new step\". tests/test_ci_runner_selection.py `test_rollout_treats_a_quoted_default_runner_as_the_default` asserts only `rollout_outcome == \"default\"` and never runs `copier update`. A file with quoted `runs-on` differs from the baseline render, so Copier may leave a `.rej` or `platform_doctor` may report a mismatch. That would be the failure the preflight exists to prevent.",
+      "id": "quoted-default-runner-unverified-update",
       "severity": "advisory",
-      "summary": "A quoted `\"ubuntu-latest\"` or `'ubuntu-latest'` runner is classified as `default`. The rollout then takes the ordinary `copier update` path, with no revert and no baseline proof."
+      "summary": "A quoted `\"ubuntu-latest\"` or `'ubuntu-latest'` runner is classified as `default`. The docs promise the ordinary update then runs with no new step. The test checks only the preflight outcome, not the update that follows."
     },
     {
-      "evidence": "scripts/rollout_project.py:464-473 writes the restored workflows and the answers, then runs `git add`, `git commit` and `ensure_clean`, with no rollback on error. The branch is ephemeral and the error is raised loudly, so this affects only the cleanliness of what the rollout leaves behind.",
-      "id": "migration-writes-before-commit-no-cleanup",
+      "evidence": "scripts/rollout_project.py `platform_doctor_module()` loads `PLATFORM_ROOT/template/scripts/platform_doctor.py`. `migrate_ci_runner_answers` reads the target's `copier.yml` via `git show {version}:copier.yml` but takes the doctor from the working tree. The docstring says it applies \"the exact runner-label rule CI will enforce\".",
+      "id": "preflight-uses-working-tree-doctor",
       "severity": "advisory",
-      "summary": "The migration rewrites the workflow files and `.copier-answers.yml` before it stages and commits them. A failure in `git add`, `git commit` or `ensure_clean` leaves the working tree dirty and partly migrated."
+      "summary": "The rollout applies the runner-label rule from the platform checkout's working-tree `platform_doctor.py`. It does not use the doctor shipped in the target tag. The two can drift, so the migrated answers may be judged by a rule different from the one CI later enforces."
     }
   ],
-  "launched_at": "2026-10-12T07:22:47+00:00",
-  "output_sha256": "b501810ae7897de0fe2f40840cfd32f921e769a814b75f1c4c42c905f203c0e9",
+  "launched_at": "2026-10-12T07:25:55+00:00",
+  "output_sha256": "6d659e2001dc116bb81f23e95c5acbb116d9d75aa3d2064a0e50b72dab60a6e7",
   "perspective": "engineering-quality",
-  "request_id": "2049f342-06a2-4364-ba41-41774ebfd015",
+  "request_id": "ee8174cd-f313-459c-b9b7-4a6176ac4074",
   "reviewer": {
-    "context_id": "426be1ef-a6ed-4bf5-a010-058d6c7026c0",
+    "context_id": "5c292363-5cd2-4284-99f0-8d2b093f2b4e",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d5a6091f-2fba-42aa-bde7-90fa40949aa7",
+    "launch_id": "platform-launch-f8efc71f-efd2-458a-9c43-b73e6c54eceb",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33746
+        "value": 33742
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18946
+        "value": 18941
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21180
+        "value": 17815
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21697
+        "value": 18538
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -78,11 +78,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2368
+        "value": 2123
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c72d2e20fbc96d75bab3cea6619ac3d6ad64c5009bed9dc91defef604978945b"
+  "task_content_digest": "5000384608e56aa077a562c0ce54dee644b6b71ab5786c688779d30eaa96a2e8"
 }

@@ -3,36 +3,23 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "66f1d5b138fe45dfd3a9c2ee41921b4b7330034f",
-    "diff_sha256": "a38c91b0200d557c3e139a64575ea81f15fbac0d1298762bc7afdb84de4c9a53"
+    "candidate_head": "ec0c8fe49b01532ff4b36d15fea1d04f17ec019c",
+    "diff_sha256": "b04616821fbb525c911ed668abbc7f41e9902c70bbf8f67fc3a2345f2076ce8e"
   },
-  "completed_at": "2026-10-12T07:22:47+00:00",
-  "findings": [
-    {
-      "evidence": "scripts/rollout_project.py:391-397 raises ValueError when `answers.get('scm_provider') is None`. specs/managed-rollout/spec.md has no requirement or scenario for this case. It appears only in design.md decision 5 and docs/managed-rollout.md.",
-      "id": "missing-scm-provider-stop-not-in-spec",
-      "severity": "advisory",
-      "summary": "The code stops the rollout when `.copier-answers.yml` records no `scm_provider`. design.md decision 5 and the docs describe this stop. The delta spec does not. The managed-rollout requirement covers only 'a GitHub project', and the 'Older target and GitLab are unaffected' scenario lists no such stop."
-    },
-    {
-      "evidence": "tests/test_ci_runner_selection.py:660-674 calls `rollout_project.migrate_ci_runner_answers` directly and then `copier update ... --conflict rej`. The rollout's own update function is not called. The only wiring is scripts/rollout_project.py:1847-1854, which has no test.",
-      "id": "project-mode-no-recopy-not-exercised-through-rollout",
-      "severity": "advisory",
-      "summary": "The spec scenario 'migrated in project mode ... without guarded recopy' and the ordering guarantee 'preflight before copier update, nothing published on stop' are not tested through `apply_rollout` or `copier_update_with_guarded_recopy`. The tests call `migrate_ci_runner_answers` directly and then run a bare `copier update`. They cannot catch a wiring regression, such as the preflight running after the update or a stop leaving state behind."
-    }
-  ],
-  "launched_at": "2026-10-12T07:22:25+00:00",
-  "output_sha256": "94fa56ec5f71f3beee230e00b1584b881d4c721aa000d52743f991d262aaa9a4",
+  "completed_at": "2026-10-12T07:25:55+00:00",
+  "findings": [],
+  "launched_at": "2026-10-12T07:25:37+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "2049f342-06a2-4364-ba41-41774ebfd015",
+  "request_id": "ee8174cd-f313-459c-b9b7-4a6176ac4074",
   "reviewer": {
-    "context_id": "a04870a6-486c-4725-a8e6-313d62c129bf",
+    "context_id": "88041339-7dff-48af-8b71-4187410c6494",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3237eb80-ee4f-49b5-9e68-2bd6258466a7",
+    "launch_id": "platform-launch-559707fe-56f4-4417-9fe1-35f4bdb1c255",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35876
+        "value": 35869
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18868
+        "value": 18860
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19912
+        "value": 14376
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20085
+        "value": 14560
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -78,11 +65,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2373
+        "value": 1617
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c72d2e20fbc96d75bab3cea6619ac3d6ad64c5009bed9dc91defef604978945b"
+  "task_content_digest": "5000384608e56aa077a562c0ce54dee644b6b71ab5786c688779d30eaa96a2e8"
 }
