@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+    "base_ref": "origin/main",
+    "candidate_head": "c2cec9b719142669e542329b0e0dc76d079f3822",
+    "diff_sha256": "5ddcb29678d30eaaca483483fec11b43f180164d2e6bb8921df2a6dd52bef4a8"
+  },
+  "completed_at": "2026-10-12T06:58:25+00:00",
+  "findings": [
+    {
+      "evidence": "design.md decision 6 gives the command as `hosted-preflight --mode ci --class <review|branch|post-merge> --repo owner/repo`. The implemented CLI in hosted_workers.py `add_parsers` has classes `review` and `finalize`, a required `--phase`, and no `--repo`. The design also lists the checks in a different order and splits them differently from the `inputs` and `runtime` phases. A reader of design.md would get the wrong command.",
+      "id": "design-preflight-class-names-stale",
+      "severity": "advisory",
+      "summary": "design.md decision 6 describes a preflight contract that the implementation does not have."
+    },
+    {
+      "evidence": "hosted_workers.py `classify` checks `providers.unavailable` before `status`. The review class always passes `--providers claude`, so a transient readiness failure turns an otherwise idle run red. This looks intentional ('provider-unavailable'), but the spec's 'No claimable job' scenario says an idle run is successful and makes no provider call. The two can disagree when the readiness probe runs before the idle check.",
+      "id": "unavailable-provider-fails-idle-run",
+      "severity": "advisory",
+      "summary": "`classify` marks any run red when the declared provider reports a readiness limitation, even if the run is idle or has just published a result."
+    },
+    {
+      "evidence": "lifecycle-workers.yml 'Run one claimed job' sets GH_TOKEN (contents and pull-requests write) for the same process that `run_claimed_finalize` uses to check out and validate the PR head. The only boundary is the credential-free child environment, which the preflight probes with a synthetic child, not with the real check processes. The risk is documented, and the real-runner proof is deferred to the pilot slice. It is worth keeping explicit when automatic triggers are added.",
+      "id": "finalize-pr-code-runs-beside-app-token",
+      "severity": "advisory",
+      "summary": "The finalize class runs project checks on PR-controlled content in a process tree whose parent holds a contents:write App token."
+    }
+  ],
+  "launched_at": "2026-10-12T06:57:44+00:00",
+  "output_sha256": "57cf622e6af8a812dc51c7dbb4717244a239153c08397ade1514363015b55e3c",
+  "perspective": "engineering-quality",
+  "request_id": "63f52c02-cf94-4165-b30c-6ae882b7b4d4",
+  "reviewer": {
+    "context_id": "5fa332f8-604e-4b13-88ac-4c159d5af041",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e0f4c68e-f728-4c05-844c-ed720c130bed",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46249
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 197229
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37345
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39982
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3860
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "dc74dbc79d63253bd9858a4411e31ee2d0c4bdb5d3eee2ef4858c8f2f22fd5fb"
+}
