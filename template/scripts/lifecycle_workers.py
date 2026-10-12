@@ -259,6 +259,13 @@ def winning_claim(job: dict, comments: list[dict], *, now: datetime | None = Non
     return None
 
 
+def latest_claim(job: dict, comments: list[dict], *, trusted_apps: frozenset[str] = frozenset(),
+                 trusted_writers: frozenset[str] = frozenset()) -> dict | None:
+    """The most recent valid, trusted claim for this job and exact head, expired or not (read-only observation)."""
+    found = _claims(job, comments, trusted_apps, trusted_writers)
+    return {**found[-1][1], "comment_id": found[-1][0].get("id")} if found else None
+
+
 def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), trusted_writers=frozenset()) -> bool:
     """Whether a trusted result was already recorded for this exact job (head and attempt).
 
@@ -979,6 +986,25 @@ def _coordinator_trust(root: Path, repo: str | None = None) -> dict[str, Any]:
             "trusted_writers": lambda comments: publication_queue.trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo)}
 
 
+MERGED_DISCOVERY_PAGE = 50
+
+
+def candidate_prs(repo: str, *, include_merged: bool, gh_json: Callable[..., Any] | None = None) -> list[dict]:
+    """The pull requests lifecycle workers consider: every open PR, plus the merged ones when asked.
+
+    Post-merge obligations belong to recently merged candidates: one bounded page
+    (``MERGED_DISCOVERY_PAGE``) of the most recently updated closed PRs. Older merges offer nothing
+    from here. The read-only lifecycle overview uses this same function so it shows exactly the
+    candidates workers can act on.
+    """
+    read = gh_json or _gh_json
+    listed = read("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
+    if include_merged:
+        closed = read("api", f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page={MERGED_DISCOVERY_PAGE}")
+        listed = [*listed, *({**pr, "merged": True} for pr in closed if pr.get("merged_at"))]
+    return listed
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Lifecycle worker contract")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1012,13 +1038,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     def list_prs() -> list[dict]:
-        listed = _gh_json("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
-        if set(args.kinds.split(",")) & (POST_MERGE_KINDS | {"contribution-integration"}):
-            # Post-merge obligations belong to recently merged candidates: one bounded page of the
-            # most recently updated closed PRs. Older merges offer nothing from here.
-            closed = _gh_json("api", f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page=50")
-            listed = [*listed, *({**pr, "merged": True} for pr in closed if pr.get("merged_at"))]
-        return listed
+        return candidate_prs(repo, include_merged=bool(set(args.kinds.split(",")) & (POST_MERGE_KINDS | {"contribution-integration"})))
 
     def comments_for(number: int) -> list[dict]:
         return _gh_json("api", "--paginate", f"repos/{repo}/issues/{number}/comments?per_page=100")
@@ -1144,6 +1164,7 @@ def main(argv: list[str] | None = None) -> int:
                     outcome = run_claimed_post_merge(
                         Path.cwd(), repo, candidate, job, branch=args.branch or pr_info(job["number"])["head"]["ref"],
                         post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
+                    publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
                 else:
                     outcome = execute_job(
                         job, source_repo=args.source or f"https://github.com/{repo}.git",

@@ -387,7 +387,8 @@ class ProviderSwitchTests(unittest.TestCase):
 
     def switch(self, **kwargs):
         return gate.reoffer(ROOT, "o/r", 7, action=kwargs.pop("action", "switch-provider"),
-                            providers=kwargs.pop("providers", ["claude"]), reason=kwargs.pop("reason", "codex limit"))
+                            providers=kwargs.pop("providers", ["claude"]), reason=kwargs.pop("reason", "codex limit"),
+                            actor="test-operator", **kwargs)
 
     def test_switching_an_open_review_keeps_state_attempts_and_records_provenance(self):
         with QueueFixture(ROOT, HEAD) as fixture:
@@ -567,7 +568,7 @@ class ProviderSwitchTests(unittest.TestCase):
             queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
                               red_gate={"name": "repair", "evidence": {"status": "failed", "outcome": "failed: llm exited 1"}})
             with self.assertRaisesRegex(queue.QueueError, "pass --provider"):
-                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="retry")
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="retry", actor="test-operator")
             with self.assertRaisesRegex(queue.QueueError, "use switch-provider|applies only"):
                 self.switch()  # switch-provider does not decide an escalation
             queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
@@ -983,10 +984,10 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             failed = self.escalated_finalize(fixture)
             self.assertTrue(workers.job_completed(failed, fixture.comments))
             with self.assertRaisesRegex(queue.QueueError, "omit --provider"):
-                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="contract restored")
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="contract restored", actor="test-operator")
             with self.assertRaisesRegex(queue.QueueError, "operational repair and finalize escalations"):
-                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["codex"], reason="x")
-            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="contract restored")
+                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["codex"], reason="x", actor="test-operator")
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="contract restored", actor="test-operator")
             resumed = fixture.candidate()
             job = workers.build_job(resumed)
             self.assertEqual((result["state"], resumed["state"], resumed["red_gate"]), ("finalize-pending", "finalize-pending", None))
@@ -1002,7 +1003,7 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
                               red_gate={"name": "repair", "identity": IDENTITY, "evidence": {"status": "proposed-rejection"}})
             with self.assertRaisesRegex(queue.QueueError, "finding-level reason \\(proposed-rejection\\)"):
-                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="retry")
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["codex"], reason="retry", actor="test-operator")
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
 
 
@@ -1012,11 +1013,15 @@ class ProviderSwitchCommandTests(unittest.TestCase):
                                                   ("resume", [], False)):
             with self.subTest(command=command), mock.patch.object(queue, "current_worktree_root", return_value=ROOT), \
                     mock.patch.object(queue, "_repo", return_value="o/r"), \
+                    mock.patch.object(queue, "_actor", return_value="owner-login"), \
                     mock.patch.object(gate, "reoffer", return_value={"state": "repair-pending", "changed": True}) as reoffer, \
-                    mock.patch.object(sys, "argv", ["publication_queue", command, "--pr", "7", "--reason", "why", *extra]):
+                    mock.patch.object(sys, "argv", ["publication_queue", command, "--pr", "7", "--reason", "why",
+                                                    "--expected-head", HEAD, "--via", "chat-coordinator", *extra]):
                 self.assertEqual(queue.main(), 0)
                 reoffer.assert_called_once()
                 self.assertEqual(reoffer.call_args.kwargs["reason"], "why")
+                self.assertEqual((reoffer.call_args.kwargs["actor"], reoffer.call_args.kwargs["via"],
+                                  reoffer.call_args.kwargs["expected_head"]), ("owner-login", "chat-coordinator", HEAD))
                 self.assertEqual(reoffer.call_args.kwargs["providers"], ["claude", "codex"] if provider_required else None)
         with mock.patch.object(queue, "current_worktree_root", return_value=ROOT), \
                 mock.patch.object(sys, "argv", ["publication_queue", "switch-provider", "--pr", "7", "--reason", "why"]), \

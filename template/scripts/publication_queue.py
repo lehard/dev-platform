@@ -53,6 +53,13 @@ class LifecycleOwnershipChanged(QueueError):
     """Another lifecycle job took the candidate between observation and transition."""
 
 
+class AttentionError(RuntimeError):
+    """The escalation was published but its human-readable GitHub indication could not be posted.
+
+    Deliberately not a ``QueueError``: callers that recover from queue failures must not swallow it.
+    """
+
+
 def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
     cmd = ["gh", *args]
     if data:
@@ -541,6 +548,9 @@ def _transition(
             emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
                           attempts=previous.get("attempts"))
         _project_lifecycle_label(root, repo, number, observed, state)
+        if state == "blocked-escalation" and previous:
+            # A lost indication is repaired on the next observation of the same escalation.
+            ensure_attention(root, repo, number, previous, comments)
         return previous
     # A proven coordinator update can retain content-bound gates from lineage.
     # Head-only legacy gates never survive a head move.
@@ -572,7 +582,78 @@ def _transition(
         emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
+    if state == "blocked-escalation":
+        ensure_attention(root, repo, number, record, comments)
     return record
+
+
+ATTENTION_PREFIX = "<!-- dev-platform-publication-queue:attention:v1 "
+
+
+def attention_key(number: int, candidate: dict[str, Any]) -> str:
+    """Identity of one exact escalation: head, state, reason and the attempt counters of that round."""
+    import hashlib
+
+    red = candidate.get("red_gate") or {}
+    material = [number, candidate.get("head"), candidate.get("state"), red.get("name"),
+                sorted((candidate.get("attempts") or {}).items())]
+    return hashlib.sha256(json.dumps(material, default=str).encode()).hexdigest()[:24]
+
+
+def attention_body(repo: str, number: int, candidate: dict[str, Any], claim: dict[str, Any] | None) -> str:
+    """The human-readable comment: what stopped, the evidence, and what a human can or must decide."""
+    from pr_review_gate import permitted_actions
+
+    plan = permitted_actions(candidate, claim, number=number, retry_kind=retry_job_kind(candidate))
+    if candidate.get("state") == "merged":
+        plan = {"actions": [], "human_decision": candidate.get("reason") or "A post-merge obligation needs an operator."}
+    red = candidate.get("red_gate") or {}
+    lines = [f"{ATTENTION_PREFIX}{attention_key(number, candidate)} -->",
+             f"**Needs attention: PR #{number} is `{candidate['state']}`.**", "",
+             f"- Reason: {candidate.get('reason') or str(red.get('evidence') or red.get('name') or 'no reason recorded')[:300]}",
+             f"- Head: `{candidate.get('head')}`",
+             f"- Evidence: https://github.com/{repo}/pull/{number} (latest lifecycle record and `{red.get('name', 'gate')}` evidence)",
+             f"- Attempts: `{json.dumps(candidate.get('attempts', {}), sort_keys=True)}`", ""]
+    if plan["actions"]:
+        lines.append("Permitted next action (an operator decision, not automatic):")
+        lines += [f"- `{item['command']}`" for item in plan["actions"]]
+    else:
+        lines.append("No supported automatic recovery applies. " + (plan["human_decision"] or "A human decision is needed."))
+    lines += ["", "This comment is posted once per exact escalation; normal progress posts nothing."]
+    return "\n".join(lines)
+
+
+def ensure_attention(root: Path, repo: str, number: int, candidate: dict[str, Any],
+                     comments: list[dict[str, Any]]) -> bool:
+    """Post the attention comment for this exact escalation unless a trusted one exists; True if posted."""
+    from candidate_lifecycle import trusted_marker_comment
+    from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
+
+    marker = f"{ATTENTION_PREFIX}{attention_key(number, candidate)} -->"
+    apps, writers = trusted_apps(root), trusted_writers(root, comments, (ATTENTION_PREFIX,), repo=repo)
+    if any(isinstance(row.get("body"), str) and row["body"].startswith(marker)
+           and trusted_marker_comment(row, apps, writers) for row in comments):
+        return False
+    job = build_job(candidate)
+    claim = winning_claim(job, comments, trusted_apps=apps,
+                          trusted_writers=trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo)) if job else None
+    try:
+        _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments",
+            data={"body": attention_body(repo, number, candidate, claim)})
+    except QueueError as exc:
+        raise AttentionError(f"PR #{number} escalation was published but the attention comment failed: {exc}") from exc
+    return True
+
+
+def ensure_post_merge_attention(root: Path, repo: str, number: int) -> bool:
+    """Indicate on the merged PR that a post-merge obligation spent its attempts (once per exact state)."""
+    pr = _pr(root, repo, number)
+    comments = _comments(root, repo, number)
+    candidate = _derive(root, pr, comments)
+    reason = str(candidate.get("reason", ""))
+    if candidate.get("state") != "merged" or not (reason.startswith("post-merge") and "exhausted" in reason):
+        return False
+    return ensure_attention(root, repo, number, candidate, comments)
 
 
 def _require_route(candidate: dict[str, Any], number: int, kind: str) -> dict[str, str]:
@@ -1145,12 +1226,8 @@ def status(root: Path, number: int) -> dict[str, Any]:
     return {"state": "blocked", "number": number, "reason": "admitted PR lacks queue label"}
 
 
-def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dict[str, Any]:
-    """Observe a lifecycle handoff without changing v1 queue consumers."""
-    repo = repo or _repo(root)
-    pr = _pr(root, repo, number)
-    comments = _comments(root, repo, number)
-    head = pr.get("head", {}).get("sha", "")
+def observe_checks(root: Path, number: int, head: str) -> dict[str, Any]:
+    """Exact-head required-check snapshot of a candidate."""
     # The shared classifier resolves the required set from the final protected
     # target and binds the snapshot to this head before and after reading.
     observed = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
@@ -1158,12 +1235,27 @@ def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dic
               "detail": observed.detail, "checks": list(observed.checks)}
     if observed.cause:
         checks["cause"] = observed.cause
+    return checks
+
+
+def candidate_from_snapshot(root: Path, repo: str, pr: dict[str, Any], comments: list[dict[str, Any]],
+                            checks: dict[str, Any] | None) -> dict[str, Any]:
+    """Derive a candidate from an already observed PR, comment history and optional checks snapshot."""
     candidate = _derive(root, pr, comments, checks)
-    awaiting = _awaiting_readmission(root, repo, number, pr, comments)
+    awaiting = _awaiting_readmission(root, repo, pr["number"], pr, comments)
     if awaiting is not None:
         candidate.update(reason=awaiting["reason"], awaiting_readmission=awaiting,
                          next_action="developer re-admission: rerun finish for the pushed head")
     return candidate
+
+
+def candidate_status(root: Path, number: int, *, repo: str | None = None) -> dict[str, Any]:
+    """Observe a lifecycle handoff without changing v1 queue consumers."""
+    repo = repo or _repo(root)
+    pr = _pr(root, repo, number)
+    comments = _comments(root, repo, number)
+    head = pr.get("head", {}).get("sha", "")
+    return candidate_from_snapshot(root, repo, pr, comments, observe_checks(root, number, head))
 
 
 def lifecycle_summary(root: Path, number: int) -> dict[str, Any]:
@@ -1952,6 +2044,15 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
     return {"state": "waiting", "number": number, "reason": str(exc)}
 
 
+def _actor(root: Path) -> str:
+    """The authenticated GitHub login performing an operator action; an unresolved identity fails."""
+    data = _gh(root, "api", "user")
+    login = data.get("login") if isinstance(data, dict) else None
+    if not isinstance(login, str) or not login.strip():
+        raise QueueError("the acting GitHub identity cannot be resolved; authenticate gh as the operator")
+    return login.strip()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Source repository final publication queue")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1975,6 +2076,8 @@ def main() -> int:
         operator.add_argument("--provider", action="append", required=name == "switch-provider",
                               help="supported provider, repeat for an ordered list")
         operator.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
+        operator.add_argument("--expected-head", help="refuse, before any write, when the PR head differs (the head the decision was made for)")
+        operator.add_argument("--via", help="optional label for the acting surface (for example chat-coordinator), recorded with the actor")
     args = parser.parse_args()
     root = current_worktree_root()
     try:
@@ -1986,7 +2089,8 @@ def main() -> int:
             from pr_review_gate import reoffer
 
             print(json.dumps(reoffer(root, _repo(root), args.pr, action=args.command, providers=args.provider,
-                                     reason=args.reason), sort_keys=True))
+                                     reason=args.reason, actor=_actor(root), via=args.via,
+                                     expected_head=args.expected_head), sort_keys=True))
             return 0
         elif args.command == "preflight":
             result = preflight(root, args.mode, args.phase, os.environ)
