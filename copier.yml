@@ -119,12 +119,22 @@ ci_runner:
     - github-hosted
     - self-hosted
   default: github-hosted
+  when: "{{ scm_provider == 'github' }}"
 
 ci_runner_labels:
   type: str
   help: Comma-separated self-hosted runner labels for platform-rendered GitHub Actions jobs (for example "my-runner" or "self-hosted,linux")
-  when: "{{ ci_runner == 'self-hosted' }}"
-  validator: "{% if not ci_runner_labels | trim %}ci_runner_labels must list at least one runner label when ci_runner=self-hosted{% endif %}"
+  when: "{{ scm_provider == 'github' and ci_runner == 'self-hosted' }}"
+  # Same rule as check_ci_runner_agreement in template/scripts/platform_doctor.py (tests/test_ci_runner_selection.py keeps them equal).
+  validator: >-
+    {%- set labels = ci_runner_labels.split(',') | map('trim') | list -%}
+    {%- set ns = namespace(bad=[]) -%}
+    {%- for label in labels if label and not (label | regex_search('^[A-Za-z0-9._-]+$')) -%}{%- set ns.bad = ns.bad + [label] -%}{%- endfor -%}
+    {%- if not ci_runner_labels | trim -%}ci_runner_labels must list at least one runner label when ci_runner=self-hosted
+    {%- elif '' in labels -%}ci_runner_labels contains an empty entry
+    {%- elif ns.bad -%}ci_runner_labels contains invalid labels {{ ns.bad }}; allowed characters are [A-Za-z0-9._-]
+    {%- elif labels | length != labels | unique(case_sensitive=true) | list | length -%}ci_runner_labels contains duplicate labels
+    {%- endif -%}
 
 agent_tools:
   type: str
