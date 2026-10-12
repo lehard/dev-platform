@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/chat-coordinator/spec.md",
+    "tasks.md"
+  ],
+  "change": "chat-coordinator-lifecycle-overview",
+  "imported_at": "2026-10-11T23:45:22+00:00",
+  "package_revision": "9317c19a75a66b4a22f79252995e049287737c90980c0b14b7a8d89b9e5e27f5",
+  "prepared_against": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
+  "private_lineage_handle": "pln_331f51d4a240457be7a462acc6719e51",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "2e5069b00ae5c8a45fdf650b2d6401a80e858c387782127c09586fba08188417",
+    "updated_at": "2026-10-11T23:33:01Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-611/T1"
+}

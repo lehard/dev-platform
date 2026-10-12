@@ -440,7 +440,82 @@ def _repair_status(red_gate: dict) -> str:
     return str(evidence.get("status") if isinstance(evidence, dict) else evidence).split(":")[0]
 
 
-def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, adapter=None) -> dict:
+class ReofferRefused(ValueError):
+    """The supported re-offer contract refuses this candidate; the message names what a human can do."""
+
+
+def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: int, retry_kind: str | None) -> str:
+    """The job kind a ``resume``/``switch-provider`` re-offers for this candidate, or ``ReofferRefused``.
+
+    Pure eligibility shared by ``reoffer`` and the read-only lifecycle overview, so the list of
+    permitted actions never diverges from what the command accepts. ``claim`` is the winning
+    unexpired claim of the candidate's job (or ``None``); ``retry_kind`` is the review/repair job
+    a blocked-retryable candidate waits on (``publication_queue.retry_job_kind``).
+    """
+    if action not in ACTIONS:
+        raise ValueError(f"unknown re-offer action {action!r}")
+    state = candidate["state"]
+    red = candidate.get("red_gate") or {}
+    pending = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair", "repairing": "repair"}
+    if state in pending:
+        if action == "resume":
+            raise ReofferRefused(f"PR #{number} is {state}; use switch-provider to change its provider")
+        kind = pending[state]
+    elif state == "blocked-retryable" and retry_kind:
+        kind = retry_kind
+    elif state == "blocked-escalation" and red.get("name") in {"repair", "review"} and action == "resume":
+        if red["name"] == "review" or _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES:
+            reason_ = "review" if red["name"] == "review" else _repair_status(red)
+            raise ReofferRefused(
+                f"PR #{number} is escalated for a finding-level reason ({reason_}); resume does not decide it: "
+                "push a fix, record a disposition for the finding, or close the PR")
+        kind = "repair"
+    elif state == "blocked-escalation" and red.get("name") == "finalize" and action == "resume":
+        # Finalize escalations are not all operational (failed selected checks, missing or unbound
+        # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
+        # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
+        kind = "finalize"
+    else:
+        raise ReofferRefused(f"PR #{number} is {state}; {action} applies only to an unfinished review or repair job"
+                             + (" (resume covers operational repair and finalize escalations)"
+                                if state == "blocked-escalation" else ""))
+    if claim is not None:
+        raise ReofferRefused(f"PR #{number} job is claimed by {claim['worker']} until {claim['expires_at']}; "
+                             "wait for the claim to expire or finish")
+    return kind
+
+
+def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry_kind: str | None) -> dict:
+    """Operator actions the re-offer contract accepts for this candidate, with exact commands.
+
+    ``actions`` lists only what ``reoffer_plan`` accepts; ``human_decision`` carries the contract's own
+    refusal text for the decision a human must make when nothing is accepted (or, for a blocked
+    candidate, why ``resume`` does not apply). It never suggests a substitute for a refused decision.
+    """
+    head = candidate.get("head")
+    actions, refusals = [], {}
+    for action in ACTIONS:
+        try:
+            kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=retry_kind)
+        except ReofferRefused as refusal:
+            refusals[action] = str(refusal)
+            continue
+        command = (f"python3 scripts/publication_queue.py {action} --pr {number} --expected-head {head}"
+                   + (" --provider <provider>" if action == "switch-provider" else "")
+                   + ' --via chat-coordinator --reason "<why>"')
+        actions.append({"action": action, "kind": kind, "command": command})
+    blocked = str(candidate.get("state", "")).startswith("blocked")
+    if actions and not blocked:
+        human_decision = None
+    elif blocked:
+        human_decision = refusals.get("resume")
+    else:
+        human_decision = refusals.get("switch-provider") or refusals.get("resume")
+    return {"actions": actions, "human_decision": human_decision}
+
+
+def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, actor: str,
+            via: str | None = None, expected_head: str | None = None, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.
 
     ``resume`` also re-offers the finalize job of a finalize escalation at the same head; the job
@@ -448,6 +523,8 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
 
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
+    The operator's ``actor`` (authenticated identity) and optional ``via`` label are recorded in the
+    re-offer event; ``expected_head`` refuses, before any write, a decision made for another head.
     """
     if adapter is None:
         import publication_queue as adapter
@@ -459,10 +536,15 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         raise ValueError(f"unknown re-offer action {action!r}")
     if not reason or not reason.strip():
         raise adapter.QueueError("a re-offer needs the operator's reason")
+    if not actor or not actor.strip():
+        raise adapter.QueueError("a re-offer needs the acting identity")
     pr = adapter._pr(root, repo, number)
     if pr.get("state") != "open" or pr.get("merged"):
         raise adapter.QueueError(f"PR #{number} is not open")
     head = pr["head"]["sha"]
+    if expected_head is not None and expected_head != head:
+        raise adapter.QueueError(f"PR #{number} head is {head}, not the expected {expected_head}; "
+                                 "the decision was made for another head, nothing was written")
     comments = adapter._comments(root, repo, number)
     if adapter._latest(root, number, comments, head) is None:
         raise adapter.QueueError(f"PR #{number} has no coordinator record for its current head")
@@ -471,44 +553,25 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
     current_job = candidate.get("next_job") if isinstance(candidate.get("next_job"), dict) else {}
     red = candidate.get("red_gate") or {}
     pending = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair", "repairing": "repair"}
-    if state in pending:
-        if action == "resume":
-            raise adapter.QueueError(f"PR #{number} is {state}; use switch-provider to change its provider")
-        kind = pending[state]
-    elif state == "blocked-retryable" and adapter.retry_job_kind(candidate):
-        kind = adapter.retry_job_kind(candidate)
-    elif state == "blocked-escalation" and red.get("name") in {"repair", "review"} and action == "resume":
-        if red["name"] == "review" or _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES:
-            reason_ = "review" if red["name"] == "review" else _repair_status(red)
-            raise adapter.QueueError(
-                f"PR #{number} is escalated for a finding-level reason ({reason_}); resume does not decide it: "
-                "push a fix, record a disposition for the finding, or close the PR")
-        kind = "repair"
-    elif state == "blocked-escalation" and red.get("name") == "finalize" and action == "resume":
-        # Finalize escalations are not all operational (failed selected checks, missing or unbound
-        # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
-        # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
-        kind = "finalize"
-    else:
-        raise adapter.QueueError(f"PR #{number} is {state}; {action} applies only to an unfinished review or repair job"
-                                 + (" (resume covers operational repair and finalize escalations)"
-                                    if state == "blocked-escalation" else ""))
     from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
     job = build_job(candidate)
+    claim = None
     if job is not None:
         claim = winning_claim(job, comments, trusted_apps=adapter.trusted_apps(root),
                               trusted_writers=adapter.trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
-        if claim is not None:
-            raise adapter.QueueError(f"PR #{number} job is claimed by {claim['worker']} until {claim['expires_at']}; "
-                                     "wait for the claim to expire or finish")
+    try:
+        kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=adapter.retry_job_kind(candidate))
+    except ReofferRefused as refusal:
+        raise adapter.QueueError(str(refusal)) from refusal
     attempts = candidate.get("attempts", {})
+    identity_event = {"actor": actor.strip(), **({"via": via.strip()} if via and via.strip() else {})}
     if kind == "finalize":
         if providers is not None:
             raise adapter.QueueError(f"PR #{number} finalize job runs in the trusted harness; omit --provider")
         if not isinstance(identity, dict) or not identity:
             raise adapter.QueueError(f"PR #{number} finalize escalation carries no task identity to finalize")
         seq = attempts.get("reoffers", 0) + 1
-        event = {"seq": seq, "action": action, "reason": reason.strip()[:300],
+        event = {"seq": seq, "action": action, "reason": reason.strip()[:300], **identity_event, "head": head,
                  "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
         record = adapter._transition(
             root, repo, number, "finalize-pending", head, task_identity=identity, inherit_identity=False,
@@ -544,7 +607,7 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         restored = None
     seq = attempts.get("reoffers", 0) + 1
     event = {"seq": seq, "action": action, "from": previous, "to": providers, "reason": reason.strip()[:300],
-             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+             **identity_event, "head": head, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
     record = adapter._transition(
         root, repo, number, f"{kind}-pending", head, task_identity=identity, inherit_identity=False, red_gate=restored,
         set_attempts={"reoffers": seq, f"{kind}-unavailable": 0}, provider_switch={kind: providers},

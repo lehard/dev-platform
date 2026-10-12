@@ -555,7 +555,9 @@ class TransitionRecordTests(unittest.TestCase):
              patch.object(queue.subprocess, "run", return_value=CompletedProcess([], 0, "", "")):
             queue._transition(ROOT_PATH, REPO, 7, "blocked-escalation", HEAD, task_identity={"head": HEAD},
                               red_gate={"name": "publication", "identity": HEAD, "evidence": "failed check"})
-        self.assertEqual(len(posted), 1)
+        # the v2 record, then the one human-readable attention comment of this exact escalation
+        self.assertEqual(len(posted), 2)
+        self.assertTrue(posted[1].startswith(queue.ATTENTION_PREFIX))
         self.assertTrue(posted[0].startswith("dev-platform-publication-queue:v2 "))
         record = json.loads(posted[0].split(" ", 1)[1])
         self.assertEqual((record["state"], record["head"], record["red_gate"]["evidence"]), ("blocked-escalation", HEAD, "failed check"))
@@ -863,7 +865,8 @@ class LineageAndOwnershipTests(unittest.TestCase):
                     "body": queue.PREFIX + json.dumps({"version": 1, "number": 7, "kind": "block", "reason": "check failed"})}
         posted, record = self._run_state([integrating, v1_block], HEAD, "blocked-escalation",
                                          red_gate={"name": "publication", "identity": HEAD, "evidence": "check failed"})
-        self.assertEqual(len(posted), 1)
+        self.assertEqual(len(posted), 2)  # its own record plus the attention comment
+        self.assertTrue(posted[1].startswith(queue.ATTENTION_PREFIX))
         self.assertEqual(record["state"], "blocked-escalation")
 
     def _run_state(self, comments: list[dict], head: str, state: str, **kwargs: object) -> tuple[list[str], object]:

@@ -1,0 +1,133 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.161,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.127,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 506.874,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_lifecycle_overview.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_331f51d4a240457be7a462acc6719e51",
+    "change": "chat-coordinator-lifecycle-overview",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/chat-coordinator-lifecycle-overview",
+    "branch": "agent/br-611-t1-chat-coordinator-lifecycle-overview",
+    "head": "9235e73209da4960459f02f51e77bc861f22cdbf",
+    "task_content": {
+      "version": 1,
+      "digest": "f63121b6b2f08385609df146da2f81882a146a6225b1a0b03c597958d2cf0a1f",
+      "paths": {
+        "AGENTS.md": "435e7f263c22bee12bde509ff4e2612f4e58a64a",
+        "dev-platform/checks.toml": "62facd7dda3d236e3f6843ffe9fd25b009805bec",
+        "dev-platform/source-contract.toml": "b11fe26553a0ac7ab224a22fd61942cf278de15d",
+        "docs/engineering/chat-coordinator.md": "228ce41a5404e3ad44ede0d6a23e7bd13bceb0a3",
+        "openspec/changes/chat-coordinator-lifecycle-overview/.managed-task.json": "00a853faa026784fb00ac02c88c295efaab99446",
+        "openspec/changes/chat-coordinator-lifecycle-overview/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+        "openspec/changes/chat-coordinator-lifecycle-overview/automated-checks.json": "06bea936d246e280c75699c8731503e3ce1d7842",
+        "openspec/changes/chat-coordinator-lifecycle-overview/design.md": "2ec5009eba6f1d35b238b3fb6a7cb274a3dab928",
+        "openspec/changes/chat-coordinator-lifecycle-overview/independent-review-request.json": "a40bd53c2c7c53a7e6da27bee9a7cd8605c0fdf4",
+        "openspec/changes/chat-coordinator-lifecycle-overview/independent-reviews/engineering-quality.json": "39ba6479c4b742b86bc5dd6714fade7bfa0533dc",
+        "openspec/changes/chat-coordinator-lifecycle-overview/independent-reviews/spec-fidelity.json": "aea91ae3e8ffcfd02fed78e1228b8917f152e6b7",
+        "openspec/changes/chat-coordinator-lifecycle-overview/proposal.md": "56b6b3b074ff7c319ade1a792419dbd6a75b188c",
+        "openspec/changes/chat-coordinator-lifecycle-overview/specs/chat-coordinator/spec.md": "c973637d256778959eb5d874714e4e8b79bb05c7",
+        "openspec/changes/chat-coordinator-lifecycle-overview/tasks.md": "213e05d7111e05e5689f89b31cf6563ad960c0fc",
+        "openspec/changes/chat-coordinator-lifecycle-overview/verification.md": "b16500a41b08ddacae45fa366f0d13cd8f01a588",
+        "scripts/lifecycle_overview.py": "6601a5651f736324c64b2c39247adb8d271368d1",
+        "template/dev-platform/platform-manifest.json": "68e4d22f3076b8cc3158a88fb7ef21f087b3806e",
+        "template/dev-platform/protected-surface.toml": "6d494a35d2b9643a299046a69f96b52fc6e2a679",
+        "template/scripts/lifecycle_overview.py": "ead9a741e774959996c12d5c72679915439422a8",
+        "template/scripts/lifecycle_workers.py": "cbb45eea027a4ef23d346ec81b646e1b49d3650f",
+        "template/scripts/pr_review_gate.py": "4976e73a3c3bed8d96bf2a5dbf99a98b67319404",
+        "template/scripts/publication_queue.py": "44e3bdb44967923bb062a97ad7ecb82ed982494a",
+        "tests/test_lifecycle_overview.py": "41dc12a590faac112ce68a0e113ba869f4591ecf",
+        "tests/test_pr_review_gate.py": "110f0923fd315e99de660fde90d85aa00bb185e4",
+        "tests/test_publication_queue.py": "c7837937ab73a7b693dad7dc8d97513a38dfc1c2"
+      },
+      "base": "72c82fb5485a343c688084fc63ad388b64288e6e"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "33b637b108c706363c65f739b419c399193f8019daf92a82aa57f1bf5e689cbd",
+    "paths": {
+      "AGENTS.md": "435e7f263c22bee12bde509ff4e2612f4e58a64a",
+      "dev-platform/checks.toml": "62facd7dda3d236e3f6843ffe9fd25b009805bec",
+      "dev-platform/source-contract.toml": "b11fe26553a0ac7ab224a22fd61942cf278de15d",
+      "docs/engineering/chat-coordinator.md": "228ce41a5404e3ad44ede0d6a23e7bd13bceb0a3",
+      "openspec/changes/chat-coordinator-lifecycle-overview/.managed-task.json": "00a853faa026784fb00ac02c88c295efaab99446",
+      "openspec/changes/chat-coordinator-lifecycle-overview/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+      "openspec/changes/chat-coordinator-lifecycle-overview/design.md": "2ec5009eba6f1d35b238b3fb6a7cb274a3dab928",
+      "openspec/changes/chat-coordinator-lifecycle-overview/proposal.md": "56b6b3b074ff7c319ade1a792419dbd6a75b188c",
+      "openspec/changes/chat-coordinator-lifecycle-overview/specs/chat-coordinator/spec.md": "c973637d256778959eb5d874714e4e8b79bb05c7",
+      "openspec/changes/chat-coordinator-lifecycle-overview/tasks.md": "213e05d7111e05e5689f89b31cf6563ad960c0fc",
+      "scripts/lifecycle_overview.py": "6601a5651f736324c64b2c39247adb8d271368d1",
+      "template/dev-platform/platform-manifest.json": "68e4d22f3076b8cc3158a88fb7ef21f087b3806e",
+      "template/dev-platform/protected-surface.toml": "6d494a35d2b9643a299046a69f96b52fc6e2a679",
+      "template/scripts/lifecycle_overview.py": "ead9a741e774959996c12d5c72679915439422a8",
+      "template/scripts/lifecycle_workers.py": "cbb45eea027a4ef23d346ec81b646e1b49d3650f",
+      "template/scripts/pr_review_gate.py": "4976e73a3c3bed8d96bf2a5dbf99a98b67319404",
+      "template/scripts/publication_queue.py": "44e3bdb44967923bb062a97ad7ecb82ed982494a",
+      "tests/test_lifecycle_overview.py": "41dc12a590faac112ce68a0e113ba869f4591ecf",
+      "tests/test_pr_review_gate.py": "110f0923fd315e99de660fde90d85aa00bb185e4",
+      "tests/test_publication_queue.py": "c7837937ab73a7b693dad7dc8d97513a38dfc1c2"
+    },
+    "base": "72c82fb5485a343c688084fc63ad388b64288e6e",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_lifecycle_overview.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 176.536,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
