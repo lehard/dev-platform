@@ -3,34 +3,40 @@
   "candidate": {
     "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
     "base_ref": "origin/main",
-    "candidate_head": "2398610f1a20356ec214bb36d7b9231c97d1ca09",
-    "diff_sha256": "aeee65314241e2f996a8244201b2d15b52397c9d747a6eb4383bd985e01f18df"
+    "candidate_head": "217288ddbba2c7cd836556f45cfa356c24e1275a",
+    "diff_sha256": "69ce837b30cdfcc6d32f7d0f87e093f58327338c30a8680923235e913000360a"
   },
-  "completed_at": "2026-10-12T00:27:38+00:00",
+  "completed_at": "2026-10-12T00:51:02+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/integration_contour.py:367-372 calls first_record outside the try block. Only KeyError, TypeError and ValueError from parse_time are converted to JobBlocked. first_record now raises MalformedMarkerError (candidate_lifecycle.py, _trusted_records), a RuntimeError that is not caught there. The same function already uses JobBlocked for 'cannot prove when PR was admitted'.",
-      "id": "malformed-marker-escapes-admitted-at",
+      "evidence": "template/scripts/integration_contour.py:366-372 calls `first_record(...)` outside the `try`. That `try` catches only KeyError, TypeError and ValueError, and MalformedMarkerError is a RuntimeError (candidate_lifecycle.py:187). Before the change a malformed trusted record was skipped, and a missing record gave `None[\"at\"]`, a TypeError that was caught and turned into JobBlocked. The new exception is not converted, so the caller gets an unclassified crash instead of a blocked job. The diff covers `_transition` and `worker` but not this caller.",
+      "id": "admitted-at-malformed-record-escapes-job-blocked",
       "severity": "advisory",
-      "summary": "A malformed trusted record now raises MalformedMarkerError out of integration_contour's candidate_admitted_at as a raw RuntimeError, not the blocked-job outcome used for other unprovable starts."
+      "summary": "A malformed trusted record now raises MalformedMarkerError out of `integration_contour.candidate_admitted_at`. The method's contract is that an unprovable start blocks with `JobBlocked`."
     },
     {
-      "evidence": "template/scripts/publication_queue.py:277-284 loops over every comment and calls latest_record per row. A malformed trusted comment now raises MalformedMarkerError. The diff handles that error in _transition and worker, but not in _earlier_slot_record or _record_comment_id. design.md says malformed records are handled by 'transition reports ownership change / worker blocks', which leaves these paths uncovered.",
-      "id": "record-comment-id-malformed-uncaught",
+      "evidence": "publication_queue.py `_record_comment_id` (line 282) calls `latest_record` per comment. It is reached through `_earlier_slot_record` (lines 1005 and 1091) and `admit` (lines 1024, 1040, 1115). It is also reached through `_supersession` (line 897) and `_integration_repair` (line 1976). A single damaged trusted comment now propagates a bare RuntimeError subclass there. It is not a QueueError or LifecycleOwnershipChanged, so callers that catch those will not handle it. The design inventory says only that `_transition` and `worker` handle it.",
+      "id": "unguarded-latest-callers-raise-raw-malformed-error",
       "severity": "advisory",
-      "summary": "_record_comment_id and its callers (_earlier_slot_record) do not handle the MalformedMarkerError that latest_record can now raise, so a damaged trusted comment aborts queue scheduling with a raw exception."
+      "summary": "Several publication_queue call sites that now raise MalformedMarkerError have no handling or mapping. This differs from the handling added in `_transition`, `_raise_if_owned_elsewhere` and `worker`."
+    },
+    {
+      "evidence": "design.md, 'Malformed trusted records' decision, versus the new `class MalformedMarkerError(RuntimeError)` at template/scripts/candidate_lifecycle.py:187. The diff shows no existing class of that name.",
+      "id": "stale-design-claim-existing-malformed-error",
+      "severity": "advisory",
+      "summary": "design.md says a malformed trusted record raises 'the existing malformed-marker error'. The diff introduces a new `MalformedMarkerError` class in candidate_lifecycle.py, so the doc does not match the code."
     }
   ],
-  "launched_at": "2026-10-12T00:27:15+00:00",
-  "output_sha256": "3132ee61b8820cd1f023ae250c943a827428a9668eaccb2c24b1aad1baa724aa",
+  "launched_at": "2026-10-12T00:50:26+00:00",
+  "output_sha256": "6b31fe8cead76a942086ae83383928ba601d3f371949a954fd484a19c4be0d39",
   "perspective": "engineering-quality",
-  "request_id": "a3c31a7a-cfeb-45c5-b190-a8a7edc52c41",
+  "request_id": "ea9d8c4a-4af5-4724-b520-50eaae442bbc",
   "reviewer": {
-    "context_id": "e9122f0c-04a1-4af2-983a-dcecece45ffe",
+    "context_id": "7161ba86-91bf-4ca0-a159-4d69258146a1",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d67fe14b-e748-4fce-9160-5c3fad1ce72d",
+    "launch_id": "platform-launch-6670cbc1-8485-4661-9786-9e2e16b09c80",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +51,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51421
+        "value": 62287
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 161587
+        "value": 236981
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20375
+        "value": 32273
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21867
+        "value": 35079
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1866
+        "value": 3290
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "fa1ac7aac3f87cd26cd9a9f6e3fc6f781452a14139ae53a695a71ecd236f2d17"
+  "task_content_digest": "0a4825c724b479b00e58345dcc62bcc26d0392f52947b37c56f03e01c482f196"
 }

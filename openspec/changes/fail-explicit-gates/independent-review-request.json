@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
     "base_ref": "origin/main",
-    "candidate_head": "2398610f1a20356ec214bb36d7b9231c97d1ca09",
-    "diff_sha256": "aeee65314241e2f996a8244201b2d15b52397c9d747a6eb4383bd985e01f18df"
+    "candidate_head": "217288ddbba2c7cd836556f45cfa356c24e1275a",
+    "diff_sha256": "69ce837b30cdfcc6d32f7d0f87e093f58327338c30a8680923235e913000360a"
   },
   "change": "openspec/changes/fail-explicit-gates",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-12T00:26:56+00:00",
+  "prepared_at": "2026-10-12T00:50:01+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/fail-explicit-gates/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "a3c31a7a-cfeb-45c5-b190-a8a7edc52c41",
+  "request_id": "ea9d8c4a-4af5-4724-b520-50eaae442bbc",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "60e20aa6c975d73bc6f96ab1b0ed6ba39618a2c0",
-    "digest": "fa1ac7aac3f87cd26cd9a9f6e3fc6f781452a14139ae53a695a71ecd236f2d17",
+    "digest": "0a4825c724b479b00e58345dcc62bcc26d0392f52947b37c56f03e01c482f196",
     "paths": {
       ".github/workflows/project-ci.yml": "06dfeab43a418a0324c6f433a27ba0645ef99dd0",
       "dev-platform/source-contract.toml": "1d5e03cd4c360bc325be04c223bdee1055b2dfc6",
@@ -67,7 +67,7 @@
       "openspec/changes/fail-explicit-gates/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
       "openspec/changes/fail-explicit-gates/design.md": "fb03bf01f4bc85cc6e58341c2018fc6b759d41aa",
       "openspec/changes/fail-explicit-gates/proposal.md": "62dc43b620cc97dbef0d53f4a7e63e6acf531b8f",
-      "openspec/changes/fail-explicit-gates/specs/gate-fail-explicit/spec.md": "438056e3ff9825ea7389719edb0b97a6bad8a1c7",
+      "openspec/changes/fail-explicit-gates/specs/gate-fail-explicit/spec.md": "bdf03b755bdcb493fbb39182f329a3c5ae06db8b",
       "openspec/changes/fail-explicit-gates/tasks.md": "eaf3c441fd914013d2cf64cf2026c87600c5eb60",
       "template/.github/workflows/dev-platform.yml.jinja": "02a736a5bcc64fec27b52878c09ab37b0f521b0f",
       "template/.gitlab-ci.yml.jinja": "6674aad8545413650e681c3003b0488555355145",
