@@ -1,0 +1,99 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.865,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.135,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 529.573,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/lifecycle-workers.yml",
+        "tests/test_hosted_workers.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_abbea4e4e9a3cb0d778e5a09ec3ac18f",
+    "change": "hosted-lifecycle-workers-pilot-run",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/hosted-lifecycle-workers-pilot-run",
+    "branch": "agent/br-610-t2-hosted-lifecycle-workers-pilot-run",
+    "head": "29c67cfa6386040af5b1fc2d1d5c453a36d45e2e",
+    "task_content": {
+      "version": 1,
+      "digest": "5a2c6718ad7671dbaeb858fe993d4e403b4248ba767a21499b03db56231fc348",
+      "paths": {
+        ".github/workflows/lifecycle-workers.yml": "addd53b33613f6ee1e31d9c676941f60bb1e56a3",
+        "docs/engineering/hosted-lifecycle-workers.md": "f180bef16d9aa5ef5a3141c01dc674398eb387c2",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/.managed-task.json": "e07c1a44a7a7bf1a5a0cce86b16eab661170212a",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/design.md": "a411b13ccb93247a4cf3ca7f783e8cfba9ffda6b",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/proposal.md": "e289a5b1e8ed6d320b5d1669b08e6c1065c3cea1",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/specs/lifecycle-workers/spec.md": "4ae4e9e7fc8b2c193fc576f42ab889cc02515813",
+        "openspec/changes/hosted-lifecycle-workers-pilot-run/tasks.md": "bafa67870973107df23f502fe34f99638bf7b6d5",
+        "tests/test_hosted_workers.py": "cb5dc083bf7d8e5f1951310cb5c5945c5ab7801a"
+      },
+      "base": "d71b0690ac1d05cfa44871f213167913b04fc390"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "2dca5a9151e43f7b399ad76fd783a0348d29bf96b616548a7972864f0ddf2556",
+    "paths": {
+      ".github/workflows/lifecycle-workers.yml": "addd53b33613f6ee1e31d9c676941f60bb1e56a3",
+      "docs/engineering/hosted-lifecycle-workers.md": "f180bef16d9aa5ef5a3141c01dc674398eb387c2",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/.managed-task.json": "e07c1a44a7a7bf1a5a0cce86b16eab661170212a",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/design.md": "a411b13ccb93247a4cf3ca7f783e8cfba9ffda6b",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/proposal.md": "e289a5b1e8ed6d320b5d1669b08e6c1065c3cea1",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/specs/lifecycle-workers/spec.md": "4ae4e9e7fc8b2c193fc576f42ab889cc02515813",
+      "openspec/changes/hosted-lifecycle-workers-pilot-run/tasks.md": "bafa67870973107df23f502fe34f99638bf7b6d5",
+      "tests/test_hosted_workers.py": "cb5dc083bf7d8e5f1951310cb5c5945c5ab7801a"
+    },
+    "base": "d71b0690ac1d05cfa44871f213167913b04fc390",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_hosted_workers.py",
+    "duration_seconds": 3.675,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
