@@ -107,7 +107,7 @@
     "scripts/parallel_lifecycle_acceptance.py": "023080172adea3a22b3d1476e906b7bc5dada385f8553fa6a017273b1e11baab",
     "scripts/platform_bootstrap.py": "bcf0c81fe9cedad6be3a163fda20f3392b923e5e05b16460f8b424228f83071f",
     "scripts/platform_divergence.py": "8b722a148468ae79ce7ebab7fe0c250fa609c7688ca18a21aa545aff1d330a98",
-    "scripts/platform_doctor.py": "76e90fd92f03ad5165fb6f416588daa8d0aca0538a17cc15b7bab740e0573f50",
+    "scripts/platform_doctor.py": "edd5f798168e95c6f3b88df31a0567b6a558e81bc9bffe9b49f042ee1c16ce0c",
     "scripts/post_review_finalization.py": "6e76cb0d4b17890a642318de93969fb5096dff1ba7bbeceb76c67f3a8e9c7abe",
     "scripts/pr_review_gate.py": "aef837c22f515f493a34a98ca09b18114d7fcee26138b6bb752d0e6cb992d96c",
     "scripts/private_lineage.py": "76afac529029a19a706317314b223f1f3627b8d58e0cd141d4bf29702eff7047",

@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/ci-safety/spec.md",
+    "specs/managed-rollout/spec.md",
+    "tasks.md"
+  ],
+  "change": "ci-runner-rollout-migration",
+  "imported_at": "2026-10-12T06:10:54+00:00",
+  "package_revision": "bd1ba597f3bc63c8bd194792a5fdab2f549addb9221ce53bbd65b37bc874b6f1",
+  "prepared_against": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
+  "private_lineage_handle": "pln_5940ade90cf254214393bc7fb1a33f06",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "7c1662252f1d8685a9c50e200233cf1b1eca85c5eb442545ca7c26c50d076823",
+    "updated_at": "2026-10-12T06:03:02Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-603/T1"
+}
