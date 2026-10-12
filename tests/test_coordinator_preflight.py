@@ -294,6 +294,31 @@ class WorkflowStructureTests(unittest.TestCase):
         self.assertEqual("coordinator", lifecycle_mode(contract))
         self.assertFalse({"operator", "development_backlog", "private_lineage"} & set(contract))
 
+    def test_tracked_source_contract_declares_the_scope_gate_capability(self):
+        import tomllib
+
+        import agent_board
+
+        with (ROOT / "dev-platform" / "source-contract.toml").open("rb") as fh:
+            contract = tomllib.load(fh)
+        self.assertIsInstance(contract.get("capabilities"), dict)
+        self.assertIs(agent_board.scope_gate_required(contract), True)
+
+    def test_tracked_source_contract_capabilities_match_the_installed_contract(self):
+        import tomllib
+
+        installed_path = ROOT / ".dev-platform.toml"
+        public_path = ROOT / "dev-platform" / "source-contract.toml"
+        if not installed_path.exists():
+            self.skipTest("central .dev-platform.toml is not present in this checkout")
+        if installed_path.read_text(encoding="utf-8") == public_path.read_text(encoding="utf-8"):
+            self.skipTest("installed public source contract, not the central operator config")
+        with installed_path.open("rb") as fh:
+            installed = tomllib.load(fh)
+        with public_path.open("rb") as fh:
+            public = tomllib.load(fh)
+        self.assertEqual(installed["capabilities"], public["capabilities"])
+
     def test_token_permissions_stay_least_privilege(self):
         options = self.steps[self.index("actions/create-github-app-token")]["with"]
         self.assertEqual({k for k in options if k.startswith("permission-")},

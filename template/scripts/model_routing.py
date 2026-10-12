@@ -1025,9 +1025,13 @@ def _recover_claude_external_advance(
         actor = Path(receipt["actor_worktree"]).resolve()
         if opened_time <= receipt_time <= recovery_time and (actor == delegated or delegated in actor.parents):
             raise RoutingError("an integration advance receipt names the delegated worktree as its actor; recovery is forbidden")
-    if not verify_historical_external_advance(
-        integration_root, before_head, after_head, not_before=opened_at, not_after=recovered_at
-    ):
+    try:
+        proven = verify_historical_external_advance(
+            integration_root, before_head, after_head, not_before=opened_at, not_after=recovered_at
+        )
+    except ContainmentError as exc:
+        raise RoutingError(f"cannot prove --after-head was this checkout's recorded remote-tracking main: {exc}") from exc
+    if not proven:
         raise RoutingError(
             "cannot prove --after-head was this checkout's recorded remote-tracking main between the delegation opening and now "
             "(ancestry and current-main containment alone are not sufficient historical provenance)"
@@ -1121,9 +1125,13 @@ def recover_external_advance(
             "recovery requires the original execution's own recorded start/end timing to bind historical "
             "remote-ref evidence; none is available"
         )
-    if not verify_historical_external_advance(
-        integration_root, before_head, after_head, not_before=started_at, not_after=ended_at
-    ):
+    try:
+        proven = verify_historical_external_advance(
+            integration_root, before_head, after_head, not_before=started_at, not_after=ended_at
+        )
+    except ContainmentError as exc:
+        raise RoutingError(f"cannot prove --after-head was this checkout's recorded remote-tracking main: {exc}") from exc
+    if not proven:
         raise RoutingError(
             "cannot prove --after-head was this checkout's recorded remote-tracking main during the flagged "
             "execution's own timing window (ancestry and current-main containment alone are not sufficient "

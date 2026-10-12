@@ -634,7 +634,7 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
         self.labels = stack.enter_context(mock.patch.object(queue, "_label"))
         stack.enter_context(mock.patch.object(queue, "_main", return_value=HEAD))
         stack.enter_context(mock.patch("model_routing.read_route_for_change", return_value=ROUTE))
-        self.descends = stack.enter_context(mock.patch.object(queue, "_descends", return_value=True))
+        self.descends = stack.enter_context(mock.patch.object(queue, "_is_ancestor", return_value=True))
         original_pr = queue._pr.side_effect
         queue._pr.side_effect = lambda *a: {**original_pr(*a), "base": {"ref": "main"}}
         queue.admit(ROOT, 7, HEAD, handoff={"task_identity": IDENTITY, "gates": {}})
@@ -752,6 +752,17 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             with self.assertRaisesRegex(queue.QueueError, "re-admission handoff carries no gates"):
                 queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY})
             self.assertEqual(len(fixture.comments), count)
+
+    def test_readmission_fails_when_the_superseded_head_lineage_record_is_missing(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted_repair_pending(fixture, stack)
+            real_latest = queue._latest
+            lost = lambda root, number, comments, head=None: None if head == HEAD else real_latest(root, number, comments, head)
+            with mock.patch.object(queue, "_latest", side_effect=lost):
+                with self.assertRaisesRegex(queue.QueueError, "lineage record is missing"):
+                    self.readmit(fixture)
+            # The new head carries no review-pending record on a lost lineage; nothing was recorded for it.
+            self.assertNotEqual(fixture.candidate()["state"], "review-pending")
 
     def test_new_developer_head_supersedes_a_repair_pending_admission(self):
         with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
@@ -947,7 +958,7 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
         with self.assertRaisesRegex(queue.QueueError, "conflicting admission evidence"):
             queue._admission([admit, block, {**supersede, "comment_id": 4, "supersedes": {"head": HEAD, "reason": ""}}], 7)
 
-    def test_descends_accepts_fast_forward_and_merge_and_refuses_a_rewrite(self):
+    def test_is_ancestor_accepts_fast_forward_and_merge_and_refuses_a_rewrite(self):
         with tempfile.TemporaryDirectory() as tmp:
             repo = Path(tmp)
             git(repo, "init", "-q", "-b", "main")
@@ -961,11 +972,11 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             git(repo, "checkout", "-q", "main")
             git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "merge", "-q", "--no-edit", "side")
             merged = git(repo, "rev-parse", "HEAD")
-            self.assertTrue(queue._descends(repo, admitted, forward))
-            self.assertTrue(queue._descends(repo, admitted, merged))
-            self.assertFalse(queue._descends(repo, admitted, rewrite))
-            with self.assertRaisesRegex(queue.QueueError, "cannot prove"):
-                queue._descends(repo, "d" * 40, merged)
+            self.assertTrue(queue._is_ancestor(repo, admitted, forward))
+            self.assertTrue(queue._is_ancestor(repo, admitted, merged))
+            self.assertFalse(queue._is_ancestor(repo, admitted, rewrite))
+            with self.assertRaisesRegex(queue.QueueError, r"cannot prove.*git merge-base --is-ancestor .*exited 128"):
+                queue._is_ancestor(repo, "d" * 40, merged)
 
     def escalated_finalize(self, fixture):
         passed = {"result": "passed", "identity": IDENTITY, "evidence": "review ok"}

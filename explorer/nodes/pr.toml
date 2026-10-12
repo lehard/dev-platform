@@ -1,0 +1,8 @@
+id = "pr"
+kind = "term"
+title = "PR"
+definition = "PR (pull request) — запрос на слияние ветки задачи в защищённый `main` на GitHub. Отправленная ветка, открытый PR или зелёный CI ещё не доставка: изменение доставлено, когда GitHub сообщает для точного PR состояние `MERGED`, а локальный `main` синхронизирован."
+sources = [
+  "AGENTS.md#Entrypoints",
+  "docs/engineering/agent-workflow.md#Central source dogfood lifecycle",
+]

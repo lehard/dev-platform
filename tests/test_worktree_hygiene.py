@@ -46,7 +46,7 @@ class WorktreeHarnessCase(unittest.TestCase):
         git(self.root, "config", "user.email", "test@example.invalid")
         (self.root / ".gitignore").write_text(".claude/\n", encoding="utf-8")
         (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\n\n[paths]\nworktrees = ".claude/worktrees"\nagent_board = ".claude/agents-board.json"\npending_worktrees = ".claude/pending-worktrees.md"\n',
+            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\n\n[capabilities]\nagent_board = true\n\n[paths]\nworktrees = ".claude/worktrees"\nagent_board = ".claude/agents-board.json"\npending_worktrees = ".claude/pending-worktrees.md"\n',
             encoding="utf-8",
         )
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
@@ -1082,6 +1082,121 @@ class AgentBoardAcknowledgmentTests(WorktreeHarnessCase):
         )
         self.assertEqual(self.hard_conflicts(board, second), [])
         self.enforce_gate(board, second)  # Does not raise.
+
+
+class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
+    """The scope gate is required exactly when [capabilities] agent_board is true; every unmet precondition stops it."""
+
+    def configure(self, capabilities: str | None, *, main_branch: bool = True) -> None:
+        text = ('main_branch = "main"\n' if main_branch else "") + 'workflow_profile = "multi-agent"\n'
+        if capabilities is not None:
+            text += "\n[capabilities]\n" + capabilities
+        text += '\n[paths]\nagent_board = ".claude/agents-board.json"\n'
+        (self.root / ".dev-platform.toml").write_text(text, encoding="utf-8")
+
+    def board(self, content: str) -> Path:
+        board = self.root / ".claude" / "agents-board.json"
+        board.parent.mkdir(parents=True, exist_ok=True)
+        board.write_text(content, encoding="utf-8")
+        return board
+
+    def conflicts(self, worktree: Path):
+        return agent_board.hard_scope_conflicts(self.root, worktree, f"agent/{worktree.name}")
+
+    def claim(self, worktree: Path) -> dict:
+        return {"id": f"{worktree.name}-id", "task": "task", "scope": "", "branch": f"agent/{worktree.name}",
+                "worktree": str(worktree), "heartbeat": datetime.now(timezone.utc).isoformat()}
+
+    def test_corrupt_board_stops_the_gate_instead_of_reporting_no_conflicts(self) -> None:
+        self.configure("agent_board = true\n")
+        worktree = self.add_worktree("only")
+        self.board("{not json")
+        with self.assertRaisesRegex(SystemExit, "unreadable or invalid JSON"):
+            self.conflicts(worktree)
+        with self.assertRaisesRegex(SystemExit, "unreadable or invalid JSON"):
+            agent_board.enforce_scope_gate(self.root, worktree, "agent/only")
+
+    def test_missing_board_file_stops_the_gate(self) -> None:
+        self.configure("agent_board = true\n")
+        worktree = self.add_worktree("only")
+        with self.assertRaisesRegex(SystemExit, "does not exist"):
+            self.conflicts(worktree)
+
+    def test_unconfigured_board_path_stops_the_gate(self) -> None:
+        self.configure("agent_board = true\n")
+        worktree = self.add_worktree("only")
+        with mock.patch.object(agent_board, "board_path", side_effect=KeyError("Missing paths.agent_board in .dev-platform.toml")):
+            with self.assertRaisesRegex(SystemExit, "paths.agent_board"):
+                self.conflicts(worktree)
+
+    def test_board_without_an_item_list_stops_the_gate(self) -> None:
+        self.configure("agent_board = true\n")
+        worktree = self.add_worktree("only")
+        for content in ('{"version": 1}', '{"items": {"a": 1}}', "[]"):
+            with self.subTest(content=content):
+                self.board(content)
+                with self.assertRaisesRegex(SystemExit, "must contain a JSON object|no valid 'items' list"):
+                    self.conflicts(worktree)
+
+    def test_missing_claim_for_the_current_worktree_stops_the_gate(self) -> None:
+        self.configure("agent_board = true\n")
+        worktree = self.add_worktree("only")
+        other = self.add_worktree("other")
+        self.board(json.dumps({"version": 1, "items": [self.claim(other)]}))
+        with self.assertRaisesRegex(SystemExit, "has no claim for worktree"):
+            self.conflicts(worktree)
+
+    def test_a_claimed_worktree_with_a_valid_board_still_passes(self) -> None:
+        self.configure("agent_board = true\n")
+        worktree = self.add_worktree("only")
+        self.board(json.dumps({"version": 1, "items": [self.claim(worktree)]}))
+        self.assertEqual(self.conflicts(worktree), [])
+        agent_board.enforce_scope_gate(self.root, worktree, "agent/only")
+
+    def test_capability_off_is_a_documented_non_gate_and_the_portable_path_runs(self) -> None:
+        self.configure("agent_board = false\n")
+        worktree = self.add_worktree("only")
+        self.assertFalse((self.root / ".claude" / "agents-board.json").exists())
+        self.assertEqual(self.conflicts(worktree), [])
+        agent_board.enforce_scope_gate(self.root, worktree, "agent/only")  # Does not raise.
+
+    def test_missing_or_non_boolean_capability_is_an_error(self) -> None:
+        worktree = self.add_worktree("only")
+        for capabilities, pattern in (
+            (None, r"\[capabilities\] is missing"),
+            ("openspec = true\n", "agent_board must be true or false"),
+            ('agent_board = "true"\n', "agent_board must be true or false"),
+            ("agent_board = 1\n", "agent_board must be true or false"),
+        ):
+            with self.subTest(capabilities=capabilities):
+                self.configure(capabilities)
+                with self.assertRaisesRegex(SystemExit, pattern):
+                    self.conflicts(worktree)
+
+    def test_missing_main_branch_is_an_error_not_an_assumed_main(self) -> None:
+        self.configure("agent_board = true\n", main_branch=False)
+        worktree = self.add_worktree("only")
+        self.board(json.dumps({"version": 1, "items": [self.claim(worktree)]}))
+        with self.assertRaisesRegex(SystemExit, r"\[recoverable\] scope-gate-unavailable: main_branch must be a non-empty string"):
+            self.conflicts(worktree)
+
+    def test_every_board_command_reads_main_branch_through_the_classified_helper(self) -> None:
+        self.configure("agent_board = true\n", main_branch=False)
+        config = agent_board.read_platform_config(self.root)
+        with self.assertRaisesRegex(SystemExit, r"\[recoverable\] scope-gate-unavailable: main_branch"):
+            agent_board._main_branch(config)
+        self.configure("agent_board = true\n")
+        self.assertEqual(agent_board._main_branch(agent_board.read_platform_config(self.root)), "main")
+
+    def test_merged_into_is_three_valued_and_a_git_failure_raises(self) -> None:
+        merged = self.add_worktree("merged")
+        git(self.root, "merge", "--ff-only", "agent/merged")
+        unmerged = self.add_worktree("unmerged")
+        self.assertTrue(agent_board._merged_into(self.root, "agent/merged", "main"))
+        self.assertFalse(agent_board._merged_into(self.root, "agent/unmerged", "main"))
+        self.assertTrue(merged.exists() and unmerged.exists())
+        with self.assertRaisesRegex(SystemExit, r"Agent board check blocked: git merge-base --is-ancestor .* exited 128"):
+            agent_board._merged_into(self.root, "agent/unmerged", "no-such-main")
 
 
 if __name__ == "__main__":

@@ -88,27 +88,208 @@ STAGES = textwrap.dedent(
     """
     [[stage]]
     id = "start"
-    title = "Start here"
-    order = 1
     elements = ["home", "guide"]
-    sources = ["README.md#Intro"]
 
     [[stage]]
     id = "middle"
-    title = "Middle step"
-    order = 2
     elements = ["guide"]
-    sources = ["docs/guide.md#Part", "docs/notes.md"]
 
     [[stage]]
     id = "finish"
-    title = "Finish"
-    order = 3
     elements = ["other", "specs.alpha"]
-    sources = ["README.md#Other"]
     """
 )
 MAP = ELEMENT_MAP + STAGES
+
+# Editorial fixture: a three-stage journey (start full, middle and finish outlines), one full mechanism with a part,
+# one topic with a glossary term. Texts are short but follow the real rules.
+FLOW_TABLES = textwrap.dedent(
+    """
+    [[inputs]]
+    title = "Вход"
+    text = "Что приходит в узел."
+    role = "actor"
+    node = "middle"
+    note = "← этап 2"
+
+    [action]
+    label = "work"
+    title = "Работа узла"
+    steps = ["Первый шаг.", "Второй шаг."]
+
+    [[outputs]]
+    title = "Выход"
+    text = "Что уходит из узла."
+    role = "stage"
+    consumer = "→ этап 2"
+    node = "middle"
+
+    [[path]]
+    title = "Сбой"
+    tag = "возврат"
+    role = "gate"
+    when = "Что-то пошло не так."
+    outcome = "повторить шаг"
+
+    [example]
+    title = "Пример"
+    steps = ["Один.", { text = "Два с выделением.", emphasis = ["выделением"] }]
+    """
+)
+NODE_FILES = {
+    "overview": textwrap.dedent(
+        """\
+        id = "overview"
+        kind = "overview"
+        title = "Платформа"
+        heading = "Вся платформа"
+        kicker = "ФИКСТУРА"
+        headline = "Фикстура: путь"
+        subhead = "Слева дерево, справа узел."
+        definition = "Общее описание фикстуры."
+        lead = "Это обзор с `code`."
+        thesis = "Главная мысль обзора."
+        responsible = ["Отвечает за путь."]
+        not_responsible = ["Не отвечает за остальное."]
+        schema_note = "Не каждый путь полный."
+        cta = "Пройти путь →"
+        maintenance_auto = ["Генерируется из репозитория."]
+        maintenance_editorial = ["Пишется вручную."]
+        sources = ["README.md#Intro"]
+
+        [[level]]
+        name = "0 · Всё"
+        what = "Стартовый экран"
+        visible = "Назначение"
+        hidden = "Детали"
+        """
+    ),
+    "start": textwrap.dedent(
+        """\
+        id = "start"
+        kind = "stage"
+        title = "Начало"
+        definition = "Начальный этап пути."
+        order = 1
+        short_title = "Начало"
+        tagline = "с чего всё начинается"
+        children = ["mech"]
+        terms = ["term"]
+        lead = "Это введение в этап с термином Глоссарий."
+        thesis = "Главная мысль этапа."
+        sources = ["README.md#Intro"]
+
+        [[transitions]]
+        to = "middle"
+        type = "main"
+        reason = "Дальше идёт середина"
+
+        [[transitions]]
+        to = "stop"
+        type = "conditional"
+        reason = "Можно остановиться здесь"
+        label = "стоп здесь"
+        """
+    ) + FLOW_TABLES,
+    "middle": textwrap.dedent(
+        """\
+        id = "middle"
+        kind = "stage"
+        outline = true
+        title = "Середина"
+        definition = "Средний этап пути."
+        order = 2
+        short_title = "Середина"
+        tagline = "основная работа"
+        children = ["mech"]
+        sources = ["docs/guide.md#Part", "docs/notes.md"]
+
+        [[transitions]]
+        to = "finish"
+        type = "main"
+        reason = "Работа закончена"
+        """
+    ),
+    "finish": textwrap.dedent(
+        """\
+        id = "finish"
+        kind = "stage"
+        outline = true
+        title = "Конец"
+        definition = "Последний этап пути."
+        order = 3
+        short_title = "Конец"
+        tagline = "результат"
+        children = ["mech"]
+        sources = ["README.md#Other"]
+
+        [[transitions]]
+        to = "stop"
+        type = "main"
+        reason = "Путь закончен"
+        """
+    ),
+    "mech": textwrap.dedent(
+        """\
+        id = "mech"
+        kind = "mechanism"
+        title = "Механизм"
+        definition = "Механизм проверки пути."
+        order = 1
+        role = "mechanism"
+        children = ["part"]
+        lead = "Механизм делает работу."
+        thesis = "Главная мысль механизма."
+        sources = ["docs/guide.md#Part"]
+
+        [[used_in]]
+        stage = "start"
+
+        [[used_in]]
+        stage = "middle"
+        note = "ещё и здесь"
+
+        [[guarantees]]
+        title = "Гарантия"
+        text = "Это всегда так."
+        """
+    ) + FLOW_TABLES,
+    "part": textwrap.dedent(
+        """\
+        id = "part"
+        kind = "part"
+        outline = true
+        title = "Часть механизма"
+        definition = "Часть механизма проверки."
+        role = "artifact"
+        sources = ["docs/notes.md"]
+
+        [[used_in]]
+        stage = "middle"
+        """
+    ),
+    "topic": textwrap.dedent(
+        """\
+        id = "topic"
+        kind = "topic"
+        outline = true
+        title = "Тема"
+        definition = "Сквозная тема пути."
+        order = 1
+        children = ["term"]
+        sources = ["README.md#Other"]
+        """
+    ),
+    "term": textwrap.dedent(
+        """\
+        id = "term"
+        kind = "term"
+        title = "Глоссарий"
+        definition = "Глоссарий — словарь терминов фикстуры."
+        sources = ["docs/notes.md"]
+        """
+    ),
+}
 BASE_FILES = {
     "VERSION": "9.9.9\n",
     "README.md": README,
@@ -119,6 +300,8 @@ BASE_FILES = {
     "explorer/map.toml": MAP,
     "explorer/assets/explorer.css": "body { margin: 0; }\n",
     "explorer/assets/explorer.js": "// enhancement\n",
+    "explorer/editorial-review.json": "{}\n",
+    **{f"explorer/nodes/{name}.toml": text for name, text in NODE_FILES.items()},
 }
 
 GIT_ENV = ["-c", "user.name=Fixture", "-c", "user.email=fixture@example.test", "-c", "commit.gpgsign=false"]
@@ -129,7 +312,7 @@ def git(root: Path, *args: str) -> None:
 
 
 class FixtureTestCase(unittest.TestCase):
-    def make_repo(self, overrides: dict[str, str | None] | None = None) -> Path:
+    def make_repo(self, overrides: dict[str, str | None] | None = None, *, stamp: bool = False) -> Path:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name) / "repo"
@@ -141,7 +324,15 @@ class FixtureTestCase(unittest.TestCase):
                 self.write(root, relative, text)
         git(root, "init", "-q")
         self.commit(root)
+        if stamp:
+            self.stamp(root)
         return root
+
+    def stamp(self, root: Path) -> None:
+        """Record the current section digests, as an author runs mark-reviewed after writing nodes."""
+        code, stderr = self.run_main("--root", str(root), "mark-reviewed", "--all")
+        self.assertEqual(code, 0, stderr)
+        self.commit(root)
 
     def write(self, root: Path, relative: str, text: str) -> None:
         path = root / relative
@@ -188,17 +379,17 @@ class CleanBuildTests(FixtureTestCase):
         outputs = self.build(root)
         commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
         guide = self.page(outputs, "guide")
-        self.assertIn('<nav class="tree"', guide)
-        self.assertIn('aria-current="page">Guide</a>', guide)
+        self.assertIn('<ul class="tree"', guide)
+        self.assertIn('aria-current="page"><span class="dot"></span><span class="nm">Guide</span></a>', guide)
         self.assertIn("Guide paragraph with <em>emphasis</em>.", guide)
-        self.assertIn('aria-label="Where it fits"', guide)
+        self.assertIn('aria-label="Где это находится"', guide)
         self.assertIn('<a href="../home/index.html">Home</a>', guide)
         self.assertIn(f"/blob/{commit}/docs/guide.md", guide)
         self.assertIn("Dev Platform 9.9.9", guide)
         self.assertIn(commit[:7], guide)
         # Declared relation is visible on the source page and as a back link on the target.
-        self.assertIn('<h2>Related</h2>', self.page(outputs, "home"))
-        self.assertIn('<a href="../home/index.html">Home</a>', guide.split('id="related"')[1])
+        self.assertIn('id="related"', self.page(outputs, "home"))
+        self.assertIn('href="../home/index.html"', guide.split('id="related"')[1])
 
     def test_heading_section_excerpt_stops_at_next_heading_of_same_level(self) -> None:
         home = self.page(self.build(self.make_repo()), "home")
@@ -209,15 +400,16 @@ class CleanBuildTests(FixtureTestCase):
     def test_collection_items_take_title_summary_and_source_from_the_file(self) -> None:
         outputs = self.build(self.make_repo())
         listing = self.page(outputs, "specs")
-        self.assertIn(">alpha</a>", listing)
+        self.assertIn(">alpha</div>", listing)
         self.assertIn("Alpha purpose sentence.", listing)
-        self.assertIn("<h2 id=\"s-purpose\">Purpose</h2>", self.page(outputs, "specs.alpha"))
+        self.assertIn("<h3 id=\"s-purpose\">Purpose</h3>", self.page(outputs, "specs.alpha"))
 
     def test_pages_work_without_javascript(self) -> None:
         outputs = self.build(self.make_repo())
         page = self.page(outputs, "guide")
         self.assertIn('<script defer src="../../assets/explorer.js">', page)
-        self.assertIn('<details open><summary><a href="../home/index.html">Home</a>', page)
+        self.assertIn('<details open><summary class="line">', page)
+        self.assertEqual(page.count("<script"), 1)
 
     def test_cli_check_and_build_succeed_and_build_writes_files(self) -> None:
         root = self.make_repo()
@@ -233,10 +425,10 @@ class CleanBuildTests(FixtureTestCase):
 
     def test_clean_tree_footer_has_no_uncommitted_marker_and_dirty_tree_is_labelled(self) -> None:
         root = self.make_repo()
-        self.assertNotIn("uncommitted", self.page(self.build(root), "guide"))
+        self.assertNotIn("незафиксированными", self.page(self.build(root), "guide"))
         guide = root / "docs" / "guide.md"
         guide.write_text(guide.read_text(encoding="utf-8") + "\nchanged but not committed\n", encoding="utf-8")
-        self.assertIn("with uncommitted changes", self.page(self.build(root), "guide"))
+        self.assertIn("с незафиксированными изменениями", self.page(self.build(root), "guide"))
 
     def test_failed_write_leaves_no_partial_output(self) -> None:
         root = self.make_repo()
@@ -422,264 +614,6 @@ class CollectionTests(FixtureTestCase):
         self.assert_build_fails(root, "caps/one.md", "not a git-tracked file")
 
 
-def stage_block(identifier: str) -> str:
-    """Return the fixture ``[[stage]]`` table text for ``identifier``."""
-    for block in STAGES.strip().split("\n\n"):
-        if f'id = "{identifier}"' in block:
-            return block
-    raise AssertionError(identifier)
-
-
-class LifecycleTests(FixtureTestCase):
-    def lifecycle(self, outputs: dict[str, bytes]) -> str:
-        return outputs["lifecycle/index.html"].decode("utf-8")
-
-    def flow(self, outputs: dict[str, bytes]) -> str:
-        return self.lifecycle(outputs).split('<ol class="flow">')[1].split("</ol>")[0]
-
-    def stage_page(self, outputs: dict[str, bytes], identifier: str) -> str:
-        return outputs[f"lifecycle/{identifier}/index.html"].decode("utf-8")
-
-    def hrefs(self, page: str) -> list[str]:
-        collector = LinkCollector()
-        collector.feed(page)
-        return collector.links
-
-    # -- success scenarios -----------------------------------------------------
-
-    def test_overview_and_every_stage_page_are_generated(self) -> None:
-        outputs = self.build(self.make_repo())
-        for path in ("lifecycle/index.html", "lifecycle/start/index.html", "lifecycle/middle/index.html", "lifecycle/finish/index.html"):
-            with self.subTest(path=path):
-                self.assertIn(path, outputs)
-
-    def test_overview_lists_every_stage_in_order_with_stable_relative_links(self) -> None:
-        page = self.lifecycle(self.build(self.make_repo()))
-        flow = page.split('<ol class="flow">')[1].split("</ol>")[0]
-        positions = [flow.index(f'href="{target}"') for target in ("start/index.html", "middle/index.html", "finish/index.html")]
-        self.assertEqual(positions, sorted(positions))
-        self.assertIn('<a href="start/index.html">Start here</a>', flow)
-        self.assertIn('<a href="middle/index.html">Middle step</a>', flow)
-        self.assertIn('<span class="flow-number" aria-hidden="true">3</span>', flow)
-        # The first paragraph of the source heading is the summary: rendered from the source, not the map.
-        self.assertIn("First paragraph of the intro.", flow)
-
-    def test_home_page_shows_the_same_ordered_flow(self) -> None:
-        home = self.build(self.make_repo())["index.html"].decode("utf-8")
-        self.assertIn('<a href="lifecycle/start/index.html">Start here</a>', home)
-        self.assertLess(home.index("lifecycle/start/index.html"), home.index("lifecycle/finish/index.html"))
-
-    def test_stage_page_renders_source_excerpts_and_links_to_sources(self) -> None:
-        root = self.make_repo()
-        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=True).stdout.strip()
-        middle = self.stage_page(self.build(root), "middle")
-        self.assertIn("<h1>Middle step</h1>", middle)
-        self.assertIn("Stage 2 of 3", middle)
-        self.assertIn("Part text.", middle)
-        self.assertIn("Notes paragraph.", middle)
-        self.assertIn(f'href="https://github.com/lehard/dev-platform/blob/{commit}/docs/guide.md" rel="noopener noreferrer"><code>docs/guide.md#Part</code>', middle)
-        self.assertIn(f"/blob/{commit}/docs/notes.md", middle)
-
-    def test_stage_page_links_to_previous_and_next_stage(self) -> None:
-        outputs = self.build(self.make_repo())
-        middle = self.stage_page(outputs, "middle")
-        self.assertIn('<a rel="prev" href="../start/index.html">Previous: Start here</a>', middle)
-        self.assertIn('<a rel="next" href="../finish/index.html">Next: Finish</a>', middle)
-        self.assertIn('<a href="../index.html">All stages</a>', middle)
-
-    def test_first_and_last_stage_omit_the_missing_neighbour(self) -> None:
-        outputs = self.build(self.make_repo())
-        first, last = self.stage_page(outputs, "start"), self.stage_page(outputs, "finish")
-        self.assertNotIn('rel="prev"', first)
-        self.assertIn('rel="next" href="../middle/index.html"', first)
-        self.assertNotIn('rel="next"', last)
-        self.assertIn('rel="prev" href="../middle/index.html"', last)
-
-    def test_stage_page_links_to_component_elements_with_titles_and_at_least_one(self) -> None:
-        outputs = self.build(self.make_repo())
-        start = self.stage_page(outputs, "start").split('id="components"')[1]
-        self.assertIn('<a href="../../e/home/index.html">Home</a>', start)
-        self.assertIn('<a href="../../e/guide/index.html">Guide</a>', start)
-        self.assertIn("Guide paragraph with", start)
-        finish = self.stage_page(outputs, "finish").split('id="components"')[1]
-        self.assertIn('href="../../e/specs.alpha/index.html"', finish)
-
-    def test_links_inside_stage_excerpts_resolve_to_element_pages(self) -> None:
-        finish = self.stage_page(self.build(self.make_repo()), "finish")
-        self.assertIn('<a href="../../e/guide/index.html">guide</a>', finish)
-        self.assertIn('<a href="../../e/guide/index.html#s-part">part</a>', finish)
-
-    def test_stage_order_not_file_order_decides_the_sequence(self) -> None:
-        reordered = ELEMENT_MAP + "\n\n".join(stage_block(name) for name in ("finish", "start", "middle")) + "\n"
-        root = self.make_repo({"explorer/map.toml": reordered})
-        outputs = self.build(root)
-        baseline = self.build(self.make_repo())
-        self.assertEqual(self.flow(outputs), self.flow(baseline))
-        self.assertIn('rel="next" href="../middle/index.html"', self.stage_page(outputs, "start"))
-
-    def test_stage_may_share_an_id_with_an_element(self) -> None:
-        text = MAP.replace('id = "middle"', 'id = "guide"')
-        outputs = self.build(self.make_repo({"explorer/map.toml": text}))
-        self.assertIn("lifecycle/guide/index.html", outputs)
-        self.assertIn("e/guide/index.html", outputs)
-
-    # -- navigation and cross-links ---------------------------------------------
-
-    def test_navigation_tree_has_a_lifecycle_branch_listing_stages_in_order(self) -> None:
-        outputs = self.build(self.make_repo())
-        for path in ("index.html", "e/guide/index.html", "lifecycle/index.html", "lifecycle/middle/index.html"):
-            with self.subTest(page=path):
-                tree = outputs[path].decode("utf-8").split('<nav class="tree"')[1].split("</nav>")[0]
-                self.assertIn(">Lifecycle</a></summary>", tree)
-                positions = [tree.index(f"{number}. ") for number in (1, 2, 3)]
-                self.assertEqual(positions, sorted(positions))
-        tree = self.stage_page(outputs, "middle").split('<nav class="tree"')[1].split("</nav>")[0]
-        self.assertIn('<details open><summary><a href="../index.html">Lifecycle</a>', tree)
-        self.assertIn('<a href="index.html" aria-current="page">2. Middle step</a>', tree)
-        self.assertEqual(tree.count('aria-current="page"'), 1)
-
-    def test_lifecycle_branch_is_collapsed_on_unrelated_pages_and_current_on_overview(self) -> None:
-        outputs = self.build(self.make_repo())
-        guide_tree = outputs["e/guide/index.html"].decode("utf-8").split('<nav class="tree"')[1]
-        self.assertIn("<li><details><summary><a href=\"../../lifecycle/index.html\">Lifecycle</a>", guide_tree)
-        overview_tree = self.lifecycle(outputs).split('<nav class="tree"')[1]
-        self.assertIn('<a href="index.html" aria-current="page">Lifecycle</a>', overview_tree)
-
-    def test_component_page_lists_the_stages_that_use_it(self) -> None:
-        outputs = self.build(self.make_repo())
-        guide = self.page(outputs, "guide")
-        section = guide.split('id="lifecycle-usage"')[1].split("</section>")[0]
-        self.assertIn("<h2>Used in lifecycle stages</h2>", section)
-        self.assertIn('<a href="../../lifecycle/start/index.html">Stage 1: Start here</a>', section)
-        self.assertIn('<a href="../../lifecycle/middle/index.html">Stage 2: Middle step</a>', section)
-        self.assertNotIn("Finish", section)
-        self.assertIn('Stage 3: Finish', self.page(outputs, "specs.alpha"))
-
-    def test_component_without_a_stage_has_no_usage_section(self) -> None:
-        outputs = self.build(self.make_repo())
-        self.assertNotIn("lifecycle-usage", self.page(outputs, "specs"))
-
-    # -- invalid stage definitions -------------------------------------------------
-
-    def test_invalid_stage_definitions_fail_naming_the_stage(self) -> None:
-        cases = {
-            "duplicate order": (MAP.replace('title = "Finish"\norder = 3', 'title = "Finish"\norder = 2'), ("stage 'finish'", "order 2 duplicates stage 'middle'")),
-            "gapped order": (MAP.replace('title = "Finish"\norder = 3', 'title = "Finish"\norder = 4'), ("stage 'finish'", "order 4 is not contiguous", "expected 3")),
-            "order not starting at 1": (
-                MAP.replace('title = "Start here"\norder = 1', 'title = "Start here"\norder = 0'),
-                ("stage 'start'", "positive integer"),
-            ),
-            "order starting above 1": (
-                MAP.replace('order = 1\nelements = ["home", "guide"]', 'order = 5\nelements = ["home", "guide"]'),
-                ("stage 'middle'", "order 2 is not contiguous", "expected 1"),
-            ),
-            "non-integer order": (MAP.replace('title = "Finish"\norder = 3', 'title = "Finish"\norder = "3"'), ("stage 'finish'", "'order' must be an integer")),
-            "duplicate id": (MAP.replace('id = "finish"', 'id = "middle"'), ("duplicate stage id 'middle'",)),
-            "bad id": (MAP.replace('id = "finish"', 'id = "Finish_Line"'), ("stage 'Finish_Line'", "kebab-case")),
-            "missing element": (MAP.replace('elements = ["other", "specs.alpha"]', 'elements = ["other", "ghost"]'), ("stage 'finish'", "unknown element 'ghost'")),
-            "repeated element": (MAP.replace('elements = ["guide"]', 'elements = ["guide", "guide"]'), ("stage 'middle'", "more than once")),
-            "empty elements": (MAP.replace('elements = ["guide"]', "elements = []"), ("stage 'middle'", "'elements' must not be empty")),
-            "empty sources": (MAP.replace('title = "Finish"\norder = 3\nelements = ["other", "specs.alpha"]\nsources = ["README.md#Other"]', 'title = "Finish"\norder = 3\nelements = ["other", "specs.alpha"]\nsources = []'), ("stage 'finish'", "'sources' must not be empty")),
-            "missing sources key": (MAP.replace('elements = ["guide"]\nsources = ["docs/guide.md#Part", "docs/notes.md"]', 'elements = ["guide"]'), ("stage 'middle'", "missing required key(s): sources")),
-            "unknown key": (MAP.replace('title = "Finish"', 'title = "Finish"\nprose = "Stage text lives in sources"'), ("stage 'finish'", "unknown key(s): prose")),
-            "duplicate source": (MAP.replace('"docs/guide.md#Part", "docs/notes.md"', '"docs/notes.md", "docs/notes.md"'), ("stage 'middle'", "duplicate source")),
-            "absolute source": (MAP.replace('"docs/notes.md"]', '"/docs/notes.md"]'), ("stage 'middle'", "normalized repository-relative")),
-            "no stages": (ELEMENT_MAP, ("at least one [[stage]]",)),
-        }
-        for name, (text, needles) in cases.items():
-            with self.subTest(case=name):
-                self.assert_build_fails(self.make_repo({"explorer/map.toml": text}), *needles)
-
-    def test_unresolved_stage_sources_fail_naming_stage_and_source(self) -> None:
-        cases = {
-            "missing file": ("docs/notes.md", "docs/absent.md", "not a git-tracked file"),
-            "missing heading": ("docs/guide.md#Part", "docs/guide.md#Renamed", "heading 'Renamed' not found"),
-        }
-        for name, (old, new, reason) in cases.items():
-            with self.subTest(case=name):
-                root = self.make_repo({"explorer/map.toml": MAP.replace(f'"{old}"', f'"{new}"')})
-                self.assert_build_fails(root, "stage 'middle'", new, reason)
-
-    def test_renaming_a_heading_used_only_by_a_stage_fails_the_build(self) -> None:
-        text = ELEMENT_MAP + STAGES.replace('sources = ["README.md#Other"]', 'sources = ["docs/notes.md#Details"]')
-        root = self.make_repo({"explorer/map.toml": text, "docs/notes.md": NOTES + "\n## Details\n\nDetail text.\n"})
-        self.build(root)
-        self.write(root, "docs/notes.md", NOTES + "\n## Specifics\n\nDetail text.\n")
-        self.commit(root)
-        self.assert_build_fails(root, "stage 'finish'", "docs/notes.md#Details")
-
-    def test_untracked_and_policy_excluded_stage_sources_fail(self) -> None:
-        root = self.make_repo({".claude/notes.md": "# Notes\n\nlocal agent state\n"})
-        self.write(root, "explorer/map.toml", MAP.replace('"docs/notes.md"', '".claude/notes.md"'))
-        self.commit(root)
-        self.assert_build_fails(root, "stage 'middle'", ".claude/notes.md", "excluded by the public-distribution policy")
-
-    def test_unsupported_construct_in_a_stage_excerpt_names_stage_file_and_line(self) -> None:
-        root = self.make_repo({"docs/bad.md": "# Bad\n\nok\n\n<div>\nx\n</div>\n"})
-        self.write(root, "explorer/map.toml", MAP.replace('"docs/notes.md"', '"docs/bad.md"'))
-        self.commit(root)
-        self.assert_build_fails(root, "docs/bad.md:5:", "raw HTML block", "stage 'middle'")
-
-    def test_dangling_link_in_a_stage_excerpt_names_stage(self) -> None:
-        root = self.make_repo({"README.md": README.replace("Read the [guide](docs/guide.md)", "Read the [x](docs/nowhere.md)")})
-        self.write(root, "explorer/map.toml", ELEMENT_MAP + STAGES.replace('sources = ["README.md#Intro"]', 'sources = ["README.md#Other"]'))
-        self.commit(root)
-        self.assert_build_fails(root, "README.md:", "not a tracked")
-
-    def test_invalid_stage_writes_no_output_and_exits_non_zero(self) -> None:
-        root = self.make_repo({"explorer/map.toml": MAP.replace('elements = ["guide"]', 'elements = ["ghost"]')})
-        for command in ("build", "check"):
-            with self.subTest(command=command):
-                out = root.parent / f"site-{command}"
-                argv = ["--root", str(root), command] + (["--out", str(out)] if command == "build" else [])
-                code, stderr = self.run_main(*argv)
-                self.assertEqual(code, 2)
-                self.assertIn("stage 'middle'", stderr)
-                self.assertFalse(out.exists())
-
-    # -- no JavaScript, subpath, determinism ----------------------------------------
-
-    def test_lifecycle_pages_need_no_javascript(self) -> None:
-        outputs = self.build(self.make_repo())
-        for path in ("lifecycle/index.html", "lifecycle/start/index.html", "lifecycle/finish/index.html"):
-            with self.subTest(page=path):
-                page = outputs[path].decode("utf-8")
-                self.assertEqual(page.count("<script"), 1)
-                self.assertRegex(page, r'<script defer src="(?:\.\./)+assets/explorer\.js"></script>')
-                self.assertNotRegex(page, r"\son[a-z]+=")
-                # Flow, stage navigation and the tree are plain anchors and lists.
-                self.assertIn('<nav class="tree"', page)
-                self.assertIn("<li><a ", page)
-
-    def test_lifecycle_links_are_relative_and_resolve_under_a_subpath(self) -> None:
-        outputs = self.build(self.make_repo())
-        LinkTests("assert_links_resolve").assert_links_resolve(outputs)
-        for path in ("lifecycle/index.html", "lifecycle/start/index.html"):
-            with self.subTest(page=path):
-                hrefs = self.hrefs(outputs[path].decode("utf-8"))
-                self.assertTrue(hrefs)
-                self.assertFalse([href for href in hrefs if href.startswith("/")])
-        self.assertIn("../assets/explorer.css", self.hrefs(self.lifecycle(outputs)))
-        self.assertIn("../../assets/explorer.css", self.hrefs(self.stage_page(outputs, "start")))
-
-    def test_lifecycle_output_is_deterministic_and_location_independent(self) -> None:
-        root = self.make_repo()
-        copy = root.parent / "elsewhere" / "clone"
-        shutil.copytree(root, copy)
-        first, second = self.build(root), self.build(copy)
-        self.assertEqual(first, second)
-        self.assertEqual(first, self.build(root))
-        for path, content in first.items():
-            if path.startswith("lifecycle/"):
-                self.assertNotIn(str(root.parent).encode(), content, path)
-
-    def test_stylesheet_stacks_the_flow_vertically_on_narrow_screens(self) -> None:
-        css = (ROOT / "explorer" / "assets" / "explorer.css").read_text(encoding="utf-8")
-        narrow = css.split("@media (max-width: 52rem) {")[1]
-        self.assertIn(".flow { display: block; }", narrow)
-        self.assertIn(".stage-pager ul { flex-direction: column; }", narrow)
-
-
 class DeterminismTests(FixtureTestCase):
     def test_identical_inputs_produce_byte_identical_output(self) -> None:
         root = self.make_repo()
@@ -787,7 +721,7 @@ class UnsupportedConstructTests(FixtureTestCase):
             '<input type="checkbox" disabled checked>', '<input type="checkbox" disabled>',
             '<th style="text-align:left">Name</th>', '<td style="text-align:right"><code>c</code></td>', "a | b",
             '<code class="language-bash">echo &quot;&lt;tag&gt;&quot; &amp;&amp; ls</code>',
-            '<h2 id="s-second">Second</h2>',
+            '<h3 id="s-second">Second</h3>',
             '<a href="https://example.test/path" rel="noopener noreferrer">https://example.test/path</a>.', "<br>",
         ):
             with self.subTest(fragment=fragment):
@@ -1017,32 +951,29 @@ class RealRepositoryTests(unittest.TestCase):
                 "verification", "publication-integration", "release-rollout", "feedback-learning",
             ],
         )
-        self.assertEqual([stage.order for stage in self.site.stages], list(range(1, len(self.site.stages) + 1)))
+        self.assertEqual([stage.data["order"] for stage in self.site.stages], list(range(1, len(self.site.stages) + 1)))
 
-    def test_every_real_stage_has_pages_neighbours_components_and_source_prose(self) -> None:
-        self.assertIn("lifecycle/index.html", self.outputs)
-        overview = self.outputs["lifecycle/index.html"].decode("utf-8")
+    def test_every_real_stage_has_a_page_neighbours_and_engineering_links(self) -> None:
         count = len(self.site.stages)
         for index, stage in enumerate(self.site.stages):
             with self.subTest(stage=stage.id):
-                self.assertIn(f'href="{stage.id}/index.html"', overview)
                 page = self.outputs[f"lifecycle/{stage.id}/index.html"].decode("utf-8")
-                self.assertEqual('rel="prev"' in page, index > 0)
-                self.assertEqual('rel="next"' in page, index < count - 1)
-                components = page.split('id="components"')[1].split("</section>")[0]
-                self.assertIn('href="../../e/', components)
-                self.assertIn('class="excerpt"', page)
-                for target in stage.elements:
-                    self.assertIn(f'href="../../e/{target}/index.html"', components)
+                self.assertIn('<nav class="pn"', page)
+                self.assertEqual("ПРЕДЫДУЩИЙ ЭТАП" in page, index > 0)
+                self.assertEqual("СЛЕДУЮЩИЙ ЭТАП" in page, index < count - 1)
+                entry = next(item for item in self.site.map_stages if item.id == stage.id)
+                for target in entry.elements:
+                    self.assertIn(f'href="../../e/{target}/index.html"', page)
 
     def test_component_pages_list_every_stage_that_names_them(self) -> None:
-        for stage in self.site.stages:
-            for target in stage.elements:
+        for entry in self.site.map_stages:
+            stage = self.site.stage_by_id[entry.id]
+            for target in entry.elements:
                 with self.subTest(stage=stage.id, element=target):
                     page = self.outputs[f"e/{target}/index.html"].decode("utf-8")
-                    self.assertIn(f'<a href="../../lifecycle/{stage.id}/index.html">Stage {stage.order}: ', page)
+                    self.assertIn(f'<a href="../../lifecycle/{stage.id}/index.html">Этап {stage.data["order"]}: ', page)
 
-    def test_stage_entries_carry_structure_only(self) -> None:
+    def test_map_stage_entries_carry_links_only(self) -> None:
         text = (ROOT / "explorer" / "map.toml").read_text(encoding="utf-8")
         stage_keys = {
             line.split("=", 1)[0].strip()
@@ -1050,7 +981,7 @@ class RealRepositoryTests(unittest.TestCase):
             for line in chunk.split("[[", 1)[0].splitlines()
             if "=" in line and not line.lstrip().startswith("#")
         }
-        self.assertEqual(stage_keys, {"id", "title", "order", "elements", "sources"})
+        self.assertEqual(stage_keys, {"id", "elements"})
 
     def test_real_build_is_deterministic(self) -> None:
         self.assertEqual(self.outputs, explorer.build_site(ROOT)[1])

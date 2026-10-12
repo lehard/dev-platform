@@ -1,0 +1,8 @@
+id = "friction"
+kind = "term"
+title = "friction"
+definition = "friction — значимое затруднение агента: поправка пользователя, повторный сбой, почти-нарушение безопасности, неописанный инвариант или лишние повторы. Оно записывается через `agent_friction.py` как обезличенное свидетельство для улучшения процесса, а не как задача."
+sources = [
+  "docs/engineering/agent-workflow.md#Friction routing",
+  "README.md#Continuous improvement / friction loop",
+]

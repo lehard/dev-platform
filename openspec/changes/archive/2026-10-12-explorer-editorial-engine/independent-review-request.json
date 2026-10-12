@@ -1,0 +1,118 @@
+{
+  "candidate": {
+    "base_head": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "base_ref": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "candidate_head": "6d0af9d2313485bbd853dda63802a110ce297e70",
+    "diff_sha256": "442392178cf8b9457cb07ff1eb3bbf8a0494643b57a9482041ad8c0d2171fb05"
+  },
+  "change": "openspec/changes/explorer-editorial-engine",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/explorer-editorial-engine/automated-checks.json",
+    "openspec/changes/explorer-editorial-engine/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/explorer-editorial-engine/design.md",
+        "openspec/changes/explorer-editorial-engine/proposal.md",
+        "openspec/changes/explorer-editorial-engine/specs/explorer-publication/spec.md",
+        "openspec/changes/explorer-editorial-engine/specs/platform-explorer/spec.md",
+        "openspec/changes/explorer-editorial-engine/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/explorer-editorial-engine/proposal.md",
+        "openspec/changes/explorer-editorial-engine/design.md",
+        "openspec/changes/explorer-editorial-engine/tasks.md",
+        "openspec/changes/explorer-editorial-engine/specs/explorer-publication/spec.md",
+        "openspec/changes/explorer-editorial-engine/specs/platform-explorer/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-11T21:41:35+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/explorer-editorial-engine/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "87d32e1a-8e1d-4e1d-822b-953fc336ac42",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "digest": "a3ee0bbe5addb780f49e4ce92746ffd8116023ff05cd14b80853f8947cd92e6f",
+    "paths": {
+      ".github/workflows/explorer.yml": "8ef8da35aa3da29235adfe721fbdb31c96ad5ade",
+      "dev-platform/checks.toml": "9d857c6d7eb6a822f704ceae7c34695eec305bda",
+      "docs/engineering/explorer.md": "0348f3b43f3fad19ff8e352e09a028af71e74e03",
+      "explorer/assets/explorer.css": "c3d9c293de0de91074538367a078375271b49df4",
+      "explorer/assets/explorer.js": "7931e70b3a06eae849a0960cefd22b6a305d9cbd",
+      "explorer/editorial-review.json": "7c3639a1560c00f7f421062a61f0524aa6ee4430",
+      "explorer/map.toml": "bedb9a9e9f667e395e7b18446f9939e2d4fe9299",
+      "explorer/nodes/add-openspec.toml": "1ebbdd5f7416ff4372df6f919ecf86bf58d198f4",
+      "explorer/nodes/adoption.toml": "c861ddeb66bc91c032cb0992e1e32957d11dc414",
+      "explorer/nodes/business-requirement.toml": "da9d44563165ae762403a40eaeb5e2308472d6cf",
+      "explorer/nodes/chatgpt-project.toml": "4bc1d9030a06f1d6e28ecd12d940dd75577f0b3b",
+      "explorer/nodes/copier-rollout.toml": "cba045e5a66b586b68f5475020d8b8ed381c7afd",
+      "explorer/nodes/executor-routing.toml": "c0ebaf83dfd9164b22f2d3c80039b5ea623ff6ae",
+      "explorer/nodes/executors.toml": "4a178385de35d46ecb9cc2c778c9a622ed8d5165",
+      "explorer/nodes/feedback-learning.toml": "b67cab3aa969ef84899a8ddafa0f130994e3402a",
+      "explorer/nodes/friction-retrospectives.toml": "acc3d702487cee3e877e384a0f250b7cf0d232b3",
+      "explorer/nodes/glossary.toml": "87212d58fc8b7b2968ec3ef5504fc039e0be48f8",
+      "explorer/nodes/goal-refinement.toml": "14ea7cbff2d4d073801a00c6a4b0cd1950739d97",
+      "explorer/nodes/incubator.toml": "32376db910ffe72c3d290cd2098bc3041e9f0ea9",
+      "explorer/nodes/independent-review.toml": "d5647493621f0ea540a3ca28041acff1687acdf5",
+      "explorer/nodes/isolated-implementation.toml": "e1665de0da00eefb6b36c6e64b776b59f6b62398",
+      "explorer/nodes/lifecycle-workers.toml": "11c6e54aef798e68be5213c75304bfd15060d728",
+      "explorer/nodes/overview.toml": "0819b1776e3f22d63d45d31b9f5c6104444aa19a",
+      "explorer/nodes/ownership.toml": "61c47f27fd5ed8900bef91a10fb5aca54c489608",
+      "explorer/nodes/platform-releases.toml": "7b8f4c6ed712968cb090515628377a4544ae48a9",
+      "explorer/nodes/pr-queue-integration.toml": "de536898bf3b555f1852049016ed14ab68010180",
+      "explorer/nodes/publication-integration.toml": "6e24c27e2d07b573ae37556dcfcd02e520441c76",
+      "explorer/nodes/release-rollout.toml": "21596e16811fde2da6b8d4706d7a9bdddde36bbe",
+      "explorer/nodes/repair-job.toml": "168e1fb270ce571d9c5332a6dab859bcd4d80ce9",
+      "explorer/nodes/requirement-intake.toml": "b63d43152971d08c03d1af9885e32908ec3119e8",
+      "explorer/nodes/requirement-intent.toml": "5f23169d2aa5a3c037a30e4ee6e41e2577b9817a",
+      "explorer/nodes/review-decisions.toml": "bde59cd5b12cf5f605b9179b5c9ccf05babf49fe",
+      "explorer/nodes/review-perspectives.toml": "b5783a360d5b4c5b847c52984bbddebb240b1bde",
+      "explorer/nodes/routing.toml": "016588c83769bb60d57a86db16220ea425ee9c99",
+      "explorer/nodes/sources-of-truth.toml": "089368bab5750564349024c5c9d56712746ef1a0",
+      "explorer/nodes/specification.toml": "459e0c4e11842db6f8c7b2b63cf8f2d1788ce7b2",
+      "explorer/nodes/verification-checks.toml": "675818d907d03a932d59b4d2b3c9fa43066acffc",
+      "explorer/nodes/verification.toml": "46d4c0512168129137f94a5ace22ea988ee10bf8",
+      "explorer/nodes/worktrees.toml": "ab30677c8ee708c982fa95bfdf70593afd1f282a",
+      "openspec/changes/explorer-editorial-engine/.managed-task.json": "8a8c8e290bbb0b5d74dd7dd5bca3acdee94ed0cf",
+      "openspec/changes/explorer-editorial-engine/.openspec.yaml": "a369219628ff8b409dab0cc6549c53080045fd98",
+      "openspec/changes/explorer-editorial-engine/design.md": "790662140fe9ed0f2a1f54b74e1b8ce3fe083a8a",
+      "openspec/changes/explorer-editorial-engine/proposal.md": "837ec41100fd997f5b21fd29a2c425a8cc94b52b",
+      "openspec/changes/explorer-editorial-engine/specs/explorer-publication/spec.md": "f70775fba6ea5bfc7c9c40eb9da6387bdfd7703a",
+      "openspec/changes/explorer-editorial-engine/specs/platform-explorer/spec.md": "cdb0af17eb15a3242e9e2bb8fb76e726bf3e34b2",
+      "openspec/changes/explorer-editorial-engine/tasks.md": "78fdb81030949b11080dc572cc1181a1487a0954",
+      "scripts/build_explorer.py": "50b743d225e22a89d8263f553d0b7104a945d8cb",
+      "scripts/select_checks.py": "805f6e73c5e0f5cf9f9885dc5d803caa33c07d94",
+      "tests/test_build_explorer.py": "b8134c6e1d118deb589e1934170f85c87974e836",
+      "tests/test_build_explorer_editorial.py": "1d5096ddc9dd07281487760a618638ff494ffa8a",
+      "tests/test_explorer_workflow.py": "84d3f1541ce352ba717407fd710dd6c769409aa7"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -1,0 +1,8 @@
+id = "add"
+kind = "term"
+title = "ADD"
+definition = "ADD (Architecture Design Delta) — дельта архитектуры: ограниченный документ перед OpenSpec, который фиксирует только новые или изменённые последствия требования относительно уже принятой системы. Это промежуточное свидетельство, а не второй бэклог и не контракт реализации."
+sources = [
+  "docs/engineering/agent-workflow.md#ADD -> Intents pre-authoring pipeline",
+  "dev-platform/capabilities/add-intents.md#ADD (Architecture Design Delta)",
+]

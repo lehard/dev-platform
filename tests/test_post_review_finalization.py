@@ -578,6 +578,9 @@ workflow_profile = "standard"
 harness_mode = "platform"
 publish_mode = "pr"
 scm_provider = "github"
+
+[capabilities]
+agent_board = true
 """
 
 
@@ -650,6 +653,8 @@ class ProvenBaseFinalizeTests(MainMovesCase):
             outcome, _ = self.finalize(fixture)
             self.assertEqual(outcome["status"], "finalized", outcome)
             self.assertEqual(self.ran.read_text(), "ran")
+            # agent_board is required by the contract, yet the proven-base run needs no machine-local board.
+            self.assertFalse((self.repo.root / ".claude" / "agents-board.json").exists())
             candidate = fixture.candidate()
             self.assertEqual(candidate["state"], "ready")
             evidence = candidate["gates"]["selected-checks"]["evidence"]

@@ -1,0 +1,8 @@
+id = "openspec"
+kind = "term"
+title = "OpenSpec"
+definition = "OpenSpec — внешний инструмент спецификаций. Пакет изменения в `openspec/changes/<change>/` состоит из `proposal.md` (цель и объём), дельта-спецификаций (наблюдаемое поведение), `design.md` (технический подход) и `tasks.md` (порядок работы); после архива принятое поведение живёт в `openspec/specs/`."
+sources = [
+  "docs/engineering/openspec-workflow.md#Contract model",
+  "docs/engineering/openspec-workflow.md#No silent divergence",
+]
