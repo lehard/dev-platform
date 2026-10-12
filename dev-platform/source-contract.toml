@@ -18,6 +18,14 @@ publish_mode = "pr"
 pr_merge_mode = "auto"
 scm_provider = "github"
 
+[capabilities]
+openspec = true
+github_sync = true
+feature_branches = true
+worktrees = true
+agent_board = true
+platform_git_lifecycle = true
+
 [paths]
 worktrees = ".claude/worktrees"
 agent_board = ".claude/agents-board.json"

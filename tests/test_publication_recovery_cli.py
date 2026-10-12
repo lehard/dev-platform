@@ -33,7 +33,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"):
+    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 
@@ -54,9 +54,9 @@ class PublicationRecoveryCliTests(unittest.TestCase):
         configure(seed)
         install_scripts(seed)
         (seed / "README.md").write_text("seed\n", encoding="utf-8")
-        (seed / ".gitignore").write_text("__pycache__/\n*.py[cod]\n", encoding="utf-8")
+        (seed / ".gitignore").write_text(".claude/\n__pycache__/\n*.py[cod]\n", encoding="utf-8")
         (seed / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n[capabilities]\nagent_board = false\n',
             encoding="utf-8",
         )
         git("add", ".", cwd=seed)
@@ -154,7 +154,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
     def test_status_is_read_only_and_reports_not_applicable_for_project_harness(self) -> None:
         self.make_feature("agent/status-project")
         (self.repo / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "light"\nharness_mode = "project"\npublish_mode = "pr"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "light"\nharness_mode = "project"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n',
             encoding="utf-8",
         )
         result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo)
@@ -239,7 +239,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
 
     def test_manual_pr_mode_publishes_without_attempting_any_merge(self) -> None:
         (self.repo / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "manual"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "manual"\n[capabilities]\nagent_board = false\n',
             encoding="utf-8",
         )
         git("add", ".dev-platform.toml", cwd=self.repo)
@@ -268,7 +268,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
     def test_harness_mode_project_still_rejects_normal_finish(self) -> None:
         self.make_feature("agent/project-harness")
         (self.repo / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "light"\nharness_mode = "project"\npublish_mode = "pr"\n',
+            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "light"\nharness_mode = "project"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n',
             encoding="utf-8",
         )
         result = run("python3", "scripts/finish_task.py", cwd=self.repo, check=False)

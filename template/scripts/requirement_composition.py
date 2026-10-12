@@ -380,6 +380,20 @@ def execute_composition_finalize(checkout: Path, job: dict, gates: dict, *, sour
                 "evidence": {"head": head, "changes": manifest["expected_changes"]}}}}
 
 
+def _offer_premerge_retrospective(root: Path, repo: str, number: int, head: str, identity: dict, adapter) -> None:
+    """Offer the pre-merge retrospective at the next bounded attempt, so a blocked result is retried."""
+    from candidate_lifecycle import premerge_retrospective_attempt
+
+    comments = adapter._comments(root, repo, number)
+    try:
+        attempt = premerge_retrospective_attempt(number, head, comments, adapter.trusted_apps(root),
+                                                 adapter.trusted_writers(root, comments))
+    except ValueError as exc:
+        raise workers.WorkerError(str(exc)) from exc
+    adapter.publish_job(root, repo, number, "retrospective", head, task_identity=identity, attempt=attempt,
+                        phase="pre-merge")
+
+
 def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, number: int, *, adapter,
                               source_repo=None, full_checks=None, checkpoint=None, enqueue=True) -> dict:
     """Check the parent retrospective and full final head before readiness and queue admission."""
@@ -397,12 +411,12 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
             return {"status": "await-composition-finalization", "head": head}
         retrospective = candidate.get("gates", {}).get("requirement-retrospective")
         if checkpoint is None and not reusable(checkout, retrospective, identity):
-            adapter.publish_job(root, repo, number, "retrospective", head, task_identity=identity, phase="pre-merge")
+            _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
             return {"status": "await-requirement-retrospective", "head": head}
         try:
             receipt = (checkpoint or require_checkpoint)(root, requirement=contributions.private_requirement(root, manifest))
         except RequirementRetrospectiveError:
-            adapter.publish_job(root, repo, number, "retrospective", head, task_identity=identity, phase="pre-merge")
+            _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
             return {"status": "await-requirement-retrospective", "head": head}
         full = candidate.get("gates", {}).get("full-checks", {})
         if full.get("evidence", {}).get("head") != head or not reusable(checkout, full, identity):

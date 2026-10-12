@@ -1,0 +1,8 @@
+id = "quick-task"
+kind = "term"
+title = "quick task"
+definition = "quick task — небольшое ясное изменение, которое идёт обычным путём задачи с проверками и `finish`, без Requirement, Issue в бэклоге и церемониального OpenSpec. Если изменение разрастается до существенного, работа останавливается и входит через Requirement."
+sources = [
+  "AGENTS.md#Task intents",
+  "docs/engineering/task-intake.md#Escalating quick work",
+]

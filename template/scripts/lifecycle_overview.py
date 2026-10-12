@@ -305,6 +305,7 @@ def _has_lifecycle_record(comments: list[dict], apps: frozenset[str], writers: f
 def observe_candidate(root: Path, repo: str, pr: dict, *, now: datetime, threshold: int) -> dict | None:
     """Assess one PR from live GitHub state; ``None`` when it carries no lifecycle record."""
     import publication_queue as queue
+    from candidate_lifecycle import MalformedMarkerError
     from lifecycle_workers import CLAIM_PREFIX, RESULT_PREFIX
 
     number = pr["number"]
@@ -321,7 +322,7 @@ def observe_candidate(root: Path, repo: str, pr: dict, *, now: datetime, thresho
             candidate = queue.candidate_from_snapshot(root, repo, pr, comments, checks)
         return assess_candidate(candidate, pr, comments, repo=repo, apps=apps, writers=writers, now=now,
                                 threshold_minutes=threshold)
-    except (queue.QueueError, ValueError) as exc:
+    except (queue.QueueError, MalformedMarkerError, ValueError) as exc:
         return {"number": number, "url": _pr_url(repo, number), "head": (pr.get("head") or {}).get("sha"),
                 "state": None, "stage": "unknown", "reason": str(exc), "chain": [], "attempts": {}, "job": None,
                 "executor": {"claimed_by": None, "activity": EXECUTOR_NOT_CONFIRMED},

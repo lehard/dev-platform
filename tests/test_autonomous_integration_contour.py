@@ -427,6 +427,21 @@ class IntegrationRepairTests(RepairFixture):
             self.assertFalse(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
             self.assertEqual(len(fixture.comments), count)
 
+    def test_validated_push_recovery_without_a_recorded_lineage_head_is_an_error(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            job = workers.build_job(fixture.candidate())
+            git(self.repo.root, "commit", "-q", "--allow-empty", "-m", "repair")
+            self.repo.push("agent/example")
+            fixture.comments.append({"id": 100, "author_association": "OWNER", "body": workers.result_body(
+                job, "w", "validated-push", self.repo.head("agent/example"), task_identity=self.identity)})
+            pr = queue._pr(self.repo.root, "o/r", 7)
+            count = len(fixture.comments)
+            with mock.patch.object(queue, "_latest", return_value=None):
+                with self.assertRaisesRegex(queue.QueueError, "no recorded lineage head"):
+                    contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments))
+            self.assertEqual(len(fixture.comments), count)
+
     def test_unchanged_identity_reuses_evidence_and_reruns_required_checks(self):
         with QueueFixture(ROOT, HEAD) as fixture:
             good = {"result": "passed", "identity": IDENTITY, "evidence": {}}
@@ -795,6 +810,14 @@ class PostMergeJobTests(FrictionFixture):
                 mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
                 mock.patch.object(queue, "trusted_writers", return_value=frozenset()):
             with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when PR #7 was admitted"):
+                contour.LifecycleOps().candidate_admitted_at(self.root, 7)
+
+    def test_malformed_first_record_blocks_the_admission_proof_naming_the_comment(self):
+        broken = {"id": 77, "author_association": "OWNER", "body": "dev-platform-publication-queue:v2 {broken"}
+        with mock.patch.object(queue, "_repo", return_value="o/r"), mock.patch.object(queue, "_comments", return_value=[broken]), \
+                mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
+                mock.patch.object(queue, "trusted_writers", return_value=frozenset()):
+            with self.assertRaisesRegex(contour.JobBlocked, "cannot prove when PR #7 was admitted: malformed marker comment 77"):
                 contour.LifecycleOps().candidate_admitted_at(self.root, 7)
 
     def test_unreadable_friction_log_is_not_a_clean_result(self):

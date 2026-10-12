@@ -22,6 +22,7 @@ from _platform_common import (
     read_platform_config,
     require_fresh_task_base,
     require_handoff_task_base,
+    require_main_branch,
     require_proven_task_base,
     run_git,
     validation_subprocess_env,
@@ -35,14 +36,7 @@ except (ImportError, ModuleNotFoundError):  # Compatibility while old renders ar
     def require_managed_checkout_identity(root: Path, *, expected_change: str | None = None, expected_source_issue: str | None = None):
         return None
 
-try:
-    from agent_board import HardScopeOverlap, enforce_scope_gate
-except (ImportError, ModuleNotFoundError):  # Compatibility while an older rendered project is being upgraded.
-    class HardScopeOverlap(RuntimeError):
-        pass
-
-    def enforce_scope_gate(root: Path, worktree: Path, branch: str) -> None:
-        return None
+from agent_board import HardScopeOverlap, enforce_scope_gate
 
 try:
     from managed_project_status import block_for_scope_conflict
@@ -516,6 +510,23 @@ def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
         raise gate_failure("proven-base-freshness", refused + str(exc), SystemExit) from exc
 
 
+def require_disposable_checkout(root: Path) -> None:
+    """Refuse ``--scope-gate not-applicable`` in a task checkout: only a plain, disposable checkout may declare it.
+
+    A linked task worktree (git dir differs from the common git dir) or a checkout holding managed task
+    state is a local task worktree, which always enforces the multi-agent scope gate.
+    """
+    refused = "--scope-gate not-applicable is refused: "
+    git_dir = run_git(["rev-parse", "--absolute-git-dir"], cwd=root).stdout.strip()
+    common_dir = run_git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root).stdout.strip()
+    if Path(git_dir).resolve() != Path(common_dir).resolve():
+        raise SystemExit(refused + f"{root} is a linked task worktree, which always enforces the scope gate; "
+                         "the flag is for plain disposable checkouts such as CI")
+    if (root / ".managed-task-state.json").exists():
+        raise SystemExit(refused + f"{root} holds managed task state (.managed-task-state.json), so it is a task "
+                         "checkout that always enforces the scope gate")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
@@ -545,6 +556,18 @@ def main() -> int:
     parser.add_argument("--mode", choices=("local-affected", "protected-full"), default="local-affected")
     parser.add_argument("--protected-full", action="store_true", help="Alias for --mode protected-full.")
     parser.add_argument("--full", action="store_true", help="Deprecated alias for --mode protected-full.")
+    parser.add_argument(
+        "--scope-gate",
+        choices=("enforce", "not-applicable"),
+        default="enforce",
+        help=(
+            "enforce (default): the multi-agent scope gate is required whenever [capabilities] agent_board is true and "
+            "every unmet precondition stops the run. not-applicable: declare a disposable checkout with no machine-local "
+            "board (CI); the run prints that the gate was not applied, and the flag is refused in a linked task worktree "
+            "or a checkout with managed task state. --proven-base and --contribution-base "
+            "(coordinator disposable checkouts) declare the same by their mode."
+        ),
+    )
     parser.add_argument(
         "--declare-behavior-change",
         metavar="RUNTIME",
@@ -621,9 +644,7 @@ def main() -> int:
                 # Developer handoff evidence: a coordinator candidate behind a disjoint,
                 # cleanly mergeable main passes; the queue merges main and gates on the
                 # integrated head. Any other head keeps the fresh-base rule.
-                main_branch = read_platform_config(root).get("main_branch")
-                if not isinstance(main_branch, str) or not main_branch:
-                    raise SystemExit("Task freshness gate blocked: main_branch must be a non-empty string in .dev-platform.toml")
+                main_branch = require_main_branch(read_platform_config(root), SystemExit)
                 try:
                     currency = require_handoff_task_base(root, "origin", main_branch)
                 except TaskFreshnessError as exc:
@@ -639,21 +660,32 @@ def main() -> int:
                         f"{currency.describe('origin/' + main_branch)}; merge base {currency.base}."
                     )
             else:
+                main_branch = require_main_branch(read_platform_config(root), SystemExit)
                 try:
-                    observed = require_fresh_task_base(root, "origin", str(read_platform_config(root).get("main_branch", "main")))
+                    observed = require_fresh_task_base(root, "origin", main_branch)
                 except TaskFreshnessError as exc:
                     raise gate_failure(
                         "task-freshness",
                         "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc),
                         SystemExit,
                     ) from exc
-                print(f"Task freshness gate passed: HEAD contains freshly observed origin/{read_platform_config(root).get('main_branch', 'main')} ({observed}).")
+                print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({observed}).")
             branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
-            try:
-                enforce_scope_gate(main_root(), root, branch)
-            except HardScopeOverlap as exc:
-                block_for_scope_conflict(root, str(exc))
-                raise SystemExit(str(exc)) from exc
+            if args.proven_base is not None or args.contribution_base is not None:
+                declared = "coordinator disposable checkout (--proven-base/--contribution-base)"
+            elif args.scope_gate == "not-applicable":
+                require_disposable_checkout(root)
+                declared = "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
+            else:
+                declared = None
+            if declared is not None:
+                print(f"Scope gate not applicable: {declared}.")
+            else:
+                try:
+                    enforce_scope_gate(main_root(), root, branch)
+                except HardScopeOverlap as exc:
+                    block_for_scope_conflict(root, str(exc))
+                    raise SystemExit(str(exc)) from exc
         return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), base_contract)
     return 0
 

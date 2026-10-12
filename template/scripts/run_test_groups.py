@@ -247,7 +247,9 @@ _DEFAULT_JOBS_CEILING = 4
 def resolve_jobs() -> tuple[int, str]:
     """Return the automatic parallelism and whether an operator selected it."""
     configured = os.environ.get("DEV_PLATFORM_TEST_JOBS")
-    if configured and configured.isdigit() and int(configured) > 0:
+    if configured is not None:
+        if not (configured.isascii() and configured.isdigit() and int(configured) > 0):
+            raise TestGroupError(f"DEV_PLATFORM_TEST_JOBS must be a positive integer, found {configured!r}")
         return int(configured), "DEV_PLATFORM_TEST_JOBS"
     return max(1, min(_DEFAULT_JOBS_CEILING, (os.cpu_count() or 2) - 1)), "auto-capped"
 
@@ -342,7 +344,11 @@ def main() -> int:
         print("--jobs must be a positive integer", file=sys.stderr)
         return 2
     else:
-        jobs, jobs_source = resolve_jobs()
+        try:
+            jobs, jobs_source = resolve_jobs()
+        except TestGroupError as exc:
+            print(f"Test group configuration blocked execution: {exc}", file=sys.stderr)
+            return 2
 
     try:
         require_early_routing_gate(root)

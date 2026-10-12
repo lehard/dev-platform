@@ -116,55 +116,16 @@ def project_check_env(environ: dict[str, str], home: Path, runtime: dict[str, li
     return env
 
 
-try:
-    from shared_workspace import (
-        SharedWorkspaceError,
-        atomic_write_text,
-        configure_shared_repository,
-        cooperative_umask,
-        ensure_shared_path,
-        posix_available,
-        preflight,
-        resolve_shared_group,
-    )
-except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
-    class SharedWorkspaceError(RuntimeError):
-        pass
-
-    def cooperative_umask() -> None:
-        if os.name == "posix":
-            os.umask(0o002)
-
-    def posix_available() -> bool:
-        return False
-
-    def ensure_shared_path(path: Path, *, group: object | None = None) -> None:
-        return None
-
-    def resolve_shared_group(root: Path) -> object | None:
-        return None
-
-    def configure_shared_repository(integration: Path) -> None:
-        subprocess.run(
-            ["git", "config", "core.sharedRepository", "group"],
-            cwd=integration,
-            capture_output=True,
-            check=False,
-        )
-
-    def preflight(root: Path, *, fix: bool = True, serializer: object | None = None) -> None:
-        cooperative_umask()
-
-    def atomic_write_text(path: Path, text: str) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
-        try:
-            with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
-                handle.write(text)
-            os.replace(temporary, path)
-        finally:
-            if os.path.exists(temporary):
-                os.unlink(temporary)
+from shared_workspace import (
+    SharedWorkspaceError,
+    atomic_write_text,
+    configure_shared_repository,
+    cooperative_umask,
+    ensure_shared_path,
+    posix_available,
+    preflight,
+    resolve_shared_group,
+)
 
 try:
     import fcntl
@@ -871,6 +832,17 @@ def harness_mode(config: dict[str, Any]) -> str:
 
 class PlatformConfigError(RuntimeError):
     """The committed platform contract is missing a required key or declares an unsupported combination."""
+
+
+def require_main_branch(config: dict[str, Any], exception_type: type[BaseException] = PlatformConfigError) -> str:
+    """Return ``main_branch`` from the committed contract; a missing or non-string value is an error.
+
+    Protected and coordinator checks use this instead of assuming ``main``: no default is substituted.
+    """
+    main_branch = config.get("main_branch")
+    if not isinstance(main_branch, str) or not main_branch:
+        raise exception_type("main_branch must be a non-empty string in .dev-platform.toml")
+    return main_branch
 
 
 def lifecycle_mode(config: dict[str, Any]) -> str:

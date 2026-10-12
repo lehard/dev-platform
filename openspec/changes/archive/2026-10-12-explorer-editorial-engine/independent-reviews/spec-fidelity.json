@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "base_ref": "8357b14d282e12e067f54191082fbad26ea1704b",
+    "candidate_head": "6d0af9d2313485bbd853dda63802a110ce297e70",
+    "diff_sha256": "442392178cf8b9457cb07ff1eb3bbf8a0494643b57a9482041ad8c0d2171fb05"
+  },
+  "completed_at": "2026-10-11T21:42:16+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/select_checks.py (candidate.diff ~4578-4602): with `--execute` and no `--base`, surface_explorer_drift prints an error and returns 2. main() then sets that as the exit code if the template selector succeeded. The same applies to any non-zero exit of `build_explorer.py drift --base`, for example an unresolvable merge base. Drift itself never fails, but drift reporting can fail the whole selected-checks run. This is a tool error, not drift, and the wrapper docstring says so. It is still stricter than 'no check fails because of it'.",
+      "id": "select-checks-drift-wrapper-can-fail",
+      "severity": "advisory",
+      "summary": "The select_checks.py wrapper can fail a selected-checks run for a reason tied to drift reporting. The delta says stale nodes must never fail any check."
+    }
+  ],
+  "launched_at": "2026-10-11T21:41:41+00:00",
+  "output_sha256": "3b36b06a5d9ff69d0e0df760d4874d186701b36579ea2e06bc57e204702cba40",
+  "perspective": "spec-fidelity",
+  "request_id": "87d32e1a-8e1d-4e1d-822b-953fc336ac42",
+  "reviewer": {
+    "context_id": "4c1b8f63-8597-4a15-b7f1-5a795632609c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-89c97c20-491f-44a1-9d1b-e908fc248ba3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 58304
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 253642
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32966
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34195
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3302
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a3ee0bbe5addb780f49e4ce92746ffd8116023ff05cd14b80853f8947cd92e6f"
+}

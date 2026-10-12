@@ -53,6 +53,16 @@ class PlatformCommonTests(unittest.TestCase):
         self.assertIs(observed, result)
         self.assertEqual(observed.returncode, 1)
 
+    def test_missing_shared_workspace_module_is_an_import_error_not_a_noop_stand_in(self) -> None:
+        driver = (
+            "import sys; sys.path.insert(0, sys.argv[1]); sys.modules['shared_workspace'] = None\n"
+            "import _platform_common\n"
+        )
+        done = subprocess.run([sys.executable, "-c", driver, str(SCRIPTS)], capture_output=True, text=True, check=False)
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("shared_workspace", done.stderr)
+        self.assertIn("ModuleNotFoundError", done.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

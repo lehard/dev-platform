@@ -18,7 +18,7 @@ from typing import Any, Mapping, Sequence
 
 from _platform_common import current_worktree_root, gate_message, read_platform_config, run_git
 from publication_state import required_check_state_for_ref
-from candidate_lifecycle import CLAIM_STATES, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
+from candidate_lifecycle import CLAIM_STATES, MalformedMarkerError, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
 QUEUE = "publication:queued"
@@ -57,6 +57,14 @@ class AttentionError(RuntimeError):
     """The escalation was published but its human-readable GitHub indication could not be posted.
 
     Deliberately not a ``QueueError``: callers that recover from queue failures must not swallow it.
+    """
+
+
+class MalformedRecord(QueueError):
+    """A trusted coordinator record is malformed.
+
+    ``candidate_lifecycle.MalformedMarkerError`` converted at the queue boundary (`_latest`, `_record_comment_id`)
+    so every queue path that maps ``QueueError`` handles it, with the message naming the comment id.
     """
 
 
@@ -161,8 +169,11 @@ def _derive(root: Path, pr: dict[str, Any], comments: list[dict[str, Any]], chec
 
 
 def _latest(root: Path, number: int, comments: list[dict[str, Any]], head: str | None = None) -> dict[str, Any] | None:
-    return latest_record(number, comments, trusted_apps=trusted_apps(root), head=head,
-                         trusted_writers=trusted_writers(root, comments))
+    try:
+        return latest_record(number, comments, trusted_apps=trusted_apps(root), head=head,
+                             trusted_writers=trusted_writers(root, comments))
+    except MalformedMarkerError as exc:
+        raise MalformedRecord(str(exc)) from exc
 
 
 def _repo(root: Path) -> str:
@@ -286,7 +297,11 @@ def _record_comment_id(root: Path, number: int, comments: list[dict[str, Any]], 
     apps, writers = trusted_apps(root), trusted_writers(root, comments)
     found = None
     for row in sorted(comments, key=lambda item: item.get("id", 0)):
-        if latest_record(number, [row], trusted_apps=apps, head=head, trusted_writers=writers) is not None:
+        try:
+            record = latest_record(number, [row], trusted_apps=apps, head=head, trusted_writers=writers)
+        except MalformedMarkerError as exc:
+            raise MalformedRecord(str(exc)) from exc
+        if record is not None:
             found = row.get("id")
     return found
 
@@ -511,8 +526,17 @@ def _transition(
     current = _derive(root, observed, comments)
     # Carry-forward and de-duplication use the persisted record, not the derived
     # view (which overlays checks, labels and a later v1 block).
-    previous = _latest(root, number, comments, head) or {}
-    lineage = _latest(root, number, comments) or {}
+    try:
+        previous = _latest(root, number, comments, head)
+        lineage = _latest(root, number, comments)
+    except MalformedRecord as exc:
+        if refuse_from:
+            raise LifecycleOwnershipChanged(f"candidate is now {current['state']}; {exc}") from exc
+        raise
+    if previous is None:
+        previous = {}  # legitimate absence: no record at this head yet (first transition, or a head the coordinator moved)
+    if lineage is None:
+        lineage = {}  # legitimate absence: no persisted record at all (first admission, or an admission that predates v2 records)
     if refuse_from:
         owner = None
         if review_owned(current) and "review-pending" in refuse_from:
@@ -708,9 +732,13 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:
     comments = _comments(root, repo, number)
     claimed = _derive(root, _pr(root, repo, number), comments)
-    newest = _latest(root, number, comments) or {}
+    if _malformed(claimed):
+        raise LifecycleOwnershipChanged(f"candidate is now {claimed['state']}; {claimed.get('reason') or claimed.get('next_action')}")
+    newest = _latest(root, number, comments)
+    if newest is None:
+        newest = {}  # legitimate absence: no trusted record, so no record claims the candidate
     exact_owner = claimed.get("head") == head and claimed.get("task_identity") is not None and claimed["state"] in NOT_INTEGRABLE
-    if _malformed(claimed) or exact_owner or newest.get("state") in CLAIM_STATES:
+    if exact_owner or newest.get("state") in CLAIM_STATES:
         raise LifecycleOwnershipChanged(
             f"candidate is now {newest.get('state') or claimed['state']}; {claimed.get('reason') or claimed.get('next_action')}")
 
@@ -921,13 +949,20 @@ def _material_findings(evidence: Any) -> bool:
         for report in evidence.values())
 
 
-def _descends(root: Path, ancestor: str, head: str) -> bool:
-    """Whether ``head`` contains ``ancestor`` (a fast-forward or a merge); unreadable history raises."""
-    done = run_git(["merge-base", "--is-ancestor", ancestor, head], cwd=root, check=False)
-    if done.returncode not in (0, 1):
-        raise QueueError(f"cannot prove that {head} descends from {ancestor}: "
-                         + (done.stderr or done.stdout).strip()[:200])
-    return done.returncode == 0
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    """Whether ``descendant`` contains ``ancestor`` (a fast-forward or a merge).
+
+    Three-valued: exit 0 is an ancestor, exit 1 is not, and any other exit is a git failure that
+    raises with the command, exit code and git's output instead of reading as "not an ancestor".
+    """
+    command = ["merge-base", "--is-ancestor", ancestor, descendant]
+    done = run_git(command, cwd=root, check=False)
+    if done.returncode == 0:
+        return True
+    if done.returncode == 1:
+        return False
+    raise QueueError(f"cannot prove that {descendant} descends from {ancestor}: git {' '.join(command)} "
+                     f"exited {done.returncode}: " + (done.stderr or done.stdout).strip()[:200])
 
 
 def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven: str, head: str,
@@ -988,7 +1023,7 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
                               trusted_writers=trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
         if claim is not None:
             raise refuse(f"its {job['kind']} job is claimed by {claim['worker']} until {claim['expires_at']}")
-    if not _descends(root, proven, head):
+    if not _is_ancestor(root, proven, head):
         raise refuse("the new head does not descend from the admitted head; push a fast-forward or merge, not a rewrite")
     return {"head": proven, "state": lineage["state"], "reason": "fresh developer handoff for a descendant head"}, lineage
 
@@ -1015,7 +1050,9 @@ def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any]
     That is a PR head moved away from the admitted (proven) head while the newest trusted
     record there is in ``READMISSION_STATES``; the coordinator neither integrates nor blocks it.
     """
-    newest = _latest(root, number, comments) or {}
+    newest = _latest(root, number, comments)
+    if newest is None:
+        return None  # legitimate absence: no trusted record, so nothing awaits re-admission
     head = pr.get("head", {}).get("sha")
     if newest.get("state") not in READMISSION_STATES or newest.get("head") == head:
         return None
@@ -1040,7 +1077,10 @@ def _earlier_slot_record(root: Path, repo: str, number: int, comments: list[dict
         return False
     if record_id < admission["comment_id"]:
         return True
-    record = _latest(root, number, comments, head) or {}
+    record = _latest(root, number, comments, head)
+    if record is None:
+        # `_record_comment_id` just found a trusted record for this head; its disappearance is a lost record.
+        raise QueueError(f"PR #{number} record at {head[:12]} (comment {record_id}) is no longer readable")
     blocks = [event["comment_id"] for event in _events(root, repo, number)
               if event.get("kind") == "block" and isinstance(event.get("comment_id"), int)]
     return (record.get("state") == "blocked-escalation" and (record.get("red_gate") or {}).get("name") == "publication"
@@ -1077,7 +1117,11 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         raise QueueError("queue admission requires one open PR at the exact validated head against main")
     branch = pr.get("head", {}).get("ref")
     if isinstance(branch, str) and branch.startswith("requirement/BR-") and not handoff:
-        identity = (_latest(root, number, _comments(root, repo, number), expected_head) or {}).get("task_identity", {})
+        composed = _latest(root, number, _comments(root, repo, number), expected_head)
+        if composed is None:
+            raise QueueError(f"requirement composition PR #{number} has no trusted coordinator record at {expected_head[:12]}; "
+                             "re-run the composition handoff")
+        identity = composed.get("task_identity", {})
     if not isinstance(branch, str) or not (branch.startswith("agent/")
         or (identity.get("kind") == "requirement-composition" and branch.startswith("requirement/BR-"))):
         raise QueueError("queue admission requires an owned task branch")
@@ -1146,7 +1190,10 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         # attempt published admission but stopped before writing the review record.
         supersedes = admitted.get("supersedes")
         if handoff and isinstance(supersedes, dict):
-            lineage = _latest(root, number, comments, supersedes["head"]) or {}
+            lineage = _latest(root, number, comments, supersedes["head"])
+            if lineage is None:
+                raise QueueError(f"PR #{number} supersedes {str(supersedes['head'])[:12]} but its lineage record is missing; "
+                                 "carry-forward of its gates cannot be proven")
             handoff_gates = resolved_handoff.get("gates")
             if not isinstance(handoff_gates, dict):
                 raise QueueError("re-admission handoff carries no gates")
@@ -1384,7 +1431,7 @@ def sync_merged_task(root: Path, branch: str, number: int) -> None:
     run_git(["fetch", "origin", f"pull/{number}/head"], cwd=root)
     if run_git(["rev-parse", "FETCH_HEAD"], cwd=root).stdout.strip() != remote_head:
         raise QueueError("fetched PR head differs from GitHub observation")
-    if run_git(["merge-base", "--is-ancestor", local, remote_head], cwd=root, check=False).returncode:
+    if not _is_ancestor(root, local, remote_head):
         raise QueueError("coordinator head does not descend from local task head")
     run_git(["merge", "--ff-only", remote_head], cwd=root)
 
@@ -1461,7 +1508,7 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
             raise QueueError("PR head changed outside coordinator control")
         prior_main = parents[2]
         run_git(["fetch", "origin", "main"], cwd=root)
-        if run_git(["merge-base", "--is-ancestor", prior_main, "origin/main"], cwd=root, check=False).returncode:
+        if not _is_ancestor(root, prior_main, "origin/main"):
             raise QueueError("unrecorded branch update is not based on main")
         expected_tree = run_git(["merge-tree", "--write-tree", proven, prior_main], cwd=root, check=False)
         actual_tree = run_git(["rev-parse", f"{head}^{{tree}}"], cwd=root).stdout.strip()
@@ -1480,10 +1527,10 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         # The admission base is main as observed at admission, not proof that the head contains
         # it (a Requirement composition head can be admitted on an older main): check ancestry.
         run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
-        if run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
+        if _is_ancestor(root, current_main, head):
             return head, current_main
     run_git(["fetch", "origin", "main"], cwd=root)
-    if run_git(["merge-base", "--is-ancestor", base, current_main], cwd=root, check=False).returncode:
+    if not _is_ancestor(root, base, current_main):
         raise QueueError("main no longer descends from admitted base")
     changed = set(run_git(["diff", "--name-only", f"{base}..{current_main}"], cwd=root).stdout.splitlines())
     task_paths = _task_paths(root, repo, admission)
@@ -1496,7 +1543,7 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         # checks on the actual merged candidate; a real conflict becomes integration repair.
         derived = set()
     run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
-    if derived and run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
+    if derived and _is_ancestor(root, current_main, head):
         return head, current_main  # already re-derived on this main: nothing to redo
     if derived:
         # Only the candidate's own archive-derived spec paths overlap main: re-derive them on the
@@ -1511,7 +1558,7 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     # If the previously prepared head already contains current main, do not
     # perform a redundant update or trigger another CI run.
     run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
-    if run_git(["merge-base", "--is-ancestor", current_main, head], cwd=root, check=False).returncode == 0:
+    if _is_ancestor(root, current_main, head):
         return head, current_main
     conflicts = merge_conflicts(root, head, current_main)
     if conflicts:
@@ -1771,7 +1818,17 @@ def worker(root: Path) -> dict[str, Any]:
     for _, number, admission in queue:
         pr = observed_prs[number]
         comments = _comments(root, repo, number)
-        identity = (_latest(root, number, comments) or {}).get("task_identity", {})
+        try:
+            newest_record = _latest(root, number, comments)
+        except MalformedRecord as exc:
+            if pr.get("merged"):  # a confirmed merge stays authoritative over a malformed record
+                _label(root, repo, number, QUEUE, present=False)
+                return {"state": "merged", "number": number}
+            blocked = _block(root, repo, number, str(exc))
+            skipped.append(f"#{number} blocked: {exc}"[:300])
+            continue
+        # legitimate absence: a candidate admitted before v2 records exists has no task identity to classify.
+        identity = newest_record.get("task_identity", {}) if newest_record is not None else {}
         if isinstance(identity, dict) and identity.get("kind") == "contribution":
             from requirement_contributions import merge_reviewed_contribution, ContributionError
             current = candidate_status(root, number, repo=repo)
@@ -1839,7 +1896,10 @@ def worker(root: Path) -> dict[str, Any]:
         # Only a record for the exact current head can hand the candidate to other
         # work; otherwise _prepare must still recover an interrupted branch update.
         exact_head_record = current.get("task_identity") is not None and current.get("head") == pr.get("head", {}).get("sha")
-        newest = (_latest(root, number, comments) or {}) if has_v2 else {}
+        newest = _latest(root, number, comments) if has_v2 else None
+        if newest is None:
+            # legitimate absence: a v1-only candidate, or v2 comments that are all untrusted and ignored by design.
+            newest = {}
         awaiting = _awaiting_readmission(root, repo, number, pr, comments, admission) if has_v2 else None
         if awaiting is not None:
             # The developer pushed a new head onto a candidate waiting for a human, a retry or an unclaimed
@@ -2020,7 +2080,12 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
     head_now = observed.get("head", {}).get("sha")
     comments = _comments(root, repo, number)
     current = _derive(root, observed, comments)
-    lineage = _latest(root, number, comments) or {}
+    try:
+        lineage = _latest(root, number, comments)
+    except MalformedRecord as exc:
+        return _block(root, repo, number, f"integration repair cannot read the lifecycle record: {exc}"[:500], head=head_now)
+    if lineage is None:
+        lineage = {}  # legitimate absence: an admission that predates v2 records has no attempts to count
     spent = max(current.get("attempts", {}).get("integration-repair", 0),
                 lineage.get("attempts", {}).get("integration-repair", 0))
     _label(root, repo, number, ACTIVE, present=False)
