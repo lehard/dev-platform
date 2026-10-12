@@ -3,30 +3,36 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "211f90b38d3a967652b7752d51113d3b315da2f9",
-    "diff_sha256": "abe6aafffcf85d9dd893c7ed9d7a003a28212bbb3cf2e5d7089331aa44440f74"
+    "candidate_head": "66f1d5b138fe45dfd3a9c2ee41921b4b7330034f",
+    "diff_sha256": "a38c91b0200d557c3e139a64575ea81f15fbac0d1298762bc7afdb84de4c9a53"
   },
-  "completed_at": "2026-10-12T07:20:26+00:00",
+  "completed_at": "2026-10-12T07:23:11+00:00",
   "findings": [
     {
-      "evidence": "scripts/rollout_project.py parse_runner_labels: `inner = value[1:-1] if value.startswith(\"[\") and value.endswith(\"]\") else value` followed by `inner.split(\",\")`. The split applies to both the list and non-list cases. The `custom` filter only treats a value as default when `group(1).strip(\"'\\\"\") == DEFAULT_RUNNER`, so the bracketed `[ubuntu-latest]` is not recognised as the default. The tests cover neither case. The fix is to reject a comma in a non-bracketed value, and to decide explicitly what `[ubuntu-latest]` means.",
-      "id": "unbracketed-comma-runs-on-misparsed",
+      "evidence": "scripts/rollout_project.py:417-422 strips quotes before comparing to DEFAULT_RUNNER, so quoted values return \"default\". The rendered baseline has the unquoted form. The file is still a hand edit on the `runs-on` line that the new render changes next to. That is the same Copier replay conflict the change exists to avoid. The test test_rollout_treats_a_quoted_default_runner_as_the_default (tests/test_ci_runner_selection.py) stops after the preflight and never runs `copier update` or the doctor. I could not confirm that the update then conflicts or that the doctor fails.",
+      "id": "quoted-default-runner-unmigrated",
       "severity": "advisory",
-      "summary": "parse_runner_labels splits an unbracketed plain scalar on commas, so `runs-on: a, b` is treated as two labels, but YAML reads it as the single string \"a, b\". The same happens for `[ubuntu-latest]`: it counts as a custom runner and migrates to self-hosted. The migration could record answers that differ from what GitHub was actually using."
+      "summary": "A quoted `\"ubuntu-latest\"` or `'ubuntu-latest'` runner is classified as `default`. The rollout then takes the ordinary `copier update` path, with no revert and no baseline proof."
+    },
+    {
+      "evidence": "scripts/rollout_project.py:464-473 writes the restored workflows and the answers, then runs `git add`, `git commit` and `ensure_clean`, with no rollback on error. The branch is ephemeral and the error is raised loudly, so this affects only the cleanliness of what the rollout leaves behind.",
+      "id": "migration-writes-before-commit-no-cleanup",
+      "severity": "advisory",
+      "summary": "The migration rewrites the workflow files and `.copier-answers.yml` before it stages and commits them. A failure in `git add`, `git commit` or `ensure_clean` leaves the working tree dirty and partly migrated."
     }
   ],
-  "launched_at": "2026-10-12T07:20:05+00:00",
-  "output_sha256": "d409a87a00dc811b94996149ec53c8618dc1594505f5239b105a467448fa84ff",
+  "launched_at": "2026-10-12T07:22:47+00:00",
+  "output_sha256": "b501810ae7897de0fe2f40840cfd32f921e769a814b75f1c4c42c905f203c0e9",
   "perspective": "engineering-quality",
-  "request_id": "4e8e016c-3dfd-42b0-8641-678c6db96dd8",
+  "request_id": "2049f342-06a2-4364-ba41-41774ebfd015",
   "reviewer": {
-    "context_id": "7ff47085-cd34-4fa7-9916-daf0c74a4ee2",
+    "context_id": "426be1ef-a6ed-4bf5-a010-058d6c7026c0",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c0b4a361-08fb-4bca-9b2a-466e7be31bbc",
+    "launch_id": "platform-launch-d5a6091f-2fba-42aa-bde7-90fa40949aa7",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33124
+        "value": 33746
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18921
+        "value": 18946
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17994
+        "value": 21180
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18468
+        "value": 21697
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,11 +78,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1958
+        "value": 2368
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8b5b50aa8c7a6480a6d4a2788648f17033eba30fa4979bdba9ad5a0df28de86d"
+  "task_content_digest": "c72d2e20fbc96d75bab3cea6619ac3d6ad64c5009bed9dc91defef604978945b"
 }

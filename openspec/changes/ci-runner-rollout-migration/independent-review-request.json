@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "72c82fb5485a343c688084fc63ad388b64288e6e",
     "base_ref": "origin/main",
-    "candidate_head": "211f90b38d3a967652b7752d51113d3b315da2f9",
-    "diff_sha256": "abe6aafffcf85d9dd893c7ed9d7a003a28212bbb3cf2e5d7089331aa44440f74"
+    "candidate_head": "66f1d5b138fe45dfd3a9c2ee41921b4b7330034f",
+    "diff_sha256": "a38c91b0200d557c3e139a64575ea81f15fbac0d1298762bc7afdb84de4c9a53"
   },
   "change": "openspec/changes/ci-runner-rollout-migration",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-12T07:19:35+00:00",
+  "prepared_at": "2026-10-12T07:22:18+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/ci-runner-rollout-migration/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "4e8e016c-3dfd-42b0-8641-678c6db96dd8",
+  "request_id": "2049f342-06a2-4364-ba41-41774ebfd015",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,21 +60,21 @@
   "schema_version": 1,
   "task_content": {
     "base": "598f596c4c2ebea78d8c0f6e2b4652df327a41ea",
-    "digest": "8b5b50aa8c7a6480a6d4a2788648f17033eba30fa4979bdba9ad5a0df28de86d",
+    "digest": "c72d2e20fbc96d75bab3cea6619ac3d6ad64c5009bed9dc91defef604978945b",
     "paths": {
-      "copier.yml": "e7191036413017d4ceb5c1591faf05ab96521a25",
-      "docs/managed-rollout.md": "37f3d4b9fc6b680c1079b2f6894aa403a93d676f",
+      "copier.yml": "3794cf7666e58b41cc18eef73511afe4704a56f0",
+      "docs/managed-rollout.md": "667526d906cdfc01cb0b2347356cf67bd0b073b7",
       "openspec/changes/ci-runner-rollout-migration/.managed-task.json": "e3c722b1fb97712d87f9ac37563646163c5c8026",
       "openspec/changes/ci-runner-rollout-migration/.openspec.yaml": "b9ebfc72d6da2b141f153e3d48f7513ff2d0fa0b",
-      "openspec/changes/ci-runner-rollout-migration/design.md": "69a6d91b8cbe252b42a0ce6a23dce221b4edfd0a",
+      "openspec/changes/ci-runner-rollout-migration/design.md": "f03783a4ace32558d0ae5ec4104eb9f8d7a2b30a",
       "openspec/changes/ci-runner-rollout-migration/proposal.md": "501a3e77b18cbb5416d15f3a77a7debe0b4449c1",
       "openspec/changes/ci-runner-rollout-migration/specs/ci-safety/spec.md": "97f19eba7d06e55bd9dba67554142be8f79b50e9",
       "openspec/changes/ci-runner-rollout-migration/specs/managed-rollout/spec.md": "b4d2f6d0de43bf87d68a1a7e728851520901ae81",
       "openspec/changes/ci-runner-rollout-migration/tasks.md": "57e18dc2e6ee7b98d05a34dbc2ac418dcd40b190",
-      "scripts/rollout_project.py": "c6684c57984cb0f98657e32c8788f9b7e75d4bc9",
+      "scripts/rollout_project.py": "7f8cc377838d34f5419b7432be85788721f77283",
       "template/dev-platform/platform-manifest.json": "15fe45007344171e5d2f1cc9613a218bb56f08d3",
       "template/scripts/platform_doctor.py": "ecf5a56cfa10962877fa24589ed81f626b1e06e2",
-      "tests/test_ci_runner_selection.py": "f83de67fd8b6a39b06f2c8bb9e9c329b1b31c0d4"
+      "tests/test_ci_runner_selection.py": "b26b204c9888fff2941c72c69bb0d2dbe1cbd685"
     },
     "scope": "independent-review-v1",
     "version": 1
