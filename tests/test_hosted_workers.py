@@ -375,11 +375,37 @@ class WorkflowStructureTests(unittest.TestCase):
         return next(i for i, step in enumerate(self.steps)
                     if fragment in str(step.get("run", "")) or fragment in str(step.get("uses", "")) or fragment == step.get("name"))
 
-    def test_only_allowed_triggers_and_shipped_manual_only(self):
-        self.assertEqual(set(self.triggers), {"workflow_dispatch"})
-        self.assertLessEqual(set(self.triggers), {"workflow_dispatch", "workflow_run", "schedule"})
+    def test_trigger_set_is_exactly_dispatch_queue_completion_and_schedule(self):
+        self.assertEqual(set(self.triggers), {"workflow_dispatch", "workflow_run", "schedule"})
+
+    def test_workflow_run_names_only_the_publication_queue_completed(self):
+        run = self.triggers["workflow_run"]
+        self.assertEqual(run["workflows"], ["Dev Platform publication queue"])
+        self.assertEqual(run["types"], ["completed"])
+        self.assertEqual(set(run), {"workflows", "types"})
+
+    def test_schedule_is_one_ten_minute_cron(self):
+        self.assertEqual(self.triggers["schedule"], [{"cron": "*/10 * * * *"}])
+
+    def test_no_pull_request_style_trigger(self):
         for forbidden in ("pull_request", "pull_request_target", "issue_comment", "push"):
             self.assertNotIn(forbidden, self.triggers)
+
+    def test_triggering_event_payload_is_never_used(self):
+        self.assertNotIn("github.event.workflow_run", self.text)
+
+    def test_node_satisfies_the_claude_cli_engine(self):
+        versions = [
+            str(step["with"]["node-version"])
+            for job in self.workflow["jobs"].values()
+            for step in job["steps"]
+            if "actions/setup-node" in str(step.get("uses", ""))
+        ]
+        self.assertTrue(versions, "no setup-node step found")
+        for version in versions:
+            with self.subTest(version=version):
+                self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+                self.assertGreaterEqual(int(version.split(".")[0]), 22)
 
     def test_every_job_runs_default_branch_code_only(self):
         for name, job in self.workflow["jobs"].items():

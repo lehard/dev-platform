@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d71b0690ac1d05cfa44871f213167913b04fc390",
+    "base_ref": "origin/main",
+    "candidate_head": "32745240c4d3cf45221ce65ff014a3fd4785b6aa",
+    "diff_sha256": "5192258b2dff49f161dcaae0d2aca5fda48506b9160119dd5f947d63d0465f20"
+  },
+  "completed_at": "2026-10-12T08:50:53+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/specs/lifecycle-workers/spec.md:179-182 says 'Shipped without automatic triggers \u2026 can be started only by manual dispatch and runs nothing on its own'. Line 175 says 'once the owner has added them' for the queue and schedule triggers. Line 197 says 'The hosted worker SHALL be off only because no automatic trigger exists'. The candidate adds workflow_run and schedule to .github/workflows/lifecycle-workers.yml. The delta spec.md has only '## ADDED Requirements', with no MODIFIED section for the 'Hosted lifecycle workers run trusted code\u2026' or 'Hosted execution requires explicit configuration\u2026' requirements. The scenarios may be read as historical, but the accepted spec is left internally inconsistent after archive.",
+      "id": "stale-shipped-manual-only-scenario",
+      "severity": "advisory",
+      "summary": "The delta only ADDs a requirement. Two accepted statements now conflict with the candidate workflow, which has automatic triggers, and the delta does not MODIFY them."
+    }
+  ],
+  "launched_at": "2026-10-12T08:50:38+00:00",
+  "output_sha256": "955a7bf40890b850c4daf0f640c0dacd7551cfe1c9eac4015afac5a6cda19dc7",
+  "perspective": "spec-fidelity",
+  "request_id": "c52e5df8-b99a-453b-951e-20328395d2a0",
+  "reviewer": {
+    "context_id": "a5ad3370-056f-4a15-8a99-5787b437627f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-db203dbe-1977-4d25-8d2d-58b29b5299e1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21609
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 61109
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13401
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14045
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1644
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2dca5a9151e43f7b399ad76fd783a0348d29bf96b616548a7972864f0ddf2556"
+}

@@ -2,7 +2,7 @@
 
 After a developer handoff the coordinator publishes head-bound jobs, and a worker must claim them. The hosted worker runs the existing `lifecycle_workers.py work-next --run` contract on a GitHub-hosted runner, so a published review or finalize job no longer waits for a running Codex/Claude session or for the owner. It adds a placement, not a second queue or state store: claims, results, trust, exact-head discard and the harness-only push are unchanged, and merging stays with the publication queue.
 
-This document is the owner's enablement instruction. The workflow `.github/workflows/lifecycle-workers.yml` is delivered with **manual dispatch only**; nothing runs on its own until the owner completes the steps below.
+This document is the owner's enablement instruction. The workflow `.github/workflows/lifecycle-workers.yml` has three triggers: manual `workflow_dispatch`, `workflow_run` on completion of the *Dev Platform publication queue* workflow, and a `schedule` of every 10 minutes as a backstop for missed events. All run the default-branch workflow under the same default-branch guard, and no step reads the triggering event's payload. A run still fails explicitly until the owner has completed enablement steps 1-4 below.
 
 ## What runs hosted and what does not
 
@@ -26,9 +26,13 @@ A review job whose providers do not include `claude` is not picked up by the hos
 2. **App configuration.** The workflow reuses the publication queue's repository variable `DEV_PLATFORM_APP_CLIENT_ID` and secret `DEV_PLATFORM_APP_PRIVATE_KEY`; they are already present when the queue runs.
 3. **Enabling setting.** Set the repository variable `DEV_PLATFORM_HOSTED_KINDS` to the kinds to host, starting with `review` (`review`, `finalize` or `review,finalize`). It is required: when the workflow runs and the variable is empty, the run fails naming it. An unknown kind fails naming it, and a refused kind fails naming the reason above.
 4. **Manual run.** Dispatch *Dev Platform lifecycle workers* from `main`. Read each class job: the inputs and runtime preflight list every check, and the first failing check names the missing or contradictory input. A passing run on an empty queue prints the `idle` outcome in the job summary.
-5. **Automatic triggers.** Only after step 4 is understood, add the `workflow_run` trigger for the *Dev Platform publication queue* workflow (so a worker starts when jobs are published) and, as a safety net, a `schedule` of about every 10 minutes, in a normal reviewed change. The structure tests pin the allowed trigger set (`workflow_dispatch`, `workflow_run`, `schedule`); `pull_request` and `pull_request_target` are never allowed.
+5. **Automatic triggers.** The triggers are part of the workflow; to turn automatic starting off, remove the `workflow_run` and `schedule` triggers in a reviewed change. The structure tests pin the allowed trigger set (`workflow_dispatch`, `workflow_run`, `schedule`); `pull_request` and `pull_request_target` are never allowed.
 
-**Rollback.** Remove the automatic triggers (and, if wanted, clear `DEV_PLATFORM_HOSTED_KINDS`, which makes any manual run fail explicitly). Revoke the provider token if it should no longer exist. Local workers and the publication queue are unaffected.
+**Rollback.** Remove the `workflow_run` and `schedule` triggers, which leaves manual dispatch only (and, if wanted, clear `DEV_PLATFORM_HOSTED_KINDS`, which makes any manual run fail explicitly). Revoke the provider token if it should no longer exist. Local workers and the publication queue are unaffected.
+
+## First manual run
+
+Run 38221555792 on `main` passed the inputs and runtime preflight, including the Claude readiness probe, and reported `idle`. It exposed that the pinned Claude CLI needs Node 22 (`engines: node >=22`) while the workflow installed Node 20.19.0; this change installs Node 22.12.0 for both classes and a structure test pins a Node major of at least 22.
 
 ## What the preflight proves before a worker starts
 
