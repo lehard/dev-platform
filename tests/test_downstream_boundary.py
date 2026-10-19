@@ -45,8 +45,11 @@ ARCHIVE_DRIVER = BLOCKER + textwrap.dedent(
     root = Path.cwd()
     with mock.patch.object(lifecycle, "require_static_archive_readiness"), \\
             mock.patch.object(lifecycle, "require_applicable_committed_diff"), \\
+            mock.patch.object(lifecycle, "require_committed_package"), \\
             mock.patch.object(lifecycle, "ensure_review_evidence") as review, \\
             mock.patch.object(lifecycle, "require_ready"), \\
+            mock.patch.object(lifecycle, "rehearse_archive"), \\
+            mock.patch.object(lifecycle, "archive_with_recovery"), \\
             mock.patch.object(lifecycle, "run_checked") as run, \\
             mock.patch.object(lifecycle.shutil, "which", return_value="openspec"):
         code = lifecycle.archive_change(root, "work")

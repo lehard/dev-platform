@@ -153,9 +153,36 @@ When a verification check fails, classify the failure relative to the authoritat
 A platform change is not done merely because its task checkboxes are complete. After semantic verification succeeds and material findings are resolved:
 
 1. record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change's `verification.md`;
-2. archive through the platform lifecycle helper;
-3. commit the resulting current-spec/archive changes;
-4. only then publish.
+2. commit the package (tasks, delta specs, receipt);
+3. archive through the platform lifecycle helper;
+4. commit the resulting current-spec/archive changes;
+5. only then publish.
+
+A delta that creates a capability absent from `openspec/specs` must carry an
+authored `## Purpose` section before its `## ADDED Requirements`. OpenSpec reads
+a delta Purpose only when it creates the capability; without one it writes a
+`TBD … Update Purpose after archive.` placeholder that strict validation then
+rejects. Archive preflight therefore rejects a new-capability delta whose
+Purpose is missing, empty or a placeholder (`TBD`, `TODO`, `FIXME`) before
+review, checks, evidence writes or any mutation, and names the delta file. The
+same archive-content predicate (tasks complete, new-capability Purpose in
+contribution order) runs at developer handoff, before a composition review is
+offered or launched, and before composition finalization archives any child.
+
+Outside coordinator finalization, archive also rejects uncommitted or untracked
+authored package files (proposal, design, tasks, delta specs, `verification.md`)
+and main-spec files before review or checks, listing the paths and the commit
+command; evidence the lifecycle helpers write themselves (review evidence,
+`automated-checks.json`, `evidence/`) does not block.
+
+After the cheap gates, review and selected checks, archive rehearses
+`openspec archive` plus `openspec validate --all --strict` on a disposable copy
+of `openspec/`; a rehearsal failure stops with the failing items and leaves the
+checkout untouched. The real archive captures `openspec/` first; if the real
+archive or its strict post-validation still fails, the lifecycle restores that
+exact tree, exits non-zero with the failing items, and the same archive command
+can be rerun after the fix. Failures report failing items (`✗`, `[ERROR]`,
+`[WARNING]` and error lines), never a fixed-length output tail.
 
 For a platform-owned harness, the verification receipt must also contain:
 

@@ -154,15 +154,47 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
                     mock.patch.object(lifecycle, "require_review_evidence") as review, \
                     mock.patch.object(lifecycle, "require_ready") as ready, \
                     mock.patch.object(lifecycle.shutil, "which", return_value="openspec"), \
+                    mock.patch.object(lifecycle, "require_committed_package") as committed, \
+                    mock.patch.object(lifecycle, "rehearse_archive") as rehearse, \
+                    mock.patch.object(lifecycle, "archive_with_recovery") as archive, \
                     mock.patch.object(lifecycle, "run_checked") as run_checked:
                 self.assertEqual(lifecycle.archive_change(root, "work", finalize=True), 0)
             identity.assert_not_called()
             diff.assert_not_called()
+            committed.assert_not_called()
             launch.assert_not_called()
             review.assert_called_once()
             self.assertFalse(static.call_args.kwargs["routing"])
             self.assertFalse(ready.call_args.kwargs["platform_owned"])
-            self.assertIn("archive", run_checked.call_args_list[1].args[0])
+            self.assertIn("validate", run_checked.call_args_list[0].args[0])
+            rehearse.assert_called_once_with(root, "work", "openspec")
+            archive.assert_called_once_with(root, "work", "openspec")
+
+
+class ArchiveFailureReportingTests(unittest.TestCase):
+    def test_archive_failure_reports_failing_items_not_a_tail(self):
+        info = "".join(f"INFO progress line {n}\n" for n in range(200))
+        done = subprocess.CompletedProcess(
+            "archive", 1, stdout="✗ spec/foo\n  ⚠ [WARNING] overview: Purpose placeholder\n" + info,
+            stderr="work: 'openspec validate --all --strict --no-interactive' failed after archive; restored\n")
+        with mock.patch.object(final.subprocess, "run", return_value=done), \
+                self.assertRaises(workers.WorkerError) as raised:
+            final.trusted_archiver(Path("/checkout"), "work", {})
+        message = str(raised.exception)
+        self.assertIn("failed after archive; restored", message)
+        self.assertIn("[WARNING] overview: Purpose placeholder", message)
+        self.assertNotIn("INFO progress line", message)
+
+    def test_handoff_refuses_unarchiveable_change_before_review(self):
+        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = root / "openspec/changes/work"
+            (change / "specs/foo").mkdir(parents=True)
+            (change / "tasks.md").write_text("- [x] done\n")
+            (change / "specs/foo/spec.md").write_text("## ADDED Requirements\n")
+            with self.assertRaisesRegex(workers.WorkerError, "archiveable change before review.*foo"):
+                gate.handoff_gates(root, change)
 
 
 class ContributionFreshnessTests(unittest.TestCase):

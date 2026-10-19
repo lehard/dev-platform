@@ -115,8 +115,11 @@ def repair_brief(running: dict) -> dict:
 def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     """Validate developer evidence before publication; never manufacture a receipt."""
     import lifecycle_workers as workers
-    from openspec_lifecycle import require_automated_evidence, verification_passed
+    from openspec_lifecycle import archive_content_problems, require_automated_evidence, verification_passed
 
+    problems = archive_content_problems(root, [change]) if change.parent.name != "archive" else []
+    if problems:
+        raise workers.WorkerError("developer handoff requires an archiveable change before review: " + "; ".join(problems))
     if not verification_passed(change):
         raise workers.WorkerError("developer handoff requires successful semantic verification and its method")
     require_automated_evidence(change, root=root)
