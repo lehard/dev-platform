@@ -20,4 +20,4 @@
 
 ## 5. Verification and delivery
 
-- [x] 5.1 Regenerate the platform manifest; required platform checks; truthful semantic verification; archive; retrospectives; publication.
+- [ ] 5.1 Regenerate the platform manifest; required platform checks; truthful semantic verification; archive; retrospectives; publication.
