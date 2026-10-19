@@ -15,7 +15,7 @@ Automated-Checks-Evidence: automated-checks.json
 ## Checks actually run
 
 - Targeted: `tests/test_coordinator_event_routing.py` (new), `tests/test_coordinator_evidence.py`, `tests/test_harness_safety.py`, `tests/test_friction_review.py`, `tests/test_autonomous_integration_contour.py`, `tests/test_finish_merged_queue.py`, `tests/test_pr_review_gate.py`, `tests/test_candidate_lifecycle.py`, `tests/test_publication_queue.py` pass.
-- `compileall`, `managed_projects.py validate`, `openspec_lifecycle.py check`, `run_test_groups.py --verify-coverage`, `generate_platform_manifest.py --write` run clean. Authoritative selected-check evidence for the committed candidate: `automated-checks.json`.
+- `docs/engineering/agent-workflow.md`: the new routing paragraph sits after the disposition paragraph so it does not touch the line BR-696/T1 edits (merge-tree with that branch is clean). `compileall`, `managed_projects.py validate`, `openspec_lifecycle.py check`, `run_test_groups.py --verify-coverage`, `generate_platform_manifest.py --write` run clean. Authoritative selected-check evidence for the committed candidate: `automated-checks.json`.
 
 ## Limitations
 
