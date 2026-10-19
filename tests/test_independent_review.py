@@ -109,7 +109,9 @@ class IndependentReviewTests(unittest.TestCase):
         (self.change / "proposal.md").write_text("# Proposal\n", encoding="utf-8")
         (self.change / "design.md").write_text("# Design\n", encoding="utf-8")
         (self.change / "tasks.md").write_text("- [x] task\n", encoding="utf-8")
-        (self.change / "specs" / "review-cap" / "spec.md").write_text("## ADDED Requirements\n", encoding="utf-8")
+        (self.change / "specs" / "review-cap" / "spec.md").write_text(
+            "## Purpose\nReview fixture capability exercised by the independent review tests.\n\n## ADDED Requirements\n",
+            encoding="utf-8")
         (self.root / "src.py").write_text("value = 1\n", encoding="utf-8")
         self.commit("candidate")
         self.which = mock.patch.object(runner.shutil, "which", side_effect=lambda name: f"/fake/bin/{name}")
@@ -762,7 +764,10 @@ class IndependentReviewTests(unittest.TestCase):
             mock.patch.object(lifecycle, "require_managed_checkout_identity"),
             mock.patch.object(lifecycle, "require_managed_routing_evidence"),
             mock.patch.object(lifecycle, "require_applicable_committed_diff"),
+            mock.patch.object(lifecycle, "require_committed_package"),
             mock.patch.object(lifecycle, "require_ready"),
+            mock.patch.object(lifecycle, "rehearse_archive"),
+            mock.patch.object(lifecycle, "archive_with_recovery"),
             mock.patch.object(runner, "subprocess_launcher", launcher),
         ]
         for patch in patches:
