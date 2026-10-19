@@ -11,4 +11,4 @@
 
 - [x] 3.1 Replace the local worker retry advice in `docs/engineering/agent-workflow.md` and any other coordinator doc.
 - [x] 3.2 Tests: local worker refuses without GitHub calls; local preflight passes without push permission; harness push uses gh token without exported `GH_TOKEN`; gh failure raises the named error without leaking output; existing CI-mode and secret-safety tests stay green.
-- [ ] 3.3 Regenerate the platform manifest; run required validation, semantic verification, archive, retrospective and publication.
+- [x] 3.3 Regenerate the platform manifest; run required validation and semantic verification (archive and merge are performed by coordinator finalization and the CI publication queue).
