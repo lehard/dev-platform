@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "origin/main",
-    "candidate_head": "e58c45212716c48c54113d574507e5fc6e73aaa7",
-    "diff_sha256": "731fb09c4295c7b6ecf76b72657f5e758a96b5e189df71ca2e8ea529d768ce9d"
+    "candidate_head": "e6a840d6dd95f2c0444e5fa76cfbf421699eb144",
+    "diff_sha256": "f8bf6b8cab0199a38b9f7515d58797d1a316475a740796bcea30c70cff365a87"
   },
-  "completed_at": "2026-10-19T21:25:19+00:00",
+  "completed_at": "2026-10-19T21:27:00+00:00",
   "findings": [
     {
-      "evidence": "spec.md lines 42-44 and design.md decision 3 refer to an 'empty detail'. The diff's `friction_reason` in template/scripts/publication_queue.py raises `QueueError` with 'requires a named red gate as its reason' and 'red gate X carries no cause or evidence'. The docs paragraph in agent-workflow.md already describes the red-gate behavior. The behavior meets the intent (fail explicitly, naming the PR), so the artifacts only need to catch up.",
-      "id": "producer-scenario-wording-drift",
+      "evidence": "template/scripts/finish_task.py validation_failure_reason (candidate.diff ~L529-540) appends `checks <selected_checks>` and `failed groups <failed_groups>`. The selector-exit case yields only `selector-exit; exit N`, as the new test asserts at tests/test_coordinator_event_routing.py ~L907. specs/platform-lifecycle/spec.md L31-34 requires the failing check.",
+      "id": "validation-reason-lists-selected-not-failing-checks",
       "severity": "advisory",
-      "summary": "The 'Producer without a reason' scenario and design decision 3 say recording fails on an empty `detail`. The candidate changes the `emit_friction` signature to take a `red_gate` and fails when there is no named red gate or the gate has no cause or evidence. The spec and design text are stale against that behavior."
+      "summary": "The validation-failure reason names every selected check, not the failing one. When the descriptor has no failed_groups or selected_checks it names only the failure class and exit code. The spec scenario says the reason names the failure class and failing check."
     }
   ],
-  "launched_at": "2026-10-19T21:24:54+00:00",
-  "output_sha256": "05fa80e47c18e73a69858784a21a1033b115d740f7acaca93bb70e7f94583047",
+  "launched_at": "2026-10-19T21:26:37+00:00",
+  "output_sha256": "00771065bde0291a791809055e7e3179cbe07afaac3cb7ae4fe4ff3b5ebd0476",
   "perspective": "spec-fidelity",
-  "request_id": "1faa2667-c66c-4c4e-99d1-4e25b60c952a",
+  "request_id": "6fa9f977-83e1-41dd-a8ac-4ece5fb92758",
   "reviewer": {
-    "context_id": "32e11ffe-2cd9-4af7-9e3b-8c5e03ce9ed8",
+    "context_id": "85be1b6e-4e90-4b5f-a600-897a9072ef94",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-021677f7-e569-4494-a9c3-f28fa9c70a6b",
+    "launch_id": "platform-launch-8c283361-74d7-426c-93ca-32d767742478",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,27 +39,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46326
+        "value": 45205
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48318
+        "value": 97617
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24571
+        "value": 22280
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24741
+        "value": 22422
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -69,7 +69,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2351
+        "value": 2072
       }
     },
     "runtime": "claude-code-print"

@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "origin/main",
-    "candidate_head": "e58c45212716c48c54113d574507e5fc6e73aaa7",
-    "diff_sha256": "731fb09c4295c7b6ecf76b72657f5e758a96b5e189df71ca2e8ea529d768ce9d"
+    "candidate_head": "e6a840d6dd95f2c0444e5fa76cfbf421699eb144",
+    "diff_sha256": "f8bf6b8cab0199a38b9f7515d58797d1a316475a740796bcea30c70cff365a87"
   },
-  "completed_at": "2026-10-19T21:25:46+00:00",
+  "completed_at": "2026-10-19T21:27:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py `friction_reason` raises QueueError when `red_gate` is None, has no name, or has no cause/evidence. `_transition` calls `emit_friction(..., previous.get('red_gate'), ...)` on every no-change re-observation for states in `_FRICTION_STATES`. A blocked-escalation or repair state recorded earlier without a red gate, or with one that has no evidence, now raises on each pass. That could stall the transition and its label/escalation repair instead of degrading to a withheld event.",
-      "id": "coordinator-transition-wedge-without-red-gate",
+      "evidence": "template/scripts/finish_task.py: `reason=validation_failure_reason(evidence)` is evaluated before `raise SystemExit(returncode)`. The existing test_validation_failure_evidence_uses_bounded_selector_descriptor (tests/test_managed_status_lifecycle.py:159) uses a descriptor with no exit_code. The real select_checks emits exit_code, but the finish path does not rely on that guarantee elsewhere. Using .get() with the returncode as a fallback would be safer.",
+      "id": "validation-reason-keyerror-masks-exit",
       "severity": "advisory",
-      "summary": "A friction-state transition now hard-fails when no red gate with a cause or evidence is available. That includes the idempotent re-observation path for already-published states, so one gate-less state can block the queue on every observation."
+      "summary": "validation_failure_reason indexes descriptor['failure_class'] and descriptor['exit_code'] directly and joins list fields without type checks. The descriptor is parsed from output lines and passed through unvalidated, so a descriptor missing a key or carrying non-string list items raises KeyError/TypeError inside run_checks. That happens before `raise SystemExit(returncode)`, so the failure path ends in a traceback instead of the check's exit code."
     },
     {
-      "evidence": "template/scripts/finish_task.py `record_lifecycle_friction`: the argument list is built with `run_git(['rev-parse','HEAD'], cwd=root).stdout.strip()`, outside any try. If `run_git` raises (it may check the return code), the exception escapes. In `run_checks` that happens before `raise SystemExit(returncode)`, so the original validation exit code is replaced by a traceback. The same applies to the OpenSpec hygiene path.",
-      "id": "lifecycle-friction-head-lookup-can-raise",
+      "evidence": "template/scripts/publication_queue.py `_transition`: `emit_friction(number, branch, state, head, previous.get('red_gate'), ...)` in the unchanged-state branch. friction_reason raises 'requires a named red gate as its reason' or 'carries no cause or evidence'. The previous code tolerated an empty detail via `str((previous.get('red_gate') or {}).get('evidence', ''))`. The design says this is intended, but it adds a stuck-transition risk for in-flight states recorded before the release.",
+      "id": "emit-friction-hard-fail-on-missing-red-gate",
       "severity": "advisory",
-      "summary": "`record_lifecycle_friction` is documented as best-effort and not changing the delivery outcome. It now runs an unguarded `git rev-parse HEAD` before the subprocess call."
+      "summary": "emit_friction now raises QueueError when a friction-state transition has no named red gate with a cause or evidence. The same check runs on the idempotent re-observation path, using `previous.get('red_gate')`. A PR already recorded in a friction state with a legacy or empty red_gate will fail on every coordinator pass, and no fallback reason is available."
     }
   ],
-  "launched_at": "2026-10-19T21:25:19+00:00",
-  "output_sha256": "8ffaf80c35ed5a36f72e2a394b87d2a0517c10a09421aab6a5829751986a4c48",
+  "launched_at": "2026-10-19T21:27:00+00:00",
+  "output_sha256": "0be15bbbfafc4a72009e5acc39530d3399cb2566bb0a01ebef4158ad6e7e1c20",
   "perspective": "engineering-quality",
-  "request_id": "1faa2667-c66c-4c4e-99d1-4e25b60c952a",
+  "request_id": "6fa9f977-83e1-41dd-a8ac-4ece5fb92758",
   "reviewer": {
-    "context_id": "9b865755-7cd1-4c50-a382-5d0a191edf2c",
+    "context_id": "38352997-e2b4-41c3-b904-b92695d19349",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-82f799fd-8508-4944-98e3-94e0bdf24edb",
+    "launch_id": "platform-launch-499b3353-b203-49c1-88a8-686083597673",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,37 +45,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43087
+        "value": 43531
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 232094
+        "value": 143430
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25934
+        "value": 22596
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26279
+        "value": 22895
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2603
+        "value": 2593
       }
     },
     "runtime": "claude-code-print"
