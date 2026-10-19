@@ -304,6 +304,35 @@ def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
     return job["head"] == result_head == current_head
 
 
+# A successful lease push proves nobody moved the branch before it; the pull request
+# API may still report the previous head for a few seconds afterwards.
+PUSH_CONVERGENCE_SECONDS = 60
+PUSH_CONVERGENCE_INTERVAL = 3
+
+
+def own_result_landed(current_head: Callable[[], str], job_head: str, result_head: str, *,
+                      clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep) -> bool:
+    """Whether the pull request now reports this job's own result head.
+
+    Without a push (``result_head == job_head``) the head must still be the job head.
+    After a push the observation may lag: while it still reports ``job_head`` it is
+    re-read until ``timeout``; any other head means someone else moved the branch
+    (``False``, the job is discarded). A head that never converges raises: the
+    pushed result is not silently discarded.
+    """
+    observed = current_head()
+    if result_head == job_head or observed != job_head:
+        return observed == result_head
+    deadline = clock() + PUSH_CONVERGENCE_SECONDS
+    while observed == job_head:
+        if clock() >= deadline:
+            raise WorkerError(f"pull request head did not converge to pushed head {result_head[:12]} within "
+                              f"{PUSH_CONVERGENCE_SECONDS} seconds; it still reports {job_head[:12]}")
+        sleep(PUSH_CONVERGENCE_INTERVAL)
+        observed = current_head()
+    return observed == result_head
+
+
 # ---- environment ----------------------------------------------------------
 
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:

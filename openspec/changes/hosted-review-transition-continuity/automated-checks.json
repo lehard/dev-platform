@@ -1,0 +1,89 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.12,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.174,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 980.368,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/agent_friction.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/managed_work_identity.py",
+        "template/scripts/post_review_finalization.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_coordinator_evidence.py",
+        "tests/test_post_review_finalization.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6d1f8c68bee54b236847f660678b5b4a",
+    "change": "hosted-review-transition-continuity",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/hosted-review-transition-continuity",
+    "branch": "agent/br-706-t1-hosted-review-transition-continuity",
+    "head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "task_content": {
+      "version": 1,
+      "digest": "6ec5ebfb0586368b4a7d7aa807e145b0cb71c6dec314a9854210c7667d7da013",
+      "paths": {},
+      "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "7beb56265eb05fd965f81fa75436c78d83573bed8c14b1c0955f0be65b9af3fe",
+    "paths": {},
+    "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_friction.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/managed_work_identity.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_coordinator_evidence.py --changed-file tests/test_post_review_finalization.py",
+    "duration_seconds": 210.031,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

@@ -69,6 +69,20 @@ python3 scripts/publication_queue.py resume --pr N --expected-head <head> --via 
 python3 scripts/publication_queue.py switch-provider --pr N --provider <provider> --expected-head <head> --via chat-coordinator --reason "<why>"
 ```
 
+A candidate in `finalize-pending`, `review-pending` or `blocked-retryable` whose
+admission gates were lost across the harness's own review-evidence pushes (for
+example finalization stops at "fresh semantic verification required" although
+the task content is unchanged) is repaired with:
+
+```bash
+python3 scripts/publication_queue.py restore-gates --pr N --expected-head <head>
+```
+
+It restores only gates proven bound to the current task content through a
+chain of trusted harness pushes, keeps the state, and refuses naming the head
+where the proof breaks. It runs no review, takes no claim and rewrites no
+history. If it refuses, report the reason; the developer re-handoff rules apply.
+
 Rules:
 
 - Run one only after the owner explicitly says to (for example "continue" or

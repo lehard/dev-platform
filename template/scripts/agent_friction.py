@@ -315,9 +315,15 @@ def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
     """
     identities = {task} | task_aliases(task)
     linked = set(children)
+    work_identity = None
+    if REQUIREMENT_REF.fullmatch(task):
+        from managed_work_identity import parent_identity
+        work_identity = parent_identity(task)
 
     def attributed(event: dict) -> bool:
         if event.get("task") == task or event.get("requirement") == task:
+            return True
+        if work_identity is not None and event.get("attribution") == "coordinator" and event.get("work_identity") == work_identity:
             return True
         if linked:
             run = event.get("run") if isinstance(event.get("run"), dict) else {}
@@ -486,7 +492,7 @@ def cmd_record(args: argparse.Namespace) -> int:
 def append_coordinator_event(
     *, task: str, requirement: str | None, category: str, triggers: Sequence[str], severity: str,
     observation: str, evidence: str, hypothesis: str, proposal: str, dedupe_key: str,
-    scope: str = "platform", event_id: str | None = None,
+    scope: str = "platform", event_id: str | None = None, work_identity: str | None = None,
 ) -> dict:
     """Idempotently record one coordinator-observed lifecycle event in the local log.
 
@@ -510,6 +516,7 @@ def append_coordinator_event(
         event = {
             "id": event_id or uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
             "requirement": requirement, "attribution": "coordinator", "dedupe_key": dedupe_key,
+            **({"work_identity": work_identity} if work_identity else {}),
             "category": normalize_text(category, "category", 100), "triggers": sorted(set(triggers)),
             "severity": severity, "observation": normalize_text(observation, "observation"),
             "evidence": normalize_text(evidence, "evidence"), "hypothesis": normalize_text(hypothesis, "hypothesis"),

@@ -319,8 +319,19 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                                adapter._comments(root, repo, job["number"]))
     if workers.build_job(observed) != job:
         return {"status": "discarded"}
+    try:
+        # Before the reviewer or writer runs and before any push: an outcome that cannot
+        # record its friction must fail here, not after the candidate head has moved.
+        adapter.require_friction_attribution(branch)
+    except adapter.QueueError as exc:
+        raise workers.WorkerError(str(exc)) from exc
+    from candidate_lifecycle import content_bound_gates
+
+    # A head reached by the harness's own push has no exact-head record yet; the derived
+    # view proved it and kept the gates bound to this unchanged task content.
     running = adapter._transition(root, repo, job["number"], kind + "ing" if kind == "repair" else "reviewing",
                                   job["head"], task_identity=identity, inherit_identity=False,
+                                  gates=content_bound_gates(observed.get("gates"), identity) or None,
                                   next_job={k: v for k, v in job.items() if k != "number"})
     if running is None:
         return {"status": "discarded"}
@@ -382,7 +393,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     if outcome["status"] == "discarded":
         return outcome
     head = outcome.get("pushed_head") or job["head"]
-    if current_head() != head or not claim_current():
+    if not workers.own_result_landed(current_head, job["head"], head) or not claim_current():
         return {**outcome, "status": "discarded"}
     if head != job["head"]:
         adapter._comment(root, repo, job["number"], {"kind": "update", "previous": job["head"],

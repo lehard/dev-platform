@@ -396,7 +396,10 @@ a finding-level escalation (rejected review, proposed rejection, exhausted repai
 material review findings (for example `repair-pending`) would be superseded by unchanged task content (operational
 states such as an unavailable reviewer need no content change), or when the new head does not descend from the admitted head (a fast-forward or a merge of
 main keeps coordinator updates and harness pushes; a rewrite would silently drop them), so never close and republish
-the branch as a new PR. Attempt counters (review and repair rounds, `review-unavailable`/`repair-unavailable` streaks)
+the branch as a new PR. A `finalize-pending` candidate is not re-admitted; when it lost content-bound gates across the
+harness's own review-evidence pushes, `python3 scripts/publication_queue.py restore-gates --pr N --expected-head <head>`
+restores the proven gates on the current head (it refuses, naming the head, when any head move was not a trusted harness
+push with unchanged task content). Attempt counters (review and repair rounds, `review-unavailable`/`repair-unavailable` streaks)
 carry over to the new head; re-admission spends or resets no budget. This is developer completion; terminal delivery still requires
 archive and confirmed merge. The worker entrypoint
 `python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review --run`
