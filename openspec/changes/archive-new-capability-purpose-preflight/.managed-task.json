@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "archive-new-capability-purpose-preflight",
+  "imported_at": "2026-10-19T11:38:05+00:00",
+  "package_revision": "293d6f634bba843fd22de99724d5c231393f03f1be6a98ac8439fb420a748b09",
+  "prepared_against": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+  "private_lineage_handle": "pln_314d5424cbac612a29fa7e100aa047a6",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "dc37fd19a717e39156433b04b1e99946b7df4134890493e6336cb8275b8cc17c",
+    "updated_at": "2026-10-19T11:32:26Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-580/T1"
+}
