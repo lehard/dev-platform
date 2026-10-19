@@ -3,40 +3,28 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "78317b94eab9d463ce5dd20bcca96e5bf9531fe6",
-    "diff_sha256": "668582281c5c032f35a693c335dbb70655d793f5d2a482c244783e7510a9e1ad"
+    "candidate_head": "5873c170dadd75aae7a850c6e64606bf08f840b3",
+    "diff_sha256": "3be8c10bb4489c584cc5cdcb9de6bd87a9fd74e890ea69da5259b2f79af6ed41"
   },
-  "completed_at": "2026-10-19T19:22:09+00:00",
+  "completed_at": "2026-10-19T19:25:19+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py route_event (~1105) catches only RuntimeError. read_operator_config (_platform_common.py:345-350) lets tomllib's TOMLDecodeError (a ValueError) escape for a malformed operator file. process_label() now also propagates ValueError/OSError from read_platform_config. In both cases the exception escapes route_event and route_pending, so the event gets no pending route and no named reason, and the remaining events are not processed. This matters for the non-blocking route-pending retry in doctor/finish. design.md decision 1 rejects hard-failing the whole route-pending run.",
-      "id": "route-event-config-valueerror-escapes",
+      "evidence": "template/scripts/agent_friction.py resolve_positional_id (candidate.diff lines 377-395) raises FrictionLogError unconditionally. It is called from read_state and read_attributions, which review-path and record_checkpoint also use. The spec says tolerance applies to review-path output and to an accepted `friction-log` gap (spec.md line 22), and design.md decision 3 says the same. Resolution by line number also gives a wrong target silently if an earlier line was removed. The spec scenario 'earlier line was removed' only covers content ids, so this is an edge case rather than a contradiction.",
+      "id": "positional-resolution-ignores-gap-context",
       "severity": "advisory",
-      "summary": "Non-RuntimeError configuration failures are not converted to the pending route that the spec and design describe, so they abort routing instead."
-    },
-    {
-      "evidence": "platform_repository() calls read_operator_config(required=True) without wrapping it. It can raise 'operator configuration is not enabled; set [operator].enabled = true...' or 'operator configuration was requested but is unavailable: <path>'. The new test only checks the 'not enabled' text. The 'names [promotion].repo' scenario is therefore only guaranteed for the key-absent case.",
-      "id": "unreadable-operator-config-error-not-naming-setting",
-      "severity": "advisory",
-      "summary": "The spec requires the error to name the missing or unreadable setting. When the operator config is disabled or unreadable, the pending detail comes from read_operator_config and does not name [promotion].repo."
-    },
-    {
-      "evidence": "legacy_content_id() hashes line.strip() alone, and _parse_log_text assigns it to every id-less line. Duplicate events then share one id. Positional legacy-N translation also cannot distinguish them, and read_state raises 'duplicate route' if both positional keys were persisted. Neither the design nor the spec addresses this.",
-      "id": "identical-legacy-lines-share-content-id",
-      "severity": "advisory",
-      "summary": "The content-derived legacy id is a hash of the line text only. Two byte-identical id-less lines get the same id, so they collapse into one route or attribution key."
+      "summary": "resolve_positional_id always reads the log strictly. It does not honor tolerate_local_gap, so review-path and checkpoints with an accepted friction-log gap can still fail on an unreadable log or an invalid line N whenever route state or attributions hold legacy-N keys."
     }
   ],
-  "launched_at": "2026-10-19T19:21:38+00:00",
-  "output_sha256": "23777747dcbcc57b887bd0210b288e5dc4c50f6b0df2d8cb40218d5dd4fcf02a",
+  "launched_at": "2026-10-19T19:24:58+00:00",
+  "output_sha256": "f18f640caeb507981ff7a055c719ae27840cdf7b035727a8e62af5aa23677388",
   "perspective": "spec-fidelity",
-  "request_id": "5ebc83f5-5d3f-4c1b-b76c-a900b3d1a7d4",
+  "request_id": "761903a5-ba90-410f-b8c1-5920b580fe8a",
   "reviewer": {
-    "context_id": "817f330d-2c53-4c52-ba50-485a51985d4d",
+    "context_id": "fe81a3ae-8ae7-4fd1-9f48-bd7ce5d43a9f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-53afd468-c433-4475-84f2-6c68e2882771",
+    "launch_id": "platform-launch-ad7c2dbb-11ce-4737-a7c2-a961bc3bdf1a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,37 +39,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39022
+        "value": 35295
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 131049
+        "value": 87224
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30188
+        "value": 20486
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30380
+        "value": 20696
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2417
+        "value": 1917
       }
     },
     "runtime": "claude-code-print"

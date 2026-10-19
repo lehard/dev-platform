@@ -3,40 +3,34 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "78317b94eab9d463ce5dd20bcca96e5bf9531fe6",
-    "diff_sha256": "668582281c5c032f35a693c335dbb70655d793f5d2a482c244783e7510a9e1ad"
+    "candidate_head": "5873c170dadd75aae7a850c6e64606bf08f840b3",
+    "diff_sha256": "3be8c10bb4489c584cc5cdcb9de6bd87a9fd74e890ea69da5259b2f79af6ed41"
   },
-  "completed_at": "2026-10-19T19:22:40+00:00",
+  "completed_at": "2026-10-19T19:25:35+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py: legacy_content_id() returns 'legacy-' + 16 hex chars, and LEGACY_POSITIONAL_ID_RE = r'legacy-\\d+' with fullmatch. About 0.05% of content ids ((10/16)^16) are all digits. Once such an id is persisted as a route key or attribution id, resolve_positional_id() treats it as line number ~1e15 and raises FrictionLogError 'does not match a line'. The error comes from read_state(), which every friction command calls, so it blocks them all. The positional form should be told apart from the content form, for example with a different prefix or a non-hex marker in the content id.",
-      "id": "content-id-collides-with-positional-pattern",
+      "evidence": "legacy_content_id returns 'legacy-' + 16 hex chars of SHA-256 (agent_friction.py ~L298). LEGACY_POSITIONAL_ID_RE = r'legacy-\\d+' fullmatches any such id whose 16 hex chars are all 0-9, roughly 0.05% of id-less events. resolve_positional_id is called from read_state for every route key and from read_attributions. For such an id it treats the digits as a line number and raises FrictionLogError ('does not match a line'). That makes read_state fail permanently once the route is persisted, and it fails attribution for that event. Fix: make the content ids unambiguous (e.g. force a hex letter, a distinct prefix, or a bounded-digit positional pattern).",
+      "id": "legacy-digest-collides-with-positional-pattern",
       "severity": "material",
-      "summary": "A content-derived legacy id made only of decimal digits is misread as a positional reference, so read_state/read_attributions fail for it."
+      "summary": "A content-derived legacy id made only of decimal digits is misread as a positional reference and fails resolution."
     },
     {
-      "evidence": "design.md says route_event already converts errors into a pending route. In fact route_event (agent_friction.py ~1105) catches only RuntimeError. process_label() no longer swallows FileNotFoundError/OSError/ValueError, and read_platform_config and read_operator_config can raise tomllib.TOMLDecodeError (a ValueError) or OSError. Examples: process_label() is called at line 1095 inside the try, and the operator TOML parse in _platform_common.py:347 only maps FileNotFoundError. A malformed config therefore raises out of route_event, and route_pending() stops mid-loop with a traceback, leaving the remaining events unrouted and without a pending reason. This contradicts the stated goal that the event stays local and visible as pending. The new test for process_label only covers the direct call, not routing.",
-      "id": "route-event-config-errors-not-converted-to-pending",
-      "severity": "material",
-      "summary": "Configuration read errors that are not RuntimeError now escape route_event and abort routing instead of becoming a retained pending route."
-    },
-    {
-      "evidence": "read_events() raises FrictionLogError (a SystemExit) outside review-path and accepted-gap checkpoints. route_pending() (line 1117) calls read_events(None). agent_doctor and finish_task use route-pending as a non-blocking retry that prints warnings (per design.md Context). A malformed line now aborts them with an exit rather than a warning. design.md lists this as accepted, but no test covers the doctor/finish/route-pending paths. Only integration_contour was adapted to catch FrictionLogError.",
-      "id": "strict-log-raises-in-nonblocking-callers",
+      "evidence": "route_event's `except RuntimeError` (L1105) does not cover ValueError/OSError from read_platform_config, which process_label (L1095, and ensure_process_label L1100) no longer swallows. Such an error aborts route_pending and the whole run instead of leaving the event pending with a named reason, as design.md decision 1 intends for destination errors. When it is raised at L1100, after the issue was created, the route state is not recorded.",
+      "id": "label-config-errors-escape-route-event",
       "severity": "advisory",
-      "summary": "Callers that were meant to be non-blocking now die with SystemExit on a single bad log line, and route_pending is not covered by any tolerance."
+      "summary": "process_label can now raise ValueError/OSError, but route_event only converts RuntimeError into a pending route."
     }
   ],
-  "launched_at": "2026-10-19T19:22:09+00:00",
-  "output_sha256": "61b13e1fe7217662106aff79eee3e7b4feed4dc5a3f061c7a38a57d8eb9eb32e",
+  "launched_at": "2026-10-19T19:25:19+00:00",
+  "output_sha256": "0d77771b255ff2a8e3bb5aa283d9a0bf138161b7386dd4babf8f9c618fb0ace6",
   "perspective": "engineering-quality",
-  "request_id": "5ebc83f5-5d3f-4c1b-b76c-a900b3d1a7d4",
+  "request_id": "761903a5-ba90-410f-b8c1-5920b580fe8a",
   "reviewer": {
-    "context_id": "1b515728-e623-4c6c-b110-24a8a352d478",
+    "context_id": "2cd2ee88-55bb-4008-a287-1ed0f51eb76e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ba796c0c-d4bf-4b5a-8e2b-4c780325d86a",
+    "launch_id": "platform-launch-0ee1aa68-b2b1-4f04-9503-eb842f188aa6",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34465
+        "value": 33926
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 86602
+        "value": 87447
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30061
+        "value": 14688
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30457
+        "value": 14961
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -76,12 +70,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2475
+        "value": 1679
       }
     },
     "runtime": "claude-code-print"

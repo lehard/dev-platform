@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "78317b94eab9d463ce5dd20bcca96e5bf9531fe6",
-    "diff_sha256": "668582281c5c032f35a693c335dbb70655d793f5d2a482c244783e7510a9e1ad"
+    "candidate_head": "5873c170dadd75aae7a850c6e64606bf08f840b3",
+    "diff_sha256": "3be8c10bb4489c584cc5cdcb9de6bd87a9fd74e890ea69da5259b2f79af6ed41"
   },
   "change": "openspec/changes/strict-friction-routing-and-log",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-19T19:21:35+00:00",
+  "prepared_at": "2026-10-19T19:24:47+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/strict-friction-routing-and-log/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "5ebc83f5-5d3f-4c1b-b76c-a900b3d1a7d4",
+  "request_id": "761903a5-ba90-410f-b8c1-5920b580fe8a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
