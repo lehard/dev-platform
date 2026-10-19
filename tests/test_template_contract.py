@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 import jinja2
+import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -128,6 +129,26 @@ class TemplateContractTests(unittest.TestCase):
     def test_root_openspec_receipt_guidance_is_yaml_safe(self) -> None:
         config = (ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8")
         self.assertIn("'After material findings are resolved, record `OpenSpec-Verify: PASS`", config)
+
+    def test_openspec_config_rules_and_guidance_parse_as_string_lists(self) -> None:
+        # OpenSpec ignores a whole artifact's rules when any entry is not a string
+        # (an unquoted "text: more" entry parses as a mapping).
+        central_config = yaml.safe_load((ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8"))
+        generated_template = (ROOT / "template" / "openspec" / "config.yaml.jinja").read_text(encoding="utf-8")
+        generated_config = yaml.safe_load(
+            jinja2.Environment(undefined=jinja2.StrictUndefined).from_string(generated_template).render(
+                project_name="Example Project",
+                project_description="Template render coverage",
+            )
+        )
+        for config_name, config in (("central", central_config), ("generated", generated_config)):
+            lists = {f"rules.{artifact}": entries for artifact, entries in config["rules"].items()}
+            lists.update({f"operations.{operation}.guidance": body["guidance"] for operation, body in config["operations"].items()})
+            for name, entries in lists.items():
+                with self.subTest(config=config_name, list=name):
+                    self.assertIsInstance(entries, list)
+                    self.assertTrue(entries)
+                    for entry in entries: self.assertIsInstance(entry, str, entry)
 
     def test_outcome_oriented_openspec_authoring_contract_is_shared(self) -> None:
         central_config = (ROOT / "openspec" / "config.yaml").read_text(encoding="utf-8")
