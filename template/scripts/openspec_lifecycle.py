@@ -6,6 +6,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
@@ -82,6 +83,59 @@ def task_state(change: Path) -> tuple[int, int]:
     if not tasks.exists():
         return 0, 0
     return count_tasks(tasks.read_text(encoding="utf-8"))
+
+
+PURPOSE_HEADING_RE = re.compile(r"^##\s+Purpose\s*$", re.IGNORECASE)
+SECTION_HEADING_RE = re.compile(r"^##\s+")
+# `openspec archive` writes "TBD - created by archiving change <name>. Update Purpose after archive."
+# for a new capability whose delta has no Purpose; TODO/FIXME are the same unauthored state.
+PURPOSE_PLACEHOLDER_RE = re.compile(r"^(?:TBD|TODO|FIXME)\b|Update Purpose after archive", re.IGNORECASE)
+
+
+def delta_purpose(text: str) -> str | None:
+    """Text of a delta spec's ``## Purpose`` section, or None when the section is absent."""
+    body: list[str] = []
+    found = False
+    for line in text.splitlines():
+        if SECTION_HEADING_RE.match(line):
+            if found:
+                break
+            found = bool(PURPOSE_HEADING_RE.match(line.strip()))
+            continue
+        if found:
+            body.append(line)
+    return "\n".join(body).strip() if found else None
+
+
+def archive_content_problems(root: Path, changes: list[Path]) -> list[str]:
+    """Archive-content readiness of ordered active changes, without Git or the OpenSpec CLI.
+
+    Every change must have complete tasks, and the first delta that creates a capability absent
+    from the main specs (in the given order) must carry an authored ``## Purpose``: OpenSpec reads
+    a delta Purpose only when it creates the capability and otherwise writes a TBD placeholder.
+    """
+    problems: list[str] = []
+    created: set[str] = set()
+    for change in changes:
+        total, incomplete = task_state(change)
+        if total == 0:
+            problems.append(f"{change.name}: tasks.md has no task checkboxes; refusing automatic archive")
+        elif incomplete:
+            problems.append(f"{change.name}: {incomplete} of {total} task(s) remain incomplete")
+        specs = change / "specs"
+        for delta in sorted(specs.glob("*/spec.md")) if specs.is_dir() else []:
+            capability = delta.parent.name
+            if capability in created or (root / "openspec" / "specs" / capability / "spec.md").is_file():
+                continue
+            created.add(capability)
+            purpose = delta_purpose(delta.read_text(encoding="utf-8"))
+            if not purpose or PURPOSE_PLACEHOLDER_RE.search(purpose):
+                problems.append(
+                    f"{change.name}: specs/{capability}/spec.md creates new capability '{capability}' without an "
+                    "authored '## Purpose' (missing, empty or placeholder). Add a '## Purpose' section stating what "
+                    "the capability is for to that delta; archive writes it to the new main spec."
+                )
+    return problems
 
 
 def verification_passed(change: Path) -> bool:
@@ -481,11 +535,9 @@ def require_static_archive_readiness(change: Path, *, platform_owned: bool = Fal
     """
     if not change.exists() or not change.is_dir():
         raise SystemExit(f"Active OpenSpec change not found: {change.name}")
-    total, incomplete = task_state(change)
-    if total == 0:
-        raise SystemExit(f"{change.name}: tasks.md has no task checkboxes; refusing automatic archive")
-    if incomplete:
-        raise SystemExit(f"{change.name}: {incomplete} of {total} task(s) remain incomplete")
+    problems = archive_content_problems(change.parents[2], [change])
+    if problems:
+        raise SystemExit("\n".join(problems))
     if not verification_passed(change):
         raise SystemExit(
             f"{change.name}: missing successful semantic verification receipt. "
@@ -517,6 +569,90 @@ def require_applicable_committed_diff(root: Path) -> None:
         )
     if result.returncode != 1:
         raise SystemExit("OpenSpec archive could not determine committed diff against origin/main.")
+
+
+def _is_lifecycle_evidence(relative: str) -> bool:
+    """Files the archive/review/check helpers write into the change directory themselves."""
+    return _is_review_evidence(relative) or relative == AUTOMATED_EVIDENCE_FILE or relative.startswith("evidence/")
+
+
+def require_committed_package(root: Path, change: Path) -> None:
+    """Reject uncommitted authored package or main-spec files before review, checks or evidence writes."""
+    prefix = f"openspec/changes/{change.name}/"
+    status = run_git(["status", "--porcelain", "--untracked-files=all", "--", prefix, "openspec/specs"], cwd=root, check=False)
+    if status.returncode:
+        raise SystemExit(f"{change.name}: archive cannot read the Git state of its package: {status.stderr.strip()}")
+    dirty: list[str] = []
+    for line in status.stdout.splitlines():
+        path = line[3:].split(" -> ", 1)[-1].strip('"')
+        if path.startswith(prefix) and _is_lifecycle_evidence(path[len(prefix):]):
+            continue
+        dirty.append(path)
+    if dirty:
+        raise SystemExit(
+            f"{change.name}: archive requires the committed package before review, checks or evidence writes; "
+            "uncommitted or untracked: " + ", ".join(dirty) + ". "
+            f"Commit them first (git add -- {prefix} openspec/specs && git commit), then rerun archive."
+        )
+
+
+FAILURE_LINE_RE = re.compile(r"✗|\[(?:ERROR|WARNING)\]|\berror\b|\bfailed\b", re.IGNORECASE)
+
+
+def failing_lines(output: str) -> str:
+    """Only the failing-item and error lines of OpenSpec output (progress/INFO lines dropped)."""
+    return "\n".join(line.rstrip() for line in output.splitlines() if FAILURE_LINE_RE.search(line))
+
+
+def openspec_failure_summary(output: str) -> str:
+    """Failing items of OpenSpec output; the whole output when no failing line is recognisable."""
+    return failing_lines(output) or output.strip()
+
+
+def _openspec_captured(executable: str, args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([executable, *args], cwd=cwd, stdin=subprocess.DEVNULL, text=True, capture_output=True)
+
+
+def rehearse_archive(root: Path, name: str, executable: str) -> None:
+    """Archive and strictly validate a disposable copy of ``openspec/`` before touching the checkout."""
+    with tempfile.TemporaryDirectory(prefix="openspec-archive-rehearsal-") as temporary:
+        shutil.copytree(root / "openspec", Path(temporary) / "openspec", symlinks=True)
+        for args in (["archive", name, "--yes"], ["validate", "--all", "--strict", "--no-interactive"]):
+            done = _openspec_captured(executable, args, Path(temporary))
+            if done.returncode:
+                raise SystemExit(
+                    f"{name}: archive rehearsal failed at 'openspec {' '.join(args)}'; this checkout was not changed.\n"
+                    + openspec_failure_summary(done.stdout + "\n" + done.stderr)
+                )
+    print(f"Archive rehearsal passed for {name}", flush=True)
+
+
+def archive_with_recovery(root: Path, name: str, executable: str) -> None:
+    """Archive for real; on a failed archive or post-validation restore the exact pre-archive tree."""
+    tree = root / "openspec"
+    with tempfile.TemporaryDirectory(prefix="openspec-archive-restore-") as temporary:
+        snapshot = Path(temporary) / "openspec"
+        shutil.copytree(tree, snapshot, symlinks=True)
+        for args in (["archive", name, "--yes"], ["validate", "--all", "--strict", "--no-interactive"]):
+            print("+ openspec " + " ".join(args), flush=True)
+            done = _openspec_captured(executable, args, root)
+            print(done.stdout, end="", flush=True)
+            print(done.stderr, end="", flush=True)
+            if not done.returncode:
+                continue
+            summary = openspec_failure_summary(done.stdout + "\n" + done.stderr)
+            try:
+                shutil.rmtree(tree)
+                shutil.copytree(snapshot, tree, symlinks=True)
+            except OSError as exc:
+                raise SystemExit(
+                    f"{name}: 'openspec {' '.join(args)}' failed and restoring the pre-archive openspec/ tree also "
+                    f"failed ({exc}); inspect openspec/ before rerunning.\n{summary}"
+                ) from exc
+            raise SystemExit(
+                f"{name}: 'openspec {' '.join(args)}' failed after archive; the pre-archive openspec/ tree was "
+                f"restored. Fix the failing items and rerun the same archive command.\n{summary}"
+            )
 
 
 def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = None, pass_fds: tuple[int, ...] = ()) -> None:
@@ -562,6 +698,8 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
         except ManagedTaskError as exc:
             raise SystemExit(f"{name}: managed checkout identity gate blocked archive before validation: {exc}") from exc
     require_static_archive_readiness(change, platform_owned=platform_owned, review=False, routing=not finalize)
+    if not finalize:
+        require_committed_package(root, change)
     if platform_owned and not finalize:
         require_applicable_committed_diff(root)
     if composition:
@@ -603,8 +741,8 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     if not executable:
         raise SystemExit("OpenSpec CLI is required to archive a verified change")
     run_checked([executable, "validate", name, "--strict", "--no-interactive"], root)
-    run_checked([executable, "archive", name, "--yes"], root)
-    run_checked([executable, "validate", "--all", "--strict", "--no-interactive"], root)
+    rehearse_archive(root, name, executable)
+    archive_with_recovery(root, name, executable)
     print(f"Archived verified OpenSpec change: {name}")
     return 0
 

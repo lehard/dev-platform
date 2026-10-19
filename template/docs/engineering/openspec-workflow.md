@@ -41,8 +41,9 @@ When implementation shows the plan must change, update the owning artifact first
 1. Run project tests and checks.
 2. Perform semantic verification: re-read the change and the implementation and assess completeness, correctness and coherence. This is distinct from structural validation (`openspec validate`), which checks only artifact format.
 3. Record the result in `verification.md`, stating what was checked and by which method.
-4. Archive with `python3 scripts/openspec_lifecycle.py archive <change>`; verify hygiene with `python3 scripts/openspec_lifecycle.py check`.
-5. Publish with `python3 scripts/finish_task.py`.
+4. Commit the package (tasks, delta specs, `verification.md`); archive rejects uncommitted authored package files before review or checks.
+5. Archive with `python3 scripts/openspec_lifecycle.py archive <change>`; verify hygiene with `python3 scripts/openspec_lifecycle.py check`.
+6. Publish with `python3 scripts/finish_task.py`.
 
 Managed tasks start with `python3 scripts/start_managed_task.py`. Check the installed OpenSpec version against the policy below with `python3 scripts/platform_doctor.py`.
 
@@ -232,7 +233,7 @@ Then archive through the platform entrypoint:
 python3 scripts/openspec_lifecycle.py archive <change>
 ```
 
-The helper requires all tasks to be complete and the PASS receipt plus method, runs strict validation, invokes the OpenSpec CLI archive, and validates the resulting OpenSpec state. It does not emulate semantic verification and does not install or upgrade OpenSpec.
+The helper requires all tasks to be complete, the PASS receipt plus method, a committed package and an authored `## Purpose` in every delta that creates a capability absent from `openspec/specs` (a missing, empty or `TBD`/`TODO`/`FIXME` Purpose is rejected before any mutation, because OpenSpec otherwise writes a placeholder Purpose that strict validation rejects). It runs strict validation, rehearses the archive and `validate --all --strict` on a disposable copy of `openspec/`, then invokes the OpenSpec CLI archive and validates the resulting OpenSpec state. If the real archive or its post-validation still fails, it restores the exact pre-archive `openspec/` tree and reports the failing items, so the same command can be rerun after the fix. It does not emulate semantic verification and does not install or upgrade OpenSpec.
 
 `finish_task.py` and CI run lifecycle hygiene. If all task checkboxes in an active change are complete but the change is still active, publication is blocked. This turns “remember to archive” into a repository invariant rather than a human reminder.
 
