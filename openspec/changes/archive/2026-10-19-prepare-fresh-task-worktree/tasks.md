@@ -18,6 +18,8 @@
 
 - [x] 4.4 Make the friction-window fixtures in `tests/test_autonomous_integration_contour.py` relative to the run time: fixed 2026-10-0x dates fell out of the 14-day `AMBIGUOUS_WINDOW_DAYS` on 2026-10-17 and failed the mandatory suite on main independently of this change.
 
+- [x] 4.5 Disable detached Git auto-maintenance in `tests/upgrade_smoke.py`: on the CI runner (Git 2.55) it wrote into the temporary project's `.git` during cleanup and failed the upgrade smoke after it had passed (Errno 39), on three consecutive runs of this candidate.
+
 ## 5. Verification and delivery
 
 - [x] 5.1 Regenerate the platform manifest; required platform checks; truthful semantic verification; archive; retrospectives; publication.
