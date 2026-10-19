@@ -3,46 +3,28 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "59923b0d597727865191424bac912032d5cedd42",
-    "diff_sha256": "e12f33edd679070b56122e758489fa6d936964b64e656a86cdfa8749fa440388"
+    "candidate_head": "f617b96a89299113ed8e6d4b28f8544420611213",
+    "diff_sha256": "82bcb78a4f1d4b805b299199305c9c09b67e87c465629782f8dc2134b1708e2c"
   },
-  "completed_at": "2026-10-19T19:06:50+00:00",
+  "completed_at": "2026-10-19T19:20:39+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py: `legacy_content_id` returns `legacy-` plus 16 hex chars. `LEGACY_POSITIONAL_ID_RE = re.compile(r\"legacy-\\d+\")` fullmatches any such id whose 16 hex digits are all decimal, roughly 0.05% of ids. `read_state` and `read_attributions` call `resolve_positional_id` on every persisted key. Once a route or attribution is stored under that content id, the next read treats it as line number ~10^15 and raises FrictionLogError 'does not match a line'. Every state read then fails. The positional form needs a disjoint namespace, such as a different prefix, or the content id needs a non-digit marker.",
-      "id": "legacy-content-id-collides-with-positional-pattern",
-      "severity": "material",
-      "summary": "A content-derived legacy id can be taken for a positional reference and then break read_state and read_attributions."
-    },
-    {
-      "evidence": "route_event wraps its body in `except RuntimeError`. `process_label()` no longer swallows FileNotFoundError/OSError/ValueError from `read_platform_config`, and it is called inside the issue-creation arguments. A TOML or IO error there escapes route_event and route_pending as an uncaught traceback. The event gets no pending route state, and the remaining events in that route-pending run are skipped. The design says such failures are surfaced as pending/warnings. The same applies if read_operator_config raises ValueError rather than RuntimeError.",
-      "id": "route-event-config-errors-not-pending",
+      "evidence": "template/scripts/agent_friction.py:1095 calls process_label() inside route_event, whose handler at line 1105 is `except RuntimeError`. The new process_label (diff lines ~430-448) propagates read_platform_config errors unchanged, and tests/test_friction_strict_log.py:89 asserts a ValueError('bad toml') propagates. design.md decision 1 says configuration errors become pending routes, but this holds only for RuntimeError. One bad value therefore aborts the whole route_pending loop, which design.md rejected for the destination case. The same applies to non-RuntimeError failures from read_operator_config in destination_for. Not verified: which exception types read_operator_config raises.",
+      "id": "route-event-config-errors-escape-pending",
       "severity": "advisory",
-      "summary": "Label configuration errors that now propagate are not turned into a pending route by route_event, which only catches RuntimeError."
-    },
-    {
-      "evidence": "`legacy_content_id` hashes only `line.strip()`. Identical repeated lines yield duplicate event ids in read_events, so routes, attributions and checkpoints for them are merged. Positional ids used to keep them distinct.",
-      "id": "legacy-content-id-duplicate-lines",
-      "severity": "advisory",
-      "summary": "Two byte-identical id-less lines get the same legacy id."
-    },
-    {
-      "evidence": "`resolve_positional_id` calls `path.read_text` for each `legacy-N` key from the loops in `read_state` and `read_attributions`. `read_state` is called frequently. Cost is O(keys \u00d7 log size), and a single stale key makes every read of state fail hard.",
-      "id": "positional-resolution-rereads-log-per-key",
-      "severity": "advisory",
-      "summary": "Translating positional ids reads and parses the whole log once per key."
+      "summary": "A label configuration error that is not a RuntimeError (e.g. a ValueError from a TOML parse failure, which the new code deliberately propagates) escapes route_event as an exception. It does not become a retained `pending` route, so it can abort route_pending and the callers that route after a record has been written."
     }
   ],
-  "launched_at": "2026-10-19T19:06:23+00:00",
-  "output_sha256": "af2044d11bd0637b7bd3aef521c2d0ce4814704c30e4d7a2e9abb3b052238465",
+  "launched_at": "2026-10-19T19:20:26+00:00",
+  "output_sha256": "6d9fb1205f8c029dca4876ba14e12ff334fca9700a876cb196caf211b4da3e4e",
   "perspective": "engineering-quality",
-  "request_id": "0c62fc71-e349-48f0-9aa2-65ad200b2f3d",
+  "request_id": "c9ebf444-8afb-41f1-a1a2-091ddff0b9e5",
   "reviewer": {
-    "context_id": "7826d62b-1c27-4c1a-a03c-43374d032c10",
+    "context_id": "16ea346b-aeba-4369-84f6-7b63e746d796",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f7175149-4912-41d5-b86c-bbbc6c1fb119",
+    "launch_id": "platform-launch-bb3ee289-1d17-477a-8069-cb19a63e9357",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35037
+        "value": 33766
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 87812
+        "value": 86808
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25279
+        "value": 11898
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25602
+        "value": 12224
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -82,12 +64,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2389
+        "value": 1357
       }
     },
     "runtime": "claude-code-print"

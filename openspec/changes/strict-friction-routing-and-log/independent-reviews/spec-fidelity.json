@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "59923b0d597727865191424bac912032d5cedd42",
-    "diff_sha256": "e12f33edd679070b56122e758489fa6d936964b64e656a86cdfa8749fa440388"
+    "candidate_head": "f617b96a89299113ed8e6d4b28f8544420611213",
+    "diff_sha256": "82bcb78a4f1d4b805b299199305c9c09b67e87c465629782f8dc2134b1708e2c"
   },
-  "completed_at": "2026-10-19T19:06:23+00:00",
+  "completed_at": "2026-10-19T19:20:26+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py: `legacy_content_id` yields `legacy-` plus 16 hex chars, and `LEGACY_POSITIONAL_ID_RE = re.compile(r\"legacy-\\d+\")` fullmatches any all-digit hash (about 0.05% of ids). `resolve_positional_id` in `read_state` and `read_attributions` then treats it as a line number. It raises a FrictionLogError, or maps to the wrong line, for a route or attribution already keyed by the content id. Design decision 4 does not address this.",
-      "id": "legacy-content-id-collides-with-positional-pattern",
+      "evidence": "template/scripts/agent_friction.py `resolve_positional_id` reads `lines[number - 1]` of the current log. The test `test_positional_references_resolve_to_content_id` only covers an unshifted log. The spec scenario 'Legacy event identity is stable' says 'after ... an earlier line was removed'.",
+      "id": "positional-id-after-line-removal",
       "severity": "advisory",
-      "summary": "A content-derived legacy id made only of decimal digits is indistinguishable from a positional reference and is mis-resolved."
+      "summary": "The spec scenario says a positional `legacy-N` attribution resolves to the stable identity after an earlier line is removed. The implementation resolves N against the current file, so it only works while the log has not shifted. After a removal, `legacy-N` can silently map to a different id-less line, or fail with a named error."
     },
     {
-      "evidence": "`route_event` only catches RuntimeError (line ~1105). `process_label()` now lets `read_platform_config` ValueError/OSError/FileNotFoundError propagate. It is called inside the try at line ~1095 and via `ensure_process_label`. Such an error aborts routing, and any `route-pending` run, with a traceback instead of leaving a named pending reason. This is consistent with the spec's 'reported as an error' wording but inconsistent with the stated pending-route behavior for the destination.",
-      "id": "process-label-config-error-escapes-route-event",
+      "evidence": "template/scripts/agent_friction.py:1105 `except RuntimeError as exc:`. `read_operator_config` in `_platform_common.py` calls `read_platform_config`, and the candidate removed the `(FileNotFoundError, OSError, ValueError, RuntimeError)` catch from `platform_repository`. The tests only exercise a `RuntimeError`.",
+      "id": "route-event-config-errors-not-pending",
       "severity": "advisory",
-      "summary": "A label configuration read error raised as ValueError or OSError is not converted into a retained pending route, unlike the platform-destination error."
+      "summary": "Spec and design say that when the operator configuration cannot be read, the event stays local and pending with a named reason. `route_event` only converts `RuntimeError` into a pending route. `destination_for` and `platform_repository` no longer catch `ValueError`/`OSError`, so a TOML parse or read error from `read_platform_config` or `read_operator_config` is not caught. That error propagates out of `route_event` and `route_pending` instead of becoming a pending route. The same applies to `process_label()` errors inside `route_event`."
     }
   ],
-  "launched_at": "2026-10-19T19:05:59+00:00",
-  "output_sha256": "868dd32ff530f0f6b6eff9cbe2f62d7b5be21570f67864525fba5405a1038d4f",
+  "launched_at": "2026-10-19T19:19:58+00:00",
+  "output_sha256": "2908508a570cf5934cbe8c36f51ce9db4e622a540bf4248357441c87727471ca",
   "perspective": "spec-fidelity",
-  "request_id": "0c62fc71-e349-48f0-9aa2-65ad200b2f3d",
+  "request_id": "c9ebf444-8afb-41f1-a1a2-091ddff0b9e5",
   "reviewer": {
-    "context_id": "7d0ed453-d6cc-484f-8a10-09525ff08352",
+    "context_id": "b10a1c4c-c38a-4f1f-9588-36ee2192e768",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9a9a1808-3f5d-4b55-8a94-cb8a519e9408",
+    "launch_id": "platform-launch-514c6fe6-06a5-4fd6-8cd4-922f927de00a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34929
+        "value": 37423
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 87123
+        "value": 89739
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23327
+        "value": 27298
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23537
+        "value": 27461
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -70,12 +70,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1660
+        "value": 2150
       }
     },
     "runtime": "claude-code-print"
