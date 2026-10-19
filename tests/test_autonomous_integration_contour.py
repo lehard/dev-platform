@@ -613,7 +613,8 @@ class FrictionFixture(unittest.TestCase):
     def record(self, key="k1", **kw):
         values = dict(task="agent/br-7-t8-task", requirement=REQUIREMENT, category="coordinator-retry",
                       triggers=["excessive-retry"], severity="medium", observation="obs", evidence="ev",
-                      hypothesis="hyp", proposal="prop", dedupe_key=key)
+                      hypothesis="hyp", proposal="prop", dedupe_key=key, reason="review: provider-unavailable",
+                      candidate={"task": "agent/br-7-t8-task", "number": 8, "head": HEAD})
         return friction.append_coordinator_event(**{**values, **kw})
 
 
@@ -688,7 +689,8 @@ class FrictionAttributionTests(FrictionFixture):
             with mock.patch.object(queue, "post_evidence", return_value={"event_id": "coordinator-0123456789abcdef"}):
                 sink({"task": "requirement/BR-7", "category": "coordinator-retry", "severity": "medium",
                       "triggers": ["excessive-retry"], "observation": "retry", "evidence": "repair",
-                      "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry"})
+                      "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry",
+                      "reason": "repair: provider-unavailable", "number": 9, "head": HEAD})
         event = self.events()[0]
         self.assertEqual(event["requirement"], REQUIREMENT)
         ops = FakeOps()
@@ -705,11 +707,13 @@ class FrictionAttributionTests(FrictionFixture):
             for failure in (OSError("friction storage denied"), SystemExit("invalid lineage")):
                 sink.side_effect = failure
                 with self.assertRaisesRegex(queue.QueueError, "friction recording failed.*retry transition"):
-                    queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"})
+                    queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"},
+                                      red_gate={"name": "review", "evidence": "material findings"})
                 self.assertEqual(multi.comments[7], before)
             sink.side_effect = contour.default_friction_sink(
                 self.root, lineage=lambda *a: {"requirement": REQUIREMENT, "child": CHILDREN[0]})
-            result = queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"})
+            result = queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"},
+                                       red_gate={"name": "review", "evidence": "material findings"})
             self.assertEqual(result["state"], "repair-pending")
             self.assertEqual(len(self.events()), 1)
 

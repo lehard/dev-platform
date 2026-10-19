@@ -169,6 +169,49 @@ def normalize_text(value: str, field: str, max_length: int = 4000) -> str:
     return normalized
 
 
+# Coordinator lifecycle events must say what happened and to which candidate before
+# they may reach the process issue stream; a faceless one is withheld from routing.
+COORDINATOR_CATEGORIES = frozenset({
+    "coordinator-review-repair", "coordinator-retry", "coordinator-integration-repair",
+    "lifecycle-blocked-escalation", "lifecycle-validation-failure",
+})
+REASON_MAX = 240
+_HEAD_RE = re.compile(r"[0-9a-f]{7,40}")
+
+
+def is_coordinator_event(event: dict) -> bool:
+    return event.get("attribution") == "coordinator" or event.get("category") in COORDINATOR_CATEGORIES
+
+
+def normalize_candidate(candidate: object) -> dict:
+    """Validate the candidate an event concerns: task branch, optional PR number, head."""
+    if not isinstance(candidate, dict):
+        raise SystemExit("candidate must be an object with task and head")
+    task = candidate.get("task")
+    head = candidate.get("head")
+    number = candidate.get("number")
+    if not isinstance(task, str) or not task.strip():
+        raise SystemExit("candidate task must be a non-empty branch name")
+    if not isinstance(head, str) or not _HEAD_RE.fullmatch(head):
+        raise SystemExit("candidate head must be a hexadecimal commit SHA")
+    if number is not None and (not isinstance(number, int) or isinstance(number, bool) or number <= 0):
+        raise SystemExit("candidate number must be a positive PR number")
+    return {"task": normalize_text(task, "candidate task", 200), "number": number, "head": head}
+
+
+def missing_coordinator_fields(event: dict) -> list[str]:
+    """Names of the reason/candidate fields a coordinator event lacks or carries malformed."""
+    missing = []
+    reason = event.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        missing.append("reason")
+    try:
+        normalize_candidate(event.get("candidate"))
+    except SystemExit:
+        missing.append("candidate")
+    return missing
+
+
 def context_metadata_for(args: argparse.Namespace) -> dict | None:
     """Validate optional, bounded routing metadata for context-gap evidence."""
     classification = getattr(args, "classification", "process-friction")
@@ -435,6 +478,27 @@ def _current_run_provenance(participant_role: str) -> dict:
     }
 
 
+def record_coordinator_fields(args: argparse.Namespace, event: dict) -> dict:
+    """The reason/candidate fields of a recorded event; required for coordinator categories."""
+    fields: dict = {}
+    reason = getattr(args, "reason", None)
+    if reason is not None:
+        fields["reason"] = normalize_text(reason, "reason", REASON_MAX)
+    task = getattr(args, "candidate_task", None)
+    head = getattr(args, "candidate_head", None)
+    number = getattr(args, "candidate_number", None)
+    if task is not None or head is not None or number is not None:
+        fields["candidate"] = normalize_candidate({"task": task, "head": head, "number": number})
+    if is_coordinator_event(event):
+        missing = missing_coordinator_fields(fields)
+        if missing:
+            raise SystemExit(
+                f"coordinator category {event['category']} requires "
+                + " and ".join("--reason" if name == "reason" else "--candidate-task/--candidate-head" for name in missing)
+            )
+    return fields
+
+
 def cmd_record(args: argparse.Namespace) -> int:
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -461,6 +525,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         "classification": getattr(args, "classification", "process-friction"),
         "context": context,
     }
+    event.update(record_coordinator_fields(args, event))
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True)
     with friction_lock():
         with path.open("a", encoding="utf-8") as fh:
@@ -475,6 +540,8 @@ def cmd_record(args: argparse.Namespace) -> int:
     result = route_event(event)
     if result["status"] == "pending":
         print(f"WARNING: friction routing is pending for {event['id']}: {result['detail']}")
+    elif result["status"] == "withheld":
+        print(f"Friction event {event['id']} withheld from GitHub routing: {result['detail']}")
     elif result["status"] == "candidate":
         numbers = ", ".join(f"#{candidate['issue_number']}" for candidate in result.get("candidates", []))
         print(f"Friction candidate {event['id']} needs an explicit duplicate decision before creating a new issue: {numbers}")
@@ -486,7 +553,7 @@ def cmd_record(args: argparse.Namespace) -> int:
 def append_coordinator_event(
     *, task: str, requirement: str | None, category: str, triggers: Sequence[str], severity: str,
     observation: str, evidence: str, hypothesis: str, proposal: str, dedupe_key: str,
-    scope: str = "platform", event_id: str | None = None,
+    reason: str, candidate: dict, scope: str = "platform", event_id: str | None = None,
 ) -> dict:
     """Idempotently record one coordinator-observed lifecycle event in the local log.
 
@@ -501,6 +568,8 @@ def append_coordinator_event(
     """
     if severity not in SEVERITIES or any(trigger not in TRIGGERS for trigger in triggers):
         raise SystemExit("coordinator friction event has an unknown severity or trigger")
+    reason = normalize_text(reason, "reason", REASON_MAX)
+    candidate = normalize_candidate(candidate)
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with friction_lock():
@@ -511,7 +580,8 @@ def append_coordinator_event(
             "id": event_id or uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
             "requirement": requirement, "attribution": "coordinator", "dedupe_key": dedupe_key,
             "category": normalize_text(category, "category", 100), "triggers": sorted(set(triggers)),
-            "severity": severity, "observation": normalize_text(observation, "observation"),
+            "severity": severity, "reason": reason, "candidate": candidate,
+            "observation": normalize_text(observation, "observation"),
             "evidence": normalize_text(evidence, "evidence"), "hypothesis": normalize_text(hypothesis, "hypothesis"),
             "scope": scope, "proposal": normalize_text(proposal, "proposal"),
             "run": _unknown_run_provenance("unknown"), "classification": "process-friction", "context": None,
@@ -927,6 +997,21 @@ def _provenance_line(event: dict) -> str | None:
     return f"- Participant: `{role}` / provider `{provider}` / model `{model_value}` ({model_source})"
 
 
+def candidate_markdown_lines(event: dict) -> list[str]:
+    candidate = event.get("candidate")
+    if not isinstance(candidate, dict):
+        return []
+    number = candidate.get("number")
+    pr = f" / PR #{number}" if isinstance(number, int) else ""
+    return [f"- Candidate: `{sanitize_for_route(candidate.get('task'), 200)}`{pr} / head `{sanitize_for_route(candidate.get('head'), 12)[:12]}`"]
+
+
+def reason_markdown_lines(event: dict) -> list[str]:
+    if not isinstance(event.get("reason"), str):
+        return []
+    return ["### Reason", sanitize_for_route(event.get("reason"), REASON_MAX), ""]
+
+
 def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
     provenance_line = _provenance_line(event)
     lines = [
@@ -940,11 +1025,13 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
         f"- Fingerprint: `{fingerprint}`",
         f"- Recorded at: `{sanitize_for_route(event.get('at'), 64)}`",
         *([provenance_line] if provenance_line else []),
+        *candidate_markdown_lines(event),
         *context_markdown_lines(event),
         "",
         "### Observation",
         sanitize_for_route(event.get("observation")),
         "",
+        *reason_markdown_lines(event),
         "### Hypothesis",
         sanitize_for_route(event.get("hypothesis")),
         "",
@@ -961,6 +1048,16 @@ def route_event(event: dict) -> dict:
     event_id = str(event.get("id") or "")
     if not event_id:
         return {"status": "pending", "detail": "event has no id"}
+    if is_coordinator_event(event):
+        missing = missing_coordinator_fields(event)
+        if missing:
+            route = {"status": "withheld", "detail": "coordinator event lacks " + " and ".join(missing),
+                     "last_attempt_at": utc_now()}
+            with friction_lock():
+                state = read_state()
+                state["routes"][event_id] = route
+                atomic_write_json(state_path(), state)
+            return route
     try:
         if shutil.which("gh") is None:
             raise RuntimeError("GitHub CLI is unavailable")
@@ -1027,14 +1124,17 @@ def route_event(event: dict) -> dict:
 def route_pending() -> dict:
     state = read_state()
     routes = state.get("routes", {})
-    pending = [event for event in read_events(None) if routes.get(str(event.get("id")), {}).get("status") != "routed"]
+    pending = [event for event in read_events(None)
+               if routes.get(str(event.get("id")), {}).get("status") not in ("routed", "withheld")]
     routed = 0
     failures = 0
+    withheld = 0
     for event in pending:
         result = route_event(event)
         routed += result["status"] == "routed"
-        failures += result["status"] != "routed"
-    return {"pending": len(pending), "routed": routed, "failures": failures}
+        withheld += result["status"] == "withheld"
+        failures += result["status"] not in ("routed", "withheld")
+    return {"pending": len(pending), "routed": routed, "failures": failures, "withheld": withheld}
 
 
 def cmd_route_pending(_: argparse.Namespace) -> int:
@@ -1518,6 +1618,10 @@ def main() -> int:
     p.add_argument("--scope", choices=["project", "platform"], required=True)
     p.add_argument("--proposal", required=True)
     p.add_argument("--task")
+    p.add_argument("--reason", help="bounded one-line cause; required for coordinator lifecycle categories")
+    p.add_argument("--candidate-task", help="candidate task branch the event concerns")
+    p.add_argument("--candidate-number", type=int, help="candidate PR number, when one exists")
+    p.add_argument("--candidate-head", help="candidate head commit SHA")
     p.add_argument(
         "--participant-role", choices=("supervisor", "executor", "unknown"), default="unknown",
         help="which participant this finding concerns; identity is read back from the current routing record, not self-reported",
@@ -1528,7 +1632,7 @@ def main() -> int:
     )
     p.set_defaults(func=cmd_record)
 
-    p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
+    p = sub.add_parser("route-pending", help="explicitly retry routing of locally retained friction events; faceless coordinator events are withheld")
     p.set_defaults(func=cmd_route_pending)
 
     p = sub.add_parser("reconcile-process-labels", help="repair labels on bounded clearly router-generated open friction issues")
