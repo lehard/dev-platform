@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+    "base_ref": "origin/main",
+    "candidate_head": "1da8d8309ed70bef8a92a886ac55a4074bde9d25",
+    "diff_sha256": "4222995d6336d7921420ae8552bbb7e4771cf152d071c8785abc5d40a921f137"
+  },
+  "completed_at": "2026-10-19T16:42:11+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/dev.py: `[\"git\", \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"info/exclude\"]` with `check=True`. This ships to downstream projects. The change adds no version guard, and no fallback that resolves a relative result against `root`. The code it replaces did resolve a relative path against `root`.",
+      "id": "git-path-format-absolute-version",
+      "severity": "advisory",
+      "summary": "The exclude writer now depends on `git rev-parse --path-format=absolute`, which needs Git 2.31 or newer. On older Git, `ensure_local_generated_excludes` raises CalledProcessError because of `check=True`. The previous `--git-dir` call worked on any Git version."
+    }
+  ],
+  "launched_at": "2026-10-19T16:42:05+00:00",
+  "output_sha256": "1b7df3eb8c4919c8c3ac385532ef5049460b243792643c537cd408ac71d2e683",
+  "perspective": "engineering-quality",
+  "request_id": "f53509fe-3e63-4256-a2a1-e9b2b1531178",
+  "reviewer": {
+    "context_id": "f92507e7-48fe-4b8d-9f6e-58f1b3c2625f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-15bfaa0f-b206-4cd5-9c47-83be0cc29986",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21405
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16539
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5180
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5408
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 602
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8950f4f965cd3c8bb69208266e172bf529253335a0a69e7da7dd15b57302efd3"
+}
