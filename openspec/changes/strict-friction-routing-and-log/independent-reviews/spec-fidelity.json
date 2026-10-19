@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "5873c170dadd75aae7a850c6e64606bf08f840b3",
-    "diff_sha256": "3be8c10bb4489c584cc5cdcb9de6bd87a9fd74e890ea69da5259b2f79af6ed41"
+    "candidate_head": "e96f7574e54c23c8739552ebb56d3c2599a7b2ae",
+    "diff_sha256": "71cca673e26d086d6bcd90027151cf735bcde2c2d0196142abd61546c38b4d95"
   },
-  "completed_at": "2026-10-19T19:25:19+00:00",
+  "completed_at": "2026-10-19T19:26:48+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py resolve_positional_id (candidate.diff lines 377-395) raises FrictionLogError unconditionally. It is called from read_state and read_attributions, which review-path and record_checkpoint also use. The spec says tolerance applies to review-path output and to an accepted `friction-log` gap (spec.md line 22), and design.md decision 3 says the same. Resolution by line number also gives a wrong target silently if an earlier line was removed. The spec scenario 'earlier line was removed' only covers content ids, so this is an edge case rather than a contradiction.",
-      "id": "positional-resolution-ignores-gap-context",
+      "evidence": "template/scripts/agent_friction.py `resolve_positional_id` accepts any line N that parses and has no `id`. The scenario 'Legacy event identity is stable' (spec.md lines 41-46) covers 'an earlier line was removed', which this cannot honour for positional references. The only guard is the 'has its own id' check.",
+      "id": "positional-id-resolves-against-current-file",
       "severity": "advisory",
-      "summary": "resolve_positional_id always reads the log strictly. It does not honor tolerate_local_gap, so review-path and checkpoints with an accepted friction-log gap can still fail on an unreadable log or an invalid line N whenever route state or attributions hold legacy-N keys."
+      "summary": "A positional `legacy-N` reference is translated against the current physical line N. If earlier lines have been removed or reordered since it was persisted, it can silently resolve to a different id-less event. The spec says it must resolve to the same identity or fail with a named error."
+    },
+    {
+      "evidence": "template/scripts/agent_friction.py `legacy_content_id` hashes `line.strip()` only. `_parse_log_text` does not de-duplicate or disambiguate repeated ids.",
+      "id": "identical-legacy-lines-collide",
+      "severity": "advisory",
+      "summary": "The content-derived legacy id is a hash of the stripped line. Two byte-identical id-less lines get the same id, so they merge in route state and attributions. Position-based ids kept them distinct."
     }
   ],
-  "launched_at": "2026-10-19T19:24:58+00:00",
-  "output_sha256": "f18f640caeb507981ff7a055c719ae27840cdf7b035727a8e62af5aa23677388",
+  "launched_at": "2026-10-19T19:26:28+00:00",
+  "output_sha256": "b911908731087f69579e238fe59508adedc1233802f7ff1e848ca94967389b27",
   "perspective": "spec-fidelity",
-  "request_id": "761903a5-ba90-410f-b8c1-5920b580fe8a",
+  "request_id": "eb77be39-7781-47c1-9cc8-01c84f3e34cc",
   "reviewer": {
-    "context_id": "fe81a3ae-8ae7-4fd1-9f48-bd7ce5d43a9f",
+    "context_id": "529324bb-c225-4274-921b-e96897ef75a5",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ad7c2dbb-11ce-4737-a7c2-a961bc3bdf1a",
+    "launch_id": "platform-launch-fc3db6db-b461-4cc0-896b-e001e8ec4795",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,37 +45,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35295
+        "value": 38416
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 87224
+        "value": 126825
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20486
+        "value": 20020
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20696
+        "value": 20204
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1917
+        "value": 2100
       }
     },
     "runtime": "claude-code-print"

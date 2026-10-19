@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "5873c170dadd75aae7a850c6e64606bf08f840b3",
-    "diff_sha256": "3be8c10bb4489c584cc5cdcb9de6bd87a9fd74e890ea69da5259b2f79af6ed41"
+    "candidate_head": "e96f7574e54c23c8739552ebb56d3c2599a7b2ae",
+    "diff_sha256": "71cca673e26d086d6bcd90027151cf735bcde2c2d0196142abd61546c38b4d95"
   },
-  "completed_at": "2026-10-19T19:25:35+00:00",
+  "completed_at": "2026-10-19T19:27:17+00:00",
   "findings": [
     {
-      "evidence": "legacy_content_id returns 'legacy-' + 16 hex chars of SHA-256 (agent_friction.py ~L298). LEGACY_POSITIONAL_ID_RE = r'legacy-\\d+' fullmatches any such id whose 16 hex chars are all 0-9, roughly 0.05% of id-less events. resolve_positional_id is called from read_state for every route key and from read_attributions. For such an id it treats the digits as a line number and raises FrictionLogError ('does not match a line'). That makes read_state fail permanently once the route is persisted, and it fails attribution for that event. Fix: make the content ids unambiguous (e.g. force a hex letter, a distinct prefix, or a bounded-digit positional pattern).",
-      "id": "legacy-digest-collides-with-positional-pattern",
-      "severity": "material",
-      "summary": "A content-derived legacy id made only of decimal digits is misread as a positional reference and fails resolution."
+      "evidence": "template/scripts/agent_friction.py: `legacy_content_id` returns `legacy-` + 16 hex chars, and `LEGACY_POSITIONAL_ID_RE = re.compile(r\"legacy-\\d+\")`. About 0.05% of content ids (16 hex chars that are all digits) match the regex. `resolve_positional_id` is applied to every route key in `read_state` and every attribution in `read_attributions`. For such an id it treats the digits as a line number and raises `FrictionLogError` ('does not match a line'). That breaks all state and attribution reads for that event, including ids the new code itself persisted. Use a distinguishable format or a bounded `\\d{1,9}` pattern.",
+      "id": "legacy-content-id-collides-with-positional-pattern",
+      "severity": "advisory",
+      "summary": "A content-derived legacy id made only of decimal digits is misread as a positional reference and makes the friction state or attribution read fail."
     },
     {
-      "evidence": "route_event's `except RuntimeError` (L1105) does not cover ValueError/OSError from read_platform_config, which process_label (L1095, and ensure_process_label L1100) no longer swallows. Such an error aborts route_pending and the whole run instead of leaving the event pending with a named reason, as design.md decision 1 intends for destination errors. When it is raised at L1100, after the issue was created, the route state is not recorded.",
-      "id": "label-config-errors-escape-route-event",
+      "evidence": "`process_label()` no longer catches errors. It is called at agent_friction.py:1095, inside `route_event`'s `try` that only has `except RuntimeError`. It is also called via `ensure_process_label` at lines 1071 and 1100. `read_platform_config` raises `tomllib.TOMLDecodeError` (a ValueError) or `OSError`, and these escape. A malformed config therefore raises a traceback from `route_event` and `route_pending`, which break doctor and finish retries. That contradicts design decision 1's stated pending-route handling (for platform destination errors). The event is also left with no route state naming the cause.",
+      "id": "route-event-config-error-escapes-pending",
       "severity": "advisory",
-      "summary": "process_label can now raise ValueError/OSError, but route_event only converts RuntimeError into a pending route."
+      "summary": "A process-label configuration read error now escapes `route_event` as an uncaught ValueError or OSError, so it is not kept as a pending route."
     }
   ],
-  "launched_at": "2026-10-19T19:25:19+00:00",
-  "output_sha256": "0d77771b255ff2a8e3bb5aa283d9a0bf138161b7386dd4babf8f9c618fb0ace6",
+  "launched_at": "2026-10-19T19:26:48+00:00",
+  "output_sha256": "da1eafd043834635f6cc001e200a520d88471b9425bb7b274db04d9389e731a6",
   "perspective": "engineering-quality",
-  "request_id": "761903a5-ba90-410f-b8c1-5920b580fe8a",
+  "request_id": "eb77be39-7781-47c1-9cc8-01c84f3e34cc",
   "reviewer": {
-    "context_id": "2cd2ee88-55bb-4008-a287-1ed0f51eb76e",
+    "context_id": "398e990a-90fa-42bf-a4fc-cde6b95a47d8",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0ee1aa68-b2b1-4f04-9503-eb842f188aa6",
+    "launch_id": "platform-launch-626f492f-b8c6-4b16-a47b-da4fcedfb6d2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,37 +45,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33926
+        "value": 36279
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 87447
+        "value": 126988
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14688
+        "value": 27819
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14961
+        "value": 28126
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1679
+        "value": 2217
       }
     },
     "runtime": "claude-code-print"
