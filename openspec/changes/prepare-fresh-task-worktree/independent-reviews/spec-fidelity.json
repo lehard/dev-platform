@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+    "base_ref": "origin/main",
+    "candidate_head": "8985d11f726d6c0b460e3e428e8a2fa74734e35a",
+    "diff_sha256": "0c89ca75a7670bad0254ecdb6ebef915bb0265f044e858e9ce8dc99c85ebad23"
+  },
+  "completed_at": "2026-10-19T15:23:38+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_fresh_worktree_readiness.py mocks `start_worktree.preflight` in `_create` and never calls the shared-workspace audit. GeneratedExcludeLocationTests only asserts that no private `info` directory exists. The spec scenario in specs/shared-workspace-safety/spec.md lines 13-16 is therefore covered only indirectly.",
+      "id": "shared-workspace-audit-scenario-untested",
+      "severity": "advisory",
+      "summary": "The shared-workspace-safety scenario 'Shared-workspace audit after start' (no permission finding for the new worktree's Git administrative paths) has no test that runs the audit after creation."
+    }
+  ],
+  "launched_at": "2026-10-19T15:23:20+00:00",
+  "output_sha256": "3505750288aa55bfb65520c4daa6c61daaa144fbfb96f9a6c28863e4344c302f",
+  "perspective": "spec-fidelity",
+  "request_id": "3545eec6-26c3-4145-893f-8722789f37a9",
+  "reviewer": {
+    "context_id": "fa16b239-70d3-4363-bf8a-32c17619c500",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a2e6547a-68ae-4886-a12b-66c72954d9c5",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31443
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43828
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13867
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14446
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 986
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9b2057ff9e0c342d4a402e2556bc333f79cde7274973398cb77226db3614bcab"
+}

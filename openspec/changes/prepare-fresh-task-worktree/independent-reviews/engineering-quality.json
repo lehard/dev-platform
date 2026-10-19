@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+    "base_ref": "origin/main",
+    "candidate_head": "8985d11f726d6c0b460e3e428e8a2fa74734e35a",
+    "diff_sha256": "0c89ca75a7670bad0254ecdb6ebef915bb0265f044e858e9ce8dc99c85ebad23"
+  },
+  "completed_at": "2026-10-19T15:23:50+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/dev.py in the diff: `[\"git\", \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"info/exclude\"]` with check=True. The change ships to downstream projects, and neither the design nor the spec states a minimum Git version.",
+      "id": "git-path-format-version-requirement",
+      "severity": "advisory",
+      "summary": "dev.py now depends on `git rev-parse --path-format=absolute`, which needs Git 2.31 or newer. An older Git fails with a CalledProcessError and no hint about the version."
+    }
+  ],
+  "launched_at": "2026-10-19T15:23:38+00:00",
+  "output_sha256": "455d1f06d7e67a255d4cc01eaf6a6e30875559838c9ef4722a6cdb2cf72cf62f",
+  "perspective": "engineering-quality",
+  "request_id": "3545eec6-26c3-4145-893f-8722789f37a9",
+  "reviewer": {
+    "context_id": "b8d05ffd-c7a7-43e2-9cb2-5138ba092dd8",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-de4ec11b-47db-4611-a58b-ef85f529aad3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23753
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18935
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6776
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7322
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 630
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9b2057ff9e0c342d4a402e2556bc333f79cde7274973398cb77226db3614bcab"
+}
