@@ -31,8 +31,8 @@ Known limits, stated plainly:
 
 Checks actually run:
 - `python3 scripts/check_private_backlog_refs.py` passed before the run.
-- Command: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/strict-friction-routing-and-log/automated-checks.json`. It ran on the head reconciled with `origin/main` 46a39c3, with the task freshness gate passed.
+- Command: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/strict-friction-routing-and-log/automated-checks.json`. It ran first on the head reconciled with `origin/main` 46a39c3 (compileall, ruff and `run_test_groups.py --all` passed in 1544 s). `main` then advanced with overlapping files (`dev-platform/checks.toml`, platform manifest), so the task was reconciled again with `origin/main` f3a52e7 (clean merge, manifest regenerated unchanged) and the command was rerun with the task freshness gate passed; the evidence file records this second run.
 - `compileall` passed.
 - `ruff` passed.
-- `python3 scripts/run_test_groups.py --all` passed in 1544 s.
+- `python3 scripts/run_test_groups.py --all` passed in 1426 s on the final run.
 - Before reconcile, two `test_autonomous_integration_contour` tests failed on the stale base. They were dated fixtures already fixed on `main`. They passed after reconcile.
