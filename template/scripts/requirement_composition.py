@@ -63,6 +63,14 @@ def validate_children(checkout: Path, manifest: dict) -> None:
                 raise contributions.ContributionError(f"child {gate} receipt changed since review")
 
 
+def children_archive_problems(checkout: Path, manifest: dict) -> list[str]:
+    """Archive-content readiness of the still-active children, in contribution order."""
+    from openspec_lifecycle import archive_content_problems
+
+    changes = [checkout / "openspec/changes" / child["change"] for child in manifest["children"]]
+    return archive_content_problems(checkout, [change for change in changes if change.is_dir()])
+
+
 def composition_identity(checkout: Path, manifest: dict) -> dict:
     validate_children(checkout, manifest)
     proof = composition_content_identity(checkout, manifest["expected_changes"], manifest["base"])
@@ -170,6 +178,9 @@ def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, b
     actual = composition_identity(checkout, manifest)
     if actual != identity:
         raise workers.WorkerError("composition content differs from the offered job")
+    problems = children_archive_problems(checkout, manifest)
+    if problems:
+        raise workers.WorkerError("composition review not launched; children are not archiveable: " + "; ".join(problems))
     # The Requirement outcome is obtained by trusted coordinator I/O before the LLM step: the
     # disposable checkout carries only the public contract and must know nothing private.
     import managed_task
@@ -288,6 +299,10 @@ def publish_composition(root: Path, repo: str, manifest: dict, head: str, *, ada
         current = adapter._derive(root, adapter._pr(root, repo, pr.number), adapter._comments(root, repo, pr.number))
         with tempfile.TemporaryDirectory(prefix="composition-offer-") as temporary:
             checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head)
+            problems = children_archive_problems(checkout, manifest)
+            if problems:
+                raise contributions.ContributionError(
+                    "Requirement children are not archiveable; fix them before composition review: " + "; ".join(problems))
             identity = composition_identity(checkout, manifest)
             from pr_review_gate import reusable
             finalized = reusable(checkout, current.get("gates", {}).get("review"), identity) and reusable(
@@ -346,6 +361,9 @@ def execute_composition_finalize(checkout: Path, job: dict, gates: dict, *, sour
     if not reusable(checkout, gates.get("review"), actual):
         raise workers.WorkerError("composition finalization lacks content-bound review")
     validate_composition_reports(checkout, actual)
+    problems = children_archive_problems(checkout, manifest)
+    if problems:
+        raise workers.WorkerError("composition finalization archived nothing; children are not archiveable: " + "; ".join(problems))
     env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
     env["DEV_PLATFORM_COMPOSITION_FINALIZATION"] = identity["requirement"]
     # Preserve contribution integration order; shared capability deltas are applied once, in order.

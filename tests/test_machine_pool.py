@@ -953,7 +953,8 @@ class IntegrationTests(PoolFixture):
                 if archive:
                     with contextlib.ExitStack() as stack:
                         for name in ("require_archive_target", "require_static_archive_readiness",
-                                     "require_applicable_committed_diff", "ensure_review_evidence", "require_ready"):
+                                     "require_applicable_committed_diff", "require_committed_package", "ensure_review_evidence",
+                                     "require_ready", "rehearse_archive", "archive_with_recovery"):
                             stack.enter_context(mock.patch.object(lifecycle, name))
                         stack.enter_context(mock.patch.object(lifecycle, "read_platform_config", return_value={}))
                         stack.enter_context(mock.patch.object(lifecycle, "harness_mode", return_value="platform"))
