@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_ref": "origin/main",
+    "candidate_head": "e58c45212716c48c54113d574507e5fc6e73aaa7",
+    "diff_sha256": "731fb09c4295c7b6ecf76b72657f5e758a96b5e189df71ca2e8ea529d768ce9d"
+  },
+  "completed_at": "2026-10-19T21:25:19+00:00",
+  "findings": [
+    {
+      "evidence": "spec.md lines 42-44 and design.md decision 3 refer to an 'empty detail'. The diff's `friction_reason` in template/scripts/publication_queue.py raises `QueueError` with 'requires a named red gate as its reason' and 'red gate X carries no cause or evidence'. The docs paragraph in agent-workflow.md already describes the red-gate behavior. The behavior meets the intent (fail explicitly, naming the PR), so the artifacts only need to catch up.",
+      "id": "producer-scenario-wording-drift",
+      "severity": "advisory",
+      "summary": "The 'Producer without a reason' scenario and design decision 3 say recording fails on an empty `detail`. The candidate changes the `emit_friction` signature to take a `red_gate` and fails when there is no named red gate or the gate has no cause or evidence. The spec and design text are stale against that behavior."
+    }
+  ],
+  "launched_at": "2026-10-19T21:24:54+00:00",
+  "output_sha256": "05fa80e47c18e73a69858784a21a1033b115d740f7acaca93bb70e7f94583047",
+  "perspective": "spec-fidelity",
+  "request_id": "1faa2667-c66c-4c4e-99d1-4e25b60c952a",
+  "reviewer": {
+    "context_id": "32e11ffe-2cd9-4af7-9e3b-8c5e03ce9ed8",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-021677f7-e569-4494-a9c3-f28fa9c70a6b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46326
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48318
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24571
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24741
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2351
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "21e3f7bba5551b11ed0aa30b43c98f87e4ae5dc8cfd3b27324ab1f9806594c0b"
+}

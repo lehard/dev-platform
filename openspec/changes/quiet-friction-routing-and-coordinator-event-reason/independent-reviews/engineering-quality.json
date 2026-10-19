@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_ref": "origin/main",
+    "candidate_head": "e58c45212716c48c54113d574507e5fc6e73aaa7",
+    "diff_sha256": "731fb09c4295c7b6ecf76b72657f5e758a96b5e189df71ca2e8ea529d768ce9d"
+  },
+  "completed_at": "2026-10-19T21:25:46+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py `friction_reason` raises QueueError when `red_gate` is None, has no name, or has no cause/evidence. `_transition` calls `emit_friction(..., previous.get('red_gate'), ...)` on every no-change re-observation for states in `_FRICTION_STATES`. A blocked-escalation or repair state recorded earlier without a red gate, or with one that has no evidence, now raises on each pass. That could stall the transition and its label/escalation repair instead of degrading to a withheld event.",
+      "id": "coordinator-transition-wedge-without-red-gate",
+      "severity": "advisory",
+      "summary": "A friction-state transition now hard-fails when no red gate with a cause or evidence is available. That includes the idempotent re-observation path for already-published states, so one gate-less state can block the queue on every observation."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py `record_lifecycle_friction`: the argument list is built with `run_git(['rev-parse','HEAD'], cwd=root).stdout.strip()`, outside any try. If `run_git` raises (it may check the return code), the exception escapes. In `run_checks` that happens before `raise SystemExit(returncode)`, so the original validation exit code is replaced by a traceback. The same applies to the OpenSpec hygiene path.",
+      "id": "lifecycle-friction-head-lookup-can-raise",
+      "severity": "advisory",
+      "summary": "`record_lifecycle_friction` is documented as best-effort and not changing the delivery outcome. It now runs an unguarded `git rev-parse HEAD` before the subprocess call."
+    }
+  ],
+  "launched_at": "2026-10-19T21:25:19+00:00",
+  "output_sha256": "8ffaf80c35ed5a36f72e2a394b87d2a0517c10a09421aab6a5829751986a4c48",
+  "perspective": "engineering-quality",
+  "request_id": "1faa2667-c66c-4c4e-99d1-4e25b60c952a",
+  "reviewer": {
+    "context_id": "9b865755-7cd1-4c50-a382-5d0a191edf2c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-82f799fd-8508-4944-98e3-94e0bdf24edb",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43087
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 232094
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25934
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26279
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2603
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "21e3f7bba5551b11ed0aa30b43c98f87e4ae5dc8cfd3b27324ab1f9806594c0b"
+}
