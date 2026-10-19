@@ -62,7 +62,7 @@ LIFECYCLE_FAILURE_PREFIX = "lifecycle-"
 LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded", "expected-behavior")
 NON_TASK_BRANCHES = frozenset({"unknown", "main", "master"})
 AMBIGUOUS_WINDOW_DAYS = 14
-MAX_STATUS_LINES = 500
+LEGACY_POSITIONAL_ID_RE = re.compile(r"legacy-\d+")
 MAX_PROJECT_QUESTIONS = 5
 PROJECT_QUESTIONS_FILE = "dev-platform/retrospective.toml"
 SHARED_REVIEW_TEMPLATE = (
@@ -118,10 +118,11 @@ def read_attributions() -> dict[str, dict]:
             raise SystemExit(f"Invalid friction attribution record at {path}:{index}: {exc}") from exc
         if not isinstance(event_id, str) or not isinstance(task, str) or not ATTRIBUTION_TASK_RE.fullmatch(task):
             raise SystemExit(f"Invalid friction attribution record at {path}:{index}")
+        event_id = resolve_positional_id(event_id, f"attribution {path}:{index}")
         previous = found.get(event_id)
         if previous is not None and previous["task"] != task:
             raise SystemExit(f"Conflicting friction attributions for event {event_id} at {path}:{index}")
-        found.setdefault(event_id, record)
+        found.setdefault(event_id, {**record, "id": event_id})
     return found
 
 
@@ -294,6 +295,32 @@ def tolerate_durable_gap() -> Iterator[None]:
         _tolerate_durable_gap.reset(token)
 
 
+_tolerate_local_gap: contextvars.ContextVar[bool] = contextvars.ContextVar("tolerate_local_gap", default=False)
+
+
+class FrictionLogError(SystemExit):
+    """The local friction log cannot be read in full; the message names the file and line."""
+
+
+@contextlib.contextmanager
+def tolerate_local_gap() -> Iterator[None]:
+    """Explicitly read only the valid lines of the local friction log.
+
+    Used only where the gap is reported (review-path) or was explicitly accepted
+    (``--accept-gap friction-log``); everywhere else a malformed or unreadable log raises.
+    """
+    token = _tolerate_local_gap.set(True)
+    try:
+        yield
+    finally:
+        _tolerate_local_gap.reset(token)
+
+
+def local_gap_scope(accepted_gaps: Sequence[str]) -> contextlib.AbstractContextManager:
+    """The local-log tolerance context when ``friction-log`` was explicitly accepted, else a no-op context."""
+    return tolerate_local_gap() if "friction-log" in accepted_gaps else contextlib.nullcontext()
+
+
 def read_durable_events(requirement: str, children: Sequence[str] = ()) -> list[dict]:
     """Durable coordinator events of a Requirement from its candidate PRs, or a named error."""
     import publication_queue
@@ -374,14 +401,13 @@ def _local_source_status() -> dict[str, str]:
     if not path.exists():
         return {"friction-log": "available"}
     try:
-        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return {"friction-log": "unreadable"}
-    for line in lines[-MAX_STATUS_LINES:]:
-        try:
-            json.loads(line)
-        except ValueError:
-            return {"friction-log": "partial"}
+    try:
+        _parse_log_text(path, text, tolerant=False)
+    except FrictionLogError:
+        return {"friction-log": "partial"}
     return {"friction-log": "available"}
 
 
@@ -526,32 +552,85 @@ def append_coordinator_event(
     return event
 
 
-def read_events(days: int | None = None) -> list[dict]:
-    path = log_path()
-    if not path.exists():
-        return []
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
-    events: list[dict] = []
+def legacy_content_id(line: str) -> str:
+    """Position-independent identity of an event recorded without an id."""
+    return "legacy-" + hashlib.sha256(line.strip().encode("utf-8")).hexdigest()[:16]
+
+
+def _parse_log_line(path: Path, line_number: int, line: str) -> dict:
     try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []  # reported as an unreadable evidence source by evidence_source_status
+        event = json.loads(line)
+    except ValueError as exc:
+        raise FrictionLogError(f"{path}:{line_number}: invalid JSON in friction log: {exc}") from exc
+    if not isinstance(event, dict):
+        raise FrictionLogError(f"{path}:{line_number}: friction log line is not a JSON object")
+    try:
+        parse_time(event["at"])
+    except (KeyError, ValueError, TypeError, AttributeError) as exc:
+        raise FrictionLogError(f"{path}:{line_number}: friction log line has no parseable 'at' timestamp") from exc
+    return event
+
+
+def _parse_log_text(path: Path, text: str, *, tolerant: bool) -> list[dict]:
+    events: list[dict] = []
     for index, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
         try:
-            event = json.loads(line)
-            event.setdefault("id", f"legacy-{index}")
-            event.setdefault("severity", "medium")
-            event.setdefault("triggers", [event.get("category", "legacy")])
-            event.setdefault("run", _unknown_run_provenance("unknown"))
-            event.setdefault("classification", "process-friction")
-            event.setdefault("context", None)
-            if cutoff is None or parse_time(event["at"]) >= cutoff:
-                events.append(event)
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
-            continue
+            event = _parse_log_line(path, index, line)
+        except FrictionLogError:
+            if tolerant:
+                continue
+            raise
+        if "id" not in event:
+            event["id"] = legacy_content_id(line)
+        events.append(event)
     return events
+
+
+def read_events(days: int | None = None) -> list[dict]:
+    path = log_path()
+    if not path.exists():
+        return []
+    tolerant = _tolerate_local_gap.get()
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        if tolerant:
+            return []  # reported as an unreadable evidence source by evidence_source_status
+        raise FrictionLogError(f"friction log {path} is unreadable: {exc}") from exc
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
+    events: list[dict] = []
+    for event in _parse_log_text(path, text, tolerant=tolerant):
+        event.setdefault("severity", "medium")
+        event.setdefault("triggers", [event.get("category", "legacy")])
+        event.setdefault("run", _unknown_run_provenance("unknown"))
+        event.setdefault("classification", "process-friction")
+        event.setdefault("context", None)
+        if cutoff is None or parse_time(event["at"]) >= cutoff:
+            events.append(event)
+    return events
+
+
+def resolve_positional_id(event_id: str, source: str) -> str:
+    """Translate a persisted positional ``legacy-N`` reference to the content id of log line N."""
+    if not LEGACY_POSITIONAL_ID_RE.fullmatch(event_id):
+        return event_id
+    number = int(event_id.split("-", 1)[1])
+    path = log_path()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} cannot be resolved; friction log {path} is unreadable: {exc}") from exc
+    if not 1 <= number <= len(lines) or not lines[number - 1].strip():
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} does not match a line of {path}")
+    try:
+        event = _parse_log_line(path, number, lines[number - 1])
+    except FrictionLogError as exc:
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} points at an invalid line: {exc}") from exc
+    if "id" in event:
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} points at {path}:{number}, which has its own id")
+    return legacy_content_id(lines[number - 1])
 
 
 def read_state() -> dict:
@@ -571,6 +650,13 @@ def read_state() -> dict:
         raise SystemExit("Invalid friction checkpoint state: checkpoints must be an object")
     payload.setdefault("version", 2)
     payload.setdefault("routes", {})
+    translated: dict = {}
+    for key, route in payload["routes"].items():
+        resolved = resolve_positional_id(key, f"friction routing state {path}")
+        if resolved in translated:
+            raise SystemExit(f"Invalid friction routing state: duplicate route for event {resolved} in {path}")
+        translated[resolved] = route
+    payload["routes"] = translated
     payload.setdefault("checkpoints", {})
     return payload
 
@@ -749,10 +835,7 @@ def destination_for(event: dict) -> str:
     if event.get("scope") == "project":
         return origin_repository()
     if event.get("scope") == "platform":
-        config = read_platform_config(main_root())
-        operator = read_operator_config(main_root())
-        repository = operator.get("promotion", {}).get("repo") if isinstance(operator.get("promotion"), dict) else None
-        return repository.lower() if isinstance(repository, str) and repository.strip() else origin_repository()
+        return platform_repository()
     raise RuntimeError("friction event has an unsupported scope")
 
 
@@ -782,22 +865,26 @@ def marker_for(fingerprint: str) -> str:
 
 
 def process_label() -> str:
-    """Read the configured review label, retaining a safe legacy default."""
-    try:
-        configured = read_platform_config(main_root()).get("process_health", {}).get("process_label", DEFAULT_PROCESS_LABEL)
-    except (FileNotFoundError, OSError, ValueError):
-        configured = DEFAULT_PROCESS_LABEL
-    label = " ".join(str(configured).split())
-    return label or DEFAULT_PROCESS_LABEL
+    """Read the configured review label; an absent optional key keeps the documented default."""
+    health = read_platform_config(main_root()).get("process_health", {})
+    if not isinstance(health, dict):
+        raise RuntimeError("process_health must be a TOML table")
+    if "process_label" not in health:
+        return DEFAULT_PROCESS_LABEL  # documented optional key
+    configured = health["process_label"]
+    label = " ".join(configured.split()) if isinstance(configured, str) else ""
+    if not label:
+        raise RuntimeError("process_health.process_label must be a non-empty string")
+    return label
 
 
 def platform_repository() -> str:
-    try:
-        operator = read_operator_config(main_root(), required=True)
-        configured = operator.get("promotion", {}).get("repo") if isinstance(operator.get("promotion"), dict) else None
-    except (FileNotFoundError, OSError, ValueError, RuntimeError):
-        configured = None
-    return configured.lower() if isinstance(configured, str) and configured.strip() else origin_repository()
+    operator = read_operator_config(main_root(), required=True)
+    promotion = operator.get("promotion")
+    configured = promotion.get("repo") if isinstance(promotion, dict) else None
+    if not isinstance(configured, str) or not configured.strip():
+        raise RuntimeError("platform repository is not configured: set [promotion].repo in the operator configuration; the event is not routed to the project repository")
+    return configured.strip().lower()
 
 
 def issue_labels(issue: dict) -> set[str]:
@@ -1187,6 +1274,11 @@ def review_guidance(root: Path, changed: list[str] | None) -> dict:
 
 def cmd_review_path(args: argparse.Namespace) -> int:
     """Show a bounded factual review prompt from the existing task log."""
+    with tolerate_local_gap():  # the degraded source is reported in evidence_sources below
+        return _review_path(args)
+
+
+def _review_path(args: argparse.Namespace) -> int:
     task = args.task or current_branch()
     result = {
         "task": task,
@@ -1292,12 +1384,14 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         raise SystemExit(
             "checkpoint requires --result none for a clean retrospective, or --result/--event with one or more recorded finding ids"
         )
+    accepted_gaps = list(getattr(args, "accept_gaps", []) or [])
     checkpoint = record_checkpoint(
         branch, root, event_ids=event_ids, review_note=getattr(args, "review_note", "") or "",
         lifecycle_dispositions=list(getattr(args, "lifecycle_dispositions", []) or []),
-        accepted_gaps=list(getattr(args, "accept_gaps", []) or []))
+        accepted_gaps=accepted_gaps)
     result = {"status": "recorded", "checkpoint": checkpoint}
-    ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
+    with local_gap_scope(accepted_gaps):
+        ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
     if ambiguous:
         result["ambiguous_attribution_not_attributed"] = ambiguous[:10]
     print(json.dumps(result, ensure_ascii=False))
@@ -1307,6 +1401,15 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 def record_checkpoint(branch: str, root: Path, *, event_ids: list[str], review_note: str,
                       lifecycle_dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
                       head: str | None = None, task_content: dict | None = None, bind_content: bool = True) -> dict:
+    with local_gap_scope(accepted_gaps or []):
+        return _record_checkpoint(
+            branch, root, event_ids=event_ids, review_note=review_note, lifecycle_dispositions=lifecycle_dispositions,
+            accepted_gaps=accepted_gaps, head=head, task_content=task_content, bind_content=bind_content)
+
+
+def _record_checkpoint(branch: str, root: Path, *, event_ids: list[str], review_note: str,
+                       lifecycle_dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
+                       head: str | None = None, task_content: dict | None = None, bind_content: bool = True) -> dict:
     """Validate and persist one task's retrospective checkpoint (shared by the CLI and the retrospective job).
 
     Raises ``SystemExit`` with the usual instruction when a mandatory signal is unexplained or an
@@ -1366,6 +1469,13 @@ def require_checkpoint(branch: str, root: Path | None = None, *, exact_head: boo
     system: a retrospective recorded against an earlier head no longer
     satisfies completion once the branch has moved on.
     """
+    recorded = read_state().get("checkpoints", {}).get(branch)
+    accepted = recorded.get("accepted_gaps") if isinstance(recorded, dict) else None
+    with local_gap_scope(accepted if isinstance(accepted, list) else []):
+        _require_checkpoint(branch, root, exact_head=exact_head)
+
+
+def _require_checkpoint(branch: str, root: Path | None = None, *, exact_head: bool = False) -> None:
     checkpoint = read_state().get("checkpoints", {}).get(branch)
     if not isinstance(checkpoint, dict) or checkpoint.get("result") not in ("none", "events"):
         raise SystemExit(

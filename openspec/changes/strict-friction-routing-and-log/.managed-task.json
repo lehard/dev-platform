@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "strict-friction-routing-and-log",
+  "imported_at": "2026-10-19T16:53:22+00:00",
+  "package_revision": "2345504c4d5d5747328e73c19787f187169866ae6cb67f55b78661206c91f3ff",
+  "prepared_against": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+  "private_lineage_handle": "pln_23841d1ca9b490b7d67ee6dc49463b9f",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "52dd2a0d921afc07392f9733025b8e9dbb1beea7c956d32dd97978e6b55e3983",
+    "updated_at": "2026-10-19T16:46:35Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-597/T1"
+}

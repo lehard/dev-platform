@@ -250,6 +250,7 @@ targets = [
   "test_dev_entrypoint",
   "test_direct_main_health",
   "test_friction_review",
+  "test_friction_strict_log",
   "test_retrospective_attribution",
   "test_gitlab_delivery",
   "test_harness_safety",
