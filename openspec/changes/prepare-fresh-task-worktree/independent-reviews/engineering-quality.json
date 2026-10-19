@@ -3,37 +3,34 @@
   "candidate": {
     "base_head": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
     "base_ref": "origin/main",
-    "candidate_head": "8985d11f726d6c0b460e3e428e8a2fa74734e35a",
-    "diff_sha256": "0c89ca75a7670bad0254ecdb6ebef915bb0265f044e858e9ce8dc99c85ebad23"
+    "candidate_head": "1da8d8309ed70bef8a92a886ac55a4074bde9d25",
+    "diff_sha256": "4222995d6336d7921420ae8552bbb7e4771cf152d071c8785abc5d40a921f137"
   },
-  "completed_at": "2026-10-19T15:23:50+00:00",
+  "completed_at": "2026-10-19T16:42:11+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/dev.py in the diff: `[\"git\", \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"info/exclude\"]` with check=True. The change ships to downstream projects, and neither the design nor the spec states a minimum Git version.",
-      "id": "git-path-format-version-requirement",
+      "evidence": "template/scripts/dev.py: `[\"git\", \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"info/exclude\"]` with `check=True`. This ships to downstream projects. The change adds no version guard, and no fallback that resolves a relative result against `root`. The code it replaces did resolve a relative path against `root`.",
+      "id": "git-path-format-absolute-version",
       "severity": "advisory",
-      "summary": "dev.py now depends on `git rev-parse --path-format=absolute`, which needs Git 2.31 or newer. An older Git fails with a CalledProcessError and no hint about the version."
+      "summary": "The exclude writer now depends on `git rev-parse --path-format=absolute`, which needs Git 2.31 or newer. On older Git, `ensure_local_generated_excludes` raises CalledProcessError because of `check=True`. The previous `--git-dir` call worked on any Git version."
     }
   ],
-  "launched_at": "2026-10-19T15:23:38+00:00",
-  "output_sha256": "455d1f06d7e67a255d4cc01eaf6a6e30875559838c9ef4722a6cdb2cf72cf62f",
+  "launched_at": "2026-10-19T16:42:05+00:00",
+  "output_sha256": "1b7df3eb8c4919c8c3ac385532ef5049460b243792643c537cd408ac71d2e683",
   "perspective": "engineering-quality",
-  "request_id": "3545eec6-26c3-4145-893f-8722789f37a9",
+  "request_id": "f53509fe-3e63-4256-a2a1-e9b2b1531178",
   "reviewer": {
-    "context_id": "b8d05ffd-c7a7-43e2-9cb2-5138ba092dd8",
+    "context_id": "f92507e7-48fe-4b8d-9f6e-58f1b3c2625f",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-de4ec11b-47db-4611-a58b-ef85f529aad3",
+    "launch_id": "platform-launch-15bfaa0f-b206-4cd5-9c47-83be0cc29986",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -42,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23753
+        "value": 21405
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18935
+        "value": 16539
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6776
+        "value": 5180
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7322
+        "value": 5408
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 630
+        "value": 602
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "9b2057ff9e0c342d4a402e2556bc333f79cde7274973398cb77226db3614bcab"
+  "task_content_digest": "8950f4f965cd3c8bb69208266e172bf529253335a0a69e7da7dd15b57302efd3"
 }
