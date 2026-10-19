@@ -86,7 +86,6 @@ class CiGuardrailTests(unittest.TestCase):
 
     def test_agentic_sources_keep_declared_permissions_and_time_limits(self) -> None:
         for name in (
-            "process-issue-triage",
             "weekly-process-backlog-review",
             "architecture-health-review",
         ):

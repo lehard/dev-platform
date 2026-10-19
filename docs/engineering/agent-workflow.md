@@ -304,7 +304,7 @@ Missing or unknown keys, wrong types, a missing file, or a missing or unwritable
 
 ## Friction routing
 
-Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: cloud triage/review must never create managed tasks, OpenSpec, implementation PRs, or code changes.
+Raw friction evidence stays machine-local. Record high-signal events through `scripts/agent_friction.py`; the normal path automatically upserts a bounded sanitized, fingerprinted process issue in the configured project or platform repository. Retry failure is durable and non-blocking for safe delivery. Process issues are evidence only: the periodic Process Health Review must never create managed tasks, OpenSpec, implementation PRs, or code changes.
 
 If finish is blocked because an explicitly linked historical process Issue is no longer readable, status retains the exact merged PR fact and reports terminal reconciliation as pending. After confirming the reference is genuinely absent, record a narrow disposition from the managed task worktree with `python3 scripts/managed_task.py dispose-process-evidence --reference owner/repo#N --reason "..."`, then rerun finish. The command requires a definitive HTTP 404 after verifying access to the evidence repository and writes an auditable comment on the managed source Issue. A permission, authentication, or transport failure cannot authorize disposition. Open or readable evidence follows the normal resolution path.
 

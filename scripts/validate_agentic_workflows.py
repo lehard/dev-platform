@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_FILE = ROOT / ".github" / "aw" / "gh-aw-version.txt"
-WORKFLOWS = ("process-issue-triage", "weekly-process-backlog-review", "architecture-health-review")
+WORKFLOWS = ("weekly-process-backlog-review", "architecture-health-review")
 # gh-aw v0.88.8 is built from this immutable release commit. Pin generated
 # setup actions to it instead of allowing a mutable release tag.
 GH_AW_ACTION_REF = "69763a0390c8438e006d545f1faef1fab742719d"
@@ -47,7 +47,6 @@ def main() -> int:
             "--exit-code",
             "--",
             ".github/aw",
-            ".github/workflows/process-issue-triage.lock.yml",
             ".github/workflows/weekly-process-backlog-review.lock.yml",
             ".github/workflows/architecture-health-review.lock.yml",
         ),
