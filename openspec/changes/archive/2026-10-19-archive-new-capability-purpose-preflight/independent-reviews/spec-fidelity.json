@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+    "base_ref": "origin/main",
+    "candidate_head": "9df02d3cce0d59ed7669db093ed71a735da21470",
+    "diff_sha256": "81899345a98ed8d95782ce00fb80a0c4b9228111c5269f91094f5254aa810afc"
+  },
+  "completed_at": "2026-10-19T16:13:31+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py (diff ~L580-582): detail = stderr + failing_lines(stdout), and the whole stdout is used only when detail is empty. If stderr holds only a generic lifecycle message and stdout has no recognisable failing line, stdout is dropped. The 'Archive failures report failing items' requirement and design decision 6 say the whole output is returned in that case.",
+      "id": "finalization-failure-drops-unrecognised-stdout",
+      "severity": "advisory",
+      "summary": "The spec says the whole output is reported when no failing-item line is recognisable. trusted_archiver does not do this whenever stderr is non-empty."
+    },
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py: FAILURE_LINE_RE = \u2717|\\[(?:ERROR|WARNING)\\]|\\berror\\b|\\bfailed\\b. The pattern is case-insensitive and also matches 'Totals: \u2026 1 failed' and any prose line containing 'error'. The extra matches can add noise, but they do not contradict the spec.",
+      "id": "failure-regex-broader-than-design",
+      "severity": "advisory",
+      "summary": "FAILURE_LINE_RE keeps any line containing 'error' or 'failed' as a word. Design decision 6 lists only \u2717, [ERROR], [WARNING] and Error/error: lines."
+    }
+  ],
+  "launched_at": "2026-10-19T16:12:54+00:00",
+  "output_sha256": "dd073de3210ed09ce3eac977c125c333999bae07fcf55099edf6f1acaecf90b9",
+  "perspective": "spec-fidelity",
+  "request_id": "7dcc0b69-6f45-4531-9540-cb9b028f71d2",
+  "reviewer": {
+    "context_id": "3ee41d3c-bfa2-4589-8e4f-318fcd02726a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-61ad1367-966c-4f57-818c-8814d34c6695",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54047
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 214969
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36851
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37053
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3677
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "47ce77b8464f27e1babee20b1bc4f7c461b334ba58b201bb18f5a5869b203816"
+}

@@ -112,6 +112,34 @@ def check_rename_remove_case_and_tasks(root: Path, cli: list[str]) -> None:
         raise SystemExit("archive kept a renamed or removed requirement")
 
 
+def check_new_capability_purpose(root: Path, cli: list[str]) -> None:
+    """Pin the behavior the platform archive Purpose preflight relies on (BR-580)."""
+    requirement = (
+        "## ADDED Requirements\n\n### Requirement: Purpose fixture behaves\nThe fixture SHALL behave.\n\n"
+        "#### Scenario: Behaves\n- **WHEN** the fixture runs\n- **THEN** it behaves.\n"
+    )
+    authored = "Exercise how archive creates a capability whose delta carries an authored Purpose."
+    run(cli + ["new", "change", "purpose-authored", "--json"], root)
+    write(change_artifacts(root, "purpose-authored") / "specs" / "purpose-authored" / "spec.md",
+          f"## Purpose\n{authored}\n\n{requirement}")
+    run(cli + ["archive", "purpose-authored", "--yes"], root)
+    created = (root / "openspec" / "specs" / "purpose-authored" / "spec.md").read_text(encoding="utf-8")
+    if authored not in created or "TBD" in created:
+        raise SystemExit("archive did not write the authored delta Purpose to the new capability")
+    run(cli + ["validate", "purpose-authored", "--type", "spec", "--strict", "--no-interactive"], root)
+
+    run(cli + ["new", "change", "purpose-missing", "--json"], root)
+    write(change_artifacts(root, "purpose-missing") / "specs" / "purpose-missing" / "spec.md", requirement)
+    run(cli + ["validate", "purpose-missing", "--strict", "--no-interactive"], root)
+    run(cli + ["archive", "purpose-missing", "--yes"], root)
+    created = (root / "openspec" / "specs" / "purpose-missing" / "spec.md").read_text(encoding="utf-8")
+    if "Update Purpose after archive" not in created:
+        raise SystemExit("archive no longer writes the placeholder Purpose the platform preflight detects")
+    if not run(cli + ["validate", "purpose-missing", "--type", "spec", "--strict", "--no-interactive"], root, check=False).returncode:
+        raise SystemExit("strict validation accepted a placeholder Purpose")
+    (root / "openspec" / "specs" / "purpose-missing" / "spec.md").unlink()
+
+
 def check_verify_workflow(cli: list[str]) -> None:
     # 1.13.2: generated verify guidance must not pass skipped checks, must invert
     # REMOVED checks and check RENAMED against original behavior, and stays
@@ -217,6 +245,7 @@ def main() -> int:
             raise SystemExit("apply guidance did not flag the change with no delta specs")
 
         check_rename_remove_case_and_tasks(root, cli)
+        check_new_capability_purpose(root, cli)
 
     check_verify_workflow(cli)
 

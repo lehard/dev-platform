@@ -116,7 +116,11 @@ def trusted_archiver(checkout: Path, change: str, env: dict[str, str]) -> None:
     done = subprocess.run([sys.executable, str(script), "archive", change, "--finalize"], cwd=checkout, env=env,
                           stdin=subprocess.DEVNULL, text=True, capture_output=True, check=False)
     if done.returncode:
-        raise workers.WorkerError("archive failed: " + (done.stderr.strip() or done.stdout.strip())[-400:])
+        from openspec_lifecycle import failing_lines
+
+        # The lifecycle's own diagnostic is on stderr; stdout adds the failing OpenSpec items, never a raw tail.
+        detail = "\n".join(part for part in (done.stderr.strip(), failing_lines(done.stdout)) if part)
+        raise workers.WorkerError("archive failed: " + (detail or done.stdout.strip()))
 
 
 def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_base: str | None = None,
@@ -398,7 +402,9 @@ def _openspec(checkout: Path, *args: str) -> None:
                           capture_output=True, check=False,
                           env=workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home"))
     if done.returncode:
-        raise RederivationFailed(f"openspec {args[0]} failed: " + (done.stdout + done.stderr).strip()[-400:])
+        from openspec_lifecycle import openspec_failure_summary
+
+        raise RederivationFailed(f"openspec {args[0]} failed: " + openspec_failure_summary(done.stdout + "\n" + done.stderr))
 
 
 def _replay_archived_delta(checkout: Path, archive_dir: str) -> None:

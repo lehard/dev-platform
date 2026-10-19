@@ -45,6 +45,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness"), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
+                    mock.patch.object(lifecycle, "require_committed_package"), \
                     mock.patch.object(gate, "managed_candidate", return_value=False), \
                     mock.patch.object(lifecycle, "ensure_review_evidence", side_effect=SystemExit("review blocked")) as review, \
                     mock.patch.object(lifecycle, "run_checked") as validate:
@@ -496,6 +497,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_git", return_value=mock.Mock(returncode=0)),
+                mock.patch.object(lifecycle, "require_committed_package"),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,
             ):
                 with self.assertRaisesRegex(SystemExit, "committed diff"):
@@ -735,6 +737,205 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.assertTrue((root / "openspec" / "changes" / "done").is_dir())
             self.assertEqual(1, self.ordinary_check(root).returncode)
 
+
+
+REQUIREMENT_DELTA = (
+    "## ADDED Requirements\n\n### Requirement: Foo behaves\nThe system SHALL foo.\n\n"
+    "#### Scenario: Foo\n- **WHEN** foo runs\n- **THEN** it behaves.\n"
+)
+AUTHORED_PURPOSE = "Foo lets operators run the foo workflow safely and predictably end to end."
+
+
+class ArchivePurposeAndRecoveryTests(unittest.TestCase):
+    """BR-580: new-capability Purpose, committed package, rehearsal, recovery and readable failures."""
+
+    def setUp(self) -> None:
+        patcher = mock.patch.dict(os.environ)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        for name in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV):
+            os.environ.pop(name, None)
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True, text=True).stdout
+
+    def init_repo(self) -> None:
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "t")
+        (self.root / "openspec").mkdir(exist_ok=True)
+        (self.root / "openspec" / "config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
+
+    def commit(self) -> None:
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "state")
+
+    def change(self, name: str, *, capability: str = "foo", delta: str | None = None, tasks: str = "- [x] done\n") -> Path:
+        change = self.root / "openspec" / "changes" / name
+        change.mkdir(parents=True)
+        (change / "proposal.md").write_text("## Why\nExercise archive preflight for a new capability here.\n\n"
+                                            "## What Changes\n- Add foo.\n", encoding="utf-8")
+        (change / "tasks.md").write_text(tasks, encoding="utf-8")
+        (change / "verification.md").write_text("OpenSpec-Verify: PASS\nVerification-Method: test\n", encoding="utf-8")
+        spec = change / "specs" / capability / "spec.md"
+        spec.parent.mkdir(parents=True)
+        spec.write_text(REQUIREMENT_DELTA if delta is None else delta, encoding="utf-8")
+        return change
+
+    def fake_openspec(self, script: str) -> str:
+        path = self.root.parent / f"{self.root.name}-bin" / "openspec"
+        path.parent.mkdir(exist_ok=True)
+        self.addCleanup(shutil.rmtree, path.parent, True)
+        path.write_text("#!/bin/sh\n" + script, encoding="utf-8")
+        path.chmod(0o755)
+        return str(path)
+
+    def tree(self) -> dict[str, bytes]:
+        base = self.root / "openspec"
+        return {str(p.relative_to(base)): p.read_bytes() for p in sorted(base.rglob("*")) if p.is_file()}
+
+    def archive(self, executable: str) -> int:
+        with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer", "harness_mode": "project"}), \
+                mock.patch.object(lifecycle, "ensure_review_evidence"), \
+                mock.patch.object(lifecycle, "require_independent_review_receipt"), \
+                mock.patch.object(lifecycle, "require_review_evidence"), \
+                mock.patch.object(lifecycle.shutil, "which", return_value=executable):
+            return lifecycle.archive_change(self.root, "add-foo")
+
+    # -- Purpose predicate -------------------------------------------------
+
+    def test_new_capability_purpose_must_be_authored(self) -> None:
+        cases = {
+            "missing": (REQUIREMENT_DELTA, True),
+            "empty": ("## Purpose\n\n" + REQUIREMENT_DELTA, True),
+            "tbd": ("## Purpose\nTBD\n\n" + REQUIREMENT_DELTA, True),
+            "todo": ("## Purpose\ntodo: write later\n\n" + REQUIREMENT_DELTA, True),
+            "archive-sentence": ("## Purpose\nCreated by archiving change x. Update Purpose after archive.\n\n" + REQUIREMENT_DELTA, True),
+            "authored": (f"## Purpose\n{AUTHORED_PURPOSE}\n\n" + REQUIREMENT_DELTA, False),
+        }
+        for label, (delta, blocked) in cases.items():
+            with self.subTest(label), tempfile.TemporaryDirectory() as tmp:
+                self.root = Path(tmp)
+                change = self.change("add-foo", delta=delta)
+                problems = lifecycle.archive_content_problems(self.root, [change])
+                self.assertEqual(bool(problems), blocked, problems)
+                if blocked:
+                    self.assertIn("specs/foo/spec.md", problems[0])
+                    self.assertIn("## Purpose", problems[0])
+
+    def test_existing_capability_needs_no_delta_purpose(self) -> None:
+        main = self.root / "openspec" / "specs" / "foo" / "spec.md"
+        main.parent.mkdir(parents=True)
+        main.write_text(f"# foo\n\n## Purpose\n{AUTHORED_PURPOSE}\n", encoding="utf-8")
+        self.assertEqual([], lifecycle.archive_content_problems(self.root, [self.change("add-foo")]))
+
+    def test_purpose_is_required_from_the_first_change_that_creates_the_capability(self) -> None:
+        authored = self.change("first", delta=f"## Purpose\n{AUTHORED_PURPOSE}\n\n" + REQUIREMENT_DELTA)
+        bare = self.change("second")
+        self.assertEqual([], lifecycle.archive_content_problems(self.root, [authored, bare]))
+        problems = lifecycle.archive_content_problems(self.root, [bare, authored])
+        self.assertEqual(1, len(problems))
+        self.assertTrue(problems[0].startswith("second:"))
+
+    # -- archive_change ----------------------------------------------------
+
+    def test_archive_rejects_missing_purpose_before_any_mutation_or_evidence(self) -> None:
+        self.init_repo()
+        self.change("add-foo")
+        self.commit()
+        before = self.tree()
+        executable = self.fake_openspec("echo called >&2; exit 1\n")
+        with self.assertRaisesRegex(SystemExit, "creates new capability 'foo' without an authored '## Purpose'"):
+            self.archive(executable)
+        self.assertEqual(before, self.tree())
+
+    def test_archive_rejects_uncommitted_package_before_review_and_names_paths(self) -> None:
+        self.init_repo()
+        change = self.change("add-foo", delta=f"## Purpose\n{AUTHORED_PURPOSE}\n\n" + REQUIREMENT_DELTA)
+        self.commit()
+        (change / "tasks.md").write_text("- [x] done\n- [x] more\n", encoding="utf-8")
+        (change / "verification.md").write_text("OpenSpec-Verify: PASS\nVerification-Method: edited\n", encoding="utf-8")
+        (change / "automated-checks.json").write_text("{}\n", encoding="utf-8")
+        (change / "independent-review-request.json").write_text("{}\n", encoding="utf-8")
+        with mock.patch.object(lifecycle, "ensure_review_evidence") as review, \
+                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer", "harness_mode": "project"}), \
+                mock.patch.object(lifecycle, "require_independent_review_receipt"), \
+                self.assertRaises(SystemExit) as raised:
+            lifecycle.archive_change(self.root, "add-foo")
+        message = str(raised.exception)
+        self.assertIn("openspec/changes/add-foo/tasks.md", message)
+        self.assertIn("openspec/changes/add-foo/verification.md", message)
+        self.assertNotIn("automated-checks.json", message)
+        self.assertNotIn("independent-review-request.json", message)
+        self.assertIn("git commit", message)
+        review.assert_not_called()
+
+    def test_rehearsal_failure_leaves_checkout_unchanged(self) -> None:
+        self.init_repo()
+        self.change("add-foo", delta=f"## Purpose\n{AUTHORED_PURPOSE}\n\n" + REQUIREMENT_DELTA)
+        self.commit()
+        before = self.tree()
+        executable = self.fake_openspec(
+            'if [ "$1" = archive ]; then mkdir -p openspec/changes/archive && mv "openspec/changes/$2" "openspec/changes/archive/x-$2"; exit 0; fi\n'
+            'if [ "$2" = --all ]; then echo "INFO progress line"; echo "✗ spec/foo"; echo "  ✗ [ERROR] overview: broken"; exit 1; fi\n'
+            "exit 0\n"
+        )
+        with self.assertRaises(SystemExit) as raised:
+            self.archive(executable)
+        message = str(raised.exception)
+        self.assertIn("rehearsal failed", message)
+        self.assertIn("[ERROR] overview: broken", message)
+        self.assertNotIn("INFO progress line", message)
+        self.assertEqual(before, self.tree())
+
+    def test_post_validation_failure_restores_tree_and_rerun_succeeds(self) -> None:
+        self.init_repo()
+        self.change("add-foo", delta=f"## Purpose\n{AUTHORED_PURPOSE}\n\n" + REQUIREMENT_DELTA)
+        self.commit()
+        before = self.tree()
+        # Rehearsal runs in a disposable copy of openspec/ only; the marker outside it fails the real run.
+        executable = self.fake_openspec(
+            'if [ "$1" = archive ]; then mkdir -p openspec/changes/archive openspec/specs/foo && '
+            'mv "openspec/changes/$2" "openspec/changes/archive/x-$2" && echo spec > openspec/specs/foo/spec.md; exit 0; fi\n'
+            'if [ "$2" = --all ] && [ -f FAIL_REAL ]; then echo "✗ spec/foo"; echo "  ✗ [ERROR] real failure"; exit 1; fi\n'
+            "exit 0\n"
+        )
+        (self.root / "FAIL_REAL").write_text("1\n", encoding="utf-8")
+        with self.assertRaises(SystemExit) as raised:
+            self.archive(executable)
+        message = str(raised.exception)
+        self.assertIn("pre-archive openspec/ tree was restored", message)
+        self.assertIn("rerun the same archive command", message)
+        self.assertIn("[ERROR] real failure", message)
+        self.assertEqual(before, self.tree())
+        (self.root / "FAIL_REAL").unlink()
+        self.assertEqual(0, self.archive(executable))
+        self.assertFalse((self.root / "openspec/changes/add-foo").exists())
+        self.assertTrue((self.root / "openspec/specs/foo/spec.md").is_file())
+
+    def test_failure_summary_keeps_failing_items_or_whole_output(self) -> None:
+        output = "INFO a\nApplying changes\n✗ spec/foo\n  ⚠ [WARNING] overview: placeholder\nTotals: 0 passed, 1 failed\n"
+        summary = lifecycle.openspec_failure_summary(output)
+        self.assertEqual(summary, "✗ spec/foo\n  ⚠ [WARNING] overview: placeholder\nTotals: 0 passed, 1 failed")
+        self.assertEqual(lifecycle.openspec_failure_summary("only info\nmore info\n"), "only info\nmore info")
+
+    def test_real_cli_new_capability_archive_has_no_tbd_and_validates_strictly(self) -> None:
+        executable = shutil.which("openspec")
+        if not executable:
+            self.skipTest("OpenSpec CLI is not installed")
+        self.init_repo()
+        self.change("add-foo", delta=f"## Purpose\n{AUTHORED_PURPOSE}\n\n" + REQUIREMENT_DELTA)
+        self.commit()
+        self.assertEqual(0, self.archive(executable))
+        created = (self.root / "openspec/specs/foo/spec.md").read_text(encoding="utf-8")
+        self.assertIn(AUTHORED_PURPOSE, created)
+        self.assertNotIn("TBD", created)
+        validate = subprocess.run([executable, "validate", "--all", "--strict", "--no-interactive"], cwd=self.root,
+                                  capture_output=True, text=True)
+        self.assertEqual(0, validate.returncode, validate.stdout + validate.stderr)
 
 if __name__ == "__main__":
     unittest.main()

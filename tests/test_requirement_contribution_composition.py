@@ -73,11 +73,11 @@ class Repository:
         git(self.root, "commit", "-m", message)
         return git(self.root, "rev-parse", "HEAD")
 
-    def child(self, name, number):
+    def child(self, name, number, tasks="- [x] Implement child\n"):
         git(self.root, "switch", "-c", f"agent/{name}", self.boundary)
         change = self.root / "openspec/changes" / name
         change.mkdir(parents=True)
-        (change / "tasks.md").write_text("- [x] Implement child\n")
+        (change / "tasks.md").write_text(tasks)
         (change / "proposal.md").write_text(f"Implement {name}\n")
         (change / "automated-checks.json").write_text("{}\n")
         (change / "verification.md").write_text("Actual fixture evidence\n")
@@ -700,6 +700,40 @@ class CompositionTests(unittest.TestCase):
             self.assertIn(str(proposal.relative_to(fixture.root)), diff)
             self.assertIn("Repaired archived contract", diff)
             self.assertFalse(any("verification.md" in p for p in paths))
+
+    def unarchiveable_fixture(self, root):
+        fixture = Repository(root)
+        first, second = fixture.child("first", 8), fixture.child("second", 9, tasks="- [x] Done\n- [ ] Publish\n")
+        fixture.integrate(first); fixture.integrate(second)
+        return fixture
+
+    def test_finalization_refuses_unarchiveable_child_before_archiving_any(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.unarchiveable_fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gates = {"review": {"result": "passed", "identity": identity, "evidence": {"reviewed": True}}}
+            kwargs = {"source_repo": str(fixture.root), "branch": "requirement/BR-7", "current_head": lambda: head,
+                      "archiver": lambda *a: self.fail("must not archive any child")}
+            with mock.patch.object(composition, "validate_composition_reports"), \
+                    self.assertRaisesRegex(workers.WorkerError, r"second: 1 of 2 task\(s\) remain incomplete"):
+                composition.execute_composition_finalize(fixture.root, {"head": head, "task_identity": identity}, gates, **kwargs)
+            self.assertTrue((fixture.root / "openspec/changes/first").is_dir())
+
+    def test_composition_review_is_not_offered_for_unarchiveable_child(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.unarchiveable_fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            adapter = SimpleNamespace(github_cli_env=lambda root: {},
+                find_exact_head_pr=lambda *a: SimpleNamespace(available=True, stale_open=None),
+                ensure_pr=lambda *a, **kw: SimpleNamespace(number=11, url="pr", already_merged=False),
+                _pr=lambda *a: {}, _comments=lambda *a: [], _derive=lambda *a: {},
+                _transition=mock.Mock(return_value={}), publish_job=mock.Mock())
+            with mock.patch.object(workers, "prepare_checkout", return_value=fixture.root), \
+                    self.assertRaisesRegex(contributions.ContributionError, "not archiveable.*second"):
+                composition.publish_composition(fixture.root, "acme/project", fixture.manifest, head, adapter=adapter)
+            adapter._transition.assert_not_called()
+            adapter.publish_job.assert_not_called()
 
     def test_partial_archive_resume_then_repeated_finalization_archives_each_child_once(self):
         with tempfile.TemporaryDirectory() as tmp:
