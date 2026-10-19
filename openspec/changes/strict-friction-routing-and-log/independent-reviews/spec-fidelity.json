@@ -3,34 +3,40 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "f617b96a89299113ed8e6d4b28f8544420611213",
-    "diff_sha256": "82bcb78a4f1d4b805b299199305c9c09b67e87c465629782f8dc2134b1708e2c"
+    "candidate_head": "78317b94eab9d463ce5dd20bcca96e5bf9531fe6",
+    "diff_sha256": "668582281c5c032f35a693c335dbb70655d793f5d2a482c244783e7510a9e1ad"
   },
-  "completed_at": "2026-10-19T19:20:26+00:00",
+  "completed_at": "2026-10-19T19:22:09+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py `resolve_positional_id` reads `lines[number - 1]` of the current log. The test `test_positional_references_resolve_to_content_id` only covers an unshifted log. The spec scenario 'Legacy event identity is stable' says 'after ... an earlier line was removed'.",
-      "id": "positional-id-after-line-removal",
+      "evidence": "template/scripts/agent_friction.py route_event (~1105) catches only RuntimeError. read_operator_config (_platform_common.py:345-350) lets tomllib's TOMLDecodeError (a ValueError) escape for a malformed operator file. process_label() now also propagates ValueError/OSError from read_platform_config. In both cases the exception escapes route_event and route_pending, so the event gets no pending route and no named reason, and the remaining events are not processed. This matters for the non-blocking route-pending retry in doctor/finish. design.md decision 1 rejects hard-failing the whole route-pending run.",
+      "id": "route-event-config-valueerror-escapes",
       "severity": "advisory",
-      "summary": "The spec scenario says a positional `legacy-N` attribution resolves to the stable identity after an earlier line is removed. The implementation resolves N against the current file, so it only works while the log has not shifted. After a removal, `legacy-N` can silently map to a different id-less line, or fail with a named error."
+      "summary": "Non-RuntimeError configuration failures are not converted to the pending route that the spec and design describe, so they abort routing instead."
     },
     {
-      "evidence": "template/scripts/agent_friction.py:1105 `except RuntimeError as exc:`. `read_operator_config` in `_platform_common.py` calls `read_platform_config`, and the candidate removed the `(FileNotFoundError, OSError, ValueError, RuntimeError)` catch from `platform_repository`. The tests only exercise a `RuntimeError`.",
-      "id": "route-event-config-errors-not-pending",
+      "evidence": "platform_repository() calls read_operator_config(required=True) without wrapping it. It can raise 'operator configuration is not enabled; set [operator].enabled = true...' or 'operator configuration was requested but is unavailable: <path>'. The new test only checks the 'not enabled' text. The 'names [promotion].repo' scenario is therefore only guaranteed for the key-absent case.",
+      "id": "unreadable-operator-config-error-not-naming-setting",
       "severity": "advisory",
-      "summary": "Spec and design say that when the operator configuration cannot be read, the event stays local and pending with a named reason. `route_event` only converts `RuntimeError` into a pending route. `destination_for` and `platform_repository` no longer catch `ValueError`/`OSError`, so a TOML parse or read error from `read_platform_config` or `read_operator_config` is not caught. That error propagates out of `route_event` and `route_pending` instead of becoming a pending route. The same applies to `process_label()` errors inside `route_event`."
+      "summary": "The spec requires the error to name the missing or unreadable setting. When the operator config is disabled or unreadable, the pending detail comes from read_operator_config and does not name [promotion].repo."
+    },
+    {
+      "evidence": "legacy_content_id() hashes line.strip() alone, and _parse_log_text assigns it to every id-less line. Duplicate events then share one id. Positional legacy-N translation also cannot distinguish them, and read_state raises 'duplicate route' if both positional keys were persisted. Neither the design nor the spec addresses this.",
+      "id": "identical-legacy-lines-share-content-id",
+      "severity": "advisory",
+      "summary": "The content-derived legacy id is a hash of the line text only. Two byte-identical id-less lines get the same id, so they collapse into one route or attribution key."
     }
   ],
-  "launched_at": "2026-10-19T19:19:58+00:00",
-  "output_sha256": "2908508a570cf5934cbe8c36f51ce9db4e622a540bf4248357441c87727471ca",
+  "launched_at": "2026-10-19T19:21:38+00:00",
+  "output_sha256": "23777747dcbcc57b887bd0210b288e5dc4c50f6b0df2d8cb40218d5dd4fcf02a",
   "perspective": "spec-fidelity",
-  "request_id": "c9ebf444-8afb-41f1-a1a2-091ddff0b9e5",
+  "request_id": "5ebc83f5-5d3f-4c1b-b76c-a900b3d1a7d4",
   "reviewer": {
-    "context_id": "b10a1c4c-c38a-4f1f-9588-36ee2192e768",
+    "context_id": "817f330d-2c53-4c52-ba50-485a51985d4d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-514c6fe6-06a5-4fd6-8cd4-922f927de00a",
+    "launch_id": "platform-launch-53afd468-c433-4475-84f2-6c68e2882771",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,27 +51,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37423
+        "value": 39022
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 89739
+        "value": 131049
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27298
+        "value": 30188
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27461
+        "value": 30380
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -75,7 +81,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2150
+        "value": 2417
       }
     },
     "runtime": "claude-code-print"

@@ -3,28 +3,40 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "f617b96a89299113ed8e6d4b28f8544420611213",
-    "diff_sha256": "82bcb78a4f1d4b805b299199305c9c09b67e87c465629782f8dc2134b1708e2c"
+    "candidate_head": "78317b94eab9d463ce5dd20bcca96e5bf9531fe6",
+    "diff_sha256": "668582281c5c032f35a693c335dbb70655d793f5d2a482c244783e7510a9e1ad"
   },
-  "completed_at": "2026-10-19T19:20:39+00:00",
+  "completed_at": "2026-10-19T19:22:40+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py:1095 calls process_label() inside route_event, whose handler at line 1105 is `except RuntimeError`. The new process_label (diff lines ~430-448) propagates read_platform_config errors unchanged, and tests/test_friction_strict_log.py:89 asserts a ValueError('bad toml') propagates. design.md decision 1 says configuration errors become pending routes, but this holds only for RuntimeError. One bad value therefore aborts the whole route_pending loop, which design.md rejected for the destination case. The same applies to non-RuntimeError failures from read_operator_config in destination_for. Not verified: which exception types read_operator_config raises.",
-      "id": "route-event-config-errors-escape-pending",
+      "evidence": "template/scripts/agent_friction.py: legacy_content_id() returns 'legacy-' + 16 hex chars, and LEGACY_POSITIONAL_ID_RE = r'legacy-\\d+' with fullmatch. About 0.05% of content ids ((10/16)^16) are all digits. Once such an id is persisted as a route key or attribution id, resolve_positional_id() treats it as line number ~1e15 and raises FrictionLogError 'does not match a line'. The error comes from read_state(), which every friction command calls, so it blocks them all. The positional form should be told apart from the content form, for example with a different prefix or a non-hex marker in the content id.",
+      "id": "content-id-collides-with-positional-pattern",
+      "severity": "material",
+      "summary": "A content-derived legacy id made only of decimal digits is misread as a positional reference, so read_state/read_attributions fail for it."
+    },
+    {
+      "evidence": "design.md says route_event already converts errors into a pending route. In fact route_event (agent_friction.py ~1105) catches only RuntimeError. process_label() no longer swallows FileNotFoundError/OSError/ValueError, and read_platform_config and read_operator_config can raise tomllib.TOMLDecodeError (a ValueError) or OSError. Examples: process_label() is called at line 1095 inside the try, and the operator TOML parse in _platform_common.py:347 only maps FileNotFoundError. A malformed config therefore raises out of route_event, and route_pending() stops mid-loop with a traceback, leaving the remaining events unrouted and without a pending reason. This contradicts the stated goal that the event stays local and visible as pending. The new test for process_label only covers the direct call, not routing.",
+      "id": "route-event-config-errors-not-converted-to-pending",
+      "severity": "material",
+      "summary": "Configuration read errors that are not RuntimeError now escape route_event and abort routing instead of becoming a retained pending route."
+    },
+    {
+      "evidence": "read_events() raises FrictionLogError (a SystemExit) outside review-path and accepted-gap checkpoints. route_pending() (line 1117) calls read_events(None). agent_doctor and finish_task use route-pending as a non-blocking retry that prints warnings (per design.md Context). A malformed line now aborts them with an exit rather than a warning. design.md lists this as accepted, but no test covers the doctor/finish/route-pending paths. Only integration_contour was adapted to catch FrictionLogError.",
+      "id": "strict-log-raises-in-nonblocking-callers",
       "severity": "advisory",
-      "summary": "A label configuration error that is not a RuntimeError (e.g. a ValueError from a TOML parse failure, which the new code deliberately propagates) escapes route_event as an exception. It does not become a retained `pending` route, so it can abort route_pending and the callers that route after a record has been written."
+      "summary": "Callers that were meant to be non-blocking now die with SystemExit on a single bad log line, and route_pending is not covered by any tolerance."
     }
   ],
-  "launched_at": "2026-10-19T19:20:26+00:00",
-  "output_sha256": "6d9fb1205f8c029dca4876ba14e12ff334fca9700a876cb196caf211b4da3e4e",
+  "launched_at": "2026-10-19T19:22:09+00:00",
+  "output_sha256": "61b13e1fe7217662106aff79eee3e7b4feed4dc5a3f061c7a38a57d8eb9eb32e",
   "perspective": "engineering-quality",
-  "request_id": "c9ebf444-8afb-41f1-a1a2-091ddff0b9e5",
+  "request_id": "5ebc83f5-5d3f-4c1b-b76c-a900b3d1a7d4",
   "reviewer": {
-    "context_id": "16ea346b-aeba-4369-84f6-7b63e746d796",
+    "context_id": "1b515728-e623-4c6c-b110-24a8a352d478",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bb3ee289-1d17-477a-8069-cb19a63e9357",
+    "launch_id": "platform-launch-ba796c0c-d4bf-4b5a-8e2b-4c780325d86a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +51,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33766
+        "value": 34465
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 86808
+        "value": 86602
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11898
+        "value": 30061
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12224
+        "value": 30457
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,12 +76,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1357
+        "value": 2475
       }
     },
     "runtime": "claude-code-print"
