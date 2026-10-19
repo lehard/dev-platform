@@ -1,0 +1,116 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "failure",
+  "executed_commands": [],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/post_review_finalization.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/requirement_composition.py",
+        "tests/openspec_1_13_regression.py",
+        "tests/test_downstream_boundary.py",
+        "tests/test_independent_review.py",
+        "tests/test_machine_pool.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_post_review_finalization.py",
+        "tests/test_requirement_contribution_composition.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_314d5424cbac612a29fa7e100aa047a6",
+    "change": "archive-new-capability-purpose-preflight",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/archive-new-capability-purpose-preflight",
+    "branch": "agent/br-580-t1-archive-new-capability-purpose-preflight",
+    "head": "6e7729282a056cde2887853b73303d6a251515c7",
+    "task_content": {
+      "version": 1,
+      "digest": "6bd6e98b35c8b1edfe4aadecb71cf7535b71e3fe388cb8dc3c4b42fbe16f25a8",
+      "paths": {
+        "docs/engineering/openspec-workflow.md": "dd185abb6e016417be3d5052cee2d1d5af788122",
+        "openspec/changes/archive-new-capability-purpose-preflight/.managed-task.json": "3435025a77d545675894856fd9131b7e53eec057",
+        "openspec/changes/archive-new-capability-purpose-preflight/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+        "openspec/changes/archive-new-capability-purpose-preflight/design.md": "9ba4f2a01c2fc617f2089fcbb4c85ae2f85ef4d6",
+        "openspec/changes/archive-new-capability-purpose-preflight/proposal.md": "ef2e58f17b11508a904edb3305cb22bf2ae20954",
+        "openspec/changes/archive-new-capability-purpose-preflight/specs/completion-lifecycle/spec.md": "2bb02b654bf353e9379ed166a6a9c549e06a5d52",
+        "openspec/changes/archive-new-capability-purpose-preflight/tasks.md": "242729692482b82eda355d17e935b4ee699f8512",
+        "openspec/changes/archive-new-capability-purpose-preflight/verification.md": "9da0825511e525fd6d197b7679ec7f7f01ebf563",
+        "openspec/config.yaml": "350244cf6c56b7470c55502f8b1503bd2a787e65",
+        "template/dev-platform/platform-manifest.json": "5fd2841b20eea84734ce950062bb223d4a5a08a8",
+        "template/docs/engineering/openspec-workflow.md": "e00fb81375b8427b217fa404926021bef80ff7f4",
+        "template/openspec/config.yaml.jinja": "8bf26898ef4faa86caef336f82d755cbd69f70cd",
+        "template/scripts/openspec_lifecycle.py": "31a26711b355bdbb494af6f0737945d56b15d730",
+        "template/scripts/post_review_finalization.py": "86afe253647dadb35d0d5034ec84137700c93e58",
+        "template/scripts/pr_review_gate.py": "5d8f99d72939dc4861e263e3c872cd8bea896d4d",
+        "template/scripts/requirement_composition.py": "7384a863ddf9a7a9e915ab515cd823044dda6f5a",
+        "tests/openspec_1_13_regression.py": "8256fb4863fa6bcce70f517f99a7e5cd570d8b16",
+        "tests/test_downstream_boundary.py": "c55cd2160a5fb4462de509f329c70a137991c79f",
+        "tests/test_independent_review.py": "dc66b5bcc06e2d376b5cb3100a159892af18bae8",
+        "tests/test_machine_pool.py": "8b05c5b534a4e19e572b27a84b4252f4600ebe97",
+        "tests/test_openspec_lifecycle.py": "db0e343edd1c2e19d4f45649e752599e4e022fa4",
+        "tests/test_post_review_finalization.py": "e41c33be286f70e25090452a801afe58f8d3afe2",
+        "tests/test_requirement_contribution_composition.py": "cecc58a25e5d8f1aaa3ebc352d945911ab14dc66"
+      },
+      "base": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "86fdee1bf4facd703969df6b905ed09c2849e95d35786692b708cb51f071187d",
+    "paths": {
+      "docs/engineering/openspec-workflow.md": "dd185abb6e016417be3d5052cee2d1d5af788122",
+      "openspec/changes/archive-new-capability-purpose-preflight/.managed-task.json": "3435025a77d545675894856fd9131b7e53eec057",
+      "openspec/changes/archive-new-capability-purpose-preflight/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+      "openspec/changes/archive-new-capability-purpose-preflight/design.md": "9ba4f2a01c2fc617f2089fcbb4c85ae2f85ef4d6",
+      "openspec/changes/archive-new-capability-purpose-preflight/proposal.md": "ef2e58f17b11508a904edb3305cb22bf2ae20954",
+      "openspec/changes/archive-new-capability-purpose-preflight/specs/completion-lifecycle/spec.md": "2bb02b654bf353e9379ed166a6a9c549e06a5d52",
+      "openspec/changes/archive-new-capability-purpose-preflight/tasks.md": "242729692482b82eda355d17e935b4ee699f8512",
+      "openspec/config.yaml": "350244cf6c56b7470c55502f8b1503bd2a787e65",
+      "template/dev-platform/platform-manifest.json": "5fd2841b20eea84734ce950062bb223d4a5a08a8",
+      "template/docs/engineering/openspec-workflow.md": "e00fb81375b8427b217fa404926021bef80ff7f4",
+      "template/openspec/config.yaml.jinja": "8bf26898ef4faa86caef336f82d755cbd69f70cd",
+      "template/scripts/openspec_lifecycle.py": "31a26711b355bdbb494af6f0737945d56b15d730",
+      "template/scripts/post_review_finalization.py": "86afe253647dadb35d0d5034ec84137700c93e58",
+      "template/scripts/pr_review_gate.py": "5d8f99d72939dc4861e263e3c872cd8bea896d4d",
+      "template/scripts/requirement_composition.py": "7384a863ddf9a7a9e915ab515cd823044dda6f5a",
+      "tests/openspec_1_13_regression.py": "8256fb4863fa6bcce70f517f99a7e5cd570d8b16",
+      "tests/test_downstream_boundary.py": "c55cd2160a5fb4462de509f329c70a137991c79f",
+      "tests/test_independent_review.py": "dc66b5bcc06e2d376b5cb3100a159892af18bae8",
+      "tests/test_machine_pool.py": "8b05c5b534a4e19e572b27a84b4252f4600ebe97",
+      "tests/test_openspec_lifecycle.py": "db0e343edd1c2e19d4f45649e752599e4e022fa4",
+      "tests/test_post_review_finalization.py": "e41c33be286f70e25090452a801afe58f8d3afe2",
+      "tests/test_requirement_contribution_composition.py": "cecc58a25e5d8f1aaa3ebc352d945911ab14dc66"
+    },
+    "base": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/requirement_composition.py --changed-file tests/openspec_1_13_regression.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_independent_review.py --changed-file tests/test_machine_pool.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_requirement_contribution_composition.py",
+    "duration_seconds": 235.586,
+    "outcome": "failure",
+    "exit_code": 1,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

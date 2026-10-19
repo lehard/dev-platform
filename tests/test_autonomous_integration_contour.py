@@ -34,6 +34,12 @@ REQUIREMENT = "acme/backlog#7"
 CHILDREN = ["acme/backlog#8", "acme/backlog#9"]
 
 
+
+def days_ago(days: int) -> str:
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+
+
 class Multi:
     """GitHub I/O for several PRs; real transitions, trust and job records."""
 
@@ -766,31 +772,33 @@ class PostMergeJobTests(FrictionFixture):
         self.assertIn("ambiguous", posted[0])
         self.assertFalse(self.state.exists())
 
+    # Unattributed events are read through a 14-day window from the wall clock, so the
+    # fixtures sit a few days before now rather than at fixed dates that age out.
     def unattributed(self, event_id, at):
         with self.log.open("a") as handle:
             handle.write(json.dumps({"id": event_id, "at": at, "category": "x", "severity": "medium",
                                      "triggers": ["excessive-retry"]}) + "\n")
 
     def test_unattributed_event_before_admission_does_not_block_the_candidate(self):
-        self.unattributed("older", "2026-10-01T00:00:00+00:00")
-        outcome, posted = self.run_job("retrospective", FakeOps(started="2026-10-02T00:00:00+00:00"))
+        self.unattributed("older", days_ago(3))
+        outcome, posted = self.run_job("retrospective", FakeOps(started=days_ago(2)))
         self.assertNotEqual(outcome["status"], "blocked")
         self.assertNotIn("ambiguous", posted[0])
 
     def test_unattributed_event_after_admission_still_blocks(self):
-        self.unattributed("older", "2026-10-01T00:00:00+00:00")
-        self.unattributed("inside", "2026-10-03T00:00:00+00:00")
-        outcome, posted = self.run_job("retrospective", FakeOps(started="2026-10-02T00:00:00+00:00"))
+        self.unattributed("older", days_ago(3))
+        self.unattributed("inside", days_ago(1))
+        outcome, posted = self.run_job("retrospective", FakeOps(started=days_ago(2)))
         self.assertEqual(outcome["status"], "blocked")
         self.assertIn("inside", posted[0])
         self.assertNotIn("older", posted[0])
 
     def test_requirement_window_starts_at_its_creation(self):
-        self.unattributed("older", "2026-10-01T00:00:00+00:00")
-        ops = FakeOps(started="2026-10-02T00:00:00+00:00")
+        self.unattributed("older", days_ago(3))
+        ops = FakeOps(started=days_ago(2))
         contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
         self.assertEqual(ops.calls, [("requirement-checkpoint", ())])
-        self.unattributed("inside", "2026-10-03T00:00:00+00:00")
+        self.unattributed("inside", days_ago(1))
         with self.assertRaisesRegex(contour.JobBlocked, "ambiguous friction attribution.*inside"):
             contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
 
