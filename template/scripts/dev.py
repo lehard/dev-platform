@@ -34,13 +34,13 @@ def openspec_profile() -> dict[str, object]:
 
 
 def ensure_local_generated_excludes(root: Path) -> None:
-    git_dir_result = subprocess.run(
-        ["git", "rev-parse", "--git-dir"], cwd=root, text=True, capture_output=True, check=True
+    # Git reads ignore rules only from the common directory; a linked worktree's
+    # private --git-dir has no info/ and creating one escapes the shared contract.
+    exclude_result = subprocess.run(
+        ["git", "rev-parse", "--path-format=absolute", "--git-path", "info/exclude"],
+        cwd=root, text=True, capture_output=True, check=True,
     )
-    git_dir = Path(git_dir_result.stdout.strip())
-    if not git_dir.is_absolute():
-        git_dir = root / git_dir
-    exclude = git_dir / "info" / "exclude"
+    exclude = Path(exclude_result.stdout.strip())
     exclude.parent.mkdir(parents=True, exist_ok=True)
     existing = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
     existing_lines = {line.strip() for line in existing.splitlines()}

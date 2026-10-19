@@ -25,6 +25,19 @@ class StartedWorktree:
     board_id: str
 
 
+CAPABILITY_SYNC = ["python3", "scripts/capability_manager.py", "sync"]
+
+
+def materialize_capability_surfaces(worktree: Path) -> None:
+    result = subprocess.run(CAPABILITY_SYNC, cwd=worktree, text=True, capture_output=True, stdin=subprocess.DEVNULL, check=False)
+    if result.returncode != 0:
+        detail = (result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}")
+        raise RuntimeError(
+            f"capability surface sync failed in new worktree {worktree}: {detail}; "
+            f"fix the cause, then re-run the task start (the step is `{' '.join(CAPABILITY_SYNC)}`)"
+        )
+
+
 def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, base: str | None = None, sync: bool = True, branch_name: str | None = None) -> StartedWorktree:
     root = root.resolve()
     preflight(root)
@@ -55,6 +68,9 @@ def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, 
     ).returncode != 0:
         shutil.copy2(local_platform_config, worktree / ".dev-platform.toml")
     try:
+        # Selected capability surfaces are gitignored, so a fresh checkout never
+        # inherits them; materialize them before the first doctor-gated check.
+        materialize_capability_surfaces(worktree)
         # Git creates several shared common-directory entries while adding the
         # worktree.  Verify/repair that bounded writer boundary before package
         # materialization or board publication can continue.

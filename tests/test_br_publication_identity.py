@@ -248,6 +248,7 @@ class IdentityPublicationTests(unittest.TestCase):
         scripts = self.root / 'scripts'
         scripts.mkdir()
         (scripts / 'agent_board.py').write_text('import sys\nif sys.argv[1] == "start": print("synthetic-board")\n')
+        (scripts / 'capability_manager.py').write_text('')
         (self.root / '.gitignore').write_text('.claude/\n')
         git(self.root, 'add', '.')
         git(self.root, 'commit', '-m', 'synthetic baseline')
