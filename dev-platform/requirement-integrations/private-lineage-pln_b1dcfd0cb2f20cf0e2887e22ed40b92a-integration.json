@@ -1,0 +1,24 @@
+{
+  "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+  "children": [],
+  "dependencies": {
+    "sandboxed-claude-dispatch": [
+      "sandboxed-writer-launch"
+    ],
+    "sandboxed-writer-launch": [],
+    "sandboxed-writer-probes-decision": [
+      "sandboxed-claude-dispatch"
+    ]
+  },
+  "digest": "261946e715ef75d5bf684edc3cd85c0a95db3f3f46242a684e114e1d472b641a",
+  "expected_changes": [
+    "sandboxed-writer-launch",
+    "sandboxed-claude-dispatch",
+    "sandboxed-writer-probes-decision"
+  ],
+  "integration_branch": "requirement/BR-576",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+  "version": 2,
+  "work_identity": "BR-576"
+}
