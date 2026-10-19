@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
+    "base_ref": "origin/main",
+    "candidate_head": "a76f984dcac1d2cce16561f15e2ce3ceb0b9b190",
+    "diff_sha256": "02aa7c4b69dbf4b76e3f05d82bdc5db3ea01d482613a45ae70e823e682ded4f1"
+  },
+  "completed_at": "2026-10-19T19:04:34+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_friction.py route_event (~line 1105) catches only RuntimeError. read_operator_config (_platform_common.py:345-350) converts only FileNotFoundError to RuntimeError, so a TOML decode error (ValueError) or PermissionError (OSError) propagates. process_label() now also propagates ValueError/OSError from read_platform_config, and route_event calls it at line 1095. The previous code caught these, and the new tests only exercise RuntimeError paths. A single bad configuration file now aborts route_pending for all events, and no pending route with a reason is stored.",
+      "id": "route-event-unreadable-config-not-pending",
+      "severity": "advisory",
+      "summary": "Unreadable operator or label configuration can escape route_event as an uncaught exception instead of leaving the event pending with a named reason. The spec says to keep the event local and report an error."
+    }
+  ],
+  "launched_at": "2026-10-19T19:04:08+00:00",
+  "output_sha256": "8b221d9faf046a398b3abd36941858a0be3e0693105f3f8458b47dc3e5cd8113",
+  "perspective": "spec-fidelity",
+  "request_id": "78492a8a-a5c8-4d18-8d58-27c4e6b43bb2",
+  "reviewer": {
+    "context_id": "323836f6-4d71-48e9-8085-a87a1326cec5",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f9fd5763-3fcf-4ede-9397-1867db0346b3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42803
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 169591
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25349
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25518
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2394
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7865e9949f16a9d9c77bf19ccf5e37c5e59c35a79c03d90a08085a202e7a5b4b"
+}
