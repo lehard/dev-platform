@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "a76f984dcac1d2cce16561f15e2ce3ceb0b9b190",
-    "diff_sha256": "02aa7c4b69dbf4b76e3f05d82bdc5db3ea01d482613a45ae70e823e682ded4f1"
+    "candidate_head": "59923b0d597727865191424bac912032d5cedd42",
+    "diff_sha256": "e12f33edd679070b56122e758489fa6d936964b64e656a86cdfa8749fa440388"
   },
-  "completed_at": "2026-10-19T19:04:34+00:00",
+  "completed_at": "2026-10-19T19:06:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py route_event (~line 1105) catches only RuntimeError. read_operator_config (_platform_common.py:345-350) converts only FileNotFoundError to RuntimeError, so a TOML decode error (ValueError) or PermissionError (OSError) propagates. process_label() now also propagates ValueError/OSError from read_platform_config, and route_event calls it at line 1095. The previous code caught these, and the new tests only exercise RuntimeError paths. A single bad configuration file now aborts route_pending for all events, and no pending route with a reason is stored.",
-      "id": "route-event-unreadable-config-not-pending",
+      "evidence": "template/scripts/agent_friction.py: `legacy_content_id` yields `legacy-` plus 16 hex chars, and `LEGACY_POSITIONAL_ID_RE = re.compile(r\"legacy-\\d+\")` fullmatches any all-digit hash (about 0.05% of ids). `resolve_positional_id` in `read_state` and `read_attributions` then treats it as a line number. It raises a FrictionLogError, or maps to the wrong line, for a route or attribution already keyed by the content id. Design decision 4 does not address this.",
+      "id": "legacy-content-id-collides-with-positional-pattern",
       "severity": "advisory",
-      "summary": "Unreadable operator or label configuration can escape route_event as an uncaught exception instead of leaving the event pending with a named reason. The spec says to keep the event local and report an error."
+      "summary": "A content-derived legacy id made only of decimal digits is indistinguishable from a positional reference and is mis-resolved."
+    },
+    {
+      "evidence": "`route_event` only catches RuntimeError (line ~1105). `process_label()` now lets `read_platform_config` ValueError/OSError/FileNotFoundError propagate. It is called inside the try at line ~1095 and via `ensure_process_label`. Such an error aborts routing, and any `route-pending` run, with a traceback instead of leaving a named pending reason. This is consistent with the spec's 'reported as an error' wording but inconsistent with the stated pending-route behavior for the destination.",
+      "id": "process-label-config-error-escapes-route-event",
+      "severity": "advisory",
+      "summary": "A label configuration read error raised as ValueError or OSError is not converted into a retained pending route, unlike the platform-destination error."
     }
   ],
-  "launched_at": "2026-10-19T19:04:08+00:00",
-  "output_sha256": "8b221d9faf046a398b3abd36941858a0be3e0693105f3f8458b47dc3e5cd8113",
+  "launched_at": "2026-10-19T19:05:59+00:00",
+  "output_sha256": "868dd32ff530f0f6b6eff9cbe2f62d7b5be21570f67864525fba5405a1038d4f",
   "perspective": "spec-fidelity",
-  "request_id": "78492a8a-a5c8-4d18-8d58-27c4e6b43bb2",
+  "request_id": "0c62fc71-e349-48f0-9aa2-65ad200b2f3d",
   "reviewer": {
-    "context_id": "323836f6-4d71-48e9-8085-a87a1326cec5",
+    "context_id": "7d0ed453-d6cc-484f-8a10-09525ff08352",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f9fd5763-3fcf-4ede-9397-1867db0346b3",
+    "launch_id": "platform-launch-9a9a1808-3f5d-4b55-8a94-cb8a519e9408",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,37 +45,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42803
+        "value": 34929
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 169591
+        "value": 87123
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25349
+        "value": 23327
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25518
+        "value": 23537
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2394
+        "value": 1660
       }
     },
     "runtime": "claude-code-print"

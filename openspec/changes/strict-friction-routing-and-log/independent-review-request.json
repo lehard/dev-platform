@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "a76f984dcac1d2cce16561f15e2ce3ceb0b9b190",
-    "diff_sha256": "02aa7c4b69dbf4b76e3f05d82bdc5db3ea01d482613a45ae70e823e682ded4f1"
+    "candidate_head": "59923b0d597727865191424bac912032d5cedd42",
+    "diff_sha256": "e12f33edd679070b56122e758489fa6d936964b64e656a86cdfa8749fa440388"
   },
   "change": "openspec/changes/strict-friction-routing-and-log",
   "excluded_lifecycle_paths": [
     "openspec/changes/strict-friction-routing-and-log/automated-checks.json",
+    "openspec/changes/strict-friction-routing-and-log/independent-review-request.json",
+    "openspec/changes/strict-friction-routing-and-log/independent-reviews/engineering-quality.json",
+    "openspec/changes/strict-friction-routing-and-log/independent-reviews/spec-fidelity.json",
     "openspec/changes/strict-friction-routing-and-log/verification.md"
   ],
   "fresh_context_required": true,
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-19T19:04:04+00:00",
+  "prepared_at": "2026-10-19T19:05:57+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/strict-friction-routing-and-log/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "78492a8a-a5c8-4d18-8d58-27c4e6b43bb2",
+  "request_id": "0c62fc71-e349-48f0-9aa2-65ad200b2f3d",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",

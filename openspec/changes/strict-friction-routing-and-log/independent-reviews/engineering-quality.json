@@ -3,46 +3,46 @@
   "candidate": {
     "base_head": "f3a52e76f3223edaaf3369869eaec3687da0d326",
     "base_ref": "origin/main",
-    "candidate_head": "a76f984dcac1d2cce16561f15e2ce3ceb0b9b190",
-    "diff_sha256": "02aa7c4b69dbf4b76e3f05d82bdc5db3ea01d482613a45ae70e823e682ded4f1"
+    "candidate_head": "59923b0d597727865191424bac912032d5cedd42",
+    "diff_sha256": "e12f33edd679070b56122e758489fa6d936964b64e656a86cdfa8749fa440388"
   },
-  "completed_at": "2026-10-19T19:05:08+00:00",
+  "completed_at": "2026-10-19T19:06:50+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py:1105 catches only `except RuntimeError`. The diff removed the `except (FileNotFoundError, OSError, ValueError, RuntimeError)` guards from platform_repository() and process_label(), which now call read_operator_config(required=True) and read_platform_config(...) directly. The new test only mocks read_operator_config with a RuntimeError, so the ValueError/OSError path is untested. The label path at line 1095 (`process_label()` inside route_event) has the same exposure.",
-      "id": "route-event-config-errors-escape-pending",
+      "evidence": "template/scripts/agent_friction.py: `legacy_content_id` returns `legacy-` plus 16 hex chars. `LEGACY_POSITIONAL_ID_RE = re.compile(r\"legacy-\\d+\")` fullmatches any such id whose 16 hex digits are all decimal, roughly 0.05% of ids. `read_state` and `read_attributions` call `resolve_positional_id` on every persisted key. Once a route or attribution is stored under that content id, the next read treats it as line number ~10^15 and raises FrictionLogError 'does not match a line'. Every state read then fails. The positional form needs a disjoint namespace, such as a different prefix, or the content id needs a non-digit marker.",
+      "id": "legacy-content-id-collides-with-positional-pattern",
       "severity": "material",
-      "summary": "Configuration read errors other than RuntimeError (ValueError/OSError/FileNotFoundError from read_operator_config or read_platform_config) now escape route_event instead of becoming a retained pending route. This contradicts design decision 1 and the 'remains pending with a named reason' spec scenario, and it aborts the whole route-pending run."
+      "summary": "A content-derived legacy id can be taken for a positional reference and then break read_state and read_attributions."
     },
     {
-      "evidence": "agent_friction.py: `LEGACY_POSITIONAL_ID_RE = re.compile(r\"legacy-\\d+\")` and `legacy_content_id` returns `hexdigest()[:16]`. read_state() and read_attributions() call resolve_positional_id on every persisted key. A digit-only 16-char id (about 0.05% of hashes) passes fullmatch, `int()` gives a huge line number, and 'does not match a line' is raised. A fix would be to narrow the regex or to use a distinct prefix for the content ids.",
-      "id": "legacy-positional-regex-matches-digit-only-content-id",
+      "evidence": "route_event wraps its body in `except RuntimeError`. `process_label()` no longer swallows FileNotFoundError/OSError/ValueError from `read_platform_config`, and it is called inside the issue-creation arguments. A TOML or IO error there escapes route_event and route_pending as an uncaught traceback. The event gets no pending route state, and the remaining events in that route-pending run are skipped. The design says such failures are surfaced as pending/warnings. The same applies if read_operator_config raises ValueError rather than RuntimeError.",
+      "id": "route-event-config-errors-not-pending",
       "severity": "advisory",
-      "summary": "A content-derived id that happens to consist only of decimal digits is misread as a positional reference. Content ids are `legacy-` plus 16 hex chars, and LEGACY_POSITIONAL_ID_RE is `legacy-\\d+`. Every `read_state()` call then fails with FrictionLogError, so all friction state reads break, not only that event's."
+      "summary": "Label configuration errors that now propagate are not turned into a pending route by route_event, which only catches RuntimeError."
     },
     {
-      "evidence": "agent_friction.py:533 `for existing in read_events(None):` is not wrapped in tolerate_local_gap. Only review-path and checkpoints that accept the `friction-log` gap are tolerant. The tests do not cover append_coordinator_event with a malformed log.",
-      "id": "coordinator-append-blocked-by-malformed-log",
+      "evidence": "`legacy_content_id` hashes only `line.strip()`. Identical repeated lines yield duplicate event ids in read_events, so routes, attributions and checkpoints for them are merged. Positional ids used to keep them distinct.",
+      "id": "legacy-content-id-duplicate-lines",
       "severity": "advisory",
-      "summary": "append_coordinator_event now fails hard on any malformed log line, because it dedupes through the strict read_events() under the friction lock. Coordinator and lifecycle recording can no longer proceed once a log line is corrupt, and no tolerance scope covers this path. The same strict read also gates route_pending and the record paths."
+      "summary": "Two byte-identical id-less lines get the same legacy id."
     },
     {
-      "evidence": "agent_friction.py resolve_positional_id: `path.read_text(...).splitlines()` is executed inside the loops in read_state() and read_attributions(). Translated keys are not persisted for routes, so the cost is paid on every read.",
-      "id": "read-state-rereads-log-per-positional-key",
+      "evidence": "`resolve_positional_id` calls `path.read_text` for each `legacy-N` key from the loops in `read_state` and `read_attributions`. `read_state` is called frequently. Cost is O(keys \u00d7 log size), and a single stale key makes every read of state fail hard.",
+      "id": "positional-resolution-rereads-log-per-key",
       "severity": "advisory",
-      "summary": "resolve_positional_id re-reads and splits the whole friction log for every positional key in routes and attributions. read_state() is called frequently, so the cost is quadratic for legacy-heavy state."
+      "summary": "Translating positional ids reads and parses the whole log once per key."
     }
   ],
-  "launched_at": "2026-10-19T19:04:34+00:00",
-  "output_sha256": "b32c7c51bb4630da11ce503c0f0791d9390af0e78e6eb3d8d6736ed9ff0770aa",
+  "launched_at": "2026-10-19T19:06:23+00:00",
+  "output_sha256": "af2044d11bd0637b7bd3aef521c2d0ce4814704c30e4d7a2e9abb3b052238465",
   "perspective": "engineering-quality",
-  "request_id": "78492a8a-a5c8-4d18-8d58-27c4e6b43bb2",
+  "request_id": "0c62fc71-e349-48f0-9aa2-65ad200b2f3d",
   "reviewer": {
-    "context_id": "9cd3ae8a-034a-404e-9bfb-f33235a99943",
+    "context_id": "7826d62b-1c27-4c1a-a03c-43374d032c10",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d1e7d4bf-b01e-4247-b62a-898798ae4476",
+    "launch_id": "platform-launch-f7175149-4912-41d5-b86c-bbbc6c1fb119",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,37 +57,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34029
+        "value": 35037
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 125542
+        "value": 87812
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32827
+        "value": 25279
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33144
+        "value": 25602
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2767
+        "value": 2389
       }
     },
     "runtime": "claude-code-print"
