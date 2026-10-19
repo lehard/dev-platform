@@ -5,8 +5,27 @@
     "command_count": 3,
     "check_count": 1
   },
-  "outcome": "failure",
-  "executed_commands": [],
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.172,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.307,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1356.108,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
   "selected_checks": [
     {
       "id": "full-trigger",
@@ -16,6 +35,7 @@
         "template/scripts/pr_review_gate.py",
         "template/scripts/requirement_composition.py",
         "tests/openspec_1_13_regression.py",
+        "tests/test_autonomous_integration_contour.py",
         "tests/test_downstream_boundary.py",
         "tests/test_independent_review.py",
         "tests/test_machine_pool.py",
@@ -44,19 +64,20 @@
     "change": "archive-new-capability-purpose-preflight",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/archive-new-capability-purpose-preflight",
     "branch": "agent/br-580-t1-archive-new-capability-purpose-preflight",
-    "head": "6e7729282a056cde2887853b73303d6a251515c7",
+    "head": "842244adf4fcbf9921fff40e3dbeeba09ddb2d02",
     "task_content": {
       "version": 1,
-      "digest": "6bd6e98b35c8b1edfe4aadecb71cf7535b71e3fe388cb8dc3c4b42fbe16f25a8",
+      "digest": "7eee6a2d6a71915b784fdb2f993beefa2b0cab133b25c163601e55fd3fd709df",
       "paths": {
         "docs/engineering/openspec-workflow.md": "dd185abb6e016417be3d5052cee2d1d5af788122",
         "openspec/changes/archive-new-capability-purpose-preflight/.managed-task.json": "3435025a77d545675894856fd9131b7e53eec057",
         "openspec/changes/archive-new-capability-purpose-preflight/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+        "openspec/changes/archive-new-capability-purpose-preflight/automated-checks.json": "aae15e95eea07d75d5c561c5c2fa8cbab3c99cc1",
         "openspec/changes/archive-new-capability-purpose-preflight/design.md": "9ba4f2a01c2fc617f2089fcbb4c85ae2f85ef4d6",
         "openspec/changes/archive-new-capability-purpose-preflight/proposal.md": "ef2e58f17b11508a904edb3305cb22bf2ae20954",
         "openspec/changes/archive-new-capability-purpose-preflight/specs/completion-lifecycle/spec.md": "2bb02b654bf353e9379ed166a6a9c549e06a5d52",
         "openspec/changes/archive-new-capability-purpose-preflight/tasks.md": "242729692482b82eda355d17e935b4ee699f8512",
-        "openspec/changes/archive-new-capability-purpose-preflight/verification.md": "9da0825511e525fd6d197b7679ec7f7f01ebf563",
+        "openspec/changes/archive-new-capability-purpose-preflight/verification.md": "801ab1dff07ac523337b8be9ba3d7173f3c5ede7",
         "openspec/config.yaml": "350244cf6c56b7470c55502f8b1503bd2a787e65",
         "template/dev-platform/platform-manifest.json": "5fd2841b20eea84734ce950062bb223d4a5a08a8",
         "template/docs/engineering/openspec-workflow.md": "e00fb81375b8427b217fa404926021bef80ff7f4",
@@ -66,6 +87,7 @@
         "template/scripts/pr_review_gate.py": "5d8f99d72939dc4861e263e3c872cd8bea896d4d",
         "template/scripts/requirement_composition.py": "7384a863ddf9a7a9e915ab515cd823044dda6f5a",
         "tests/openspec_1_13_regression.py": "8256fb4863fa6bcce70f517f99a7e5cd570d8b16",
+        "tests/test_autonomous_integration_contour.py": "cb3409fa8124e6ff43f351b7651d26280b25a990",
         "tests/test_downstream_boundary.py": "c55cd2160a5fb4462de509f329c70a137991c79f",
         "tests/test_independent_review.py": "dc66b5bcc06e2d376b5cb3100a159892af18bae8",
         "tests/test_machine_pool.py": "8b05c5b534a4e19e572b27a84b4252f4600ebe97",
@@ -78,7 +100,7 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "86fdee1bf4facd703969df6b905ed09c2849e95d35786692b708cb51f071187d",
+    "digest": "47ce77b8464f27e1babee20b1bc4f7c461b334ba58b201bb18f5a5869b203816",
     "paths": {
       "docs/engineering/openspec-workflow.md": "dd185abb6e016417be3d5052cee2d1d5af788122",
       "openspec/changes/archive-new-capability-purpose-preflight/.managed-task.json": "3435025a77d545675894856fd9131b7e53eec057",
@@ -96,6 +118,7 @@
       "template/scripts/pr_review_gate.py": "5d8f99d72939dc4861e263e3c872cd8bea896d4d",
       "template/scripts/requirement_composition.py": "7384a863ddf9a7a9e915ab515cd823044dda6f5a",
       "tests/openspec_1_13_regression.py": "8256fb4863fa6bcce70f517f99a7e5cd570d8b16",
+      "tests/test_autonomous_integration_contour.py": "cb3409fa8124e6ff43f351b7651d26280b25a990",
       "tests/test_downstream_boundary.py": "c55cd2160a5fb4462de509f329c70a137991c79f",
       "tests/test_independent_review.py": "dc66b5bcc06e2d376b5cb3100a159892af18bae8",
       "tests/test_machine_pool.py": "8b05c5b534a4e19e572b27a84b4252f4600ebe97",
@@ -107,10 +130,10 @@
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
-    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/requirement_composition.py --changed-file tests/openspec_1_13_regression.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_independent_review.py --changed-file tests/test_machine_pool.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_requirement_contribution_composition.py",
-    "duration_seconds": 235.586,
-    "outcome": "failure",
-    "exit_code": 1,
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/requirement_composition.py --changed-file tests/openspec_1_13_regression.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_independent_review.py --changed-file tests/test_machine_pool.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_requirement_contribution_composition.py",
+    "duration_seconds": 240.627,
+    "outcome": "success",
+    "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
   }
 }
