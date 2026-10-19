@@ -16,6 +16,8 @@
 - [x] 4.2 Worktree start test: selected capability surfaces exist after start; a failing sync aborts start, rolls back worktree and branch, and names the repair command.
 - [x] 4.3 Doctor test: capability-audit failure names the sync command.
 
+- [x] 4.4 Make the friction-window fixtures in `tests/test_autonomous_integration_contour.py` relative to the run time: fixed 2026-10-0x dates fell out of the 14-day `AMBIGUOUS_WINDOW_DAYS` on 2026-10-17 and failed the mandatory suite on main independently of this change.
+
 ## 5. Verification and delivery
 
 - [ ] 5.1 Regenerate the platform manifest; required platform checks; truthful semantic verification; archive; retrospectives; publication.

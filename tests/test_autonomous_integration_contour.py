@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import re
@@ -28,6 +29,13 @@ retrospective = load_platform_module("requirement_retrospective", SCRIPTS / "req
 
 from test_pr_review_gate import IDENTITY, PROVIDER, ROUTE, QueueFixture, git  # noqa: E402
 from test_post_review_finalization import Remote, RemoteFixture  # noqa: E402
+
+# Unattributed friction is read only inside agent_friction.AMBIGUOUS_WINDOW_DAYS
+# of now, so window fixtures are relative to the run time, not fixed dates.
+_NOW = datetime.now(timezone.utc).replace(microsecond=0)
+WINDOW_OLDER = (_NOW - timedelta(days=3)).isoformat()
+WINDOW_STARTED = (_NOW - timedelta(days=2)).isoformat()
+WINDOW_INSIDE = (_NOW - timedelta(days=1)).isoformat()
 
 HEAD, BASE, MAIN = "a" * 40, "b" * 40, "c" * 40
 REQUIREMENT = "acme/backlog#7"
@@ -772,25 +780,25 @@ class PostMergeJobTests(FrictionFixture):
                                      "triggers": ["excessive-retry"]}) + "\n")
 
     def test_unattributed_event_before_admission_does_not_block_the_candidate(self):
-        self.unattributed("older", "2026-10-01T00:00:00+00:00")
-        outcome, posted = self.run_job("retrospective", FakeOps(started="2026-10-02T00:00:00+00:00"))
+        self.unattributed("older", WINDOW_OLDER)
+        outcome, posted = self.run_job("retrospective", FakeOps(started=WINDOW_STARTED))
         self.assertNotEqual(outcome["status"], "blocked")
         self.assertNotIn("ambiguous", posted[0])
 
     def test_unattributed_event_after_admission_still_blocks(self):
-        self.unattributed("older", "2026-10-01T00:00:00+00:00")
-        self.unattributed("inside", "2026-10-03T00:00:00+00:00")
-        outcome, posted = self.run_job("retrospective", FakeOps(started="2026-10-02T00:00:00+00:00"))
+        self.unattributed("older", WINDOW_OLDER)
+        self.unattributed("inside", WINDOW_INSIDE)
+        outcome, posted = self.run_job("retrospective", FakeOps(started=WINDOW_STARTED))
         self.assertEqual(outcome["status"], "blocked")
         self.assertIn("inside", posted[0])
         self.assertNotIn("older", posted[0])
 
     def test_requirement_window_starts_at_its_creation(self):
-        self.unattributed("older", "2026-10-01T00:00:00+00:00")
-        ops = FakeOps(started="2026-10-02T00:00:00+00:00")
+        self.unattributed("older", WINDOW_OLDER)
+        ops = FakeOps(started=WINDOW_STARTED)
         contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
         self.assertEqual(ops.calls, [("requirement-checkpoint", ())])
-        self.unattributed("inside", "2026-10-03T00:00:00+00:00")
+        self.unattributed("inside", WINDOW_INSIDE)
         with self.assertRaisesRegex(contour.JobBlocked, "ambiguous friction attribution.*inside"):
             contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
 
