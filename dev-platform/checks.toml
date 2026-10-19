@@ -249,6 +249,7 @@ targets = [
   "test_delegation_containment",
   "test_dev_entrypoint",
   "test_direct_main_health",
+  "test_fresh_worktree_readiness",
   "test_friction_review",
   "test_retrospective_attribution",
   "test_gitlab_delivery",
