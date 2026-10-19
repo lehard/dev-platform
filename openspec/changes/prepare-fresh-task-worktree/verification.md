@@ -24,4 +24,4 @@ Additional repair (task 4.4): `tests/test_autonomous_integration_contour.py` use
 
 Not verified: a direct test that runs the shared-workspace audit on a freshly created worktree (the test fixture stubs `preflight`); a live start through `start_managed_task` in a downstream project with enabled capabilities and a second OS account; the dev-platform repository itself enables no capability, so its own fresh worktrees exercise only the empty selection.
 
-Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/prepare-fresh-task-worktree/automated-checks.json` on head 1cea94bb: compileall success, ruff success, `run_test_groups.py --all` success (1191 s).
+Checks actually run: `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/prepare-fresh-task-worktree/automated-checks.json` on head 69d92c21 (final task content): compileall success, ruff success, `run_test_groups.py --all` success (1321 s).
