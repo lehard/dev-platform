@@ -488,7 +488,10 @@ def check_engineering_capabilities(root: Path, failures: list[int]) -> None:
     if result.returncode == 0 and payload.get("status") == "ok":
         ok("optional engineering capability descriptors and derived surfaces are valid")
         return
-    fail("optional engineering capability audit failed: " + (detail[:500] or f"exit {result.returncode}"))
+    fail(
+        "optional engineering capability audit failed: " + (detail[:500] or f"exit {result.returncode}")
+        + "; run `python3 scripts/capability_manager.py sync`"
+    )
     failures[0] += 1
 
 

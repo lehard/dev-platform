@@ -10,6 +10,14 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# Newer Git detaches auto-maintenance after commit; it can still write into the
+# temporary project's .git while TemporaryDirectory removes it (Errno 39).
+os.environ["GIT_CONFIG_COUNT"] = "2"
+os.environ["GIT_CONFIG_KEY_0"] = "maintenance.auto"
+os.environ["GIT_CONFIG_VALUE_0"] = "false"
+os.environ["GIT_CONFIG_KEY_1"] = "gc.auto"
+os.environ["GIT_CONFIG_VALUE_1"] = "0"
 FALLBACK_BASE_REF = "cb46d0c787334c473f8e8c46f018ca14e665c507"
 
 

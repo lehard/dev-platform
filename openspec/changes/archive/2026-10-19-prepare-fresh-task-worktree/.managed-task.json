@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/engineering-capabilities/spec.md",
+    "specs/shared-workspace-safety/spec.md",
+    "tasks.md"
+  ],
+  "change": "prepare-fresh-task-worktree",
+  "imported_at": "2026-10-19T11:42:44+00:00",
+  "package_revision": "29b35c8fbc0f60fb75cb0c382329a86fe79770721c46cd2a6f7c9be27ace4493",
+  "prepared_against": "83c21a2dae2ef4c3f138bb48a4127ea8aa367205",
+  "private_lineage_handle": "pln_97b119de5aceabb3c46f143d7745e285",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "e55cc3259182807ac358510a7f00e88e3384870b75503d403ec742ed8b300108",
+    "updated_at": "2026-10-19T11:31:00Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-599/T1"
+}
