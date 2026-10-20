@@ -3,46 +3,52 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "1f11e99dc2762dc47f3e4b6319b3f32681a7026c",
-    "diff_sha256": "c9ccd4e759c9bad89495782eeca4003b4a44c44c2a89f27c09832f74c5b2e695"
+    "candidate_head": "0df2c614e3ffe6cb7e4db57fba9817ddc9b6e2e4",
+    "diff_sha256": "617707b424ab3f09ace12df10be4433b5bb7736593c806d913f5ea1cb8d72eae"
   },
-  "completed_at": "2026-10-20T03:17:46+00:00",
+  "completed_at": "2026-10-20T03:27:42+00:00",
   "findings": [
     {
-      "evidence": "Spec requirement 'The Claude writer credential is scoped to the writer process' says 'The token file location SHALL be read-denied inside the sandbox.' In template/scripts/sandboxed_writer.py, build_profile builds deny_read from DENY_READ_HOME, protected and platform only. launch_sandboxed_writer never passes the token path. A token_file outside ~/.config/dev-platform (for example ~/secrets/claude-token) stays readable to the writer. No test covers this.",
+      "evidence": "template/scripts/sandboxed_writer.py:366-368 says home entries 'stay literal (\"~/...\") for srt to expand'. sandboxed_env (line 430) uses `credential_free_env(dict(base_env), home)`, which sets the scratch HOME for the srt process. Node's `os.homedir()` follows `$HOME` on POSIX. The overlap check in build_profile uses the harness's `os.path.expanduser`, which resolves against the real home, so the check and the profile can disagree. tests/test_sandboxed_writer.py:521-526 only asserts the literal `~/` strings and never checks which home they resolve to. Expanding to absolute real-home paths in the harness would remove the ambiguity.",
+      "id": "home-relative-denies-expand-against-scratch-home",
+      "severity": "material",
+      "summary": "The profile keeps home-relative deny entries as literal `~/...` for srt to expand, but srt is launched with HOME set to the scratch home. The credential-store read-denies and the `~/.claude`/`~/.config`/`~/.ssh` write-denies may then resolve to paths under the scratch home instead of the operator's real home, leaving the real credential stores unprotected."
+    },
+    {
+      "evidence": "specs/lifecycle-workers/spec.md, requirement 'The Claude writer credential is scoped to the writer process': 'The token file location SHALL be read-denied inside the sandbox.' In launch_sandboxed_writer (sandboxed_writer.py:448-449), build_profile is called without the token path. build_profile's deny_read is only DENY_READ_HOME + protected + platform. No test covers it.",
       "id": "token-file-not-read-denied",
       "severity": "material",
-      "summary": "The spec requires the token file location to be read-denied inside the sandbox. build_profile only denies a fixed home list, and nothing adds the configured token_file path to denyRead."
+      "summary": "The spec says the token file location SHALL be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead. It only denies the fixed `~/.config/dev-platform` entry, and the operator can point token_file anywhere."
     },
     {
-      "evidence": "srt_launcher returns ['npx','--yes','@anthropic-ai/sandbox-runtime@0.0.79']. launch_sandboxed_writer passes it through run_llm(command, checkout, ...), which uses cwd=checkout, and the operator OAuth token is in that process environment. The design's alternative of a resolvable `srt` binary with a matching --version is not implemented.",
-      "id": "srt-npx-runs-outside-sandbox-in-checkout",
+      "evidence": "proposal.md: 'denyWrite ... the push remote path when local'. sandboxed_writer.py:448-449 calls build_profile with `protected=protected_paths(integration_root)` and no extra_deny_write. protected_paths covers only the root, the common git dir and the worktrees.",
+      "id": "local-push-remote-not-write-denied",
       "severity": "advisory",
-      "summary": "The pinned runtime is fetched and executed with `npx --yes` outside the sandbox. It runs with cwd set to the writer checkout, so a repository .npmrc or similar npm config there can influence the launcher. There is no integrity check on the fetched package."
+      "summary": "The proposal says the push remote path is write-denied when it is local. launch_sandboxed_writer never computes it. extra_deny_write exists but is never populated, so a local bare remote outside the protected paths stays writable by nothing only if it is not under an allowed root, and it is never denied or checked for overlap."
     },
     {
-      "evidence": "The proposal lists 'the push remote path when local' among the denyWrite paths. build_profile accepts extra_deny_write, but launch_sandboxed_writer never passes it and has no parameter for it. Only the unit tests use extra_deny_write.",
-      "id": "local-push-remote-not-denied",
+      "evidence": "sandboxed_writer.py:305 defines SAFE_GIT. The `_git` helper at lines 337-342 calls subprocess.run without an env argument. lifecycle_workers.harness_git builds a filtered env for the same purpose.",
+      "id": "duplicated-safe-git-and-ambient-env-git",
       "severity": "advisory",
-      "summary": "The proposal says the profile denies writes to the push remote path when it is local. launch_sandboxed_writer has no way to supply it, so a local-path remote stays writable if it lies in an allowed root and is unprotected."
+      "summary": "sandboxed_writer.py redefines SAFE_GIT, which already exists in lifecycle_workers, so the two copies can drift. Its `_git` helper also runs git with the full ambient environment, including any GIT_DIR/GIT_* variables and the ambient OAuth token. It does not use harness_git or credential_free_env."
     },
     {
-      "evidence": "template/scripts/sandboxed_writer.py, last lines of launch_sandboxed_writer: env={k: v for k, v in env.items() if k != TOKEN_ENV} with extra_env={TOKEN_ENV: token}, after sandboxed_env sets env[TOKEN_ENV]. SAFE_GIT is also duplicated from lifecycle_workers.",
-      "id": "sandbox-env-built-twice",
+      "evidence": "sandboxed_writer.py:429-435 sets TOKEN_ENV in the env of the whole command, and run_llm's extra_env applies it to the outer process (lifecycle_workers.py:250-251). The inner `env ... bash -c` command at line 415 does not scope it. Passing the token only to the inner command would shrink the exposure.",
+      "id": "token-reaches-npx-launcher-process",
       "severity": "advisory",
-      "summary": "The writer environment is assembled in two places and the token is split off and re-added. sandboxed_env builds it and puts the token in, then the launcher strips the token and passes it again as extra_env. The two paths can drift."
+      "summary": "The token is placed in the environment of the outer `npx --yes @anthropic-ai/sandbox-runtime@\u2026` process. That process runs outside the sandbox, and npx may fetch and execute package install scripts there. The token is therefore exposed to the npm resolution and install path, not just the writer. The version pin does not carry an integrity check."
     }
   ],
-  "launched_at": "2026-10-20T03:17:27+00:00",
-  "output_sha256": "4d52e9faa5460a9a1fa652cc550cb908043d0c8e45bc009aa145aeb27febd4bc",
+  "launched_at": "2026-10-20T03:27:14+00:00",
+  "output_sha256": "d30fe7da405d8f661acf54ba01a9ff11f9a8a0a190b7aba954944e9b1465d21c",
   "perspective": "engineering-quality",
-  "request_id": "742634c4-fb2e-4ccb-a95d-3a4e7aaccca0",
+  "request_id": "d5f49a38-33f6-42ed-88dd-fb5fcb92d7f3",
   "reviewer": {
-    "context_id": "7db9af50-d28b-4af3-aca6-d8e8fe6e75ae",
+    "context_id": "b868dfbb-7969-4262-a515-2b434ddc8faf",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0e0ff66b-75c1-45a4-a8cd-c9bed9dac237",
+    "launch_id": "platform-launch-2b9f91f6-6e3a-40c9-86df-30acd52a2bb9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +63,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26366
+        "value": 26342
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16455
+        "value": 16424
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19073
+        "value": 27372
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19290
+        "value": 27691
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -87,7 +93,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2325
+        "value": 3350
       }
     },
     "runtime": "claude-code-print"

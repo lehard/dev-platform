@@ -3,40 +3,34 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "1f11e99dc2762dc47f3e4b6319b3f32681a7026c",
-    "diff_sha256": "c9ccd4e759c9bad89495782eeca4003b4a44c44c2a89f27c09832f74c5b2e695"
+    "candidate_head": "0df2c614e3ffe6cb7e4db57fba9817ddc9b6e2e4",
+    "diff_sha256": "617707b424ab3f09ace12df10be4433b5bb7736593c806d913f5ea1cb8d72eae"
   },
-  "completed_at": "2026-10-20T03:17:27+00:00",
+  "completed_at": "2026-10-20T03:27:14+00:00",
   "findings": [
     {
-      "evidence": "specs/lifecycle-workers/spec.md:19 requires \"The token file location SHALL be read-denied inside the sandbox.\" In template/scripts/sandboxed_writer.py, build_profile builds deny_read only from DENY_READ_HOME, protected and platform. launch_sandboxed_writer reads the token with read_claude_token(config) but never passes the token path to build_profile. token_file is operator-configured and may sit outside ~/.config/dev-platform, for example /tmp or ~/secrets. In that case a sandboxed writer could read the token file. No test asserts the token path is in denyRead.",
+      "evidence": "Spec requirement 'The Claude writer credential is scoped to the writer process' ends with 'The token file location SHALL be read-denied inside the sandbox.' In template/scripts/sandboxed_writer.py, build_profile takes no token-file argument, and deny_read is only DENY_READ_HOME + protected + platform. launch_sandboxed_writer never passes the token path. The token_file can be any path, such as /tmp/x or ~/secrets/tok. It is covered only if it happens to sit under ~/.config/dev-platform, ~/.claude or ~/Library/Application Support. The tests do not assert it either.",
       "id": "token-file-not-read-denied",
       "severity": "material",
-      "summary": "The spec says the token file location SHALL be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead."
+      "summary": "The spec requires the token file location to be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead."
     },
     {
-      "evidence": "template/scripts/sandboxed_writer.py:320-323 (srt_launcher) only checks shutil.which('npx'). design.md says \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\". The spec's refusal when \"the pinned sandbox runtime ... is unavailable\" is satisfied only indirectly, through npx failing.",
-      "id": "pinned-runtime-not-verified",
-      "severity": "advisory",
-      "summary": "The launcher does not verify an available pinned runtime. It only checks that npx exists and relies on `npx --yes` to fetch the pinned version. design.md says a resolvable `srt` binary whose `--version` matches the pin is also accepted, and that a mismatch is an explicit refusal."
-    },
-    {
-      "evidence": "proposal.md lists \"denyWrite ... the push remote path when local\". build_profile accepts extra_deny_write, but launch_sandboxed_writer calls it without that argument and has no code that derives the push remote. A local-path origin therefore stays writable only if it lies outside the allowWrite roots, which the profile does not enforce.",
+      "evidence": "proposal.md: 'denyWrite the integration checkout, its shared gitdir and every registered worktree, the push remote path when local, ...'. launch_sandboxed_writer calls build_profile(checkout, home, tmp, protected=protected_paths(integration_root), platform_root) with no extra_deny_write. protected_paths does not inspect remotes. A local bare push remote therefore stays writable only if it lies outside allowWrite, and nothing denies it explicitly.",
       "id": "local-push-remote-not-write-denied",
       "severity": "advisory",
-      "summary": "proposal.md says the profile denies writes to the push remote path when it is local. launch_sandboxed_writer never computes or passes such a path."
+      "summary": "The proposal says the push remote path is write-denied when it is local. The launch primitive never computes or passes it, so extra_deny_write is always empty."
     }
   ],
-  "launched_at": "2026-10-20T03:17:15+00:00",
-  "output_sha256": "691050e7689351d1fe26eb23012e2fafc05e2cdfc97b382b561073aaa7bdb1a4",
+  "launched_at": "2026-10-20T03:27:03+00:00",
+  "output_sha256": "212fffc4d75740f0a2d38fc8346c186584e90b9bf56a3cbec41a42eeea740ee6",
   "perspective": "spec-fidelity",
-  "request_id": "742634c4-fb2e-4ccb-a95d-3a4e7aaccca0",
+  "request_id": "d5f49a38-33f6-42ed-88dd-fb5fcb92d7f3",
   "reviewer": {
-    "context_id": "32e23677-f3fd-4b23-979a-062f54163e0f",
+    "context_id": "f621058a-9f66-4cc9-9b80-92de91cd99ab",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-faa7a036-97b5-44e1-bdce-aa47951695c3",
+    "launch_id": "platform-launch-9d03d2cf-b03d-4977-a618-3e4fd93105c4",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29341
+        "value": 29311
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14849
+        "value": 14822
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11235
+        "value": 10876
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11334
+        "value": 11011
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -81,7 +75,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1456
+        "value": 1321
       }
     },
     "runtime": "claude-code-print"
