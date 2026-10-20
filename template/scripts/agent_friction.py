@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import contextvars
 import hashlib
@@ -15,6 +16,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator, Sequence
+from urllib.parse import quote
 
 try:
     import fcntl
@@ -1050,6 +1052,20 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
     return "\n".join(lines)
 
 
+def create_root_issue(event: dict, repository: str, fingerprint: str) -> int:
+    """Create the root issue for an event and verify its process label."""
+    created = gh_json([
+        "api", "--method", "POST", f"repos/{repository}/issues",
+        "-f", f"title={GENERATED_FRICTION_TITLE_PREFIX}{sanitize_for_route(event.get('category'), 100)}",
+        "-f", f"body={route_body(event, fingerprint, occurrence=False)}",
+        "-f", f"labels[]={process_label()}",
+    ])
+    if not isinstance(created, dict) or not isinstance(created.get("number"), int):
+        raise RuntimeError("GitHub did not return a created issue number")
+    ensure_process_label(repository, created["number"])
+    return created["number"]
+
+
 def route_event(event: dict) -> dict:
     """Upsert one sanitized process issue and leave failures retryable locally."""
     event_id = str(event.get("id") or "")
@@ -1095,16 +1111,7 @@ def route_event(event: dict) -> dict:
                     state["routes"][event_id] = route
                     atomic_write_json(state_path(), state)
                 return route
-            created = gh_json([
-                "api", "--method", "POST", f"repos/{repository}/issues",
-                "-f", f"title={GENERATED_FRICTION_TITLE_PREFIX}{sanitize_for_route(event.get('category'), 100)}",
-                "-f", f"body={route_body(event, fingerprint, occurrence=False)}",
-                "-f", f"labels[]={process_label()}",
-            ])
-            if not isinstance(created, dict) or not isinstance(created.get("number"), int):
-                raise RuntimeError("GitHub did not return a created issue number")
-            issue_number = created["number"]
-            ensure_process_label(repository, issue_number)
+            issue_number = create_root_issue(event, repository, fingerprint)
         route = {
             "status": "routed", "repository": repository, "issue_number": issue_number,
             "fingerprint": fingerprint, "routed_at": utc_now(),
@@ -1614,6 +1621,267 @@ def cmd_attribute(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- root convergence and closing on fix -----------------------------------
+
+ISSUE_REF_RE = re.compile(r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)")
+FIXES_FRICTION_RE = re.compile(r"(?m)^[ \t]*Fixes-Friction:[ \t]*(.+)$")
+PROPOSAL_PATH_RE = re.compile(r"openspec/changes/(?:.+/)?proposal\.md")
+MAX_API_PAGES = 50
+
+
+def parse_issue_ref(token: str, what: str) -> tuple[str, int]:
+    match = ISSUE_REF_RE.fullmatch(token.strip())
+    if match is None:
+        raise SystemExit(f"{what}: {token!r} is not a valid owner/repo#N issue reference")
+    return match.group(1).lower(), int(match.group(2))
+
+
+def require_gh() -> None:
+    if shutil.which("gh") is None:
+        raise SystemExit("GitHub CLI is unavailable")
+
+
+def gh_ok(command: list[str], what: str) -> None:
+    result = gh(command)
+    if result.returncode:
+        raise SystemExit(f"{what} failed: {(result.stderr or result.stdout or 'GitHub CLI request failed').strip()}")
+
+
+def gh_paged(endpoint: str) -> list[dict]:
+    """Read every page of a list endpoint; an unbounded listing is an error."""
+    joiner = "&" if "?" in endpoint else "?"
+    items: list[dict] = []
+    for page in range(1, MAX_API_PAGES + 1):
+        listed = gh_json(["api", f"{endpoint}{joiner}per_page=100&page={page}"])
+        if not isinstance(listed, list):
+            raise RuntimeError(f"GitHub returned an invalid list for {endpoint}")
+        items.extend(item for item in listed if isinstance(item, dict))
+        if len(listed) < 100:
+            return items
+    raise RuntimeError(f"{endpoint} exceeds the supported {MAX_API_PAGES * 100}-item window")
+
+
+def fetch_issue(repository: str, number: int) -> dict:
+    issue = gh_json(["api", f"repos/{repository}/issues/{number}"])
+    if not isinstance(issue, dict) or issue.get("number") != number:
+        raise SystemExit(f"{repository}#{number}: GitHub returned an invalid issue")
+    return issue
+
+
+def require_generated_friction(issue: dict, ref: str) -> None:
+    if not is_generated_friction_issue(issue):
+        raise SystemExit(f"{ref} is not a router-generated friction issue")
+
+
+def require_open_friction_target(repository: str, number: int) -> dict:
+    ref = f"{repository}#{number}"
+    issue = fetch_issue(repository, number)
+    if issue.get("state") != "open":
+        raise SystemExit(f"{ref} is not open")
+    require_generated_friction(issue, ref)
+    return issue
+
+
+def append_markers(repository: str, number: int, issue: dict, markers: Sequence[str]) -> list[str]:
+    """Append absent fingerprint markers to the issue body and verify by re-reading it."""
+    body = str(issue.get("body") or "")
+    missing = [marker for marker in dict.fromkeys(markers) if marker not in body]
+    if not missing:
+        return []
+    new_body = body.rstrip("\n") + "\n\n" + "\n".join(missing) + "\n"
+    gh_ok(["api", "--method", "PATCH", f"repos/{repository}/issues/{number}", "-f", f"body={new_body}"], f"updating {repository}#{number} body")
+    reread = str(fetch_issue(repository, number).get("body") or "")
+    unverified = [marker for marker in missing if marker not in reread]
+    if unverified:
+        raise SystemExit(f"GitHub did not persist fingerprint marker(s) {unverified} on {repository}#{number}")
+    return missing
+
+
+def comment_issue(repository: str, number: int, body: str) -> None:
+    gh_ok(["api", "--method", "POST", f"repos/{repository}/issues/{number}/comments", "-f", f"body={body}"], f"commenting on {repository}#{number}")
+
+
+def close_issue(repository: str, number: int, reason: str) -> None:
+    gh_ok(["api", "--method", "PATCH", f"repos/{repository}/issues/{number}", "-f", "state=closed", "-f", f"state_reason={reason}"], f"closing {repository}#{number}")
+
+
+def issue_has_comment_marker(repository: str, number: int, marker: str) -> bool:
+    return any(marker in str(comment.get("body", "")) for comment in gh_paged(f"repos/{repository}/issues/{number}/comments"))
+
+
+def resolve_candidate(event_id: str, *, same_root: str | None, new_root: bool, reason: str) -> dict:
+    event = choose_event(event_id)
+    event_key = str(event.get("id") or "")
+    route = read_state()["routes"].get(event_key)
+    if not event_key or not isinstance(route, dict) or route.get("status") != "candidate":
+        status = route.get("status") if isinstance(route, dict) else "unrouted"
+        raise SystemExit(f"Event {event_id} is not in candidate route state (current: {status})")
+    reason = sanitize_for_route(reason, 300)
+    if not reason:
+        raise SystemExit("--reason must be non-empty")
+    require_gh()
+    repository = destination_for(event)
+    fingerprint = fingerprint_for(event, repository)
+    if same_root is not None:
+        target_repo, number = parse_issue_ref(same_root, "--same-root")
+        if target_repo != repository.lower():
+            raise SystemExit(f"--same-root {same_root} is not in the destination repository {repository} of event {event_id}")
+        issue = require_open_friction_target(target_repo, number)
+        append_markers(repository, number, issue, [marker_for(fingerprint)])
+        resolved_marker = f"<!-- dev-platform-friction-resolved:{event_key} -->"
+        if not issue_has_comment_marker(repository, number, resolved_marker):
+            comment_issue(
+                repository, number,
+                resolved_marker + "\n" + route_body(event, fingerprint, occurrence=True)
+                + f"\n\nResolved as the same root cause. Decision reason: {reason}",
+            )
+        ensure_process_label(repository, number)
+        resolved = {"issue_number": number, "resolved_by": "same-root"}
+    else:
+        resolved = {"issue_number": create_root_issue(event, repository, fingerprint), "resolved_by": "new-root"}
+    result = {
+        "status": "routed", "repository": repository, "fingerprint": fingerprint, "routed_at": utc_now(),
+        "resolve_reason": reason, **resolved,
+    }
+    with friction_lock():
+        state = read_state()
+        state["routes"][event_key] = result
+        atomic_write_json(state_path(), state)
+    return result
+
+
+def cmd_resolve_candidate(args: argparse.Namespace) -> int:
+    print(json.dumps(resolve_candidate(args.id, same_root=args.same_root, new_root=args.new_root, reason=args.reason), sort_keys=True))
+    return 0
+
+
+def merge_roots(into: str, duplicates: Sequence[str], reason: str) -> dict:
+    reason = sanitize_for_route(reason, 300)
+    if not reason:
+        raise SystemExit("--reason must be non-empty")
+    if not duplicates:
+        raise SystemExit("merge-roots requires at least one --duplicate")
+    require_gh()
+    repository, target = parse_issue_ref(into, "--into")
+    parsed = [parse_issue_ref(item, "--duplicate") for item in duplicates]
+    for dup_repo, _ in parsed:
+        if dup_repo != repository:
+            raise SystemExit(f"--duplicate must be in the target repository {repository}")
+    numbers = list(dict.fromkeys(number for _, number in parsed))
+    if target in numbers:
+        raise SystemExit(f"--into {into} must not be among the duplicates")
+    target_issue = require_open_friction_target(repository, target)
+    merged_marker = f"<!-- dev-platform-friction-merged-into:{target} -->"
+    plans: list[tuple[int, dict, bool]] = []
+    for number in numbers:
+        ref = f"{repository}#{number}"
+        issue = fetch_issue(repository, number)
+        if issue.get("state") == "open":
+            require_generated_friction(issue, ref)
+            plans.append((number, issue, True))
+        elif issue_has_comment_marker(repository, number, merged_marker):
+            plans.append((number, issue, False))
+        else:
+            raise SystemExit(f"{ref} is closed and was not merged into {repository}#{target}")
+    markers = [m for _, issue, _ in plans for m in FINGERPRINT_MARKER_RE.findall(str(issue.get("body") or ""))]
+    added = append_markers(repository, target, target_issue, markers)
+    unlisted = [
+        number for number, _, _ in plans
+        if not issue_has_comment_marker(repository, target, f"<!-- dev-platform-friction-merge:{number}->{target} -->")
+    ]
+    if unlisted:
+        lines = [f"<!-- dev-platform-friction-merge:{number}->{target} -->" for number in unlisted]
+        lines += [
+            "Merged duplicate friction roots into this issue: " + ", ".join(f"#{number}" for number in unlisted) + ".",
+            f"Reason: {reason}",
+        ]
+        comment_issue(repository, target, "\n".join(lines))
+    closed: list[int] = []
+    for number, _, is_open in plans:
+        if not is_open:
+            continue
+        if not issue_has_comment_marker(repository, number, merged_marker):
+            comment_issue(repository, number, f"{merged_marker}\nDuplicate of #{target}; merged into that root. Reason: {reason}")
+        close_issue(repository, number, "not_planned")
+        closed.append(number)
+    return {
+        "into": f"{repository}#{target}", "markers_added": added,
+        "listed_on_target": unlisted, "closed": closed,
+    }
+
+
+def cmd_merge_roots(args: argparse.Namespace) -> int:
+    print(json.dumps(merge_roots(args.into, args.duplicates, args.reason), sort_keys=True))
+    return 0
+
+
+def parse_fix_references(text: str, source: str, repository: str) -> list[int]:
+    numbers: list[int] = []
+    for line in FIXES_FRICTION_RE.findall(text):
+        for token in re.split(r"[,\s]+", line.strip()):
+            if not token:
+                continue
+            ref_repo, number = parse_issue_ref(token, f"Fixes-Friction in {source}")
+            if ref_repo != repository.lower():
+                raise SystemExit(f"Fixes-Friction reference {token!r} in {source} is not in the pull request repository {repository}")
+            numbers.append(number)
+    return numbers
+
+
+def close_fixed(pr_number: int, repository: str) -> dict:
+    require_gh()
+    repo = repository.lower()
+    parse_issue_ref(f"{repo}#1", "--repo")
+    pr = gh_json(["api", f"repos/{repo}/pulls/{pr_number}"])
+    if not isinstance(pr, dict):
+        raise SystemExit(f"PR #{pr_number}: GitHub returned an invalid pull request")
+    if pr.get("merged") is not True:
+        raise SystemExit(f"PR #{pr_number} is not merged")
+    sha = pr.get("merge_commit_sha")
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise SystemExit(f"PR #{pr_number} has no valid merge commit")
+    numbers = parse_fix_references(str(pr.get("body") or ""), f"PR #{pr_number} body", repo)
+    for changed in gh_paged(f"repos/{repo}/pulls/{pr_number}/files"):
+        path = changed.get("filename")
+        if not isinstance(path, str) or not PROPOSAL_PATH_RE.fullmatch(path) or changed.get("status") == "removed":
+            continue
+        content = gh_json(["api", f"repos/{repo}/contents/{quote(path, safe='/')}?ref={sha}"])
+        if not isinstance(content, dict) or content.get("encoding") != "base64" or not isinstance(content.get("content"), str):
+            raise SystemExit(f"{path}: GitHub returned unreadable content at {sha}")
+        text = base64.b64decode(content["content"]).decode("utf-8")
+        numbers += parse_fix_references(text, path, repo)
+    numbers = list(dict.fromkeys(numbers))
+    issues = {}
+    for number in numbers:
+        issue = fetch_issue(repo, number)
+        require_generated_friction(issue, f"{repo}#{number}")
+        issues[number] = issue
+    marker = f"<!-- dev-platform-friction-closed-by:{pr_number} -->"
+    closed: list[int] = []
+    for number, issue in issues.items():
+        if issue.get("state") != "open":
+            continue
+        if not issue_has_comment_marker(repo, number, marker):
+            comment_issue(repo, number, f"{marker}\nClosed by the fix in PR #{pr_number} (merge commit {sha}).")
+        close_issue(repo, number, "completed")
+        closed.append(number)
+    return {"pr": pr_number, "repository": repo, "referenced": numbers, "closed": closed}
+
+
+def cmd_close_fixed(args: argparse.Namespace) -> int:
+    print(json.dumps(close_fixed(args.pr, args.repo), sort_keys=True))
+    return 0
+
+
+def run_convergence(func):
+    def wrapper(args: argparse.Namespace) -> int:
+        try:
+            return func(args)
+        except RuntimeError as exc:
+            raise SystemExit(f"{args.command} failed: {exc}") from exc
+    return wrapper
+
+
 def main() -> int:
     cooperative_umask()
     parser = argparse.ArgumentParser(description="Record high-signal agent friction and route sanitized process evidence safely.")
@@ -1693,6 +1961,25 @@ def main() -> int:
     p.add_argument("--task", required=True, help="owning Issue as owner/repo#N")
     p.add_argument("--reason", required=True, help="why the event belongs to that task")
     p.set_defaults(func=cmd_attribute)
+
+    p = sub.add_parser("resolve-candidate", help="resolve a candidate route state: attach the event to an open root issue or create a new root")
+    p.add_argument("--id", required=True, help="recorded friction event id in candidate route state")
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument("--same-root", help="owner/repo#N of the open friction issue that is the same root cause")
+    group.add_argument("--new-root", action="store_true", help="create a new root issue for the event")
+    p.add_argument("--reason", required=True, help="why this is (or is not) the same root cause")
+    p.set_defaults(func=run_convergence(cmd_resolve_candidate))
+
+    p = sub.add_parser("merge-roots", help="consolidate open duplicate friction issues of one root into one issue")
+    p.add_argument("--into", required=True, help="owner/repo#N of the root issue to keep")
+    p.add_argument("--duplicate", dest="duplicates", action="append", default=[], help="repeatable: owner/repo#M duplicate to merge and close")
+    p.add_argument("--reason", required=True, help="why these issues are one root cause")
+    p.set_defaults(func=run_convergence(cmd_merge_roots))
+
+    p = sub.add_parser("close-fixed", help="close friction issues referenced by Fixes-Friction lines of a merged PR")
+    p.add_argument("--pr", type=int, required=True, help="merged pull request number")
+    p.add_argument("--repo", required=True, help="owner/repo of the pull request")
+    p.set_defaults(func=run_convergence(cmd_close_fixed))
 
     p = sub.add_parser("promote")
     p.add_argument("event", help="event id or 1-based log index")

@@ -1,0 +1,16 @@
+## Context
+
+`route_event` computes `fingerprint_for(event, repository)` (v1: repository, scope, category; v2 for bounded context gaps), scans the bounded open issue set for the exact marker `<!-- dev-platform-friction:<fp> -->`, comments an occurrence when found, otherwise stops in `candidate` if `likely_duplicate_candidates` finds an overlapping root, otherwise creates an issue. `candidate` has no resolution command; `route-pending` recomputes the same candidate on every retry.
+
+## Decisions
+
+1. **Root identity is the issue, aliases are markers.** Fingerprint computation is unchanged, so existing records keep their identity. A root issue may carry several fingerprint markers; routing already searches for the exact marker in the body, so appending a marker is enough to make it an alias. No similarity-based automatic merging: the existing heuristic only proposes candidates and an agent decides explicitly, because a false merge would hide a distinct problem.
+2. **`resolve-candidate`** works only for an event whose recorded route state is `candidate`. `--same-root` requires the target to be an open router-generated friction issue in the event's destination repository; it posts the occurrence comment, appends the marker (body edit via the issues API, verified by re-reading the body) and records the route as `routed`. `--new-root` creates the issue through the same creation code path as `route_event`. The decision reason is part of the occurrence comment.
+3. **`merge-roots`** requires all issues to be open router-generated friction issues in one repository, the target not among the duplicates, and at least one duplicate. It appends every duplicate marker to the target, comments on the target, then comments on and closes each duplicate with `state_reason=not_planned`. Every step is idempotent (a marker already present is not appended twice; an already closed duplicate that points to the target is skipped), so an interrupted run is safe to repeat.
+4. **Closing on fix uses explicit references only.** The reference format is a line `Fixes-Friction: owner/repo#N` (one or more refs separated by commas or spaces). Sources are the merged PR body and every `proposal.md` under `openspec/changes/` (including `archive/`) changed by the PR, read at the merge commit. The full `owner/repo` form is required; it must equal the PR's repository because the workflow token can close only that repository's issues. An already closed referenced issue is not reopened or commented again. The closing comment carries a marker with the PR number so a rerun does not duplicate it.
+5. **The workflow is thin.** `on: pull_request: types: [closed]` with `if: github.event.pull_request.merged`, `permissions: issues: write, contents: read, pull-requests: read`, checkout of the merge commit, and one call to `python3 scripts/agent_friction.py close-fixed --pr <number> --repo <repository>`. All behavior lives in the script. `close-fixed` uses only `gh` and the explicit arguments, not the operator configuration, so it runs in CI.
+
+## Risks
+
+- A wrong `--same-root` decision attaches an event to the wrong root. Mitigation: the decision and reason are visible in the occurrence comment and can be reversed by recording a new root.
+- Closing cannot be undone automatically; it happens only on an explicit reference in reviewed content.

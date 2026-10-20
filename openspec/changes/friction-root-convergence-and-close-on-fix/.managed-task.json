@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-lifecycle/spec.md"
+  ],
+  "change": "friction-root-convergence-and-close-on-fix",
+  "imported_at": "2026-10-20T10:01:40+00:00",
+  "package_revision": "6fde393bfc0cb65937026743671aa6d6548a5b9e19358ed6b27147f931c3f881",
+  "prepared_against": "3190580ea394f03f6b6956201407349449b81f49",
+  "private_lineage_handle": "pln_9fe0bcbabb056e613002a03f09dcac4e",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "a96bd338173bea2504f544e9eb8e2a4e1b2924a2e73673f9c4fa53f7f86c4721",
+    "updated_at": "2026-10-20T09:54:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-695/T1"
+}
