@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3190580ea394f03f6b6956201407349449b81f49",
+    "base_ref": "origin/main",
+    "candidate_head": "e7cfb61a365b57036cc26d5198abfdae02e95ced",
+    "diff_sha256": "cf754efc03b9c2b8ca8636cd30fc9ce468b65476cf7040bd3a3035e80432708f"
+  },
+  "completed_at": "2026-10-20T11:38:49+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_friction.py resolve_candidate: the else branch calls create_root_issue(event, repository, fingerprint) directly. route_event scans open issues for the marker first. If the create succeeds but the state write fails, a rerun also duplicates the issue.",
+      "id": "new-root-ignores-existing-marker",
+      "severity": "advisory",
+      "summary": "resolve-candidate --new-root creates an issue without checking whether an open issue already carries the event's fingerprint marker. Ordinary routing does check. This can produce two open issues with the same marker, and later routing then picks one of them arbitrarily."
+    },
+    {
+      "evidence": "close_fixed in template/scripts/agent_friction.py skips only changed.get('status') == 'removed'. It then parses the whole file at the merge commit. It does not restrict parsing to added lines or to newly added files.",
+      "id": "close-fixed-rereads-stale-proposals",
+      "severity": "advisory",
+      "summary": "close-fixed treats every added, modified or renamed proposal.md in the PR as a source of Fixes-Friction lines, including old lines in an edited or archived proposal. A later PR that only touches or archives such a proposal will re-close a friction issue that was deliberately reopened after a regression."
+    },
+    {
+      "evidence": ".github/workflows/friction-close-on-merge.yml: trigger pull_request, permissions issues: write. gh_ok in agent_friction.py raises SystemExit on any non-zero gh result.",
+      "id": "close-on-merge-fork-pr-failure",
+      "severity": "advisory",
+      "summary": "The workflow runs on every merged PR under `pull_request: closed`. For PRs from forks the GITHUB_TOKEN is read-only. A PR with a valid Fixes-Friction line then fails the job with a 403 on the comment or close call instead of closing the issue, and the failure is not specifically reported. The design does not say how this case is handled."
+    },
+    {
+      "evidence": "append_markers reads issue['body'] fetched earlier, PATCHes body=new_body, and verifies only the markers it just added.",
+      "id": "append-markers-lost-update",
+      "severity": "advisory",
+      "summary": "append_markers rewrites the whole issue body from a previously fetched copy. A concurrent body edit, or a concurrent resolve-candidate or merge-roots on the same target, can be silently overwritten. The re-read only checks that the new markers are present, so it does not catch a lost marker from the other writer."
+    }
+  ],
+  "launched_at": "2026-10-20T11:38:00+00:00",
+  "output_sha256": "0246eebe0ca7787861e6920814cadf7e1644429f206874e21053dadb83a94d36",
+  "perspective": "engineering-quality",
+  "request_id": "e0b129e8-41cd-4a55-8265-97a8161641fa",
+  "reviewer": {
+    "context_id": "ab55f350-23df-4abe-b1b5-d589ab30bea6",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-442e08d7-3c7b-4996-a377-00721cfe27ef",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35327
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53427
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47467
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47756
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2910
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "959c88821cb684f49d5f2072bf53c979bf18c80d60fed4cefdf49d8ab31b2332"
+}
