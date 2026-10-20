@@ -49,7 +49,7 @@ Before relying on an enabled cloud workflow, an operator can check its setup:
 python3 scripts/cloud_maintenance_preflight.py --repo lehard/dev-platform --ref main
 ```
 
-The command reads only the state of the three cloud-maintenance workflows and
+The command reads only the state of the two cloud-maintenance workflows and
 the names of repository Actions secrets. If every cloud workflow is disabled,
 it reports that state and exits successfully without treating it as a failure of
 deterministic CI, release, or rollout. If any are enabled and `OPENAI_API_KEY`
@@ -72,14 +72,20 @@ body.
 
 ## Installed workflows
 
-- `process-issue-triage`: runs after a maintainer adds the `process` label, or
-  manually for a labelled issue number. Its agent has read-only GitHub access;
-  safe outputs permit at most two allow-listed labels and one concise comment on
-  the selected issue.
 - `weekly-process-backlog-review`: is called by the private combined workflow.
   It reads a bounded set of private Backlog issues and public platform evidence,
   then creates at most one private `[process-backlog]` report. It never changes
   source backlog issues.
+- `architecture-health-review`: is called by the same private combined
+  workflow and creates at most one private architecture-health report.
+
+Event-driven process-issue triage (`process-issue-triage`) is disabled by owner
+decision of 2026-10-19: it repeatedly exhausted its daily budget and its
+failure reports produced noise without value. It is not installed, and adding
+the `process` label starts no workflow. Process and friction issues are
+reviewed by the periodic Process Health Review; see
+[private-platform-health-review.md](private-platform-health-review.md). Do not
+reintroduce per-event or scheduled batch triage without a new owner decision.
 
 Both use `engine: codex`, explicit timeouts, small per-run AI-credit budgets,
 and separately capped threat detection. Neither grants code-write, PR-create,
@@ -99,13 +105,13 @@ reference checks,
 and rejects source/lock drift. The generated `.lock.yml` files and
 `.github/aw` metadata are compiler-owned; do not edit them manually.
 
-After a workflow has reached `main`, run a controlled acceptance invocation and
-inspect its actual outcome:
+After a workflow change has reached `main`, run a controlled acceptance
+invocation of the private Platform Health Review caller pinned to that commit
+(see [private-platform-health-review.md](private-platform-health-review.md))
+and inspect its actual outcome:
 
 ```bash
-gh aw run process-issue-triage --ref main --raw-field issue_number=ISSUE_NUMBER
-gh aw logs process-issue-triage --repo lehard/dev-platform
-gh aw audit RUN_URL_OR_ID --repo lehard/dev-platform
+gh aw audit RUN_URL_OR_ID
 ```
 
 Keep the emitted run URL, conclusion, elapsed time, reported AI credits and any
