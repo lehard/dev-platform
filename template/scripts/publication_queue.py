@@ -2047,7 +2047,7 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         _require_finalized(root, number, head)
         if pr.get("head", {}).get("ref", "").startswith("requirement/BR-"):
             require_composition_finalized(root, repo, number, head)
-        result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
+        result = subprocess.run(["gh", "api", "-X", "PUT", f"repos/{repo}/pulls/{number}/merge", "-f", "merge_method=squash", "-f", f"sha={head}"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
         if _pr(root, repo, number).get("merged"):
             _label(root, repo, number, ACTIVE, present=False)
             _label(root, repo, number, QUEUE, present=False)
