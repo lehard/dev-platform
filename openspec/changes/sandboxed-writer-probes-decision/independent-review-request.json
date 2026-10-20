@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "base_ref": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "candidate_head": "c0fe8f478dd6dcfa52c7fefedcec73162fd6246e",
+    "diff_sha256": "b6ccbafd939565f3b142ea528150f51caa113ef9ee385de29f040bf27ae8159a"
+  },
+  "change": "openspec/changes/sandboxed-writer-probes-decision",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/sandboxed-writer-probes-decision/automated-checks.json",
+    "openspec/changes/sandboxed-writer-probes-decision/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/sandboxed-writer-probes-decision/design.md",
+        "openspec/changes/sandboxed-writer-probes-decision/proposal.md",
+        "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md",
+        "openspec/changes/sandboxed-writer-probes-decision/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/sandboxed-writer-probes-decision/proposal.md",
+        "openspec/changes/sandboxed-writer-probes-decision/design.md",
+        "openspec/changes/sandboxed-writer-probes-decision/tasks.md",
+        "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T06:03:52+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/sandboxed-writer-probes-decision/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "ffd2646c-42db-4704-9398-3db701e73dfa",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "digest": "cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14",
+    "paths": {
+      "dev-platform/checks.toml": "c00c6cbbc701880f9f14f964456b2bed1f108855",
+      "docs/decisions/0003-sandboxed-claude-writer.md": "f1334a87d104c5ed9c2cb57845053cd8c094ca12",
+      "docs/decisions/README.md": "7381738bcb0f210dcf6dba0197096aa916a8a144",
+      "docs/engineering/model-routing.md": "515e1037f08082997828c1cc9a8adeb5ec426665",
+      "openspec/changes/sandboxed-writer-launch/design.md": "b145b820f1492da6d927a8426b891cd9f8d63d42",
+      "openspec/changes/sandboxed-writer-launch/proposal.md": "8d998d9dce5b845dc9a2119e41992a23f48ad8a4",
+      "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98",
+      "openspec/changes/sandboxed-writer-probes-decision/.managed-task.json": "6a0b4422140e46b7924a48d0233a83a2ed423041",
+      "openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-writer-probes-decision/design.md": "82c3871d5c15d658d2237807e3e67434552995da",
+      "openspec/changes/sandboxed-writer-probes-decision/proposal.md": "09b16b19ab880fb25cba14fca77ea330a9e23449",
+      "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md": "a2a7ef98352068053049ce392d9ff10779546512",
+      "openspec/changes/sandboxed-writer-probes-decision/tasks.md": "7c97f1014f56af64b375b95596606cc9b1ab7e9f",
+      "scripts/sandboxed_writer_probes.py": "17be1f6383d5481006e74b4afbad518ad07134ab",
+      "template/dev-platform/platform-manifest.json": "e6b527abeaf5177d02241b31d694c2abd4f9de51",
+      "template/scripts/sandboxed_writer.py": "b473b10e5f924cb8edbd55f9bfb28509f8015d78",
+      "tests/test_sandboxed_writer.py": "d83a196a647414970e483295abafbd01a22886b9",
+      "tests/test_sandboxed_writer_probes.py": "fc8b9373ffd98bae46e308efee45ddbd8af1c2aa"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
