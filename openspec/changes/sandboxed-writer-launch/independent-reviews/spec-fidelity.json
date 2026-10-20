@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "54557bb96aa0d6168a4649b23805a3429af3810e",
-    "diff_sha256": "b7054025464cef08fd82b4759c8ef3852dd1a39f1c839ca8cbc6eb8d67253eb0"
+    "candidate_head": "6188ad3fd5d7c565550f3a9eebd68bfcceaa0c12",
+    "diff_sha256": "e6defb768c6dfff1c6ec6006baca20eb22fbd786c2825708fc4fc1528120d96d"
   },
-  "completed_at": "2026-10-20T03:11:19+00:00",
+  "completed_at": "2026-10-20T03:12:41+00:00",
   "findings": [
     {
-      "evidence": "spec.md line 19: \"The token file location SHALL be read-denied inside the sandbox.\" In template/scripts/sandboxed_writer.py, build_profile builds deny_read only from DENY_READ_HOME, protected and platform. launch_sandboxed_writer never passes the token_file path to build_profile, and build_profile has no parameter for it. A token_file outside ~/.config/dev-platform, ~/.claude and the other listed paths is readable by the writer. The tests do not cover this.",
+      "evidence": "template/scripts/sandboxed_writer.py: build_profile takes no token path, and launch_sandboxed_writer passes only protected_paths(integration_root) and platform_root. denyRead is DENY_READ_HOME plus the protected paths and the platform root. The token is read in read_claude_token, but its path is never added to the profile. It is read-denied only if it happens to sit under a fixed entry such as ~/.config/dev-platform. A token_file at any other path, for example ~/secrets/claude-token, stays readable to the writer. No test asserts the token file is in denyRead.",
       "id": "token-file-not-read-denied",
       "severity": "material",
-      "summary": "The spec requires the token file location to be read-denied inside the sandbox, but the generated profile does not add it. The token_file path is operator-configurable and may lie outside the denied directories."
+      "summary": "The spec says the token file location SHALL be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead."
     },
     {
-      "evidence": "proposal.md: \"denyWrite the integration checkout, its shared gitdir and every registered worktree, the push remote path when local\". launch_sandboxed_writer calls build_profile(checkout=..., home=..., tmp=..., protected=protected_paths(integration_root), platform_root=...) with no extra_deny_write. protected_paths does not read the remote URL either.",
-      "id": "local-push-remote-not-write-denied",
+      "evidence": "design.md says the launcher uses `npx --yes ...@<pinned>` or a resolvable `srt` binary whose `--version` matches, with a mismatch refused explicitly. srt_launcher only checks for npx and never looks for an srt binary or compares versions. proposal.md lists the push remote path, when local, among the denyWrite entries. launch_sandboxed_writer never computes it or passes extra_deny_write to build_profile.",
+      "id": "pinned-srt-binary-and-push-remote-gaps",
       "severity": "advisory",
-      "summary": "The proposal says the profile write-denies the push remote path when it is local. build_profile accepts extra_deny_write, but launch_sandboxed_writer never computes or passes the push remote path, so a local remote is not protected."
+      "summary": "Two parts of the design and proposal are not implemented: the resolvable srt binary with a version check, and denyWrite for a local push remote path."
     }
   ],
-  "launched_at": "2026-10-20T03:11:05+00:00",
-  "output_sha256": "37960f83b25ce41825c07b36af630856f501c5c33480ccb81a2167f38434e7bb",
+  "launched_at": "2026-10-20T03:12:29+00:00",
+  "output_sha256": "fe728c442030f0ecc294a1468d314221c8012a017d6427830f684df3fb995566",
   "perspective": "spec-fidelity",
-  "request_id": "a2c811c6-54f8-4b6f-899d-72b3d1d4ec46",
+  "request_id": "6b9d6166-ae07-4a20-8fc5-24108d8b774f",
   "reviewer": {
-    "context_id": "d86501bc-b02c-46eb-b273-7c2d4d79bcf7",
+    "context_id": "d3810e34-8d27-4439-9dd3-cbe743b9d6a0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-578e8b23-bad4-458f-8fdd-ced07ed92089",
+    "launch_id": "platform-launch-382391b5-0030-48d7-8637-3c80616626e5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30134
+        "value": 30219
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14795
+        "value": 14880
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13199
+        "value": 11599
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13346
+        "value": 11740
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,7 +75,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1443
+        "value": 1347
       }
     },
     "runtime": "claude-code-print"
