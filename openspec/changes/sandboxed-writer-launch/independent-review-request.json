@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "905228b97f42852ce015df1f09ee8ea1ac737b56",
-    "diff_sha256": "3334e5b98e89eab3c6dd8f06e8f15ac12015874a01ad2beeade405ec20f31f58"
+    "candidate_head": "1f11e99dc2762dc47f3e4b6319b3f32681a7026c",
+    "diff_sha256": "c9ccd4e759c9bad89495782eeca4003b4a44c44c2a89f27c09832f74c5b2e695"
   },
   "change": "openspec/changes/sandboxed-writer-launch",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-20T03:15:52+00:00",
+  "prepared_at": "2026-10-20T03:17:12+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/sandboxed-writer-launch/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "8e757139-f4fd-48e8-b541-249ad26ed39b",
+  "request_id": "742634c4-fb2e-4ccb-a95d-3a4e7aaccca0",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",

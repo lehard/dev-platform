@@ -3,40 +3,46 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "905228b97f42852ce015df1f09ee8ea1ac737b56",
-    "diff_sha256": "3334e5b98e89eab3c6dd8f06e8f15ac12015874a01ad2beeade405ec20f31f58"
+    "candidate_head": "1f11e99dc2762dc47f3e4b6319b3f32681a7026c",
+    "diff_sha256": "c9ccd4e759c9bad89495782eeca4003b4a44c44c2a89f27c09832f74c5b2e695"
   },
-  "completed_at": "2026-10-20T03:16:27+00:00",
+  "completed_at": "2026-10-20T03:17:46+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/sandboxed_writer.py build_profile builds deny_read only from DENY_READ_HOME, protected paths and platform_root. launch_sandboxed_writer reads the token path in read_claude_token but never passes it to build_profile. `~/.config/dev-platform` is denied only by coincidence of the default location. The writer also gets the token in its env, so reading the file is not needed, but the spec requirement is unmet. No test covers it (tests/test_sandboxed_writer.py ProfileTests).",
+      "evidence": "Spec requirement 'The Claude writer credential is scoped to the writer process' says 'The token file location SHALL be read-denied inside the sandbox.' In template/scripts/sandboxed_writer.py, build_profile builds deny_read from DENY_READ_HOME, protected and platform only. launch_sandboxed_writer never passes the token path. A token_file outside ~/.config/dev-platform (for example ~/secrets/claude-token) stays readable to the writer. No test covers this.",
       "id": "token-file-not-read-denied",
       "severity": "material",
-      "summary": "The spec requires \"The token file location SHALL be read-denied inside the sandbox\", but the generated profile never adds the configured token_file path to denyRead. A token_file outside the hardcoded home entries is readable by the writer."
+      "summary": "The spec requires the token file location to be read-denied inside the sandbox. build_profile only denies a fixed home list, and nothing adds the configured token_file path to denyRead."
     },
     {
-      "evidence": "proposal.md: \"denyWrite ... the push remote path when local\". `launch_sandboxed_writer` calls `build_profile(checkout=..., protected=protected_paths(integration_root), platform_root=...)` with no `extra_deny_write`. A bare local origin outside the integration tree and worktrees stays writable only if it lies under an allowWrite root, so the exposure is limited. The proposal and implementation still diverge.",
-      "id": "local-push-remote-not-write-denied",
+      "evidence": "srt_launcher returns ['npx','--yes','@anthropic-ai/sandbox-runtime@0.0.79']. launch_sandboxed_writer passes it through run_llm(command, checkout, ...), which uses cwd=checkout, and the operator OAuth token is in that process environment. The design's alternative of a resolvable `srt` binary with a matching --version is not implemented.",
+      "id": "srt-npx-runs-outside-sandbox-in-checkout",
       "severity": "advisory",
-      "summary": "The proposal says the profile write-denies the push remote path when it is local. The launch path never computes it, and `extra_deny_write` is never populated by `launch_sandboxed_writer`."
+      "summary": "The pinned runtime is fetched and executed with `npx --yes` outside the sandbox. It runs with cwd set to the writer checkout, so a repository .npmrc or similar npm config there can influence the launcher. There is no integrity check on the fetched package."
     },
     {
-      "evidence": "sandboxed_writer.py protected_paths runs `git worktree list --porcelain` once. Its result is written to the static srt-settings.json.",
-      "id": "protected-worktrees-snapshot-at-launch",
+      "evidence": "The proposal lists 'the push remote path when local' among the denyWrite paths. build_profile accepts extra_deny_write, but launch_sandboxed_writer never passes it and has no parameter for it. Only the unit tests use extra_deny_write.",
+      "id": "local-push-remote-not-denied",
       "severity": "advisory",
-      "summary": "Registered worktrees are enumerated once at launch. A worktree created elsewhere during a long writer run is not covered. The `~/.config` and `~/.claude` denies and the realpath checks do not close this for worktrees at arbitrary paths."
+      "summary": "The proposal says the profile denies writes to the push remote path when it is local. launch_sandboxed_writer has no way to supply it, so a local-path remote stays writable if it lies in an allowed root and is unprotected."
+    },
+    {
+      "evidence": "template/scripts/sandboxed_writer.py, last lines of launch_sandboxed_writer: env={k: v for k, v in env.items() if k != TOKEN_ENV} with extra_env={TOKEN_ENV: token}, after sandboxed_env sets env[TOKEN_ENV]. SAFE_GIT is also duplicated from lifecycle_workers.",
+      "id": "sandbox-env-built-twice",
+      "severity": "advisory",
+      "summary": "The writer environment is assembled in two places and the token is split off and re-added. sandboxed_env builds it and puts the token in, then the launcher strips the token and passes it again as extra_env. The two paths can drift."
     }
   ],
-  "launched_at": "2026-10-20T03:16:09+00:00",
-  "output_sha256": "638866f2a42ccffbe5120c4731b8f23a9d4fd3be4a878675e58d10aa2a1daf17",
+  "launched_at": "2026-10-20T03:17:27+00:00",
+  "output_sha256": "4d52e9faa5460a9a1fa652cc550cb908043d0c8e45bc009aa145aeb27febd4bc",
   "perspective": "engineering-quality",
-  "request_id": "8e757139-f4fd-48e8-b541-249ad26ed39b",
+  "request_id": "742634c4-fb2e-4ccb-a95d-3a4e7aaccca0",
   "reviewer": {
-    "context_id": "1e7f2c32-08d6-49f2-b7fa-84d72a7b6ee9",
+    "context_id": "7db9af50-d28b-4af3-aca6-d8e8fe6e75ae",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-79b8267b-772f-4258-bb62-b660d02caaa5",
+    "launch_id": "platform-launch-0e0ff66b-75c1-45a4-a8cd-c9bed9dac237",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,22 +57,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26371
+        "value": 26366
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16464
+        "value": 16455
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17493
+        "value": 19073
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17785
+        "value": 19290
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -81,7 +87,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1936
+        "value": 2325
       }
     },
     "runtime": "claude-code-print"

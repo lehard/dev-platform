@@ -3,40 +3,40 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "905228b97f42852ce015df1f09ee8ea1ac737b56",
-    "diff_sha256": "3334e5b98e89eab3c6dd8f06e8f15ac12015874a01ad2beeade405ec20f31f58"
+    "candidate_head": "1f11e99dc2762dc47f3e4b6319b3f32681a7026c",
+    "diff_sha256": "c9ccd4e759c9bad89495782eeca4003b4a44c44c2a89f27c09832f74c5b2e695"
   },
-  "completed_at": "2026-10-20T03:16:09+00:00",
+  "completed_at": "2026-10-20T03:17:27+00:00",
   "findings": [
     {
-      "evidence": "The spec's credential requirement states \"The token file location SHALL be read-denied inside the sandbox.\" In template/scripts/sandboxed_writer.py, `build_profile` builds `deny_read = [*DENY_READ_HOME, *protected, platform]`. `launch_sandboxed_writer` never passes the token path into the profile. `read_claude_token` returns only the token value and not the path. A token_file outside the listed directories, such as ~/secrets/claude-token or anywhere under the checkout's parent, stays readable to the writer. No test asserts that the token path is denied.",
+      "evidence": "specs/lifecycle-workers/spec.md:19 requires \"The token file location SHALL be read-denied inside the sandbox.\" In template/scripts/sandboxed_writer.py, build_profile builds deny_read only from DENY_READ_HOME, protected and platform. launch_sandboxed_writer reads the token with read_claude_token(config) but never passes the token path to build_profile. token_file is operator-configured and may sit outside ~/.config/dev-platform, for example /tmp or ~/secrets. In that case a sandboxed writer could read the token file. No test asserts the token path is in denyRead.",
       "id": "token-file-not-read-denied",
       "severity": "material",
       "summary": "The spec says the token file location SHALL be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead."
     },
     {
-      "evidence": "`srt_launcher()` in template/scripts/sandboxed_writer.py checks `shutil.which(\"npx\")` and returns `[\"npx\",\"--yes\",\"@anthropic-ai/sandbox-runtime@0.0.79\"]`. It has no `--version` check and no `srt` binary path. design.md line 10 describes the version-match refusal.",
-      "id": "pinned-runtime-availability-unchecked",
+      "evidence": "template/scripts/sandboxed_writer.py:320-323 (srt_launcher) only checks shutil.which('npx'). design.md says \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\". The spec's refusal when \"the pinned sandbox runtime ... is unavailable\" is satisfied only indirectly, through npx failing.",
+      "id": "pinned-runtime-not-verified",
       "severity": "advisory",
-      "summary": "The spec refuses a launch when the pinned sandbox runtime is unavailable. The design describes accepting a resolvable `srt` binary only if its `--version` matches the pin, and refusing a mismatch. The code checks only that `npx` exists and never verifies the runtime version or availability."
+      "summary": "The launcher does not verify an available pinned runtime. It only checks that npx exists and relies on `npx --yes` to fetch the pinned version. design.md says a resolvable `srt` binary whose `--version` matches the pin is also accepted, and that a mismatch is an explicit refusal."
     },
     {
-      "evidence": "proposal.md says \"denyWrite ... the push remote path when local\". In `launch_sandboxed_writer`, `build_profile` is called without `extra_deny_write`. A local bare remote outside the protected paths would stay writable only if it were inside a writable root, which the overlap check already rejects. A local remote elsewhere is not explicitly denied.",
+      "evidence": "proposal.md lists \"denyWrite ... the push remote path when local\". build_profile accepts extra_deny_write, but launch_sandboxed_writer calls it without that argument and has no code that derives the push remote. A local-path origin therefore stays writable only if it lies outside the allowWrite roots, which the profile does not enforce.",
       "id": "local-push-remote-not-write-denied",
       "severity": "advisory",
-      "summary": "The proposal lists the push remote path, when it is local, among the write-denied paths. `launch_sandboxed_writer` never derives or passes it, so `extra_deny_write` is never populated."
+      "summary": "proposal.md says the profile denies writes to the push remote path when it is local. launch_sandboxed_writer never computes or passes such a path."
     }
   ],
-  "launched_at": "2026-10-20T03:15:54+00:00",
-  "output_sha256": "6432e770ef04e1596f4dedd4c3846961de37d0ff1d84dc754bfc2b5d8c8f6769",
+  "launched_at": "2026-10-20T03:17:15+00:00",
+  "output_sha256": "691050e7689351d1fe26eb23012e2fafc05e2cdfc97b382b561073aaa7bdb1a4",
   "perspective": "spec-fidelity",
-  "request_id": "8e757139-f4fd-48e8-b541-249ad26ed39b",
+  "request_id": "742634c4-fb2e-4ccb-a95d-3a4e7aaccca0",
   "reviewer": {
-    "context_id": "c48a4c91-4945-4b7c-9a9f-a26d53d719bf",
+    "context_id": "32e23677-f3fd-4b23-979a-062f54163e0f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-68248925-df4b-4a89-b99c-c05d1e5a0013",
+    "launch_id": "platform-launch-faa7a036-97b5-44e1-bdce-aa47951695c3",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,22 +51,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30197
+        "value": 29341
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14856
+        "value": 14849
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13908
+        "value": 11235
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14085
+        "value": 11334
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -76,12 +76,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1682
+        "value": 1456
       }
     },
     "runtime": "claude-code-print"
