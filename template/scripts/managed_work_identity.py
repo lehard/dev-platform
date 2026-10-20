@@ -36,6 +36,28 @@ def parent_identity(reference: str) -> str:
     return f"BR-{match[1]}"
 
 
+_CHILD_BRANCH = re.compile(r"agent/br-([1-9][0-9]*)-t([1-9][0-9]*)-[A-Za-z0-9][A-Za-z0-9._-]*")
+_COMPOSITION_BRANCH = re.compile(r"requirement/BR-([1-9][0-9]*)")
+
+
+def branch_attribution(branch: str) -> dict[str, str | None] | None:
+    """Public work identity of a managed candidate branch; ``None`` for an unmanaged branch.
+
+    Pure: no configuration, Backlog or network access, so hosted and local
+    coordinators attribute identically. A branch that looks managed but is
+    malformed raises instead of being treated as unmanaged.
+    """
+    if not isinstance(branch, str) or not branch:
+        raise IdentityError("candidate branch is missing")
+    if (child := _CHILD_BRANCH.fullmatch(branch)):
+        return {"work_identity": f"BR-{child[1]}", "child_identity": f"BR-{child[1]}/T{child[2]}"}
+    if (composition := _COMPOSITION_BRANCH.fullmatch(branch)):
+        return {"work_identity": f"BR-{composition[1]}", "child_identity": None}
+    if branch.lower().startswith(("agent/br-", "requirement/")):
+        raise IdentityError(f"managed candidate branch {branch} has a malformed work identity")
+    return None
+
+
 def identity_in(body: str) -> str | None:
     values = re.findall(r"^Work identity: (.*)$", body.replace("\r\n", "\n"), re.MULTILINE)
     if len(values) > 1:

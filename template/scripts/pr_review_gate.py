@@ -319,8 +319,19 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                                adapter._comments(root, repo, job["number"]))
     if workers.build_job(observed) != job:
         return {"status": "discarded"}
+    try:
+        # Before the reviewer or writer runs and before any push: an outcome that cannot
+        # record its friction must fail here, not after the candidate head has moved.
+        adapter.require_friction_attribution(branch)
+    except adapter.QueueError as exc:
+        raise workers.WorkerError(str(exc)) from exc
+    from candidate_lifecycle import content_bound_gates
+
+    # A head reached by the harness's own push has no exact-head record yet; the derived
+    # view proved it and kept the gates bound to this unchanged task content.
     running = adapter._transition(root, repo, job["number"], kind + "ing" if kind == "repair" else "reviewing",
                                   job["head"], task_identity=identity, inherit_identity=False,
+                                  gates=content_bound_gates(observed.get("gates"), identity) or None,
                                   next_job={k: v for k, v in job.items() if k != "number"})
     if running is None:
         return {"status": "discarded"}
@@ -382,7 +393,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     if outcome["status"] == "discarded":
         return outcome
     head = outcome.get("pushed_head") or job["head"]
-    if current_head() != head or not claim_current():
+    if not workers.own_result_landed(current_head, job["head"], head) or not claim_current():
         return {**outcome, "status": "discarded"}
     if head != job["head"]:
         adapter._comment(root, repo, job["number"], {"kind": "update", "previous": job["head"],
@@ -447,13 +458,15 @@ class ReofferRefused(ValueError):
     """The supported re-offer contract refuses this candidate; the message names what a human can do."""
 
 
-def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: int, retry_kind: str | None) -> str:
+def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: int, retry_kind: str | None,
+                 job_completed: bool = False) -> str:
     """The job kind a ``resume``/``switch-provider`` re-offers for this candidate, or ``ReofferRefused``.
 
     Pure eligibility shared by ``reoffer`` and the read-only lifecycle overview, so the list of
     permitted actions never diverges from what the command accepts. ``claim`` is the winning
     unexpired claim of the candidate's job (or ``None``); ``retry_kind`` is the review/repair job
-    a blocked-retryable candidate waits on (``publication_queue.retry_job_kind``).
+    a blocked-retryable candidate waits on (``publication_queue.retry_job_kind``); ``job_completed``
+    says the candidate's current job already holds a result, so no worker will claim it again.
     """
     if action not in ACTIONS:
         raise ValueError(f"unknown re-offer action {action!r}")
@@ -478,6 +491,11 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
         # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
         # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
         kind = "finalize"
+    elif state == "finalize-pending" and job_completed and action == "resume":
+        # The finalize job of this head already holds a result (for example it stopped on gates that
+        # restore-gates later restored), so it is never claimed again; the re-offer gives it a fresh id
+        # and the job re-verifies every gate from scratch at the exact head.
+        kind = "finalize"
     else:
         raise ReofferRefused(f"PR #{number} is {state}; {action} applies only to an unfinished review or repair job"
                              + (" (resume covers operational repair and finalize escalations)"
@@ -488,7 +506,8 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
     return kind
 
 
-def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry_kind: str | None) -> dict:
+def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry_kind: str | None,
+                      job_completed: bool = False) -> dict:
     """Operator actions the re-offer contract accepts for this candidate, with exact commands.
 
     ``actions`` lists only what ``reoffer_plan`` accepts; ``human_decision`` carries the contract's own
@@ -499,7 +518,8 @@ def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry
     actions, refusals = [], {}
     for action in ACTIONS:
         try:
-            kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=retry_kind)
+            kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=retry_kind,
+                                job_completed=job_completed)
         except ReofferRefused as refusal:
             refusals[action] = str(refusal)
             continue
@@ -521,8 +541,9 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
             via: str | None = None, expected_head: str | None = None, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.
 
-    ``resume`` also re-offers the finalize job of a finalize escalation at the same head; the job
-    re-verifies every gate itself, so the resume decides nothing a finding needs.
+    ``resume`` also re-offers the finalize job of a finalize escalation, or of a finalize-pending candidate
+    whose job already holds a result, at the same head; the job re-verifies every gate itself, so the
+    resume decides nothing a finding needs.
 
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
@@ -556,14 +577,18 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
     current_job = candidate.get("next_job") if isinstance(candidate.get("next_job"), dict) else {}
     red = candidate.get("red_gate") or {}
     pending = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair", "repairing": "repair"}
-    from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
+    from lifecycle_workers import CLAIM_PREFIX, RESULT_PREFIX, build_job, job_completed, winning_claim
     job = build_job(candidate)
-    claim = None
+    claim, completed = None, False
     if job is not None:
-        claim = winning_claim(job, comments, trusted_apps=adapter.trusted_apps(root),
+        apps = adapter.trusted_apps(root)
+        claim = winning_claim(job, comments, trusted_apps=apps,
                               trusted_writers=adapter.trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
+        completed = job_completed(job, comments, trusted_apps=apps,
+                                  trusted_writers=adapter.trusted_writers(root, comments, (RESULT_PREFIX,), repo=repo))
     try:
-        kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=adapter.retry_job_kind(candidate))
+        kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=adapter.retry_job_kind(candidate),
+                            job_completed=completed)
     except ReofferRefused as refusal:
         raise adapter.QueueError(str(refusal)) from refusal
     attempts = candidate.get("attempts", {})

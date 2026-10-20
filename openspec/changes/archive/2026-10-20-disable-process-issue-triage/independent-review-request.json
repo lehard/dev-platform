@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc",
+    "base_ref": "origin/main",
+    "candidate_head": "9d920c9983c6333c42733738178f7c7e5dc8379a",
+    "diff_sha256": "4a0e921393f177a1c17c4ee2a19244745e12b2b9ab5394f93c4c91decd2fb439"
+  },
+  "change": "openspec/changes/disable-process-issue-triage",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/disable-process-issue-triage/automated-checks.json",
+    "openspec/changes/disable-process-issue-triage/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/disable-process-issue-triage/design.md",
+        "openspec/changes/disable-process-issue-triage/proposal.md",
+        "openspec/changes/disable-process-issue-triage/specs/agentic-maintenance/spec.md",
+        "openspec/changes/disable-process-issue-triage/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/disable-process-issue-triage/proposal.md",
+        "openspec/changes/disable-process-issue-triage/design.md",
+        "openspec/changes/disable-process-issue-triage/tasks.md",
+        "openspec/changes/disable-process-issue-triage/specs/agentic-maintenance/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T02:33:07+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/disable-process-issue-triage/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "64efeb93-9b1f-442f-af2e-6a7f199fc9ef",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc",
+    "digest": "5c1d1a58d370d7b777abc64b689ad317c68bf3beeed34901e49c43ad420f9498",
+    "paths": {
+      ".github/workflows/process-issue-triage.lock.yml": null,
+      ".github/workflows/process-issue-triage.md": null,
+      "docs/agentic-workflows.md": "c7712739a77f9dee248c83356f5fa0ae1e678b05",
+      "docs/engineering/agent-workflow.md": "f123de4fbb8c0ddb84626fb867f4b1d9a35438de",
+      "openspec/changes/disable-process-issue-triage/.managed-task.json": "b188d1b7fd4ba40b675eda22549d66557d785493",
+      "openspec/changes/disable-process-issue-triage/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+      "openspec/changes/disable-process-issue-triage/design.md": "1f0adcdd7fe57e2a834b0f5e6d92ff8f9e93fb38",
+      "openspec/changes/disable-process-issue-triage/proposal.md": "d342adbd20d428524f8f9cfe8e637df7fecf7fec",
+      "openspec/changes/disable-process-issue-triage/specs/agentic-maintenance/spec.md": "b235ee0bdfd06846fb1f296c4922d4e974d3d923",
+      "openspec/changes/disable-process-issue-triage/tasks.md": "93b3ea305066666ac3203e6a2aec175af9314726",
+      "scripts/cloud_maintenance_preflight.py": "52e0dee2ac755251d593bd163cfac3a20457f1ce",
+      "scripts/validate_agentic_workflows.py": "c651c8cfb850e10b4192d9943c134f6c46ec324c",
+      "template/docs/engineering/agent-workflow.md.jinja": "3bc830c7aff392679f8acb9747cc0a4cb1fc7005",
+      "tests/test_agentic_workflows.py": "db6ab81e533e11738b779361b98bc9c80bc70512",
+      "tests/test_ci_guardrails.py": "ad6fbf081050ea2a4c1a3a286a774e06bac49000",
+      "tests/test_cloud_maintenance_preflight.py": "a52cb8673f4938905430a9237348c136bbafcc22"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

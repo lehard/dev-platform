@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_ref": "origin/main",
+    "candidate_head": "d9d0d84a186c1e435d58a5c3b99df4691052b340",
+    "diff_sha256": "095a8e77a6e9c0bb1731af2b0d1276af5fb843e6de19126d83d5e7969093052a"
+  },
+  "completed_at": "2026-10-20T00:53:51+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py active_gh_token: subprocess.run([\"gh\",\"auth\",\"token\"], ..., check=False) is not wrapped in try/except OSError. The spec says a push with no gh credential fails explicitly naming the missing gh credential. A missing gh binary produces a raw traceback instead.",
+      "id": "gh-missing-binary-unhandled",
+      "severity": "advisory",
+      "summary": "active_gh_token does not handle a missing gh executable or OS error; it raises FileNotFoundError instead of the documented explicit WorkerError."
+    },
+    {
+      "evidence": "docs/engineering/agent-workflow.md line 12 (unchanged context in diff): \"`worker --mode ci|local` runs the full preflight itself\". run_worker now returns the observe-only error for mode == \"local\" before calling preflight.",
+      "id": "docs-stale-worker-mode-local",
+      "severity": "advisory",
+      "summary": "agent-workflow.md still says `worker --mode ci|local` runs the full preflight itself, but local now refuses before preflight."
+    }
+  ],
+  "launched_at": "2026-10-20T00:53:41+00:00",
+  "output_sha256": "ecbef6b67877146274fb2634060862154018598b8274be297f30daf5b52bf3e5",
+  "perspective": "engineering-quality",
+  "request_id": "805b0b6e-0acf-4933-aaa2-0acff2545fb4",
+  "reviewer": {
+    "context_id": "156c24e0-3879-401c-b9e9-b6e0f83c5f15",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9f54c486-d027-44cf-93be-4ccea646e18e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22469
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 69720
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9488
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9765
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1023
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b29dd62ede0e95062a93168707972ab99c0b1233ccc12935201832c60e4527be"
+}

@@ -51,6 +51,12 @@ The workflow runs only default-branch code, never checks out or executes pull-re
 
 Each run prints one outcome in the job summary: `idle`; `job-reviewed`, `job-reused`, `job-finalized`, `job-returned-to-review` (this run published its result); `job-discarded`, `abandoned-lost`, `abandoned-stale` (the head or claim changed, so nothing was published for it); and the red ones `provider-unavailable`, `job-blocked-retryable`, `job-blocked-escalation`, `refused-or-failed` with their cause. A green run never means a candidate or Requirement is done; that is established by the exact merged PR and the post-merge receipts.
 
+## Friction attribution and own pushes
+
+A review or repair job derives its friction attribution before the reviewer or writer starts: the public work identity of the managed branch (`agent/br-N-tM-<change>` is `BR-N/TM` of `BR-N`, `requirement/BR-N` is `BR-N`). The coordinator evidence record on the PR stores only that identity, so the runner needs no Development Backlog configuration and no private Backlog reference reaches the public PR; the Requirement retrospective matches records by it. A managed-looking branch with a malformed identity fails the run (`refused-or-failed`) before any push.
+
+After its own lease-protected evidence push a worker waits up to 60 seconds for the PR API to report the pushed head. A different head or a changed claim still discards the job; a head that never converges fails the run with that cause. Gates bound to unchanged task content survive the harness's own evidence push, including when an interrupted run is recovered from its `validated-push` receipt.
+
 ## What the pilot still has to verify
 
 This change delivers the mechanism and its tests. The real-PR pilot and the per-kind placement decision are the next slice of BR-610 and need the credentials above. For each kind it records:

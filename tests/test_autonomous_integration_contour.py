@@ -82,8 +82,8 @@ class Multi:
 
     def run_worker(self, *, prepare=None, checks="passed"):
         def merge(command, **kwargs):
-            if command[:3] == ["gh", "pr", "merge"]:
-                self.merged.add(int(command[3]))
+            if command[:4] == ["gh", "api", "-X", "PUT"]:
+                self.merged.add(int(command[4].split("/")[-2]))
             return subprocess.CompletedProcess(command, 0, "", "")
 
         order = [(n, n, {"branch": f"agent/br-7-t{n}-task"}) for n in sorted(self.heads)]
@@ -667,8 +667,7 @@ class FrictionAttributionTests(FrictionFixture):
 
     def test_lifecycle_transitions_record_friction_through_the_registered_sink(self):
         with Multi({7: HEAD}) as multi:
-            queue.set_friction_sink(contour.default_friction_sink(
-                ROOT, lineage=lambda root, branch: {"requirement": REQUIREMENT, "child": CHILDREN[0]}), worker="test-worker")
+            queue.set_friction_sink(contour.default_friction_sink(ROOT), worker="test-worker")
             self.addCleanup(queue.set_friction_sink, None)
             multi.ready(7)
             queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity={"head": "x"},
@@ -677,7 +676,7 @@ class FrictionAttributionTests(FrictionFixture):
                               red_gate={"name": "review", "evidence": "material findings unresolved"})
             events = self.events()
             self.assertEqual(len(events), 1)
-            self.assertEqual((events[0]["task"], events[0]["requirement"]), ("agent/br-7-t7-task", REQUIREMENT))
+            self.assertEqual((events[0]["task"], events[0]["work_identity"]), ("agent/br-7-t7-task", "BR-7"))
             self.assertEqual(events[0]["category"], "lifecycle-blocked-escalation")
 
     def test_composition_friction_lineage_is_selected_by_premerge_requirement_checkpoint(self):
@@ -692,7 +691,7 @@ class FrictionAttributionTests(FrictionFixture):
                       "hypothesis": "h", "proposal": "p", "dedupe_key": "composition-retry",
                       "reason": "repair: provider-unavailable", "number": 9, "head": HEAD})
         event = self.events()[0]
-        self.assertEqual(event["requirement"], REQUIREMENT)
+        self.assertEqual((event["requirement"], event["work_identity"]), (None, "BR-7"))
         ops = FakeOps()
         contour.ensure_requirement_checkpoint(ops, self.root, REQUIREMENT, CHILDREN)
         self.assertEqual(ops.calls, [("requirement-checkpoint", (event["id"],))])
@@ -710,8 +709,7 @@ class FrictionAttributionTests(FrictionFixture):
                     queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"},
                                       red_gate={"name": "review", "evidence": "material findings"})
                 self.assertEqual(multi.comments[7], before)
-            sink.side_effect = contour.default_friction_sink(
-                self.root, lineage=lambda *a: {"requirement": REQUIREMENT, "child": CHILDREN[0]})
+            sink.side_effect = contour.default_friction_sink(self.root)
             result = queue._transition(ROOT, "o/r", 7, "repair-pending", HEAD, task_identity={"head": "x"},
                                        red_gate={"name": "review", "evidence": "material findings"})
             self.assertEqual(result["state"], "repair-pending")

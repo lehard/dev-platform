@@ -82,6 +82,7 @@ targets = [
   "test_coordinator_preflight",
   "test_coordinator_evidence",
   "test_coordinator_event_routing",
+  "test_hosted_review_continuity",
   "test_pr_review_gate",
   "test_post_review_finalization",
   "test_worker_checkout_contract",

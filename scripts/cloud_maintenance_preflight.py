@@ -13,7 +13,6 @@ from typing import Callable, Sequence
 REQUIRED_SECRET = "OPENAI_API_KEY"
 PROBE_WORKFLOW = "cloud-maintenance-preflight.yml"
 CLOUD_MAINTENANCE_WORKFLOWS = (
-    "process-issue-triage.lock.yml",
     "weekly-process-backlog-review.lock.yml",
     "architecture-health-review.lock.yml",
 )

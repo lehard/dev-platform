@@ -338,7 +338,7 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
         post_result(workers.result_body(job, worker, "returned-to-review"))
         return {"status": "returned-to-review"}
     head = outcome.get("pushed_head") or job["head"]
-    if current_head() != head or not claim_current():
+    if not workers.own_result_landed(current_head, job["head"], head) or not claim_current():
         return {**outcome, "status": "discarded"}
     if head != job["head"]:
         adapter._comment(root, repo, number, {"kind": "update", "previous": job["head"], "head": head,

@@ -216,12 +216,13 @@ The publication coordinator SHALL validate its required configuration through on
 
 ### Requirement: Coordinator friction evidence is durable on the candidate pull request
 
-Meaningful lifecycle and friction events recorded by the coordinator SHALL be persisted as a trusted, versioned evidence comment on the candidate pull request through the existing authenticated lifecycle comment channel, before the transition that produced them is published. Each record SHALL bind the Requirement (or prove none), pull request number, exact head, lifecycle stage and the worker run identity, SHALL be idempotent per dedupe key, and SHALL be authenticated by the same trust rules as other lifecycle markers. A persistence failure SHALL fail the transition and the run visibly; the coordinator SHALL NOT proceed with machine-local-only evidence.
+Meaningful lifecycle and friction events recorded by the coordinator SHALL be persisted as a trusted, versioned evidence comment on the candidate pull request through the existing authenticated lifecycle comment channel, before the transition that produced them is published. Each record SHALL bind the Requirement through its public work identity derived from the managed candidate branch (or prove none for an unmanaged branch), SHALL NOT contain a private Development Backlog reference, and SHALL bind the pull request number, exact head, lifecycle stage and the worker run identity, SHALL be idempotent per dedupe key, and SHALL be authenticated by the same trust rules as other lifecycle markers. A persistence failure SHALL fail the transition and the run visibly; the coordinator SHALL NOT proceed with machine-local-only evidence.
 
 #### Scenario: Ephemeral runner ends
 
 - **WHEN** a coordinator run on an ephemeral runner records friction for a candidate and the runner is discarded
-- **THEN** a trusted evidence record bound to the Requirement, head, stage and worker remains on the pull request
+- **THEN** a trusted evidence record bound to the Requirement's work identity, head, stage and worker remains on the pull request
+- **AND** the Requirement retrospective lists it for that Requirement
 
 #### Scenario: Retried transition
 
@@ -237,7 +238,7 @@ Meaningful lifecycle and friction events recorded by the coordinator SHALL be pe
 
 #### Scenario: Persistence fails
 
-- **WHEN** the evidence comment cannot be posted or the Requirement lineage cannot be resolved
+- **WHEN** the evidence comment cannot be posted or the Requirement work identity cannot be derived from a managed branch
 - **THEN** the handoff record for the transition is not published
 - **AND** the worker exits non-zero stating the persistence failure
 
@@ -402,3 +403,37 @@ The platform SHALL require valid exact task-content provenance, bound to the adm
 
 - **WHEN** the candidate has no managed task state and its head touches no OpenSpec change
 - **THEN** the existing quick-task exact-head identity applies without disguising a managed proof failure
+
+### Requirement: Local coordinator run is observe-only
+
+Only the CI `publication-queue` workflow, acting as the coordinator GitHub App, SHALL integrate or merge candidates into `main`. `publication_queue.py worker --mode local` SHALL NOT observe, prepare, integrate or merge any candidate: it SHALL exit non-zero before any GitHub read with a diagnostic that names the CI coordinator as the only integrator and points to `publication_queue.py status` and `publication_queue.py preflight --mode local`. `status` and `preflight --mode local` SHALL work without an App token. The local preflight SHALL NOT require repository push permission.
+
+#### Scenario: Local run does not integrate
+
+- **WHEN** an operator runs `publication_queue.py worker --mode local`
+- **THEN** it exits non-zero naming the CI coordinator and the `status` and `preflight --mode local` commands
+- **AND** no pull request, comment, label or branch is read, written or merged
+
+#### Scenario: Local diagnostics without App token
+
+- **GIVEN** a local `gh` login without any App token
+- **WHEN** an operator runs `status` or `preflight --mode local`
+- **THEN** both commands complete
+- **AND** the local preflight does not probe or require repository push permission
+
+### Requirement: Coordinator merge is a REST merge with an expected-head guard
+
+The coordinator SHALL request the protected merge of a candidate through the GitHub REST merge endpoint with the squash method and the expected head commit, so that GitHub itself evaluates branch rules, ruleset bypass for the coordinator App and required checks. It SHALL NOT use a client that refuses on its own reading of the merge state, SHALL NOT request an administrator override or auto-merge, and SHALL report a refused merge as a waiting outcome with a bounded reason and no merge.
+
+#### Scenario: Ruleset-protected main with App bypass
+
+- **GIVEN** a green candidate whose base ref is restricted by a ruleset that the coordinator App may bypass for pull requests
+- **WHEN** the coordinator requests the merge
+- **THEN** it calls the REST merge endpoint with `merge_method=squash` and `sha` equal to the expected head
+- **AND** a successful response leads to the merged transition after the merged fact is read back
+
+#### Scenario: Merge refused
+
+- **WHEN** the REST merge endpoint refuses (head changed, rule or required check)
+- **THEN** the candidate stays waiting with the bounded refusal reason
+- **AND** no administrator override, auto-merge or alternate merge call is attempted

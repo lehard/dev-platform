@@ -70,25 +70,29 @@ def resolve_lineage(root: Path, branch: str) -> dict[str, str | None] | None:
     return {"requirement": requirement, "child": child}
 
 
-def default_friction_sink(root: Path, *, lineage: Callable[[Path, str], dict | None] = resolve_lineage):
+def default_friction_sink(root: Path):
     """A sink that persists coordinator events on the candidate PR, then mirrors them locally.
 
-    Durable first: a failed lineage lookup or evidence write raises before anything is
-    recorded locally, so a transition is never published with machine-local-only evidence.
+    Attribution is the public work identity of the candidate branch, so the sink
+    needs no Backlog access or private configuration and never writes a private
+    reference to the pull request. Durable first: a malformed managed branch or a
+    failed evidence write raises before anything is recorded locally, so a
+    transition is never published with machine-local-only evidence.
     """
-    cache: dict[str, str | None] = {}
-
     def sink(event: dict[str, Any]) -> None:
         import agent_friction
+        import managed_work_identity
         import publication_queue
 
         task = event["task"]
-        if task not in cache:
-            found = lineage(root, task)
-            cache[task] = found["requirement"] if found else None
-        record = publication_queue.post_evidence(root, event, requirement=cache[task])
+        try:
+            attribution = managed_work_identity.branch_attribution(task)
+        except managed_work_identity.IdentityError as exc:
+            raise publication_queue.QueueError(str(exc)) from exc
+        record = publication_queue.post_evidence(root, event, attribution=attribution)
         agent_friction.append_coordinator_event(
-            task=task, requirement=cache[task], category=event["category"], triggers=event["triggers"],
+            task=task, requirement=None, work_identity=attribution["work_identity"] if attribution else None,
+            category=event["category"], triggers=event["triggers"],
             severity=event["severity"], observation=event["observation"], evidence=event["evidence"],
             hypothesis=event["hypothesis"], proposal=event["proposal"], dedupe_key=event["dedupe_key"],
             reason=event["reason"], candidate={"task": task, "number": event["number"], "head": event["head"]},
@@ -308,7 +312,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     if outcome["status"] != "pushed":
         return fail(outcome.get("reason", outcome["status"]))
     head = outcome["pushed_head"]
-    if current_head() != head or not claim_current():
+    if not workers.own_result_landed(current_head, job["head"], head) or not claim_current():
         return {**outcome, "status": "discarded"}
     adapter._comment(root, repo, number, {"kind": "update", "previous": job["head"], "head": head,
                                           "base": outcome["main"], "worker_job": workers.job_id(job)})

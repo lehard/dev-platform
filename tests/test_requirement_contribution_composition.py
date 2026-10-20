@@ -4,6 +4,7 @@ from __future__ import annotations
 import collections
 import copy
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -115,9 +116,10 @@ class ContributionTests(unittest.TestCase):
             git(fixture.root, "remote", "add", "origin", origin)
             before = (fixture.root / ".git/config").read_bytes()
             runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
-            with mock.patch.dict("os.environ", {"GH_TOKEN": token}, clear=True), mock.patch.object(
+            path = {"PATH": os.environ["PATH"]}
+            with mock.patch.dict("os.environ", {"GH_TOKEN": token, **path}, clear=True), mock.patch.object(
                 workers, "harness_git", side_effect=["", origin]
-            ):
+            ), mock.patch.object(workers, "active_gh_token", side_effect=lambda _c, env: env["GH_TOKEN"]):
                 contributions.push_fast_forward(fixture.root, "requirement/BR-7", "", fixture.boundary, runner=runner)
             argv, kwargs = runner.call_args.args[0], runner.call_args.kwargs
             encoded = base64.b64encode(("x-access-token:" + token).encode()).decode()
@@ -131,12 +133,16 @@ class ContributionTests(unittest.TestCase):
             self.assertNotIn("GH_TOKEN", workers.credential_free_env(kwargs["env"]))
             self.assertEqual((fixture.root / ".git/config").read_bytes(), before)
             with mock.patch.object(workers, "harness_git", return_value=origin):
-                with self.assertRaisesRegex(workers.WorkerError, "requires coordinator GH_TOKEN"):
+                with mock.patch.object(workers.subprocess, "run",
+                                       return_value=subprocess.CompletedProcess([], 1, "", token)), \
+                        self.assertRaisesRegex(workers.WorkerError, "authenticated gh credential") as missing:
                     workers.harness_push_env(fixture.root, {})
+                self.assertNotIn(token, str(missing.exception))
             runner.return_value = subprocess.CompletedProcess([], 1, "", token + encoded)
-            with mock.patch.dict("os.environ", {"GH_TOKEN": token}, clear=True), mock.patch.object(
+            with mock.patch.dict("os.environ", {"GH_TOKEN": token, **path}, clear=True), mock.patch.object(
                 workers, "harness_git", side_effect=["", origin]
-            ), self.assertRaises(contributions.ContributionError) as error:
+            ), mock.patch.object(workers, "active_gh_token", side_effect=lambda _c, env: env["GH_TOKEN"]), \
+                    self.assertRaises(contributions.ContributionError) as error:
                 contributions.push_fast_forward(fixture.root, "requirement/BR-7", "", fixture.boundary, runner=runner)
             self.assertNotIn(token, str(error.exception))
             self.assertNotIn(encoded, str(error.exception))

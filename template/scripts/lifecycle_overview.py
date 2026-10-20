@@ -224,7 +224,8 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
         stage = "delivering"
 
     open_pr = pr.get("state") == "open" and not merged
-    plan = (permitted_actions(candidate, winning, number=number, retry_kind=retry_job_kind(candidate))
+    plan = (permitted_actions(candidate, winning, number=number, retry_kind=retry_job_kind(candidate),
+                              job_completed=completed)
             if open_pr else {"actions": [], "human_decision": None})
     if stage == "needs-intervention" and not plan["human_decision"]:
         hints = list(dict.fromkeys(FINDING_HINTS[f["kind"]] for f in findings if f["kind"] in FINDING_HINTS))

@@ -208,9 +208,11 @@ class LocalPreflightTests(PreflightFixture):
                 patch("_platform_common.read_project_config", return_value={}):
             self.assertEqual(self.failed(self.run_preflight("local", "runtime"))["name"], "[publication] coordinator_app")
 
-    def test_push_permission_is_required(self):
+    def test_local_preflight_does_not_require_push_permission(self):
         self.gh.responses["repository"] = {"permissions": {"push": False}}
-        self.assertEqual(self.failed(self.run_preflight("local", "runtime"))["name"], "repository-permission")
+        result = self.run_preflight("local", "runtime")
+        self.assertEqual(result["state"], "ok", result)
+        self.assertNotIn("repository-permission", [check["name"] for check in result["checks"]])
 
 
 class WorkerPreflightGateTests(PreflightFixture):
@@ -240,10 +242,26 @@ class WorkerPreflightGateTests(PreflightFixture):
                     redirect_stdout(io.StringIO()):
                 self.assertEqual(queue.main(), code)
 
-    def test_local_identity_is_unique_per_run(self):
-        first, second = (queue.run_identity("local", {}) for _ in range(2))
-        self.assertTrue(first.startswith("local:"))
-        self.assertNotEqual(first, second)
+    def test_local_worker_is_observe_only(self):
+        with patch.object(queue, "preflight") as checked, patch.object(queue, "worker") as run, \
+                patch.object(queue, "_gh") as gh, patch.object(queue, "use_default_friction_sink") as sink:
+            result = queue.run_worker(Path("/unused"), "local", {}, install_sink=True)
+        self.assertEqual(result["state"], "error")
+        for text in ("observe-only", "publication-queue", "publication_queue.py status", "preflight --mode local"):
+            self.assertIn(text, result["reason"])
+        for called in (checked, run, gh, sink):
+            called.assert_not_called()
+        out = io.StringIO()
+        with patch.object(queue, "current_worktree_root", return_value=Path("/unused")), \
+                patch.object(queue, "worker") as run, \
+                patch.object(sys, "argv", ["publication_queue.py", "worker", "--mode", "local"]), redirect_stdout(out):
+            self.assertEqual(queue.main(), 2)
+        run.assert_not_called()
+        self.assertIn("observe-only", json.loads(out.getvalue())["reason"])
+
+    def test_only_ci_has_a_run_identity(self):
+        with self.assertRaises(queue.QueueError):
+            queue.run_identity("local", {})
 
 
 class WorkflowStructureTests(unittest.TestCase):

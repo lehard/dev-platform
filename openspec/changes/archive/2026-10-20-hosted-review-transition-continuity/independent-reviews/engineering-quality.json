@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5e1a29317480f6860b1a810f8b444c73a9e583f0",
+    "base_ref": "origin/main",
+    "candidate_head": "39da22c6be4cebc246020219a97d49d1e8e8fdd7",
+    "diff_sha256": "ec9f971181de7ede46dc5b1e0b77adbab404ad9f9581f5167ec3c2e0c9728472"
+  },
+  "completed_at": "2026-10-20T02:58:30+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py restore_gates calls _transition(root, repo, number, candidate[\"state\"], candidate[\"head\"], task_identity=..., inherit_identity=False, gates=gates). In _transition, next_job is taken from previous.get(\"next_job\") and previous is {} when the head has no record; red_gate=None is also passed. The state is therefore preserved but its job and red-gate context may not be.",
+      "id": "restore-gates-drops-next-job-and-red-gate",
+      "severity": "advisory",
+      "summary": "restore-gates republishes the candidate's state through _transition without passing the derived candidate's next_job or red_gate. When no exact-head record exists (for example a review-pending candidate derived from a validated-push receipt, or blocked-retryable), the new record can lose the pending job or red gate even though the design says the state is kept."
+    }
+  ],
+  "launched_at": "2026-10-20T02:58:08+00:00",
+  "output_sha256": "b532e029aa2052d93b30a7da294090b2f57bd3b82876202a1f0d054c9360fc9d",
+  "perspective": "engineering-quality",
+  "request_id": "ec6421b7-b92b-4a3c-bbdc-9a0b11de79ca",
+  "reviewer": {
+    "context_id": "1ad7aca6-5478-4a2d-8054-dd92f1770929",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cc8b8a23-cbc6-44ed-ab17-2fe7d131cea2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42903
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 139958
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21677
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22071
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2454
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ffd0f30bf4017406320ae4c8ff50b5d72988a560332bbeb02636c82e83d89e06"
+}
