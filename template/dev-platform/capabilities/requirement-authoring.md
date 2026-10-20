@@ -36,6 +36,8 @@ Show which of three levels each material point has, through wording rather than 
 
 Silence is not blanket freedom: delegation never allows changing product meaning, safety boundaries, data, rights or accepted scenarios. Equally, do not demand agreement on every color, spacing, function name or ordinary error handling that does not change material behavior.
 
+The levels hold on the whole path to implementation. ADD and OpenSpec keep each point at the level written here and never bind it more tightly; see "Carry Requirement binding levels into OpenSpec" in [docs/engineering/openspec-workflow.md](../../docs/engineering/openspec-workflow.md).
+
 ## 5. Preserve references and be honest about gaps
 
 If the discussion supplied a screenshot, mockup, document, link or other reference, keep it **reachable by the executing agent** through a stable, permitted channel and say which of its properties are mandatory (layout, hierarchy, wording, behavior). If the executor cannot reach an attachment, say it is unavailable and record what is known from it; never substitute a link to a changing site root. Do not copy private conversations, secrets, unreachable personal files or whole external documents into a public repository.

@@ -20,6 +20,7 @@ rules:
     - When scope depends on project goals, users, key scenarios, domain meaning, or product invariants, consult the relevant project-context destination before finalizing scope.
     - Prefer evolving the existing system over creating parallel canonical sources.
   specs:
+    - 'Carry each Business Requirement point at its binding level: a fixed point is written exactly and checked by a scenario; a meaning-fixed point is written as the observable meaning or properties with its presentation left open; a delegated detail stays out of requirements; no requirement is bound more tightly than in the Requirement; an example, illustrative value or mockup never becomes an exact requirement unless the Requirement fixed it; delegated presentation never relaxes financial, data, security or accessibility constraints.'
     - 'A delta that creates a capability absent from openspec/specs starts with an authored `## Purpose` section stating what the capability is for; OpenSpec reads a delta Purpose only when it creates the capability, and archive preflight rejects a missing, empty or TBD/TODO/FIXME Purpose.'
   design:
     - When a change materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary, record concrete risks and mitigations. Do not add generic risk boilerplate for low-risk work.

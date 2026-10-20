@@ -69,6 +69,9 @@ class RequirementAuthoringStandardTests(unittest.TestCase):
             "**Meaning fixed, execution variable**",
             "**Delegated**",
             "Silence is not blanket freedom",
+            "The levels hold on the whole path to implementation.",
+            "never bind it more tightly",
+            "Carry Requirement binding levels into OpenSpec",
             # references
             "reachable by the executing agent",
             "say it is unavailable",
