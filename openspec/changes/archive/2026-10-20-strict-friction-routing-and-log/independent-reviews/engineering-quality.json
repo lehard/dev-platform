@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "50d71c945e07f423a9aaebf30ed3df6fa8910b9a",
+    "base_ref": "origin/main",
+    "candidate_head": "25ece61a1ab8906513e15b65ff1e58abac36275a",
+    "diff_sha256": "ddf1a15895b2691325eb353f990524a5b53013ffa830ee6eb53249c5baf68821"
+  },
+  "completed_at": "2026-10-20T08:37:10+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_friction.py: legacy_content_id() returns 'legacy-' + 16 hex chars, but LEGACY_POSITIONAL_ID_RE = r'legacy-\\d+' fullmatches any all-digit digest (about 0.05% of ids, (10/16)^16). resolve_positional_id() then reads it as a huge line number, finds no such line, and raises FrictionLogError. read_state() does this on every route key, so a persisted route for such an event breaks all state reads. The two id forms need to be unambiguous, for example by requiring a non-hex marker in the content id or limiting the positional pattern to short numbers.",
+      "id": "legacy-content-id-collides-with-positional-pattern",
+      "severity": "advisory",
+      "summary": "A content-derived id made only of decimal digits is mistaken for a positional reference and makes read_state/read_attributions raise."
+    },
+    {
+      "evidence": "route_event() catches only RuntimeError. process_label() now propagates read_platform_config errors without catching them. tomllib.TOMLDecodeError (ValueError) and OSError are not RuntimeError, so they escape from route_event() at the process_label() calls (lines ~1078, 1102, 1107). The old platform_repository() and process_label() caught ValueError and OSError. A malformed .dev-platform.toml therefore crashes route_event and route_pending instead of leaving the event pending with a named reason, and the new tests only cover process_label() in isolation.",
+      "id": "route-event-config-errors-escape-pending",
+      "severity": "advisory",
+      "summary": "Configuration errors that are not RuntimeError are no longer converted to a pending route, which contradicts design decision 1."
+    },
+    {
+      "evidence": "resolve_positional_id() calls path.read_text(...).splitlines() on each call. It is called once per route key in read_state() and once per attribution record in read_attributions(). Cost is O(keys \u00d7 log size) on every state read. An unreadable log now makes read_state raise whenever a legacy-N key is present, even for callers that never read events.",
+      "id": "resolve-positional-id-rereads-log-per-key",
+      "severity": "advisory",
+      "summary": "Each persisted positional key re-reads and splits the whole friction log, and read_state now depends on the log being readable."
+    }
+  ],
+  "launched_at": "2026-10-20T08:36:42+00:00",
+  "output_sha256": "b21fa42a597bc66351d94c7a7852e530bd4ee7ec63109f1b0edb0d4f79f78112",
+  "perspective": "engineering-quality",
+  "request_id": "93849e15-1b8e-48ab-bb45-952706a6afc8",
+  "reviewer": {
+    "context_id": "9d532dba-19a9-4a3a-84bd-5bfd71be3155",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d271b984-d01e-4b94-bfef-1833e2cfa77e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34795
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 124874
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27580
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27909
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2348
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "11e1f84d55098b041c75df83081e748eb98d72979e836885b17f8cde61dff4fe"
+}

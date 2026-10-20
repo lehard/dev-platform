@@ -534,6 +534,9 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, red_gat
         return
     if not isinstance(branch, str) or not branch:
         raise QueueError("friction recording requires a candidate branch; retry transition")
+    if kind == "blocked-retryable" and red_gate is None:
+        # Waiting on exact-head required checks (see red_retry_blocks_integration): no gate failed, no event.
+        return
     reason = friction_reason(number, kind, red_gate)
     detail = str(red_gate.get("evidence", ""))[:300]
     if not isinstance(_friction_worker, str) or not _friction_worker:
@@ -846,6 +849,17 @@ def retry_job_kind(candidate: dict) -> str | None:
 def review_owned(candidate: dict) -> bool:
     """Review- and repair-owned retry states belong to their jobs; publication leaves them alone."""
     return retry_job_kind(candidate) is not None
+
+
+def red_retry_blocks_integration(candidate: dict) -> bool:
+    """A blocked-retryable candidate integrates only while it waits on its exact-head required checks.
+
+    Any other red gate (for example a finalize that stopped on ``semantic-verification``) is a gate the
+    candidate has not passed: the archive alone must never let it merge.
+    """
+    if candidate.get("state") != "blocked-retryable":
+        return False
+    return (candidate.get("red_gate") or {}).get("name") not in {None, "required-checks"}
 
 
 def _ensure_labels(root: Path) -> None:
@@ -1978,7 +1992,8 @@ def worker(root: Path) -> dict[str, Any]:
             if active(number):
                 _label(root, repo, number, ACTIVE, present=False)  # relinquish to the claiming work
             continue
-        if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)):
+        if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)
+                                  or red_retry_blocks_integration(current)):
             # A candidate owned by other work does not hold up the rest of the queue.
             skipped.append(f"#{number} {current['state']}: {current['next_action']}")
             if current["state"] == "integration-repair-pending" and not current.get("next_job"):

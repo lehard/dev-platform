@@ -243,6 +243,15 @@ class SinkTests(EvidenceFixture):
         with self.assertRaisesRegex(queue.QueueError, "red gate review carries no cause or evidence"):
             queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, {"name": "review"})
 
+    def test_waiting_on_required_checks_records_no_friction(self):
+        seen = []
+        queue.set_friction_sink(seen.append, worker="w1")
+        self.addCleanup(queue.set_friction_sink, None)
+        queue.emit_friction(11, BRANCH, "blocked-retryable", HEAD, None)
+        self.assertEqual(seen, [])
+        with self.assertRaisesRegex(queue.QueueError, "requires a named red gate"):
+            queue.emit_friction(11, BRANCH, "repair-pending", HEAD, None)
+
     def test_sink_mirrors_reason_and_candidate_locally(self):
         self.sink(event())
         [local] = friction.read_events(None)

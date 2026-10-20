@@ -1858,6 +1858,51 @@ When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` i
 - **WHEN** it names a missing or invalid configuration
 - **THEN** the run fails naming the problem and runs nothing
 
+### Requirement: Friction routing never substitutes a missing platform destination or label configuration
+
+The friction router SHALL route a `scope=platform` event only to the platform repository configured as `[promotion].repo` in the enabled operator configuration. When that setting is absent or the operator configuration cannot be read, the router SHALL NOT route the event to the project's own repository; it SHALL keep the event local and report an error that names the missing or unreadable setting. A read error of the process label configuration, or an empty or non-string configured label, SHALL be reported as an error and SHALL NOT be replaced by the default label.
+
+#### Scenario: Platform repository is not configured
+
+- **GIVEN** a project whose operator configuration has no `[promotion].repo`
+- **WHEN** a recorded `scope=platform` friction event is routed
+- **THEN** no issue or comment is created in the project's own repository
+- **AND** the event remains pending with a reason that names `[promotion].repo`
+
+#### Scenario: Label configuration cannot be read
+
+- **WHEN** reading the configured process label fails or yields an empty value
+- **THEN** the operation reports that configuration error
+- **AND** it does not apply the default label in its place
+
+### Requirement: The local friction log is read strictly with position-independent event identity
+
+Reading the local friction log SHALL fail with an error naming the file, and the line when applicable, if the log is unreadable or a non-empty line is not a valid dated event object; it SHALL NOT return an empty or truncated event list in that case. Tolerating a degraded log SHALL be limited to output that reports the gap and to a checkpoint that explicitly accepts the `friction-log` gap. An event recorded without an id SHALL receive an identity derived from its content rather than its position in the file, and an earlier positional reference SHALL resolve to that identity or fail with a named error.
+
+#### Scenario: Malformed line in the log
+
+- **GIVEN** the local friction log contains a line that is not valid JSON
+- **WHEN** a command reads friction events without an accepted gap
+- **THEN** it fails with an error naming the log file and that line number
+
+#### Scenario: Unreadable log
+
+- **WHEN** the local friction log exists but cannot be read
+- **THEN** reading events fails with an error naming the file instead of returning no events
+
+#### Scenario: Explicitly accepted gap
+
+- **GIVEN** the local friction log contains a malformed line
+- **WHEN** a checkpoint is recorded with `--accept-gap friction-log`
+- **THEN** the valid events are used and the accepted gap is stored in the receipt
+
+#### Scenario: Legacy event identity is stable
+
+- **GIVEN** an event line recorded without an id
+- **WHEN** the log is read again after other lines were appended or an earlier line was removed
+- **THEN** its identity is the same on every read
+- **AND** an attribution recorded under its earlier positional id resolves to that identity
+
 ### Requirement: Ordinary lifecycle commands do not retry friction routing
 
 `start`, `doctor`, `finish` and Requirement `advance` SHALL NOT invoke GitHub routing of locally retained friction events and SHALL NOT wait on it or print a routing-retry warning. Retained events SHALL remain pending and SHALL be retried only by the explicit `agent_friction.py route-pending` command.
@@ -1879,7 +1924,7 @@ When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` i
 
 ### Requirement: Routed coordinator events name their reason and candidate
 
-A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head. Producers SHALL fail explicitly with a named error rather than record such an event without them. The router SHALL render the reason and candidate in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
+A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head. The publication coordinator SHALL take the reason from the transition's named red gate and SHALL fail the transition explicitly with a named error when the gate is missing or explains nothing; a `blocked-retryable` transition without a red gate waits on exact-head required checks, is not a failed gate and SHALL record no friction event. Other producers SHALL fail explicitly with a named error rather than record such an event without them. The router SHALL render the reason and candidate in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
 
 #### Scenario: Coordinator retry is routed with its cause
 - **GIVEN** the coordinator schedules a bounded retry of PR candidate 42 at head `abc` because a gate was unavailable
@@ -1898,5 +1943,9 @@ A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`,
 - **AND** its route is recorded as `withheld` naming the missing field and it is not retried
 
 #### Scenario: Producer without a reason
-- **WHEN** the coordinator emits a friction transition with an empty detail
-- **THEN** recording fails with an error naming the PR and the missing reason
+- **WHEN** the coordinator emits a friction transition into review repair, integration repair or escalation without a named red gate, or with a red gate that has no cause or evidence
+- **THEN** recording fails with an error naming the PR and the state
+
+#### Scenario: Waiting on required checks is not friction
+- **WHEN** the coordinator records `blocked-retryable` without a red gate while the candidate waits on its exact-head required checks
+- **THEN** the transition is published and no friction event is recorded

@@ -21,7 +21,7 @@
 
 ### Requirement: Routed coordinator events name their reason and candidate
 
-A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head. Producers SHALL fail explicitly with a named error rather than record such an event without them. The router SHALL render the reason and candidate in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
+A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head. The publication coordinator SHALL take the reason from the transition's named red gate and SHALL fail the transition explicitly with a named error when the gate is missing or explains nothing; a `blocked-retryable` transition without a red gate waits on exact-head required checks, is not a failed gate and SHALL record no friction event. Other producers SHALL fail explicitly with a named error rather than record such an event without them. The router SHALL render the reason and candidate in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
 
 #### Scenario: Coordinator retry is routed with its cause
 - **GIVEN** the coordinator schedules a bounded retry of PR candidate 42 at head `abc` because a gate was unavailable
@@ -40,5 +40,9 @@ A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`,
 - **AND** its route is recorded as `withheld` naming the missing field and it is not retried
 
 #### Scenario: Producer without a reason
-- **WHEN** the coordinator emits a friction transition with an empty detail
-- **THEN** recording fails with an error naming the PR and the missing reason
+- **WHEN** the coordinator emits a friction transition into review repair, integration repair or escalation without a named red gate, or with a red gate that has no cause or evidence
+- **THEN** recording fails with an error naming the PR and the state
+
+#### Scenario: Waiting on required checks is not friction
+- **WHEN** the coordinator records `blocked-retryable` without a red gate while the candidate waits on its exact-head required checks
+- **THEN** the transition is published and no friction event is recorded
