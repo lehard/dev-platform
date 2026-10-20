@@ -26,7 +26,7 @@ Correctness and coherence:
 - `template/dev-platform/platform-manifest.json` was regenerated with `scripts/generate_platform_manifest.py --write` only.
 - Deviation from the Requirement wording, made on purpose: the Requirement asks for the example to be shown on a named private product and its private Backlog Issue. This repository is public, so the example is given by its content, without the project name or the Issue reference. The fixed meaning of the example is kept and only the identifying reference is left out.
 
-Checks actually run on HEAD `ad856827` (contains `origin/main` 5978f471):
+Checks actually run on HEAD `ce364c2a` (contains `origin/main` 5978f471). A first evidence run on `ad856827` passed, but its evidence went stale when task 2.2 was checked in `tasks.md` afterwards, so the evidence run was repeated on the final content:
 
 - Targeted tests by the executor: `tests/test_template_contract.py`, `tests/test_requirement_authoring.py`, `tests/test_add_intents.py`, `tests/test_project_context.py` — 157 passed.
 - `python3 scripts/check_private_backlog_refs.py --root .` — passed.
@@ -34,7 +34,7 @@ Checks actually run on HEAD `ad856827` (contains `origin/main` 5978f471):
 - `python3 scripts/select_checks.py --base origin/main --execute --evidence …/automated-checks.json`, after the task freshness gate and the scope gate:
   - `compileall` — passed;
   - `ruff` — passed;
-  - `run_test_groups.py --all` — passed in 1244 s.
+  - `run_test_groups.py --all` — passed in 1024 s.
 - Scope gate: the only overlap is the generated `template/dev-platform/platform-manifest.json` with the BR-694 task. It was acknowledged through `agent_board.py acknowledge` and will be regenerated after any reconcile.
 
 Not covered: Explorer editorial drift warnings for the touched sections are warning-only and were not marked reviewed.
