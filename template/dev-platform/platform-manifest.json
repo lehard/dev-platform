@@ -116,7 +116,7 @@
     "scripts/project_publish.py": "94fd7541d40b7d09e0c0495ca476398de8675d8babb796082db181e41fcdac0a",
     "scripts/project_sync.py": "ca07e1e58879914bc4e22c3c4fddbce4d97aa75f0f4ffea50661431664dfbfaa",
     "scripts/project_terminal_reconciliation.py": "5941a78b152cda6fca081373cb345587de8b1d752bd8f71f4c928d445ad1b58c",
-    "scripts/publication_queue.py": "af7b3355c57cb7225d9e5c9100f727cf75ef637a1132046d9d6f815c5fba3973",
+    "scripts/publication_queue.py": "3858bdf77161e4956bc643fb6b5ab875d0a17e5922be9aeee226d7d56ef60474",
     "scripts/publication_state.py": "140d0eeb65b419137dec20644ccfe41baa37adc61ef7f9d7b179c2a096dfc002",
     "scripts/reconcile_task.py": "d1dcd76d707f726a723d0e863ad4d1e9c21fda570cdb08ec8e3d33142e0d5b0e",
     "scripts/render_agents_md_smoke.py": "7ec0984551f1e9425af25fd4933d87da825d96825a410fbe69a4b15e9863a5c1",
