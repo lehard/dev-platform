@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "candidate_head": "54557bb96aa0d6168a4649b23805a3429af3810e",
+    "diff_sha256": "b7054025464cef08fd82b4759c8ef3852dd1a39f1c839ca8cbc6eb8d67253eb0"
+  },
+  "completed_at": "2026-10-20T03:11:19+00:00",
+  "findings": [
+    {
+      "evidence": "spec.md line 19: \"The token file location SHALL be read-denied inside the sandbox.\" In template/scripts/sandboxed_writer.py, build_profile builds deny_read only from DENY_READ_HOME, protected and platform. launch_sandboxed_writer never passes the token_file path to build_profile, and build_profile has no parameter for it. A token_file outside ~/.config/dev-platform, ~/.claude and the other listed paths is readable by the writer. The tests do not cover this.",
+      "id": "token-file-not-read-denied",
+      "severity": "material",
+      "summary": "The spec requires the token file location to be read-denied inside the sandbox, but the generated profile does not add it. The token_file path is operator-configurable and may lie outside the denied directories."
+    },
+    {
+      "evidence": "proposal.md: \"denyWrite the integration checkout, its shared gitdir and every registered worktree, the push remote path when local\". launch_sandboxed_writer calls build_profile(checkout=..., home=..., tmp=..., protected=protected_paths(integration_root), platform_root=...) with no extra_deny_write. protected_paths does not read the remote URL either.",
+      "id": "local-push-remote-not-write-denied",
+      "severity": "advisory",
+      "summary": "The proposal says the profile write-denies the push remote path when it is local. build_profile accepts extra_deny_write, but launch_sandboxed_writer never computes or passes the push remote path, so a local remote is not protected."
+    }
+  ],
+  "launched_at": "2026-10-20T03:11:05+00:00",
+  "output_sha256": "37960f83b25ce41825c07b36af630856f501c5c33480ccb81a2167f38434e7bb",
+  "perspective": "spec-fidelity",
+  "request_id": "a2c811c6-54f8-4b6f-899d-72b3d1d4ec46",
+  "reviewer": {
+    "context_id": "d86501bc-b02c-46eb-b273-7c2d4d79bcf7",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-578e8b23-bad4-458f-8fdd-ced07ed92089",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30134
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14795
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13199
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13346
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1443
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "dc436ced9f65eda986a1c703ffc2d532a030bd9d855e168851c7e4b441dcb2f9"
+}

@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "candidate_head": "54557bb96aa0d6168a4649b23805a3429af3810e",
+    "diff_sha256": "b7054025464cef08fd82b4759c8ef3852dd1a39f1c839ca8cbc6eb8d67253eb0"
+  },
+  "change": "openspec/changes/sandboxed-writer-launch",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/sandboxed-writer-launch/automated-checks.json",
+    "openspec/changes/sandboxed-writer-launch/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/sandboxed-writer-launch/design.md",
+        "openspec/changes/sandboxed-writer-launch/proposal.md",
+        "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md",
+        "openspec/changes/sandboxed-writer-launch/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/sandboxed-writer-launch/proposal.md",
+        "openspec/changes/sandboxed-writer-launch/design.md",
+        "openspec/changes/sandboxed-writer-launch/tasks.md",
+        "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T03:11:03+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/sandboxed-writer-launch/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "a2c811c6-54f8-4b6f-899d-72b3d1d4ec46",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "digest": "dc436ced9f65eda986a1c703ffc2d532a030bd9d855e168851c7e4b441dcb2f9",
+    "paths": {
+      "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+      "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+      "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+      "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+      "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+      "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+      "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+      "template/dev-platform/platform-manifest.json": "3ffbad323da8373c2fdc9bb9a64f1b168101df49",
+      "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+      "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+      "template/scripts/sandboxed_writer.py": "aee920249093a9d103b51db5c013da4d769fc1bd",
+      "tests/test_sandboxed_writer.py": "12404ae74439ca862ec9a3b66ca35ef8573bbd77",
+      "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

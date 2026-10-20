@@ -1,0 +1,103 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "candidate_head": "54557bb96aa0d6168a4649b23805a3429af3810e",
+    "diff_sha256": "b7054025464cef08fd82b4759c8ef3852dd1a39f1c839ca8cbc6eb8d67253eb0"
+  },
+  "completed_at": "2026-10-20T03:11:38+00:00",
+  "findings": [
+    {
+      "evidence": "proposal.md lists \"the push remote path when local\" among the denyWrite entries. In template/scripts/sandboxed_writer.py, launch_sandboxed_writer calls build_profile with only protected_paths(integration_root) and platform_root. extra_deny_write is never populated, and protected_paths covers only the root, the common git dir and the worktrees. A local-path origin outside those directories is writable only if it lies outside the allowWrite roots. Nothing in the profile denies it explicitly, and no test covers it.",
+      "id": "push-remote-path-not-write-denied",
+      "severity": "material",
+      "summary": "The proposal says the profile denies writes to the push remote path when it is local. The launch path never computes or passes that path, so a local bare remote stays outside the deny list."
+    },
+    {
+      "evidence": "spec.md: \"The token file location SHALL be read-denied inside the sandbox.\" build_profile builds deny_read from DENY_READ_HOME, protected and platform only. read_claude_token's path is never added to the profile. Reads are denied only if the file happens to sit under ~/.config/dev-platform. The writer already holds the token in its environment, which limits the impact.",
+      "id": "token-file-not-read-denied",
+      "severity": "advisory",
+      "summary": "The spec requires the token file location to be read-denied inside the sandbox. The profile only denies reads of fixed home paths, so a token_file outside those paths is not denied."
+    },
+    {
+      "evidence": "In sandboxed_writer.py, launch_sandboxed_writer passes extra_env={TOKEN_ENV: token} to run_llm. The command is [npx, --yes, @anthropic-ai/sandbox-runtime@ver, ...]. npm, and any install script it runs, therefore sees CLAUDE_CODE_OAUTH_TOKEN. The version pin has no integrity check, and the design's alternative of checking a resolvable srt binary's --version is not implemented.",
+      "id": "token-exposed-to-npx-launcher",
+      "severity": "advisory",
+      "summary": "The token is in the environment of the outer `npx --yes` process. That process downloads and runs a package outside the sandbox. The inner command could instead receive the token, with the outer process left without it."
+    },
+    {
+      "evidence": "sandboxed_writer.py srt_tmp: `if not path.exists(): path.mkdir(mode=0o700)` followed by an lstat check of the owner and S_ISDIR only. A pre-existing directory with a wider mode is accepted, and a concurrent launch can hit FileExistsError.",
+      "id": "srt-tmp-dir-weak-validation",
+      "severity": "advisory",
+      "summary": "srt_tmp checks the owner of the shared /private/tmp/dp-srt-<uid> directory but not its mode. It also checks existence before creating, which leaves a race."
+    },
+    {
+      "evidence": "sandboxed_writer.py line 305 defines SAFE_GIT. harness_git in lifecycle_workers.py uses its own SAFE_GIT.",
+      "id": "duplicated-safe-git-constant",
+      "severity": "advisory",
+      "summary": "SAFE_GIT is redefined in the new module. lifecycle_workers.py already has the same constant, and the two copies can drift."
+    }
+  ],
+  "launched_at": "2026-10-20T03:11:19+00:00",
+  "output_sha256": "5abaccf6da67357e4bd65cbead258059d19031a5cdac7fe0eaf7670e5d03387a",
+  "perspective": "engineering-quality",
+  "request_id": "a2c811c6-54f8-4b6f-899d-72b3d1d4ec46",
+  "reviewer": {
+    "context_id": "15d7491f-796f-4a3f-a4d8-e5390c1f9384",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c35557f1-dade-4095-961e-05305de82aac",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26312
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16401
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17513
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17778
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2066
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "dc436ced9f65eda986a1c703ffc2d532a030bd9d855e168851c7e4b441dcb2f9"
+}
