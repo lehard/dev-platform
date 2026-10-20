@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "base_head": "fe66bfc3e4fad7df7c905e2dcb71f7cf60efb825",
+    "base_ref": "origin/main",
+    "candidate_head": "1f12f707dde443b2bfab2fcac82fcedfbea1880b",
+    "diff_sha256": "6039f8ee9b4566ead324c06d80e9dda743fc7b080537354d4a42aabff2fd598e"
+  },
+  "change": "openspec/changes/coordinator-rest-merge",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/coordinator-rest-merge/automated-checks.json",
+    "openspec/changes/coordinator-rest-merge/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/coordinator-rest-merge/design.md",
+        "openspec/changes/coordinator-rest-merge/proposal.md",
+        "openspec/changes/coordinator-rest-merge/specs/publication-queue/spec.md",
+        "openspec/changes/coordinator-rest-merge/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/coordinator-rest-merge/proposal.md",
+        "openspec/changes/coordinator-rest-merge/design.md",
+        "openspec/changes/coordinator-rest-merge/tasks.md",
+        "openspec/changes/coordinator-rest-merge/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T08:07:21+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/coordinator-rest-merge/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "4ecc3d69-e845-499b-92ce-f33930af3d62",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "fe66bfc3e4fad7df7c905e2dcb71f7cf60efb825",
+    "digest": "f7fd825e0f46ed2bbfde2e3d076c7993b4233217a45eb97a31c80596b5a8d645",
+    "paths": {
+      "openspec/changes/coordinator-rest-merge/.managed-task.json": "07f7684339c406e98eeb8737409ebc836d97cc1e",
+      "openspec/changes/coordinator-rest-merge/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/coordinator-rest-merge/design.md": "6a3864ce58a95802aab771d80039fd2903667b34",
+      "openspec/changes/coordinator-rest-merge/proposal.md": "f65c41c26c2f52761504540e39b6395b1cfd4a4b",
+      "openspec/changes/coordinator-rest-merge/specs/publication-queue/spec.md": "593c8a5b68323750f1f0e9959a95fcf324df3561",
+      "openspec/changes/coordinator-rest-merge/tasks.md": "40c757a6e5ca9d70fcb88a68d265cefb05720008",
+      "template/dev-platform/platform-manifest.json": "7219824d9bc568d62c81484533836ef968ecd262",
+      "template/scripts/parallel_lifecycle_acceptance.py": "c9bb5db0b6d342e1739382d020dfc6e81b4b2308",
+      "template/scripts/publication_queue.py": "859055aa093814dc20024db09d0b4a8c367ee889",
+      "tests/test_autonomous_integration_contour.py": "558b5ada21a91f92df91584013e6f9b788e32393",
+      "tests/test_publication_queue.py": "f729a4ebd4a0b74ba63a82e84ad390deca864576"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

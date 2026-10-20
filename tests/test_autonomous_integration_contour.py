@@ -82,8 +82,8 @@ class Multi:
 
     def run_worker(self, *, prepare=None, checks="passed"):
         def merge(command, **kwargs):
-            if command[:3] == ["gh", "pr", "merge"]:
-                self.merged.add(int(command[3]))
+            if command[:4] == ["gh", "api", "-X", "PUT"]:
+                self.merged.add(int(command[4].split("/")[-2]))
             return subprocess.CompletedProcess(command, 0, "", "")
 
         order = [(n, n, {"branch": f"agent/br-7-t{n}-task"}) for n in sorted(self.heads)]

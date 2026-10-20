@@ -278,7 +278,12 @@ class LocalGitHub:
 
     def merge(self, argv: list[str], entry: dict) -> tuple[int, str, str]:
         number, head = argv[2], argv[argv.index("--match-head-commit") + 1]
-        if "--squash" not in argv or self.prs[number]["merged"]:
+        if "--squash" not in argv:
+            return 1, "", "merge refused: only squash merges of open PRs are supported"
+        return self.squash_merge(number, head, entry)
+
+    def squash_merge(self, number: str, head: str, entry: dict) -> tuple[int, str, str]:
+        if self.prs[number]["merged"]:
             return 1, "", "merge refused: only squash merges of open PRs are supported"
         if self.head(number) != head:
             return 1, "", "Head branch was modified. Review the changes and try again."
@@ -369,6 +374,11 @@ class LocalGitHub:
         if match and method == "GET":
             names = git(self.remote, "diff", "--name-only", f"{match.group(1)}...{match.group(2)}").splitlines()
             return 0, json.dumps({"files": [{"filename": name} for name in names]}), ""
+        match = re.fullmatch(r"pulls/(\d+)/merge", path)
+        if match and method == "PUT" and match.group(1) in self.prs:
+            if fields.get("merge_method") != "squash":
+                return 1, "", "merge refused: only squash merges of open PRs are supported"
+            return self.squash_merge(match.group(1), fields.get("sha", ""), entry)
         match = re.fullmatch(r"pulls/(\d+)/update-branch", path)
         if match and method == "PUT" and match.group(1) in self.prs:
             number = match.group(1)
