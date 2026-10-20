@@ -8,4 +8,4 @@
 ## 2. Verification and delivery
 
 - [x] 2.1 Extend the shared authoring-contract and capability tests with the new rule in central and generated surfaces; regenerate the platform manifest with the generator
-- [ ] 2.2 Check template render and Copier update of an existing project; run the selected checks; record semantic verification, archive and publish
+- [x] 2.2 Check template render and Copier update of an existing project; run the selected checks; record semantic verification, archive and publish
