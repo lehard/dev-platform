@@ -1,42 +1,57 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "50d71c945e07f423a9aaebf30ed3df6fa8910b9a",
+    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
     "base_ref": "origin/main",
-    "candidate_head": "5157cb1ae0356e855b17cb8b23ed088a3e7af895",
-    "diff_sha256": "20d89ee44040193abea16fecc5651a29d16963fd25eaad39ebe4016676a7b7bf"
+    "candidate_head": "5b7c95b1d59db7d88a5cc0a47ff742ca984a0d02",
+    "diff_sha256": "078b89352acfe2c571853c9ad58853ef283de46a2d5755cce456f8898d3bae17"
   },
-  "completed_at": "2026-10-20T08:42:34+00:00",
+  "completed_at": "2026-10-20T19:42:19+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py: friction_reason() raises QueueError; the replay branch of _transition calls emit_friction(..., previous.get(\"red_gate\"), ...). Before this change an empty evidence string was accepted. A record written earlier without a named red gate, or one for a friction state reached with red_gate=None, now blocks the transition before the comment is posted. That could stall the PR queue instead of degrading to a withheld event. The design mandates explicit failure, but it does not address already-persisted records or confirm that every _FRICTION_STATES entry path supplies a red gate.",
-      "id": "emit-friction-hard-fails-legacy-transitions",
+      "evidence": "A grep for `route-pending|route_pending` outside openspec/ finds only the parser entry at template/scripts/agent_friction.py:2021, the function definitions, tests, and the docs sentence at docs/engineering/agent-workflow.md:311. No script, workflow or review procedure calls it. design.md decision 1 and the proposal rely on 'operator or Process Health Review'.",
+      "id": "no-automatic-route-pending-caller",
       "severity": "advisory",
-      "summary": "emit_friction now raises QueueError whenever the red gate lacks a name or a cause/evidence. This includes the idempotent replay path that passes previous.get(\"red_gate\"), so a stored blocked-*/repair-pending record with no red gate fails on every later observation."
+      "summary": "With the doctor/finish retries removed, nothing in the repository invokes `route-pending` automatically. Pending friction events (for example after a transient GitHub failure) stay unrouted until someone runs the command by hand. The design and docs say the retry is done by an operator or the Process Health Review, but no code or document wires that in."
     },
     {
-      "evidence": "template/scripts/finish_task.py record_lifecycle_friction: subprocess.run(..., check=False, capture_output=True) with no returncode inspection. record_coordinator_fields raises SystemExit on a missing or invalid reason or candidate. The reason is built from failed_groups and selected_checks and is only truncated to 240 chars. run_git(['rev-parse','HEAD']) is also called unguarded and can raise before the subprocess runs.",
-      "id": "validation-friction-record-failure-silent",
+      "evidence": "template/scripts/publication_queue.py, replay branch of `_transition`: `emit_friction(number, branch, state, head, previous.get(\"red_gate\"), attempts=previous.get(\"attempts\"))`. `friction_reason` raises QueueError when `red_gate` is not a dict with a name. The old code used `str((previous.get(\"red_gate\") or {}).get(\"evidence\", \"\"))` and tolerated a missing gate. design.md Risks lists only older downstream harnesses and withheld legacy events.",
+      "id": "replayed-transition-without-red-gate-now-fails",
       "severity": "advisory",
-      "summary": "record_lifecycle_friction ignores the result of the `record` subprocess (check=False, output captured). The new strict validation can now reject the event, for example a malformed head or a reason over the limit, and the lifecycle-validation-failure event is then dropped with no signal."
+      "summary": "The idempotent replay path in `_transition` now passes `previous.get('red_gate')` to `emit_friction`. A PR already recorded in a friction state (repair-pending, blocked-escalation and similar) with no stored red gate, for example one recorded by an older coordinator, now raises QueueError on every observation instead of being republished. A candidate in that state is stuck, and this is not called out as a migration risk."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py `friction_reason`: `parts = [str(evidence)]` when cause and limitation are absent. The result is rendered by `reason_markdown_lines` in template/scripts/agent_friction.py. design.md context: 'evidence stays local by design (it may contain raw output)'.",
+      "id": "reason-publishes-red-gate-evidence",
+      "severity": "advisory",
+      "summary": "The design says raw `evidence` is never published because it may hold raw output. When a red gate has no `cause` or `limitation`, `friction_reason` builds the published `reason` from the gate's `evidence`, serialized as JSON. Up to 240 characters of that evidence therefore reach the public process issue stream. Only the generic `sanitize_for_route` applies."
+    },
+    {
+      "evidence": "tests/test_harness_safety.py `test_doctor_and_finish_never_wait_on_friction_routing`: `source = Path(module.__file__).read_text(...)`; `self.assertNotIn(\"route-pending\", source)`.",
+      "id": "source-text-assertion-test",
+      "severity": "advisory",
+      "summary": "The doctor and finish no-retry test checks the module source text for the substring 'route-pending'. It does not check behavior. Any later comment or doc string in those files that mentions the command would fail it. The `hasattr` checks are similarly name-bound."
     }
   ],
-  "launched_at": "2026-10-20T08:42:15+00:00",
-  "output_sha256": "78e4caf116d26b17072ca8588e3514f04ef5787b183533666a17425f68414de1",
+  "launched_at": "2026-10-20T19:41:43+00:00",
+  "output_sha256": "90b7e98b09043d27c1735a93ccf9140301066d38bb04c6a39ada67e831794d7d",
   "perspective": "engineering-quality",
-  "request_id": "1423d4d8-9131-437f-8411-f751d7fb53df",
+  "request_id": "b5bfc48f-f42a-4cfb-a3f0-d32416c378fa",
   "reviewer": {
-    "context_id": "d72eacf0-43f5-4ebd-83dd-97bf904c8eeb",
+    "context_id": "dd1d2627-adc2-45db-be97-341683afc213",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-25bde344-f02d-4cd7-b066-e67022a18ca8",
+    "launch_id": "platform-launch-bc6fdf9d-b2b2-44a3-9d81-99236bfbae4d",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -45,41 +60,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40266
+        "value": 43674
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 139445
+        "value": 105016
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18634
+        "value": 33807
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18962
+        "value": 34507
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2051
+        "value": 2786
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ac302f7a6525ec52553a6c97a05717417ae67595ce685ed25d22f1c81dbdbcd1"
+  "task_content_digest": "169082f4db940627519e4cd84e3028efb422e3852cd1654aad780aab282cb1f5"
 }
