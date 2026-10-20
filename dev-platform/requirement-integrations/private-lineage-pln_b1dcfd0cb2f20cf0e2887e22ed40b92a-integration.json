@@ -290,6 +290,277 @@
         "work_identity": "BR-576/T1"
       },
       "work_identity": "BR-576/T1"
+    },
+    {
+      "change": "sandboxed-claude-dispatch",
+      "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sandboxed-claude-dispatch/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "4e946914930149ef4fcb69be545018c7bfd2e0df"
+          },
+          "identity": {
+            "change": "sandboxed-claude-dispatch",
+            "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+              "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+              "paths": {
+                "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+                "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+                "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+                "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+                "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+                "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+                "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+                "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+                "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+                "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+                "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+                "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+                "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "2518428c7bf40723fa2f05791d959a1e85faeb72",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "sandboxed-claude-dispatch",
+            "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+              "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+              "paths": {
+                "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+                "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+                "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+                "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+                "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+                "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+                "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+                "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+                "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+                "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+                "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+                "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+                "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` creates `workdir = Path(tempfile.mkdtemp(...))`. The `except SandboxedWriterError -> RoutingError` path and the `prepare_sandboxed_checkout` failure path raise without cleanup. `dispatch_claude_sandboxed` only calls `shutil.rmtree(run[\"workdir\"])` on `completed`, so a pre-launch refusal (for example non-macOS) leaves the copy in the system temp dir.",
+                  "id": "workdir-leak-on-prelaunch-failure",
+                  "severity": "advisory",
+                  "summary": "The disposable workdir created by `tempfile.mkdtemp` is never removed when the dispatch fails before launch, or when the launcher raises. It holds a full copy of the task worktree including uncommitted state."
+                },
+                {
+                  "evidence": "`_sandboxed_claude_completed` (model_routing.py) checks only `mechanism`, `launch_evidence`, `launched`, `outcome`, `returncode` and the presence of a `participant` dict. `require_routing_gate` then returns the route, skipping the clean containment postcheck that the native Claude path requires. Because the gate bypasses the postcheck, the evidence it relies on is no longer cross-checked against the delegation record or the patch hash.",
+                  "id": "gate-trusts-execution-fields-alone",
+                  "severity": "advisory",
+                  "summary": "The new gate branch accepts any Claude execution whose JSON fields match the sandboxed shape. It does not check that a closed platform-observed delegation exists, that the patch evidence is present, or that the task content matches the applied patch."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "b107cf21d11c533410092b4a8cbd21c263812e3be302bfbf954cb905402f3d9e"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "66b2b48b0b1e0cf4f5a3177017ee66e18848bc445833cb22506f785fd7c90ea7"
+            }
+          },
+          "identity": {
+            "change": "sandboxed-claude-dispatch",
+            "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+              "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+              "paths": {
+                "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+                "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+                "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+                "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+                "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+                "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+                "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+                "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+                "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+                "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+                "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+                "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+                "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 7541,
+            "path": "openspec/changes/sandboxed-claude-dispatch/automated-checks.json",
+            "sha256": "d215fb8ad4171cfbd7e5337394a9f15a6a9756d7a6f4fc736a23fdf679dd0ffd"
+          },
+          "identity": {
+            "change": "sandboxed-claude-dispatch",
+            "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+              "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+              "paths": {
+                "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+                "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+                "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+                "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+                "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+                "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+                "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+                "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+                "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+                "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+                "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+                "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+                "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 4641,
+            "path": "openspec/changes/sandboxed-claude-dispatch/verification.md",
+            "sha256": "00a74e4216e08f6ef6830a7b6f361d554ea27b3c23d1e75bc9ae7f7ac75daf8c"
+          },
+          "identity": {
+            "change": "sandboxed-claude-dispatch",
+            "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+              "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+              "paths": {
+                "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+                "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+                "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+                "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+                "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+                "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+                "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+                "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+                "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+                "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+                "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+                "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+                "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "2518428c7bf40723fa2f05791d959a1e85faeb72",
+      "integrated_head": "70dd850ca2b7f43531aa1c0b8905e239870bfa5c",
+      "pr_number": 639,
+      "reviewed_evidence_digest": "3c4c25721ce99169e67eced979da2bf8744f050390632b2a740decea307e0fa2",
+      "source_branch": "agent/br-576-t2-sandboxed-claude-dispatch",
+      "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+      "task_identity": {
+        "change": "sandboxed-claude-dispatch",
+        "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+        "kind": "contribution",
+        "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+        "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+        "target_branch": "requirement/BR-576",
+        "task_content": {
+          "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+          "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+          "paths": {
+            "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+            "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+            "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+            "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+            "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+            "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+            "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+            "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+            "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+            "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+            "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+            "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+            "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+            "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-576/T2"
+      },
+      "work_identity": "BR-576/T2"
     }
   ],
   "dependencies": {
@@ -301,7 +572,7 @@
       "sandboxed-claude-dispatch"
     ]
   },
-  "digest": "a291afec502dca4dded71ed02d9427613a9207ec1ddffd01efbe35d0b68f9797",
+  "digest": "f16e73f990171c3c40fb99cfc255a1bd908228a0cbb110d8c42ebb9f47c7ba2d",
   "expected_changes": [
     "sandboxed-writer-launch",
     "sandboxed-claude-dispatch",
