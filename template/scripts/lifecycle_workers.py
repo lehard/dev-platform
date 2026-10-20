@@ -572,6 +572,19 @@ def push_command(branch: str, expected_head: str, result_head: str) -> list[str]
             f"--force-with-lease=refs/heads/{branch}:{expected_head}"]
 
 
+def active_gh_token(checkout: Path, env: dict[str, str]) -> str:
+    """The candidate-branch push credential: gh's active token (an exported GH_TOKEN, else the gh login).
+
+    gh output is never echoed, so a failure cannot leak a credential.
+    """
+    done = subprocess.run(["gh", "auth", "token"], cwd=checkout, env={**env, "GH_PROMPT_DISABLED": "1"},
+                          stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+    token = done.stdout.strip() if done.returncode == 0 else ""
+    if not token:
+        raise WorkerError("harness GitHub push requires an authenticated gh credential (gh auth token failed)")
+    return token
+
+
 def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[str, str]:
     """One push process only; no token in argv, config files or writer checkouts."""
     from urllib.parse import urlsplit
@@ -585,9 +598,7 @@ def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[
         return result  # local harness repositories do not require hosted credentials
     if parsed.scheme != "https" or parsed.hostname != "github.com" or parsed.username or parsed.password:
         raise WorkerError("harness push requires an uncredentialed GitHub HTTPS origin")
-    token = result.get("GH_TOKEN")
-    if not isinstance(token, str) or not token.strip():
-        raise WorkerError("harness GitHub push requires coordinator GH_TOKEN")
+    token = active_gh_token(checkout, result)
     result = {k: v for k, v in result.items() if not k.startswith("GIT_CONFIG_")}
     encoded = base64.b64encode(("x-access-token:" + token).encode()).decode()
     result.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
