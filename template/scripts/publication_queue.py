@@ -1450,11 +1450,17 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
         if old and old[-1].get("head") == local_head:
             return status(root, data["number"])
         return None
-    if admission.get("head") != run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip():
+    local_head = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
+    if admission.get("head") != local_head:
         # After local fast-forward recovery the current head is a coordinator
         # descendant, so a matching update marker is also accepted.
         updates = [e for e in events if e.get("kind") == "update" and e.get("comment_id", 0) > admission["comment_id"]]
-        if not updates or updates[-1].get("head") != run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip():
+        if not updates or updates[-1].get("head") != local_head:
+            observed = status(root, data["number"])
+            # A developer head already pushed (for example by reconcile) awaits this
+            # finish's re-admission; admission's supersession proves it descends from the proven head.
+            if observed.get("owner") == "developer re-admission" and observed.get("head") == local_head:
+                return {**observed, "state": "readmission"}
             raise QueueError("local task head is not the admitted or proven coordinator head")
     return status(root, data["number"])
 

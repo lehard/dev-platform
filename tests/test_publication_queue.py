@@ -223,6 +223,46 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual((observed["state"], observed["reason"]), ("blocked", "admitted PR lacks queue label"))
 
 
+class LocalStatusTests(unittest.TestCase):
+    """finish observes its own PR through local_status before (re-)admission."""
+
+    def observe(self, local_head: str, observed: dict, events: list[dict] | None = None) -> dict | None:
+        import subprocess
+        import _platform_common
+
+        view = subprocess.CompletedProcess([], 0, json.dumps({"number": 1, "baseRefName": "main", "headRefName": "agent/1"}), "")
+        git = subprocess.CompletedProcess([], 0, local_head + "\n", "")
+        with patch.object(_platform_common, "run_github_with_retry", return_value=view), \
+             patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_events", return_value=events if events is not None else [admission(1, 20)]), \
+             patch.object(queue, "run_git", return_value=git), \
+             patch.object(queue, "status", return_value=observed):
+            return queue.local_status(ROOT_PATH, "agent/1")
+
+    def awaiting(self, head: str) -> dict:
+        return {"state": "waiting", "number": 1, "position": 1, "owner": "developer re-admission",
+                "reason": "new head awaits developer re-admission", "proven_head": HEAD, "head": head}
+
+    def test_reconcile_pushed_descendant_awaiting_readmission_is_observed_for_admission(self) -> None:
+        # Regression: reconcile fast-forward pushed the developer descendant before
+        # finish, so no update marker exists and finish could never re-admit it.
+        observed = self.observe(NEW_HEAD, self.awaiting(NEW_HEAD))
+        self.assertEqual((observed["state"], observed["head"]), ("readmission", NEW_HEAD))
+
+    def test_unproven_local_head_still_raises(self) -> None:
+        other = "d" * 40
+        with self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+            self.observe(other, self.awaiting(NEW_HEAD))
+        with self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+            self.observe(NEW_HEAD, {"state": "waiting", "number": 1, "position": 1, "owner": None})
+
+    def test_proven_heads_keep_plain_status(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        self.assertEqual(self.observe(HEAD, plain), plain)
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        self.assertEqual(self.observe(NEW_HEAD, plain, [admission(1, 20), update]), plain)
+
+
 class WorkerTests(unittest.TestCase):
     def setUp(self) -> None:
         # v2 handoff publication is covered by TransitionRecordTests; keep the
