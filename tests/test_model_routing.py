@@ -2352,14 +2352,17 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertIsNone(plan["delegation"])
         self.assertEqual(route.profile, "standard")
         self.assertEqual(route.escalations, ())
-        self.assertIsNone(route.execution)
-        self.gate()
-        with patch.object(routing, "main_root", return_value=self.integration):
-            execution = routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+        execution = route.execution
+        self.assertEqual(execution["outcome"], "retained")
+        self.assertEqual(execution["retained"]["reason"], "owner decision in chat")
         self.assertEqual(execution["retained"]["policy"], routing.OWNER_APPROVED_POLICY)
         self.assertEqual(execution["retained"]["owner_approval"], plan["owner_approval"])
         self.assertIs(execution["launched"], False)
+        self.assertEqual(json.loads(self.durable_record_path().read_text(encoding="utf-8"))["execution"], execution)
         self.gate()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "retained outcome is already recorded"):
+                routing.record_retained_execution(self.task, reason="duplicate")
         final = self.archive_gate()
         self.assertEqual(final.execution["retained"]["owner_approval"], plan["owner_approval"])
         self.assertEqual(routing._actual_route_of(routing.asdict(final))["owner_approved"], True)
@@ -2368,8 +2371,6 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.prepare()
         self.write_content()
         self.approve()
-        with patch.object(routing, "main_root", return_value=self.integration):
-            routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
         durable = json.loads(self.durable_record_path().read_text(encoding="utf-8"))
         for label, mutate in {
             "missing": lambda retained: retained.pop("owner_approval"),
@@ -2406,7 +2407,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
             self.assertEqual(approved.execution_plan["policy"], routing.OWNER_APPROVED_POLICY)
             self.assertIs(approved.execution["launched"], False)
             self.gate()
-            execution = routing.record_retained_execution(self.task, reason="owner approved after an unlaunched attempt")
+        execution = approved.execution
         self.assertEqual(execution["retained"]["owner_approval"], approved.execution_plan["owner_approval"])
         self.assertIs(execution["prior_execution"]["launched"], False)
         self.archive_gate()
@@ -2491,6 +2492,54 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertIs(routing._actual_route_of(routing.asdict(approved))["owner_approved"], True)
         self.assertIs(routing._actual_route_of({"profile": "standard"})["owner_approved"], False)
 
+    def archive_change(self) -> None:
+        (self.task / ".managed-task-state.json").write_text(
+            json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8"
+        )
+        archived = self.task / "openspec" / "changes" / "archive" / "2026-10-20-routing-change"
+        archived.parent.mkdir(parents=True)
+        shutil.move(str(self.task / "openspec" / "changes" / "routing-change"), str(archived))
+
+    def strip_execution(self) -> None:
+        """Reproduce a record approved before approval recorded the outcome (dev-platform#618)."""
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        payload["execution"] = None
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        self.durable_record_path().unlink()
+
+    def test_owner_approved_outcome_is_recorded_after_archive(self) -> None:
+        self.prepare()
+        self.write_content()
+        plan = self.approve().execution_plan
+        self.strip_execution()
+        self.archive_change()
+        with self.assertRaisesRegex(routing.RoutingError, "no completed execution outcome"):
+            self.archive_gate()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            execution = routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+        self.assertEqual(execution["retained"]["policy"], routing.OWNER_APPROVED_POLICY)
+        self.assertEqual(execution["retained"]["owner_approval"], plan["owner_approval"])
+        final = self.archive_gate()
+        self.assertEqual(final.execution["retained"]["owner_approval"], plan["owner_approval"])
+        with patch.object(routing, "main_root", return_value=self.integration):
+            with self.assertRaisesRegex(routing.RoutingError, "is archived"):
+                routing.record_retained_execution(self.task, reason="duplicate")
+
+    def test_other_archived_routes_cannot_record_a_late_retained_outcome(self) -> None:
+        for label, profile in {"delegated-child": "standard", "complex-parent": "complex"}.items():
+            with self.subTest(label):
+                self.tearDown()
+                self.setUp()
+                self.prepare(profile=profile)
+                self.write_content()
+                self.archive_change()
+                before = self.record_path().read_text(encoding="utf-8")
+                with patch.object(routing, "main_root", return_value=self.integration):
+                    with self.assertRaisesRegex(routing.RoutingError, "is archived: only an owner-approved"):
+                        routing.record_retained_execution(self.task, reason="late retention")
+                self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
+                self.assertFalse(self.durable_record_path().exists())
+
     def advance_integration_main(self, *, publish: bool = True) -> str:
         """Fast-forward integration main as an unrelated merge would; ``publish`` mirrors it to local origin/main."""
         (self.integration / "concurrent.txt").write_text("unrelated merge\n", encoding="utf-8")
@@ -2514,8 +2563,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
             recorded.reset_mock()
             approved = self.approve()
             self.assertEqual(approved.execution_plan["owner_approval"]["integration_advance"], advance)
-            with patch.object(routing, "main_root", return_value=self.integration):
-                execution = routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+            execution = approved.execution
             recorded.assert_not_called()
         self.assertEqual(execution["postcheck"]["integration_advance"], advance)
         self.assertEqual(execution["retained"]["owner_approval"], approved.execution_plan["owner_approval"])
@@ -2527,8 +2575,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.write_content()
         approved = self.approve()
         self.assertNotIn("integration_advance", approved.execution_plan["owner_approval"])
-        with patch.object(routing, "main_root", return_value=self.integration):
-            execution = routing.record_retained_execution(self.task, reason="owner approved the supervisor-written diff")
+        execution = approved.execution
         self.assertEqual(execution["postcheck"], {"containment": "clean", "pre_existing_changes": []})
 
     def test_owner_approval_refuses_an_unverified_integration_move(self) -> None:
