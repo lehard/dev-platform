@@ -2,7 +2,9 @@
 
 ## Purpose
 Define safe, repeatable maintenance practices for agent-operated platform repositories and workflows.
+
 ## Requirements
+
 ### Requirement: Cloud agentic maintenance is additive and bounded
 
 The platform SHALL support an optional GitHub Agentic Workflows maintenance layer that runs in GitHub Actions independently from deterministic local development, CI, publication and release correctness. The initial engine SHALL be Codex authenticated through the repository Actions secret `OPENAI_API_KEY`.
@@ -30,17 +32,6 @@ The repository SHALL keep human-readable agentic workflow source under version c
 - **THEN** validation recompiles/checks the workflow with the recorded `gh-aw` version
 - **AND** source/lock drift is detected before merge
 
-### Requirement: Cloud agents are read-only with constrained safe outputs
-
-The v1 process-maintenance agent job SHALL NOT receive unrestricted repository write access. GitHub mutations SHALL occur only through explicitly declared and bounded `safe-outputs`.
-
-#### Scenario: Process issue triage executes
-
-- **WHEN** a controlled process/platform-candidate issue triggers triage
-- **THEN** the agent may inspect repository and issue context
-- **AND** may request only allow-listed label/comment safe outputs
-- **AND** cannot edit code, create an implementation pull request, approve, merge, or directly mutate repository contents
-
 ### Requirement: Public pilot reads remain public-only
 
 The public `dev-platform` pilot SHALL constrain GitHub MCP reads to public repositories and retain the gateway secrecy/integrity policy. If a gateway runtime needs a maintenance override to correctly classify public repository data, that exact runtime SHALL be reviewable in the source and compiled lock; the workflow SHALL NOT use a private-to-public data-flow opt-out.
@@ -51,17 +42,6 @@ The public `dev-platform` pilot SHALL constrain GitHub MCP reads to public repos
 - **THEN** the GitHub MCP policy permits only public repository data
 - **AND** the gateway classifies that public response as eligible for the public safe output
 - **AND** no private repository data is made available to the agent or output sink
-
-### Requirement: Process issue triage reuses a maintained upstream pattern
-
-The initial process-issue triage workflow SHALL be imported or adapted from a maintained GitHub Agentic Workflows / `githubnext/agentics` issue-triage pattern rather than implementing a custom unrestricted agent framework.
-
-#### Scenario: A process issue arrives
-
-- **WHEN** a new or materially edited issue matches the platform's process-routing criteria
-- **THEN** the workflow classifies the issue using the platform's allow-listed labels
-- **AND** may identify a strong likely duplicate
-- **AND** may add at most a bounded concise triage comment
 
 ### Requirement: Periodic backlog review requires no remembered human ritual
 
@@ -206,3 +186,28 @@ The platform SHALL provide an operator-invoked preflight for enabled cloud maint
 - **WHEN** the workflow is intentionally disabled
 - **THEN** the preflight identifies the disabled state and does not treat it as a missing-secret failure for deterministic platform work
 
+### Requirement: Cloud maintenance agents are read-only with constrained safe outputs
+
+The v1 process-maintenance agent job SHALL NOT receive unrestricted repository write access. GitHub mutations SHALL occur only through explicitly declared and bounded `safe-outputs`.
+
+#### Scenario: Cloud maintenance workflow executes
+
+- **WHEN** an installed cloud maintenance workflow runs
+- **THEN** the agent may inspect repository and issue context
+- **AND** may request only its declared, bounded safe outputs
+- **AND** cannot edit code, create an implementation pull request, approve, merge, or directly mutate repository contents
+
+### Requirement: Event-driven process triage is not installed
+
+By owner decision of 2026-10-19, the platform SHALL NOT install an agentic workflow that triages process issues on issue events. Process and friction issues SHALL be reviewed by the periodic Process Health Review. Platform documentation describing agentic workflows SHALL state that event-driven triage is disabled by owner decision and name the Process Health Review as the review path.
+
+#### Scenario: Process label is added
+
+- **WHEN** a maintainer adds the `process` label to an issue, or any other issue event occurs
+- **THEN** no agentic triage workflow run starts
+- **AND** no triage issue or comment, including a budget-exhaustion or failure report, is created
+
+#### Scenario: Agentic workflow sources are validated
+
+- **WHEN** the agentic workflow validation and tests run
+- **THEN** they fail if a `process-issue-triage` source or lock exists or an agentic workflow source triggers on `issues` events
