@@ -1,6 +1,297 @@
 {
   "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-  "children": [],
+  "children": [
+    {
+      "change": "sandboxed-writer-launch",
+      "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sandboxed-writer-launch/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "614185cc4b6cc4cab289ffff4cc72c8830be3e4f"
+          },
+          "identity": {
+            "change": "sandboxed-writer-launch",
+            "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+              "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+              "paths": {
+                "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+                "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+                "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+                "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+                "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+                "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+                "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+                "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+                "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+                "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+                "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+                "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+                "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "8b8429612a189a73728dd746baa40a88fcc6e92b",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "sandboxed-writer-launch",
+            "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+              "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+              "paths": {
+                "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+                "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+                "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+                "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+                "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+                "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+                "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+                "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+                "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+                "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+                "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+                "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+                "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/sandboxed_writer.py:319-322 (`srt_launcher` only builds the npx argv); launch_sandboxed_writer passes `extra_env={TOKEN_ENV: token}` at :503-505, so the token goes to the outer process. design.md says: \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\".",
+                  "id": "npx-runs-with-token-before-sandbox",
+                  "severity": "advisory",
+                  "summary": "The outer `npx --yes @anthropic-ai/sandbox-runtime@<ver>` process, and anything npx fetches or runs, starts with `CLAUDE_CODE_OAUTH_TOKEN` in its environment before the sandbox is applied. The version is pinned, but there is no integrity check. Design.md also promises a resolvable `srt` binary whose"
+                },
+                {
+                  "evidence": "template/scripts/sandboxed_writer.py:459-467",
+                  "id": "srt-tmp-mode-not-verified",
+                  "severity": "advisory",
+                  "summary": "`srt_tmp` sets mode 0700 only when it creates the directory. When `/private/tmp/dp-srt-<uid>` already exists, it checks that it is a directory and that the current user owns it, but not that its mode is 0700. A pre-existing looser mode is accepted. A race between `exists()` and `mkdir` is also unhan"
+                },
+                {
+                  "evidence": "template/scripts/sandboxed_writer.py:348-357 and build_profile `deny_read` at :403-404",
+                  "id": "protected-set-snapshot-at-launch",
+                  "severity": "advisory",
+                  "summary": "The protected paths come from `git worktree list` once, at launch. Worktrees that sibling tasks create during a long writer run are not in `denyRead`. Writes stay safe because `allowWrite` is a whitelist, but the writer can read those worktrees. The model-routing doc describes \"every registered work"
+                },
+                {
+                  "evidence": "template/scripts/sandboxed_writer.py:433 vs :479-483; :439-446",
+                  "id": "token-path-expanduser-vs-operator-home",
+                  "severity": "advisory",
+                  "summary": "The token path is expanded with `os.path.expanduser`, which uses the inherited `HOME`. The profile's home-relative entries use the account-database home instead (`operator_home()`). If `HOME` is overridden, a `~/` token_file may resolve differently from the deny entries, though the token file itself"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "c690ab6d3fc9a29097ecf948690c76983e1b7e335c0655b7a0ce5b61d8d86dd3"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "design.md says the launcher uses `npx --yes ...@<pinned>` \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\". The spec says the launch is refused \"when the pinned sandbox runtime ... is unavailable\". `template/scripts/sandboxed_writer.py` `srt_launcher()` (diff lines 319-322) checks only `shutil.which(\"npx\")` and returns the npx command. It never resolves an `srt` binary or checks its version. A failure to fetch or run the runtime would surface only as a ",
+                  "id": "pinned-runtime-availability-not-checked",
+                  "severity": "advisory",
+                  "summary": "The design and spec require an explicit refusal when the pinned sandbox runtime is unavailable or mismatched. The launcher only checks that `npx` is on PATH and does not verify the runtime itself."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "27b73b1d4d7877544e6ad03b4913e418fe56484a7b53df379d1b300d105dd749"
+            }
+          },
+          "identity": {
+            "change": "sandboxed-writer-launch",
+            "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+              "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+              "paths": {
+                "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+                "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+                "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+                "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+                "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+                "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+                "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+                "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+                "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+                "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+                "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+                "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+                "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6178,
+            "path": "openspec/changes/sandboxed-writer-launch/automated-checks.json",
+            "sha256": "c2dbd7ed8aa05b12a4e8333d0b4a1a44eb0c56b6e675058cb89964171316ae20"
+          },
+          "identity": {
+            "change": "sandboxed-writer-launch",
+            "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+              "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+              "paths": {
+                "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+                "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+                "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+                "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+                "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+                "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+                "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+                "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+                "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+                "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+                "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+                "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+                "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 5649,
+            "path": "openspec/changes/sandboxed-writer-launch/verification.md",
+            "sha256": "5f51ca32a16fadf584544c5a2d0c9c3faadf76021e0482c164287d9f49ef2ad5"
+          },
+          "identity": {
+            "change": "sandboxed-writer-launch",
+            "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+            "kind": "contribution",
+            "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+            "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+            "target_branch": "requirement/BR-576",
+            "task_content": {
+              "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+              "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+              "paths": {
+                "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+                "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+                "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+                "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+                "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+                "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+                "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+                "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+                "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+                "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+                "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+                "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+                "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+                "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-576/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "8b8429612a189a73728dd746baa40a88fcc6e92b",
+      "integrated_head": "bfbdd3fe9ef70bc0ba0df9d566c179cd62db4c4f",
+      "pr_number": 637,
+      "reviewed_evidence_digest": "d6997fa58054f9e5c4d75d06c1b169e20e4a38d1b51c444788aeb83e23bd8f7e",
+      "source_branch": "agent/br-576-t1-sandboxed-writer-launch",
+      "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+      "task_identity": {
+        "change": "sandboxed-writer-launch",
+        "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+        "kind": "contribution",
+        "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+        "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+        "target_branch": "requirement/BR-576",
+        "task_content": {
+          "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+          "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+          "paths": {
+            "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+            "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+            "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+            "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+            "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+            "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+            "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+            "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+            "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+            "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+            "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+            "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+            "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+            "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-576/T1"
+      },
+      "work_identity": "BR-576/T1"
+    }
+  ],
   "dependencies": {
     "sandboxed-claude-dispatch": [
       "sandboxed-writer-launch"
@@ -10,7 +301,7 @@
       "sandboxed-claude-dispatch"
     ]
   },
-  "digest": "261946e715ef75d5bf684edc3cd85c0a95db3f3f46242a684e114e1d472b641a",
+  "digest": "a291afec502dca4dded71ed02d9427613a9207ec1ddffd01efbe35d0b68f9797",
   "expected_changes": [
     "sandboxed-writer-launch",
     "sandboxed-claude-dispatch",
