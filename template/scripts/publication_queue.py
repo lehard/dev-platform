@@ -2154,29 +2154,46 @@ def restore_gates(root: Path, repo: str, number: int, *, expected_head: str | No
 
     Publishes one record on the current head that keeps its state and adds only the
     proven gates; it runs no review, registers no claim and rewrites no history.
-    Any break in the proof refuses before a write.
+    Any break in the proof refuses before a write. A finalize job of that head that
+    already holds a result (it stopped on the lost gates) is never offered again, so
+    the record re-offers finalize under a fresh job id.
     """
+    from datetime import datetime, timezone
+
     from candidate_lifecycle import restorable_gates
-    from lifecycle_workers import RESULT_PREFIX
+    from lifecycle_workers import RESULT_PREFIX, build_job, job_completed, job_record
 
     pr = _pr(root, repo, number)
     head = pr.get("head", {}).get("sha")
     if expected_head is not None and expected_head != head:
         raise QueueError(f"PR #{number} head is {head}, not the expected {expected_head}; nothing was restored")
     comments = _comments(root, repo, number)
+    apps = trusted_apps(root)
+    writers = trusted_writers(root, comments, (RESULT_PREFIX,), repo=repo)
     try:
-        candidate, gates = restorable_gates(pr, comments, trusted_apps=trusted_apps(root),
-                                            trusted_writers=trusted_writers(root, comments, (RESULT_PREFIX,), repo=repo))
+        candidate, gates = restorable_gates(pr, comments, trusted_apps=apps, trusted_writers=writers)
     except MalformedMarkerError as exc:
         raise QueueError(f"PR #{number} has a malformed lifecycle record: {exc}") from exc
     except ValueError as exc:
         raise QueueError(f"PR #{number} gates cannot be restored: {exc}") from exc
+    reoffer: dict[str, Any] = {}
+    job = build_job(candidate)
+    if (candidate["state"] == "finalize-pending" and job is not None
+            and job_completed(job, comments, trusted_apps=apps, trusted_writers=writers)):
+        attempts = candidate.get("attempts") or {}
+        seq = attempts.get("reoffers", 0) + 1
+        event = {"seq": seq, "action": "restore-gates", "head": candidate["head"],
+                 "reason": "the finalize job of this head completed before its gates were restored",
+                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        reoffer = {"set_attempts": {"reoffers": seq},
+                   "next_job": job_record("finalize", candidate["head"], candidate["task_identity"],
+                                          attempts.get("finalize", 0), reoffer=event)}
     record = _transition(root, repo, number, candidate["state"], candidate["head"],
-                         task_identity=candidate["task_identity"], inherit_identity=False, gates=gates)
+                         task_identity=candidate["task_identity"], inherit_identity=False, gates=gates, **reoffer)
     if record is None:
         raise QueueError(f"PR #{number} head moved while restoring gates; nothing was restored")
     return {"state": record["state"], "head": record["head"], "restored": sorted(gates),
-            "gates": sorted(record["gates"])}
+            "gates": sorted(record["gates"]), **({"job": record["next_job"]} if reoffer else {})}
 
 
 def _actor(root: Path) -> str:

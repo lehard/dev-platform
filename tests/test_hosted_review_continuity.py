@@ -248,6 +248,58 @@ class RestoreGatesTests(HostedCase):
             with self.assertRaisesRegex(queue.QueueError, "not the expected"):
                 queue.restore_gates(ROOT, "o/r", 7, expected_head=FOREIGN)
 
+    def stopped_finalize(self, fixture):
+        """The finalize job of the damaged head ran and stopped on the lost gates (PRs 619 and 629)."""
+        job = workers.build_job(fixture.candidate())
+        self.assertEqual(job["kind"], "finalize")
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.RESULT_PREFIX + json.dumps({
+                                     "job": workers.job_id(job), "head": PUSHED, "worker": "w",
+                                     "outcome": "blocked: fresh semantic verification required"})})
+        self.assertFalse(workers.is_claimable(job, fixture.comments))
+        return job
+
+    def test_reoffers_finalize_under_a_fresh_job_when_the_old_one_already_completed(self):
+        with Fixture(ROOT, HEAD) as fixture:
+            self.damaged(fixture)
+            stopped = self.stopped_finalize(fixture)
+            result = queue.restore_gates(ROOT, "o/r", 7, expected_head=PUSHED)
+            job = workers.build_job(fixture.candidate())
+            self.assertEqual((job["kind"], job["head"], job["attempt"]), ("finalize", PUSHED, stopped["attempt"]))
+            self.assertEqual(result["job"]["reoffer"]["action"], "restore-gates")
+            self.assertNotEqual(workers.job_id(job), workers.job_id(stopped))
+            self.assertTrue(workers.is_claimable(job, fixture.comments))
+
+    def test_restore_without_a_completed_finalize_keeps_the_offered_job(self):
+        with Fixture(ROOT, HEAD) as fixture:
+            self.damaged(fixture)
+            before = workers.job_id(workers.build_job(fixture.candidate()))
+            result = queue.restore_gates(ROOT, "o/r", 7, expected_head=PUSHED)
+            self.assertNotIn("job", result)
+            self.assertEqual(workers.job_id(workers.build_job(fixture.candidate())), before)
+
+    def test_resume_reoffers_a_completed_finalize_job_of_a_restored_candidate(self):
+        with Fixture(ROOT, HEAD) as fixture:
+            self.damaged(fixture)
+            # Gates restored before the fix: the record kept the job that had already completed.
+            queue._transition(ROOT, "o/r", 7, "finalize-pending", PUSHED, task_identity=IDENTITY, inherit_identity=False,
+                              gates={**{n: {"result": "passed", "identity": IDENTITY, "evidence": {"head": HEAD}} for n in ADMISSION},
+                                     "review": {"result": "passed", "identity": IDENTITY, "evidence": ADVISORY}})
+            stopped = self.stopped_finalize(fixture)
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="owner decision",
+                                  actor="owner", via="chat-coordinator", expected_head=PUSHED)
+            self.assertEqual((result["state"], result["job"]["kind"]), ("finalize-pending", "finalize"))
+            job = workers.build_job(fixture.candidate())
+            self.assertNotEqual(workers.job_id(job), workers.job_id(stopped))
+            self.assertTrue(workers.is_claimable(job, fixture.comments))
+
+    def test_resume_still_refuses_a_finalize_job_that_has_not_run(self):
+        with Fixture(ROOT, HEAD) as fixture:
+            self.damaged(fixture)
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="owner decision",
+                             actor="owner", expected_head=PUSHED)
+
 
 if __name__ == "__main__":
     unittest.main()
