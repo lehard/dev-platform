@@ -1,30 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_head": "50d71c945e07f423a9aaebf30ed3df6fa8910b9a",
     "base_ref": "origin/main",
-    "candidate_head": "e6a840d6dd95f2c0444e5fa76cfbf421699eb144",
-    "diff_sha256": "f8bf6b8cab0199a38b9f7515d58797d1a316475a740796bcea30c70cff365a87"
+    "candidate_head": "5157cb1ae0356e855b17cb8b23ed088a3e7af895",
+    "diff_sha256": "20d89ee44040193abea16fecc5651a29d16963fd25eaad39ebe4016676a7b7bf"
   },
-  "completed_at": "2026-10-19T21:27:00+00:00",
+  "completed_at": "2026-10-20T08:42:15+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/finish_task.py validation_failure_reason (candidate.diff ~L529-540) appends `checks <selected_checks>` and `failed groups <failed_groups>`. The selector-exit case yields only `selector-exit; exit N`, as the new test asserts at tests/test_coordinator_event_routing.py ~L907. specs/platform-lifecycle/spec.md L31-34 requires the failing check.",
-      "id": "validation-reason-lists-selected-not-failing-checks",
+      "evidence": "template/scripts/finish_task.py: `validation_failure_evidence` falls back to `{\"failure_class\": \"selector-exit\", \"exit_code\": ...}`. `validation_failure_reason` appends phase, failed_groups or selected_checks only if they are present. In the fallback case the published reason has no check name. I read lines 1-817 of the 1097-line diff and did not read the rest, so I did not check the remaining tests.",
+      "id": "validation-reason-selector-exit-lacks-check",
       "severity": "advisory",
-      "summary": "The validation-failure reason names every selected check, not the failing one. When the descriptor has no failed_groups or selected_checks it names only the failure class and exit code. The spec scenario says the reason names the failure class and failing check."
+      "summary": "The spec scenario says the validation-failure reason names the failure class and the failing check from the selector descriptor. For the `selector-exit` fallback descriptor, the reason is only `selector-exit; exit N`, so it names no failing check."
     }
   ],
-  "launched_at": "2026-10-19T21:26:37+00:00",
-  "output_sha256": "00771065bde0291a791809055e7e3179cbe07afaac3cb7ae4fe4ff3b5ebd0476",
+  "launched_at": "2026-10-20T08:42:02+00:00",
+  "output_sha256": "9b900e3917655f7020a5a32896f5c254df290661b3748f8f95e87412303735c1",
   "perspective": "spec-fidelity",
-  "request_id": "6fa9f977-83e1-41dd-a8ac-4ece5fb92758",
+  "request_id": "1423d4d8-9131-437f-8411-f751d7fb53df",
   "reviewer": {
-    "context_id": "85be1b6e-4e90-4b5f-a600-897a9072ef94",
+    "context_id": "977e6756-62c1-44c8-ab87-f9eacb74fe89",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8c283361-74d7-426c-93ca-32d767742478",
+    "launch_id": "platform-launch-6afa7908-8452-4358-9eb7-9f105a976694",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45205
+        "value": 32665
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 97617
+        "value": 15102
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22280
+        "value": 12452
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22422
+        "value": 12585
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2072
+        "value": 1260
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "21e3f7bba5551b11ed0aa30b43c98f87e4ae5dc8cfd3b27324ab1f9806594c0b"
+  "task_content_digest": "ac302f7a6525ec52553a6c97a05717417ae67595ce685ed25d22f1c81dbdbcd1"
 }
