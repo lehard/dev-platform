@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "0df2c614e3ffe6cb7e4db57fba9817ddc9b6e2e4",
-    "diff_sha256": "617707b424ab3f09ace12df10be4433b5bb7736593c806d913f5ea1cb8d72eae"
+    "candidate_head": "614185cc4b6cc4cab289ffff4cc72c8830be3e4f",
+    "diff_sha256": "db11b92f73ce6134a1b1bb4bf1f40e2435d11f9b52f0ea5b5276fa4c706d74fb"
   },
   "change": "openspec/changes/sandboxed-writer-launch",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-20T03:27:00+00:00",
+  "prepared_at": "2026-10-20T04:03:37+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/sandboxed-writer-launch/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "d5f49a38-33f6-42ed-88dd-fb5fcb92d7f3",
+  "request_id": "db2a569f-ab4d-41b4-b769-20b56880cec6",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "digest": "dc436ced9f65eda986a1c703ffc2d532a030bd9d855e168851c7e4b441dcb2f9",
+    "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
     "paths": {
       "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
       "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
@@ -69,11 +69,11 @@
       "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
       "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
       "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
-      "template/dev-platform/platform-manifest.json": "3ffbad323da8373c2fdc9bb9a64f1b168101df49",
+      "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
       "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
       "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
-      "template/scripts/sandboxed_writer.py": "aee920249093a9d103b51db5c013da4d769fc1bd",
-      "tests/test_sandboxed_writer.py": "12404ae74439ca862ec9a3b66ca35ef8573bbd77",
+      "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+      "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
       "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
     },
     "scope": "independent-review-v1",

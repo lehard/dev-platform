@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "0df2c614e3ffe6cb7e4db57fba9817ddc9b6e2e4",
-    "diff_sha256": "617707b424ab3f09ace12df10be4433b5bb7736593c806d913f5ea1cb8d72eae"
+    "candidate_head": "614185cc4b6cc4cab289ffff4cc72c8830be3e4f",
+    "diff_sha256": "db11b92f73ce6134a1b1bb4bf1f40e2435d11f9b52f0ea5b5276fa4c706d74fb"
   },
-  "completed_at": "2026-10-20T03:27:14+00:00",
+  "completed_at": "2026-10-20T04:03:52+00:00",
   "findings": [
     {
-      "evidence": "Spec requirement 'The Claude writer credential is scoped to the writer process' ends with 'The token file location SHALL be read-denied inside the sandbox.' In template/scripts/sandboxed_writer.py, build_profile takes no token-file argument, and deny_read is only DENY_READ_HOME + protected + platform. launch_sandboxed_writer never passes the token path. The token_file can be any path, such as /tmp/x or ~/secrets/tok. It is covered only if it happens to sit under ~/.config/dev-platform, ~/.claude or ~/Library/Application Support. The tests do not assert it either.",
-      "id": "token-file-not-read-denied",
-      "severity": "material",
-      "summary": "The spec requires the token file location to be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead."
-    },
-    {
-      "evidence": "proposal.md: 'denyWrite the integration checkout, its shared gitdir and every registered worktree, the push remote path when local, ...'. launch_sandboxed_writer calls build_profile(checkout, home, tmp, protected=protected_paths(integration_root), platform_root) with no extra_deny_write. protected_paths does not inspect remotes. A local bare push remote therefore stays writable only if it lies outside allowWrite, and nothing denies it explicitly.",
-      "id": "local-push-remote-not-write-denied",
+      "evidence": "design.md says the launcher uses `npx --yes ...@<pinned>` \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\". The spec says the launch is refused \"when the pinned sandbox runtime ... is unavailable\". `template/scripts/sandboxed_writer.py` `srt_launcher()` (diff lines 319-322) checks only `shutil.which(\"npx\")` and returns the npx command. It never resolves an `srt` binary or checks its version. A failure to fetch or run the runtime would surface only as a non-zero exit from the launched process, not as a pre-launch refusal. The pinned-version string is covered by `test_launcher_pinned_and_requires_npx`, but the runtime-unavailable and version-mismatch refusals are not.",
+      "id": "pinned-runtime-availability-not-checked",
       "severity": "advisory",
-      "summary": "The proposal says the push remote path is write-denied when it is local. The launch primitive never computes or passes it, so extra_deny_write is always empty."
+      "summary": "The design and spec require an explicit refusal when the pinned sandbox runtime is unavailable or mismatched. The launcher only checks that `npx` is on PATH and does not verify the runtime itself."
     }
   ],
-  "launched_at": "2026-10-20T03:27:03+00:00",
-  "output_sha256": "212fffc4d75740f0a2d38fc8346c186584e90b9bf56a3cbec41a42eeea740ee6",
+  "launched_at": "2026-10-20T04:03:39+00:00",
+  "output_sha256": "4a51b0874aac82bcf2d46bee05f82e3f8b6cdca8d2ae191dafca7b9f00262883",
   "perspective": "spec-fidelity",
-  "request_id": "d5f49a38-33f6-42ed-88dd-fb5fcb92d7f3",
+  "request_id": "db2a569f-ab4d-41b4-b769-20b56880cec6",
   "reviewer": {
-    "context_id": "f621058a-9f66-4cc9-9b80-92de91cd99ab",
+    "context_id": "3b45ffad-620c-4ef6-8c77-20e9e89b7a8b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9d03d2cf-b03d-4977-a618-3e4fd93105c4",
+    "launch_id": "platform-launch-bbf9e396-195d-40e7-afce-8fac6b865e75",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29311
+        "value": 31245
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14822
+        "value": 14846
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10876
+        "value": 12315
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11011
+        "value": 12483
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1321
+        "value": 1473
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "dc436ced9f65eda986a1c703ffc2d532a030bd9d855e168851c7e4b441dcb2f9"
+  "task_content_digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b"
 }

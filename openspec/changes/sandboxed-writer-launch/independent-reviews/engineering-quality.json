@@ -3,52 +3,46 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "0df2c614e3ffe6cb7e4db57fba9817ddc9b6e2e4",
-    "diff_sha256": "617707b424ab3f09ace12df10be4433b5bb7736593c806d913f5ea1cb8d72eae"
+    "candidate_head": "614185cc4b6cc4cab289ffff4cc72c8830be3e4f",
+    "diff_sha256": "db11b92f73ce6134a1b1bb4bf1f40e2435d11f9b52f0ea5b5276fa4c706d74fb"
   },
-  "completed_at": "2026-10-20T03:27:42+00:00",
+  "completed_at": "2026-10-20T04:04:15+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/sandboxed_writer.py:366-368 says home entries 'stay literal (\"~/...\") for srt to expand'. sandboxed_env (line 430) uses `credential_free_env(dict(base_env), home)`, which sets the scratch HOME for the srt process. Node's `os.homedir()` follows `$HOME` on POSIX. The overlap check in build_profile uses the harness's `os.path.expanduser`, which resolves against the real home, so the check and the profile can disagree. tests/test_sandboxed_writer.py:521-526 only asserts the literal `~/` strings and never checks which home they resolve to. Expanding to absolute real-home paths in the harness would remove the ambiguity.",
-      "id": "home-relative-denies-expand-against-scratch-home",
-      "severity": "material",
-      "summary": "The profile keeps home-relative deny entries as literal `~/...` for srt to expand, but srt is launched with HOME set to the scratch home. The credential-store read-denies and the `~/.claude`/`~/.config`/`~/.ssh` write-denies may then resolve to paths under the scratch home instead of the operator's real home, leaving the real credential stores unprotected."
-    },
-    {
-      "evidence": "specs/lifecycle-workers/spec.md, requirement 'The Claude writer credential is scoped to the writer process': 'The token file location SHALL be read-denied inside the sandbox.' In launch_sandboxed_writer (sandboxed_writer.py:448-449), build_profile is called without the token path. build_profile's deny_read is only DENY_READ_HOME + protected + platform. No test covers it.",
-      "id": "token-file-not-read-denied",
-      "severity": "material",
-      "summary": "The spec says the token file location SHALL be read-denied inside the sandbox. The generated profile never adds the configured token_file path to denyRead. It only denies the fixed `~/.config/dev-platform` entry, and the operator can point token_file anywhere."
-    },
-    {
-      "evidence": "proposal.md: 'denyWrite ... the push remote path when local'. sandboxed_writer.py:448-449 calls build_profile with `protected=protected_paths(integration_root)` and no extra_deny_write. protected_paths covers only the root, the common git dir and the worktrees.",
-      "id": "local-push-remote-not-write-denied",
+      "evidence": "template/scripts/sandboxed_writer.py:319-322 (`srt_launcher` only builds the npx argv); launch_sandboxed_writer passes `extra_env={TOKEN_ENV: token}` at :503-505, so the token goes to the outer process. design.md says: \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\".",
+      "id": "npx-runs-with-token-before-sandbox",
       "severity": "advisory",
-      "summary": "The proposal says the push remote path is write-denied when it is local. launch_sandboxed_writer never computes it. extra_deny_write exists but is never populated, so a local bare remote outside the protected paths stays writable by nothing only if it is not under an allowed root, and it is never denied or checked for overlap."
+      "summary": "The outer `npx --yes @anthropic-ai/sandbox-runtime@<ver>` process, and anything npx fetches or runs, starts with `CLAUDE_CODE_OAUTH_TOKEN` in its environment before the sandbox is applied. The version is pinned, but there is no integrity check. Design.md also promises a resolvable `srt` binary whose `--version` matches, and the code only implements the npx path."
     },
     {
-      "evidence": "sandboxed_writer.py:305 defines SAFE_GIT. The `_git` helper at lines 337-342 calls subprocess.run without an env argument. lifecycle_workers.harness_git builds a filtered env for the same purpose.",
-      "id": "duplicated-safe-git-and-ambient-env-git",
+      "evidence": "template/scripts/sandboxed_writer.py:459-467",
+      "id": "srt-tmp-mode-not-verified",
       "severity": "advisory",
-      "summary": "sandboxed_writer.py redefines SAFE_GIT, which already exists in lifecycle_workers, so the two copies can drift. Its `_git` helper also runs git with the full ambient environment, including any GIT_DIR/GIT_* variables and the ambient OAuth token. It does not use harness_git or credential_free_env."
+      "summary": "`srt_tmp` sets mode 0700 only when it creates the directory. When `/private/tmp/dp-srt-<uid>` already exists, it checks that it is a directory and that the current user owns it, but not that its mode is 0700. A pre-existing looser mode is accepted. A race between `exists()` and `mkdir` is also unhandled: a `FileExistsError` is not turned into a SandboxedWriterError."
     },
     {
-      "evidence": "sandboxed_writer.py:429-435 sets TOKEN_ENV in the env of the whole command, and run_llm's extra_env applies it to the outer process (lifecycle_workers.py:250-251). The inner `env ... bash -c` command at line 415 does not scope it. Passing the token only to the inner command would shrink the exposure.",
-      "id": "token-reaches-npx-launcher-process",
+      "evidence": "template/scripts/sandboxed_writer.py:348-357 and build_profile `deny_read` at :403-404",
+      "id": "protected-set-snapshot-at-launch",
       "severity": "advisory",
-      "summary": "The token is placed in the environment of the outer `npx --yes @anthropic-ai/sandbox-runtime@\u2026` process. That process runs outside the sandbox, and npx may fetch and execute package install scripts there. The token is therefore exposed to the npm resolution and install path, not just the writer. The version pin does not carry an integrity check."
+      "summary": "The protected paths come from `git worktree list` once, at launch. Worktrees that sibling tasks create during a long writer run are not in `denyRead`. Writes stay safe because `allowWrite` is a whitelist, but the writer can read those worktrees. The model-routing doc describes \"every registered worktree\" as protected without noting that it is a launch-time snapshot."
+    },
+    {
+      "evidence": "template/scripts/sandboxed_writer.py:433 vs :479-483; :439-446",
+      "id": "token-path-expanduser-vs-operator-home",
+      "severity": "advisory",
+      "summary": "The token path is expanded with `os.path.expanduser`, which uses the inherited `HOME`. The profile's home-relative entries use the account-database home instead (`operator_home()`). If `HOME` is overridden, a `~/` token_file may resolve differently from the deny entries, though the token file itself is always denied by its resolved path. The mode check and the read are also separate `stat` and `read_text` calls, so the file can change between them."
     }
   ],
-  "launched_at": "2026-10-20T03:27:14+00:00",
-  "output_sha256": "d30fe7da405d8f661acf54ba01a9ff11f9a8a0a190b7aba954944e9b1465d21c",
+  "launched_at": "2026-10-20T04:03:52+00:00",
+  "output_sha256": "0737688c2f3dd62248912da0e47c994bc7de76c7bb7b2b29171f556d5fa17c15",
   "perspective": "engineering-quality",
-  "request_id": "d5f49a38-33f6-42ed-88dd-fb5fcb92d7f3",
+  "request_id": "db2a569f-ab4d-41b4-b769-20b56880cec6",
   "reviewer": {
-    "context_id": "b868dfbb-7969-4262-a515-2b434ddc8faf",
+    "context_id": "903d7060-288e-4194-b284-c2ff86aa84f9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2b9f91f6-6e3a-40c9-86df-30acd52a2bb9",
+    "launch_id": "platform-launch-de4f4f28-6241-436e-b51c-0a6452b23f99",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -63,22 +57,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26342
+        "value": 28273
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16424
+        "value": 16450
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27372
+        "value": 21520
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27691
+        "value": 21969
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -93,11 +87,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3350
+        "value": 2369
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "dc436ced9f65eda986a1c703ffc2d532a030bd9d855e168851c7e4b441dcb2f9"
+  "task_content_digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b"
 }
