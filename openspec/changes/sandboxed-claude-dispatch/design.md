@@ -1,0 +1,13 @@
+## Context
+Codex already has a platform-observed path (`dispatch_codex` / `_run_delegated_codex` / `run_codex`) that opens the delegation in a launch hook and attaches `execution.participant`. Claude has only the self-reported native Agent-tool path (`prepare_claude_handoff`, `begin_claude_delegation`, `record_claude_execution`). The sandboxed writer launch primitive (previous child) provides the profile, scoped token and constraints.
+
+## Decisions
+- Mirror the Codex structure: `run_claude_sandboxed(route, prompt)` returns the execution dict; `_run_delegated_claude_sandboxed` owns delegation open/close and persistence; `dispatch_claude_sandboxed` requires an already prepared Claude route (the route is still prepared by `route-claude`) whose plan is `delegated-child`.
+- Disposable copy: `prepare_checkout(task_worktree, workdir, "llm-checkout", HEAD, contract_from=<task .dev-platform.toml>)`, then the task worktree's uncommitted and untracked non-ignored files (read with trusted git in the supervisor's own worktree) are copied in and committed by the harness as a baseline commit before the writer starts. `import_worktree` is not used for this step because a linked task worktree's `.git` is a gitfile it refuses. The integration repository is never a target.
+- Launch observation: `run_in_session` gains an `on_start` callback invoked right after the process exists; the delegation opens there.
+- The harness staging clone (cloned from the task worktree, fetching only the writer's result commit, then importing the writer's files) produces `git diff --binary <baseline> <result>`. `validate_worker_result` proves the fast-forward and refuses gitlinks, workflow and lifecycle-evidence edits; the managed lifecycle files (`.managed-task.json`, `.managed-task-state.json`, `.openspec.yaml`, `.dev-platform.toml`, `.claude/`) are refused as well. The patch is applied to the task worktree working tree with `git apply --binary` only after `_task_content_diverged(route)` is empty; it is kept beside the task-local routing record as `.claude/model-routing/<change>.sandboxed.patch`. The disposable workdir is removed after a completed apply and kept otherwise for diagnosis.
+- Gate: a Claude execution with `launch_evidence: platform-observed`, `mechanism: sandbox-runtime`, outcome `completed` and `launched: true` passes `require_routing_gate` without the detection-only postcheck; nothing else about self-reported handling changes.
+- Effort stays unknown; `execution_id` is the `session_id` from the Claude JSON result when present, otherwise null.
+
+## Risks
+A writer that leaves uncommitted edits beside its own commit is already rejected by `commit_writer_worktree`; the same rule applies.

@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/model-routing/spec.md",
+    "specs/platform-delegation/spec.md",
+    "tasks.md"
+  ],
+  "change": "sandboxed-claude-dispatch",
+  "imported_at": "2026-10-20T04:20:36+00:00",
+  "package_revision": "1ff3f592591f7ddf1b5bcb5e96ee508576327c83a350b614f5fd11f1b3141344",
+  "prepared_against": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+  "private_lineage_handle": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8b3372afa48dabb5dd693f34f8008856259e6a6b0ecb29b19f2f56e18966ef0d",
+    "updated_at": "2026-10-19T20:37:47Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-576/T2"
+}

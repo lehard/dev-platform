@@ -330,7 +330,8 @@ def kill_process_group(pgid: int) -> None:
 
 
 def run_in_session(command: list[str], *, capture_output: bool = False, check: bool = False,
-                   timeout: float | None = None, **popen: Any) -> subprocess.CompletedProcess:
+                   timeout: float | None = None, on_start: Callable[[], None] | None = None,
+                   **popen: Any) -> subprocess.CompletedProcess:
     """``subprocess.run`` in a new session whose whole process group is killed when the leader exits.
 
     A writer cannot leave a same-group background process running past its own exit (to tamper with
@@ -343,6 +344,8 @@ def run_in_session(command: list[str], *, capture_output: bool = False, check: b
     process = subprocess.Popen(command, start_new_session=True, **popen)
     deadline = None if timeout is None else time.monotonic() + timeout
     try:
+        if on_start is not None:
+            on_start()  # the process exists: a caller may now record an observed launch
         while True:
             try:
                 stdout, stderr = process.communicate(timeout=0.2)
