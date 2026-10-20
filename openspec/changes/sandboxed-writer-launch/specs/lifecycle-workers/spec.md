@@ -29,7 +29,11 @@ A sandboxed Claude writer SHALL receive `CLAUDE_CODE_OAUTH_TOKEN` only from the 
 
 ### Requirement: The sandboxed launch accounts for runtime path and argument constraints
 
-The sandboxed launch SHALL start the sandbox runtime with a short temporary directory and pass the harness writer temporary directory to the writer through an inner environment assignment; SHALL pass the writer argv as one `bash -c` script built with shell quoting so a multi-word task stays one argument; and SHALL set `CLAUDE_CODE_TMPDIR` to the writer temporary directory for a Claude writer.
+The sandboxed launch SHALL start the sandbox runtime with a short temporary directory for its own socket and SHALL pass the harness writer temporary directory as `CLAUDE_CODE_TMPDIR` in the sandbox runtime's own environment, which the runtime uses as the writer's temporary directory (assignments inside the sandboxed command are not honored for these variables); and SHALL pass the writer argv as one `bash -c` script built with shell quoting so a multi-word task stays one argument.
+
+#### Scenario: Claude writer shell tool has a writable temporary directory
+- **WHEN** a sandboxed Claude writer runs a shell command
+- **THEN** its temporary directory is the harness writer temporary directory and the shell tool starts
 
 #### Scenario: Multi-word task survives the runtime
 - **WHEN** the final writer argument is a multi-word task

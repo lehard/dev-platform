@@ -168,13 +168,11 @@ class TokenTests(Base):
 class CommandTests(Base):
     def test_shape_and_multiword_task(self):
         argv = ["claude", "-p", "do the multi word task 'quoted'"]
-        cmd = sw.sandboxed_command(argv, launcher=["srt"], profile_path=Path("/p.json"), writer_tmp=Path("/w/tmp"))
-        self.assertEqual(cmd[:5], ["srt", "--settings", "/p.json", "env", "TMPDIR=/w/tmp"])
-        self.assertIn("CLAUDE_CODE_TMPDIR=/w/tmp", cmd)
-        self.assertEqual(cmd[-3:-1], ["bash", "-c"])
+        cmd = sw.sandboxed_command(argv, launcher=["srt"], profile_path=Path("/p.json"))
+        self.assertEqual(cmd, ["srt", "--settings", "/p.json", "bash", "-c", cmd[-1]])
         self.assertEqual(shlex.split(cmd[-1]), argv)
-        plain = sw.sandboxed_command(argv, launcher=["srt"], profile_path=Path("/p"), writer_tmp=Path("/w"), claude=False)
-        self.assertNotIn("CLAUDE_CODE_TMPDIR=/w", plain)
+        # srt ignores TMPDIR/CLAUDE_CODE_TMPDIR assigned inside the sandboxed command: none are emitted there.
+        self.assertFalse(any("TMPDIR=" in part for part in cmd[:-1]))
 
     def test_launcher_pinned_and_requires_npx(self):
         with mock.patch.object(sw.shutil, "which", return_value="/x/npx"):
@@ -220,7 +218,7 @@ class LaunchTests(Base):
         command, kw = calls[0]
         self.assertEqual(kw["env"]["CLAUDE_CODE_OAUTH_TOKEN"], SECRET)
         self.assertEqual(kw["env"]["TMPDIR"], "/private/tmp/dp-srt-test")
-        self.assertIn(f"TMPDIR={wtmp}", command)
+        self.assertEqual(kw["env"]["CLAUDE_CODE_TMPDIR"], str(wtmp))
         self.assertNotIn(SECRET, " ".join(command))
         self.assertNotIn("ambient-secret", str(kw["env"]))
         self.assertTrue((work / "srt-settings.json").is_file())
