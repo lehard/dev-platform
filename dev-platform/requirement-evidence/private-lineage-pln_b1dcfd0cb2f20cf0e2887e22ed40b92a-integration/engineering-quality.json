@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "candidate_head": "787f1507b53c5a2f132c5182accfc5bcff5157b9",
+    "diff_sha256": "1bed1426b02867ad7ce32764e8a93748fc2e39283c020a4f6f22967b42af0e48"
+  },
+  "completed_at": "2026-10-20T13:21:40+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py run_claude_sandboxed calls `launch(argv, checkout, integration_root=..., platform_root=..., workdir=root, home=home, tmp=tmp, config=..., runner=runner)` with no `timeout`. launch_sandboxed_writer defaults `timeout=None` and run_llm forwards it to run_in_session, which then waits indefinitely. scripts/sandboxed_writer_probes.py passes `timeout=900`. A hung `claude -p` therefore blocks `dispatch-claude-sandboxed` forever, and the delegation stays `open` in the routing record.",
+      "id": "sandboxed-dispatch-no-writer-timeout",
+      "severity": "advisory",
+      "summary": "The production sandboxed Claude dispatch launches the writer with no timeout. The probe command, which uses the same launch primitive, sets a 900 s timeout."
+    },
+    {
+      "evidence": "run_claude_sandboxed creates `workdir = Path(tempfile.mkdtemp(prefix=\"dp-sandboxed-claude-\"))` and calls prepare_sandboxed_checkout. When launch raises SandboxedWriterError (non-macOS, missing npx, claude or token) it re-raises RoutingError without removing `workdir`. dispatch_claude_sandboxed only removes `run[\"workdir\"]` on the `completed` outcome. That removal is unreachable on exceptions, because no result dict exists then.",
+      "id": "sandboxed-dispatch-workdir-leak-on-prelaunch-refusal",
+      "severity": "advisory",
+      "summary": "A refusal before launch, or a failure while preparing the checkout, leaves the disposable workdir behind. It holds a full copy of the task worktree including uncommitted state, and nothing removes it."
+    }
+  ],
+  "launched_at": "2026-10-20T13:20:51+00:00",
+  "output_sha256": "6a320bff9a8f61779fb0b7ddc468ca8e374c6bd16e32006ba983ec1955977760",
+  "perspective": "engineering-quality",
+  "request_id": "749a8396-a0a4-4443-887c-27c96d8f3ef4",
+  "reviewer": {
+    "context_id": "c608479a-6f61-4dac-a057-aab5604ec2ef",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f5afb891-ce0b-4f6f-a73c-ed976e399b4f",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 58499
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 229831
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44847
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48056
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3235
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9ae40528463112f3ba8fecbe869c8d90a15e855aa56c283966f1d23fdd33ef7e"
+}
