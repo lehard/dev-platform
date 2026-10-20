@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc",
+    "base_ref": "origin/main",
+    "candidate_head": "9d920c9983c6333c42733738178f7c7e5dc8379a",
+    "diff_sha256": "4a0e921393f177a1c17c4ee2a19244745e12b2b9ab5394f93c4c91decd2fb439"
+  },
+  "completed_at": "2026-10-20T02:33:30+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/specs/agentic-maintenance/spec.md:85 and :89 ('Neither triage nor periodic review SHALL create...', 'WHEN triage or weekly review identifies...'), :110 ('WHEN event-driven triage, scheduled backlog review ... have been validated'), :21 ('automated maintenance/triage functionality'). The delta (specs/agentic-maintenance/spec.md) neither modifies nor removes these.",
+      "id": "residual-triage-requirements-in-spec",
+      "severity": "advisory",
+      "summary": "The delta leaves accepted requirements that still describe event-driven triage as a live capability, so the post-archive spec will be partly inconsistent with the new 'Event-driven process triage is not installed' requirement."
+    },
+    {
+      "evidence": "design.md decision 5 keeps the requirement. Spec lines 48-53 describe 'a labelled dev-platform process issue'. The test diff shows the remaining workflows use 'GITHUB_MCP_SERVER_TOKEN: ${{ steps.private_read_token.outputs.token }}', and the removed triage-only branch was the one asserting '\"repos\": \"public\"'.",
+      "id": "public-only-requirement-orphaned",
+      "severity": "advisory",
+      "summary": "'Public pilot reads remain public-only' is kept as the constraint for any public-reading workflow, but its only scenario was the labelled process-issue read. The two remaining workflows read private Backlog issues, so the requirement now has no applicable workflow and could be read as contradicting them."
+    }
+  ],
+  "launched_at": "2026-10-20T02:33:09+00:00",
+  "output_sha256": "4179c0a170840b6635738c8bf6deb8a8543a0a7d9d5687adf9143458c3a1898d",
+  "perspective": "spec-fidelity",
+  "request_id": "64efeb93-9b1f-442f-af2e-6a7f199fc9ef",
+  "reviewer": {
+    "context_id": "548191d7-17ba-4ebf-9a2b-bd5ac4033d59",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-35b77c00-bca1-4246-917b-343e684ddc44",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54692
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 237970
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20378
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20504
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2584
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5c1d1a58d370d7b777abc64b689ad317c68bf3beeed34901e49c43ad420f9498"
+}
