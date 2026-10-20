@@ -474,12 +474,15 @@ def ensure_requirement_checkpoint(ops: LifecycleOps, root: Path, requirement: st
     import agent_friction
     import requirement_retrospective
 
-    ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events(ops.requirement_started_at(root, requirement))]
+    try:
+        ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events(ops.requirement_started_at(root, requirement))]
+    except agent_friction.FrictionLogError as exc:
+        raise JobBlocked(str(exc)) from exc
     if ambiguous:
         raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
     try:
         ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(requirement, children)))
-    except agent_friction.DurableEvidenceError as exc:
+    except (agent_friction.DurableEvidenceError, agent_friction.FrictionLogError) as exc:
         raise JobBlocked(str(exc)) from exc
     try:
         ops.requirement_checkpoint(root, requirement, ids)
@@ -491,10 +494,13 @@ def ensure_requirement_checkpoint(ops: LifecycleOps, root: Path, requirement: st
 def run_retrospective(ops: LifecycleOps, root: Path, number: int, branch: str, head: str) -> str:
     import agent_friction
 
-    ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events(ops.candidate_admitted_at(root, number))]
-    if ambiguous:
-        raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
-    ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(branch)))
+    try:
+        ambiguous = [str(e.get("id")) for e in agent_friction.ambiguous_attribution_events(ops.candidate_admitted_at(root, number))]
+        if ambiguous:
+            raise JobBlocked("ambiguous friction attribution needs a human decision: " + ", ".join(ambiguous[:5]))
+        ids = list(dict.fromkeys(str(e.get("id")) for e in _events_for(branch)))
+    except agent_friction.FrictionLogError as exc:
+        raise JobBlocked(str(exc)) from exc
     try:
         agent_friction.record_checkpoint(
             branch, root, event_ids=ids, head=head, bind_content=False,

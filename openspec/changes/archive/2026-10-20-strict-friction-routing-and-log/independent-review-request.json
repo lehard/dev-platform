@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "50d71c945e07f423a9aaebf30ed3df6fa8910b9a",
+    "base_ref": "origin/main",
+    "candidate_head": "25ece61a1ab8906513e15b65ff1e58abac36275a",
+    "diff_sha256": "ddf1a15895b2691325eb353f990524a5b53013ffa830ee6eb53249c5baf68821"
+  },
+  "change": "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/automated-checks.json",
+    "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/independent-review-request.json",
+    "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/verification.md",
+    "openspec/specs/platform-lifecycle/spec.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/design.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/proposal.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/specs/platform-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/proposal.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/design.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/tasks.md",
+        "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T08:36:22+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-20-strict-friction-routing-and-log/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "93849e15-1b8e-48ab-bb45-952706a6afc8",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "50d71c945e07f423a9aaebf30ed3df6fa8910b9a",
+    "digest": "11e1f84d55098b041c75df83081e748eb98d72979e836885b17f8cde61dff4fe",
+    "paths": {
+      "dev-platform/checks.toml": "c73b667ab71f63384980478addf02a5a01595d0c",
+      "openspec/changes/strict-friction-routing-and-log/.managed-task.json": "4764867bbfcef663876b738fa252491d173778ca",
+      "openspec/changes/strict-friction-routing-and-log/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+      "openspec/changes/strict-friction-routing-and-log/design.md": "f3f8eebea13d159a0f8842196e1ffa58b0719f02",
+      "openspec/changes/strict-friction-routing-and-log/proposal.md": "467f3556b7ace494685dea8123aedcc6b0dd6264",
+      "openspec/changes/strict-friction-routing-and-log/specs/platform-lifecycle/spec.md": "5b56b28fe8efea560b9440f42a24dca32353f5c6",
+      "openspec/changes/strict-friction-routing-and-log/tasks.md": "103b0e41404223f593e90c3f90a2e2f3009573ac",
+      "template/dev-platform/platform-manifest.json": "d84c87e8af562721002b18253f82d22a9c695f11",
+      "template/scripts/agent_friction.py": "7ed073c27cf2922f23cb2c8a85a3c1fb5c1ddeee",
+      "template/scripts/integration_contour.py": "c8daa4a5262867059ecbd086e63ee0821427ba7c",
+      "template/scripts/requirement_retrospective.py": "baf7a2474c7ee8e00f22df92dc41c83af91fc9d7",
+      "tests/test_friction_review.py": "bd8238204831dd2d99f018050506383b2f1c60ef",
+      "tests/test_friction_strict_log.py": "2a2859523438ddca2ee470682364835296c4f74e",
+      "tests/test_retrospective_attribution.py": "8b6fda89bc39480b9b812810d1070e75dfa95457"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

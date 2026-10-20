@@ -92,10 +92,10 @@ class AttributionTests(Fixture):
         with mock.patch("managed_task.read_task_state", state):
             self.assertEqual([e["id"] for e in friction.current_retrospective_signals(BRANCH)], ["by-alias"])
 
-    def test_old_malformed_line_outside_recent_window_is_not_a_gap(self) -> None:
+    def test_old_malformed_line_is_still_a_gap(self) -> None:
         good = json.dumps(self.signal("ok")) + "\n"
-        self.log.write_text("{bad\n" + good * friction.MAX_STATUS_LINES, encoding="utf-8")
-        self.assertEqual(friction.evidence_source_status(), {"friction-log": "available"})
+        self.log.write_text("{bad\n" + good * 600, encoding="utf-8")
+        self.assertEqual(friction.evidence_source_status(), {"friction-log": "partial"})
 
     def test_unattributable_event_is_reported_not_assigned_or_hidden(self) -> None:
         self.write(self.signal("orphan", task=None, branch="main", at=friction.utc_now()))
@@ -146,7 +146,7 @@ class AttributionTests(Fixture):
     # evidence sources
     def test_partial_log_needs_explicit_gap_acceptance(self) -> None:
         self.log.write_text("{not json\n", encoding="utf-8")
-        with self.assertRaisesRegex(SystemExit, "friction-log \\(partial\\)"):
+        with self.assertRaisesRegex(SystemExit, "agent-friction.jsonl:1: invalid JSON"):
             friction.cmd_checkpoint(self.args(result="none"))
         friction.cmd_checkpoint(self.args(result="none", accept_gaps=["friction-log"]))
         self.assertEqual(friction.read_state()["checkpoints"][BRANCH]["accepted_gaps"], ["friction-log"])
@@ -155,7 +155,7 @@ class AttributionTests(Fixture):
     def test_unreadable_log_is_not_clean(self) -> None:
         self.log.write_bytes(b"\xff\xfe\x00bad")
         self.assertEqual(friction.evidence_source_status(), {"friction-log": "unreadable"})
-        with self.assertRaisesRegex(SystemExit, "not the absence of problems"):
+        with self.assertRaisesRegex(SystemExit, "agent-friction.jsonl is unreadable"):
             friction.cmd_checkpoint(self.args(result="none"))
 
     def test_missing_log_is_a_normal_clean_state(self) -> None:
