@@ -1735,11 +1735,7 @@ def _preflight_runtime(root: Path, mode: str, env: Mapping[str, str]) -> list[di
         # mint: the workflow requests contents and pull-requests write, and GitHub
         # refuses a token the installation cannot grant.
         ok("bot-permission", "contents and pull-requests write granted at token mint")
-    else:
-        info = _probe(root, "repository-permission", "api", f"repos/{repo}")
-        if not isinstance(info, dict) or not (info.get("permissions") or {}).get("push"):
-            raise PreflightFailure("repository-permission", "the authenticated user lacks push permission")
-        ok("repository-permission", "push permission proven")
+    # A local run is observe-only (see run_worker), so it proves no push permission.
     return checks
 
 
@@ -1767,13 +1763,14 @@ def run_identity(mode: str, env: Mapping[str, str]) -> str:
         if not all(parts):
             raise QueueError("CI worker identity needs GITHUB_REPOSITORY, GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT")
         return "github-actions:" + ":".join(parts)
-    if mode == "local":
-        import socket
-        import uuid
+    raise QueueError("only the CI coordinator has a worker run identity")
 
-        return f"local:{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex}"
-    raise QueueError("worker mode must be ci or local")
 
+LOCAL_WORKER_REFUSAL = (
+    "the local coordinator is observe-only: only the CI publication-queue workflow (coordinator GitHub App) "
+    "integrates or merges into main; diagnose locally with `publication_queue.py status` and "
+    "`publication_queue.py preflight --mode local --phase all`"
+)
 
 # Worker outcomes that are a completed step. ``blocked`` and ``error`` exit non-zero.
 WORKER_PROGRESS_STATES = frozenset({
@@ -1783,7 +1780,12 @@ WORKER_PROGRESS_STATES = frozenset({
 
 
 def run_worker(root: Path, mode: str, env: Mapping[str, str], *, install_sink: bool) -> dict[str, Any]:
-    """The coordinator command: full preflight, then one run identity, then candidate work."""
+    """The coordinator command: full preflight, then one run identity, then candidate work.
+
+    Only the CI coordinator integrates; a local run is refused before any GitHub read.
+    """
+    if mode == "local":
+        return {"state": "error", "mode": mode, "reason": LOCAL_WORKER_REFUSAL}
     result = preflight(root, mode, "all", env)
     if result["state"] != "ok":
         return result

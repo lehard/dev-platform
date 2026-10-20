@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_ref": "origin/main",
+    "candidate_head": "d9d0d84a186c1e435d58a5c3b99df4691052b340",
+    "diff_sha256": "095a8e77a6e9c0bb1731af2b0d1276af5fb843e6de19126d83d5e7969093052a"
+  },
+  "completed_at": "2026-10-20T00:53:41+00:00",
+  "findings": [
+    {
+      "evidence": "docs/engineering/agent-workflow.md line 12 of the hunk context (the coordinator paragraph at ~line 168) is unchanged in the diff. It reads: \"(the workflow runs `inputs` before minting the App token and `runtime` after it; `worker --mode ci|local` runs the full preflight itself)\". The candidate's run_worker returns LOCAL_WORKER_REFUSAL for mode == \"local\" before calling preflight(). tasks.md 3.1 and design decision 4 call for dropping local worker advice from coordinator docs.",
+      "id": "stale-worker-mode-local-doc",
+      "severity": "advisory",
+      "summary": "agent-workflow.md still says `worker --mode ci|local` runs the full preflight itself, which contradicts the new observe-only contract. The local worker now refuses before any preflight."
+    }
+  ],
+  "launched_at": "2026-10-20T00:53:30+00:00",
+  "output_sha256": "4349ba14f71bb59f56835302b56bb0c89c79872ea432ad4ba1512d6a165473bd",
+  "perspective": "spec-fidelity",
+  "request_id": "805b0b6e-0acf-4933-aaa2-0acff2545fb4",
+  "reviewer": {
+    "context_id": "7c3eb81a-c653-41b7-8e05-c2119f77e436",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-24d791a6-fd3d-4d0c-be04-3662bfa55db6",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27466
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 64655
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10514
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10833
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1098
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b29dd62ede0e95062a93168707972ab99c0b1233ccc12935201832c60e4527be"
+}
