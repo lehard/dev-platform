@@ -301,5 +301,39 @@ class RestoreGatesTests(HostedCase):
                              actor="owner", expected_head=PUSHED)
 
 
+
+class RedRetryIntegrationTests(HostedCase):
+    """PR 619 (2026-10-20): a finalize stopped on semantic verification must not let the queue merge."""
+
+    def run_worker(self, fixture):
+        with mock.patch.object(queue, "_queued", return_value=[(1, 7, {"branch": BRANCH})]), \
+                mock.patch.object(queue, "_require_finalized"), \
+                mock.patch.object(queue, "_prepare", side_effect=queue.IntegrationRepairNeeded("stop here")) as prepare, \
+                mock.patch.object(queue, "_label"), mock.patch.object(queue, "_block") as block:
+            queue.worker(ROOT)
+        block.assert_not_called()
+        return prepare
+
+    def test_semantic_verification_red_gate_is_not_integrated(self):
+        with Fixture(ROOT, PUSHED) as fixture:
+            # Integration repair changed the task content; the review passed again; finalize then stopped.
+            queue._transition(ROOT, "o/r", 7, "blocked-retryable", PUSHED, task_identity=IDENTITY, inherit_identity=False,
+                              gates={"review": {"result": "passed", "identity": IDENTITY, "evidence": ADVISORY}},
+                              red_gate={"name": "semantic-verification", "identity": IDENTITY,
+                                        "evidence": "fresh semantic verification required for changed task content"})
+            prepare = self.run_worker(fixture)
+            prepare.assert_not_called()
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], candidate["red_gate"]["name"]),
+                             ("blocked-retryable", "semantic-verification"))
+            self.assertFalse([r for r in fixture.records(queue.V2_PREFIX) if r["state"] == "integrating"])
+
+    def test_candidate_waiting_on_required_checks_still_integrates(self):
+        with Fixture(ROOT, PUSHED) as fixture:
+            gates = {name: {"result": "passed", "identity": IDENTITY, "evidence": {"head": PUSHED}} for name in ADMISSION}
+            queue._transition(ROOT, "o/r", 7, "blocked-retryable", PUSHED, task_identity=IDENTITY, inherit_identity=False,
+                              gates=gates)
+            self.run_worker(fixture).assert_called_once()
+
 if __name__ == "__main__":
     unittest.main()

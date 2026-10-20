@@ -825,6 +825,17 @@ def review_owned(candidate: dict) -> bool:
     return retry_job_kind(candidate) is not None
 
 
+def red_retry_blocks_integration(candidate: dict) -> bool:
+    """A blocked-retryable candidate integrates only while it waits on its exact-head required checks.
+
+    Any other red gate (for example a finalize that stopped on ``semantic-verification``) is a gate the
+    candidate has not passed: the archive alone must never let it merge.
+    """
+    if candidate.get("state") != "blocked-retryable":
+        return False
+    return (candidate.get("red_gate") or {}).get("name") not in {None, "required-checks"}
+
+
 def _ensure_labels(root: Path) -> None:
     for name, color in ((QUEUE, "a2eeef"), (ACTIVE, "fbca04"), (BLOCKED, "b60205")):
         result = subprocess.run(["gh", "label", "create", name, "--color", color, "--force"], cwd=root, capture_output=True, text=True, stdin=subprocess.DEVNULL)
@@ -1955,7 +1966,8 @@ def worker(root: Path) -> dict[str, Any]:
             if active(number):
                 _label(root, repo, number, ACTIVE, present=False)  # relinquish to the claiming work
             continue
-        if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)):
+        if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)
+                                  or red_retry_blocks_integration(current)):
             # A candidate owned by other work does not hold up the rest of the queue.
             skipped.append(f"#{number} {current['state']}: {current['next_action']}")
             if current["state"] == "integration-repair-pending" and not current.get("next_job"):
