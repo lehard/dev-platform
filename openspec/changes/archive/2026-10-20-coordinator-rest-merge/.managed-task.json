@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/publication-queue/spec.md",
+    "tasks.md"
+  ],
+  "change": "coordinator-rest-merge",
+  "imported_at": "2026-10-20T07:34:03+00:00",
+  "package_revision": "aee666aa2b78f452ede1106c82d2178ad7fa963ac2954cac6a01219886ae04ed",
+  "prepared_against": "fe66bfc3e4fad7df7c905e2dcb71f7cf60efb825",
+  "private_lineage_handle": "pln_fc454af0a7e21ac2fc06e19e13321590",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "47490137926487be7f557708d7549dbdc1f40cbf8e216de688fcffe09fde0a70",
+    "updated_at": "2026-10-20T07:27:25Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-575/T2"
+}

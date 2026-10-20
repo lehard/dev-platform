@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5e1a29317480f6860b1a810f8b444c73a9e583f0",
+    "base_ref": "origin/main",
+    "candidate_head": "39da22c6be4cebc246020219a97d49d1e8e8fdd7",
+    "diff_sha256": "ec9f971181de7ede46dc5b1e0b77adbab404ad9f9581f5167ec3c2e0c9728472"
+  },
+  "completed_at": "2026-10-20T02:58:08+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py restore_gates calls `_transition(..., candidate[\"state\"], candidate[\"head\"], task_identity=..., inherit_identity=False, gates=gates)` with no `red_gate`. `_transition` builds the record with `red_gate=red_gate` (None), and `blocked-retryable` is in `_FRICTION_STATES`, so it also calls `emit_friction` with an empty evidence string. The spec scenario 'Restoring gates lost before the fix' and the docs (\"keeps the state\") only exercise finalize-pending in tests (tests/test_hosted_review_continuity.py RestoreGatesTests). For blocked-retryable, the fresh record can drop the red gate. If it was recorded on the current head, the existing `previous` record is replaced by one with `red_gate=None` and the cause is lost.",
+      "id": "restore-gates-drops-red-gate",
+      "severity": "advisory",
+      "summary": "restore-gates republishes a blocked-retryable candidate through `_transition` without passing its `red_gate`. The spec says restoration keeps the state and only adds gates, and the new record probably loses the retry cause."
+    },
+    {
+      "evidence": "design.md decision 4 vs template/scripts/lifecycle_workers.py `own_result_landed`. There is no `await_pushed_head` and no `Discarded` raise. The behavior matches the spec scenarios, but design.md names an API and error path that do not exist. Under the 'no silent divergence' invariant, design.md should match the implementation.",
+      "id": "design-await-pushed-head-drift",
+      "severity": "advisory",
+      "summary": "design.md decision 4 describes a helper `await_pushed_head(pr_head, pushed, previous, timeout)` that raises `Discarded` on a third sha. The code ships `own_result_landed(current_head, job_head, result_head)`, which returns a bool, and callers discard on False."
+    },
+    {
+      "evidence": "The `_transition` carry logic in template/scripts/publication_queue.py (around lines 617-625) is unchanged. The only continuity change is `gates=content_bound_gates(observed.get(\"gates\"), identity) or None` in template/scripts/pr_review_gate.py `run_claimed`. Other `_transition` callers, such as the repair and finalize claims and the integration repair path, do not get the carry. Tests cover only the review claim and the receipt-recovery path.",
+      "id": "design-transition-gate-carry-differs",
+      "severity": "advisory",
+      "summary": "design.md decision 5 says `_transition` itself carries content-bound gates from the latest record when no exact-head record exists, but only after a trusted harness push (validated-push receipt or v1 `update` with `worker_job`). The diff leaves `_transition` untouched. Instead `pr_review_gate.run_claimed` passes `content_bound_gates(observed.get(\"gates\"), identity)` as an explicit argument."
+    }
+  ],
+  "launched_at": "2026-10-20T02:57:25+00:00",
+  "output_sha256": "40a0ed8930d8574ce3df87e7560b0a8f3ad3f4869a4d98439e09cea386dde576",
+  "perspective": "spec-fidelity",
+  "request_id": "ec6421b7-b92b-4a3c-bbdc-9a0b11de79ca",
+  "reviewer": {
+    "context_id": "bf8cf637-0ee7-49c6-a360-4e479d275eaf",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4c6bd8b4-57fb-49bd-82ac-f5e9705edabc",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 58846
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 278243
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41830
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42005
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5304
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ffd0f30bf4017406320ae4c8ff50b5d72988a560332bbeb02636c82e83d89e06"
+}

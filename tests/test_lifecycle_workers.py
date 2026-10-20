@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -561,7 +562,7 @@ class ValidationTests(unittest.TestCase):
         git(self.repo, "remote", "set-url", "origin", origin)
         before = (self.repo / ".git/config").read_bytes()
         runner = mock.Mock(return_value=subprocess.CompletedProcess([], 0, "", ""))
-        with mock.patch.dict(os.environ, {"GH_TOKEN": token}, clear=True):
+        with mock.patch.dict(os.environ, {"GH_TOKEN": token, "PATH": fake_gh_bin(self) + os.pathsep + os.environ["PATH"]}, clear=True):
             workers.push_validated(self.repo, "task/x", self.base, NEW, runner=runner)
             command, kwargs = runner.call_args.args[0], runner.call_args.kwargs
             self.assertNotIn(token, str(command))
@@ -580,6 +581,23 @@ class ValidationTests(unittest.TestCase):
             workers.push_validated(self.repo, "task/x", self.base, NEW, runner=runner, env=explicit)
             auth.assert_not_called()
             self.assertIs(runner.call_args.kwargs["env"], explicit)
+
+    def test_push_credential_is_the_active_gh_token(self):
+        origin = "https://github.com/acme/project.git"
+        git(self.repo, "remote", "set-url", "origin", origin)
+        bin_dir = fake_gh_bin(self, login="operator-login-token")
+        env = workers.harness_push_env(self.repo, {"PATH": bin_dir})
+        self.assertTrue(env["GIT_CONFIG_VALUE_1"].startswith("AUTHORIZATION: basic "))
+        import base64
+        self.assertEqual(base64.b64decode(env["GIT_CONFIG_VALUE_1"].split()[-1]).decode(),
+                         "x-access-token:operator-login-token")
+        exported = workers.harness_push_env(self.repo, {"PATH": bin_dir, "GH_TOKEN": "app-token"})
+        self.assertEqual(base64.b64decode(exported["GIT_CONFIG_VALUE_1"].split()[-1]).decode(),
+                         "x-access-token:app-token")
+        with self.assertRaises(workers.WorkerError) as error:
+            workers.harness_push_env(self.repo, {"PATH": fake_gh_bin(self, leak="gh-diagnostic-canary")})
+        self.assertIn("authenticated gh credential", str(error.exception))
+        self.assertNotIn("gh-diagnostic-canary", str(error.exception))
 
     def test_push_uses_expected_head_lease(self):
         calls = []
@@ -1125,5 +1143,21 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertEqual(result["status"], "stale")
 
 
+def fake_gh_bin(case, *, login: str = "", leak: str = "") -> str:
+    """A PATH directory whose `gh auth token` mimics gh: exported GH_TOKEN, else the stored login."""
+    directory = Path(tempfile.mkdtemp())
+    case.addCleanup(shutil.rmtree, directory, ignore_errors=True)
+    script = directory / "gh"
+    script.write_text(
+        "#!/bin/sh\n"
+        '[ "$1 $2" = "auth token" ] || exit 2\n'
+        'if [ -n "$GH_TOKEN" ]; then printf \'%s\\n\' "$GH_TOKEN"; exit 0; fi\n'
+        f'if [ -n "{login}" ]; then printf \'%s\\n\' "{login}"; exit 0; fi\n'
+        f'echo "{leak}" >&2; exit 1\n', encoding="utf-8")
+    script.chmod(0o755)
+    return str(directory)
+
+
 if __name__ == "__main__":
     unittest.main()
+

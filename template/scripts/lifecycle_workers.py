@@ -304,6 +304,35 @@ def result_is_current(job: dict, result_head: str, current_head: str) -> bool:
     return job["head"] == result_head == current_head
 
 
+# A successful lease push proves nobody moved the branch before it; the pull request
+# API may still report the previous head for a few seconds afterwards.
+PUSH_CONVERGENCE_SECONDS = 60
+PUSH_CONVERGENCE_INTERVAL = 3
+
+
+def own_result_landed(current_head: Callable[[], str], job_head: str, result_head: str, *,
+                      clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep) -> bool:
+    """Whether the pull request now reports this job's own result head.
+
+    Without a push (``result_head == job_head``) the head must still be the job head.
+    After a push the observation may lag: while it still reports ``job_head`` it is
+    re-read until ``timeout``; any other head means someone else moved the branch
+    (``False``, the job is discarded). A head that never converges raises: the
+    pushed result is not silently discarded.
+    """
+    observed = current_head()
+    if result_head == job_head or observed != job_head:
+        return observed == result_head
+    deadline = clock() + PUSH_CONVERGENCE_SECONDS
+    while observed == job_head:
+        if clock() >= deadline:
+            raise WorkerError(f"pull request head did not converge to pushed head {result_head[:12]} within "
+                              f"{PUSH_CONVERGENCE_SECONDS} seconds; it still reports {job_head[:12]}")
+        sleep(PUSH_CONVERGENCE_INTERVAL)
+        observed = current_head()
+    return observed == result_head
+
+
 # ---- environment ----------------------------------------------------------
 
 def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, source_home: Path | None = None) -> Path:
@@ -543,6 +572,19 @@ def push_command(branch: str, expected_head: str, result_head: str) -> list[str]
             f"--force-with-lease=refs/heads/{branch}:{expected_head}"]
 
 
+def active_gh_token(checkout: Path, env: dict[str, str]) -> str:
+    """The candidate-branch push credential: gh's active token (an exported GH_TOKEN, else the gh login).
+
+    gh output is never echoed, so a failure cannot leak a credential.
+    """
+    done = subprocess.run(["gh", "auth", "token"], cwd=checkout, env={**env, "GH_PROMPT_DISABLED": "1"},
+                          stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+    token = done.stdout.strip() if done.returncode == 0 else ""
+    if not token:
+        raise WorkerError("harness GitHub push requires an authenticated gh credential (gh auth token failed)")
+    return token
+
+
 def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[str, str]:
     """One push process only; no token in argv, config files or writer checkouts."""
     from urllib.parse import urlsplit
@@ -556,9 +598,7 @@ def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[
         return result  # local harness repositories do not require hosted credentials
     if parsed.scheme != "https" or parsed.hostname != "github.com" or parsed.username or parsed.password:
         raise WorkerError("harness push requires an uncredentialed GitHub HTTPS origin")
-    token = result.get("GH_TOKEN")
-    if not isinstance(token, str) or not token.strip():
-        raise WorkerError("harness GitHub push requires coordinator GH_TOKEN")
+    token = active_gh_token(checkout, result)
     result = {k: v for k, v in result.items() if not k.startswith("GIT_CONFIG_")}
     encoded = base64.b64encode(("x-access-token:" + token).encode()).decode()
     result.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,

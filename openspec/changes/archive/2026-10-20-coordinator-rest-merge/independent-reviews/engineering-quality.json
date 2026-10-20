@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "fe66bfc3e4fad7df7c905e2dcb71f7cf60efb825",
+    "base_ref": "origin/main",
+    "candidate_head": "1f12f707dde443b2bfab2fcac82fcedfbea1880b",
+    "diff_sha256": "6039f8ee9b4566ead324c06d80e9dda743fc7b080537354d4a42aabff2fd598e"
+  },
+  "completed_at": "2026-10-20T08:07:46+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_publication_queue.py new test uses CompletedProcess([], 1, \"\", refusal) with the JSON in stderr. template/scripts/publication_queue.py:2062 uses `result.stderr.strip() or \"unknown\"`. The reason stays informative with real gh because stderr carries the message and status. If gh ever emitted an empty stderr, the reason would be \"unknown\" and the stdout JSON, which holds the detailed rule-violation text, would be dropped. Consider falling back to stdout, or make the fake match gh's real streams.",
+      "id": "refusal-test-models-body-on-stderr",
+      "severity": "advisory",
+      "summary": "The refusal test puts the REST JSON error payload on stderr, but `gh api` prints the response body to stdout and only a short `gh: <message> (HTTP 405)` line to stderr. The waiting reason is built only from stderr, so the test does not match real gh behavior."
+    }
+  ],
+  "launched_at": "2026-10-20T08:07:33+00:00",
+  "output_sha256": "ee285f5a2dfb19bd94a68d4b2978f3c84dfcd57e7079e778ccfc36765d7869af",
+  "perspective": "engineering-quality",
+  "request_id": "4ecc3d69-e845-499b-92ce-f33930af3d62",
+  "reviewer": {
+    "context_id": "52929079-d21d-431e-b521-663a7651179c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-567aa134-e4a1-4fd0-b173-59eef0120f9e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16119
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36670
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12341
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12497
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 873
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f7fd825e0f46ed2bbfde2e3d076c7993b4233217a45eb97a31c80596b5a8d645"
+}

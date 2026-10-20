@@ -1,0 +1,106 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.088,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.156,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1248.116,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/parallel_lifecycle_acceptance.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_fc454af0a7e21ac2fc06e19e13321590",
+    "change": "coordinator-rest-merge",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/coordinator-rest-merge",
+    "branch": "agent/br-575-t2-coordinator-rest-merge",
+    "head": "5ee7d4a050c8e3722861ca65b197fa021a7687d8",
+    "task_content": {
+      "version": 1,
+      "digest": "de030408ee6ebc18acd8bd5879756e7ee45f942716de8d0924d62c599c6e5994",
+      "paths": {
+        "openspec/changes/coordinator-rest-merge/.managed-task.json": "07f7684339c406e98eeb8737409ebc836d97cc1e",
+        "openspec/changes/coordinator-rest-merge/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+        "openspec/changes/coordinator-rest-merge/design.md": "6a3864ce58a95802aab771d80039fd2903667b34",
+        "openspec/changes/coordinator-rest-merge/proposal.md": "f65c41c26c2f52761504540e39b6395b1cfd4a4b",
+        "openspec/changes/coordinator-rest-merge/specs/publication-queue/spec.md": "593c8a5b68323750f1f0e9959a95fcf324df3561",
+        "openspec/changes/coordinator-rest-merge/tasks.md": "40c757a6e5ca9d70fcb88a68d265cefb05720008",
+        "openspec/changes/coordinator-rest-merge/verification.md": "28cd2593f7e9d120e588ac31ee4dce793caa7615",
+        "template/dev-platform/platform-manifest.json": "7219824d9bc568d62c81484533836ef968ecd262",
+        "template/scripts/parallel_lifecycle_acceptance.py": "c9bb5db0b6d342e1739382d020dfc6e81b4b2308",
+        "template/scripts/publication_queue.py": "859055aa093814dc20024db09d0b4a8c367ee889",
+        "tests/test_autonomous_integration_contour.py": "558b5ada21a91f92df91584013e6f9b788e32393",
+        "tests/test_publication_queue.py": "f729a4ebd4a0b74ba63a82e84ad390deca864576"
+      },
+      "base": "fe66bfc3e4fad7df7c905e2dcb71f7cf60efb825"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f7fd825e0f46ed2bbfde2e3d076c7993b4233217a45eb97a31c80596b5a8d645",
+    "paths": {
+      "openspec/changes/coordinator-rest-merge/.managed-task.json": "07f7684339c406e98eeb8737409ebc836d97cc1e",
+      "openspec/changes/coordinator-rest-merge/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/coordinator-rest-merge/design.md": "6a3864ce58a95802aab771d80039fd2903667b34",
+      "openspec/changes/coordinator-rest-merge/proposal.md": "f65c41c26c2f52761504540e39b6395b1cfd4a4b",
+      "openspec/changes/coordinator-rest-merge/specs/publication-queue/spec.md": "593c8a5b68323750f1f0e9959a95fcf324df3561",
+      "openspec/changes/coordinator-rest-merge/tasks.md": "40c757a6e5ca9d70fcb88a68d265cefb05720008",
+      "template/dev-platform/platform-manifest.json": "7219824d9bc568d62c81484533836ef968ecd262",
+      "template/scripts/parallel_lifecycle_acceptance.py": "c9bb5db0b6d342e1739382d020dfc6e81b4b2308",
+      "template/scripts/publication_queue.py": "859055aa093814dc20024db09d0b4a8c367ee889",
+      "tests/test_autonomous_integration_contour.py": "558b5ada21a91f92df91584013e6f9b788e32393",
+      "tests/test_publication_queue.py": "f729a4ebd4a0b74ba63a82e84ad390deca864576"
+    },
+    "base": "fe66bfc3e4fad7df7c905e2dcb71f7cf60efb825",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/parallel_lifecycle_acceptance.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 126.615,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

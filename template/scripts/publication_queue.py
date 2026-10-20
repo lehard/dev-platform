@@ -334,8 +334,12 @@ def evidence_event_id(dedupe_key: str) -> str:
     return "coordinator-" + match.group(1)[:16]
 
 
-def build_evidence_record(event: dict[str, Any], *, requirement: str | None) -> dict[str, Any]:
-    """The bounded, sanitized durable record for one coordinator friction event."""
+def build_evidence_record(event: dict[str, Any], *, attribution: dict[str, str | None] | None) -> dict[str, Any]:
+    """The bounded, sanitized durable record for one coordinator friction event.
+
+    ``attribution`` is the candidate branch's public work identity (or ``None`` for an
+    unmanaged branch); no private Requirement reference is written to the pull request.
+    """
     from datetime import datetime, timezone
 
     import agent_friction
@@ -347,7 +351,9 @@ def build_evidence_record(event: dict[str, Any], *, requirement: str | None) -> 
     if not _SHA.fullmatch(str(event["head"])):
         raise QueueError("coordinator evidence head must be a full commit SHA")
     record: dict[str, Any] = {
-        "version": 1, "kind": "coordinator-friction", "requirement": requirement,
+        "version": 1, "kind": "coordinator-friction",
+        "work_identity": (attribution or {}).get("work_identity"),
+        "child_identity": (attribution or {}).get("child_identity"),
         "number": event["number"], "head": event["head"], "stage": event["stage"],
         "worker": event["worker"], "task": event["task"], "dedupe_key": event["dedupe_key"],
         "event_id": evidence_event_id(event["dedupe_key"]),
@@ -387,6 +393,11 @@ def _evidence_records(root: Path, number: int, comments: list[dict[str, Any]]) -
                 raise invalid(f"{key} is missing")
         if payload.get("requirement") is not None and not isinstance(payload["requirement"], str):
             raise invalid("requirement is malformed")
+        from managed_work_identity import TOKEN
+        for key, child in (("work_identity", False), ("child_identity", True)):
+            value = payload.get(key)
+            if value is not None and not (isinstance(value, str) and TOKEN.fullmatch(value) and ("/T" in value) == child):
+                raise invalid(f"{key} is malformed")
         triggers = payload.get("triggers")
         if not isinstance(triggers, list) or not triggers or not all(isinstance(t, str) for t in triggers):
             raise invalid("triggers are missing")
@@ -397,9 +408,9 @@ def _evidence_records(root: Path, number: int, comments: list[dict[str, Any]]) -
     return records
 
 
-def post_evidence(root: Path, event: dict[str, Any], *, requirement: str | None) -> dict[str, Any]:
+def post_evidence(root: Path, event: dict[str, Any], *, attribution: dict[str, str | None] | None) -> dict[str, Any]:
     """Persist one coordinator friction event on its candidate PR, once per dedupe key."""
-    record = build_evidence_record(event, requirement=requirement)
+    record = build_evidence_record(event, attribution=attribution)
     repo = _repo(root)
     number = record["number"]
     for existing in _evidence_records(root, number, _comments(root, repo, number)):
@@ -411,18 +422,26 @@ def post_evidence(root: Path, event: dict[str, Any], *, requirement: str | None)
 
 
 def requirement_evidence(root: Path, requirement: str, children: Sequence[str] = ()) -> list[dict[str, Any]]:
-    """Trusted durable coordinator events of a Requirement's candidate PRs, as friction events."""
+    """Trusted durable coordinator events of a Requirement's candidate PRs, as friction events.
+
+    A record belongs to the Requirement by its public work identity; records written
+    before work-identity attribution match by their stored Requirement reference.
+    """
+    from managed_work_identity import parent_identity
+
     repo = _repo(root)
     numbers, _ = _requirement_candidate_numbers(root, requirement, repo)
     owners = {requirement, *children}
+    identity = parent_identity(requirement)
     events = []
     for number in numbers:
         for record in _evidence_records(root, number, _comments(root, repo, number)):
-            if record["requirement"] not in owners:
+            if record.get("work_identity") != identity and record.get("requirement") not in owners:
                 continue
             events.append({
                 "id": record["event_id"], "at": record["at"], "task": record["task"], "branch": record["task"],
-                "requirement": record["requirement"], "attribution": "coordinator",
+                "requirement": requirement if record.get("work_identity") == identity else record["requirement"],
+                "attribution": "coordinator",
                 "dedupe_key": record["dedupe_key"], "category": record["category"],
                 "triggers": record["triggers"], "severity": record["severity"],
                 "observation": record["observation"], "evidence": record["evidence"],
@@ -466,6 +485,25 @@ def use_default_friction_sink(root: Path, *, worker: str) -> None:
     if not isinstance(worker, str) or not worker.strip():
         raise QueueError("the coordinator friction sink requires a worker run identity")
     set_friction_sink(default_friction_sink(root), worker=worker)
+
+
+def require_friction_attribution(branch: str | None) -> None:
+    """Prove, before a job starts, that the registered sink can attribute this candidate's friction.
+
+    Without a registered sink no friction is recorded (library and test use), so
+    there is nothing to prove; with one, a missing branch or a malformed managed
+    identity raises before any reviewer or writer runs and before any push.
+    """
+    if _friction_sink is None:
+        return
+    import managed_work_identity
+
+    if not isinstance(branch, str) or not branch:
+        raise QueueError("friction attribution requires a candidate branch")
+    try:
+        managed_work_identity.branch_attribution(branch)
+    except managed_work_identity.IdentityError as exc:
+        raise QueueError(f"friction cannot be attributed for {branch}: {exc}") from exc
 
 
 def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
@@ -1735,11 +1773,7 @@ def _preflight_runtime(root: Path, mode: str, env: Mapping[str, str]) -> list[di
         # mint: the workflow requests contents and pull-requests write, and GitHub
         # refuses a token the installation cannot grant.
         ok("bot-permission", "contents and pull-requests write granted at token mint")
-    else:
-        info = _probe(root, "repository-permission", "api", f"repos/{repo}")
-        if not isinstance(info, dict) or not (info.get("permissions") or {}).get("push"):
-            raise PreflightFailure("repository-permission", "the authenticated user lacks push permission")
-        ok("repository-permission", "push permission proven")
+    # A local run is observe-only (see run_worker), so it proves no push permission.
     return checks
 
 
@@ -1767,13 +1801,14 @@ def run_identity(mode: str, env: Mapping[str, str]) -> str:
         if not all(parts):
             raise QueueError("CI worker identity needs GITHUB_REPOSITORY, GITHUB_RUN_ID and GITHUB_RUN_ATTEMPT")
         return "github-actions:" + ":".join(parts)
-    if mode == "local":
-        import socket
-        import uuid
+    raise QueueError("only the CI coordinator has a worker run identity")
 
-        return f"local:{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex}"
-    raise QueueError("worker mode must be ci or local")
 
+LOCAL_WORKER_REFUSAL = (
+    "the local coordinator is observe-only: only the CI publication-queue workflow (coordinator GitHub App) "
+    "integrates or merges into main; diagnose locally with `publication_queue.py status` and "
+    "`publication_queue.py preflight --mode local --phase all`"
+)
 
 # Worker outcomes that are a completed step. ``blocked`` and ``error`` exit non-zero.
 WORKER_PROGRESS_STATES = frozenset({
@@ -1783,7 +1818,12 @@ WORKER_PROGRESS_STATES = frozenset({
 
 
 def run_worker(root: Path, mode: str, env: Mapping[str, str], *, install_sink: bool) -> dict[str, Any]:
-    """The coordinator command: full preflight, then one run identity, then candidate work."""
+    """The coordinator command: full preflight, then one run identity, then candidate work.
+
+    Only the CI coordinator integrates; a local run is refused before any GitHub read.
+    """
+    if mode == "local":
+        return {"state": "error", "mode": mode, "reason": LOCAL_WORKER_REFUSAL}
     result = preflight(root, mode, "all", env)
     if result["state"] != "ok":
         return result
@@ -2007,7 +2047,7 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         _require_finalized(root, number, head)
         if pr.get("head", {}).get("ref", "").startswith("requirement/BR-"):
             require_composition_finalized(root, repo, number, head)
-        result = subprocess.run(["gh", "pr", "merge", str(number), "--squash", "--match-head-commit", head], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
+        result = subprocess.run(["gh", "api", "-X", "PUT", f"repos/{repo}/pulls/{number}/merge", "-f", "merge_method=squash", "-f", f"sha={head}"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
         if _pr(root, repo, number).get("merged"):
             _label(root, repo, number, ACTIVE, present=False)
             _label(root, repo, number, QUEUE, present=False)
@@ -2109,6 +2149,53 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
     return {"state": "waiting", "number": number, "reason": str(exc)}
 
 
+def restore_gates(root: Path, repo: str, number: int, *, expected_head: str | None = None) -> dict[str, Any]:
+    """Restore content-bound gates a candidate lost across trusted harness pushes.
+
+    Publishes one record on the current head that keeps its state and adds only the
+    proven gates; it runs no review, registers no claim and rewrites no history.
+    Any break in the proof refuses before a write. A finalize job of that head that
+    already holds a result (it stopped on the lost gates) is never offered again, so
+    the record re-offers finalize under a fresh job id.
+    """
+    from datetime import datetime, timezone
+
+    from candidate_lifecycle import restorable_gates
+    from lifecycle_workers import RESULT_PREFIX, build_job, job_completed, job_record
+
+    pr = _pr(root, repo, number)
+    head = pr.get("head", {}).get("sha")
+    if expected_head is not None and expected_head != head:
+        raise QueueError(f"PR #{number} head is {head}, not the expected {expected_head}; nothing was restored")
+    comments = _comments(root, repo, number)
+    apps = trusted_apps(root)
+    writers = trusted_writers(root, comments, (RESULT_PREFIX,), repo=repo)
+    try:
+        candidate, gates = restorable_gates(pr, comments, trusted_apps=apps, trusted_writers=writers)
+    except MalformedMarkerError as exc:
+        raise QueueError(f"PR #{number} has a malformed lifecycle record: {exc}") from exc
+    except ValueError as exc:
+        raise QueueError(f"PR #{number} gates cannot be restored: {exc}") from exc
+    reoffer: dict[str, Any] = {}
+    job = build_job(candidate)
+    if (candidate["state"] == "finalize-pending" and job is not None
+            and job_completed(job, comments, trusted_apps=apps, trusted_writers=writers)):
+        attempts = candidate.get("attempts") or {}
+        seq = attempts.get("reoffers", 0) + 1
+        event = {"seq": seq, "action": "restore-gates", "head": candidate["head"],
+                 "reason": "the finalize job of this head completed before its gates were restored",
+                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        reoffer = {"set_attempts": {"reoffers": seq},
+                   "next_job": job_record("finalize", candidate["head"], candidate["task_identity"],
+                                          attempts.get("finalize", 0), reoffer=event)}
+    record = _transition(root, repo, number, candidate["state"], candidate["head"],
+                         task_identity=candidate["task_identity"], inherit_identity=False, gates=gates, **reoffer)
+    if record is None:
+        raise QueueError(f"PR #{number} head moved while restoring gates; nothing was restored")
+    return {"state": record["state"], "head": record["head"], "restored": sorted(gates),
+            "gates": sorted(record["gates"]), **({"job": record["next_job"]} if reoffer else {})}
+
+
 def _actor(root: Path) -> str:
     """The authenticated GitHub login performing an operator action; an unresolved identity fails."""
     data = _gh(root, "api", "user")
@@ -2143,6 +2230,9 @@ def main() -> int:
         operator.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
         operator.add_argument("--expected-head", help="refuse, before any write, when the PR head differs (the head the decision was made for)")
         operator.add_argument("--via", help="optional label for the acting surface (for example chat-coordinator), recorded with the actor")
+    restore = sub.add_parser("restore-gates", help="restore content-bound gates lost across trusted harness pushes")
+    restore.add_argument("--pr", type=int, required=True)
+    restore.add_argument("--expected-head", help="refuse, before any write, when the PR head differs")
     args = parser.parse_args()
     root = current_worktree_root()
     try:
@@ -2156,6 +2246,9 @@ def main() -> int:
             print(json.dumps(reoffer(root, _repo(root), args.pr, action=args.command, providers=args.provider,
                                      reason=args.reason, actor=_actor(root), via=args.via,
                                      expected_head=args.expected_head), sort_keys=True))
+            return 0
+        elif args.command == "restore-gates":
+            print(json.dumps(restore_gates(root, _repo(root), args.pr, expected_head=args.expected_head), sort_keys=True))
             return 0
         elif args.command == "preflight":
             result = preflight(root, args.mode, args.phase, os.environ)

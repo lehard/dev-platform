@@ -1,0 +1,142 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.123,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.132,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 985.445,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/agent_friction.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/managed_work_identity.py",
+        "template/scripts/post_review_finalization.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_coordinator_evidence.py",
+        "tests/test_hosted_review_continuity.py",
+        "tests/test_post_review_finalization.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6d1f8c68bee54b236847f660678b5b4a",
+    "change": "hosted-review-transition-continuity",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/hosted-review-transition-continuity",
+    "branch": "agent/br-706-t1-hosted-review-transition-continuity",
+    "head": "afa89d3cf07a961db4f74d23194c62228f2ac68b",
+    "task_content": {
+      "version": 1,
+      "digest": "34e80bf1bcc6dbd631c9a8c00c7ac057d717d182654faa0be027daafa2651c35",
+      "paths": {
+        "dev-platform/checks.toml": "04134ca42f2828b60a35b3c4f201308f9cc0887f",
+        "docs/engineering/agent-workflow.md": "9871650ebd9bbdafbaae69fa5297a2231611557c",
+        "docs/engineering/chat-coordinator.md": "b2294b0dff8c5559c9a562529ce125cb09531189",
+        "docs/engineering/hosted-lifecycle-workers.md": "4d9dceb5c3815f02d230f9a64c31cedb8e5cc5e2",
+        "openspec/changes/hosted-review-transition-continuity/.managed-task.json": "f3f020ac7b0302e36dc0b99355b66bb984a4d843",
+        "openspec/changes/hosted-review-transition-continuity/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+        "openspec/changes/hosted-review-transition-continuity/automated-checks.json": "a9b1564e462d3431c1a023e6cbea28044719ae5c",
+        "openspec/changes/hosted-review-transition-continuity/design.md": "fd5d038fa03f212b95bc61ba62920004cd92bb44",
+        "openspec/changes/hosted-review-transition-continuity/proposal.md": "ed51d2d60daa2147c962c6215df6eb32d524a8df",
+        "openspec/changes/hosted-review-transition-continuity/specs/lifecycle-workers/spec.md": "31caf4339eff2a2289afb8af40b364f7c9acc1b8",
+        "openspec/changes/hosted-review-transition-continuity/specs/publication-queue/spec.md": "11b3f4c641aaf6e86c03345a79dc1ade592d4413",
+        "openspec/changes/hosted-review-transition-continuity/tasks.md": "ef99566f83cc42a482639c009eb4b65f6bfc2df2",
+        "openspec/changes/hosted-review-transition-continuity/verification.md": "6bd71f8e396fa659ed106a0f37e5f248c1c53352",
+        "template/dev-platform/platform-manifest.json": "e8cb52d8fc2e4477ad775252386ee7541efc29d1",
+        "template/scripts/agent_friction.py": "7a7605455fcc65716eba6a0b18659bd43c84a17e",
+        "template/scripts/candidate_lifecycle.py": "cae576f8cd33f5f527f6143a11fbf9ac6c9160c8",
+        "template/scripts/integration_contour.py": "73a4cfafc3ea1d1f9be6fc3b132fa4ba11101eda",
+        "template/scripts/lifecycle_workers.py": "67a80a046cc40898f56fa3d09387cc8ec1b51f98",
+        "template/scripts/managed_work_identity.py": "0d4a223f9aa96ef3d6a365a776041a2625567495",
+        "template/scripts/post_review_finalization.py": "b1cd499b7ddcd28790ab8eff12d685c7e499dda2",
+        "template/scripts/pr_review_gate.py": "17030ec6c0da83afa23729689b35456940307eea",
+        "template/scripts/publication_queue.py": "eecd434c0594b1de08114eeefae7e76cf03601ad",
+        "tests/test_autonomous_integration_contour.py": "cb11c7277ac297af7d96597a07ea67472b177fcf",
+        "tests/test_coordinator_evidence.py": "d70888a3a85de16d2c5f1b0048df2c362fce932e",
+        "tests/test_hosted_review_continuity.py": "96cd79c6a10c9d3f70cf3febe0f08bcc3df951c1",
+        "tests/test_post_review_finalization.py": "7b5c2c77f51bd31fad1691e8bf746e2697620ccb"
+      },
+      "base": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "ffd0f30bf4017406320ae4c8ff50b5d72988a560332bbeb02636c82e83d89e06",
+    "paths": {
+      "dev-platform/checks.toml": "04134ca42f2828b60a35b3c4f201308f9cc0887f",
+      "docs/engineering/agent-workflow.md": "9871650ebd9bbdafbaae69fa5297a2231611557c",
+      "docs/engineering/chat-coordinator.md": "b2294b0dff8c5559c9a562529ce125cb09531189",
+      "docs/engineering/hosted-lifecycle-workers.md": "4d9dceb5c3815f02d230f9a64c31cedb8e5cc5e2",
+      "openspec/changes/hosted-review-transition-continuity/.managed-task.json": "f3f020ac7b0302e36dc0b99355b66bb984a4d843",
+      "openspec/changes/hosted-review-transition-continuity/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+      "openspec/changes/hosted-review-transition-continuity/design.md": "fd5d038fa03f212b95bc61ba62920004cd92bb44",
+      "openspec/changes/hosted-review-transition-continuity/proposal.md": "ed51d2d60daa2147c962c6215df6eb32d524a8df",
+      "openspec/changes/hosted-review-transition-continuity/specs/lifecycle-workers/spec.md": "31caf4339eff2a2289afb8af40b364f7c9acc1b8",
+      "openspec/changes/hosted-review-transition-continuity/specs/publication-queue/spec.md": "11b3f4c641aaf6e86c03345a79dc1ade592d4413",
+      "openspec/changes/hosted-review-transition-continuity/tasks.md": "ef99566f83cc42a482639c009eb4b65f6bfc2df2",
+      "template/dev-platform/platform-manifest.json": "e8cb52d8fc2e4477ad775252386ee7541efc29d1",
+      "template/scripts/agent_friction.py": "7a7605455fcc65716eba6a0b18659bd43c84a17e",
+      "template/scripts/candidate_lifecycle.py": "cae576f8cd33f5f527f6143a11fbf9ac6c9160c8",
+      "template/scripts/integration_contour.py": "73a4cfafc3ea1d1f9be6fc3b132fa4ba11101eda",
+      "template/scripts/lifecycle_workers.py": "67a80a046cc40898f56fa3d09387cc8ec1b51f98",
+      "template/scripts/managed_work_identity.py": "0d4a223f9aa96ef3d6a365a776041a2625567495",
+      "template/scripts/post_review_finalization.py": "b1cd499b7ddcd28790ab8eff12d685c7e499dda2",
+      "template/scripts/pr_review_gate.py": "17030ec6c0da83afa23729689b35456940307eea",
+      "template/scripts/publication_queue.py": "eecd434c0594b1de08114eeefae7e76cf03601ad",
+      "tests/test_autonomous_integration_contour.py": "cb11c7277ac297af7d96597a07ea67472b177fcf",
+      "tests/test_coordinator_evidence.py": "d70888a3a85de16d2c5f1b0048df2c362fce932e",
+      "tests/test_hosted_review_continuity.py": "96cd79c6a10c9d3f70cf3febe0f08bcc3df951c1",
+      "tests/test_post_review_finalization.py": "7b5c2c77f51bd31fad1691e8bf746e2697620ccb"
+    },
+    "base": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_friction.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/managed_work_identity.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_coordinator_evidence.py --changed-file tests/test_hosted_review_continuity.py --changed-file tests/test_post_review_finalization.py",
+    "duration_seconds": 223.162,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
