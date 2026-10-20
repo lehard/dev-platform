@@ -3,46 +3,40 @@
   "candidate": {
     "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
     "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
-    "candidate_head": "6188ad3fd5d7c565550f3a9eebd68bfcceaa0c12",
-    "diff_sha256": "e6defb768c6dfff1c6ec6006baca20eb22fbd786c2825708fc4fc1528120d96d"
+    "candidate_head": "905228b97f42852ce015df1f09ee8ea1ac737b56",
+    "diff_sha256": "3334e5b98e89eab3c6dd8f06e8f15ac12015874a01ad2beeade405ec20f31f58"
   },
-  "completed_at": "2026-10-20T03:13:01+00:00",
+  "completed_at": "2026-10-20T03:16:27+00:00",
   "findings": [
     {
-      "evidence": "`template/scripts/sandboxed_writer.py` `build_profile` accepts `extra_deny_write`, but `launch_sandboxed_writer` calls it with only `protected=protected_paths(integration_root)` and `platform_root`. `protected_paths` covers only the root, the common git dir and the worktrees. `proposal.md` says: \"denyWrite ... the push remote path when local\".",
-      "id": "local-push-remote-not-write-denied",
-      "severity": "material",
-      "summary": "The proposal says the profile write-denies the push remote path when it is local. `launch_sandboxed_writer` never computes or passes that path, so a local bare `origin` outside the protected paths stays writable to the sandboxed writer if it is not under an allowed root."
-    },
-    {
-      "evidence": "`DENY_READ_HOME` lists `~/.config/dev-platform` but `build_profile` and `launch_sandboxed_writer` never add the resolved `token_file`. The spec requires: \"The token file location SHALL be read-denied inside the sandbox.\" The writer already holds the token in its environment, which limits the exposure.",
+      "evidence": "template/scripts/sandboxed_writer.py build_profile builds deny_read only from DENY_READ_HOME, protected paths and platform_root. launch_sandboxed_writer reads the token path in read_claude_token but never passes it to build_profile. `~/.config/dev-platform` is denied only by coincidence of the default location. The writer also gets the token in its env, so reading the file is not needed, but the spec requirement is unmet. No test covers it (tests/test_sandboxed_writer.py ProfileTests).",
       "id": "token-file-not-read-denied",
-      "severity": "advisory",
-      "summary": "The spec says the token file location is read-denied inside the sandbox. The profile denies reads only of fixed home paths. A `token_file` outside `~/.config/dev-platform` (any operator-chosen path) is not added to `denyRead`."
+      "severity": "material",
+      "summary": "The spec requires \"The token file location SHALL be read-denied inside the sandbox\", but the generated profile never adds the configured token_file path to denyRead. A token_file outside the hardcoded home entries is readable by the writer."
     },
     {
-      "evidence": "`srt_launcher` returns `[\"npx\", \"--yes\", ...]`. `sandboxed_env` puts the token in the env of the outer `npx`/`srt` process, not only the inner writer. The design's alternative of a resolvable `srt` binary with a matching `--version` is not implemented.",
-      "id": "unverified-npx-runtime-fetch",
+      "evidence": "proposal.md: \"denyWrite ... the push remote path when local\". `launch_sandboxed_writer` calls `build_profile(checkout=..., protected=protected_paths(integration_root), platform_root=...)` with no `extra_deny_write`. A bare local origin outside the integration tree and worktrees stays writable only if it lies under an allowWrite root, so the exposure is limited. The proposal and implementation still diverge.",
+      "id": "local-push-remote-not-write-denied",
       "severity": "advisory",
-      "summary": "The launcher runs `npx --yes @anthropic-ai/sandbox-runtime@<version>` outside any sandbox. It fetches from the registry at launch with no integrity check, and the outer process environment holds `CLAUDE_CODE_OAUTH_TOKEN`. The version pin is the only protection."
+      "summary": "The proposal says the profile write-denies the push remote path when it is local. The launch path never computes it, and `extra_deny_write` is never populated by `launch_sandboxed_writer`."
     },
     {
-      "evidence": "`sandboxed_writer.py` `srt_tmp`: `if not path.exists(): path.mkdir(mode=0o700)`, followed by an `lstat` check of only `S_ISDIR` and `st_uid`.",
-      "id": "srt-tmp-weak-validation",
+      "evidence": "sandboxed_writer.py protected_paths runs `git worktree list --porcelain` once. Its result is written to the static srt-settings.json.",
+      "id": "protected-worktrees-snapshot-at-launch",
       "severity": "advisory",
-      "summary": "`srt_tmp` checks existence and then calls mkdir, which is racy. It validates the owner but not the mode of an existing directory under the shared `/private/tmp`. A pre-existing directory with permissive mode would be accepted."
+      "summary": "Registered worktrees are enumerated once at launch. A worktree created elsewhere during a long writer run is not covered. The `~/.config` and `~/.claude` denies and the realpath checks do not close this for worktrees at arbitrary paths."
     }
   ],
-  "launched_at": "2026-10-20T03:12:41+00:00",
-  "output_sha256": "2931aaf714a6f25a7c447d80f55d4aeffbad9997980e0f6bed17614c4acdb9bd",
+  "launched_at": "2026-10-20T03:16:09+00:00",
+  "output_sha256": "638866f2a42ccffbe5120c4731b8f23a9d4fd3be4a878675e58d10aa2a1daf17",
   "perspective": "engineering-quality",
-  "request_id": "6b9d6166-ae07-4a20-8fc5-24108d8b774f",
+  "request_id": "8e757139-f4fd-48e8-b541-249ad26ed39b",
   "reviewer": {
-    "context_id": "1eacbd23-cb36-474e-93aa-ec0db4ab931c",
+    "context_id": "1e7f2c32-08d6-49f2-b7fa-84d72a7b6ee9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7eb052ce-16c9-48e2-9651-592492f39136",
+    "launch_id": "platform-launch-79b8267b-772f-4258-bb62-b660d02caaa5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +51,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26397
+        "value": 26371
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16486
+        "value": 16464
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18690
+        "value": 17493
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18933
+        "value": 17785
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -87,7 +81,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2155
+        "value": 1936
       }
     },
     "runtime": "claude-code-print"
