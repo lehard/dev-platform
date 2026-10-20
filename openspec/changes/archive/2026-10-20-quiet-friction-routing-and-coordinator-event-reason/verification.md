@@ -33,3 +33,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Main brought BR-695/T1 (root-cause convergence and auto-close in `agent_friction.py`, PR 656) and the retained-outcome fix (PR 662). Conflicts only in the `platform-lifecycle` main spec (both append requirements; both kept) and the generated manifest (regenerated). In the auto-merged `route_event`, the withheld check for faceless coordinator events still runs before the root-convergence lookup and issue creation, and `route_pending` still skips `withheld`; `test_friction_root_convergence`, `test_coordinator_event_routing`, `test_coordinator_evidence`, `test_friction_strict_log` and related suites pass together (165 tests). The semantic review above holds unchanged for this change's own content.
 - Selected checks rerun on this head; authoritative evidence: `automated-checks.json`.
+
+## Re-verification after third reconcile (main 5978f471)
+
+- Main brought PR 664 (re-admission of a reconcile-pushed descendant head in `publication_queue.local_status` and finish). It touches the queue's local status path only, not `emit_friction`/`friction_reason`; the only conflict was the generated manifest (regenerated). Coordinator evidence, routing and queue suites pass on the merged tree. Semantic review unchanged; selected checks rerun on this head (`automated-checks.json`).
