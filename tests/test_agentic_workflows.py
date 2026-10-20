@@ -10,16 +10,6 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 PIN = (ROOT / ".github" / "aw" / "gh-aw-version.txt").read_text(encoding="utf-8").strip()
 SOURCES = {
-    "process-issue-triage": {
-        "max-ai-credits: 50",
-        "max-daily-ai-credits: 100",
-        "timeout-minutes: 8",
-        "max-turns: 8",
-        "allowed-repos: public",
-        "issues: read",
-        "add-labels:",
-        "add-comment:",
-    },
     "weekly-process-backlog-review": {
         "max-ai-credits: 100",
         "max-daily-ai-credits: 100",
@@ -54,7 +44,6 @@ SOURCES = {
 AGENT_JOB_TIMEOUT_MINUTES = 30
 GH_AW_ACTION_REF = "69763a0390c8438e006d545f1faef1fab742719d"
 AGENTIC_STEP_TIMEOUT_MINUTES = {
-    "process-issue-triage": 8,
     "weekly-process-backlog-review": 10,
     "architecture-health-review": 10,
 }
@@ -75,10 +64,7 @@ class AgenticWorkflowTests(unittest.TestCase):
             text = (ROOT / ".github" / "workflows" / f"{name}.md").read_text(encoding="utf-8")
             self.assertIn("engine: codex", text)
             self.assertIn("contents: read", text)
-            if name == "process-issue-triage":
-                self.assertIn("workflow_dispatch:", text)
-            else:
-                self.assertNotIn("workflow_dispatch:", text)
+            self.assertNotIn("workflow_dispatch:", text)
             self.assertIn("threat-detection:", text)
             self.assertIn("bash: [\"*\"]", text)
             self.assertIn("jobs:\n  agent:\n    timeout-minutes: 30", text)
@@ -108,10 +94,7 @@ class AgenticWorkflowTests(unittest.TestCase):
             self.assertRegex(text, r"ghcr\.io/github/gh-aw-mcpg:v0\.4\.18@sha256:[0-9a-f]{64}")
             self.assertIn(f"github/gh-aw/actions/setup@{GH_AW_ACTION_REF}", text)
             agent = text[text.index("  agent:") : text.index("  conclusion:")]
-            if name == "process-issue-triage":
-                self.assertIn('"repos": "public"', agent)
-            else:
-                self.assertIn("GITHUB_MCP_SERVER_TOKEN: ${{ steps.private_read_token.outputs.token }}", agent)
+            self.assertIn("GITHUB_MCP_SERVER_TOKEN: ${{ steps.private_read_token.outputs.token }}", agent)
             self.assertRegex(agent, r"ghcr\.io/github/gh-aw-mcpg:v0\.4\.18@sha256:[0-9a-f]{64}")
             self.assertNotIn("gh-aw-mcpg:v0.4.8", agent)
             self.assertNotIn("GH_AW_MCP_GATEWAY_CUSTOM_ENV_NAMES", agent)
@@ -119,18 +102,14 @@ class AgenticWorkflowTests(unittest.TestCase):
             for uses in re.findall(r"^\s*uses:\s+[^@\s]+@([^\s#]+)", text, flags=re.MULTILINE):
                 self.assertRegex(uses, r"^[0-9a-f]{40}$", msg=f"non-immutable action reference: {uses}")
 
-    def test_triage_only_names_available_read_tools(self) -> None:
-        text = (ROOT / ".github" / "workflows" / "process-issue-triage.md").read_text(encoding="utf-8")
-        for tool in ("`issue_read`", "`list_label`", "`search_issues`"):
-            self.assertIn(tool, text)
-        self.assertIn("Do not use `search_repositories`", text)
-
-    def test_triage_safe_output_cli_is_the_only_shell_exception(self) -> None:
-        text = (ROOT / ".github" / "workflows" / "process-issue-triage.md").read_text(encoding="utf-8")
-        self.assertIn("`safeoutputs`\nCLI is the sole shell exception", text)
-        self.assertIn("direct schema-derived\n`safeoutputs` command", text)
-        self.assertIn("do not wrap it in `bash`, `sh`, or a login shell", text)
-        self.assertIn("Do not report that a comment was posted unless that command confirms", text)
+    def test_event_driven_process_triage_is_not_installed(self) -> None:
+        workflows = ROOT / ".github" / "workflows"
+        self.assertFalse((workflows / "process-issue-triage.md").exists())
+        self.assertFalse((workflows / "process-issue-triage.lock.yml").exists())
+        for source in sorted(workflows.glob("*.md")):
+            with self.subTest(source=source.name):
+                frontmatter = yaml.safe_load(source.read_text(encoding="utf-8").split("---", 2)[1])
+                self.assertNotIn("issues", frontmatter[True])  # YAML 1.1 reads `on` as True
 
     def test_weekly_review_requires_freshness_and_preserves_source_issue_read_only_boundary(self) -> None:
         text = (ROOT / ".github" / "workflows" / "weekly-process-backlog-review.md").read_text(encoding="utf-8")
