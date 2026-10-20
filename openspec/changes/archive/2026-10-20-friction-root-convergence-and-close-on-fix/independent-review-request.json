@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "3190580ea394f03f6b6956201407349449b81f49",
+    "base_ref": "origin/main",
+    "candidate_head": "e7cfb61a365b57036cc26d5198abfdae02e95ced",
+    "diff_sha256": "cf754efc03b9c2b8ca8636cd30fc9ce468b65476cf7040bd3a3035e80432708f"
+  },
+  "change": "openspec/changes/friction-root-convergence-and-close-on-fix",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/friction-root-convergence-and-close-on-fix/automated-checks.json",
+    "openspec/changes/friction-root-convergence-and-close-on-fix/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/design.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/proposal.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/specs/platform-lifecycle/spec.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/friction-root-convergence-and-close-on-fix/proposal.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/design.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/tasks.md",
+        "openspec/changes/friction-root-convergence-and-close-on-fix/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T11:37:43+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/friction-root-convergence-and-close-on-fix/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e0b129e8-41cd-4a55-8265-97a8161641fa",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3190580ea394f03f6b6956201407349449b81f49",
+    "digest": "959c88821cb684f49d5f2072bf53c979bf18c80d60fed4cefdf49d8ab31b2332",
+    "paths": {
+      ".github/workflows/friction-close-on-merge.yml": "ed4923e6d548702df6c9daa8ba15506a9a7c11d3",
+      "dev-platform/checks.toml": "2c053c928b691ea00ea474aacaabce2301c0a6e7",
+      "docs/engineering/agent-workflow.md": "8ca7ade031029197f2b496abfcdf2dc534e61ff4",
+      "openspec/changes/friction-root-convergence-and-close-on-fix/.managed-task.json": "15860dad07c80828c7c55064a447704e04ee0db2",
+      "openspec/changes/friction-root-convergence-and-close-on-fix/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/friction-root-convergence-and-close-on-fix/design.md": "2318c508e25f6648ec4675bea7e824e42c06dade",
+      "openspec/changes/friction-root-convergence-and-close-on-fix/proposal.md": "96b2b3fe7a8e176e3af643f4a7fb0a60c0f6f83c",
+      "openspec/changes/friction-root-convergence-and-close-on-fix/specs/platform-lifecycle/spec.md": "0973dabdca91ae67dff24f8fe37d8a93875eca13",
+      "openspec/changes/friction-root-convergence-and-close-on-fix/tasks.md": "024c6d4cb64b176a5ad62cb92b863d36921586a6",
+      "template/dev-platform/platform-manifest.json": "727817bd64606705bd20ed5a82b2cc546b378d2d",
+      "template/scripts/agent_friction.py": "fc5b3169c2fb41f2f15ce96e4280665db94c11f6",
+      "tests/test_friction_root_convergence.py": "e1f3936f081b781176abcf3b92a956c5c77dd4ac"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

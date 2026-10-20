@@ -252,6 +252,7 @@ targets = [
   "test_direct_main_health",
   "test_fresh_worktree_readiness",
   "test_friction_review",
+  "test_friction_root_convergence",
   "test_friction_strict_log",
   "test_retrospective_attribution",
   "test_gitlab_delivery",
