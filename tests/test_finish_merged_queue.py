@@ -83,6 +83,13 @@ class QueueMergedFinishTests(unittest.TestCase):
         evidence.assert_called_once()
         reconcile.assert_not_called()
 
+    def test_reconcile_pushed_head_awaiting_readmission_proceeds_to_admission(self) -> None:
+        # Regression: a waiting exit here left a reconcile-pushed descendant unadmittable.
+        code, evidence, reconcile = self.run_finish({"state": "readmission", "number": 7, "owner": "developer re-admission"})
+        self.assertIsNone(code)
+        evidence.assert_called_once()
+        reconcile.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
