@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.125,
+      "duration_seconds": 0.213,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.08,
+      "duration_seconds": 0.095,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 977.784,
+      "duration_seconds": 988.79,
       "outcome": "success",
       "exit_code": 0
     }
@@ -59,23 +59,23 @@
     "change": "disable-process-issue-triage",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/disable-process-issue-triage",
     "branch": "agent/br-696-t1-disable-process-issue-triage",
-    "head": "d3aa086722cfb97c92d1f074f1bf7d6eb2cfb876",
+    "head": "4e5a86adbed26c5cfdfb8ef412fddace08c91ae5",
     "task_content": {
       "version": 1,
-      "digest": "c5170a961cfee5c2a524e2b3acaeb3faa5d31f754a0c3421afb7615df60d443b",
+      "digest": "42c00280ce5d23be0ba51e8cfcc59ea3f462fab35aacdc8a5503290d3fc64412",
       "paths": {
         ".github/workflows/process-issue-triage.lock.yml": null,
         ".github/workflows/process-issue-triage.md": null,
         "docs/agentic-workflows.md": "c7712739a77f9dee248c83356f5fa0ae1e678b05",
-        "docs/engineering/agent-workflow.md": "4f0a8df8140c1f56aa920cef190b2ce00741e272",
+        "docs/engineering/agent-workflow.md": "f123de4fbb8c0ddb84626fb867f4b1d9a35438de",
         "openspec/changes/disable-process-issue-triage/.managed-task.json": "b188d1b7fd4ba40b675eda22549d66557d785493",
         "openspec/changes/disable-process-issue-triage/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
-        "openspec/changes/disable-process-issue-triage/automated-checks.json": "be1fb765995b10d6b744f4b68b6b2cd04c1debf8",
+        "openspec/changes/disable-process-issue-triage/automated-checks.json": "2531482f7dd19c77571d1ba6263cafe0c31381d5",
         "openspec/changes/disable-process-issue-triage/design.md": "1f0adcdd7fe57e2a834b0f5e6d92ff8f9e93fb38",
         "openspec/changes/disable-process-issue-triage/proposal.md": "d342adbd20d428524f8f9cfe8e637df7fecf7fec",
         "openspec/changes/disable-process-issue-triage/specs/agentic-maintenance/spec.md": "b235ee0bdfd06846fb1f296c4922d4e974d3d923",
         "openspec/changes/disable-process-issue-triage/tasks.md": "93b3ea305066666ac3203e6a2aec175af9314726",
-        "openspec/changes/disable-process-issue-triage/verification.md": "554fd22fe79dd820ac8a481184e292d070e22a7f",
+        "openspec/changes/disable-process-issue-triage/verification.md": "49864c523a45fd7ecb8870673658f6b5420fc578",
         "scripts/cloud_maintenance_preflight.py": "52e0dee2ac755251d593bd163cfac3a20457f1ce",
         "scripts/validate_agentic_workflows.py": "c651c8cfb850e10b4192d9943c134f6c46ec324c",
         "template/docs/engineering/agent-workflow.md.jinja": "3bc830c7aff392679f8acb9747cc0a4cb1fc7005",
@@ -83,17 +83,17 @@
         "tests/test_ci_guardrails.py": "ad6fbf081050ea2a4c1a3a286a774e06bac49000",
         "tests/test_cloud_maintenance_preflight.py": "a52cb8673f4938905430a9237348c136bbafcc22"
       },
-      "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966"
+      "base": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "bf256ac9ca32b527998c5fb735dc3af2d242e7e89431c5289bed27893cf3629a",
+    "digest": "5c1d1a58d370d7b777abc64b689ad317c68bf3beeed34901e49c43ad420f9498",
     "paths": {
       ".github/workflows/process-issue-triage.lock.yml": null,
       ".github/workflows/process-issue-triage.md": null,
       "docs/agentic-workflows.md": "c7712739a77f9dee248c83356f5fa0ae1e678b05",
-      "docs/engineering/agent-workflow.md": "4f0a8df8140c1f56aa920cef190b2ce00741e272",
+      "docs/engineering/agent-workflow.md": "f123de4fbb8c0ddb84626fb867f4b1d9a35438de",
       "openspec/changes/disable-process-issue-triage/.managed-task.json": "b188d1b7fd4ba40b675eda22549d66557d785493",
       "openspec/changes/disable-process-issue-triage/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
       "openspec/changes/disable-process-issue-triage/design.md": "1f0adcdd7fe57e2a834b0f5e6d92ff8f9e93fb38",
@@ -107,12 +107,12 @@
       "tests/test_ci_guardrails.py": "ad6fbf081050ea2a4c1a3a286a774e06bac49000",
       "tests/test_cloud_maintenance_preflight.py": "a52cb8673f4938905430a9237348c136bbafcc22"
     },
-    "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base": "b1fa02d794fff680a1347676ee23edbd8c7c6fdc",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/cloud_maintenance_preflight.py --changed-file scripts/validate_agentic_workflows.py --changed-file tests/test_agentic_workflows.py --changed-file tests/test_ci_guardrails.py --changed-file tests/test_cloud_maintenance_preflight.py",
-    "duration_seconds": 4.739,
+    "duration_seconds": 5.462,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
