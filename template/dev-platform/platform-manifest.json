@@ -135,7 +135,7 @@
     "scripts/rollout_identity.py": "230a478d340bf7efbfee03ba2c1647df1d37d61c9672e0281cfb273d550a4f1f",
     "scripts/rollout_preflight.py": "3941c647ef5ccac8736d9c13517195c640975a4fd1f7515467c9ecd76d06ed82",
     "scripts/run_test_groups.py": "2b50b9e7bda422df0ba6ea78f7ea3ee277112181d9bc9f85116afc7f4f93db24",
-    "scripts/sandboxed_writer.py": "927494ccc8c9145ee5efff2a2ee89113a5a3f9649522b3cf3d9f1561ea07149e",
+    "scripts/sandboxed_writer.py": "b954ae1456f1e4cfaff3d3353c44e938b2f852bc3fbec70338058d88c5b264ef",
     "scripts/select_checks.py": "a724c535a172c226b9824c1091fb55672ced530caf10f421111bc9e81bbc8b5d",
     "scripts/shared_workspace.py": "0d9dee6ec6d3b0e2f9a50c78a3f31abaefb4689578d01bf3a8ce07da493f43b3",
     "scripts/start_managed_task.py": "07176460c64d9e544bebca15e377e976ea97ce3c9652c70e1dce5816f6975a7f",

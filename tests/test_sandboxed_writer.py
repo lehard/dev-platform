@@ -44,7 +44,8 @@ class Base(unittest.TestCase):
 class ProfileTests(Base):
     def profile(self, **kw):
         args = dict(checkout=self.tmp / "co", home=self.tmp / "home", tmp=self.tmp / "tmp",
-                    protected=[str(self.tmp / "integration")], platform_root=self.tmp / "platform")
+                    protected=[str(self.tmp / "integration")], operator_home=self.tmp / "op",
+                    token_file=self.tmp / "secrets" / "tok", platform_root=self.tmp / "platform")
         args.update(kw)
         return sw.build_profile(**args)
 
@@ -56,13 +57,30 @@ class ProfileTests(Base):
         self.assertEqual(fs["allowWrite"], [str(self.tmp / n) for n in ("co", "home", "tmp")])
         self.assertIn(str(self.tmp / "integration"), fs["denyWrite"])
         self.assertIn(str(self.tmp / "platform"), fs["denyWrite"])
-        for entry in ("~/.claude", "~/.claude.json", "~/.config", "~/.ssh"):
-            self.assertIn(entry, fs["denyWrite"])
-        for entry in ("~/.ssh", "~/.config/gh", "~/.gitconfig", "~/.git-credentials", "~/.netrc", "~/.aws", "~/.gnupg",
-                      "~/Library/Keychains", "~/.claude", "~/.claude.json", "~/.config/dev-platform",
-                      "~/Library/Application Support", "~/.npmrc", "~/.docker"):
-            self.assertIn(entry, fs["denyRead"])
+        op = self.tmp / "op"
+        for entry in (".claude", ".claude.json", ".config", ".ssh"):
+            self.assertIn(str(op / entry), fs["denyWrite"])
+        for entry in (".ssh", ".config/gh", ".gitconfig", ".git-credentials", ".netrc", ".aws", ".gnupg",
+                      "Library/Keychains", ".claude", ".claude.json", ".config/dev-platform",
+                      "Library/Application Support", ".npmrc", ".docker"):
+            self.assertIn(str(op / entry), fs["denyRead"])
         self.assertIn(str(self.tmp / "integration"), fs["denyRead"])
+
+    def test_home_entries_are_absolute_against_operator_home(self):
+        fs = self.profile()["filesystem"]
+        for entry in fs["denyRead"] + fs["denyWrite"]:
+            self.assertTrue(entry.startswith("/"), entry)
+            self.assertFalse(entry.startswith(str(self.tmp / "home")), entry)
+        with self.assertRaisesRegex(sw.SandboxedWriterError, "scratch home"):
+            self.profile(home=self.tmp / "op")
+
+    def test_token_file_and_local_remotes_are_denied(self):
+        fs = self.profile(token_file=self.tmp / "anywhere" / "tok", extra_deny_write=[str(self.tmp / "remote.git")])["filesystem"]
+        for key in ("denyRead", "denyWrite"):
+            self.assertIn(str(self.tmp / "anywhere" / "tok"), fs[key])
+            self.assertIn(str(self.tmp / "remote.git"), fs[key])
+        with self.assertRaises(sw.SandboxedWriterError):
+            self.profile(token_file=self.tmp / "co" / "tok")
 
     def test_no_apple_events_or_weaker_isolation(self):
         text = str(self.profile())
@@ -99,6 +117,17 @@ class ProtectedPathTests(Base):
         self.assertIn(str(repo), paths)
         self.assertIn(str(repo / ".git"), paths)
         self.assertIn(str(wt), paths)
+
+    def test_local_remote_paths(self):
+        repo = self.tmp / "repo"
+        repo.mkdir()
+        git(repo, "init", "-q", "-b", "main")
+        bare = self.tmp / "remote.git"
+        git(self.tmp, "init", "-q", "--bare", str(bare))
+        git(repo, "remote", "add", "origin", str(bare))
+        git(repo, "remote", "add", "hub", "https://github.com/o/r.git")
+        git(repo, "remote", "set-url", "--push", "hub", "file://" + str(self.tmp / "push.git"))
+        self.assertEqual(sorted(sw.local_remote_paths(repo)), sorted([str(bare), str(self.tmp / "push.git")]))
 
     def test_not_a_repo_raises(self):
         with self.assertRaises(sw.SandboxedWriterError):
@@ -180,7 +209,8 @@ class LaunchTests(Base):
         for d in (co, home, wtmp):
             d.mkdir()
         cfg = self.config()
-        with mock.patch.object(sw.sys, "platform", "darwin"), \
+        with mock.patch.object(sw, "operator_home", return_value=self.tmp / "op"), \
+                mock.patch.object(sw.sys, "platform", "darwin"), \
                 mock.patch.object(sw.shutil, "which", return_value="/x/bin"), \
                 mock.patch.object(sw, "srt_tmp", return_value=Path("/private/tmp/dp-srt-test")), \
                 mock.patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": "ambient-secret"}):
@@ -194,6 +224,8 @@ class LaunchTests(Base):
         self.assertNotIn(SECRET, " ".join(command))
         self.assertNotIn("ambient-secret", str(kw["env"]))
         self.assertTrue((work / "srt-settings.json").is_file())
+        profile = __import__("json").loads((work / "srt-settings.json").read_text())
+        self.assertIn(str(self.tmp / "token"), profile["filesystem"]["denyRead"])
 
     def test_harness_envs_drop_ambient_token(self):
         repo = self.tmp / "h"

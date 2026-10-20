@@ -23,7 +23,6 @@ DENY_READ_HOME = ["~/.ssh", "~/.config/gh", "~/.gitconfig", "~/.git-credentials"
                   "~/Library/Keychains", "~/.claude", "~/.claude.json", "~/.config/dev-platform",
                   "~/Library/Application Support", "~/.npmrc", "~/.docker"]
 DENY_WRITE_HOME = ["~/.claude", "~/.claude.json", "~/.config", "~/.ssh"]
-SAFE_GIT = ("-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "submodule.recurse=false")
 TOKEN_SETTING = "[independent_review.login.claude] token_file"
 TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN"
 
@@ -56,8 +55,12 @@ def _real(path: Path | str) -> str:
 
 
 def _git(root: Path, *args: str) -> str:
+    from lifecycle_workers import SAFE_GIT  # one hardening definition for every harness git call
+
+    env = {key: value for key, value in credential_free_env(dict(os.environ)).items()
+           if key != TOKEN_ENV and not key.startswith("GIT_DIR") and key not in {"GIT_WORK_TREE", "GIT_COMMON_DIR"}}
     done = subprocess.run(["git", *SAFE_GIT, "-C", str(root), *args], text=True, capture_output=True,
-                          check=False, stdin=subprocess.DEVNULL)
+                          check=False, stdin=subprocess.DEVNULL, env=env)
     if done.returncode:
         raise SandboxedWriterError(f"git {' '.join(args)} failed in {root}: {done.stderr.strip() or done.stdout.strip()}")
     return done.stdout.strip()
@@ -75,22 +78,56 @@ def protected_paths(integration_root: Path) -> list[str]:
     return list(dict.fromkeys(paths))
 
 
+def local_remote_paths(integration_root: Path) -> list[str]:
+    """Realpaths of every local (path or ``file://``) fetch/push URL of the integration repository's remotes."""
+    from urllib.parse import urlsplit
+
+    paths = []
+    for remote in _git(integration_root, "remote").split():
+        for url in _git(integration_root, "remote", "get-url", "--all", remote).splitlines() + \
+                _git(integration_root, "remote", "get-url", "--push", "--all", remote).splitlines():
+            parsed = urlsplit(url)
+            if parsed.scheme == "file":
+                paths.append(_real(parsed.path))
+            elif not parsed.scheme and url.startswith("/"):
+                paths.append(_real(url))
+    return list(dict.fromkeys(paths))
+
+
 def _inside(path: str, parent: str) -> bool:
     return path == parent or path.startswith(parent.rstrip("/") + "/")
 
 
-def build_profile(*, checkout: Path, home: Path, tmp: Path, protected: list[str],
-                  extra_deny_write: tuple[str, ...] | list[str] = (), platform_root: Path) -> dict[str, Any]:
+def _operator_path(operator_home: Path, entry: str) -> str:
+    if not entry.startswith("~/"):
+        raise SandboxedWriterError(f"home-relative profile entry {entry!r} must start with ~/")
+    return os.path.realpath(os.path.join(operator_home, entry[2:]))
+
+
+def build_profile(*, checkout: Path, home: Path, tmp: Path, protected: list[str], operator_home: Path,
+                  token_file: Path, extra_deny_write: tuple[str, ...] | list[str] = (),
+                  platform_root: Path) -> dict[str, Any]:
+    """The srt settings for one writer launch, with every path absolute.
+
+    The sandbox runs with ``HOME`` set to the scratch home, so home-relative deny entries are resolved
+    here against the operator's real home rather than left as ``~/...`` for the sandbox to expand.
+    """
+    operator_home = Path(_real(operator_home))
     allow = [_real(checkout), _real(home), _real(tmp)]
+    if _real(home) == str(operator_home):
+        raise SandboxedWriterError(f"the writer home {home} must be a scratch home, not the operator home")
     protected = [_real(p) for p in protected]
     platform = _real(platform_root)
-    # Home-relative entries stay literal ("~/...") for srt to expand; they are expanded only for the overlap check.
-    deny_write = [*protected, *[_real(p) for p in extra_deny_write], *DENY_WRITE_HOME, platform]
-    deny_read = [*DENY_READ_HOME, *protected, platform]
+    token = _real(token_file)
+    deny_write = [*protected, *[_real(p) for p in extra_deny_write],
+                  *[_operator_path(operator_home, entry) for entry in DENY_WRITE_HOME], token, platform]
+    deny_read = [*[_operator_path(operator_home, entry) for entry in DENY_READ_HOME], *protected,
+                 *[_real(p) for p in extra_deny_write], token, platform]
+    deny_write, deny_read = list(dict.fromkeys(deny_write)), list(dict.fromkeys(deny_read))
     for path in allow:
-        for denied in deny_write:
-            if _inside(path, _real(denied)):
-                raise SandboxedWriterError(f"writable path {path} is equal to or inside the protected path {denied}")
+        for denied in deny_write + deny_read:
+            if _inside(path, denied) or _inside(denied, path):
+                raise SandboxedWriterError(f"writable path {path} overlaps the protected path {denied}")
     return {"network": {"allowedDomains": list(ANTHROPIC_HOSTS), "deniedDomains": []},
             "filesystem": {"allowWrite": allow,
                            "denyWrite": deny_write,
@@ -107,14 +144,18 @@ def write_profile(profile: dict[str, Any], profile_path: Path) -> Path:
     return target
 
 
-def read_claude_token(config: dict[str, Any]) -> str:
+def claude_token_file(config: dict[str, Any]) -> Path:
     try:
         token_file = config["independent_review"]["login"]["claude"]["token_file"]
     except (KeyError, TypeError):
         raise SandboxedWriterError(f"operator setting {TOKEN_SETTING} is missing") from None
     if not isinstance(token_file, str) or not token_file.strip():
         raise SandboxedWriterError(f"operator setting {TOKEN_SETTING} must be a non-empty path")
-    path = Path(os.path.expanduser(token_file))
+    return Path(os.path.expanduser(token_file))
+
+
+def read_claude_token(config: dict[str, Any]) -> str:
+    path = claude_token_file(config)
     try:
         info = path.stat()
     except OSError as error:
@@ -156,6 +197,13 @@ def sandboxed_env(base_env: dict[str, str], *, home: Path, token: str) -> dict[s
     return env
 
 
+def operator_home() -> Path:
+    """The operator's real home from the account database, independent of an inherited ``HOME``."""
+    import pwd
+
+    return Path(pwd.getpwuid(os.getuid()).pw_dir)
+
+
 def launch_sandboxed_writer(argv: list[str], checkout: Path, *, integration_root: Path, platform_root: Path,
                             workdir: Path, home: Path, tmp: Path, config: dict[str, Any],
                             runner: Callable[..., Any] | None = None, timeout: int | None = None) -> Any:
@@ -167,7 +215,8 @@ def launch_sandboxed_writer(argv: list[str], checkout: Path, *, integration_root
     require_writer_cli(argv[0] if argv else "claude")
     token = read_claude_token(config)
     profile = build_profile(checkout=checkout, home=home, tmp=tmp, protected=protected_paths(integration_root),
-                            platform_root=platform_root)
+                            operator_home=operator_home(), token_file=claude_token_file(config),
+                            extra_deny_write=local_remote_paths(integration_root), platform_root=platform_root)
     profile_path = write_profile(profile, Path(workdir) / "srt-settings.json")
     command = sandboxed_command(argv, launcher=launcher, profile_path=profile_path, writer_tmp=tmp)
     env = sandboxed_env(os.environ, home=home, token=token)
