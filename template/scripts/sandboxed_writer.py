@@ -170,11 +170,9 @@ def read_claude_token(config: dict[str, Any]) -> str:
     return value
 
 
-def sandboxed_command(argv: list[str], *, launcher: list[str], profile_path: Path, writer_tmp: Path,
-                      claude: bool = True) -> list[str]:
-    tmp = str(writer_tmp)
-    inner = [f"TMPDIR={tmp}", f"TMP={tmp}", f"TEMP={tmp}", *([f"CLAUDE_CODE_TMPDIR={tmp}"] if claude else [])]
-    return [*launcher, "--settings", str(profile_path), "env", *inner, "bash", "-c", shlex.join(argv)]
+def sandboxed_command(argv: list[str], *, launcher: list[str], profile_path: Path) -> list[str]:
+    """srt re-joins its argv into one shell string, so the writer argv travels as one ``bash -c`` script."""
+    return [*launcher, "--settings", str(profile_path), "bash", "-c", shlex.join(argv)]
 
 
 def srt_tmp() -> Path:
@@ -188,11 +186,17 @@ def srt_tmp() -> Path:
     return path
 
 
-def sandboxed_env(base_env: dict[str, str], *, home: Path, token: str) -> dict[str, str]:
+def sandboxed_env(base_env: dict[str, str], *, home: Path, token: str, writer_tmp: Path) -> dict[str, str]:
+    """The srt process environment.
+
+    srt (0.0.79) ignores ``TMPDIR``/``CLAUDE_CODE_TMPDIR`` assigned inside the sandboxed command and sets the
+    writer's ``TMPDIR`` from the ``CLAUDE_CODE_TMPDIR`` it inherits, so the writer tmp is passed here; the
+    outer ``TMPDIR`` stays short for srt's own Unix socket (proven by the BR-576 acceptance probes).
+    """
     env = credential_free_env(dict(base_env), home)
     env.pop(TOKEN_ENV, None)
     short = str(srt_tmp())
-    env.update(TMPDIR=short, TMP=short, TEMP=short)
+    env.update(TMPDIR=short, TMP=short, TEMP=short, CLAUDE_CODE_TMPDIR=str(writer_tmp))
     env[TOKEN_ENV] = token
     return env
 
@@ -218,8 +222,8 @@ def launch_sandboxed_writer(argv: list[str], checkout: Path, *, integration_root
                             operator_home=operator_home(), token_file=claude_token_file(config),
                             extra_deny_write=local_remote_paths(integration_root), platform_root=platform_root)
     profile_path = write_profile(profile, Path(workdir) / "srt-settings.json")
-    command = sandboxed_command(argv, launcher=launcher, profile_path=profile_path, writer_tmp=tmp)
-    env = sandboxed_env(os.environ, home=home, token=token)
+    command = sandboxed_command(argv, launcher=launcher, profile_path=profile_path)
+    env = sandboxed_env(os.environ, home=home, token=token, writer_tmp=tmp)
     runtime_tmp = Path(env["TMPDIR"])
     return lifecycle_workers.run_llm(command, checkout, tmp=tmp, env={k: v for k, v in env.items() if k != TOKEN_ENV},
                                      runner=runner, timeout=timeout, home=home, runtime_tmp=runtime_tmp,
