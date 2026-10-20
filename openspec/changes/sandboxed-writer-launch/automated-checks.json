@@ -1,0 +1,82 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.123,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.201,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1012.904,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/lifecycle_workers.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_ce754494c25449dc961be05efe29c908",
+    "change": "sandboxed-writer-launch",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sandboxed-writer-launch",
+    "branch": "agent/br-576-t1-sandboxed-writer-launch",
+    "head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "task_content": {
+      "version": 1,
+      "digest": "e5ee7d3dd776a2a5f6485ebd6f8c749d6d76fecd57f53ac97b04374449e08bfa",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_b1dcfd0cb2f20cf0e2887e22ed40b92a-integration.json": "e6829c2f9ccca79d5a6a131555d5c3187eb3dca4"
+      },
+      "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "d726cf5405dc0e666f5f6a432df5a84ef47dd54daa0fec9135d70533dab54197",
+    "paths": {},
+    "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_workers.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 139.381,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
