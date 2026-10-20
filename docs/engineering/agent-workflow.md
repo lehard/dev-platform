@@ -399,7 +399,8 @@ main keeps coordinator updates and harness pushes; a rewrite would silently drop
 the branch as a new PR. A `finalize-pending` candidate is not re-admitted; when it lost content-bound gates across the
 harness's own review-evidence pushes, `python3 scripts/publication_queue.py restore-gates --pr N --expected-head <head>`
 restores the proven gates on the current head (it refuses, naming the head, when any head move was not a trusted harness
-push with unchanged task content). Attempt counters (review and repair rounds, `review-unavailable`/`repair-unavailable` streaks)
+push with unchanged task content) and re-offers finalize under a fresh job id when that head's finalize job already
+holds a result; `resume` re-offers such a completed finalize job of a `finalize-pending` candidate. Attempt counters (review and repair rounds, `review-unavailable`/`repair-unavailable` streaks)
 carry over to the new head; re-admission spends or resets no budget. This is developer completion; terminal delivery still requires
 archive and confirmed merge. The worker entrypoint
 `python3 scripts/lifecycle_workers.py work-next --repo owner/repo --kinds review --run`
