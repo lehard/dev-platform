@@ -95,6 +95,7 @@ def default_friction_sink(root: Path):
             category=event["category"], triggers=event["triggers"],
             severity=event["severity"], observation=event["observation"], evidence=event["evidence"],
             hypothesis=event["hypothesis"], proposal=event["proposal"], dedupe_key=event["dedupe_key"],
+            reason=event["reason"], candidate={"task": task, "number": event["number"], "head": event["head"]},
             event_id=record["event_id"])
 
     return sink

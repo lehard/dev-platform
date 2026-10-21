@@ -55,7 +55,6 @@ class QueueMergedFinishTests(unittest.TestCase):
             mock.patch.object(finish_task, "require_publication_review_evidence", evidence),
             mock.patch.object(finish_task, "require_independent_publication_exception", return_value=None),
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
-            mock.patch.object(finish_task, "run_friction_route_pending_retry"),
             mock.patch.object(finish_task, "fetch_main"),
             mock.patch.object(finish_task, "task_pr_is_already_merged", return_value=True),
             mock.patch.object(finish_task, "reconcile_confirmed_remote_pr_merge", reconcile),

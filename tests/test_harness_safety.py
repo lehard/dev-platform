@@ -111,20 +111,15 @@ with serialized_integration(Path(%r), {"paths": {"main_merge_lock": ".claude/mai
         self.assertIn("recovery/diagnostic", message)
         self.assertNotIn("review is ready", message)
 
-    def test_agent_doctor_friction_routing_timeout_does_not_block_delivery(self) -> None:
-        expired = subprocess.TimeoutExpired(["python3", "scripts/agent_friction.py", "route-pending"], 15)
-        with patch.object(agent_doctor.subprocess, "run", side_effect=expired) as run, patch.object(agent_doctor, "report") as report:
-            agent_doctor.retry_friction_routing(ROOT)
-        self.assertEqual(run.call_args.kwargs["timeout"], 15)
-        self.assertEqual(report.call_args.args, ("warn", "friction routing retry timed out after 15 seconds; safe delivery is unaffected"))
-
-    def test_finish_task_friction_routing_timeout_does_not_block_publication(self) -> None:
-        expired = subprocess.TimeoutExpired(["python3", "scripts/agent_friction.py", "route-pending"], 15)
-        output = StringIO()
-        with patch.object(finish_task.subprocess, "run", side_effect=expired) as run, redirect_stdout(output):
-            finish_task.run_friction_route_pending_retry(ROOT)
-        self.assertEqual(run.call_args.kwargs["timeout"], 15)
-        self.assertIn("timed out after 15 seconds; safe publication may continue", output.getvalue())
+    def test_doctor_and_finish_never_wait_on_friction_routing(self) -> None:
+        # Routing retry is an explicit operator command; ordinary start/doctor/finish/advance never run it.
+        for module in (agent_doctor, finish_task):
+            with self.subTest(module.__name__):
+                source = Path(module.__file__).read_text(encoding="utf-8")
+                self.assertNotIn("route-pending", source)
+                self.assertNotIn("friction routing retry", source)
+        self.assertFalse(hasattr(agent_doctor, "retry_friction_routing"))
+        self.assertFalse(hasattr(finish_task, "run_friction_route_pending_retry"))
 
     def test_agent_doctor_distinguishes_degraded_board_warning_from_a_blocked_error(self) -> None:
         board = subprocess.CompletedProcess(
