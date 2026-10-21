@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-    "candidate_head": "40d342dd4e302f3099281a23f2a56803bd446d07",
-    "diff_sha256": "14250d453fd29333a886db42ffd22bb38653a828c6223204edaead60296e35cc"
+    "candidate_head": "43ad3cd3f92fa4a8c65e04f7e9b9939a7bf129e3",
+    "diff_sha256": "e0237c5b3936459d0bb9b727c677d094f9220be9a503ad6e8fc316f963fa5152"
   },
   "change": "private-lineage-pln_b1dcfd0cb2f20cf0e2887e22ed40b92a-integration",
   "children": [
@@ -136,12 +136,12 @@
       ]
     }
   },
-  "prepared_at": "2026-10-21T19:08:05+00:00",
-  "request_id": "37e4879e-5188-4b81-8308-fd1da62e6f07",
+  "prepared_at": "2026-10-21T21:18:27+00:00",
+  "request_id": "6743baaa-e946-4ac0-a5f9-ca351d1c93fe",
   "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
   "schema_version": 1,
   "task_content": {
-    "base": "297d0871f21d3a56147fd6874b3abe46469236a4",
+    "base": "32f5ab7e61a06a56ea15b815f9c9ec37411ec7bd",
     "digest": "284af864859fc89c944460521431f834def802500541a27c8e935ef3a791e027",
     "paths": {
       "dev-platform/checks.toml": "de689c5fb2fbc25c9fb2741ea12a933025e428c3",

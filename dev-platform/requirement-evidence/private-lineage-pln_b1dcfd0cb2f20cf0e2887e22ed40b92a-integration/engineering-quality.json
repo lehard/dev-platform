@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-    "candidate_head": "40d342dd4e302f3099281a23f2a56803bd446d07",
-    "diff_sha256": "14250d453fd29333a886db42ffd22bb38653a828c6223204edaead60296e35cc"
+    "candidate_head": "43ad3cd3f92fa4a8c65e04f7e9b9939a7bf129e3",
+    "diff_sha256": "e0237c5b3936459d0bb9b727c677d094f9220be9a503ad6e8fc316f963fa5152"
   },
-  "completed_at": "2026-10-21T19:09:21+00:00",
+  "completed_at": "2026-10-21T21:19:55+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py run_claude_sandboxed calls launch(...) without a timeout. sandboxed_writer.launch_sandboxed_writer accepts timeout=None and passes it to run_llm, so run_in_session never kills the process group on a deadline. The delegation stays 'open' in the route until the supervisor interrupts it, and the BaseException handler only closes it as 'abnormal' after that.",
-      "id": "sandboxed-writer-no-timeout",
+      "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` calls `tempfile.mkdtemp(prefix=\"dp-sandboxed-claude-\")`. It then raises `RoutingError` on a `prepare_sandboxed_checkout` failure or a `SandboxedWriterError` (non-macOS, missing srt, CLI or token) without cleaning up. `dispatch_claude_sandboxed` only calls `shutil.rmtree(run[\"workdir\"])` for the `completed` outcome. Each pre-launch refusal therefore leaves a `dp-sandboxed-claude-*` temp directory behind. Before a refusal after checkout preparation, that directory can already hold a full task copy. It holds no token, since the profile is written only after the token is read, so this is a hygiene issue rather than a containment one.",
+      "id": "sandboxed-dispatch-workdir-leak-on-refusal",
       "severity": "advisory",
-      "summary": "The sandboxed Claude writer launch has no wall-clock bound, so a hung writer blocks dispatch indefinitely."
+      "summary": "The disposable workdir is not removed when the sandboxed dispatch fails before or around launch. Retention of a failed run's workdir for diagnosis is documented, but retention on a pre-launch refusal is not."
     }
   ],
-  "launched_at": "2026-10-21T19:08:54+00:00",
-  "output_sha256": "0667eaf80e82fa3daf13e2df3411839b35ba416bea1c9bf3feef20f8a02c9471",
+  "launched_at": "2026-10-21T21:19:18+00:00",
+  "output_sha256": "fd66ce09ce1e7f7f1ef84489979b1e439ebd4b6427046492ccc57b5dd3b9fc61",
   "perspective": "engineering-quality",
-  "request_id": "37e4879e-5188-4b81-8308-fd1da62e6f07",
+  "request_id": "6743baaa-e946-4ac0-a5f9-ca351d1c93fe",
   "reviewer": {
-    "context_id": "5fb69536-1b40-4939-b69d-218d7f8fdf2e",
+    "context_id": "c2bc508e-5213-49dd-aa17-39dfe7a6bc46",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3e510b10-1e5b-4775-9e93-977c9b944f5c",
+    "launch_id": "platform-launch-62524fa2-e181-4ca2-aa66-0b3ad7755d3a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39744
+        "value": 61365
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 135120
+        "value": 183777
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22902
+        "value": 32301
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26162
+        "value": 35745
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,12 +64,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2340
+        "value": 2682
       }
     },
     "runtime": "claude-code-print"
