@@ -1,32 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_head": "328da595906c11d9276fc1087047c15a16be493a",
     "base_ref": "origin/main",
-    "candidate_head": "5b7c95b1d59db7d88a5cc0a47ff742ca984a0d02",
-    "diff_sha256": "078b89352acfe2c571853c9ad58853ef283de46a2d5755cce456f8898d3bae17"
+    "candidate_head": "66665b8f04bf2527503d7009ccf9da5569bfde55",
+    "diff_sha256": "d5c2a28ae5a64cb320835214afa00117451877175f8b50436b69b47efca73e5a"
   },
-  "completed_at": "2026-10-20T19:41:43+00:00",
-  "findings": [],
-  "launched_at": "2026-10-20T19:41:27+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-21T11:22:14+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py record_lifecycle_friction: `subprocess.run([... '--reason', reason, '--candidate-task', branch, '--candidate-head', run_git(['rev-parse','HEAD'])...], check=False, capture_output=True)` with no returncode handling. This matches the existing 'without changing delivery outcome' intent, but it is not an explicit failure as the spec text reads.",
+      "id": "finish-producer-failure-swallowed",
+      "severity": "advisory",
+      "summary": "The spec says non-coordinator producers SHALL fail explicitly with a named error rather than record a coordinator event without reason or candidate. finish_task.record_lifecycle_friction invokes `agent_friction.py record` with check=False and discards the result. If the candidate head cannot be resolved or `record` rejects the fields, the event is silently not recorded. The explicit failure applies only inside the `record` subprocess."
+    }
+  ],
+  "launched_at": "2026-10-21T11:21:40+00:00",
+  "output_sha256": "18d94726de1d40afbdd48aafac5acaec896c8faa8790797f98c58c38d179b745",
   "perspective": "spec-fidelity",
-  "request_id": "b5bfc48f-f42a-4cfb-a3f0-d32416c378fa",
+  "request_id": "40e7a182-5425-48da-927d-695871718301",
   "reviewer": {
-    "context_id": "d0270462-3daa-4efe-92ab-e300a44b9f20",
+    "context_id": "b3f8c5cc-ce84-47a4-99d5-ecfaf047ceca",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bfe48fd7-6570-42b5-988c-465f60bd34d7",
+    "launch_id": "platform-launch-2a989659-6ce9-465b-9814-98eb8a73cc31",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -35,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39968
+        "value": 46923
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14727
+        "value": 96010
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13085
+        "value": 31741
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13685
+        "value": 32556
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1230
+        "value": 1607
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "169082f4db940627519e4cd84e3028efb422e3852cd1654aad780aab282cb1f5"
+  "task_content_digest": "e6d8726a2e3405f3d327c7dc29953b85855fe856f276b7c1e4f041c8f9fcd4c9"
 }

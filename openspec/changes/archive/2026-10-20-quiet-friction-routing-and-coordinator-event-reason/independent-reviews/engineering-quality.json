@@ -1,57 +1,42 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_head": "328da595906c11d9276fc1087047c15a16be493a",
     "base_ref": "origin/main",
-    "candidate_head": "5b7c95b1d59db7d88a5cc0a47ff742ca984a0d02",
-    "diff_sha256": "078b89352acfe2c571853c9ad58853ef283de46a2d5755cce456f8898d3bae17"
+    "candidate_head": "66665b8f04bf2527503d7009ccf9da5569bfde55",
+    "diff_sha256": "d5c2a28ae5a64cb320835214afa00117451877175f8b50436b69b47efca73e5a"
   },
-  "completed_at": "2026-10-20T19:42:19+00:00",
+  "completed_at": "2026-10-21T11:23:09+00:00",
   "findings": [
     {
-      "evidence": "A grep for `route-pending|route_pending` outside openspec/ finds only the parser entry at template/scripts/agent_friction.py:2021, the function definitions, tests, and the docs sentence at docs/engineering/agent-workflow.md:311. No script, workflow or review procedure calls it. design.md decision 1 and the proposal rely on 'operator or Process Health Review'.",
-      "id": "no-automatic-route-pending-caller",
+      "evidence": "template/scripts/publication_queue.py friction_reason(): when the gate has no `cause` or `limitation`, it falls back to `json.dumps(evidence)` and cuts the result to 240 chars. pr_review_gate.py:256 builds the `repair-pending` red gate as `{\"name\": \"review\", \"evidence\": reports}`, where `reports` is the per-provider report dict including findings. The reason is then a clipped JSON prefix such as `review: {\"claude\": {\"availability\":...`. The new test asserts exactly this shape (`'review: {\"spec\": \"material\"}'`). The design says evidence stays local because it may contain raw output, and only `sanitize_for_route` stands between that content and the routed body.",
+      "id": "reason-is-truncated-raw-evidence-json",
       "severity": "advisory",
-      "summary": "With the doctor/finish retries removed, nothing in the repository invokes `route-pending` automatically. Pending friction events (for example after a transient GitHub failure) stay unrouted until someone runs the command by hand. The design and docs say the retry is done by an operator or the Process Health Review, but no code or document wires that in."
+      "summary": "For review-gate transitions the published `reason` is a truncated JSON dump of the gate evidence. It does not state the cause, and it moves evidence that the design says stays local into the public stream."
     },
     {
-      "evidence": "template/scripts/publication_queue.py, replay branch of `_transition`: `emit_friction(number, branch, state, head, previous.get(\"red_gate\"), attempts=previous.get(\"attempts\"))`. `friction_reason` raises QueueError when `red_gate` is not a dict with a name. The old code used `str((previous.get(\"red_gate\") or {}).get(\"evidence\", \"\"))` and tolerated a missing gate. design.md Risks lists only older downstream harnesses and withheld legacy events.",
-      "id": "replayed-transition-without-red-gate-now-fails",
+      "evidence": "publication_queue.py `_transition` (~line 636): `if state in _FRICTION_STATES: emit_friction(number, branch, state, head, previous.get(\"red_gate\"), ...)`. `emit_friction` calls `friction_reason`, which raises QueueError for a missing or unnamed gate, and only `blocked-retryable` is exempt. The spec's `Producer without a reason` scenario requires the error. It does not say how already-persisted candidates without a red gate are handled, although the legacy-evidence path (`_evidence_records`) was made tolerant.",
+      "id": "idempotent-reemit-fails-on-legacy-red-gate",
       "severity": "advisory",
-      "summary": "The idempotent replay path in `_transition` now passes `previous.get('red_gate')` to `emit_friction`. A PR already recorded in a friction state (repair-pending, blocked-escalation and similar) with no stored red gate, for example one recorded by an older coordinator, now raises QueueError on every observation instead of being republished. A candidate in that state is stuck, and this is not called out as a migration risk."
-    },
-    {
-      "evidence": "template/scripts/publication_queue.py `friction_reason`: `parts = [str(evidence)]` when cause and limitation are absent. The result is rendered by `reason_markdown_lines` in template/scripts/agent_friction.py. design.md context: 'evidence stays local by design (it may contain raw output)'.",
-      "id": "reason-publishes-red-gate-evidence",
-      "severity": "advisory",
-      "summary": "The design says raw `evidence` is never published because it may hold raw output. When a red gate has no `cause` or `limitation`, `friction_reason` builds the published `reason` from the gate's `evidence`, serialized as JSON. Up to 240 characters of that evidence therefore reach the public process issue stream. Only the generic `sanitize_for_route` applies."
-    },
-    {
-      "evidence": "tests/test_harness_safety.py `test_doctor_and_finish_never_wait_on_friction_routing`: `source = Path(module.__file__).read_text(...)`; `self.assertNotIn(\"route-pending\", source)`.",
-      "id": "source-text-assertion-test",
-      "severity": "advisory",
-      "summary": "The doctor and finish no-retry test checks the module source text for the substring 'route-pending'. It does not check behavior. Any later comment or doc string in those files that mentions the command would fail it. The `hasattr` checks are similarly name-bound."
+      "summary": "The idempotent `_transition` path now re-runs `emit_friction` with `previous.get(\"red_gate\")`. A candidate already recorded in a friction state without a named red gate (an older record) now raises QueueError on every observation. That can leave it stuck rather than just withholding the event."
     }
   ],
-  "launched_at": "2026-10-20T19:41:43+00:00",
-  "output_sha256": "90b7e98b09043d27c1735a93ccf9140301066d38bb04c6a39ada67e831794d7d",
+  "launched_at": "2026-10-21T11:22:14+00:00",
+  "output_sha256": "5c568bd163bc3fca0408eaf6b77818ff603460076c4ba52fad8d710c33c061d6",
   "perspective": "engineering-quality",
-  "request_id": "b5bfc48f-f42a-4cfb-a3f0-d32416c378fa",
+  "request_id": "40e7a182-5425-48da-927d-695871718301",
   "reviewer": {
-    "context_id": "dd1d2627-adc2-45db-be97-341683afc213",
+    "context_id": "286f8d4a-1316-4476-863e-c4cdf97a7d35",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bc6fdf9d-b2b2-44a3-9d81-99236bfbae4d",
+    "launch_id": "platform-launch-b544a47b-b2f9-4b20-9fb4-0912788ab564",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -60,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43674
+        "value": 57858
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 105016
+        "value": 237296
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33807
+        "value": 52324
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34507
+        "value": 53389
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 12
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2786
+        "value": 4468
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "169082f4db940627519e4cd84e3028efb422e3852cd1654aad780aab282cb1f5"
+  "task_content_digest": "e6d8726a2e3405f3d327c7dc29953b85855fe856f276b7c1e4f041c8f9fcd4c9"
 }
