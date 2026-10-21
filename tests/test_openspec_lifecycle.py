@@ -235,7 +235,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 encoding="utf-8",
             )
             identity = mock.Mock()
-            identity.evidence_payload.return_value = {"change": "managed"}
+            identity.evidence_payload.return_value = {"change": "managed", "task_content": {"version": 1, "digest": "c" * 64}}
             with mock.patch.object(lifecycle, "require_managed_checkout_identity", return_value=identity):
                 with self.assertRaisesRegex(SystemExit, "checkout identity does not match"):
                     lifecycle.require_ready(change, platform_owned=True)
@@ -257,7 +257,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 encoding="utf-8",
             )
             identity = mock.Mock()
-            identity.evidence_payload.return_value = {"change": "managed"}
+            identity.evidence_payload.return_value = {"change": "managed", "task_content": {"version": 1, "digest": "c" * 64}}
             with mock.patch.object(lifecycle, "require_managed_checkout_identity", return_value=identity) as require_identity:
                 lifecycle.require_ready(change, platform_owned=True)
             self.assertEqual(require_identity.call_args.kwargs["expected_change"], "managed")
@@ -271,14 +271,18 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             (change / "specs" / "worktree-coordination" / "spec.md").write_text("delta\n", encoding="utf-8")
             identity = mock.Mock()
             identity.evidence_payload.return_value = {
-                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task", "head": "b" * 40
+                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task", "head": "b" * 40,
+                "task_content": {"version": 1, "digest": "c" * 64},
             }
-            actual = {**identity.evidence_payload(), "head": "a" * 40}
+            # A legacy receipt without its own task-content proof.
+            actual = {key: value for key, value in identity.evidence_payload().items() if key != "task_content"} | {"head": "a" * 40}
             archive_path = "openspec/changes/archive/2026-09-20-managed/automated-checks.json\nopenspec/specs/worktree-coordination/spec.md\n"
             with mock.patch.object(
                 lifecycle,
                 "run_git",
-                side_effect=[mock.Mock(returncode=0), mock.Mock(returncode=0, stdout=archive_path)],
+                # ancestry, changed paths, then the archived evidence file's old and new blobs.
+                side_effect=[mock.Mock(returncode=0), mock.Mock(returncode=0, stdout=archive_path),
+                             mock.Mock(returncode=1, stdout=""), mock.Mock(returncode=0, stdout="f" * 40)],
             ):
                 self.assertTrue(lifecycle.evidence_matches_checkout(change, root, identity, actual))
 
@@ -289,9 +293,11 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             (change / ".managed-task.json").write_text('{"change":"managed"}\n', encoding="utf-8")
             identity = mock.Mock()
             identity.evidence_payload.return_value = {
-                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task", "head": "b" * 40
+                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task", "head": "b" * 40,
+                "task_content": {"version": 1, "digest": "c" * 64},
             }
-            actual = {**identity.evidence_payload(), "head": "a" * 40}
+            # A legacy receipt without its own task-content proof.
+            actual = {key: value for key, value in identity.evidence_payload().items() if key != "task_content"} | {"head": "a" * 40}
             with mock.patch.object(
                 lifecycle,
                 "run_git",
@@ -323,6 +329,18 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             }
             actual = {**identity.evidence_payload(), "head": "a" * 40, "task_content": {"version": 1, "digest": "e" * 64}}
             self.assertFalse(lifecycle.evidence_matches_checkout(change, root, identity, actual))
+
+    def test_evidence_acceptance_refuses_a_checkout_without_task_content_proof(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = self.make_change(root, "managed", "- [x] one\n")
+            identity = mock.Mock()
+            identity.evidence_payload.return_value = {
+                "source_issue": "owner/backlog#1", "change": "managed", "worktree": "/task", "branch": "agent/task", "head": "b" * 40,
+            }
+            actual = {**identity.evidence_payload(), "task_content": {"version": 1, "digest": "c" * 64}}
+            with self.assertRaisesRegex(SystemExit, "managed: automated evidence acceptance requires the task-content proof"):
+                lifecycle.evidence_matches_checkout(change, root, identity, actual)
 
     def _merged_main_repo(self, root: Path, main_touches_task_file: bool, extra_archive_files: tuple[str, ...] = ()):
         import subprocess
