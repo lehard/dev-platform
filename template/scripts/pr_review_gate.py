@@ -21,8 +21,36 @@ def managed_candidate(root: Path) -> bool:
     import publication_queue as queue
 
     provenance = resolve_canonical_provenance(root)
-    return (queue.enabled(root)
-            and provenance is not None and provenance.lifecycle == "active")
+    if not queue.enabled(root) or provenance is None:
+        return False
+    if provenance.lifecycle == "active":
+        return True
+    return archived_readmission(root, provenance) is not None
+
+
+def archived_readmission(root: Path, provenance) -> dict | None:
+    """The queue's semantic-verification re-admission of this archived managed task, or ``None``.
+
+    A coordinator finalize archives the change; content changed afterwards (an
+    integration repair, a reconcile) stops the next finalize on the
+    ``semantic-verification`` red gate, which only a fresh developer handoff
+    answers. Only this task's own admitted PR in exactly that state reopens the
+    handoff; no other archived change does.
+    """
+    import lifecycle_workers as workers
+    import publication_queue as queue
+
+    if provenance.lifecycle != "archived":
+        return None
+    branch = workers._git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
+    observed = queue.semantic_readmission(root, branch)
+    if observed is None:
+        return None
+    old = observed["lineage"].get("task_identity")
+    if not isinstance(old, dict) or old.get("change") != provenance.change:
+        raise workers.WorkerError(
+            f"PR #{observed['number']} awaits re-admission of another task than archived change {provenance.change}")
+    return observed
 
 
 def task_identity(root: Path, change: str) -> dict:
@@ -117,13 +145,17 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     import lifecycle_workers as workers
     from openspec_lifecycle import archive_content_problems, require_automated_evidence, verification_passed
 
-    problems = archive_content_problems(root, [change]) if change.parent.name != "archive" else []
-    if problems:
-        raise workers.WorkerError("developer handoff requires an archiveable change before review: " + "; ".join(problems))
+    name = change.name
+    if change.parent.name == "archive":
+        name = _archived_handoff_change(root, change)
+    else:
+        problems = archive_content_problems(root, [change])
+        if problems:
+            raise workers.WorkerError("developer handoff requires an archiveable change before review: " + "; ".join(problems))
     if not verification_passed(change):
         raise workers.WorkerError("developer handoff requires successful semantic verification and its method")
     require_automated_evidence(change, root=root)
-    identity = task_identity(root, change.name)
+    identity = task_identity(root, name)
     helper = root / "scripts/agent_friction.py"
     if not helper.is_file():
         raise workers.WorkerError("developer handoff requires the friction checkpoint helper")
@@ -146,6 +178,33 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
         "semantic-verification": {"result": "passed", "identity": identity,
                                   "evidence": file_reference(root, verification_path)},
     }
+
+
+def _archived_handoff_change(root: Path, change: Path) -> str:
+    """The canonical change name of an archived re-handoff, after proving it is allowed and fresh.
+
+    The archive directory is dated, so the name comes from managed provenance.
+    The semantic receipt must have been re-recorded after the proven head: an
+    unchanged receipt is the evidence the coordinator already found stale.
+    """
+    import lifecycle_workers as workers
+    from managed_task import resolve_canonical_provenance
+
+    provenance = resolve_canonical_provenance(root)
+    if provenance is None or provenance.lifecycle != "archived" or provenance.path.resolve() != change.resolve():
+        raise workers.WorkerError(f"archived developer handoff requires {change.name} to be this task's canonical archived change")
+    observed = archived_readmission(root, provenance)
+    if observed is None:
+        raise workers.WorkerError(
+            f"archived change {provenance.change} has no admitted PR awaiting a semantic-verification re-admission")
+    receipt = (change / "verification.md").resolve().relative_to(root.resolve()).as_posix()
+    proven = workers._git(root, "ls-tree", observed["proven_head"], "--", receipt).strip()
+    current = workers._git(root, "ls-tree", "HEAD", "--", receipt).strip()
+    if proven and proven == current:
+        raise workers.WorkerError(
+            f"semantic verification receipt {receipt} is unchanged since proven head {observed['proven_head'][:12]}; "
+            "re-run semantic verification for the changed task content and commit its receipt")
+    return provenance.change
 
 
 def offer(root: Path, repo: str, number: int, head: str, identity: dict,
