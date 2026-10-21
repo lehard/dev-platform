@@ -1,30 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "ee525942226d8b7e2c901feedd0d1bbaa93c6e31",
+    "base_head": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84",
     "base_ref": "origin/main",
-    "candidate_head": "241ca0430882ba3626d72c518e3bc4cfd8e7c023",
-    "diff_sha256": "da6d8a9fc41f8bfebeb47d17812fc7377c0c326a49828ac081581fdae31fe9cb"
+    "candidate_head": "13f0fd9b315a3b5bf12ca488111f0b3adce33a77",
+    "diff_sha256": "dc427de0bccfdddaadf69ec79ecffc49f49d7525e8b248c15435dacc7abdee39"
   },
-  "completed_at": "2026-10-21T00:52:49+00:00",
+  "completed_at": "2026-10-21T09:11:47+00:00",
   "findings": [
     {
-      "evidence": "tests/test_portable_finish_check_reuse.py:730-737 `test_main_validates_through_the_wrapper_on_the_github_path_only`. The `delivery if delivery is not None and not queue_merged else None` argument built at the call site in template/scripts/finish_task.py (main, around the old line 1106) has no behavioural test.",
-      "id": "source-inspection-wiring-test",
+      "evidence": "tests/test_portable_finish_check_reuse.py, `test_main_validates_through_the_wrapper_on_the_github_path_only`: `source.count(\"validate_or_reuse(\") == 1`, `source.count(\"run_checks(\") == 1`, `source.index(...)` ordering. The only caller expression, `delivery if delivery is not None and not queue_merged else None`, is not behaviorally tested.",
+      "id": "source-introspection-wiring-test",
       "severity": "advisory",
-      "summary": "The wiring test asserts on the text of `finish_task.main`. It counts `validate_or_reuse(` and `run_checks(` occurrences in `inspect.getsource`. It will break on harmless refactors, such as renaming the helper or adding a comment containing those strings. It also doesn't check that the arguments passed are the intended ones (portable mode, managed delivery, and `None` when queue-merged)."
+      "summary": "The wiring test asserts call sites by counting substrings in `inspect.getsource(finish_task.main)`. This breaks on harmless refactors, such as moving the GitLab branch into a helper or renaming a variable. It also doesn't prove that the `validate_or_reuse` arguments are right: mode, the `queue_merged` exclusion, and the delivery that passed the evidence gate."
     }
   ],
-  "launched_at": "2026-10-21T00:52:31+00:00",
-  "output_sha256": "03ce80aea33b6c3b6faad337b2858b235d53ca53b70643902d3134c709e90793",
+  "launched_at": "2026-10-21T09:11:23+00:00",
+  "output_sha256": "92ae7e62ab122c62d80dad8f07543daea60b95a7ac6c9bd6c55d4d7a314f3aa4",
   "perspective": "engineering-quality",
-  "request_id": "d1bb9105-e2e8-40ea-a54c-932514241af7",
+  "request_id": "48bfa9a8-1a9d-408e-9d96-ae06f07a432d",
   "reviewer": {
-    "context_id": "a2c84d96-bf67-4a6a-8ca8-1f3de8fcf9c4",
+    "context_id": "0d7bfdfc-146d-4b49-8030-57e562f13ea9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3ac4c78b-50af-42fd-a71f-5442a1d1029c",
+    "launch_id": "platform-launch-f9fc49db-cfb1-4eb2-8ba6-b36bf2917378",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,27 +39,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33994
+        "value": 32477
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 87169
+        "value": 121209
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16289
+        "value": 23226
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17284
+        "value": 23501
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -69,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1486
+        "value": 1589
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "e551fd80ec4891d936ccf6be897e44b520b15d829f969192692909f03bc35aab"
+  "task_content_digest": "a361a2012ac754e32d1a25143d39021ad5e183e1d8c9fa23a9caf4b5a3cec069"
 }
