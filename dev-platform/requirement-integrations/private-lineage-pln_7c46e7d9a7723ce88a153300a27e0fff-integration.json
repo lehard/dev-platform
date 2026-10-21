@@ -1,0 +1,20 @@
+{
+  "base": "51298a11dc5242a2c17c84e935b96e57506ab887",
+  "children": [],
+  "dependencies": {
+    "handoff-mergeable-task-base": [],
+    "queue-regenerates-generated-files": [
+      "handoff-mergeable-task-base"
+    ]
+  },
+  "digest": "dc70da77b169a2af916feb52e0700a42468bebf3d8c20f52ab7f45471c0df032",
+  "expected_changes": [
+    "handoff-mergeable-task-base",
+    "queue-regenerates-generated-files"
+  ],
+  "integration_branch": "requirement/BR-748",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+  "version": 2,
+  "work_identity": "BR-748"
+}
