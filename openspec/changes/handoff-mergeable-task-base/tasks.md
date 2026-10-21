@@ -9,4 +9,4 @@
 
 ## 3. Verification
 - [x] 3.1 Regression tests: manifest-only conflict passes; clean overlap of an ordinary file passes; real conflict blocks naming files and the reconcile command; a declaration added only by the candidate does not apply; malformed declaration fails; non-coordinator task stays blocked.
-- [ ] 3.2 Run full validation and semantic OpenSpec verification.
+- [x] 3.2 Run full validation and semantic OpenSpec verification.

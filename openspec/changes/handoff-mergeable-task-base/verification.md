@@ -71,4 +71,4 @@ Each delta scenario and the tests that cover it. Tests are in `tests/test_task_f
 ## Checks
 
 - Targeted tests, run with the machine pool unset: `test_task_freshness`, `test_select_checks` and `test_platform_manifest` passed (OK). `test_task_reconciliation`, `test_protected_publish_contract`, `test_finish_merged_queue`, `test_platform_divergence`, `test_template_contract` and `test_git_lifecycle` passed (133 tests, OK).
-- Repository-owned selected checks: `select_checks.py --base origin/main --execute --contribution-base 50d12669d77b7fc569083a25400191586294d940 --evidence openspec/changes/handoff-mergeable-task-base/automated-checks.json`. The outcome is recorded in `automated-checks.json`.
+- Repository-owned selected checks: `select_checks.py --base origin/main --execute --contribution-base 50d12669d77b7fc569083a25400191586294d940 --evidence openspec/changes/handoff-mergeable-task-base/automated-checks.json`. Outcome: success (compileall, ruff, `run_test_groups.py --all`; affected precheck success), recorded in `automated-checks.json` for the final task content.
