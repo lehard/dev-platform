@@ -268,11 +268,3 @@ targets = [
 ]
 mode = "parallel"
 
-
-# Generated files: the developer handoff of a coordinator candidate accepts a trial-merge conflict
-# confined to these paths, and the publication queue regenerates them on the integrated head by
-# running `regenerate` from its trusted default-branch checkout with `{tree}` set to the merged
-# checkout. Read only from the observed main commit; see docs/engineering/agent-workflow.md.
-[[generated_files]]
-path = "template/dev-platform/platform-manifest.json"
-regenerate = ["python3", "scripts/generate_platform_manifest.py", "--write", "--root", "{tree}"]

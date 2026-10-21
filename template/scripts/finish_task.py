@@ -469,7 +469,7 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
             print("task freshness: unavailable (authoritative main could not be observed)")
         else:
             print(f"task freshness: {freshness['task_freshness']} relative to origin/{main_branch}")
-            if freshness["task_freshness"] == "behind-mergeable":
+            if freshness["task_freshness"] == "behind-disjoint":
                 print(f"no reconcile required: merge base {freshness['task_merge_base']}; the publication queue merges main into this coordinator candidate")
             if freshness["reconcile_required"]:
                 if freshness.get("freshness_detail"):

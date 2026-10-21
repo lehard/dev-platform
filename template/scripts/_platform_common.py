@@ -486,68 +486,21 @@ def require_fresh_task_base(
 RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 
 TASK_BASE_FRESH = "fresh"
-TASK_BASE_BEHIND_MERGEABLE = "behind-mergeable"
+TASK_BASE_BEHIND_DISJOINT = "behind-disjoint"
 TASK_BASE_RECONCILE_REQUIRED = "reconcile-required"
 # ``git merge-tree --write-tree`` (the trial merge) first shipped in git 2.38.
 TRIAL_MERGE_MIN_GIT = (2, 38)
 REPORTED_PATH_LIMIT = 20
-# The command placeholder a generated-file declaration regenerates into.
-GENERATED_TREE_PLACEHOLDER = "{tree}"
-
-
-class GeneratedFile(NamedTuple):
-    """One file a project declares generated: the queue regenerates it on the integrated head."""
-
-    path: str
-    regenerate: tuple[str, ...]
-
-
-def generated_files(root: Path, commit: str) -> tuple[GeneratedFile, ...]:
-    """The ``[[generated_files]]`` a project declares in its check configuration at ``commit``.
-
-    The declaration is read from the committed check configuration (``paths.checks``) of that
-    exact commit, never from a working tree, so a candidate cannot declare its own conflict
-    generated. No ``[[generated_files]]`` table declares none; anything malformed raises.
-    """
-    import tomllib
-
-    checks = read_platform_config(root).get("paths", {}).get("checks")
-    if not isinstance(checks, str) or not checks:
-        raise TaskFreshnessError("paths.checks must name the committed check configuration to read generated files")
-    shown = run_git(["show", f"{commit}:{checks}"], cwd=root, check=False)
-    if shown.returncode:
-        raise TaskFreshnessError(f"check configuration {checks} is missing at {commit}; cannot read generated files")
-    try:
-        entries = tomllib.loads(shown.stdout).get("generated_files", [])
-    except tomllib.TOMLDecodeError as exc:
-        raise TaskFreshnessError(f"check configuration {checks} at {commit} is not valid TOML: {exc}") from exc
-    if not isinstance(entries, list):
-        raise TaskFreshnessError(f"generated_files in {checks} at {commit} must be an array of tables")
-    declared: dict[str, GeneratedFile] = {}
-    for index, entry in enumerate(entries):
-        where = f"generated_files[{index}] in {checks} at {commit}"
-        if not isinstance(entry, dict) or set(entry) != {"path", "regenerate"}:
-            raise TaskFreshnessError(f"{where} must have exactly the keys path and regenerate")
-        path, regenerate = entry["path"], entry["regenerate"]
-        if not isinstance(path, str) or not path or path.startswith("/") or ".." in path.split("/"):
-            raise TaskFreshnessError(f"{where}: path must be a repository-relative file path")
-        if (not isinstance(regenerate, list) or not regenerate or not all(isinstance(a, str) and a for a in regenerate)
-                or GENERATED_TREE_PLACEHOLDER not in regenerate):
-            raise TaskFreshnessError(f"{where}: regenerate must be a non-empty argv list containing {GENERATED_TREE_PLACEHOLDER}")
-        if path in declared:
-            raise TaskFreshnessError(f"{where}: {path} is declared more than once")
-        declared[path] = GeneratedFile(path, tuple(regenerate))
-    return tuple(declared.values())
 
 
 # A NamedTuple, not a dataclass: tests load this module by path without registering it.
 class TaskBaseCurrency(NamedTuple):
     """How a task head stands against one observed main commit.
 
-    ``fresh``: the head contains main. ``behind-mergeable``: it does not, but a trial merge with
-    main is clean or conflicts only in files main declares generated; ``overlapping`` names the
-    paths both changed and ``generated_conflicts`` those conflicts. ``reconcile-required``: the
-    trial merge conflicts elsewhere, named in ``conflicts``.
+    ``fresh``: the head contains main. ``behind-disjoint``: it does not, but the
+    files main changed since their merge base are disjoint from the task's and a
+    trial merge is clean. ``reconcile-required``: overlapping files or a
+    conflicting trial merge, named in ``overlapping``/``conflicts``.
     """
 
     state: str
@@ -555,26 +508,20 @@ class TaskBaseCurrency(NamedTuple):
     base: str
     overlapping: tuple[str, ...] = ()
     conflicts: tuple[str, ...] = ()
-    generated_conflicts: tuple[str, ...] = ()
 
-    def evidence(self) -> dict[str, Any]:
-        if self.state != TASK_BASE_BEHIND_MERGEABLE:
-            raise ValueError(f"only a behind-mergeable task base is recorded as a freshness contract, not {self.state}")
-        return {"contract": TASK_BASE_BEHIND_MERGEABLE, "main": self.main, "base": self.base,
-                "overlapping": list(self.overlapping), "generated_conflicts": list(self.generated_conflicts)}
+    def evidence(self) -> dict[str, str]:
+        if self.state != TASK_BASE_BEHIND_DISJOINT:
+            raise ValueError(f"only a behind-disjoint task base is recorded as a freshness contract, not {self.state}")
+        return {"contract": TASK_BASE_BEHIND_DISJOINT, "main": self.main, "base": self.base}
 
     def describe(self, authoritative: str) -> str:
         if self.state == TASK_BASE_FRESH:
             return f"HEAD contains {authoritative} ({self.main})"
         behind = f"HEAD does not contain {authoritative} ({self.main}); since merge base {self.base}"
-        if self.state == TASK_BASE_BEHIND_MERGEABLE:
-            detail = f"{behind} a trial merge is clean"
-            if self.generated_conflicts:
-                detail = (f"{behind} a trial merge conflicts only in generated "
-                          f"{_bounded_paths(self.generated_conflicts)}, which the publication queue regenerates")
-            if self.overlapping:
-                detail += f"; main and the task both changed {_bounded_paths(self.overlapping)}"
-            return detail
+        if self.state == TASK_BASE_BEHIND_DISJOINT:
+            return f"{behind} main changed only files the task did not change and a trial merge is clean"
+        if self.overlapping:
+            return f"{behind} main and the task both changed {_bounded_paths(self.overlapping)}"
         if self.conflicts:
             return f"{behind} a trial merge conflicts in {_bounded_paths(self.conflicts)}"
         return f"{behind} a trial merge conflicts"
@@ -609,8 +556,8 @@ def _require_trial_merge_support(root: Path) -> None:
 def classify_task_base_currency(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> TaskBaseCurrency:
     """Classify ``task_ref`` against a main commit already present in this checkout.
 
-    Never merges or moves a ref. A missing merge base, an unsupported git, a malformed
-    generated-file declaration or a failing git command raises ``TaskFreshnessError``.
+    Never merges or moves a ref. A missing merge base, an unsupported git or a
+    failing git command raises ``TaskFreshnessError``; nothing is assumed.
     """
     state = relation(root, task_ref, main_sha)
     if state == "missing":
@@ -624,21 +571,17 @@ def classify_task_base_currency(root: Path, main_sha: str, *, task_ref: str = "H
             f"task ref {task_ref!r} has no merge base with main {main_sha}; reconcile first ({RECONCILE_COMMAND})"
         )
     overlapping = tuple(sorted(_changed_paths(root, base, main_sha) & _changed_paths(root, base, task_ref)))
+    if overlapping:
+        return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base, overlapping=overlapping)
     _require_trial_merge_support(root)
     merged = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", task_ref, main_sha], cwd=root, check=False)
     if merged.returncode == 0:
-        return TaskBaseCurrency(TASK_BASE_BEHIND_MERGEABLE, main_sha, base, overlapping=overlapping)
+        return TaskBaseCurrency(TASK_BASE_BEHIND_DISJOINT, main_sha, base)
     if merged.returncode == 1:
         # Output: the merged tree id, then one conflicted path per line, then a blank line.
         lines = merged.stdout.splitlines()[1:]
-        conflicts = tuple(sorted(set(lines[:lines.index("")] if "" in lines else lines)))
-        # Only main's own declaration counts: the candidate cannot declare its conflict generated.
-        generated = {entry.path for entry in generated_files(root, main_sha)}
-        real = tuple(path for path in conflicts if path not in generated)
-        if conflicts and not real:
-            return TaskBaseCurrency(TASK_BASE_BEHIND_MERGEABLE, main_sha, base, overlapping=overlapping,
-                                    generated_conflicts=conflicts)
-        return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base, overlapping=overlapping, conflicts=real)
+        conflicts = tuple(sorted(lines[:lines.index("")] if "" in lines else lines))
+        return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base, conflicts=conflicts)
     raise TaskFreshnessError(f"trial merge of {task_ref!r} with main {main_sha} failed: {GitCommandError(merged.args[1:], root, merged)}")
 
 
@@ -694,8 +637,8 @@ def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> Task
     """Fresh-base gate of developer evidence-producing validation.
 
     A head containing freshly fetched main passes. Otherwise only a coordinator
-    candidate passes, and only when its head is ``behind-mergeable``: the queue
-    merges main, regenerates declared generated files and gates on the integrated head. Every other head fails as
+    candidate passes, and only when its head is ``behind-disjoint``: the queue
+    merges main and gates on the integrated head. Every other head fails as
     ``require_fresh_task_base`` does; candidacy is consulted only then.
     """
     authoritative = f"{remote}/{main_branch}"
@@ -708,7 +651,7 @@ def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> Task
             "rebase/reconcile first, then retry"
         )
     currency = classify_task_base_currency(root, main_sha)
-    if currency.state != TASK_BASE_BEHIND_MERGEABLE:
+    if currency.state != TASK_BASE_BEHIND_DISJOINT:
         raise TaskFreshnessError(f"{currency.describe(authoritative)}; reconcile first ({RECONCILE_COMMAND}), then retry")
     return currency
 

@@ -346,7 +346,7 @@ def execute(
     evidence_path: Path | None = None,
     managed_checkout: object | None = None,
     precheck: list[str] | None = None,
-    base_contract: dict[str, Any] | None = None,
+    base_contract: dict[str, str] | None = None,
 ) -> int:
     commands = commands_for(checks)
     if not commands:
@@ -377,7 +377,7 @@ def _execute_commands(
     managed_checkout: object | None,
     precheck: list[str] | None,
     pass_fds: tuple[int, ...],
-    base_contract: dict[str, Any] | None,
+    base_contract: dict[str, str] | None,
 ) -> int:
     records: list[dict[str, Any]] = []
     outcome = "success"
@@ -442,7 +442,7 @@ def write_evidence(
     managed_checkout: object | None = None,
     precheck: dict[str, Any] | None = None,
     *,
-    base_contract: dict[str, Any] | None = None,
+    base_contract: dict[str, str] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -643,9 +643,8 @@ def main() -> int:
                     )
                 print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
             elif evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root):
-                # Developer handoff evidence: a coordinator candidate behind a main it merges
-                # with cleanly, or with conflicts only in main's declared generated files,
-                # passes; the queue merges main, regenerates those files and gates on the
+                # Developer handoff evidence: a coordinator candidate behind a disjoint,
+                # cleanly mergeable main passes; the queue merges main and gates on the
                 # integrated head. Any other head keeps the fresh-base rule.
                 main_branch = require_main_branch(read_platform_config(root), SystemExit)
                 try:
@@ -659,7 +658,7 @@ def main() -> int:
                 else:
                     base_contract = currency.evidence()
                     print(
-                        "Task freshness gate passed (coordinator-candidate behind-mergeable contract): "
+                        "Task freshness gate passed (coordinator-candidate behind-disjoint contract): "
                         f"{currency.describe('origin/' + main_branch)}; merge base {currency.base}."
                     )
             else:
