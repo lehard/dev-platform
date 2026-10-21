@@ -1597,7 +1597,7 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     updates = [e for e in events if e.get("kind") == "update" and e.get("comment_id", 0) > admission["comment_id"]]
     proven = admission.get("head") if not updates else updates[-1].get("head")
     if pr.get("head", {}).get("ref", "").startswith("requirement/BR-"):
-        require_composition_finalized(root, repo, number, head)
+        require_composition_finalized(root, repo, number, head, through_update=True)
     if head != proven:
         # A runner can die after GitHub updates the branch but before it writes
         # the update comment. Recover only a clean merge of proven head + main.
@@ -2350,21 +2350,57 @@ def branch_head(root: Path, branch: str) -> str:
     return result[0]
 
 
-def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
+def _composition_lineage(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
+    """The latest composition record at ``head`` or at the head the coordinator's own update moved it from.
+
+    Records are exact-head, and the queue merges current ``main`` into a ready
+    composition itself (``update`` markers): the new head has no record until the
+    final-head refresh re-establishes it. Only that recorded chain is followed; a
+    record at a visited head that is not a composition record stops the walk.
+    """
+    comments = _comments(root, repo, number)
+    moved_from = {event.get("head"): event.get("previous") for event in _events(root, repo, number)
+                  if event.get("kind") == "update"}
+    seen: set[str] = set()
+    current: Any = head
+    while isinstance(current, str) and current not in seen:
+        seen.add(current)
+        record = _latest(root, number, comments, current)
+        if record is not None:
+            identity = record.get("task_identity")
+            if isinstance(identity, dict) and identity.get("kind") == "requirement-composition":
+                return record
+            break
+        current = moved_from.get(current)
+    raise QueueError("Requirement publication lacks composition identity")
+
+
+def require_composition_finalized(root: Path, repo: str, number: int, head: str, *,
+                                  through_update: bool = False) -> dict[str, Any]:
+    """Prove the final composition gates at ``head``.
+
+    ``through_update`` accepts gates proven at the head the coordinator's own
+    recorded ``main`` update replaced (integration preparation only); admission
+    and merge always need the exact head.
+    """
     import tempfile
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, require_final_gates
     from requirement_contributions import ContributionError
 
-    current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
+    if through_update:
+        current = _composition_lineage(root, repo, number, head)
+    else:
+        current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
     identity = current.get("task_identity")
     if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
         raise QueueError("Requirement publication lacks composition identity")
+    proven = current.get("head")
     try:
         with tempfile.TemporaryDirectory(prefix="requirement-merge-gates-") as temporary:
-            checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
+            checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", proven)
             manifest = candidate_manifest(checkout, identity["requirement"])
-            require_final_gates(checkout, manifest, current, head)
+            require_final_gates(checkout, manifest, current, proven)
             return {"task_identity": identity, "gates": current["gates"]}
     except ContributionError as exc:
         raise QueueError(str(exc)) from exc
@@ -2375,12 +2411,14 @@ def refresh_composition_checks(root: Path, repo: str, number: int, head: str) ->
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, advance_final_publication
 
-    candidate = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
-    identity = candidate.get("task_identity", {})
+    # The coordinator has just merged main into the composition: its gates are on the replaced head.
+    candidate = _composition_lineage(root, repo, number, head)
+    identity = candidate["task_identity"]
     with tempfile.TemporaryDirectory(prefix="composition-main-refresh-") as temporary:
         checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
         manifest = candidate_manifest(checkout, identity["requirement"])
-    result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__], enqueue=False)
+    result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__],
+                                       enqueue=False, candidate=candidate)
     if result["status"] != "ready":
         raise QueueError("Requirement final-head checks await fresh composition gates")
 
