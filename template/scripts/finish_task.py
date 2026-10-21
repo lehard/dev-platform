@@ -913,6 +913,25 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     return result
 
 
+def validate_or_reuse(work: Path, remote_main: str, no_checks: bool, selected_mode: str, checked_delivery: object | None) -> None:
+    """Run the required validation, unless portable archive evidence provably covers this exact tree.
+
+    ``checked_delivery`` is the managed delivery whose automated evidence already passed
+    ``require_automated_evidence``; every other path (coordinator, non-managed, ``--no-checks``)
+    validates exactly as before.
+    """
+    if selected_mode == "portable" and checked_delivery is not None and not no_checks:
+        import openspec_lifecycle
+
+        decision = openspec_lifecycle.automated_evidence_reuse(checked_delivery.path, root=work, base_ref=remote_main)
+        print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
+        if decision["decision"] == "reused":
+            emit_finish_stage("preflight clear: reusing archive check evidence")
+            return
+    emit_finish_stage("preflight clear: starting required validation")
+    run_checks(work, remote_main, no_checks)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -1103,8 +1122,7 @@ def main() -> int:
         report_completion_blockers(blockers)
         raise SystemExit(1)
 
-    emit_finish_stage("preflight clear: starting required validation")
-    run_checks(work, remote_main, args.no_checks)
+    validate_or_reuse(work, remote_main, args.no_checks, selected_mode, delivery if delivery is not None and not queue_merged else None)
 
     # The source repository has a public distribution boundary and a private
     # Backlog. Check the exact candidate immediately before publication. The
