@@ -413,15 +413,21 @@ def _offer_premerge_retrospective(root: Path, repo: str, number: int, head: str,
 
 
 def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, number: int, *, adapter,
-                              source_repo=None, full_checks=None, checkpoint=None, enqueue=True) -> dict:
-    """Check the parent retrospective and full final head before readiness and queue admission."""
+                              source_repo=None, full_checks=None, checkpoint=None, enqueue=True,
+                              candidate=None) -> dict:
+    """Check the parent retrospective and full final head before readiness and queue admission.
+
+    ``candidate`` is the record whose gates are re-established on ``head``; the
+    queue passes the record of the head its own ``main`` update replaced.
+    """
     from project_publish import _set_pr_draft
     from publication_state import PrRef
     from _platform_common import github_cli_env
     from requirement_retrospective import require_checkpoint, RequirementRetrospectiveError
     from pr_review_gate import reusable
 
-    candidate = adapter._derive(root, adapter._pr(root, repo, number), adapter._comments(root, repo, number))
+    if candidate is None:
+        candidate = adapter._derive(root, adapter._pr(root, repo, number), adapter._comments(root, repo, number))
     with tempfile.TemporaryDirectory(prefix="composition-ready-") as temporary:
         checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head)
         identity = composition_identity(checkout, manifest)
