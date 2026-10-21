@@ -3,21 +3,34 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-    "candidate_head": "787f1507b53c5a2f132c5182accfc5bcff5157b9",
-    "diff_sha256": "1bed1426b02867ad7ce32764e8a93748fc2e39283c020a4f6f22967b42af0e48"
+    "candidate_head": "40d342dd4e302f3099281a23f2a56803bd446d07",
+    "diff_sha256": "14250d453fd29333a886db42ffd22bb38653a828c6223204edaead60296e35cc"
   },
-  "completed_at": "2026-10-20T13:20:51+00:00",
-  "findings": [],
-  "launched_at": "2026-10-20T13:20:26+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-21T19:08:54+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py, `run_llm` docstring: \"the writer receives ``tmp`` through the inner command\". The final `sandboxed_writer.sandboxed_env` passes the writer tmp as `CLAUDE_CODE_TMPDIR` in the srt process environment. The same file's `sandboxed_command` no longer carries any inner env assignments, and the DEC-0003 text says srt ignores them. The code is correct; only the contract comment is stale.",
+      "id": "run-llm-docstring-stale-inner-tmp",
+      "severity": "advisory",
+      "summary": "The `run_llm` docstring added by the launch-primitive child contradicts the final launch behavior from the probes child."
+    },
+    {
+      "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` creates `tempfile.mkdtemp(prefix=\"dp-sandboxed-claude-\")`. On `SandboxedWriterError` it raises without cleaning the dir. `dispatch_claude_sandboxed` calls `shutil.rmtree(run[\"workdir\"])` only when `execution[\"outcome\"] == \"completed\"`. The \"no-change\" outcome, which has no patch and nothing to diagnose, also keeps its copy. Keeping failed runs is documented as intentional, but no-change and pre-launch refusals keep their dirs too.",
+      "id": "sandboxed-workdir-leak-on-non-completed",
+      "severity": "advisory",
+      "summary": "The disposable workdir is not removed on every path that never applies a patch. It is kept on every non-completed outcome and on pre-launch refusals. Each dir holds a full task-worktree copy and the profile."
+    }
+  ],
+  "launched_at": "2026-10-21T19:08:15+00:00",
+  "output_sha256": "061806c323bb8bedaa53a9f85492bab2ed8abcdf9e2f17652892e20749891047",
   "perspective": "spec-fidelity",
-  "request_id": "749a8396-a0a4-4443-887c-27c96d8f3ef4",
+  "request_id": "37e4879e-5188-4b81-8308-fd1da62e6f07",
   "reviewer": {
-    "context_id": "a0614234-7d32-4a11-8773-6ebeb1c513b9",
+    "context_id": "42859205-664d-4165-938e-a0799136aae0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a19b064c-4f1b-470f-b1f6-e7e512de9c90",
+    "launch_id": "platform-launch-17db08f2-f129-4a38-a4cd-135481239d7d",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36662
+        "value": 79274
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49992
+        "value": 284124
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23171
+        "value": 35288
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24708
+        "value": 37819
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1020
+        "value": 3783
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "9ae40528463112f3ba8fecbe869c8d90a15e855aa56c283966f1d23fdd33ef7e"
+  "task_content_digest": "284af864859fc89c944460521431f834def802500541a27c8e935ef3a791e027"
 }
