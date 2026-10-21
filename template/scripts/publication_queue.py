@@ -344,7 +344,7 @@ def build_evidence_record(event: dict[str, Any], *, attribution: dict[str, str |
 
     import agent_friction
 
-    missing = [key for key in ("task", "number", "head", "stage", "worker", "dedupe_key", "triggers", *_EVIDENCE_TEXT)
+    missing = [key for key in ("task", "number", "head", "stage", "worker", "dedupe_key", "triggers", "reason", *_EVIDENCE_TEXT)
                if event.get(key) in (None, "", [])]
     if missing:
         raise QueueError("coordinator evidence event lacks " + ", ".join(missing))
@@ -359,6 +359,7 @@ def build_evidence_record(event: dict[str, Any], *, attribution: dict[str, str |
         "event_id": evidence_event_id(event["dedupe_key"]),
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "triggers": sorted(set(event["triggers"])),
+        "reason": agent_friction.normalize_text(event["reason"], "reason", agent_friction.REASON_MAX),
     }
     for key in _EVIDENCE_TEXT:
         record[key] = agent_friction.normalize_text(event[key], key, 100 if key == "category" else 1000)
@@ -403,6 +404,9 @@ def _evidence_records(root: Path, number: int, comments: list[dict[str, Any]]) -
             raise invalid("triggers are missing")
         if payload["event_id"] != evidence_event_id(payload["dedupe_key"]):
             raise invalid("event id does not match its dedupe key")
+        # Records written before reason was required carry none; routing withholds those.
+        if "reason" in payload and (not isinstance(payload["reason"], str) or not payload["reason"].strip()):
+            raise invalid("reason is malformed")
         payload["comment_id"] = row.get("id")
         records.append(payload)
     return records
@@ -446,6 +450,8 @@ def requirement_evidence(root: Path, requirement: str, children: Sequence[str] =
                 "triggers": record["triggers"], "severity": record["severity"],
                 "observation": record["observation"], "evidence": record["evidence"],
                 "hypothesis": record["hypothesis"], "proposal": record["proposal"],
+                **({"reason": record["reason"]} if "reason" in record else {}),
+                "candidate": {"task": record["task"], "number": number, "head": record["head"]},
                 "scope": "platform", "classification": "process-friction", "context": None,
                 "durable": {"number": number, "head": record["head"], "stage": record["stage"],
                             "worker": record["worker"]},
@@ -487,6 +493,21 @@ def use_default_friction_sink(root: Path, *, worker: str) -> None:
     set_friction_sink(default_friction_sink(root), worker=worker)
 
 
+def friction_reason(number: int, kind: str, red_gate: dict[str, Any] | None) -> str:
+    """One bounded line naming the red gate and its cause; a transition without one fails."""
+    if not isinstance(red_gate, dict) or not isinstance(red_gate.get("name"), str) or not red_gate["name"]:
+        raise QueueError(f"friction recording for PR #{number} ({kind}) requires a named red gate as its reason")
+    parts = [str(red_gate[key]) for key in ("cause", "limitation") if red_gate.get(key)]
+    if not parts:
+        evidence = red_gate.get("evidence")
+        if isinstance(evidence, (dict, list)):
+            evidence = json.dumps(evidence, ensure_ascii=False, sort_keys=True, default=str)
+        if evidence in (None, ""):
+            raise QueueError(f"friction recording for PR #{number} ({kind}): red gate {red_gate['name']} carries no cause or evidence")
+        parts = [str(evidence)]
+    return " ".join(f"{red_gate['name']}: {'; '.join(parts)}".split())[:240]
+
+
 def require_friction_attribution(branch: str | None) -> None:
     """Prove, before a job starts, that the registered sink can attribute this candidate's friction.
 
@@ -506,13 +527,18 @@ def require_friction_attribution(branch: str | None) -> None:
         raise QueueError(f"friction cannot be attributed for {branch}: {exc}") from exc
 
 
-def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
+def emit_friction(number: int, branch: str | None, kind: str, head: str, red_gate: dict[str, Any] | None, *,
                   attempts: dict[str, int] | None = None) -> None:
     """Record required friction before publishing a transition; failures leave it retryable."""
     if _friction_sink is None:
         return
     if not isinstance(branch, str) or not branch:
         raise QueueError("friction recording requires a candidate branch; retry transition")
+    if kind == "blocked-retryable" and red_gate is None:
+        # Waiting on exact-head required checks (see red_retry_blocks_integration): no gate failed, no event.
+        return
+    reason = friction_reason(number, kind, red_gate)
+    detail = str(red_gate.get("evidence", ""))[:300]
     if not isinstance(_friction_worker, str) or not _friction_worker:
         raise QueueError("friction sink is installed without a worker run identity")
     import hashlib
@@ -525,6 +551,7 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
         _friction_sink({"task": branch, "number": number, "category": category, "severity": severity,
                         "triggers": triggers, "observation": observation,
                         "evidence": f"PR #{number} {kind} at head {head[:12]}: {detail}"[:1000],
+                        "reason": reason,
                         "hypothesis": "Recorded automatically by the publication coordinator; see the PR lifecycle records.",
                         "proposal": "Review whether the gate, the evidence or the repair path should change.",
                         "dedupe_key": f"coordinator:{key}", "head": head, "stage": kind,
@@ -607,8 +634,7 @@ def _transition(
     branch = observed.get("head", {}).get("ref")
     if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job and not new_route:
         if state in _FRICTION_STATES:
-            emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
-                          attempts=previous.get("attempts"))
+            emit_friction(number, branch, state, head, previous.get("red_gate"), attempts=previous.get("attempts"))
         _project_lifecycle_label(root, repo, number, observed, state)
         if state == "blocked-escalation" and previous:
             # A lost indication is repaired on the next observation of the same escalation.
@@ -641,7 +667,7 @@ def _transition(
         provider_switch=recorded_switch,
     )
     if state in _FRICTION_STATES:
-        emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
+        emit_friction(number, branch, state, head, red_gate, attempts=attempts)
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
     if state == "blocked-escalation":

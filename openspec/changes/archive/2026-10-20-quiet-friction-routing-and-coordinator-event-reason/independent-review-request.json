@@ -1,0 +1,89 @@
+{
+  "candidate": {
+    "base_head": "328da595906c11d9276fc1087047c15a16be493a",
+    "base_ref": "origin/main",
+    "candidate_head": "66665b8f04bf2527503d7009ccf9da5569bfde55",
+    "diff_sha256": "d5c2a28ae5a64cb320835214afa00117451877175f8b50436b69b47efca73e5a"
+  },
+  "change": "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/automated-checks.json",
+    "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/independent-review-request.json",
+    "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/verification.md",
+    "openspec/specs/platform-lifecycle/spec.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/design.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/proposal.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/specs/platform-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/proposal.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/design.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/tasks.md",
+        "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-21T11:21:31+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-20-quiet-friction-routing-and-coordinator-event-reason/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "40e7a182-5425-48da-927d-695871718301",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "328da595906c11d9276fc1087047c15a16be493a",
+    "digest": "e6d8726a2e3405f3d327c7dc29953b85855fe856f276b7c1e4f041c8f9fcd4c9",
+    "paths": {
+      "dev-platform/checks.toml": "634cca03defb5d2224286b2502cb1d9fa03fdc82",
+      "docs/engineering/agent-workflow.md": "75d431d9e5392902091224322f1212d12527918f",
+      "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/.managed-task.json": "6bcd7f879c9fdd058bd4ceca4dd3977dda390001",
+      "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
+      "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/design.md": "e41cc8173516a8b8974f627f9d9c89b7695fcdc5",
+      "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/proposal.md": "718f6fce25e5d9647d1b2bafe6951b25599fb038",
+      "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/specs/platform-lifecycle/spec.md": "57c457db63559d2798368d3a324d97b889282d3c",
+      "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/tasks.md": "1ddffe3c6f4e3a1b1bb87f54f78e936f5e7023a0",
+      "template/dev-platform/platform-manifest.json": "6d0722f7ccd3f3d0596ed45c0dae343c58d8182f",
+      "template/scripts/agent_doctor.py": "bd1d9f3b3c8018e9b2bd65f3f587277074201bca",
+      "template/scripts/agent_friction.py": "bc531adea0bfb6b121d4394ded0c5902aa888f6a",
+      "template/scripts/finish_task.py": "56107bb61f1ad680e01f2139df3974ac2fdda033",
+      "template/scripts/integration_contour.py": "ec1c86bdc06dc6947001fafa3f62469407ee7aac",
+      "template/scripts/publication_queue.py": "6fd670578184a40c68a1a9322b281e97fb360520",
+      "tests/test_autonomous_integration_contour.py": "3794f99cf880e31c516b67c5df1e8b95719ff11e",
+      "tests/test_coordinator_event_routing.py": "3447444a62c7dd0045162796b08ad7b596696543",
+      "tests/test_coordinator_evidence.py": "2156f215a962150cacf7e2965c59109b42d54e59",
+      "tests/test_finish_merged_queue.py": "8f969e4034f56c84cf8ac00840d0a8fe75a38635",
+      "tests/test_friction_review.py": "cfc682d34d93dc9be4889a9445113708f95873d6",
+      "tests/test_harness_safety.py": "3f6e59e16fe05803c9bccab3d6ee3d7837ecad0d"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
