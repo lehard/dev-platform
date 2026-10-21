@@ -9,19 +9,19 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.195,
+      "duration_seconds": 0.186,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.148,
+      "duration_seconds": 0.235,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 1431.96,
+      "duration_seconds": 1449.455,
       "outcome": "success",
       "exit_code": 0
     }
@@ -64,31 +64,31 @@
     "change": "quiet-friction-routing-and-coordinator-event-reason",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/quiet-friction-routing-and-coordinator-event-reason",
     "branch": "agent/br-694-t1-quiet-friction-routing-and-coordinator-event-reason",
-    "head": "825b6803e885226f8ada0d6e181eaa579c9186e8",
+    "head": "765bc4e4e2fda329fa5169c8350ae1c083f258f3",
     "task_content": {
       "version": 1,
-      "digest": "0a30029676e33c17a921cc5b042e0d9442ebd64b87752cbd09baebccf8def7e1",
+      "digest": "37b219cb62d5ca82369181037937a162decb4327d72f5ea6b61e06ac1dfd139e",
       "paths": {
         "dev-platform/checks.toml": "c90ef51561953665acf4b44314517afd1a5ee26b",
-        "docs/engineering/agent-workflow.md": "005f29d96a4762b13cca35d195e6b8e4e828c803",
+        "docs/engineering/agent-workflow.md": "75d431d9e5392902091224322f1212d12527918f",
         "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/.managed-task.json": "6bcd7f879c9fdd058bd4ceca4dd3977dda390001",
         "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
-        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/automated-checks.json": "58809a1e9c09c1cf9f1bdbfcc5d251c34b3c9753",
+        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/automated-checks.json": "7d103005739dc56ed31bcc72232c6cbf720c0baf",
         "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/design.md": "e41cc8173516a8b8974f627f9d9c89b7695fcdc5",
-        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/independent-review-request.json": "534b81f96edb34bc86d56880b6a7f51c4254072d",
-        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/independent-reviews/engineering-quality.json": "3be302196b16e3ac07ea40dac37fc7c3be1a0d0c",
-        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/independent-reviews/spec-fidelity.json": "ff8ca8796468ad6f3a3c2c45cfe3b2b847a561b1",
+        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/independent-review-request.json": "2a47e51ffeceb11f93a4d55e0100f68c0a469e0a",
+        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/independent-reviews/engineering-quality.json": "38e75e534733262cd309f796352a578e3a7b3fa6",
+        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/independent-reviews/spec-fidelity.json": "d58fce7b11b320dd4417499e6bd41dfe84255b4e",
         "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/proposal.md": "718f6fce25e5d9647d1b2bafe6951b25599fb038",
         "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/specs/platform-lifecycle/spec.md": "57c457db63559d2798368d3a324d97b889282d3c",
         "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/tasks.md": "1ddffe3c6f4e3a1b1bb87f54f78e936f5e7023a0",
-        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/verification.md": "c4f9db28f643e9ca2d460ba4453dc998ad211f11",
+        "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/verification.md": "14d2564b33edbb34380ac512956ea5f20acf3b4e",
         "openspec/specs/platform-lifecycle/spec.md": "4749a03a58968eafc3a18a80964e423e4719735a",
-        "template/dev-platform/platform-manifest.json": "9998cc0a9815acb6b5a4e4b3cf2003c0136257b0",
+        "template/dev-platform/platform-manifest.json": "5657a6ce9114f8ef4f66be9aa33ff3b544a942de",
         "template/scripts/agent_doctor.py": "bd1d9f3b3c8018e9b2bd65f3f587277074201bca",
         "template/scripts/agent_friction.py": "bc531adea0bfb6b121d4394ded0c5902aa888f6a",
         "template/scripts/finish_task.py": "94d6f688334e254859a5d1365772b253784a03e0",
         "template/scripts/integration_contour.py": "ec1c86bdc06dc6947001fafa3f62469407ee7aac",
-        "template/scripts/publication_queue.py": "05be5c6c412a3ebbd83ab45980be574f456e2f51",
+        "template/scripts/publication_queue.py": "6fd670578184a40c68a1a9322b281e97fb360520",
         "tests/test_autonomous_integration_contour.py": "3794f99cf880e31c516b67c5df1e8b95719ff11e",
         "tests/test_coordinator_event_routing.py": "3447444a62c7dd0045162796b08ad7b596696543",
         "tests/test_coordinator_evidence.py": "2156f215a962150cacf7e2965c59109b42d54e59",
@@ -96,27 +96,27 @@
         "tests/test_friction_review.py": "cfc682d34d93dc9be4889a9445113708f95873d6",
         "tests/test_harness_safety.py": "3f6e59e16fe05803c9bccab3d6ee3d7837ecad0d"
       },
-      "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5"
+      "base": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "169082f4db940627519e4cd84e3028efb422e3852cd1654aad780aab282cb1f5",
+    "digest": "a8f61bacd31307fb4781118c0577e98bf1d4efb03145cb27e48cb2db8cbe450e",
     "paths": {
       "dev-platform/checks.toml": "c90ef51561953665acf4b44314517afd1a5ee26b",
-      "docs/engineering/agent-workflow.md": "005f29d96a4762b13cca35d195e6b8e4e828c803",
+      "docs/engineering/agent-workflow.md": "75d431d9e5392902091224322f1212d12527918f",
       "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/.managed-task.json": "6bcd7f879c9fdd058bd4ceca4dd3977dda390001",
       "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/.openspec.yaml": "c1bc902799f6adfa34ba40cc1be47dc38bd2fd28",
       "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/design.md": "e41cc8173516a8b8974f627f9d9c89b7695fcdc5",
       "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/proposal.md": "718f6fce25e5d9647d1b2bafe6951b25599fb038",
       "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/specs/platform-lifecycle/spec.md": "57c457db63559d2798368d3a324d97b889282d3c",
       "openspec/changes/quiet-friction-routing-and-coordinator-event-reason/tasks.md": "1ddffe3c6f4e3a1b1bb87f54f78e936f5e7023a0",
-      "template/dev-platform/platform-manifest.json": "9998cc0a9815acb6b5a4e4b3cf2003c0136257b0",
+      "template/dev-platform/platform-manifest.json": "5657a6ce9114f8ef4f66be9aa33ff3b544a942de",
       "template/scripts/agent_doctor.py": "bd1d9f3b3c8018e9b2bd65f3f587277074201bca",
       "template/scripts/agent_friction.py": "bc531adea0bfb6b121d4394ded0c5902aa888f6a",
       "template/scripts/finish_task.py": "94d6f688334e254859a5d1365772b253784a03e0",
       "template/scripts/integration_contour.py": "ec1c86bdc06dc6947001fafa3f62469407ee7aac",
-      "template/scripts/publication_queue.py": "05be5c6c412a3ebbd83ab45980be574f456e2f51",
+      "template/scripts/publication_queue.py": "6fd670578184a40c68a1a9322b281e97fb360520",
       "tests/test_autonomous_integration_contour.py": "3794f99cf880e31c516b67c5df1e8b95719ff11e",
       "tests/test_coordinator_event_routing.py": "3447444a62c7dd0045162796b08ad7b596696543",
       "tests/test_coordinator_evidence.py": "2156f215a962150cacf7e2965c59109b42d54e59",
@@ -124,12 +124,12 @@
       "tests/test_friction_review.py": "cfc682d34d93dc9be4889a9445113708f95873d6",
       "tests/test_harness_safety.py": "3f6e59e16fe05803c9bccab3d6ee3d7837ecad0d"
     },
-    "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_doctor.py --changed-file template/scripts/agent_friction.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_coordinator_event_routing.py --changed-file tests/test_coordinator_evidence.py --changed-file tests/test_finish_merged_queue.py --changed-file tests/test_friction_review.py --changed-file tests/test_harness_safety.py",
-    "duration_seconds": 377.391,
+    "duration_seconds": 467.357,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
