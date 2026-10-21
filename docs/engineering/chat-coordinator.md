@@ -85,7 +85,11 @@ history. If it refuses, report the reason; the developer re-handoff rules apply.
 When the finalize job of that head already holds a result (it stopped on the
 lost gates), the same record re-offers finalize under a fresh job id. A
 `finalize-pending` candidate whose finalize job already holds a result and has
-no fresh job is re-offered with `resume`.
+no fresh job is re-offered with `resume`. A Requirement composition whose
+pre-merge retrospective stopped with a result (for example on ambiguous friction
+attribution) is re-offered with `resume` once the operator records the decision
+(`agent_friction.py attribute`): the job moves to its next bounded attempt at
+the exact head, and `resume` refuses once the attempts are exhausted.
 
 Rules:
 
