@@ -24,6 +24,9 @@ project's `.dev-platform.toml` `platform_version`.
 
     python3 scripts/generate_platform_manifest.py --write   # regenerate
     python3 scripts/generate_platform_manifest.py --check   # fail on a stale manifest
+
+`--root <dir>` reads and writes the manifest of another checkout with this script's own code;
+the publication queue uses it to regenerate the manifest of a merged candidate from trusted code.
 """
 from __future__ import annotations
 
@@ -172,13 +175,27 @@ def mismatches(expected: dict, committed_text: str) -> list[str]:
     return problems
 
 
+def bind_root(root: Path) -> None:
+    """Point every tree path at ``root`` (an explicit checkout), keeping this script's code."""
+    global ROOT, TEMPLATE, SURFACE, MANIFEST
+    if not (root / "template").is_dir():
+        raise ManifestError(f"--root {root} has no template/ directory")
+    ROOT = root
+    TEMPLATE = ROOT / "template"
+    SURFACE = TEMPLATE / "dev-platform" / "protected-surface.toml"
+    MANIFEST = TEMPLATE / MANIFEST_RENDERED
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--root", type=Path, help="checkout whose manifest to generate or verify (default: this script's)")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", action="store_true", help="regenerate template/dev-platform/platform-manifest.json")
     group.add_argument("--check", action="store_true", help="exit non-zero naming every path whose digest differs from the template tree")
     args = parser.parse_args()
     try:
+        if args.root is not None:
+            bind_root(args.root.resolve())
         expected = build_manifest()
     except ManifestError as exc:
         print(f"generate_platform_manifest: {exc}", file=sys.stderr)

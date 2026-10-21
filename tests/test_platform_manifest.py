@@ -52,6 +52,35 @@ class PlatformManifestTests(unittest.TestCase):
         completed = subprocess.run([sys.executable, str(GENERATOR), "--check"], cwd=ROOT, text=True, capture_output=True)
         self.assertEqual(0, completed.returncode, completed.stdout + completed.stderr)
 
+    def test_root_regenerates_another_checkout_with_this_generator(self) -> None:
+        import shutil
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            other = Path(tmp) / "merged"
+            shutil.copytree(ROOT / "template", other / "template")
+            shutil.copy2(ROOT / "copier.yml", other / "copier.yml")
+            target = other / "template" / "dev-platform" / "platform-manifest.json"
+            target.write_text("{}\n", encoding="utf-8")
+            check = [sys.executable, str(GENERATOR), "--check", "--root", str(other)]
+            self.assertNotEqual(0, subprocess.run(check, cwd=ROOT, text=True, capture_output=True).returncode)
+            write = subprocess.run([sys.executable, str(GENERATOR), "--write", "--root", str(other)],
+                                   cwd=ROOT, text=True, capture_output=True)
+            self.assertEqual(0, write.returncode, write.stdout + write.stderr)
+            self.assertEqual(self.committed_text, target.read_text(encoding="utf-8"))
+            self.assertEqual(0, subprocess.run(check, cwd=ROOT, text=True, capture_output=True).returncode)
+            # This checkout's own manifest is untouched.
+            self.assertEqual(self.committed_text, MANIFEST.read_text(encoding="utf-8"))
+
+    def test_root_without_a_template_fails_explicitly(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            completed = subprocess.run([sys.executable, str(GENERATOR), "--check", "--root", tmp],
+                                       cwd=ROOT, text=True, capture_output=True)
+        self.assertEqual(1, completed.returncode)
+        self.assertIn("has no template/ directory", completed.stderr)
+
     def test_stale_digest_fails_naming_the_mismatching_path(self) -> None:
         committed = json.loads(self.committed_text)
         committed["files"]["scripts/platform_divergence.py"] = "0" * 64

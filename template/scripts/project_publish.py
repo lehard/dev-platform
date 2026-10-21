@@ -12,7 +12,7 @@ from typing import Callable, ContextManager
 
 from _platform_common import (
     RECONCILE_COMMAND,
-    TASK_BASE_BEHIND_DISJOINT,
+    TASK_BASE_BEHIND_MERGEABLE,
     TaskFreshnessError,
     classify_task_base_currency,
     current_worktree_root,
@@ -142,8 +142,9 @@ def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fr
 
     `coordinator_handoff` is the developer handoff of a proven coordinator
     candidate: the publication queue merges main into it and gates on the
-    integrated head, so a branch behind a disjoint, cleanly mergeable main
-    passes and the contract is printed. Overlap or conflict still blocks.
+    integrated head, so a branch behind a main it merges with cleanly, or with
+    conflicts only in files main declares generated, passes and the contract is
+    printed. Any other conflict still blocks.
     """
     preflight(root)
     current = _validate_feature_branch(root, remote, main_branch)
@@ -156,10 +157,10 @@ def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fr
             currency = classify_task_base_currency(root, main_sha, task_ref=current)
         except TaskFreshnessError as exc:
             raise SystemExit(f"Developer handoff blocked: {exc}") from exc
-        if currency.state != TASK_BASE_BEHIND_DISJOINT:
+        if currency.state != TASK_BASE_BEHIND_MERGEABLE:
             raise SystemExit(f"Developer handoff blocked: {current}: {currency.describe(authoritative)}. "
                              f"Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then hand off.")
-        print(f"Task base contract behind-disjoint: {currency.describe(authoritative)}; "
+        print(f"Task base contract behind-mergeable: {currency.describe(authoritative)}; "
               f"merge base {currency.base}; the publication queue merges main before integration.")
     run_git(["push", "-u", remote, current], cwd=root)
     print(f"Published feature branch {current} -> {remote}/{current}.")

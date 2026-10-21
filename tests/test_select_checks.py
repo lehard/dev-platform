@@ -337,7 +337,7 @@ class SelectChecksTests(unittest.TestCase):
 SOURCE_CONTRACT = (
     'platform_version = "source"\nmain_branch = "main"\nworkflow_profile = "standard"\n'
     'harness_mode = "platform"\npublish_mode = "pr"\nscm_provider = "github"\n'
-    '[capabilities]\nagent_board = false\n'
+    '[capabilities]\nagent_board = false\n[paths]\nchecks = "dev-platform/checks.toml"\n'
 )
 
 
@@ -523,30 +523,31 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
         self.predicate = predicate
         return code, output.getvalue()
 
-    def test_candidate_behind_a_disjoint_main_runs_checks_and_records_the_contract(self) -> None:
+    def test_candidate_behind_a_disjoint_main_runs_checks_and_records_the_mergeable_contract(self) -> None:
         self.commit(self.task, "task.txt", "task\n")
         main = self.advance_main("main.txt", "main\n")
 
         code, output = self.select("--evidence", "evidence.json", candidate=True)
 
         self.assertEqual(code, 0, output)
-        self.assertIn("coordinator-candidate behind-disjoint contract", output)
+        self.assertIn("coordinator-candidate behind-mergeable contract", output)
         self.assertIn(f"origin/main ({main})", output)
         self.assertIn(f"merge base {self.seed}", output)
         self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
         evidence = json.loads((self.task / "evidence.json").read_text())
         self.assertEqual(evidence["outcome"], "success")
-        self.assertEqual(evidence["task_base"], {"contract": "behind-disjoint", "main": main, "base": self.seed})
+        self.assertEqual(evidence["task_base"], {"contract": "behind-mergeable", "main": main, "base": self.seed,
+                                                 "overlapping": [], "generated_conflicts": []})
 
-    def test_candidate_overlapping_main_is_blocked_before_any_command_naming_the_file(self) -> None:
+    def test_candidate_conflicting_with_main_is_blocked_before_any_command_naming_the_file(self) -> None:
         self.commit(self.task, "shared.txt", "ONE\ntwo\nthree\n")
-        self.advance_main("shared.txt", "one\ntwo\nTHREE\n")
+        self.advance_main("shared.txt", "One\ntwo\nthree\n")
 
         code, output = self.select("--evidence", "evidence.json", candidate=True)
 
         self.assertNotEqual(code, 0, output)
         self.assertIn("before any expensive command started", output)
-        self.assertIn("both changed shared.txt", output)
+        self.assertIn("conflicts in shared.txt", output)
         self.assertIn("python3 scripts/finish_task.py --reconcile", output)
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
         self.assertFalse((self.task / "validation-ran.txt").exists())
