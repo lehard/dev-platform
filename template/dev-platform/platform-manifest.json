@@ -94,7 +94,7 @@
     "scripts/integration_contour.py": "d3f4e855c814bd5bc33a3a4884019a60afe69a396d342c3ae07279dbea60c9d0",
     "scripts/integration_state.py": "bffa4716c88f48871c33dd8766357f5441b9a4f2c535bb4a3579715ef25a931c",
     "scripts/lifecycle_overview.py": "de206a3275a34476be23759d9747e6cc808a6e949fb81e13875f5e745d5dbd42",
-    "scripts/lifecycle_workers.py": "c714ba3669747a4e4e8a5015f0e53182fa337ed40c9ce480f5a77e8a784e53c8",
+    "scripts/lifecycle_workers.py": "0129bf56a2b40cad2ad01379523e93b3ae78c533f954d85c04700ef53f97796b",
     "scripts/local_workspace.py": "806f32d770798048ea44dc7b9e8d482f0180ef4206392dbd7f3ea780918930a7",
     "scripts/machine_pool.py": "9467ee8704f79ed971009f2b7dd91ecd58e1cc120d433d07eacee5967aa1f91a",
     "scripts/managed_project_status.py": "5c05ab488343840c55073c1b20f1d8e689c1ddeaa085e1c3509610e52c72eb9b",
