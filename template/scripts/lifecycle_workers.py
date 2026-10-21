@@ -106,7 +106,10 @@ def _parse_time(value: Any) -> datetime | None:
 
 def job_id(job: dict) -> str:
     suffix = ":t" + job["target_head"] if job.get("target_head") else ""
-    reoffer = f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) else ""
+    # A re-offered pre-merge retrospective moves to its next bounded attempt, which already makes the
+    # id distinct; its operator event stays audit-only so the attempt bound keeps counting results.
+    reoffer = (f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) and job.get("phase") != "pre-merge"
+               else "")
     return (f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + suffix
             + (":pre-merge" if job.get("phase") == "pre-merge" else ""))
 
@@ -123,7 +126,7 @@ def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *,
     if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
         raise ValueError("invalid job phase")
     if reoffer is not None and (not isinstance(reoffer, dict) or type(reoffer.get("seq")) is not int or reoffer["seq"] < 1
-                                or kind not in {"review", "repair", "finalize"}):
+                                or not (kind in {"review", "repair", "finalize"} or phase == "pre-merge")):
         raise ValueError("invalid job re-offer")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
             **({"phase": phase} if phase else {}),

@@ -1018,6 +1018,69 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
 
 
+class PremergeRetrospectiveResumeTests(unittest.TestCase):
+    """A composition's pre-merge retrospective that stopped on a human decision is re-offered by
+    ``resume`` at its next bounded attempt, at the exact head, and never past the attempt limit."""
+
+    COMPOSED = {"kind": "requirement-composition", "change": "example", "requirement": "pln_x",
+                "task_content": {"digest": "proof"}, "children": [{"change": "child"}]}
+
+    def blocked_retrospective(self, fixture, attempt=0, outcome="blocked: ambiguous friction attribution needs a human decision"):
+        passed = {"result": "passed", "identity": self.COMPOSED, "evidence": "ok"}
+        queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=self.COMPOSED, inherit_identity=False,
+                          gates={"review": passed, "finalization": passed},
+                          next_job=workers.job_record("retrospective", HEAD, self.COMPOSED, attempt, phase="pre-merge"))
+        job = workers.build_job(fixture.candidate())
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.result_body(job, "w", outcome)})
+        return job
+
+    def test_resume_offers_the_next_bounded_attempt_at_the_same_head(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            stopped = self.blocked_retrospective(fixture)
+            self.assertTrue(workers.job_completed(stopped, fixture.comments))
+            with self.assertRaisesRegex(queue.QueueError, "omit --provider"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["claude"], reason="attributed", actor="op")
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="attributed", actor="op",
+                                  expected_head=HEAD)
+            resumed = fixture.candidate()
+            job = workers.build_job(resumed)
+            self.assertEqual((result["state"], resumed["state"]), ("blocked-retryable", "blocked-retryable"))
+            self.assertEqual((job["kind"], job["phase"], job["head"], job["attempt"]), ("retrospective", "pre-merge", HEAD, 1))
+            self.assertEqual((job["reoffer"]["action"], job["reoffer"]["reason"], job["reoffer"]["actor"]),
+                             ("resume", "attributed", "op"))
+            # The id is the plain next attempt, so the bounded attempt rule keeps counting its result.
+            self.assertEqual(workers.job_id(job), f"pr7:retrospective:{HEAD}:a1:pre-merge")
+            self.assertFalse(workers.job_completed(job, fixture.comments))
+            self.assertEqual(resumed["gates"]["finalization"]["result"], "passed")
+
+    def test_retrospective_resume_is_refused_while_unfinished_or_past_the_limit_or_for_another_head(self):
+        from candidate_lifecycle import MAX_POST_MERGE_ATTEMPTS
+        with QueueFixture(ROOT, HEAD) as fixture:
+            passed = {"result": "passed", "identity": self.COMPOSED, "evidence": "ok"}
+            queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=self.COMPOSED, inherit_identity=False,
+                              gates={"review": passed, "finalization": passed},
+                              next_job=workers.job_record("retrospective", HEAD, self.COMPOSED, 0, phase="pre-merge"))
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="op")
+            with self.assertRaisesRegex(queue.QueueError, "not the expected"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="op", expected_head="b" * 40)
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["claude"], reason="x", actor="op")
+        with QueueFixture(ROOT, HEAD) as fixture:
+            for attempt in range(MAX_POST_MERGE_ATTEMPTS):
+                self.blocked_retrospective(fixture, attempt=attempt)
+            with self.assertRaisesRegex(queue.QueueError, "exhausted .* attempts; operator action required"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="op")
+
+    def test_job_records_keep_the_reoffer_suffix_for_other_kinds(self):
+        event = {"seq": 2, "action": "resume"}
+        finalize = {**workers.job_record("finalize", HEAD, IDENTITY, 0, reoffer=event), "number": 7}
+        self.assertTrue(workers.job_id(finalize).endswith(":a0:r2"))
+        with self.assertRaises(ValueError):
+            workers.job_record("retrospective", HEAD, IDENTITY, 0, reoffer=event)
+
+
 class ArchivedSemanticReadmissionTests(unittest.TestCase):
     """A coordinator finalize archived the change; changed content then stopped finalize on the
     semantic-verification red gate. Only that task's own PR in that state reopens the handoff."""
