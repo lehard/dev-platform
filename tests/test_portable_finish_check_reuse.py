@@ -97,7 +97,7 @@ class PortableProject:
         exclude = Path(git(self.integration, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "info" / "exclude"
         exclude.parent.mkdir(exist_ok=True)
         with exclude.open("a", encoding="utf-8") as handle:
-            handle.write(".managed-task-state.json\n")
+            handle.write(".managed-task-state.json\n__pycache__/\n")
         (self.worktree / ".managed-task-state.json").write_text(
             json.dumps({"source_issue": "example-org/backlog#7", "change": CHANGE}) + "\n", encoding="utf-8"
         )
