@@ -77,3 +77,18 @@ No fallback was added: `not-reusable` is the contract's default to validate and 
 - `finish` runs the real `require_automated_evidence`, `automated_evidence_reuse`, `validate_or_reuse` and `run_checks`.
 - The `main()` wiring is covered by the wrapper tests and by a source-inspection test. No end-to-end `finish_task.py main()` run was made against a rendered portable project.
 - Copier update compatibility is covered only by the upgrade smoke above.
+
+## Re-verification after integration repair (head `15465bdd`, contains `origin/main` 4fbf8445)
+
+The integration repair `241ca043` changed task content after the coordinator archived the change. Its only content change since the verified head `71daf7ae` is one line in the `PortableProject` fixture of `tests/test_portable_finish_check_reuse.py`: the fixture's git exclude now also lists `__pycache__/`. No other task-content file changed: `finish_task.py`, `openspec_lifecycle.py`, `agent-workflow.md.jinja` and `checks.toml` are the same.
+
+Semantic review of that change:
+
+- **Cause.** On Linux the fixture's `select_checks` subprocess wrote `scripts/__pycache__` into the temporary project. That directory was then committed into the fixture's task content, so the evidence's content digest differed from the one the test expected.
+- **Correctness.** The exclude only keeps interpreter bytecode out of the fixture's commits. A rendered project already ignores it: `template/.gitignore.jinja` lists `__pycache__/`. The fixture therefore matches a real downstream project more closely. No assertion, scenario or production path changed.
+- **Completeness and coherence.** Every scenario mapped above keeps the same test, and the execution counts table is unchanged. The `completion-lifecycle` delta, proposal, design and tasks need no change.
+
+Checks run on this head:
+
+- `python3 -m pytest -q tests/test_portable_finish_check_reuse.py`: 24 passed (macOS). The coordinator reported 24/24 in a Linux container for `241ca043`.
+- `python3 scripts/select_checks.py --base origin/main --execute --evidence …/automated-checks.json`: recorded in the refreshed `automated-checks.json` on the committed head.
