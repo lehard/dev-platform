@@ -227,6 +227,82 @@ def latest_record(number: int, comments: list[dict], *, trusted_apps: frozenset[
     return deepcopy(latest) if latest is not None else None
 
 
+def same_task_content(left: object, right: object) -> bool:
+    """Both identities name the same change with the identical task-content proof."""
+    if not isinstance(left, dict) or not isinstance(right, dict) or left.get("change") != right.get("change"):
+        return False
+    old, new = left.get("task_content"), right.get("task_content")
+    return (isinstance(old, dict) and isinstance(new, dict) and bool(old.get("digest"))
+            and all(old.get(key) == new.get(key) for key in ("version", "digest", "base", "paths", "scope")))
+
+
+def content_bound_gates(gates: object, identity: dict) -> dict:
+    """The gates bound to exactly ``identity``'s task content, rebound to ``identity``.
+
+    Head-only legacy gates carry no task content and are never returned.
+    """
+    if not isinstance(gates, dict):
+        return {}
+    return {name: {**deepcopy(gate), "identity": deepcopy(identity)} for name, gate in gates.items()
+            if isinstance(gate, dict) and same_task_content(gate.get("identity"), identity)}
+
+
+RESTORABLE_STATES = frozenset({"finalize-pending", "review-pending", "blocked-retryable"})
+MAX_RESTORE_HOPS = 50
+
+
+def restorable_gates(pr: dict, comments: list[dict], *, trusted_apps: frozenset[str] = frozenset(),
+                     trusted_writers: frozenset[str] = frozenset()) -> tuple[dict, dict]:
+    """Content-bound gates lost across trusted harness pushes, proven hop by hop.
+
+    Returns the derived candidate and the gates to restore on its current head.
+    Every head move from a trusted record holding the gates to the current head
+    must be a trusted ``validated-push`` receipt whose task content equals the
+    current identity; any other history raises ``ValueError`` naming the head.
+    """
+    from lifecycle_workers import RESULT_PREFIX
+
+    candidate = derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=trusted_writers)
+    identity = candidate.get("task_identity")
+    if candidate["state"] not in RESTORABLE_STATES:
+        raise ValueError(f"candidate is {candidate['state']}; gates are restored only in "
+                         + ", ".join(sorted(RESTORABLE_STATES)))
+    if not isinstance(identity, dict) or not isinstance(identity.get("task_content"), dict):
+        raise ValueError("candidate has no content-bound task identity")
+    pushes: dict[str, dict] = {}
+    for row in sorted(comments, key=lambda item: item.get("id", 0)):
+        body = row.get("body", "")
+        if not isinstance(body, str) or not body.startswith(RESULT_PREFIX) or not trusted_marker_comment(row, trusted_apps, trusted_writers):
+            continue
+        try:
+            receipt = json.loads(body[len(RESULT_PREFIX):])
+        except ValueError as exc:
+            raise ValueError(f"malformed trusted result comment {row.get('id')}") from exc
+        if isinstance(receipt, dict) and receipt.get("outcome") == "validated-push" and isinstance(receipt.get("pushed_head"), str):
+            pushes[receipt["pushed_head"]] = receipt
+    by_head: dict[str, list[dict]] = {}
+    for record in _trusted_records(candidate["number"], comments, trusted_apps, trusted_writers):
+        by_head.setdefault(record["head"], []).append(record)
+    current = set(candidate.get("gates") or {})
+    head = candidate["head"]
+    for _ in range(MAX_RESTORE_HOPS):
+        receipt = pushes.get(head)
+        if receipt is None:
+            raise ValueError(f"head {head[:12]} was not reached by a trusted harness push; nothing can be restored")
+        if not same_task_content(receipt.get("task_identity"), identity):
+            raise ValueError(f"the harness push to {head[:12]} changed the task content; gates cannot be restored")
+        head = receipt.get("head")
+        if not isinstance(head, str):
+            raise ValueError("a trusted harness push receipt names no previous head")
+        found: dict = {}
+        for record in by_head.get(head, []):
+            found.update(content_bound_gates(record.get("gates"), identity))
+        restore = {name: gate for name, gate in found.items() if name not in current}
+        if restore:
+            return candidate, restore
+    raise ValueError(f"no content-bound gates found within {MAX_RESTORE_HOPS} trusted harness pushes")
+
+
 def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None, *,
                      trusted_apps: frozenset[str] = frozenset(), trusted_writers: frozenset[str] = frozenset()) -> dict:
     """Derive from the latest exact-head handoff; labels never grant v2 gates.
@@ -385,8 +461,10 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                 recovered_job = {"kind": "review", "head": head, "task_identity": deepcopy(receipt["task_identity"]),
                                  "attempt": attempts["review"],
                                  **{key: deepcopy(carried[key]) for key in ("provider", "providers") if key in carried}}
+                # Gates bound to unchanged task content survive the harness's own push.
                 result.update(state="review-pending", task_identity=deepcopy(receipt["task_identity"]),
-                              attempts=attempts, gates={}, next_job=recovered_job,
+                              attempts=attempts, next_job=recovered_job,
+                              gates=content_bound_gates(newest.get("gates"), receipt["task_identity"]),
                               reason="recover validated worker push; repeat review")
                 break
     if not matching and newest is not None and result.get("route") is None:

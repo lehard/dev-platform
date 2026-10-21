@@ -1368,7 +1368,8 @@ def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
     """Record the owner's explicit decision to keep a supervisor-written diff under a delegated-child plan.
 
     Switches an undelegated delegated-child plan with diverged task content to a
-    supervisor-retained plan with policy ``owner-approved``. It never records a
+    supervisor-retained plan with policy ``owner-approved`` and records its
+    retained outcome with the approval. It never records a
     delegation, launch or escalation, and leaves the routed profile unchanged.
     Every refusal raises before anything is written.
     """
@@ -1398,8 +1399,20 @@ def approve_supervisor_diff(root: Path, *, approval: str, reason: str) -> Route:
     if "integration_advance" in check:
         owner_approval["integration_advance"] = check["integration_advance"]
     next_plan = {**plan, "mode": PLAN_RETAINED, "policy": OWNER_APPROVED_POLICY, "switched_from": {"mode": PLAN_DELEGATED, "at": now, "delegation_recorded": False}, "owner_approval": owner_approval}
-    next_route = Route(**{**asdict(route), "execution_plan": next_plan})
+    # The diff already exists, so the retained outcome is recorded with the
+    # approval: a later archive can then never strand it without an outcome.
+    execution = {
+        "outcome": "retained",
+        "launched": False,
+        "retained": {"role": "supervisor", "policy": OWNER_APPROVED_POLICY, "reason": reason.strip(), "owner_approval": owner_approval},
+        "postcheck": check,
+        "recorded_at": now,
+    }
+    if route.execution is not None:
+        execution["prior_execution"] = route.execution
+    next_route = Route(**{**asdict(route), "execution_plan": next_plan, "execution": execution})
     _write_route(path, next_route)
+    _persist_completed_execution(next_route)
     return next_route
 
 
@@ -1851,11 +1864,12 @@ def record_claude_execution(root: Path, *, agent_id: str, summary: str | None = 
 def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
     """Persist a policy-valid parent-retained outcome after implementation.
 
-    This is intentionally active-only through ``_read_route``. Once the
-    change is archived, the pre-implementation routing boundary has passed;
-    callers can only verify the durable history, never repair it late.
+    Once the change is archived, the pre-implementation routing boundary has
+    passed; callers can only verify the durable history, never repair it late.
+    The single exception is ``_retention_route``: the owner's decision is
+    already recorded in the plan, so only its outcome is still missing.
     """
-    route, path = _read_route(root)
+    route, path = _retention_route(root)
     plan = _require_plan(route, "recording a retained execution")
     policy = _retention_policy(route)
     if plan["mode"] != PLAN_RETAINED or policy is None or plan.get("policy") != policy:
@@ -1866,6 +1880,8 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
             "for an owner-approved supervisor-written diff, only `model_routing.py approve-supervisor-diff --approval \"<owner statement>\" "
             "--reason \"<reason>\"` records the owner's explicit decision"
         )
+    if route.execution is not None and route.execution.get("outcome") == "retained":
+        raise RoutingError("a retained outcome is already recorded for this route (approve-supervisor-diff records it for an owner-approved diff); nothing to record")
     if route.execution is not None:
         switched_from = plan.get("switched_from")
         owner_approved_unlaunched = policy == OWNER_APPROVED_POLICY and _unlaunched_attempt(route, plan)
@@ -2159,6 +2175,29 @@ def _sandboxed_claude_completed(execution: dict[str, Any]) -> bool:
     return (execution.get("mechanism") == SANDBOX_MECHANISM and execution.get("launch_evidence") == LAUNCH_EVIDENCE_PLATFORM_OBSERVED
             and execution.get("launched") is True and execution.get("outcome") == "completed"
             and execution.get("returncode") == 0 and isinstance(execution.get("participant"), dict))
+
+
+def _retention_route(root: Path) -> tuple[Route, Path]:
+    """The active route, or the owner-approved route of this task's archived change.
+
+    Finalize may archive the change of an owner-approved supervisor diff whose
+    approval predates the outcome being recorded on approval. Only that exact
+    shape -- this task's own change, an owner-approved retained plan and no
+    execution evidence -- may record its outcome after archive; every other
+    archived route is refused.
+    """
+    source_issue, change = current_managed_identity(root)
+    _, _, status = resolve_managed_provenance(root, source_issue, change)
+    if status == "active":
+        return _read_route(root)
+    route, path = _read_route_at(_record_path(root, change), source_issue, change)
+    plan = _require_plan(route, "recording a retained execution after archive")
+    if plan["mode"] != PLAN_RETAINED or plan.get("policy") != OWNER_APPROVED_POLICY or route.execution is not None:
+        raise RoutingError(
+            f"managed change {change} is archived: only an owner-approved supervisor-retained plan without execution evidence "
+            "may record its retained outcome after archive; any other route cannot be repaired late"
+        )
+    return route, path
 
 
 def _without_platform_lifecycle_entries(state: GitSnapshot, change: str) -> GitSnapshot:

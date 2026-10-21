@@ -21,13 +21,14 @@ REQUIREMENT = "acme/backlog#7"
 CHILDREN = ["acme/backlog#8", "acme/backlog#9"]
 BRANCH = "agent/br-7-t8-task"
 KEY = "coordinator:" + "0123456789abcdef01234567"
+ATTRIBUTION = {"work_identity": "BR-7", "child_identity": "BR-7/T8"}
 
 
 def event(**overrides) -> dict:
     return {"task": BRANCH, "number": 11, "head": HEAD, "stage": "blocked-escalation", "worker": "github-actions:o/r:1:1",
             "dedupe_key": KEY, "category": "lifecycle-blocked-escalation", "severity": "high",
             "triggers": ["repeated-error"], "observation": "blocked", "evidence": "PR #11 blocked",
-            "hypothesis": "h", "proposal": "p", **overrides}
+            "hypothesis": "h", "proposal": "p", "reason": "review: material findings unresolved", **overrides}
 
 
 class FakePR:
@@ -65,20 +66,31 @@ class EvidenceFixture(unittest.TestCase):
 
 class EvidenceRecordTests(EvidenceFixture):
     def test_record_round_trips_with_requirement_head_stage_and_worker(self):
-        queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         self.assertTrue(self.pr.comments[0]["body"].startswith(queue.EVIDENCE_PREFIX))
         [found] = queue.requirement_evidence(ROOT, REQUIREMENT, CHILDREN)
         self.assertEqual(found["durable"], {"number": 11, "head": HEAD, "stage": "blocked-escalation",
                                             "worker": "github-actions:o/r:1:1"})
         self.assertEqual((found["requirement"], found["task"], found["attribution"]), (REQUIREMENT, BRANCH, "coordinator"))
         self.assertEqual(found["id"], "coordinator-0123456789abcdef")
+        self.assertEqual(found["reason"], "review: material findings unresolved")
+        self.assertEqual(found["candidate"], {"task": BRANCH, "number": 11, "head": HEAD})
+
+    def test_record_written_before_reason_was_required_reads_without_reason(self):
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
+        legacy = json.loads(self.pr.comments[0]["body"][len(queue.EVIDENCE_PREFIX):])
+        legacy.pop("reason")
+        with mock.patch.object(queue, "_comments", return_value=[{**self.pr.comments[0], "body": queue.EVIDENCE_PREFIX + json.dumps(legacy)}]):
+            [found] = queue.requirement_evidence(ROOT, REQUIREMENT, CHILDREN)
+        self.assertNotIn("reason", found)
+        self.assertEqual(friction.missing_coordinator_fields(found), ["reason"])
 
     def test_retry_posts_once(self):
-        first = queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
-        again = queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        first = queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
+        again = queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         self.assertEqual(len(self.pr.comments), 1)
         self.assertEqual(first["event_id"], again["event_id"])
-        queue.post_evidence(ROOT, event(dedupe_key="coordinator:" + "f" * 24), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(dedupe_key="coordinator:" + "f" * 24), attribution=ATTRIBUTION)
         self.assertEqual(len(self.pr.comments), 2)
 
     def test_forged_author_is_ignored(self):
@@ -87,12 +99,15 @@ class EvidenceRecordTests(EvidenceFixture):
         self.assertEqual(queue.requirement_evidence(ROOT, REQUIREMENT), [])
 
     def test_malformed_trusted_record_raises(self):
-        queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         good = json.loads(self.pr.comments[0]["body"][len(queue.EVIDENCE_PREFIX):])
         cases = {"not json": "{broken", "wrong pr": json.dumps({**good, "number": 12}),
                  "bad head": json.dumps({**good, "head": "abc"}), "no worker": json.dumps({**good, "worker": ""}),
                  "wrong version": json.dumps({**good, "version": 2}),
-                 "id mismatch": json.dumps({**good, "event_id": "coordinator-ffffffffffffffff"})}
+                 "id mismatch": json.dumps({**good, "event_id": "coordinator-ffffffffffffffff"}),
+                 "empty reason": json.dumps({**good, "reason": " "}),
+                 "bad work identity": json.dumps({**good, "work_identity": "BR-7/T8"}),
+                 "bad child identity": json.dumps({**good, "child_identity": "BR-7"})}
         for label, body in cases.items():
             with self.subTest(label), mock.patch.object(
                     queue, "_comments", return_value=[{**self.pr.comments[0], "body": queue.EVIDENCE_PREFIX + body}]):
@@ -101,13 +116,23 @@ class EvidenceRecordTests(EvidenceFixture):
 
     def test_incomplete_event_is_refused(self):
         with self.assertRaisesRegex(queue.QueueError, "lacks worker"):
-            queue.post_evidence(ROOT, event(worker=""), requirement=None)
+            queue.post_evidence(ROOT, event(worker=""), attribution=None)
         with self.assertRaisesRegex(queue.QueueError, "full commit SHA"):
-            queue.post_evidence(ROOT, event(head="abc"), requirement=None)
+            queue.post_evidence(ROOT, event(head="abc"), attribution=None)
+        with self.assertRaisesRegex(queue.QueueError, "lacks reason"):
+            queue.post_evidence(ROOT, event(reason=""), attribution=None)
+
+    def test_legacy_record_with_requirement_reference_still_matches(self):
+        record = {**queue.build_evidence_record(event(), attribution=None), "requirement": REQUIREMENT}
+        del record["work_identity"], record["child_identity"]
+        self.pr.comments.append({"id": 1, "author_association": "NONE", "performed_via_github_app": {"slug": "bot"},
+                                 "body": queue.EVIDENCE_PREFIX + json.dumps(record)})
+        [found] = queue.requirement_evidence(ROOT, REQUIREMENT, CHILDREN)
+        self.assertEqual(found["requirement"], REQUIREMENT)
 
     def test_other_requirements_are_not_attributed(self):
-        queue.post_evidence(ROOT, event(), requirement="acme/backlog#99")
-        queue.post_evidence(ROOT, event(dedupe_key="coordinator:" + "e" * 24), requirement=None)
+        queue.post_evidence(ROOT, event(), attribution={"work_identity": "BR-99", "child_identity": None})
+        queue.post_evidence(ROOT, event(dedupe_key="coordinator:" + "e" * 24), attribution=None)
         self.assertEqual(queue.requirement_evidence(ROOT, REQUIREMENT, CHILDREN), [])
 
 
@@ -123,8 +148,7 @@ class SinkTests(EvidenceFixture):
                         mock.patch.object(friction, "state_path", lambda: self.log.parent / "state.json")):
             patcher.start()
             self.addCleanup(patcher.stop)
-        self.sink = contour.default_friction_sink(
-            ROOT, lineage=lambda root, branch: {"requirement": REQUIREMENT, "child": CHILDREN[0]})
+        self.sink = contour.default_friction_sink(ROOT)
 
     def test_local_mirror_shares_the_durable_event_id(self):
         self.sink(event())
@@ -140,11 +164,30 @@ class SinkTests(EvidenceFixture):
             self.sink(event())
         self.assertFalse(self.log.exists())
 
-    def test_lineage_failure_raises_before_anything_is_written(self):
-        sink = contour.default_friction_sink(ROOT, lineage=mock.Mock(side_effect=contour.JobBlocked("no reservation")))
-        with self.assertRaises(contour.JobBlocked):
-            sink(event())
+    def test_malformed_managed_branch_raises_before_anything_is_written(self):
+        with self.assertRaisesRegex(queue.QueueError, "malformed work identity"):
+            self.sink(event(task="agent/br-7-task"))
         self.assertEqual(self.pr.comments, [])
+        self.assertFalse(self.log.exists())
+
+    def test_sink_needs_no_backlog_or_authoring_config(self):
+        import managed_task
+        with mock.patch.object(managed_task, "authoring_config", side_effect=AssertionError("no Backlog access")), \
+                mock.patch.object(contour, "resolve_lineage", side_effect=AssertionError("no lineage lookup")):
+            self.sink(event())
+        record = json.loads(self.pr.comments[0]["body"][len(queue.EVIDENCE_PREFIX):])
+        self.assertEqual((record["work_identity"], record["child_identity"]), ("BR-7", "BR-7/T8"))
+        self.assertNotIn("requirement", record)
+        self.assertNotIn("backlog", self.pr.comments[0]["body"])
+        [local] = [json.loads(line) for line in self.log.read_text().splitlines()]
+        self.assertEqual((local["requirement"], local["work_identity"]), (None, "BR-7"))
+        self.assertIn(local["id"], [e["id"] for e in friction.events_for_task(REQUIREMENT)])
+
+    def test_unmanaged_branch_records_no_requirement(self):
+        self.sink(event(task="agent/example"))
+        record = json.loads(self.pr.comments[0]["body"][len(queue.EVIDENCE_PREFIX):])
+        self.assertEqual((record["work_identity"], record["child_identity"]), (None, None))
+        self.assertEqual(queue.requirement_evidence(ROOT, REQUIREMENT), [])
 
     def test_local_mirror_failure_raises(self):
         with mock.patch.object(friction, "append_coordinator_event", side_effect=OSError("disk full")):
@@ -168,7 +211,7 @@ class SinkTests(EvidenceFixture):
         queue.set_friction_sink(lambda e: None)
         self.addCleanup(queue.set_friction_sink, None)
         with self.assertRaisesRegex(queue.QueueError, "worker run identity"):
-            queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, "d")
+            queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, {"name": "review", "evidence": "d"})
         with self.assertRaisesRegex(queue.QueueError, "worker run identity"):
             queue.use_default_friction_sink(ROOT, worker=" ")
 
@@ -176,9 +219,44 @@ class SinkTests(EvidenceFixture):
         seen = []
         queue.set_friction_sink(seen.append, worker="w1")
         self.addCleanup(queue.set_friction_sink, None)
-        queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, "d")
+        queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, {"name": "review", "evidence": "d"})
         self.assertEqual((seen[0]["head"], seen[0]["stage"], seen[0]["worker"]), (HEAD, "blocked-escalation", "w1"))
         self.assertRegex(seen[0]["dedupe_key"], r"^coordinator:[0-9a-f]{24}$")
+        self.assertEqual(seen[0]["reason"], "review: d")
+
+    def test_reason_names_the_red_gate_cause(self):
+        seen = []
+        queue.set_friction_sink(seen.append, worker="w1")
+        self.addCleanup(queue.set_friction_sink, None)
+        queue.emit_friction(11, BRANCH, "blocked-retryable", HEAD,
+                            {"name": "review", "cause": "provider-unavailable", "limitation": "quota exhausted",
+                             "evidence": {"claude": {"verdict": "unavailable"}}})
+        queue.emit_friction(11, BRANCH, "repair-pending", HEAD, {"name": "review", "evidence": {"spec": "material"}})
+        self.assertEqual([e["reason"] for e in seen],
+                         ["review: provider-unavailable; quota exhausted", 'review: {"spec": "material"}'])
+
+    def test_transition_without_a_red_gate_reason_fails_explicitly(self):
+        queue.set_friction_sink(lambda e: None, worker="w1")
+        self.addCleanup(queue.set_friction_sink, None)
+        with self.assertRaisesRegex(queue.QueueError, r"PR #11 \(blocked-escalation\) requires a named red gate"):
+            queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, None)
+        with self.assertRaisesRegex(queue.QueueError, "red gate review carries no cause or evidence"):
+            queue.emit_friction(11, BRANCH, "blocked-escalation", HEAD, {"name": "review"})
+
+    def test_waiting_on_required_checks_records_no_friction(self):
+        seen = []
+        queue.set_friction_sink(seen.append, worker="w1")
+        self.addCleanup(queue.set_friction_sink, None)
+        queue.emit_friction(11, BRANCH, "blocked-retryable", HEAD, None)
+        self.assertEqual(seen, [])
+        with self.assertRaisesRegex(queue.QueueError, "requires a named red gate"):
+            queue.emit_friction(11, BRANCH, "repair-pending", HEAD, None)
+
+    def test_sink_mirrors_reason_and_candidate_locally(self):
+        self.sink(event())
+        [local] = friction.read_events(None)
+        self.assertEqual(local["reason"], "review: material findings unresolved")
+        self.assertEqual(local["candidate"], {"task": BRANCH, "number": 11, "head": HEAD})
 
 
 def parent_issue() -> dict:
@@ -216,7 +294,7 @@ class RetrospectiveDurableTests(EvidenceFixture):
         return json.loads(out.getvalue())
 
     def test_review_path_on_clean_checkout_lists_durable_events_with_provenance(self):
-        queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         result = self.review_path()
         self.assertEqual(result["lifecycle_failures"], ["coordinator-0123456789abcdef"])
         self.assertEqual(result["coordinator_events"][0]["durable"]["head"], HEAD)
@@ -224,7 +302,7 @@ class RetrospectiveDurableTests(EvidenceFixture):
         self.assertEqual(result["evidence_sources"]["coordinator-evidence"], "available")
 
     def test_high_severity_durable_failure_must_be_linked_or_classified(self):
-        queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         with self.assertRaises(retrospective.RequirementRetrospectiveError):
             self.checkpoint()
         linked = self.checkpoint(result="findings", event_ids=["coordinator-0123456789abcdef"])
@@ -233,7 +311,7 @@ class RetrospectiveDurableTests(EvidenceFixture):
 
     def test_workaround_trigger_is_mandatory(self):
         queue.post_evidence(ROOT, event(severity="medium", stage="x", triggers=["nondefault-override"],
-                                        category="coordinator-x"), requirement=REQUIREMENT)
+                                        category="coordinator-x"), attribution=ATTRIBUTION)
         with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "not linked"):
             self.checkpoint()
 
@@ -248,7 +326,7 @@ class RetrospectiveDurableTests(EvidenceFixture):
             self.assertEqual(receipt["accepted_gaps"], ["coordinator-evidence"])
 
     def test_malformed_trusted_record_is_a_gap_not_an_empty_source(self):
-        queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         self.pr.comments[0]["body"] = queue.EVIDENCE_PREFIX + "{broken"
         self.assertEqual(self.review_path()["evidence_sources"]["coordinator-evidence"], "unreadable")
         with self.assertRaises(friction.DurableEvidenceError):
@@ -260,10 +338,11 @@ class RetrospectiveDurableTests(EvidenceFixture):
             self.assertEqual(friction.evidence_source_status(), {"friction-log": "available"})
 
     def test_durable_event_replaces_the_local_mirror_by_id(self):
-        queue.post_evidence(ROOT, event(), requirement=REQUIREMENT)
+        queue.post_evidence(ROOT, event(), attribution=ATTRIBUTION)
         mirror = friction.append_coordinator_event(
             task=BRANCH, requirement=REQUIREMENT, category="lifecycle-blocked-escalation", triggers=["repeated-error"],
             severity="high", observation="blocked", evidence="e", hypothesis="h", proposal="p", dedupe_key=KEY,
+            reason="review: blocked", candidate={"task": BRANCH, "number": 11, "head": HEAD},
             event_id="coordinator-0123456789abcdef")
         events = friction.events_for_task(REQUIREMENT)
         self.assertEqual([e["id"] for e in events], [mirror["id"]])

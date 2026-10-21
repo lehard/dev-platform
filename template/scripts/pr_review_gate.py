@@ -21,8 +21,36 @@ def managed_candidate(root: Path) -> bool:
     import publication_queue as queue
 
     provenance = resolve_canonical_provenance(root)
-    return (queue.enabled(root)
-            and provenance is not None and provenance.lifecycle == "active")
+    if not queue.enabled(root) or provenance is None:
+        return False
+    if provenance.lifecycle == "active":
+        return True
+    return archived_readmission(root, provenance) is not None
+
+
+def archived_readmission(root: Path, provenance) -> dict | None:
+    """The queue's semantic-verification re-admission of this archived managed task, or ``None``.
+
+    A coordinator finalize archives the change; content changed afterwards (an
+    integration repair, a reconcile) stops the next finalize on the
+    ``semantic-verification`` red gate, which only a fresh developer handoff
+    answers. Only this task's own admitted PR in exactly that state reopens the
+    handoff; no other archived change does.
+    """
+    import lifecycle_workers as workers
+    import publication_queue as queue
+
+    if provenance.lifecycle != "archived":
+        return None
+    branch = workers._git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
+    observed = queue.semantic_readmission(root, branch)
+    if observed is None:
+        return None
+    old = observed["lineage"].get("task_identity")
+    if not isinstance(old, dict) or old.get("change") != provenance.change:
+        raise workers.WorkerError(
+            f"PR #{observed['number']} awaits re-admission of another task than archived change {provenance.change}")
+    return observed
 
 
 def task_identity(root: Path, change: str) -> dict:
@@ -117,13 +145,17 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     import lifecycle_workers as workers
     from openspec_lifecycle import archive_content_problems, require_automated_evidence, verification_passed
 
-    problems = archive_content_problems(root, [change]) if change.parent.name != "archive" else []
-    if problems:
-        raise workers.WorkerError("developer handoff requires an archiveable change before review: " + "; ".join(problems))
+    name = change.name
+    if change.parent.name == "archive":
+        name = _archived_handoff_change(root, change)
+    else:
+        problems = archive_content_problems(root, [change])
+        if problems:
+            raise workers.WorkerError("developer handoff requires an archiveable change before review: " + "; ".join(problems))
     if not verification_passed(change):
         raise workers.WorkerError("developer handoff requires successful semantic verification and its method")
     require_automated_evidence(change, root=root)
-    identity = task_identity(root, change.name)
+    identity = task_identity(root, name)
     helper = root / "scripts/agent_friction.py"
     if not helper.is_file():
         raise workers.WorkerError("developer handoff requires the friction checkpoint helper")
@@ -146,6 +178,33 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
         "semantic-verification": {"result": "passed", "identity": identity,
                                   "evidence": file_reference(root, verification_path)},
     }
+
+
+def _archived_handoff_change(root: Path, change: Path) -> str:
+    """The canonical change name of an archived re-handoff, after proving it is allowed and fresh.
+
+    The archive directory is dated, so the name comes from managed provenance.
+    The semantic receipt must have been re-recorded after the proven head: an
+    unchanged receipt is the evidence the coordinator already found stale.
+    """
+    import lifecycle_workers as workers
+    from managed_task import resolve_canonical_provenance
+
+    provenance = resolve_canonical_provenance(root)
+    if provenance is None or provenance.lifecycle != "archived" or provenance.path.resolve() != change.resolve():
+        raise workers.WorkerError(f"archived developer handoff requires {change.name} to be this task's canonical archived change")
+    observed = archived_readmission(root, provenance)
+    if observed is None:
+        raise workers.WorkerError(
+            f"archived change {provenance.change} has no admitted PR awaiting a semantic-verification re-admission")
+    receipt = (change / "verification.md").resolve().relative_to(root.resolve()).as_posix()
+    proven = workers._git(root, "ls-tree", observed["proven_head"], "--", receipt).strip()
+    current = workers._git(root, "ls-tree", "HEAD", "--", receipt).strip()
+    if proven and proven == current:
+        raise workers.WorkerError(
+            f"semantic verification receipt {receipt} is unchanged since proven head {observed['proven_head'][:12]}; "
+            "re-run semantic verification for the changed task content and commit its receipt")
+    return provenance.change
 
 
 def offer(root: Path, repo: str, number: int, head: str, identity: dict,
@@ -319,8 +378,19 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                                adapter._comments(root, repo, job["number"]))
     if workers.build_job(observed) != job:
         return {"status": "discarded"}
+    try:
+        # Before the reviewer or writer runs and before any push: an outcome that cannot
+        # record its friction must fail here, not after the candidate head has moved.
+        adapter.require_friction_attribution(branch)
+    except adapter.QueueError as exc:
+        raise workers.WorkerError(str(exc)) from exc
+    from candidate_lifecycle import content_bound_gates
+
+    # A head reached by the harness's own push has no exact-head record yet; the derived
+    # view proved it and kept the gates bound to this unchanged task content.
     running = adapter._transition(root, repo, job["number"], kind + "ing" if kind == "repair" else "reviewing",
                                   job["head"], task_identity=identity, inherit_identity=False,
+                                  gates=content_bound_gates(observed.get("gates"), identity) or None,
                                   next_job={k: v for k, v in job.items() if k != "number"})
     if running is None:
         return {"status": "discarded"}
@@ -382,7 +452,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     if outcome["status"] == "discarded":
         return outcome
     head = outcome.get("pushed_head") or job["head"]
-    if current_head() != head or not claim_current():
+    if not workers.own_result_landed(current_head, job["head"], head) or not claim_current():
         return {**outcome, "status": "discarded"}
     if head != job["head"]:
         adapter._comment(root, repo, job["number"], {"kind": "update", "previous": job["head"],
@@ -447,13 +517,15 @@ class ReofferRefused(ValueError):
     """The supported re-offer contract refuses this candidate; the message names what a human can do."""
 
 
-def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: int, retry_kind: str | None) -> str:
+def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: int, retry_kind: str | None,
+                 job_completed: bool = False) -> str:
     """The job kind a ``resume``/``switch-provider`` re-offers for this candidate, or ``ReofferRefused``.
 
     Pure eligibility shared by ``reoffer`` and the read-only lifecycle overview, so the list of
     permitted actions never diverges from what the command accepts. ``claim`` is the winning
     unexpired claim of the candidate's job (or ``None``); ``retry_kind`` is the review/repair job
-    a blocked-retryable candidate waits on (``publication_queue.retry_job_kind``).
+    a blocked-retryable candidate waits on (``publication_queue.retry_job_kind``); ``job_completed``
+    says the candidate's current job already holds a result, so no worker will claim it again.
     """
     if action not in ACTIONS:
         raise ValueError(f"unknown re-offer action {action!r}")
@@ -478,6 +550,18 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
         # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
         # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
         kind = "finalize"
+    elif (state == "blocked-retryable" and job_completed and action == "resume"
+          and (candidate.get("next_job") or {}).get("kind") == "retrospective"
+          and (candidate.get("next_job") or {}).get("phase") == "pre-merge"):
+        # The pre-merge Requirement retrospective stopped on a human decision (for example ambiguous
+        # friction attribution); once the operator records it, the next bounded attempt re-runs the
+        # whole retrospective at the exact head, so the resume decides nothing the retrospective checks.
+        kind = "retrospective"
+    elif state == "finalize-pending" and job_completed and action == "resume":
+        # The finalize job of this head already holds a result (for example it stopped on gates that
+        # restore-gates later restored), so it is never claimed again; the re-offer gives it a fresh id
+        # and the job re-verifies every gate from scratch at the exact head.
+        kind = "finalize"
     else:
         raise ReofferRefused(f"PR #{number} is {state}; {action} applies only to an unfinished review or repair job"
                              + (" (resume covers operational repair and finalize escalations)"
@@ -488,7 +572,8 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
     return kind
 
 
-def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry_kind: str | None) -> dict:
+def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry_kind: str | None,
+                      job_completed: bool = False) -> dict:
     """Operator actions the re-offer contract accepts for this candidate, with exact commands.
 
     ``actions`` lists only what ``reoffer_plan`` accepts; ``human_decision`` carries the contract's own
@@ -499,7 +584,8 @@ def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry
     actions, refusals = [], {}
     for action in ACTIONS:
         try:
-            kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=retry_kind)
+            kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=retry_kind,
+                                job_completed=job_completed)
         except ReofferRefused as refusal:
             refusals[action] = str(refusal)
             continue
@@ -521,8 +607,10 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
             via: str | None = None, expected_head: str | None = None, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.
 
-    ``resume`` also re-offers the finalize job of a finalize escalation at the same head; the job
-    re-verifies every gate itself, so the resume decides nothing a finding needs.
+    ``resume`` also re-offers the finalize job of a finalize escalation, or of a finalize-pending candidate
+    whose job already holds a result, at the same head; the job re-verifies every gate itself, so the
+    resume decides nothing a finding needs. A composition whose pre-merge retrospective stopped with a
+    result is re-offered at its next bounded attempt, never past the attempt limit.
 
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
@@ -556,14 +644,18 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
     current_job = candidate.get("next_job") if isinstance(candidate.get("next_job"), dict) else {}
     red = candidate.get("red_gate") or {}
     pending = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair", "repairing": "repair"}
-    from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
+    from lifecycle_workers import CLAIM_PREFIX, RESULT_PREFIX, build_job, job_completed, winning_claim
     job = build_job(candidate)
-    claim = None
+    claim, completed = None, False
     if job is not None:
-        claim = winning_claim(job, comments, trusted_apps=adapter.trusted_apps(root),
+        apps = adapter.trusted_apps(root)
+        claim = winning_claim(job, comments, trusted_apps=apps,
                               trusted_writers=adapter.trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
+        completed = job_completed(job, comments, trusted_apps=apps,
+                                  trusted_writers=adapter.trusted_writers(root, comments, (RESULT_PREFIX,), repo=repo))
     try:
-        kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=adapter.retry_job_kind(candidate))
+        kind = reoffer_plan(candidate, claim, action=action, number=number, retry_kind=adapter.retry_job_kind(candidate),
+                            job_completed=completed)
     except ReofferRefused as refusal:
         raise adapter.QueueError(str(refusal)) from refusal
     attempts = candidate.get("attempts", {})
@@ -580,6 +672,28 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
             root, repo, number, "finalize-pending", head, task_identity=identity, inherit_identity=False,
             set_attempts={"reoffers": seq},
             next_job=job_record("finalize", head, identity, attempts.get("finalize", 0), reoffer=event))
+        if record is None:
+            raise adapter.QueueError(f"PR #{number} head moved; rerun")
+        return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}
+    if kind == "retrospective":
+        from candidate_lifecycle import premerge_retrospective_attempt
+
+        if providers is not None:
+            raise adapter.QueueError(f"PR #{number} retrospective job runs in the trusted harness; omit --provider")
+        if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
+            raise adapter.QueueError(f"PR #{number} pre-merge retrospective carries no composition identity")
+        try:
+            attempt = premerge_retrospective_attempt(number, head, comments, adapter.trusted_apps(root),
+                                                     adapter.trusted_writers(root, comments))
+        except ValueError as exc:
+            raise adapter.QueueError(str(exc)) from exc
+        seq = attempts.get("reoffers", 0) + 1
+        event = {"seq": seq, "action": action, "reason": reason.strip()[:300], **identity_event, "head": head,
+                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        record = adapter._transition(
+            root, repo, number, "blocked-retryable", head, task_identity=identity, inherit_identity=False,
+            set_attempts={"reoffers": seq},
+            next_job=job_record("retrospective", head, identity, attempt, phase="pre-merge", reoffer=event))
         if record is None:
             raise adapter.QueueError(f"PR #{number} head moved; rerun")
         return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}

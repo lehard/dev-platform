@@ -81,6 +81,8 @@ targets = [
   "test_candidate_lifecycle",
   "test_coordinator_preflight",
   "test_coordinator_evidence",
+  "test_coordinator_event_routing",
+  "test_hosted_review_continuity",
   "test_pr_review_gate",
   "test_post_review_finalization",
   "test_worker_checkout_contract",
@@ -237,6 +239,10 @@ mode = "parallel"
 targets = ["test_managed_task_exact_state"]
 mode = "parallel"
 
+[test_groups.portable_finish_check_reuse]
+targets = ["test_portable_finish_check_reuse"]
+mode = "parallel"
+
 [test_groups.fast-a]
 targets = [
   "test_adopt_project",
@@ -252,6 +258,8 @@ targets = [
   "test_direct_main_health",
   "test_fresh_worktree_readiness",
   "test_friction_review",
+  "test_friction_root_convergence",
+  "test_friction_strict_log",
   "test_retrospective_attribution",
   "test_gitlab_delivery",
   "test_harness_safety",

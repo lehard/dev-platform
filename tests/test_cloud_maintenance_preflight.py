@@ -60,7 +60,8 @@ class CloudMaintenancePreflightTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("dispatched the secret-safe provider probe", "\n".join(result.messages))
         self.assertEqual(calls[-1], ("workflow", "run", preflight.PROBE_WORKFLOW, "--ref", "candidate", "--repo", "example/repo"))
-        self.assertNotIn("process-issue-triage", " ".join(calls[-1]))
+        for name in preflight.CLOUD_MAINTENANCE_WORKFLOWS:
+            self.assertNotIn(name, " ".join(calls[-1]))
 
     def test_unavailable_metadata_does_not_expose_command_output(self) -> None:
         calls, runner = self._runner([("sensitive remote detail", 1)])

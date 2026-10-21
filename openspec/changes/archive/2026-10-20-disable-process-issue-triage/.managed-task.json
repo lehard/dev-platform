@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agentic-maintenance/spec.md",
+    "tasks.md"
+  ],
+  "change": "disable-process-issue-triage",
+  "imported_at": "2026-10-19T19:36:44+00:00",
+  "package_revision": "c195adcfbcab94c9be11a34838645d9c0d23af9402cce2362d621b0b2375b6a0",
+  "prepared_against": "f3a52e76f3223edaaf3369869eaec3687da0d326",
+  "private_lineage_handle": "pln_b13a84fc5cf8f2a991c4bd138e941e9e",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "1bf16e81fc9974287eda7557d70774e083948aab9752e194364e5c3f83f03e3f",
+    "updated_at": "2026-10-19T19:25:12Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-696/T1"
+}

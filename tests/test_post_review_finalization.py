@@ -451,20 +451,22 @@ class FinalizeTests(CandidateCase):
             self.assertEqual(lifecycle.completed_active_changes_at(self.repo.remote, self.repo.head()), [])
             self.assertEqual(json.loads(results[-1][len(workers.RESULT_PREFIX):])["outcome"], "finalized")
 
-    def test_stale_head_observation_after_push_is_recovered_as_ready_by_the_queue(self):
+    def test_unconverged_head_after_push_fails_and_is_recovered_as_ready_by_the_queue(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture)
             before = self.repo.head()
             candidate = fixture.candidate()
             job = workers.build_job(candidate)
             results = []
-            with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
-                # GitHub still reports the pre-push head right after the archive push.
-                outcome = final.run_claimed_finalize(
-                    self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
-                    branch="agent/example", current_head=lambda: before, workdir=workdir,
-                    post_result=results.append, archiver=self.archiver, claim_current=lambda: True, worker="w")
-            self.assertEqual(outcome["status"], "discarded")
+            with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir, \
+                    mock.patch.object(workers, "PUSH_CONVERGENCE_SECONDS", 0):
+                # GitHub keeps reporting the pre-push head after the archive push: an explicit
+                # failure, never a silent discard of the pushed result.
+                with self.assertRaisesRegex(workers.WorkerError, "did not converge to pushed head"):
+                    final.run_claimed_finalize(
+                        self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
+                        branch="agent/example", current_head=lambda: before, workdir=workdir,
+                        post_result=results.append, archiver=self.archiver, claim_current=lambda: True, worker="w")
             pushed = self.repo.head()
             self.assertNotEqual(pushed, before)
             receipt = next(body for body in results if '"validated-push"' in body)

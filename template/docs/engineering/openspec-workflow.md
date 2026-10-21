@@ -85,6 +85,22 @@ In `design.md`, record concrete risks and mitigations when the work materially a
 
 Keep this context in the existing proposal, specs, design, and tasks artifacts. Do not create a mandatory `intent.md`, Must/Should/Could layer, or manual status/date/expiry/artifact ledger; lifecycle state and receipts already have authoritative sources.
 
+### Carry Requirement binding levels into OpenSpec
+
+When a change comes from a Business Requirement, each material point keeps the binding level the Requirement gave it. The three levels are defined in [section 4 of the requirement authoring standard](../../dev-platform/capabilities/requirement-authoring.md#4-make-binding-visible-in-plain-words). OpenSpec requirements describe the mandatory result and observable behavior; no point is bound more tightly in OpenSpec than it was in the Requirement.
+
+- **Fixed**: write the value exactly (verbatim text, order, value or rule) and check it with a scenario.
+- **Meaning fixed, execution variable**: write the meaning or the properties the user must be able to observe, and where they must be observable. Leave the presentation open. The scenario checks the property, not a widget.
+- **Delegated**: do not raise the point into a requirement. The executor decides inside the accepted corridor; at most `design.md` records the choice.
+
+An example, illustrative value or mockup informs the meaning, but it binds exactly only what the Requirement marked as fixed. Delegated presentation never relaxes financial, data, technical, security or accessibility constraints, rights or accepted scenarios. These rules apply to new authoring; accepted specs are not rewritten to follow them.
+
+Worked example. A Requirement for a cash-flow report fixes three things: the report's breakdown switch offers "By item · By object · By activity" in that order, the side "Period totals" card is removed, and the page has no horizontal scrolling at 375 px. It also requires that the balances be shown with a note that they cover only known places, not all of the business's free money, and that places without a known balance get a warning; both must be visible next to the balances. The meaning is fixed, the presentation is delegated, and the mockup amounts are illustrative. In OpenSpec, the three fixed points become exact requirements, each with a scenario: the switch shows the three options in that order, the "Period totals" card does not appear, and the page at 375 px has no horizontal scrolling. The meaning becomes one requirement with a scenario that checks the user sees both statements next to the balances. The banner, caption or icon, wording beyond the agreed text, placement inside the strip and the mockup amounts appear in no requirement.
+
+Wrong: "A yellow banner with an info icon SHALL be shown above the balances." This hardens a delegated presentation into an exact one that the Requirement never fixed.
+
+Wrong: "A hint MAY be shown next to the balances." This weakens a fixed meaning: the Requirement makes the warning mandatory, so the OpenSpec requirement must not make it optional.
+
 ## Project-context routing
 
 Use [the project context map](../context/README.md) only when an artifact reaches

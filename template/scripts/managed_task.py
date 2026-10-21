@@ -138,16 +138,27 @@ class ManagedCheckoutIdentity:
             "branch": self.branch,
             "head": self.head,
         }
-        # Optional for compatibility with old renders/no-origin test harnesses;
-        # current managed platform check evidence receives this proof.
-        try:
-            from task_content_identity import content_identity
-            proof = content_identity(self.worktree, self.change)
-        except Exception:
-            proof = None
+        # A checkout without a merge base against origin/main (a no-origin
+        # harness) has no proof; diagnostics still print the identity, and
+        # mandatory checks refuse it through ``require_task_content``.
+        from task_content_identity import content_identity
+
+        proof = content_identity(self.worktree, self.change)
         if proof is not None:
             payload["task_content"] = proof
         return payload
+
+
+def require_task_content(payload: dict[str, Any], operation: str) -> dict[str, Any]:
+    """Return the task-content proof a mandatory managed check binds to, or stop."""
+    proof = payload.get("task_content")
+    if not isinstance(proof, dict):
+        raise ManagedTaskError(
+            f"{operation} requires the task-content proof of managed change {payload.get('change')!r} "
+            f"in {payload.get('worktree')}, but it could not be computed: Git found no merge base between HEAD "
+            "and origin/main, or could not list the task diff. Fetch origin/main into this checkout and rerun."
+        )
+    return proof
 
 
 @dataclass(frozen=True)

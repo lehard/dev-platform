@@ -1857,3 +1857,139 @@ When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` i
 - **THEN** the run prints `DEV_PLATFORM_MACHINE_POOL: not configured` and proceeds unpooled
 - **WHEN** it names a missing or invalid configuration
 - **THEN** the run fails naming the problem and runs nothing
+
+### Requirement: Friction routing never substitutes a missing platform destination or label configuration
+
+The friction router SHALL route a `scope=platform` event only to the platform repository configured as `[promotion].repo` in the enabled operator configuration. When that setting is absent or the operator configuration cannot be read, the router SHALL NOT route the event to the project's own repository; it SHALL keep the event local and report an error that names the missing or unreadable setting. A read error of the process label configuration, or an empty or non-string configured label, SHALL be reported as an error and SHALL NOT be replaced by the default label.
+
+#### Scenario: Platform repository is not configured
+
+- **GIVEN** a project whose operator configuration has no `[promotion].repo`
+- **WHEN** a recorded `scope=platform` friction event is routed
+- **THEN** no issue or comment is created in the project's own repository
+- **AND** the event remains pending with a reason that names `[promotion].repo`
+
+#### Scenario: Label configuration cannot be read
+
+- **WHEN** reading the configured process label fails or yields an empty value
+- **THEN** the operation reports that configuration error
+- **AND** it does not apply the default label in its place
+
+### Requirement: The local friction log is read strictly with position-independent event identity
+
+Reading the local friction log SHALL fail with an error naming the file, and the line when applicable, if the log is unreadable or a non-empty line is not a valid dated event object; it SHALL NOT return an empty or truncated event list in that case. Tolerating a degraded log SHALL be limited to output that reports the gap and to a checkpoint that explicitly accepts the `friction-log` gap. An event recorded without an id SHALL receive an identity derived from its content rather than its position in the file, and an earlier positional reference SHALL resolve to that identity or fail with a named error.
+
+#### Scenario: Malformed line in the log
+
+- **GIVEN** the local friction log contains a line that is not valid JSON
+- **WHEN** a command reads friction events without an accepted gap
+- **THEN** it fails with an error naming the log file and that line number
+
+#### Scenario: Unreadable log
+
+- **WHEN** the local friction log exists but cannot be read
+- **THEN** reading events fails with an error naming the file instead of returning no events
+
+#### Scenario: Explicitly accepted gap
+
+- **GIVEN** the local friction log contains a malformed line
+- **WHEN** a checkpoint is recorded with `--accept-gap friction-log`
+- **THEN** the valid events are used and the accepted gap is stored in the receipt
+
+#### Scenario: Legacy event identity is stable
+
+- **GIVEN** an event line recorded without an id
+- **WHEN** the log is read again after other lines were appended or an earlier line was removed
+- **THEN** its identity is the same on every read
+- **AND** an attribution recorded under its earlier positional id resolves to that identity
+
+### Requirement: One root cause keeps one open friction record
+
+A friction issue SHALL be able to carry several fingerprint markers, and routing SHALL add an event as an occurrence of the open issue that carries the event's fingerprint marker. An event left in the `candidate` route state SHALL be resolvable by an explicit decision that either attaches it to a named open friction issue, which then also carries the event's fingerprint marker, or creates a new root issue. Already open duplicates of one root SHALL be consolidable into one issue by an explicit command that moves their markers and closes them with a reference to the kept issue. A target that is not an open router-generated friction issue SHALL be a named error.
+
+#### Scenario: A known root recurs under a new category
+
+- **GIVEN** an open friction issue N for a root, and an event with another category left in `candidate` state pointing at N
+- **WHEN** the agent resolves the candidate with `--same-root` issue N
+- **THEN** the event becomes an occurrence comment on issue N and no new issue is created
+- **AND** a later event with that category is routed directly to issue N
+
+#### Scenario: Open duplicates are consolidated
+
+- **WHEN** `merge-roots` is run with target N and duplicates M1 and M2
+- **THEN** N carries the fingerprint markers of M1 and M2 and lists them in a comment
+- **AND** M1 and M2 are closed with a comment pointing to N
+- **AND** repeating the command changes nothing
+
+#### Scenario: Invalid target
+
+- **WHEN** the named target is closed or is not a router-generated friction issue
+- **THEN** the command fails with an error naming the issue and nothing is changed
+
+### Requirement: A merged fix closes the friction records it references
+
+When a pull request is merged, the friction issues referenced by `Fixes-Friction: owner/repo#N` lines in its body or in an OpenSpec `proposal.md` changed by it SHALL be closed with a comment naming the pull request and merge commit. Friction issues without such a reference SHALL NOT be closed automatically. A malformed reference, a reference to another repository or a reference to an issue that is not a router-generated friction issue SHALL fail the run with an error naming the reference.
+
+#### Scenario: Fix references a friction record
+
+- **GIVEN** a merged PR whose proposal contains `Fixes-Friction: lehard/dev-platform#405`
+- **WHEN** the close-on-merge run executes for that PR
+- **THEN** issue #405 is closed with a comment naming the PR and its merge commit
+- **AND** a rerun does not comment again
+
+#### Scenario: No reference
+
+- **WHEN** a merged PR has no `Fixes-Friction:` line
+- **THEN** no friction issue is closed
+
+#### Scenario: Reference to a non-friction issue
+
+- **WHEN** a reference names an issue that is not a router-generated friction issue
+- **THEN** the run fails with an error naming that reference and closes nothing
+
+### Requirement: Ordinary lifecycle commands do not retry friction routing
+
+`start`, `doctor`, `finish` and Requirement `advance` SHALL NOT invoke GitHub routing of locally retained friction events and SHALL NOT wait on it or print a routing-retry warning. Retained events SHALL remain pending and SHALL be retried only by the explicit `agent_friction.py route-pending` command.
+
+#### Scenario: Doctor with pending routing
+- **GIVEN** the local friction log holds an event whose GitHub routing is pending
+- **WHEN** `doctor` (or `start`, which runs it) executes
+- **THEN** it does not run `route-pending`
+- **AND** it prints no friction routing retry warning
+
+#### Scenario: Finish with pending routing
+- **GIVEN** a pending friction route
+- **WHEN** `finish` or `advance` reaches its completion preflight
+- **THEN** it does not run `route-pending` and does not wait on GitHub routing
+
+#### Scenario: Explicit retry
+- **WHEN** an operator runs `agent_friction.py route-pending`
+- **THEN** pending events are retried and the JSON result reports routed, failed and withheld counts
+
+### Requirement: Routed coordinator events name their reason and candidate
+
+A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head. The publication coordinator SHALL take the reason from the transition's named red gate and SHALL fail the transition explicitly with a named error when the gate is missing or explains nothing; a `blocked-retryable` transition without a red gate waits on exact-head required checks, is not a failed gate and SHALL record no friction event. Other producers SHALL fail explicitly with a named error rather than record such an event without them. The router SHALL render the reason and candidate in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
+
+#### Scenario: Coordinator retry is routed with its cause
+- **GIVEN** the coordinator schedules a bounded retry of PR candidate 42 at head `abc` because a gate was unavailable
+- **WHEN** the event is routed
+- **THEN** the published body names the candidate (task branch, PR 42, head `abc`) and the reason
+
+#### Scenario: Validation failure carries the failing check
+- **WHEN** `finish` records `lifecycle-validation-failure`
+- **THEN** the event reason names the failure class and failing check from the selector descriptor
+- **AND** the candidate names the current branch and head
+
+#### Scenario: Faceless coordinator event
+- **GIVEN** a locally retained coordinator event with no reason or no candidate
+- **WHEN** `route-pending` runs
+- **THEN** no GitHub issue or comment is created for it
+- **AND** its route is recorded as `withheld` naming the missing field and it is not retried
+
+#### Scenario: Producer without a reason
+- **WHEN** the coordinator emits a friction transition into review repair, integration repair or escalation without a named red gate, or with a red gate that has no cause or evidence
+- **THEN** recording fails with an error naming the PR and the state
+
+#### Scenario: Waiting on required checks is not friction
+- **WHEN** the coordinator records `blocked-retryable` without a red gate while the candidate waits on its exact-head required checks
+- **THEN** the transition is published and no friction event is recorded

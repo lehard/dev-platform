@@ -223,6 +223,46 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual((observed["state"], observed["reason"]), ("blocked", "admitted PR lacks queue label"))
 
 
+class LocalStatusTests(unittest.TestCase):
+    """finish observes its own PR through local_status before (re-)admission."""
+
+    def observe(self, local_head: str, observed: dict, events: list[dict] | None = None) -> dict | None:
+        import subprocess
+        import _platform_common
+
+        view = subprocess.CompletedProcess([], 0, json.dumps({"number": 1, "baseRefName": "main", "headRefName": "agent/1"}), "")
+        git = subprocess.CompletedProcess([], 0, local_head + "\n", "")
+        with patch.object(_platform_common, "run_github_with_retry", return_value=view), \
+             patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_events", return_value=events if events is not None else [admission(1, 20)]), \
+             patch.object(queue, "run_git", return_value=git), \
+             patch.object(queue, "status", return_value=observed):
+            return queue.local_status(ROOT_PATH, "agent/1")
+
+    def awaiting(self, head: str) -> dict:
+        return {"state": "waiting", "number": 1, "position": 1, "owner": "developer re-admission",
+                "reason": "new head awaits developer re-admission", "proven_head": HEAD, "head": head}
+
+    def test_reconcile_pushed_descendant_awaiting_readmission_is_observed_for_admission(self) -> None:
+        # Regression: reconcile fast-forward pushed the developer descendant before
+        # finish, so no update marker exists and finish could never re-admit it.
+        observed = self.observe(NEW_HEAD, self.awaiting(NEW_HEAD))
+        self.assertEqual((observed["state"], observed["head"]), ("readmission", NEW_HEAD))
+
+    def test_unproven_local_head_still_raises(self) -> None:
+        other = "d" * 40
+        with self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+            self.observe(other, self.awaiting(NEW_HEAD))
+        with self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+            self.observe(NEW_HEAD, {"state": "waiting", "number": 1, "position": 1, "owner": None})
+
+    def test_proven_heads_keep_plain_status(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        self.assertEqual(self.observe(HEAD, plain), plain)
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        self.assertEqual(self.observe(NEW_HEAD, plain, [admission(1, 20), update]), plain)
+
+
 class WorkerTests(unittest.TestCase):
     def setUp(self) -> None:
         # v2 handoff publication is covered by TransitionRecordTests; keep the
@@ -266,8 +306,8 @@ class WorkerTests(unittest.TestCase):
             return heads[number], main[0]
 
         def merge(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
-            self.assertEqual(args[:3], ["gh", "pr", "merge"])
-            number = int(args[3])
+            self.assertEqual(args[:4], ["gh", "api", "-X", "PUT"])
+            number = int(args[4].split("/")[-2])
             prs[number]["merged"] = True
             prs[number]["state"] = "closed"
             main[0] = heads[number]
@@ -1107,7 +1147,7 @@ class MalformedDuringIntegrationTests(unittest.TestCase):
              patch.object(queue.subprocess, "run") as run:
             result = queue.worker(ROOT_PATH)
         self.assertEqual(result["state"], "waiting")
-        self.assertFalse(any(call.args and call.args[0][:3] == ["gh", "pr", "merge"] for call in run.call_args_list))
+        self.assertFalse(any(call.args and call.args[0][:4] == ["gh", "api", "-X", "PUT"] for call in run.call_args_list))
 
 
 class BlockRobustnessTests(unittest.TestCase):
@@ -1149,7 +1189,7 @@ class MergeOwnershipTests(unittest.TestCase):
             result = queue.worker(ROOT_PATH)
         self.assertEqual(result["state"], "waiting")
         self.assertIn("reviewing", result["reason"])
-        self.assertFalse(any(call.args and call.args[0][:3] == ["gh", "pr", "merge"] for call in run.call_args_list))
+        self.assertFalse(any(call.args and call.args[0][:4] == ["gh", "api", "-X", "PUT"] for call in run.call_args_list))
 
 
 class WorkflowTrustBoundaryTests(unittest.TestCase):
@@ -1631,8 +1671,32 @@ class RequiredCheckObservationMappingTests(unittest.TestCase):
         self.assertEqual(observe.call_count, 2)
         sleep.assert_called_once_with(10)
         block.assert_not_called()
-        self.assertEqual(process.call_args.args[0], ["gh", "pr", "merge", "1", "--squash", "--match-head-commit", HEAD])
+        self.assertEqual(process.call_args.args[0], ["gh", "api", "-X", "PUT", f"repos/{REPO}/pulls/1/merge",
+                          "-f", "merge_method=squash", "-f", f"sha={HEAD}"])
         self.assertEqual(result["reason"], "merge accepted; awaiting GitHub confirmation")
+
+    def test_protected_ref_refusal_waits_without_a_merged_transition(self) -> None:
+        from subprocess import CompletedProcess
+        refusal = '{"message":"Repository rule violations found\\n\\nCannot update this protected ref.","status":"405"}'
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20))]), \
+             patch.object(queue, "_pr", return_value=pr(1)), \
+             patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_label"), patch.object(queue, "_transition", return_value=None) as transition, \
+             patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
+             patch.object(queue, "_main", return_value=BASE), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("passed")), \
+             patch.object(queue, "_block") as block, \
+             patch.object(queue.subprocess, "run", return_value=CompletedProcess([], 1, "", refusal)) as process:
+            result = queue.worker(ROOT_PATH)
+        self.assertEqual(process.call_args.args[0], ["gh", "api", "-X", "PUT", f"repos/{REPO}/pulls/1/merge",
+                                                     "-f", "merge_method=squash", "-f", f"sha={HEAD}"])
+        self.assertEqual(result["state"], "waiting")
+        self.assertTrue(result["reason"].startswith("protected merge refused; will re-evaluate:"))
+        self.assertIn("Cannot update this protected ref", result["reason"])
+        block.assert_not_called()
+        self.assertNotIn("merged", [call.args[3] for call in transition.call_args_list])
 
     def test_checks_unreported_past_the_bound_block_naming_them(self) -> None:
         unreported = RequiredCheckState("pending", "required checks not yet reported on head: lint, validate",

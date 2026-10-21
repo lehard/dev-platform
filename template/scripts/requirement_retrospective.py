@@ -65,11 +65,14 @@ def _check_events(requirement: str, event_ids: list[str], children: list[str] | 
 def _durable_scope(requirement: str, accepted_gaps: list[str]) -> Iterator[None]:
     """Durable coordinator evidence is required unless its gap was explicitly accepted."""
     try:
-        if "coordinator-evidence" in accepted_gaps:
-            with agent_friction.tolerate_durable_gap():
-                yield
-        else:
+        with contextlib.ExitStack() as stack:
+            if "coordinator-evidence" in accepted_gaps:
+                stack.enter_context(agent_friction.tolerate_durable_gap())
+            stack.enter_context(agent_friction.local_gap_scope(accepted_gaps))
             yield
+    except agent_friction.FrictionLogError as exc:
+        raise RequirementRetrospectiveError(
+            f"friction-log is not readable in full: {exc}. Repair the log or accept the gap with `--accept-gap friction-log`.") from exc
     except agent_friction.DurableEvidenceError as exc:
         raise RequirementRetrospectiveError(
             agent_friction.gap_instruction(["coordinator-evidence (unreadable)"]) + f" {exc}") from exc
@@ -123,7 +126,8 @@ def checkpoint(
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(path, json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
     output = {"status": "recorded", "requirement": requirement, "result": result, "event_ids": event_ids, "receipt": str(path)}
-    ambiguous = [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()]
+    with agent_friction.local_gap_scope(accepted):
+        ambiguous = [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()]
     if ambiguous:
         output["ambiguous_attribution_not_attributed"] = ambiguous[:10]
     return output
@@ -186,7 +190,7 @@ def main() -> int:
             parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(args.requirement))
             identity = _identity(args.requirement, parent)
             # The review-path reports an unreadable durable source as a gap instead of failing.
-            with agent_friction.tolerate_durable_gap():
+            with agent_friction.tolerate_durable_gap(), agent_friction.tolerate_local_gap():
                 signals = agent_friction.current_retrospective_signals(args.requirement)
                 coordinator = [event for event in agent_friction.events_for_task(args.requirement, identity["children"])
                                if event.get("durable")]

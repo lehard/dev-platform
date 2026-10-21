@@ -360,7 +360,7 @@ class FrictionReviewTests(unittest.TestCase):
 
         agent_friction.gh = fake_gh
         retry = agent_friction.route_pending()
-        self.assertEqual(retry, {"pending": 1, "routed": 1, "failures": 0})
+        self.assertEqual(retry, {"pending": 1, "routed": 1, "failures": 0, "withheld": 0})
         self.assertEqual(agent_friction.read_state()["routes"]["route-me"]["status"], "routed")
 
     def test_open_fingerprint_beyond_first_page_is_updated(self) -> None:
@@ -453,7 +453,7 @@ class FrictionReviewTests(unittest.TestCase):
 
     def test_known_recurrence_and_successful_override_cannot_disappear_into_none(self) -> None:
         event = {
-            "id": "recurrence-172", "task": "test-branch", "category": "retrospective-completeness",
+            "id": "recurrence-172", "at": "2026-08-11T10:00:00+00:00", "task": "test-branch", "category": "retrospective-completeness",
             "triggers": ["known-recurrence", "nondefault-override"], "severity": "medium",
             "observation": "A successful override repeated an open process problem",
         }
@@ -470,7 +470,7 @@ class FrictionReviewTests(unittest.TestCase):
     def test_late_observed_drift_invalidates_clean_checkpoint(self) -> None:
         agent_friction.cmd_checkpoint(self.checkpoint_args(result="none"))
         self.log.write_text(json.dumps({
-            "id": "drift", "task": "test-branch", "triggers": ["observed-drift"],
+            "id": "drift", "at": "2026-08-11T10:00:00+00:00", "task": "test-branch", "triggers": ["observed-drift"],
             "category": "operator-state-drift", "severity": "medium",
         }) + "\n", encoding="utf-8")
         with self.assertRaisesRegex(SystemExit, "not linked"):

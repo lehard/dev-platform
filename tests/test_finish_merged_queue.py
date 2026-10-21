@@ -55,7 +55,6 @@ class QueueMergedFinishTests(unittest.TestCase):
             mock.patch.object(finish_task, "require_publication_review_evidence", evidence),
             mock.patch.object(finish_task, "require_independent_publication_exception", return_value=None),
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
-            mock.patch.object(finish_task, "run_friction_route_pending_retry"),
             mock.patch.object(finish_task, "fetch_main"),
             mock.patch.object(finish_task, "task_pr_is_already_merged", return_value=True),
             mock.patch.object(finish_task, "reconcile_confirmed_remote_pr_merge", reconcile),
@@ -79,6 +78,13 @@ class QueueMergedFinishTests(unittest.TestCase):
 
     def test_unmerged_candidate_still_gates_on_evidence(self) -> None:
         code, evidence, reconcile = self.run_finish({"state": "absent", "number": 7})
+        self.assertIsNone(code)
+        evidence.assert_called_once()
+        reconcile.assert_not_called()
+
+    def test_reconcile_pushed_head_awaiting_readmission_proceeds_to_admission(self) -> None:
+        # Regression: a waiting exit here left a reconcile-pushed descendant unadmittable.
+        code, evidence, reconcile = self.run_finish({"state": "readmission", "number": 7, "owner": "developer re-admission"})
         self.assertIsNone(code)
         evidence.assert_called_once()
         reconcile.assert_not_called()

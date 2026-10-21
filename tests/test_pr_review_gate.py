@@ -1018,6 +1018,161 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
 
 
+class PremergeRetrospectiveResumeTests(unittest.TestCase):
+    """A composition's pre-merge retrospective that stopped on a human decision is re-offered by
+    ``resume`` at its next bounded attempt, at the exact head, and never past the attempt limit."""
+
+    COMPOSED = {"kind": "requirement-composition", "change": "example", "requirement": "pln_x",
+                "task_content": {"digest": "proof"}, "children": [{"change": "child"}]}
+
+    def blocked_retrospective(self, fixture, attempt=0, outcome="blocked: ambiguous friction attribution needs a human decision"):
+        passed = {"result": "passed", "identity": self.COMPOSED, "evidence": "ok"}
+        queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=self.COMPOSED, inherit_identity=False,
+                          gates={"review": passed, "finalization": passed},
+                          next_job=workers.job_record("retrospective", HEAD, self.COMPOSED, attempt, phase="pre-merge"))
+        job = workers.build_job(fixture.candidate())
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.result_body(job, "w", outcome)})
+        return job
+
+    def test_resume_offers_the_next_bounded_attempt_at_the_same_head(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            stopped = self.blocked_retrospective(fixture)
+            self.assertTrue(workers.job_completed(stopped, fixture.comments))
+            with self.assertRaisesRegex(queue.QueueError, "omit --provider"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["claude"], reason="attributed", actor="op")
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="attributed", actor="op",
+                                  expected_head=HEAD)
+            resumed = fixture.candidate()
+            job = workers.build_job(resumed)
+            self.assertEqual((result["state"], resumed["state"]), ("blocked-retryable", "blocked-retryable"))
+            self.assertEqual((job["kind"], job["phase"], job["head"], job["attempt"]), ("retrospective", "pre-merge", HEAD, 1))
+            self.assertEqual((job["reoffer"]["action"], job["reoffer"]["reason"], job["reoffer"]["actor"]),
+                             ("resume", "attributed", "op"))
+            # The id is the plain next attempt, so the bounded attempt rule keeps counting its result.
+            self.assertEqual(workers.job_id(job), f"pr7:retrospective:{HEAD}:a1:pre-merge")
+            self.assertFalse(workers.job_completed(job, fixture.comments))
+            self.assertEqual(resumed["gates"]["finalization"]["result"], "passed")
+
+    def test_retrospective_resume_is_refused_while_unfinished_or_past_the_limit_or_for_another_head(self):
+        from candidate_lifecycle import MAX_POST_MERGE_ATTEMPTS
+        with QueueFixture(ROOT, HEAD) as fixture:
+            passed = {"result": "passed", "identity": self.COMPOSED, "evidence": "ok"}
+            queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=self.COMPOSED, inherit_identity=False,
+                              gates={"review": passed, "finalization": passed},
+                              next_job=workers.job_record("retrospective", HEAD, self.COMPOSED, 0, phase="pre-merge"))
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="op")
+            with self.assertRaisesRegex(queue.QueueError, "not the expected"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="op", expected_head="b" * 40)
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["claude"], reason="x", actor="op")
+        with QueueFixture(ROOT, HEAD) as fixture:
+            for attempt in range(MAX_POST_MERGE_ATTEMPTS):
+                self.blocked_retrospective(fixture, attempt=attempt)
+            with self.assertRaisesRegex(queue.QueueError, "exhausted .* attempts; operator action required"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="op")
+
+    def test_job_records_keep_the_reoffer_suffix_for_other_kinds(self):
+        event = {"seq": 2, "action": "resume"}
+        finalize = {**workers.job_record("finalize", HEAD, IDENTITY, 0, reoffer=event), "number": 7}
+        self.assertTrue(workers.job_id(finalize).endswith(":a0:r2"))
+        with self.assertRaises(ValueError):
+            workers.job_record("retrospective", HEAD, IDENTITY, 0, reoffer=event)
+
+
+class ArchivedSemanticReadmissionTests(unittest.TestCase):
+    """A coordinator finalize archived the change; changed content then stopped finalize on the
+    semantic-verification red gate. Only that task's own PR in that state reopens the handoff."""
+
+    ARCHIVE = "openspec/changes/archive/2026-10-21-example"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        git(self.root, "init", "-q", "-b", "agent/example")
+        git(self.root, "config", "user.email", "t@example.com")
+        git(self.root, "config", "user.name", "t")
+        self.change = self.root / self.ARCHIVE
+        self.change.mkdir(parents=True)
+        self.receipt = self.change / "verification.md"
+        self.receipt.write_text("OpenSpec-Verify: PASS\nVerification-Method: review\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "archived by finalize")
+        self.proven = git(self.root, "rev-parse", "HEAD")
+        self.provenance = managed.CanonicalProvenance("owner/backlog#7", "example", self.change, "archived")
+
+    def reverify(self):
+        self.receipt.write_text(self.receipt.read_text() + "\n## Re-verification\n- changed content reviewed\n")
+        git(self.root, "commit", "-qam", "re-verify")
+
+    def awaiting(self, change="example", red="semantic-verification"):
+        lineage = {"state": "blocked-retryable", "head": self.proven, "task_identity": {"change": change},
+                   "red_gate": {"name": red}}
+        return {"state": "readmission", "number": 7, "proven_head": self.proven,
+                "head": git(self.root, "rev-parse", "HEAD"), "lineage": lineage}
+
+    def patched(self, observed, provenance=None):
+        stack = ExitStack()
+        common = sys.modules["_platform_common"]
+        stack.enter_context(mock.patch.object(common, "read_platform_config", return_value={}))
+        stack.enter_context(mock.patch.object(common, "lifecycle_mode", return_value="coordinator"))
+        stack.enter_context(mock.patch.object(queue, "enabled", return_value=True))
+        stack.enter_context(mock.patch.object(queue, "semantic_readmission", return_value=observed))
+        stack.enter_context(mock.patch.object(managed, "resolve_canonical_provenance",
+                                              return_value=provenance or self.provenance))
+        return stack
+
+    def test_awaiting_semantic_readmission_reopens_the_handoff_with_the_canonical_change(self):
+        self.reverify()
+        with self.patched(self.awaiting()):
+            self.assertTrue(gate.managed_candidate(self.root))
+            self.assertEqual(gate._archived_handoff_change(self.root, self.change), "example")
+
+    def test_archived_change_without_an_awaiting_readmission_stays_on_the_plain_path(self):
+        self.reverify()
+        with self.patched(None):
+            self.assertFalse(gate.managed_candidate(self.root))
+            with self.assertRaisesRegex(workers.WorkerError, "no admitted PR awaiting a semantic-verification"):
+                gate._archived_handoff_change(self.root, self.change)
+
+    def test_readmission_of_another_task_is_refused(self):
+        self.reverify()
+        with self.patched(self.awaiting(change="other")), \
+                self.assertRaisesRegex(workers.WorkerError, "another task than archived change example"):
+            gate.managed_candidate(self.root)
+
+    def test_unchanged_semantic_receipt_is_refused_as_stale(self):
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "reconcile")
+        with self.patched(self.awaiting()), \
+                self.assertRaisesRegex(workers.WorkerError, "unchanged since proven head"):
+            gate._archived_handoff_change(self.root, self.change)
+
+    def test_handoff_path_must_be_the_tasks_canonical_archive(self):
+        self.reverify()
+        other = managed.CanonicalProvenance("owner/backlog#7", "example", self.root / "openspec/changes/archive/x", "archived")
+        with self.patched(self.awaiting(), provenance=other), \
+                self.assertRaisesRegex(workers.WorkerError, "canonical archived change"):
+            gate._archived_handoff_change(self.root, self.change)
+
+    def test_queue_reports_only_a_semantic_verification_stop_awaiting_the_local_head(self):
+        observed = {"state": "readmission", "number": 7, "proven_head": HEAD, "head": "b" * 40}
+        def run(local, lineage):
+            with mock.patch.object(queue, "local_status", return_value=local), \
+                    mock.patch.object(queue, "_repo", return_value="owner/repo"), \
+                    mock.patch.object(queue, "_comments", return_value=[]), \
+                    mock.patch.object(queue, "_latest", return_value=lineage):
+                return queue.semantic_readmission(self.root, "agent/example")
+        semantic = {"state": "blocked-retryable", "red_gate": {"name": "semantic-verification"}}
+        self.assertEqual(run(observed, semantic)["lineage"], semantic)
+        self.assertIsNone(run({**observed, "state": "waiting"}, semantic))
+        self.assertIsNone(run(None, semantic))
+        self.assertIsNone(run(observed, {"state": "blocked-retryable", "red_gate": {"name": "review"}}))
+        self.assertIsNone(run(observed, {"state": "review-pending", "red_gate": {"name": "semantic-verification"}}))
+        self.assertIsNone(run(observed, None))
+
+
 class ProviderSwitchCommandTests(unittest.TestCase):
     def test_cli_switch_and_resume_call_the_gate_with_the_operator_reason(self):
         for command, extra, provider_required in (("switch-provider", ["--provider", "claude", "--provider", "codex"], True),

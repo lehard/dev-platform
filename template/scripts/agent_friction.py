@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import contextlib
 import contextvars
 import hashlib
@@ -15,6 +16,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterator, Sequence
+from urllib.parse import quote
 
 try:
     import fcntl
@@ -62,7 +64,7 @@ LIFECYCLE_FAILURE_PREFIX = "lifecycle-"
 LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded", "expected-behavior")
 NON_TASK_BRANCHES = frozenset({"unknown", "main", "master"})
 AMBIGUOUS_WINDOW_DAYS = 14
-MAX_STATUS_LINES = 500
+LEGACY_POSITIONAL_ID_RE = re.compile(r"legacy-\d+")
 MAX_PROJECT_QUESTIONS = 5
 PROJECT_QUESTIONS_FILE = "dev-platform/retrospective.toml"
 SHARED_REVIEW_TEMPLATE = (
@@ -118,10 +120,11 @@ def read_attributions() -> dict[str, dict]:
             raise SystemExit(f"Invalid friction attribution record at {path}:{index}: {exc}") from exc
         if not isinstance(event_id, str) or not isinstance(task, str) or not ATTRIBUTION_TASK_RE.fullmatch(task):
             raise SystemExit(f"Invalid friction attribution record at {path}:{index}")
+        event_id = resolve_positional_id(event_id, f"attribution {path}:{index}")
         previous = found.get(event_id)
         if previous is not None and previous["task"] != task:
             raise SystemExit(f"Conflicting friction attributions for event {event_id} at {path}:{index}")
-        found.setdefault(event_id, record)
+        found.setdefault(event_id, {**record, "id": event_id})
     return found
 
 
@@ -167,6 +170,49 @@ def normalize_text(value: str, field: str, max_length: int = 4000) -> str:
         if pattern.search(normalized):
             raise SystemExit(f"{field} appears to contain a secret; redact it before recording friction")
     return normalized
+
+
+# Coordinator lifecycle events must say what happened and to which candidate before
+# they may reach the process issue stream; a faceless one is withheld from routing.
+COORDINATOR_CATEGORIES = frozenset({
+    "coordinator-review-repair", "coordinator-retry", "coordinator-integration-repair",
+    "lifecycle-blocked-escalation", "lifecycle-validation-failure",
+})
+REASON_MAX = 240
+_HEAD_RE = re.compile(r"[0-9a-f]{7,40}")
+
+
+def is_coordinator_event(event: dict) -> bool:
+    return event.get("attribution") == "coordinator" or event.get("category") in COORDINATOR_CATEGORIES
+
+
+def normalize_candidate(candidate: object) -> dict:
+    """Validate the candidate an event concerns: task branch, optional PR number, head."""
+    if not isinstance(candidate, dict):
+        raise SystemExit("candidate must be an object with task and head")
+    task = candidate.get("task")
+    head = candidate.get("head")
+    number = candidate.get("number")
+    if not isinstance(task, str) or not task.strip():
+        raise SystemExit("candidate task must be a non-empty branch name")
+    if not isinstance(head, str) or not _HEAD_RE.fullmatch(head):
+        raise SystemExit("candidate head must be a hexadecimal commit SHA")
+    if number is not None and (not isinstance(number, int) or isinstance(number, bool) or number <= 0):
+        raise SystemExit("candidate number must be a positive PR number")
+    return {"task": normalize_text(task, "candidate task", 200), "number": number, "head": head}
+
+
+def missing_coordinator_fields(event: dict) -> list[str]:
+    """Names of the reason/candidate fields a coordinator event lacks or carries malformed."""
+    missing = []
+    reason = event.get("reason")
+    if not isinstance(reason, str) or not reason.strip():
+        missing.append("reason")
+    try:
+        normalize_candidate(event.get("candidate"))
+    except SystemExit:
+        missing.append("candidate")
+    return missing
 
 
 def context_metadata_for(args: argparse.Namespace) -> dict | None:
@@ -294,6 +340,32 @@ def tolerate_durable_gap() -> Iterator[None]:
         _tolerate_durable_gap.reset(token)
 
 
+_tolerate_local_gap: contextvars.ContextVar[bool] = contextvars.ContextVar("tolerate_local_gap", default=False)
+
+
+class FrictionLogError(SystemExit):
+    """The local friction log cannot be read in full; the message names the file and line."""
+
+
+@contextlib.contextmanager
+def tolerate_local_gap() -> Iterator[None]:
+    """Explicitly read only the valid lines of the local friction log.
+
+    Used only where the gap is reported (review-path) or was explicitly accepted
+    (``--accept-gap friction-log``); everywhere else a malformed or unreadable log raises.
+    """
+    token = _tolerate_local_gap.set(True)
+    try:
+        yield
+    finally:
+        _tolerate_local_gap.reset(token)
+
+
+def local_gap_scope(accepted_gaps: Sequence[str]) -> contextlib.AbstractContextManager:
+    """The local-log tolerance context when ``friction-log`` was explicitly accepted, else a no-op context."""
+    return tolerate_local_gap() if "friction-log" in accepted_gaps else contextlib.nullcontext()
+
+
 def read_durable_events(requirement: str, children: Sequence[str] = ()) -> list[dict]:
     """Durable coordinator events of a Requirement from its candidate PRs, or a named error."""
     import publication_queue
@@ -315,9 +387,15 @@ def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
     """
     identities = {task} | task_aliases(task)
     linked = set(children)
+    work_identity = None
+    if REQUIREMENT_REF.fullmatch(task):
+        from managed_work_identity import parent_identity
+        work_identity = parent_identity(task)
 
     def attributed(event: dict) -> bool:
         if event.get("task") == task or event.get("requirement") == task:
+            return True
+        if work_identity is not None and event.get("attribution") == "coordinator" and event.get("work_identity") == work_identity:
             return True
         if linked:
             run = event.get("run") if isinstance(event.get("run"), dict) else {}
@@ -374,14 +452,13 @@ def _local_source_status() -> dict[str, str]:
     if not path.exists():
         return {"friction-log": "available"}
     try:
-        lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+        text = path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return {"friction-log": "unreadable"}
-    for line in lines[-MAX_STATUS_LINES:]:
-        try:
-            json.loads(line)
-        except ValueError:
-            return {"friction-log": "partial"}
+    try:
+        _parse_log_text(path, text, tolerant=False)
+    except FrictionLogError:
+        return {"friction-log": "partial"}
     return {"friction-log": "available"}
 
 
@@ -435,6 +512,27 @@ def _current_run_provenance(participant_role: str) -> dict:
     }
 
 
+def record_coordinator_fields(args: argparse.Namespace, event: dict) -> dict:
+    """The reason/candidate fields of a recorded event; required for coordinator categories."""
+    fields: dict = {}
+    reason = getattr(args, "reason", None)
+    if reason is not None:
+        fields["reason"] = normalize_text(reason, "reason", REASON_MAX)
+    task = getattr(args, "candidate_task", None)
+    head = getattr(args, "candidate_head", None)
+    number = getattr(args, "candidate_number", None)
+    if task is not None or head is not None or number is not None:
+        fields["candidate"] = normalize_candidate({"task": task, "head": head, "number": number})
+    if is_coordinator_event(event):
+        missing = missing_coordinator_fields(fields)
+        if missing:
+            raise SystemExit(
+                f"coordinator category {event['category']} requires "
+                + " and ".join("--reason" if name == "reason" else "--candidate-task/--candidate-head" for name in missing)
+            )
+    return fields
+
+
 def cmd_record(args: argparse.Namespace) -> int:
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -461,6 +559,7 @@ def cmd_record(args: argparse.Namespace) -> int:
         "classification": getattr(args, "classification", "process-friction"),
         "context": context,
     }
+    event.update(record_coordinator_fields(args, event))
     encoded = json.dumps(event, ensure_ascii=False, sort_keys=True)
     with friction_lock():
         with path.open("a", encoding="utf-8") as fh:
@@ -475,6 +574,8 @@ def cmd_record(args: argparse.Namespace) -> int:
     result = route_event(event)
     if result["status"] == "pending":
         print(f"WARNING: friction routing is pending for {event['id']}: {result['detail']}")
+    elif result["status"] == "withheld":
+        print(f"Friction event {event['id']} withheld from GitHub routing: {result['detail']}")
     elif result["status"] == "candidate":
         numbers = ", ".join(f"#{candidate['issue_number']}" for candidate in result.get("candidates", []))
         print(f"Friction candidate {event['id']} needs an explicit duplicate decision before creating a new issue: {numbers}")
@@ -486,7 +587,8 @@ def cmd_record(args: argparse.Namespace) -> int:
 def append_coordinator_event(
     *, task: str, requirement: str | None, category: str, triggers: Sequence[str], severity: str,
     observation: str, evidence: str, hypothesis: str, proposal: str, dedupe_key: str,
-    scope: str = "platform", event_id: str | None = None,
+    reason: str, candidate: dict, scope: str = "platform", event_id: str | None = None,
+    work_identity: str | None = None,
 ) -> dict:
     """Idempotently record one coordinator-observed lifecycle event in the local log.
 
@@ -501,6 +603,8 @@ def append_coordinator_event(
     """
     if severity not in SEVERITIES or any(trigger not in TRIGGERS for trigger in triggers):
         raise SystemExit("coordinator friction event has an unknown severity or trigger")
+    reason = normalize_text(reason, "reason", REASON_MAX)
+    candidate = normalize_candidate(candidate)
     path = log_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with friction_lock():
@@ -510,8 +614,10 @@ def append_coordinator_event(
         event = {
             "id": event_id or uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
             "requirement": requirement, "attribution": "coordinator", "dedupe_key": dedupe_key,
+            **({"work_identity": work_identity} if work_identity else {}),
             "category": normalize_text(category, "category", 100), "triggers": sorted(set(triggers)),
-            "severity": severity, "observation": normalize_text(observation, "observation"),
+            "severity": severity, "reason": reason, "candidate": candidate,
+            "observation": normalize_text(observation, "observation"),
             "evidence": normalize_text(evidence, "evidence"), "hypothesis": normalize_text(hypothesis, "hypothesis"),
             "scope": scope, "proposal": normalize_text(proposal, "proposal"),
             "run": _unknown_run_provenance("unknown"), "classification": "process-friction", "context": None,
@@ -526,32 +632,85 @@ def append_coordinator_event(
     return event
 
 
-def read_events(days: int | None = None) -> list[dict]:
-    path = log_path()
-    if not path.exists():
-        return []
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
-    events: list[dict] = []
+def legacy_content_id(line: str) -> str:
+    """Position-independent identity of an event recorded without an id."""
+    return "legacy-" + hashlib.sha256(line.strip().encode("utf-8")).hexdigest()[:16]
+
+
+def _parse_log_line(path: Path, line_number: int, line: str) -> dict:
     try:
-        text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []  # reported as an unreadable evidence source by evidence_source_status
+        event = json.loads(line)
+    except ValueError as exc:
+        raise FrictionLogError(f"{path}:{line_number}: invalid JSON in friction log: {exc}") from exc
+    if not isinstance(event, dict):
+        raise FrictionLogError(f"{path}:{line_number}: friction log line is not a JSON object")
+    try:
+        parse_time(event["at"])
+    except (KeyError, ValueError, TypeError, AttributeError) as exc:
+        raise FrictionLogError(f"{path}:{line_number}: friction log line has no parseable 'at' timestamp") from exc
+    return event
+
+
+def _parse_log_text(path: Path, text: str, *, tolerant: bool) -> list[dict]:
+    events: list[dict] = []
     for index, line in enumerate(text.splitlines(), start=1):
         if not line.strip():
             continue
         try:
-            event = json.loads(line)
-            event.setdefault("id", f"legacy-{index}")
-            event.setdefault("severity", "medium")
-            event.setdefault("triggers", [event.get("category", "legacy")])
-            event.setdefault("run", _unknown_run_provenance("unknown"))
-            event.setdefault("classification", "process-friction")
-            event.setdefault("context", None)
-            if cutoff is None or parse_time(event["at"]) >= cutoff:
-                events.append(event)
-        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
-            continue
+            event = _parse_log_line(path, index, line)
+        except FrictionLogError:
+            if tolerant:
+                continue
+            raise
+        if "id" not in event:
+            event["id"] = legacy_content_id(line)
+        events.append(event)
     return events
+
+
+def read_events(days: int | None = None) -> list[dict]:
+    path = log_path()
+    if not path.exists():
+        return []
+    tolerant = _tolerate_local_gap.get()
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        if tolerant:
+            return []  # reported as an unreadable evidence source by evidence_source_status
+        raise FrictionLogError(f"friction log {path} is unreadable: {exc}") from exc
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days) if days is not None else None
+    events: list[dict] = []
+    for event in _parse_log_text(path, text, tolerant=tolerant):
+        event.setdefault("severity", "medium")
+        event.setdefault("triggers", [event.get("category", "legacy")])
+        event.setdefault("run", _unknown_run_provenance("unknown"))
+        event.setdefault("classification", "process-friction")
+        event.setdefault("context", None)
+        if cutoff is None or parse_time(event["at"]) >= cutoff:
+            events.append(event)
+    return events
+
+
+def resolve_positional_id(event_id: str, source: str) -> str:
+    """Translate a persisted positional ``legacy-N`` reference to the content id of log line N."""
+    if not LEGACY_POSITIONAL_ID_RE.fullmatch(event_id):
+        return event_id
+    number = int(event_id.split("-", 1)[1])
+    path = log_path()
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError) as exc:
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} cannot be resolved; friction log {path} is unreadable: {exc}") from exc
+    if not 1 <= number <= len(lines) or not lines[number - 1].strip():
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} does not match a line of {path}")
+    try:
+        event = _parse_log_line(path, number, lines[number - 1])
+    except FrictionLogError as exc:
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} points at an invalid line: {exc}") from exc
+    if "id" in event:
+        raise FrictionLogError(f"{source}: positional event id {event_id!r} points at {path}:{number}, which has its own id")
+    return legacy_content_id(lines[number - 1])
 
 
 def read_state() -> dict:
@@ -571,6 +730,13 @@ def read_state() -> dict:
         raise SystemExit("Invalid friction checkpoint state: checkpoints must be an object")
     payload.setdefault("version", 2)
     payload.setdefault("routes", {})
+    translated: dict = {}
+    for key, route in payload["routes"].items():
+        resolved = resolve_positional_id(key, f"friction routing state {path}")
+        if resolved in translated:
+            raise SystemExit(f"Invalid friction routing state: duplicate route for event {resolved} in {path}")
+        translated[resolved] = route
+    payload["routes"] = translated
     payload.setdefault("checkpoints", {})
     return payload
 
@@ -749,10 +915,7 @@ def destination_for(event: dict) -> str:
     if event.get("scope") == "project":
         return origin_repository()
     if event.get("scope") == "platform":
-        config = read_platform_config(main_root())
-        operator = read_operator_config(main_root())
-        repository = operator.get("promotion", {}).get("repo") if isinstance(operator.get("promotion"), dict) else None
-        return repository.lower() if isinstance(repository, str) and repository.strip() else origin_repository()
+        return platform_repository()
     raise RuntimeError("friction event has an unsupported scope")
 
 
@@ -782,22 +945,26 @@ def marker_for(fingerprint: str) -> str:
 
 
 def process_label() -> str:
-    """Read the configured review label, retaining a safe legacy default."""
-    try:
-        configured = read_platform_config(main_root()).get("process_health", {}).get("process_label", DEFAULT_PROCESS_LABEL)
-    except (FileNotFoundError, OSError, ValueError):
-        configured = DEFAULT_PROCESS_LABEL
-    label = " ".join(str(configured).split())
-    return label or DEFAULT_PROCESS_LABEL
+    """Read the configured review label; an absent optional key keeps the documented default."""
+    health = read_platform_config(main_root()).get("process_health", {})
+    if not isinstance(health, dict):
+        raise RuntimeError("process_health must be a TOML table")
+    if "process_label" not in health:
+        return DEFAULT_PROCESS_LABEL  # documented optional key
+    configured = health["process_label"]
+    label = " ".join(configured.split()) if isinstance(configured, str) else ""
+    if not label:
+        raise RuntimeError("process_health.process_label must be a non-empty string")
+    return label
 
 
 def platform_repository() -> str:
-    try:
-        operator = read_operator_config(main_root(), required=True)
-        configured = operator.get("promotion", {}).get("repo") if isinstance(operator.get("promotion"), dict) else None
-    except (FileNotFoundError, OSError, ValueError, RuntimeError):
-        configured = None
-    return configured.lower() if isinstance(configured, str) and configured.strip() else origin_repository()
+    operator = read_operator_config(main_root(), required=True)
+    promotion = operator.get("promotion")
+    configured = promotion.get("repo") if isinstance(promotion, dict) else None
+    if not isinstance(configured, str) or not configured.strip():
+        raise RuntimeError("platform repository is not configured: set [promotion].repo in the operator configuration; the event is not routed to the project repository")
+    return configured.strip().lower()
 
 
 def issue_labels(issue: dict) -> set[str]:
@@ -927,6 +1094,21 @@ def _provenance_line(event: dict) -> str | None:
     return f"- Participant: `{role}` / provider `{provider}` / model `{model_value}` ({model_source})"
 
 
+def candidate_markdown_lines(event: dict) -> list[str]:
+    candidate = event.get("candidate")
+    if not isinstance(candidate, dict):
+        return []
+    number = candidate.get("number")
+    pr = f" / PR #{number}" if isinstance(number, int) else ""
+    return [f"- Candidate: `{sanitize_for_route(candidate.get('task'), 200)}`{pr} / head `{sanitize_for_route(candidate.get('head'), 12)[:12]}`"]
+
+
+def reason_markdown_lines(event: dict) -> list[str]:
+    if not isinstance(event.get("reason"), str):
+        return []
+    return ["### Reason", sanitize_for_route(event.get("reason"), REASON_MAX), ""]
+
+
 def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
     provenance_line = _provenance_line(event)
     lines = [
@@ -940,11 +1122,13 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
         f"- Fingerprint: `{fingerprint}`",
         f"- Recorded at: `{sanitize_for_route(event.get('at'), 64)}`",
         *([provenance_line] if provenance_line else []),
+        *candidate_markdown_lines(event),
         *context_markdown_lines(event),
         "",
         "### Observation",
         sanitize_for_route(event.get("observation")),
         "",
+        *reason_markdown_lines(event),
         "### Hypothesis",
         sanitize_for_route(event.get("hypothesis")),
         "",
@@ -956,11 +1140,35 @@ def route_body(event: dict, fingerprint: str, *, occurrence: bool) -> str:
     return "\n".join(lines)
 
 
+def create_root_issue(event: dict, repository: str, fingerprint: str) -> int:
+    """Create the root issue for an event and verify its process label."""
+    created = gh_json([
+        "api", "--method", "POST", f"repos/{repository}/issues",
+        "-f", f"title={GENERATED_FRICTION_TITLE_PREFIX}{sanitize_for_route(event.get('category'), 100)}",
+        "-f", f"body={route_body(event, fingerprint, occurrence=False)}",
+        "-f", f"labels[]={process_label()}",
+    ])
+    if not isinstance(created, dict) or not isinstance(created.get("number"), int):
+        raise RuntimeError("GitHub did not return a created issue number")
+    ensure_process_label(repository, created["number"])
+    return created["number"]
+
+
 def route_event(event: dict) -> dict:
     """Upsert one sanitized process issue and leave failures retryable locally."""
     event_id = str(event.get("id") or "")
     if not event_id:
         return {"status": "pending", "detail": "event has no id"}
+    if is_coordinator_event(event):
+        missing = missing_coordinator_fields(event)
+        if missing:
+            route = {"status": "withheld", "detail": "coordinator event lacks " + " and ".join(missing),
+                     "last_attempt_at": utc_now()}
+            with friction_lock():
+                state = read_state()
+                state["routes"][event_id] = route
+                atomic_write_json(state_path(), state)
+            return route
     try:
         if shutil.which("gh") is None:
             raise RuntimeError("GitHub CLI is unavailable")
@@ -1001,16 +1209,7 @@ def route_event(event: dict) -> dict:
                     state["routes"][event_id] = route
                     atomic_write_json(state_path(), state)
                 return route
-            created = gh_json([
-                "api", "--method", "POST", f"repos/{repository}/issues",
-                "-f", f"title={GENERATED_FRICTION_TITLE_PREFIX}{sanitize_for_route(event.get('category'), 100)}",
-                "-f", f"body={route_body(event, fingerprint, occurrence=False)}",
-                "-f", f"labels[]={process_label()}",
-            ])
-            if not isinstance(created, dict) or not isinstance(created.get("number"), int):
-                raise RuntimeError("GitHub did not return a created issue number")
-            issue_number = created["number"]
-            ensure_process_label(repository, issue_number)
+            issue_number = create_root_issue(event, repository, fingerprint)
         route = {
             "status": "routed", "repository": repository, "issue_number": issue_number,
             "fingerprint": fingerprint, "routed_at": utc_now(),
@@ -1027,14 +1226,17 @@ def route_event(event: dict) -> dict:
 def route_pending() -> dict:
     state = read_state()
     routes = state.get("routes", {})
-    pending = [event for event in read_events(None) if routes.get(str(event.get("id")), {}).get("status") != "routed"]
+    pending = [event for event in read_events(None)
+               if routes.get(str(event.get("id")), {}).get("status") not in ("routed", "withheld")]
     routed = 0
     failures = 0
+    withheld = 0
     for event in pending:
         result = route_event(event)
         routed += result["status"] == "routed"
-        failures += result["status"] != "routed"
-    return {"pending": len(pending), "routed": routed, "failures": failures}
+        withheld += result["status"] == "withheld"
+        failures += result["status"] not in ("routed", "withheld")
+    return {"pending": len(pending), "routed": routed, "failures": failures, "withheld": withheld}
 
 
 def cmd_route_pending(_: argparse.Namespace) -> int:
@@ -1187,6 +1389,11 @@ def review_guidance(root: Path, changed: list[str] | None) -> dict:
 
 def cmd_review_path(args: argparse.Namespace) -> int:
     """Show a bounded factual review prompt from the existing task log."""
+    with tolerate_local_gap():  # the degraded source is reported in evidence_sources below
+        return _review_path(args)
+
+
+def _review_path(args: argparse.Namespace) -> int:
     task = args.task or current_branch()
     result = {
         "task": task,
@@ -1292,12 +1499,14 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
         raise SystemExit(
             "checkpoint requires --result none for a clean retrospective, or --result/--event with one or more recorded finding ids"
         )
+    accepted_gaps = list(getattr(args, "accept_gaps", []) or [])
     checkpoint = record_checkpoint(
         branch, root, event_ids=event_ids, review_note=getattr(args, "review_note", "") or "",
         lifecycle_dispositions=list(getattr(args, "lifecycle_dispositions", []) or []),
-        accepted_gaps=list(getattr(args, "accept_gaps", []) or []))
+        accepted_gaps=accepted_gaps)
     result = {"status": "recorded", "checkpoint": checkpoint}
-    ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
+    with local_gap_scope(accepted_gaps):
+        ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
     if ambiguous:
         result["ambiguous_attribution_not_attributed"] = ambiguous[:10]
     print(json.dumps(result, ensure_ascii=False))
@@ -1307,6 +1516,15 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
 def record_checkpoint(branch: str, root: Path, *, event_ids: list[str], review_note: str,
                       lifecycle_dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
                       head: str | None = None, task_content: dict | None = None, bind_content: bool = True) -> dict:
+    with local_gap_scope(accepted_gaps or []):
+        return _record_checkpoint(
+            branch, root, event_ids=event_ids, review_note=review_note, lifecycle_dispositions=lifecycle_dispositions,
+            accepted_gaps=accepted_gaps, head=head, task_content=task_content, bind_content=bind_content)
+
+
+def _record_checkpoint(branch: str, root: Path, *, event_ids: list[str], review_note: str,
+                       lifecycle_dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
+                       head: str | None = None, task_content: dict | None = None, bind_content: bool = True) -> dict:
     """Validate and persist one task's retrospective checkpoint (shared by the CLI and the retrospective job).
 
     Raises ``SystemExit`` with the usual instruction when a mandatory signal is unexplained or an
@@ -1366,6 +1584,13 @@ def require_checkpoint(branch: str, root: Path | None = None, *, exact_head: boo
     system: a retrospective recorded against an earlier head no longer
     satisfies completion once the branch has moved on.
     """
+    recorded = read_state().get("checkpoints", {}).get(branch)
+    accepted = recorded.get("accepted_gaps") if isinstance(recorded, dict) else None
+    with local_gap_scope(accepted if isinstance(accepted, list) else []):
+        _require_checkpoint(branch, root, exact_head=exact_head)
+
+
+def _require_checkpoint(branch: str, root: Path | None = None, *, exact_head: bool = False) -> None:
     checkpoint = read_state().get("checkpoints", {}).get(branch)
     if not isinstance(checkpoint, dict) or checkpoint.get("result") not in ("none", "events"):
         raise SystemExit(
@@ -1497,6 +1722,267 @@ def cmd_attribute(args: argparse.Namespace) -> int:
     return 0
 
 
+# --- root convergence and closing on fix -----------------------------------
+
+ISSUE_REF_RE = re.compile(r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]+)")
+FIXES_FRICTION_RE = re.compile(r"(?m)^[ \t]*Fixes-Friction:[ \t]*(.+)$")
+PROPOSAL_PATH_RE = re.compile(r"openspec/changes/(?:.+/)?proposal\.md")
+MAX_API_PAGES = 50
+
+
+def parse_issue_ref(token: str, what: str) -> tuple[str, int]:
+    match = ISSUE_REF_RE.fullmatch(token.strip())
+    if match is None:
+        raise SystemExit(f"{what}: {token!r} is not a valid owner/repo#N issue reference")
+    return match.group(1).lower(), int(match.group(2))
+
+
+def require_gh() -> None:
+    if shutil.which("gh") is None:
+        raise SystemExit("GitHub CLI is unavailable")
+
+
+def gh_ok(command: list[str], what: str) -> None:
+    result = gh(command)
+    if result.returncode:
+        raise SystemExit(f"{what} failed: {(result.stderr or result.stdout or 'GitHub CLI request failed').strip()}")
+
+
+def gh_paged(endpoint: str) -> list[dict]:
+    """Read every page of a list endpoint; an unbounded listing is an error."""
+    joiner = "&" if "?" in endpoint else "?"
+    items: list[dict] = []
+    for page in range(1, MAX_API_PAGES + 1):
+        listed = gh_json(["api", f"{endpoint}{joiner}per_page=100&page={page}"])
+        if not isinstance(listed, list):
+            raise RuntimeError(f"GitHub returned an invalid list for {endpoint}")
+        items.extend(item for item in listed if isinstance(item, dict))
+        if len(listed) < 100:
+            return items
+    raise RuntimeError(f"{endpoint} exceeds the supported {MAX_API_PAGES * 100}-item window")
+
+
+def fetch_issue(repository: str, number: int) -> dict:
+    issue = gh_json(["api", f"repos/{repository}/issues/{number}"])
+    if not isinstance(issue, dict) or issue.get("number") != number:
+        raise SystemExit(f"{repository}#{number}: GitHub returned an invalid issue")
+    return issue
+
+
+def require_generated_friction(issue: dict, ref: str) -> None:
+    if not is_generated_friction_issue(issue):
+        raise SystemExit(f"{ref} is not a router-generated friction issue")
+
+
+def require_open_friction_target(repository: str, number: int) -> dict:
+    ref = f"{repository}#{number}"
+    issue = fetch_issue(repository, number)
+    if issue.get("state") != "open":
+        raise SystemExit(f"{ref} is not open")
+    require_generated_friction(issue, ref)
+    return issue
+
+
+def append_markers(repository: str, number: int, issue: dict, markers: Sequence[str]) -> list[str]:
+    """Append absent fingerprint markers to the issue body and verify by re-reading it."""
+    body = str(issue.get("body") or "")
+    missing = [marker for marker in dict.fromkeys(markers) if marker not in body]
+    if not missing:
+        return []
+    new_body = body.rstrip("\n") + "\n\n" + "\n".join(missing) + "\n"
+    gh_ok(["api", "--method", "PATCH", f"repos/{repository}/issues/{number}", "-f", f"body={new_body}"], f"updating {repository}#{number} body")
+    reread = str(fetch_issue(repository, number).get("body") or "")
+    unverified = [marker for marker in missing if marker not in reread]
+    if unverified:
+        raise SystemExit(f"GitHub did not persist fingerprint marker(s) {unverified} on {repository}#{number}")
+    return missing
+
+
+def comment_issue(repository: str, number: int, body: str) -> None:
+    gh_ok(["api", "--method", "POST", f"repos/{repository}/issues/{number}/comments", "-f", f"body={body}"], f"commenting on {repository}#{number}")
+
+
+def close_issue(repository: str, number: int, reason: str) -> None:
+    gh_ok(["api", "--method", "PATCH", f"repos/{repository}/issues/{number}", "-f", "state=closed", "-f", f"state_reason={reason}"], f"closing {repository}#{number}")
+
+
+def issue_has_comment_marker(repository: str, number: int, marker: str) -> bool:
+    return any(marker in str(comment.get("body", "")) for comment in gh_paged(f"repos/{repository}/issues/{number}/comments"))
+
+
+def resolve_candidate(event_id: str, *, same_root: str | None, new_root: bool, reason: str) -> dict:
+    event = choose_event(event_id)
+    event_key = str(event.get("id") or "")
+    route = read_state()["routes"].get(event_key)
+    if not event_key or not isinstance(route, dict) or route.get("status") != "candidate":
+        status = route.get("status") if isinstance(route, dict) else "unrouted"
+        raise SystemExit(f"Event {event_id} is not in candidate route state (current: {status})")
+    reason = sanitize_for_route(reason, 300)
+    if not reason:
+        raise SystemExit("--reason must be non-empty")
+    require_gh()
+    repository = destination_for(event)
+    fingerprint = fingerprint_for(event, repository)
+    if same_root is not None:
+        target_repo, number = parse_issue_ref(same_root, "--same-root")
+        if target_repo != repository.lower():
+            raise SystemExit(f"--same-root {same_root} is not in the destination repository {repository} of event {event_id}")
+        issue = require_open_friction_target(target_repo, number)
+        append_markers(repository, number, issue, [marker_for(fingerprint)])
+        resolved_marker = f"<!-- dev-platform-friction-resolved:{event_key} -->"
+        if not issue_has_comment_marker(repository, number, resolved_marker):
+            comment_issue(
+                repository, number,
+                resolved_marker + "\n" + route_body(event, fingerprint, occurrence=True)
+                + f"\n\nResolved as the same root cause. Decision reason: {reason}",
+            )
+        ensure_process_label(repository, number)
+        resolved = {"issue_number": number, "resolved_by": "same-root"}
+    else:
+        resolved = {"issue_number": create_root_issue(event, repository, fingerprint), "resolved_by": "new-root"}
+    result = {
+        "status": "routed", "repository": repository, "fingerprint": fingerprint, "routed_at": utc_now(),
+        "resolve_reason": reason, **resolved,
+    }
+    with friction_lock():
+        state = read_state()
+        state["routes"][event_key] = result
+        atomic_write_json(state_path(), state)
+    return result
+
+
+def cmd_resolve_candidate(args: argparse.Namespace) -> int:
+    print(json.dumps(resolve_candidate(args.id, same_root=args.same_root, new_root=args.new_root, reason=args.reason), sort_keys=True))
+    return 0
+
+
+def merge_roots(into: str, duplicates: Sequence[str], reason: str) -> dict:
+    reason = sanitize_for_route(reason, 300)
+    if not reason:
+        raise SystemExit("--reason must be non-empty")
+    if not duplicates:
+        raise SystemExit("merge-roots requires at least one --duplicate")
+    require_gh()
+    repository, target = parse_issue_ref(into, "--into")
+    parsed = [parse_issue_ref(item, "--duplicate") for item in duplicates]
+    for dup_repo, _ in parsed:
+        if dup_repo != repository:
+            raise SystemExit(f"--duplicate must be in the target repository {repository}")
+    numbers = list(dict.fromkeys(number for _, number in parsed))
+    if target in numbers:
+        raise SystemExit(f"--into {into} must not be among the duplicates")
+    target_issue = require_open_friction_target(repository, target)
+    merged_marker = f"<!-- dev-platform-friction-merged-into:{target} -->"
+    plans: list[tuple[int, dict, bool]] = []
+    for number in numbers:
+        ref = f"{repository}#{number}"
+        issue = fetch_issue(repository, number)
+        if issue.get("state") == "open":
+            require_generated_friction(issue, ref)
+            plans.append((number, issue, True))
+        elif issue_has_comment_marker(repository, number, merged_marker):
+            plans.append((number, issue, False))
+        else:
+            raise SystemExit(f"{ref} is closed and was not merged into {repository}#{target}")
+    markers = [m for _, issue, _ in plans for m in FINGERPRINT_MARKER_RE.findall(str(issue.get("body") or ""))]
+    added = append_markers(repository, target, target_issue, markers)
+    unlisted = [
+        number for number, _, _ in plans
+        if not issue_has_comment_marker(repository, target, f"<!-- dev-platform-friction-merge:{number}->{target} -->")
+    ]
+    if unlisted:
+        lines = [f"<!-- dev-platform-friction-merge:{number}->{target} -->" for number in unlisted]
+        lines += [
+            "Merged duplicate friction roots into this issue: " + ", ".join(f"#{number}" for number in unlisted) + ".",
+            f"Reason: {reason}",
+        ]
+        comment_issue(repository, target, "\n".join(lines))
+    closed: list[int] = []
+    for number, _, is_open in plans:
+        if not is_open:
+            continue
+        if not issue_has_comment_marker(repository, number, merged_marker):
+            comment_issue(repository, number, f"{merged_marker}\nDuplicate of #{target}; merged into that root. Reason: {reason}")
+        close_issue(repository, number, "not_planned")
+        closed.append(number)
+    return {
+        "into": f"{repository}#{target}", "markers_added": added,
+        "listed_on_target": unlisted, "closed": closed,
+    }
+
+
+def cmd_merge_roots(args: argparse.Namespace) -> int:
+    print(json.dumps(merge_roots(args.into, args.duplicates, args.reason), sort_keys=True))
+    return 0
+
+
+def parse_fix_references(text: str, source: str, repository: str) -> list[int]:
+    numbers: list[int] = []
+    for line in FIXES_FRICTION_RE.findall(text):
+        for token in re.split(r"[,\s]+", line.strip()):
+            if not token:
+                continue
+            ref_repo, number = parse_issue_ref(token, f"Fixes-Friction in {source}")
+            if ref_repo != repository.lower():
+                raise SystemExit(f"Fixes-Friction reference {token!r} in {source} is not in the pull request repository {repository}")
+            numbers.append(number)
+    return numbers
+
+
+def close_fixed(pr_number: int, repository: str) -> dict:
+    require_gh()
+    repo = repository.lower()
+    parse_issue_ref(f"{repo}#1", "--repo")
+    pr = gh_json(["api", f"repos/{repo}/pulls/{pr_number}"])
+    if not isinstance(pr, dict):
+        raise SystemExit(f"PR #{pr_number}: GitHub returned an invalid pull request")
+    if pr.get("merged") is not True:
+        raise SystemExit(f"PR #{pr_number} is not merged")
+    sha = pr.get("merge_commit_sha")
+    if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        raise SystemExit(f"PR #{pr_number} has no valid merge commit")
+    numbers = parse_fix_references(str(pr.get("body") or ""), f"PR #{pr_number} body", repo)
+    for changed in gh_paged(f"repos/{repo}/pulls/{pr_number}/files"):
+        path = changed.get("filename")
+        if not isinstance(path, str) or not PROPOSAL_PATH_RE.fullmatch(path) or changed.get("status") == "removed":
+            continue
+        content = gh_json(["api", f"repos/{repo}/contents/{quote(path, safe='/')}?ref={sha}"])
+        if not isinstance(content, dict) or content.get("encoding") != "base64" or not isinstance(content.get("content"), str):
+            raise SystemExit(f"{path}: GitHub returned unreadable content at {sha}")
+        text = base64.b64decode(content["content"]).decode("utf-8")
+        numbers += parse_fix_references(text, path, repo)
+    numbers = list(dict.fromkeys(numbers))
+    issues = {}
+    for number in numbers:
+        issue = fetch_issue(repo, number)
+        require_generated_friction(issue, f"{repo}#{number}")
+        issues[number] = issue
+    marker = f"<!-- dev-platform-friction-closed-by:{pr_number} -->"
+    closed: list[int] = []
+    for number, issue in issues.items():
+        if issue.get("state") != "open":
+            continue
+        if not issue_has_comment_marker(repo, number, marker):
+            comment_issue(repo, number, f"{marker}\nClosed by the fix in PR #{pr_number} (merge commit {sha}).")
+        close_issue(repo, number, "completed")
+        closed.append(number)
+    return {"pr": pr_number, "repository": repo, "referenced": numbers, "closed": closed}
+
+
+def cmd_close_fixed(args: argparse.Namespace) -> int:
+    print(json.dumps(close_fixed(args.pr, args.repo), sort_keys=True))
+    return 0
+
+
+def run_convergence(func):
+    def wrapper(args: argparse.Namespace) -> int:
+        try:
+            return func(args)
+        except RuntimeError as exc:
+            raise SystemExit(f"{args.command} failed: {exc}") from exc
+    return wrapper
+
+
 def main() -> int:
     cooperative_umask()
     parser = argparse.ArgumentParser(description="Record high-signal agent friction and route sanitized process evidence safely.")
@@ -1518,6 +2004,10 @@ def main() -> int:
     p.add_argument("--scope", choices=["project", "platform"], required=True)
     p.add_argument("--proposal", required=True)
     p.add_argument("--task")
+    p.add_argument("--reason", help="bounded one-line cause; required for coordinator lifecycle categories")
+    p.add_argument("--candidate-task", help="candidate task branch the event concerns")
+    p.add_argument("--candidate-number", type=int, help="candidate PR number, when one exists")
+    p.add_argument("--candidate-head", help="candidate head commit SHA")
     p.add_argument(
         "--participant-role", choices=("supervisor", "executor", "unknown"), default="unknown",
         help="which participant this finding concerns; identity is read back from the current routing record, not self-reported",
@@ -1528,7 +2018,7 @@ def main() -> int:
     )
     p.set_defaults(func=cmd_record)
 
-    p = sub.add_parser("route-pending", help="retry locally retained friction events without failing the caller")
+    p = sub.add_parser("route-pending", help="explicitly retry routing of locally retained friction events; faceless coordinator events are withheld")
     p.set_defaults(func=cmd_route_pending)
 
     p = sub.add_parser("reconcile-process-labels", help="repair labels on bounded clearly router-generated open friction issues")
@@ -1576,6 +2066,25 @@ def main() -> int:
     p.add_argument("--task", required=True, help="owning Issue as owner/repo#N")
     p.add_argument("--reason", required=True, help="why the event belongs to that task")
     p.set_defaults(func=cmd_attribute)
+
+    p = sub.add_parser("resolve-candidate", help="resolve a candidate route state: attach the event to an open root issue or create a new root")
+    p.add_argument("--id", required=True, help="recorded friction event id in candidate route state")
+    group = p.add_mutually_exclusive_group(required=True)
+    group.add_argument("--same-root", help="owner/repo#N of the open friction issue that is the same root cause")
+    group.add_argument("--new-root", action="store_true", help="create a new root issue for the event")
+    p.add_argument("--reason", required=True, help="why this is (or is not) the same root cause")
+    p.set_defaults(func=run_convergence(cmd_resolve_candidate))
+
+    p = sub.add_parser("merge-roots", help="consolidate open duplicate friction issues of one root into one issue")
+    p.add_argument("--into", required=True, help="owner/repo#N of the root issue to keep")
+    p.add_argument("--duplicate", dest="duplicates", action="append", default=[], help="repeatable: owner/repo#M duplicate to merge and close")
+    p.add_argument("--reason", required=True, help="why these issues are one root cause")
+    p.set_defaults(func=run_convergence(cmd_merge_roots))
+
+    p = sub.add_parser("close-fixed", help="close friction issues referenced by Fixes-Friction lines of a merged PR")
+    p.add_argument("--pr", type=int, required=True, help="merged pull request number")
+    p.add_argument("--repo", required=True, help="owner/repo of the pull request")
+    p.set_defaults(func=run_convergence(cmd_close_fixed))
 
     p = sub.add_parser("promote")
     p.add_argument("event", help="event id or 1-based log index")

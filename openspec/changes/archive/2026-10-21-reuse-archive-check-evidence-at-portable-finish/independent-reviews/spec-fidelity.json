@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84",
+    "base_ref": "origin/main",
+    "candidate_head": "13f0fd9b315a3b5bf12ca488111f0b3adce33a77",
+    "diff_sha256": "dc427de0bccfdddaadf69ec79ecffc49f49d7525e8b248c15435dacc7abdee39"
+  },
+  "completed_at": "2026-10-21T09:11:23+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_portable_finish_check_reuse.py builds a hand-made repo with `shutil.copytree(SCRIPTS, ...)`. It calls `select_checks.py --execute` directly for archive and calls `finish_task.validate_or_reuse` directly. It never runs `archive_change` or `finish_task.main`. The only check on `main` wiring is `test_main_validates_through_the_wrapper_on_the_github_path_only`, a source-text count. No test renders a project or covers a Copier update. Task 3.1 also lists \"substituted evidence of another checkout\", and no test covers it.",
+      "id": "integration-test-not-rendered-project",
+      "severity": "advisory",
+      "summary": "Task 3.2 and the proposal call for an integration test in a rendered `portable` project over `archive -> finish`, plus a Copier update check. The added test doesn't do that."
+    }
+  ],
+  "launched_at": "2026-10-21T09:11:10+00:00",
+  "output_sha256": "636f2664ff922d57b8caa3f8c0398f117a8a0c5f1ef87885d8a920aaf932667a",
+  "perspective": "spec-fidelity",
+  "request_id": "48bfa9a8-1a9d-408e-9d96-ae06f07a432d",
+  "reviewer": {
+    "context_id": "126b302c-f083-4875-8dda-d17a6406f2a7",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ffa24d92-95ec-468d-961d-c4295f30a348",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34821
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11865
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11363
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11547
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 919
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a361a2012ac754e32d1a25143d39021ad5e183e1d8c9fa23a9caf4b5a3cec069"
+}

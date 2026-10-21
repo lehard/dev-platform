@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84",
+    "base_ref": "origin/main",
+    "candidate_head": "13f0fd9b315a3b5bf12ca488111f0b3adce33a77",
+    "diff_sha256": "dc427de0bccfdddaadf69ec79ecffc49f49d7525e8b248c15435dacc7abdee39"
+  },
+  "completed_at": "2026-10-21T09:11:47+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_portable_finish_check_reuse.py, `test_main_validates_through_the_wrapper_on_the_github_path_only`: `source.count(\"validate_or_reuse(\") == 1`, `source.count(\"run_checks(\") == 1`, `source.index(...)` ordering. The only caller expression, `delivery if delivery is not None and not queue_merged else None`, is not behaviorally tested.",
+      "id": "source-introspection-wiring-test",
+      "severity": "advisory",
+      "summary": "The wiring test asserts call sites by counting substrings in `inspect.getsource(finish_task.main)`. This breaks on harmless refactors, such as moving the GitLab branch into a helper or renaming a variable. It also doesn't prove that the `validate_or_reuse` arguments are right: mode, the `queue_merged` exclusion, and the delivery that passed the evidence gate."
+    }
+  ],
+  "launched_at": "2026-10-21T09:11:23+00:00",
+  "output_sha256": "92ae7e62ab122c62d80dad8f07543daea60b95a7ac6c9bd6c55d4d7a314f3aa4",
+  "perspective": "engineering-quality",
+  "request_id": "48bfa9a8-1a9d-408e-9d96-ae06f07a432d",
+  "reviewer": {
+    "context_id": "0d7bfdfc-146d-4b49-8030-57e562f13ea9",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f9fc49db-cfb1-4eb2-8ba6-b36bf2917378",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32477
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 121209
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23226
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23501
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1589
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a361a2012ac754e32d1a25143d39021ad5e183e1d8c9fa23a9caf4b5a3cec069"
+}

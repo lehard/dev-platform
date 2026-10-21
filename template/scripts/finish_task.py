@@ -183,7 +183,9 @@ def run_checks(root: Path, base: str, no_checks: bool) -> None:
     returncode = proc.wait()
     output = "".join(chunks)
     if returncode != 0:
-        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", validation_failure_evidence(output, returncode))
+        evidence = validation_failure_evidence(output, returncode)
+        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", evidence,
+                                  reason=validation_failure_reason(evidence))
         raise SystemExit(returncode)
 
 
@@ -202,6 +204,20 @@ def validation_failure_evidence(output: str, returncode: int) -> str:
     return json.dumps({"failure_class": "selector-exit", "exit_code": returncode}, sort_keys=True)
 
 
+def validation_failure_reason(evidence: str) -> str:
+    """One bounded line naming the failure class and the failing checks/groups."""
+    descriptor = json.loads(evidence)
+    parts = [str(descriptor["failure_class"])]
+    if descriptor.get("phase"):
+        parts.append(f"phase {descriptor['phase']}")
+    if descriptor.get("failed_groups"):
+        parts.append("failed groups " + ", ".join(descriptor["failed_groups"]))
+    if descriptor.get("selected_checks"):
+        parts.append("checks " + ", ".join(descriptor["selected_checks"]))
+    parts.append(f"exit {descriptor['exit_code']}")
+    return "; ".join(parts)[:240]
+
+
 def run_openspec_hygiene(root: Path) -> str | None:
     """Observe OpenSpec/provenance hygiene read-only.
 
@@ -217,7 +233,8 @@ def run_openspec_hygiene(root: Path) -> str | None:
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
     if result.returncode != 0:
-        record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed", "openspec_lifecycle check returned a non-zero exit status")
+        record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed", "openspec_lifecycle check returned a non-zero exit status",
+                                  reason=f"openspec_lifecycle check --stage integration exited {result.returncode}")
         return (
             result.stderr.strip()
             or result.stdout.strip()
@@ -226,11 +243,12 @@ def run_openspec_hygiene(root: Path) -> str | None:
     return None
 
 
-def record_lifecycle_friction(root: Path, category: str, observation: str, evidence: str) -> None:
-    """Capture narrow deterministic failures without changing delivery outcome."""
+def record_lifecycle_friction(root: Path, category: str, observation: str, evidence: str, *, reason: str) -> None:
+    """Capture narrow deterministic failures, naming reason and candidate, without changing delivery outcome."""
     helper = root / "scripts" / "agent_friction.py"
     if not helper.is_file():
         return
+    branch = current_branch(root)
     subprocess.run(
         [
             "python3", str(helper), "record",
@@ -238,42 +256,12 @@ def record_lifecycle_friction(root: Path, category: str, observation: str, evide
             "--observation", observation, "--evidence", evidence,
             "--hypothesis", "a deterministic lifecycle guard needs operator review",
             "--scope", "platform", "--proposal", "review the lifecycle failure and its guard",
-            "--task", current_branch(root),
+            "--task", branch, "--reason", reason,
+            "--candidate-task", branch, "--candidate-head", run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip(),
         ],
         cwd=root, text=True, capture_output=True, check=False,
         stdin=subprocess.DEVNULL,
     )
-
-
-def run_friction_route_pending_retry(root: Path) -> None:
-    """Best-effort friction telemetry retry; never blocks publication.
-
-    This is intentionally separate from the friction checkpoint: the checkpoint
-    is an observable blocker aggregated with the other read-only completion
-    gates, while this retry only prints non-fatal WARNING lines.
-    """
-    helper = root / "scripts" / "agent_friction.py"
-    # Compatibility for minimal pre-friction renders used by older project
-    # harnesses. Current platform renders always include this helper.
-    if not helper.is_file():
-        return
-    try:
-        result = subprocess.run(
-            ["python3", str(helper), "route-pending"], cwd=root, text=True, capture_output=True, check=False, timeout=15,
-         stdin=subprocess.DEVNULL)
-    except subprocess.TimeoutExpired:
-        print("WARNING: friction routing retry timed out after 15 seconds; safe publication may continue.")
-        return
-    if result.returncode == 0:
-        try:
-            payload = json.loads(result.stdout)
-        except json.JSONDecodeError:
-            print("WARNING: friction routing retry returned unreadable output; safe publication may continue.")
-        else:
-            if payload.get("failures"):
-                print(f"WARNING: {payload['failures']} friction event(s) remain pending GitHub routing; safe publication may continue.")
-    else:
-        print("WARNING: friction routing retry could not run; safe publication may continue.")
 
 
 def observe_friction_checkpoint_blocker(root: Path, branch: str) -> str | None:
@@ -913,6 +901,25 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     return result
 
 
+def validate_or_reuse(work: Path, remote_main: str, no_checks: bool, selected_mode: str, checked_delivery: object | None) -> None:
+    """Run the required validation, unless portable archive evidence provably covers this exact tree.
+
+    ``checked_delivery`` is the managed delivery whose automated evidence already passed
+    ``require_automated_evidence``; every other path (coordinator, non-managed, ``--no-checks``)
+    validates exactly as before.
+    """
+    if selected_mode == "portable" and checked_delivery is not None and not no_checks:
+        import openspec_lifecycle
+
+        decision = openspec_lifecycle.automated_evidence_reuse(checked_delivery.path, root=work, base_ref=remote_main)
+        print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
+        if decision["decision"] == "reused":
+            emit_finish_stage("preflight clear: reusing archive check evidence")
+            return
+    emit_finish_stage("preflight clear: starting required validation")
+    run_checks(work, remote_main, no_checks)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -1066,7 +1073,6 @@ def main() -> int:
             emit_finish_stage("complete")
         return result.returncode
     emit_finish_stage("preflight: observing completion blockers")
-    run_friction_route_pending_retry(work)
     fetch_main(integration, "origin", main_branch)
     remote_main = f"origin/{main_branch}"
 
@@ -1103,8 +1109,7 @@ def main() -> int:
         report_completion_blockers(blockers)
         raise SystemExit(1)
 
-    emit_finish_stage("preflight clear: starting required validation")
-    run_checks(work, remote_main, args.no_checks)
+    validate_or_reuse(work, remote_main, args.no_checks, selected_mode, delivery if delivery is not None and not queue_merged else None)
 
     # The source repository has a public distribution boundary and a private
     # Backlog. Check the exact candidate immediately before publication. The
