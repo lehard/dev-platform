@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "328da595906c11d9276fc1087047c15a16be493a",
+    "base_ref": "origin/main",
+    "candidate_head": "66665b8f04bf2527503d7009ccf9da5569bfde55",
+    "diff_sha256": "d5c2a28ae5a64cb320835214afa00117451877175f8b50436b69b47efca73e5a"
+  },
+  "completed_at": "2026-10-21T11:22:14+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py record_lifecycle_friction: `subprocess.run([... '--reason', reason, '--candidate-task', branch, '--candidate-head', run_git(['rev-parse','HEAD'])...], check=False, capture_output=True)` with no returncode handling. This matches the existing 'without changing delivery outcome' intent, but it is not an explicit failure as the spec text reads.",
+      "id": "finish-producer-failure-swallowed",
+      "severity": "advisory",
+      "summary": "The spec says non-coordinator producers SHALL fail explicitly with a named error rather than record a coordinator event without reason or candidate. finish_task.record_lifecycle_friction invokes `agent_friction.py record` with check=False and discards the result. If the candidate head cannot be resolved or `record` rejects the fields, the event is silently not recorded. The explicit failure applies only inside the `record` subprocess."
+    }
+  ],
+  "launched_at": "2026-10-21T11:21:40+00:00",
+  "output_sha256": "18d94726de1d40afbdd48aafac5acaec896c8faa8790797f98c58c38d179b745",
+  "perspective": "spec-fidelity",
+  "request_id": "40e7a182-5425-48da-927d-695871718301",
+  "reviewer": {
+    "context_id": "b3f8c5cc-ce84-47a4-99d5-ecfaf047ceca",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-2a989659-6ce9-465b-9814-98eb8a73cc31",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46923
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 96010
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31741
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32556
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1607
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e6d8726a2e3405f3d327c7dc29953b85855fe856f276b7c1e4f041c8f9fcd4c9"
+}

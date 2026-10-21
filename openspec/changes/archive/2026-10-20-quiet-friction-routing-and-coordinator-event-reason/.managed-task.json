@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "quiet-friction-routing-and-coordinator-event-reason",
+  "imported_at": "2026-10-19T19:41:18+00:00",
+  "package_revision": "0cf56e347352e85c2cad0b49821450f34e33d4ca447390e5f5cf7e37474b5df3",
+  "prepared_against": "f3a52e76f3223edaaf3369869eaec3687da0d326",
+  "private_lineage_handle": "pln_aad2e0327801455712eef70b81843316",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "e9b3739a106b8a019869f482dce541d997537c17c93a94e6247dcd54eeec240b",
+    "updated_at": "2026-10-19T19:26:03Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-694/T1"
+}
