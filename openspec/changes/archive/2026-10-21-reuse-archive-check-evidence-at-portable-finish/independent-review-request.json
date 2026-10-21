@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84",
+    "base_ref": "origin/main",
+    "candidate_head": "13f0fd9b315a3b5bf12ca488111f0b3adce33a77",
+    "diff_sha256": "dc427de0bccfdddaadf69ec79ecffc49f49d7525e8b248c15435dacc7abdee39"
+  },
+  "change": "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/automated-checks.json",
+    "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/independent-review-request.json",
+    "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/verification.md",
+    "openspec/specs/completion-lifecycle/spec.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/design.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/proposal.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/proposal.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/design.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/tasks.md",
+        "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-21T09:11:06+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-21-reuse-archive-check-evidence-at-portable-finish/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "48bfa9a8-1a9d-408e-9d96-ae06f07a432d",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "4fbf8445787fd7705eb1e3b993bdfdc3e745fc84",
+    "digest": "a361a2012ac754e32d1a25143d39021ad5e183e1d8c9fa23a9caf4b5a3cec069",
+    "paths": {
+      "dev-platform/checks.toml": "edfde7d27f22fe3b487b014852d52f081e4fd32a",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/.managed-task.json": "f93f0cb5f5a22d1d4edb9c35946713c1d902aab4",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/.openspec.yaml": "dc36fb1bf855a31066cca3bf527c725e38489c5a",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/design.md": "1759bf931d3925555925a3ed880f9c1e02c8664d",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/proposal.md": "39255ad5139214d1926017942c0d4a5cd734f01d",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/specs/completion-lifecycle/spec.md": "aa5c8511429923aac9003a2c9677ee4e145a39b3",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/tasks.md": "b4830fb1bdd90cab7fd2b41b7274f05f12ff5575",
+      "template/dev-platform/platform-manifest.json": "2aff33b05ff90b200784c3613db7e5369f3ac9a5",
+      "template/docs/engineering/agent-workflow.md.jinja": "f889bfc74185ef71dee305777acedd901f9e668e",
+      "template/scripts/finish_task.py": "6a76d70cc6022a7a8ec40993d133d75bb78fc4ce",
+      "template/scripts/openspec_lifecycle.py": "fdaf3b13b11531869ca67186c6257435cdfc8f9c",
+      "tests/test_portable_finish_check_reuse.py": "033aebd2a70723d2387fe30e5cee74558a79dd47"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

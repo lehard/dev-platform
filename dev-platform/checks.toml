@@ -238,6 +238,10 @@ mode = "parallel"
 targets = ["test_managed_task_exact_state"]
 mode = "parallel"
 
+[test_groups.portable_finish_check_reuse]
+targets = ["test_portable_finish_check_reuse"]
+mode = "parallel"
+
 [test_groups.fast-a]
 targets = [
   "test_adopt_project",
