@@ -1,0 +1,107 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.15,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.168,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 963.21,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/finish_task.py",
+        "template/scripts/openspec_lifecycle.py",
+        "tests/test_portable_finish_check_reuse.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_3026972f32767f347900657823eab742",
+    "change": "reuse-archive-check-evidence-at-portable-finish",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/reuse-archive-check-evidence-at-portable-finish",
+    "branch": "agent/br-692-t1-reuse-archive-check-evidence-at-portable-finish",
+    "head": "e0d60b0d082e7daa9ff522c3ee67d73b54ddf17b",
+    "task_content": {
+      "version": 1,
+      "digest": "23919cb2dad6c06455d359fc337b2d89a4285a2253d8ca44ac49551228897212",
+      "paths": {
+        "dev-platform/checks.toml": "edfde7d27f22fe3b487b014852d52f081e4fd32a",
+        "openspec/changes/reuse-archive-check-evidence-at-portable-finish/.managed-task.json": "f93f0cb5f5a22d1d4edb9c35946713c1d902aab4",
+        "openspec/changes/reuse-archive-check-evidence-at-portable-finish/.openspec.yaml": "dc36fb1bf855a31066cca3bf527c725e38489c5a",
+        "openspec/changes/reuse-archive-check-evidence-at-portable-finish/design.md": "1759bf931d3925555925a3ed880f9c1e02c8664d",
+        "openspec/changes/reuse-archive-check-evidence-at-portable-finish/proposal.md": "39255ad5139214d1926017942c0d4a5cd734f01d",
+        "openspec/changes/reuse-archive-check-evidence-at-portable-finish/specs/completion-lifecycle/spec.md": "aa5c8511429923aac9003a2c9677ee4e145a39b3",
+        "openspec/changes/reuse-archive-check-evidence-at-portable-finish/tasks.md": "b4830fb1bdd90cab7fd2b41b7274f05f12ff5575",
+        "template/dev-platform/platform-manifest.json": "53e2db641db018bd9b7a29d00bdee35450b42255",
+        "template/docs/engineering/agent-workflow.md.jinja": "f889bfc74185ef71dee305777acedd901f9e668e",
+        "template/scripts/finish_task.py": "6a76d70cc6022a7a8ec40993d133d75bb78fc4ce",
+        "template/scripts/openspec_lifecycle.py": "fdaf3b13b11531869ca67186c6257435cdfc8f9c",
+        "tests/test_portable_finish_check_reuse.py": "2f4695334c2a23310f5529a3fe0c97247eb17122"
+      },
+      "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "1e1326247670aab50e9729f81b09a740eaacb755f23c0b97a0b3c9c19acbdd9e",
+    "paths": {
+      "dev-platform/checks.toml": "edfde7d27f22fe3b487b014852d52f081e4fd32a",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/.managed-task.json": "f93f0cb5f5a22d1d4edb9c35946713c1d902aab4",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/.openspec.yaml": "dc36fb1bf855a31066cca3bf527c725e38489c5a",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/design.md": "1759bf931d3925555925a3ed880f9c1e02c8664d",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/proposal.md": "39255ad5139214d1926017942c0d4a5cd734f01d",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/specs/completion-lifecycle/spec.md": "aa5c8511429923aac9003a2c9677ee4e145a39b3",
+      "openspec/changes/reuse-archive-check-evidence-at-portable-finish/tasks.md": "b4830fb1bdd90cab7fd2b41b7274f05f12ff5575",
+      "template/dev-platform/platform-manifest.json": "53e2db641db018bd9b7a29d00bdee35450b42255",
+      "template/docs/engineering/agent-workflow.md.jinja": "f889bfc74185ef71dee305777acedd901f9e668e",
+      "template/scripts/finish_task.py": "6a76d70cc6022a7a8ec40993d133d75bb78fc4ce",
+      "template/scripts/openspec_lifecycle.py": "fdaf3b13b11531869ca67186c6257435cdfc8f9c",
+      "tests/test_portable_finish_check_reuse.py": "2f4695334c2a23310f5529a3fe0c97247eb17122"
+    },
+    "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/finish_task.py --changed-file template/scripts/openspec_lifecycle.py --changed-file tests/test_portable_finish_check_reuse.py",
+    "duration_seconds": 202.62,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
