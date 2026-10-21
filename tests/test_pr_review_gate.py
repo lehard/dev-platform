@@ -1018,6 +1018,98 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
 
 
+class ArchivedSemanticReadmissionTests(unittest.TestCase):
+    """A coordinator finalize archived the change; changed content then stopped finalize on the
+    semantic-verification red gate. Only that task's own PR in that state reopens the handoff."""
+
+    ARCHIVE = "openspec/changes/archive/2026-10-21-example"
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        git(self.root, "init", "-q", "-b", "agent/example")
+        git(self.root, "config", "user.email", "t@example.com")
+        git(self.root, "config", "user.name", "t")
+        self.change = self.root / self.ARCHIVE
+        self.change.mkdir(parents=True)
+        self.receipt = self.change / "verification.md"
+        self.receipt.write_text("OpenSpec-Verify: PASS\nVerification-Method: review\n")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", "archived by finalize")
+        self.proven = git(self.root, "rev-parse", "HEAD")
+        self.provenance = managed.CanonicalProvenance("owner/backlog#7", "example", self.change, "archived")
+
+    def reverify(self):
+        self.receipt.write_text(self.receipt.read_text() + "\n## Re-verification\n- changed content reviewed\n")
+        git(self.root, "commit", "-qam", "re-verify")
+
+    def awaiting(self, change="example", red="semantic-verification"):
+        lineage = {"state": "blocked-retryable", "head": self.proven, "task_identity": {"change": change},
+                   "red_gate": {"name": red}}
+        return {"state": "readmission", "number": 7, "proven_head": self.proven,
+                "head": git(self.root, "rev-parse", "HEAD"), "lineage": lineage}
+
+    def patched(self, observed, provenance=None):
+        stack = ExitStack()
+        common = sys.modules["_platform_common"]
+        stack.enter_context(mock.patch.object(common, "read_platform_config", return_value={}))
+        stack.enter_context(mock.patch.object(common, "lifecycle_mode", return_value="coordinator"))
+        stack.enter_context(mock.patch.object(queue, "enabled", return_value=True))
+        stack.enter_context(mock.patch.object(queue, "semantic_readmission", return_value=observed))
+        stack.enter_context(mock.patch.object(managed, "resolve_canonical_provenance",
+                                              return_value=provenance or self.provenance))
+        return stack
+
+    def test_awaiting_semantic_readmission_reopens_the_handoff_with_the_canonical_change(self):
+        self.reverify()
+        with self.patched(self.awaiting()):
+            self.assertTrue(gate.managed_candidate(self.root))
+            self.assertEqual(gate._archived_handoff_change(self.root, self.change), "example")
+
+    def test_archived_change_without_an_awaiting_readmission_stays_on_the_plain_path(self):
+        self.reverify()
+        with self.patched(None):
+            self.assertFalse(gate.managed_candidate(self.root))
+            with self.assertRaisesRegex(workers.WorkerError, "no admitted PR awaiting a semantic-verification"):
+                gate._archived_handoff_change(self.root, self.change)
+
+    def test_readmission_of_another_task_is_refused(self):
+        self.reverify()
+        with self.patched(self.awaiting(change="other")), \
+                self.assertRaisesRegex(workers.WorkerError, "another task than archived change example"):
+            gate.managed_candidate(self.root)
+
+    def test_unchanged_semantic_receipt_is_refused_as_stale(self):
+        git(self.root, "commit", "-q", "--allow-empty", "-m", "reconcile")
+        with self.patched(self.awaiting()), \
+                self.assertRaisesRegex(workers.WorkerError, "unchanged since proven head"):
+            gate._archived_handoff_change(self.root, self.change)
+
+    def test_handoff_path_must_be_the_tasks_canonical_archive(self):
+        self.reverify()
+        other = managed.CanonicalProvenance("owner/backlog#7", "example", self.root / "openspec/changes/archive/x", "archived")
+        with self.patched(self.awaiting(), provenance=other), \
+                self.assertRaisesRegex(workers.WorkerError, "canonical archived change"):
+            gate._archived_handoff_change(self.root, self.change)
+
+    def test_queue_reports_only_a_semantic_verification_stop_awaiting_the_local_head(self):
+        observed = {"state": "readmission", "number": 7, "proven_head": HEAD, "head": "b" * 40}
+        def run(local, lineage):
+            with mock.patch.object(queue, "local_status", return_value=local), \
+                    mock.patch.object(queue, "_repo", return_value="owner/repo"), \
+                    mock.patch.object(queue, "_comments", return_value=[]), \
+                    mock.patch.object(queue, "_latest", return_value=lineage):
+                return queue.semantic_readmission(self.root, "agent/example")
+        semantic = {"state": "blocked-retryable", "red_gate": {"name": "semantic-verification"}}
+        self.assertEqual(run(observed, semantic)["lineage"], semantic)
+        self.assertIsNone(run({**observed, "state": "waiting"}, semantic))
+        self.assertIsNone(run(None, semantic))
+        self.assertIsNone(run(observed, {"state": "blocked-retryable", "red_gate": {"name": "review"}}))
+        self.assertIsNone(run(observed, {"state": "review-pending", "red_gate": {"name": "semantic-verification"}}))
+        self.assertIsNone(run(observed, None))
+
+
 class ProviderSwitchCommandTests(unittest.TestCase):
     def test_cli_switch_and_resume_call_the_gate_with_the_operator_reason(self):
         for command, extra, provider_required in (("switch-provider", ["--provider", "claude", "--provider", "codex"], True),

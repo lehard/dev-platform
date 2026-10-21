@@ -18,7 +18,7 @@ source = "dev-platform"
 revision = "platform-managed"
 path = "dev-platform/capabilities/requirement-authoring.md"
 license = "Apache-2.0"
-content_sha256 = "71b4c9663ceac52ef4f8c717b39c39ac23d718ff9191f0236a6e330c68c38ff6"
+content_sha256 = "54c2c0ef0fbd333424ca5186fdde249911bd33bb7985178206ca7b519e9cec1f"
 
 [eval]
 evidence = "dev-platform/evals/requirement-authoring-pilot.json"

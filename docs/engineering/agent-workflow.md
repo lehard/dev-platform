@@ -400,7 +400,12 @@ a finding-level escalation (rejected review, proposed rejection, exhausted repai
 material review findings (for example `repair-pending`) would be superseded by unchanged task content (operational
 states such as an unavailable reviewer need no content change), or when the new head does not descend from the admitted head (a fast-forward or a merge of
 main keeps coordinator updates and harness pushes; a rewrite would silently drop them), so never close and republish
-the branch as a new PR. A `finalize-pending` candidate is not re-admitted; when it lost content-bound gates across the
+the branch as a new PR. When the coordinator finalize already archived the change and later content changes stopped
+the next finalize `blocked-retryable` on the `semantic-verification` red gate, that task's own PR alone reopens the
+developer handoff for its archived change: the task re-runs semantic verification and commits a changed receipt (an
+unchanged receipt since the proven head is refused as stale), refreshes the selected-check evidence and the friction
+checkpoint for the exact head, and `finish` re-admits it under the canonical change name from managed provenance; the
+change is never unarchived or archived again. A `finalize-pending` candidate is not re-admitted; when it lost content-bound gates across the
 harness's own review-evidence pushes, `python3 scripts/publication_queue.py restore-gates --pr N --expected-head <head>`
 restores the proven gates on the current head (it refuses, naming the head, when any head move was not a trusted harness
 push with unchanged task content) and re-offers finalize under a fresh job id when that head's finalize job already
