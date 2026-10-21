@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "328da595906c11d9276fc1087047c15a16be493a",
+    "base_ref": "origin/main",
+    "candidate_head": "66665b8f04bf2527503d7009ccf9da5569bfde55",
+    "diff_sha256": "d5c2a28ae5a64cb320835214afa00117451877175f8b50436b69b47efca73e5a"
+  },
+  "completed_at": "2026-10-21T11:23:09+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py friction_reason(): when the gate has no `cause` or `limitation`, it falls back to `json.dumps(evidence)` and cuts the result to 240 chars. pr_review_gate.py:256 builds the `repair-pending` red gate as `{\"name\": \"review\", \"evidence\": reports}`, where `reports` is the per-provider report dict including findings. The reason is then a clipped JSON prefix such as `review: {\"claude\": {\"availability\":...`. The new test asserts exactly this shape (`'review: {\"spec\": \"material\"}'`). The design says evidence stays local because it may contain raw output, and only `sanitize_for_route` stands between that content and the routed body.",
+      "id": "reason-is-truncated-raw-evidence-json",
+      "severity": "advisory",
+      "summary": "For review-gate transitions the published `reason` is a truncated JSON dump of the gate evidence. It does not state the cause, and it moves evidence that the design says stays local into the public stream."
+    },
+    {
+      "evidence": "publication_queue.py `_transition` (~line 636): `if state in _FRICTION_STATES: emit_friction(number, branch, state, head, previous.get(\"red_gate\"), ...)`. `emit_friction` calls `friction_reason`, which raises QueueError for a missing or unnamed gate, and only `blocked-retryable` is exempt. The spec's `Producer without a reason` scenario requires the error. It does not say how already-persisted candidates without a red gate are handled, although the legacy-evidence path (`_evidence_records`) was made tolerant.",
+      "id": "idempotent-reemit-fails-on-legacy-red-gate",
+      "severity": "advisory",
+      "summary": "The idempotent `_transition` path now re-runs `emit_friction` with `previous.get(\"red_gate\")`. A candidate already recorded in a friction state without a named red gate (an older record) now raises QueueError on every observation. That can leave it stuck rather than just withholding the event."
+    }
+  ],
+  "launched_at": "2026-10-21T11:22:14+00:00",
+  "output_sha256": "5c568bd163bc3fca0408eaf6b77818ff603460076c4ba52fad8d710c33c061d6",
+  "perspective": "engineering-quality",
+  "request_id": "40e7a182-5425-48da-927d-695871718301",
+  "reviewer": {
+    "context_id": "286f8d4a-1316-4476-863e-c4cdf97a7d35",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b544a47b-b2f9-4b20-9fb4-0912788ab564",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57858
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 237296
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52324
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53389
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4468
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e6d8726a2e3405f3d327c7dc29953b85855fe856f276b7c1e4f041c8f9fcd4c9"
+}
