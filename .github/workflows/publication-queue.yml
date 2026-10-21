@@ -6,6 +6,13 @@ on:
   # or run PR-controlled content while holding the App token.
   pull_request_target:
     types: [labeled]
+  # A candidate's required CI finishing (green or red) is the next queue step:
+  # merge, or bounded integration repair. workflow_run also runs default-branch code.
+  workflow_run:
+    workflows: ["Platform CI"]
+    types: [completed]
+  # Backstop only: GitHub throttles scheduled runs to hours apart, so no
+  # candidate may depend on the schedule to progress.
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
@@ -13,13 +20,20 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: dev-platform-final-publication
-  cancel-in-progress: false
-
 jobs:
   publish-next:
-    if: github.event_name != 'pull_request_target' || github.event.label.name == 'publication:queued'
+    # Queue work is state-driven, so any run that starts sees every ready candidate.
+    # Events that cannot be queue work are filtered here, before the job-level
+    # concurrency group: a workflow-level group let a filtered event displace a
+    # pending real run and then end as skipped.
+    if: >-
+      (github.event_name != 'pull_request_target'
+        || github.event.label.name == 'publication:queued'
+        || github.event.label.name == 'lifecycle:ready')
+      && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request')
+    concurrency:
+      group: dev-platform-final-publication
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

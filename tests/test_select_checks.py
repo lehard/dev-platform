@@ -203,6 +203,7 @@ class SelectChecksTests(unittest.TestCase):
                     "worktree": "/tmp/task",
                     "branch": "agent/managed-checkout",
                     "head": "a" * 40,
+                    "task_content": {"version": 1, "digest": "c" * 64},
                 }
 
         with tempfile.TemporaryDirectory() as directory:

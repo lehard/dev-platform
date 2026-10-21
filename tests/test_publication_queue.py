@@ -1209,6 +1209,21 @@ class WorkflowTrustBoundaryTests(unittest.TestCase):
         self.assertIn("pull_request_target", job["if"])
         self.assertIn("publication:queued", job["if"])
 
+    def test_candidate_readiness_and_ci_completion_trigger_the_queue(self) -> None:
+        # The schedule is throttled by GitHub to hours apart; readiness and the
+        # candidate's CI result must wake the queue themselves.
+        job = self.workflow["jobs"]["publish-next"]
+        self.assertIn("lifecycle:ready", job["if"])
+        self.assertEqual(self.triggers["workflow_run"], {"workflows": ["Platform CI"], "types": ["completed"]})
+        self.assertIn("github.event.workflow_run.event == 'pull_request'", job["if"])
+
+    def test_filtered_events_cannot_displace_a_pending_queue_run(self) -> None:
+        # A workflow-level group let a label event the job filters out cancel a
+        # pending dispatch and then end as skipped; the group must be job-level.
+        self.assertNotIn("concurrency", self.workflow)
+        self.assertEqual(self.workflow["jobs"]["publish-next"]["concurrency"],
+                         {"group": "dev-platform-final-publication", "cancel-in-progress": False})
+
     def test_no_step_checks_out_pull_request_content(self) -> None:
         for step in self.steps:
             if not str(step.get("uses", "")).startswith("actions/checkout@"):
