@@ -1,0 +1,136 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.118,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.132,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1023.889,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "tests/test_add_intents.py",
+        "tests/test_requirement_authoring.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_c643e626a5691f0e88f7aee18dcf1cfb",
+    "change": "carry-requirement-binding-levels-into-openspec",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/carry-requirement-binding-levels-into-openspec",
+    "branch": "agent/br-723-t1-carry-requirement-binding-levels-into-openspec",
+    "head": "ce364c2a5da65e5004c818a20040ace96c78d7b2",
+    "task_content": {
+      "version": 1,
+      "digest": "1536a78d72003dfd83ba51a4777b981cacc89ced4c189bd1cb70cbc0b0410679",
+      "paths": {
+        "dev-platform/capabilities/add-intents.md": "c6d81611e4f17c0bb712c20a69c44b0ba361f153",
+        "dev-platform/capabilities/add-intents.toml": "00014644460f52e8bf8244d50f72eb145dfbe5cd",
+        "dev-platform/capabilities/requirement-authoring.md": "da4b1e0a2dc62e596b0e6d21cf9dd8cb4f67bfea",
+        "dev-platform/capabilities/requirement-authoring.toml": "eb7f4910ed32b52a2959ad0a36e435f3dba7d6cb",
+        "dev-platform/evals/add-intents-pilot.json": "dac2520a75ecffe1a719f666eb7492c26d7a887a",
+        "dev-platform/evals/requirement-authoring-pilot.json": "847c221937adda287941e4f5bf3d81bfdf6f1f82",
+        "docs/engineering/openspec-workflow.md": "c1a38f49c84400f8d527cff11ccf673e9e0066eb",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/.managed-task.json": "79c62a45c4677e7ba62f1e9e3cb03d69cd7b280c",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/automated-checks.json": "bac951d0824e924827e79d81dc09c789f8638666",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/design.md": "557d891291bab346e81afcb0796b5448cb1721b4",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/proposal.md": "5a506a7015aa6c042b1167558b7aac73c32c8980",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/specs/openspec-authoring/spec.md": "0aafab12fea059cbd836516725f9a5684a2fa093",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/tasks.md": "f455e96cadc87312edd94a5f725b7e10d9d452d3",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/verification.md": "cdc6ec275886b02ae50e33970c8e474a649bd546",
+        "openspec/config.yaml": "2db3bfd4321d861424b4cabb76523e1d1cecc17b",
+        "template/dev-platform/capabilities/add-intents.md": "c6d81611e4f17c0bb712c20a69c44b0ba361f153",
+        "template/dev-platform/capabilities/add-intents.toml": "00014644460f52e8bf8244d50f72eb145dfbe5cd",
+        "template/dev-platform/capabilities/requirement-authoring.md": "da4b1e0a2dc62e596b0e6d21cf9dd8cb4f67bfea",
+        "template/dev-platform/capabilities/requirement-authoring.toml": "eb7f4910ed32b52a2959ad0a36e435f3dba7d6cb",
+        "template/dev-platform/evals/add-intents-pilot.json": "dac2520a75ecffe1a719f666eb7492c26d7a887a",
+        "template/dev-platform/evals/requirement-authoring-pilot.json": "847c221937adda287941e4f5bf3d81bfdf6f1f82",
+        "template/dev-platform/platform-manifest.json": "619d24a0f05e47892ba57b914f5859b6772e0598",
+        "template/docs/engineering/openspec-workflow.md": "5bfe43e8afe558a5af71dbfb344dceb61657f602",
+        "template/openspec/config.yaml.jinja": "2e790a3090e4e1621ee2cd026752388e05c0cd6d",
+        "tests/test_add_intents.py": "f1f734019c444cb947f2840ae21e5f7300e203ae",
+        "tests/test_requirement_authoring.py": "39016ed461f17561681b9d7449a8ff1ba3e25ed5",
+        "tests/test_template_contract.py": "4553f857ad4bfd9d1755358bd3ddede75a4eaa0b"
+      },
+      "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "8ff64e470100b8112456506f2587f51d9e324f890100dee50056e0d0367ec285",
+    "paths": {
+      "dev-platform/capabilities/add-intents.md": "c6d81611e4f17c0bb712c20a69c44b0ba361f153",
+      "dev-platform/capabilities/add-intents.toml": "00014644460f52e8bf8244d50f72eb145dfbe5cd",
+      "dev-platform/capabilities/requirement-authoring.md": "da4b1e0a2dc62e596b0e6d21cf9dd8cb4f67bfea",
+      "dev-platform/capabilities/requirement-authoring.toml": "eb7f4910ed32b52a2959ad0a36e435f3dba7d6cb",
+      "dev-platform/evals/add-intents-pilot.json": "dac2520a75ecffe1a719f666eb7492c26d7a887a",
+      "dev-platform/evals/requirement-authoring-pilot.json": "847c221937adda287941e4f5bf3d81bfdf6f1f82",
+      "docs/engineering/openspec-workflow.md": "c1a38f49c84400f8d527cff11ccf673e9e0066eb",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/.managed-task.json": "79c62a45c4677e7ba62f1e9e3cb03d69cd7b280c",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/design.md": "557d891291bab346e81afcb0796b5448cb1721b4",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/proposal.md": "5a506a7015aa6c042b1167558b7aac73c32c8980",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/specs/openspec-authoring/spec.md": "0aafab12fea059cbd836516725f9a5684a2fa093",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/tasks.md": "f455e96cadc87312edd94a5f725b7e10d9d452d3",
+      "openspec/config.yaml": "2db3bfd4321d861424b4cabb76523e1d1cecc17b",
+      "template/dev-platform/capabilities/add-intents.md": "c6d81611e4f17c0bb712c20a69c44b0ba361f153",
+      "template/dev-platform/capabilities/add-intents.toml": "00014644460f52e8bf8244d50f72eb145dfbe5cd",
+      "template/dev-platform/capabilities/requirement-authoring.md": "da4b1e0a2dc62e596b0e6d21cf9dd8cb4f67bfea",
+      "template/dev-platform/capabilities/requirement-authoring.toml": "eb7f4910ed32b52a2959ad0a36e435f3dba7d6cb",
+      "template/dev-platform/evals/add-intents-pilot.json": "dac2520a75ecffe1a719f666eb7492c26d7a887a",
+      "template/dev-platform/evals/requirement-authoring-pilot.json": "847c221937adda287941e4f5bf3d81bfdf6f1f82",
+      "template/dev-platform/platform-manifest.json": "619d24a0f05e47892ba57b914f5859b6772e0598",
+      "template/docs/engineering/openspec-workflow.md": "5bfe43e8afe558a5af71dbfb344dceb61657f602",
+      "template/openspec/config.yaml.jinja": "2e790a3090e4e1621ee2cd026752388e05c0cd6d",
+      "tests/test_add_intents.py": "f1f734019c444cb947f2840ae21e5f7300e203ae",
+      "tests/test_requirement_authoring.py": "39016ed461f17561681b9d7449a8ff1ba3e25ed5",
+      "tests/test_template_contract.py": "4553f857ad4bfd9d1755358bd3ddede75a4eaa0b"
+    },
+    "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_add_intents.py --changed-file tests/test_requirement_authoring.py --changed-file tests/test_template_contract.py",
+    "duration_seconds": 24.986,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

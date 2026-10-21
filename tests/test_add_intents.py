@@ -1233,6 +1233,17 @@ class AddBoundaryGuidanceTests(unittest.TestCase):
         ):
             self.assertIn(phrase, self.doc.replace("\n", " "), phrase)
 
+    def test_binding_level_paragraph_is_documented_without_hardening(self) -> None:
+        text = self.doc.replace("\n", " ")
+        for phrase in (
+            "keeps its binding level from the BR authoring standard",
+            "names a meaning-fixed or delegated point as a BR constraint at that level",
+            "turns it into an exact presentation",
+            "An example, illustrative value or mockup in the BR stays an example",
+            "Carry Requirement binding levels into OpenSpec",
+        ):
+            self.assertIn(phrase, text, phrase)
+
     def test_guidance_names_the_renderer_sections_and_states(self) -> None:
         text = self.doc.replace("\n", " ")
         script = (TEMPLATE_SCRIPTS / "add_intents.py").read_text(encoding="utf-8")

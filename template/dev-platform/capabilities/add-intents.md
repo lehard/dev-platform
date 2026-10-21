@@ -93,6 +93,8 @@ Choosing a function name or splitting handlers is usually OpenSpec detail.
 This is the agent's evidence-first judgement, not a keyword or category gate,
 and no tool decides it.
 
+A business requirement point keeps its binding level from the BR authoring standard. The ADD names a meaning-fixed or delegated point as a BR constraint at that level. Neither an ADD element, an intent nor a handoff envelope turns it into an exact presentation. An example, illustrative value or mockup in the BR stays an example. OpenSpec authoring writes each level as described in "Carry Requirement binding levels into OpenSpec" in [docs/engineering/openspec-workflow.md](../../docs/engineering/openspec-workflow.md).
+
 ### Approval is bound to exact content, not just a flag
 
 `approved: true` alone is not a valid approval. Approving an ADD writes an

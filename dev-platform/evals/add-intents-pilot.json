@@ -1,7 +1,7 @@
 {
   "version": 1,
   "capability": "add-intents",
-  "content_sha256": "f05e5c2760edd19c7d3f740513f36853f7bec9ab76f11559a57ff10586db75e6",
+  "content_sha256": "695a386e17d8600a0e7deebe8c36af67890bd2106067b23d0aa31a061db16c45",
   "cases": [
     {"id": "positive-new-integration-contract", "expectation": "trigger", "prompt": "Add a new Kafka event integration between billing and search so search stays in sync with organization profile changes.", "samples": ["triggered", "triggered", "triggered"]},
     {"id": "positive-new-capability-boundary", "expectation": "trigger", "prompt": "Introduce tiered pricing as a new capability that changes how the billing service computes and boundaries with the entitlement service.", "samples": ["triggered", "triggered", "triggered"]},

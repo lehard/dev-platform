@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_ref": "origin/main",
+    "candidate_head": "667f58944562f9973e7d65a7278c0b35964d2c51",
+    "diff_sha256": "9e42a67034d1eae989aa4ed53bc507751b8f00e404dbe7d0866480325ca4a0e3"
+  },
+  "completed_at": "2026-10-20T23:58:14+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/config.yaml and template/openspec/config.yaml.jinja say delegated presentation \"never relaxes financial, data, security or accessibility constraints\". docs/engineering/openspec-workflow.md and the delta spec say \"financial, data, technical, security or accessibility constraints, rights or accepted scenarios\". The CLI-injected rule omits \"technical\", \"rights\" and \"accepted scenarios\". An author who sees only the CLI context gets a weaker guarantee. The tests assert the narrower config text, so the gap is locked in.",
+      "id": "config-rule-omits-technical-constraints",
+      "severity": "advisory",
+      "summary": "The openspec/config.yaml `specs` rule lists a narrower set of non-relaxable constraints than the workflow guidance and spec do."
+    }
+  ],
+  "launched_at": "2026-10-20T23:58:06+00:00",
+  "output_sha256": "5d67c79a0242fef67d07e97358cfe84d5c27c4bd8eb620d2f5e0252aff20ce70",
+  "perspective": "engineering-quality",
+  "request_id": "200898c2-3a04-4723-a9c0-10470fba600c",
+  "reviewer": {
+    "context_id": "c4dc102a-a90e-4794-9900-ede2155b5324",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ad97b69a-745e-4b30-afd1-8f89bdf14008",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26420
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47248
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7425
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7675
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 834
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8ff64e470100b8112456506f2587f51d9e324f890100dee50056e0d0367ec285"
+}
