@@ -27,15 +27,7 @@ from _platform_common import (
     run_git,
     validation_subprocess_env,
 )
-try:
-    from managed_task import ManagedTaskError, require_managed_checkout_identity
-except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
-    class ManagedTaskError(RuntimeError):
-        pass
-
-    def require_managed_checkout_identity(root: Path, *, expected_change: str | None = None, expected_source_issue: str | None = None):
-        return None
-
+from managed_task import ManagedTaskError, require_managed_checkout_identity
 from agent_board import HardScopeOverlap, enforce_scope_gate
 
 try:
@@ -461,8 +453,11 @@ def write_evidence(
         "selected_checks": checks,
     }
     if managed_checkout is not None:
-        payload["managed_checkout"] = managed_checkout.evidence_payload()
+        from managed_task import require_task_content
         from task_content_identity import review_content_identity
+
+        payload["managed_checkout"] = managed_checkout.evidence_payload()
+        require_task_content(payload["managed_checkout"], "selected-check evidence")
 
         change = payload["managed_checkout"].get("change")
         if isinstance(change, str):
@@ -621,6 +616,13 @@ def main() -> int:
             managed_checkout = require_managed_checkout_identity(root)
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
+        if managed_checkout is not None and evidence_path is not None:
+            from managed_task import require_task_content
+
+            try:
+                require_task_content(managed_checkout.evidence_payload(), "selected-check evidence")
+            except ManagedTaskError as exc:
+                raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         base_contract = None
         # Narrow mapped selections that produce coordinator handoff evidence need the
         # same currency classification as full selections.

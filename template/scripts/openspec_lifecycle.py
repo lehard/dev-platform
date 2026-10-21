@@ -10,21 +10,7 @@ import tempfile
 from pathlib import Path
 
 from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
-try:
-    from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
-except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
-    class ManagedTaskError(RuntimeError):
-        pass
-
-    def read_provenance(change: Path):
-        return {}
-
-    def source_issue_for_provenance(root: Path, change: Path, *, expected_source: str | None = None):
-        return read_provenance(change).get("source_issue")
-
-    def require_managed_checkout_identity(root: Path, *, expected_change: str | None = None, expected_source_issue: str | None = None):
-        return None
-
+from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
 try:
     from independent_review import require_review_evidence, review_is_required
 except ModuleNotFoundError as exc:
@@ -190,7 +176,13 @@ def evidence_matches_checkout(
     by the archive helper.  Any other path, including every source/test path,
     remains a stale-evidence failure.
     """
+    from managed_task import require_task_content
+
     expected = identity.evidence_payload()
+    try:
+        require_task_content(expected, "automated evidence acceptance")
+    except ManagedTaskError as exc:
+        raise SystemExit(f"{change.name}: {exc}") from exc
     if not isinstance(actual, dict):
         return False
     # New evidence is content-aware.  Keep exact SHA as provenance but accept
