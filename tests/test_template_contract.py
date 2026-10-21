@@ -171,6 +171,13 @@ class TemplateContractTests(unittest.TestCase):
                 self.assertIn("concrete risks and mitigations", policy)
                 self.assertIn("Do not add generic risk boilerplate for low-risk work", policy)
                 self.assertIn("outcome/success evidence, completeness, correctness, and coherence", policy)
+                self.assertIn("Carry each Business Requirement point at its binding level", policy)
+                self.assertIn("a fixed point is written exactly and checked by a scenario", policy)
+                self.assertIn("a meaning-fixed point is written as the observable meaning or properties", policy)
+                self.assertIn("a delegated detail stays out of requirements", policy)
+                self.assertIn("no requirement is bound more tightly than in the Requirement", policy)
+                self.assertIn("never becomes an exact requirement unless the Requirement fixed it", policy)
+                self.assertIn("never relaxes financial, data, security or accessibility constraints", policy)
 
         for workflow_name, workflow in (("central", central_workflow), ("generated", generated_workflow)):
             with self.subTest(workflow=workflow_name):
@@ -180,6 +187,14 @@ class TemplateContractTests(unittest.TestCase):
                 self.assertIn("Must/Should/Could", workflow)
                 self.assertIn("manual status/date/expiry/artifact ledger", workflow)
                 self.assertIn("authored outcome and success evidence", workflow)
+                self.assertIn("### Carry Requirement binding levels into OpenSpec", workflow)
+                self.assertIn("no point is bound more tightly in OpenSpec than it was in the Requirement", workflow)
+                self.assertIn("informs the meaning, but it binds exactly only what the Requirement marked as fixed", workflow)
+                self.assertIn("never relaxes financial, data, technical, security or accessibility constraints", workflow)
+                self.assertIn("accepted specs are not rewritten to follow them", workflow)
+                self.assertIn("Worked example.", workflow)
+                self.assertIn("hardens a delegated presentation into an exact one", workflow)
+                self.assertIn("weakens a fixed meaning", workflow)
 
     def test_platform_verification_receipt_contract_stays_in_central_template_parity(self) -> None:
         required = (

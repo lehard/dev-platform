@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/openspec-authoring/spec.md"
+  ],
+  "change": "carry-requirement-binding-levels-into-openspec",
+  "imported_at": "2026-10-20T20:59:27+00:00",
+  "package_revision": "32e30ea1af7f5a8db828ec5a0bd8f13d5a588e05dbf399fa0916eb1a69feaaff",
+  "prepared_against": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+  "private_lineage_handle": "pln_c643e626a5691f0e88f7aee18dcf1cfb",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "cdfafb7ccacacdf50e33634324466a43a5878b8abfd1840ea758a2e2f74225d7",
+    "updated_at": "2026-10-20T20:46:21Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-723/T1"
+}

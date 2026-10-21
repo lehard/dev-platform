@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_ref": "origin/main",
+    "candidate_head": "667f58944562f9973e7d65a7278c0b35964d2c51",
+    "diff_sha256": "9e42a67034d1eae989aa4ed53bc507751b8f00e404dbe7d0866480325ca4a0e3"
+  },
+  "completed_at": "2026-10-20T23:58:06+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/config.yaml and template/openspec/config.yaml.jinja in candidate.diff: \"delegated presentation never relaxes financial, data, security or accessibility constraints\". The delta spec says: \"Financial, technical, security and accessibility constraints and accepted scenarios SHALL keep their full force\". The docs section says \"financial, data, technical, security or accessibility constraints, rights or accepted scenarios\". The shorter config wording is the only authoring context some CLI flows will see.",
+      "id": "config-rule-omits-technical-constraints",
+      "severity": "advisory",
+      "summary": "The OpenSpec CLI `specs` rule lists a different set of preserved constraints than the delta spec requires. The spec names financial, technical, security and accessibility constraints plus accepted scenarios. The config rule names financial, data, security and accessibility, and leaves out technical constraints and accepted scenarios."
+    }
+  ],
+  "launched_at": "2026-10-20T23:57:56+00:00",
+  "output_sha256": "dc84335def896706c1243888b6c574403e262eeacac3d951d5c2a3ad7be26321",
+  "perspective": "spec-fidelity",
+  "request_id": "200898c2-3a04-4723-a9c0-10470fba600c",
+  "reviewer": {
+    "context_id": "5e835a42-9190-48a5-a574-c04eb3d9d3c3",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7f57fe17-6fd9-4efe-82db-4750f73b89ac",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31770
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11576
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8616
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8710
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1037
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8ff64e470100b8112456506f2587f51d9e324f890100dee50056e0d0367ec285"
+}

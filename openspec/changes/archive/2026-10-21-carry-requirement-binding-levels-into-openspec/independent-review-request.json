@@ -1,0 +1,91 @@
+{
+  "candidate": {
+    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_ref": "origin/main",
+    "candidate_head": "667f58944562f9973e7d65a7278c0b35964d2c51",
+    "diff_sha256": "9e42a67034d1eae989aa4ed53bc507751b8f00e404dbe7d0866480325ca4a0e3"
+  },
+  "change": "openspec/changes/carry-requirement-binding-levels-into-openspec",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/carry-requirement-binding-levels-into-openspec/automated-checks.json",
+    "openspec/changes/carry-requirement-binding-levels-into-openspec/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/design.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/proposal.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/specs/openspec-authoring/spec.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/proposal.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/design.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/tasks.md",
+        "openspec/changes/carry-requirement-binding-levels-into-openspec/specs/openspec-authoring/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T23:57:54+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/carry-requirement-binding-levels-into-openspec/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "200898c2-3a04-4723-a9c0-10470fba600c",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "digest": "8ff64e470100b8112456506f2587f51d9e324f890100dee50056e0d0367ec285",
+    "paths": {
+      "dev-platform/capabilities/add-intents.md": "c6d81611e4f17c0bb712c20a69c44b0ba361f153",
+      "dev-platform/capabilities/add-intents.toml": "00014644460f52e8bf8244d50f72eb145dfbe5cd",
+      "dev-platform/capabilities/requirement-authoring.md": "da4b1e0a2dc62e596b0e6d21cf9dd8cb4f67bfea",
+      "dev-platform/capabilities/requirement-authoring.toml": "eb7f4910ed32b52a2959ad0a36e435f3dba7d6cb",
+      "dev-platform/evals/add-intents-pilot.json": "dac2520a75ecffe1a719f666eb7492c26d7a887a",
+      "dev-platform/evals/requirement-authoring-pilot.json": "847c221937adda287941e4f5bf3d81bfdf6f1f82",
+      "docs/engineering/openspec-workflow.md": "c1a38f49c84400f8d527cff11ccf673e9e0066eb",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/.managed-task.json": "79c62a45c4677e7ba62f1e9e3cb03d69cd7b280c",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/design.md": "557d891291bab346e81afcb0796b5448cb1721b4",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/proposal.md": "5a506a7015aa6c042b1167558b7aac73c32c8980",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/specs/openspec-authoring/spec.md": "0aafab12fea059cbd836516725f9a5684a2fa093",
+      "openspec/changes/carry-requirement-binding-levels-into-openspec/tasks.md": "f455e96cadc87312edd94a5f725b7e10d9d452d3",
+      "openspec/config.yaml": "2db3bfd4321d861424b4cabb76523e1d1cecc17b",
+      "template/dev-platform/capabilities/add-intents.md": "c6d81611e4f17c0bb712c20a69c44b0ba361f153",
+      "template/dev-platform/capabilities/add-intents.toml": "00014644460f52e8bf8244d50f72eb145dfbe5cd",
+      "template/dev-platform/capabilities/requirement-authoring.md": "da4b1e0a2dc62e596b0e6d21cf9dd8cb4f67bfea",
+      "template/dev-platform/capabilities/requirement-authoring.toml": "eb7f4910ed32b52a2959ad0a36e435f3dba7d6cb",
+      "template/dev-platform/evals/add-intents-pilot.json": "dac2520a75ecffe1a719f666eb7492c26d7a887a",
+      "template/dev-platform/evals/requirement-authoring-pilot.json": "847c221937adda287941e4f5bf3d81bfdf6f1f82",
+      "template/dev-platform/platform-manifest.json": "619d24a0f05e47892ba57b914f5859b6772e0598",
+      "template/docs/engineering/openspec-workflow.md": "5bfe43e8afe558a5af71dbfb344dceb61657f602",
+      "template/openspec/config.yaml.jinja": "2e790a3090e4e1621ee2cd026752388e05c0cd6d",
+      "tests/test_add_intents.py": "f1f734019c444cb947f2840ae21e5f7300e203ae",
+      "tests/test_requirement_authoring.py": "39016ed461f17561681b9d7449a8ff1ba3e25ed5",
+      "tests/test_template_contract.py": "4553f857ad4bfd9d1755358bd3ddede75a4eaa0b"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
