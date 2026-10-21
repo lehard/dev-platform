@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/completion-lifecycle/spec.md"
+  ],
+  "change": "reuse-archive-check-evidence-at-portable-finish",
+  "imported_at": "2026-10-20T23:03:57+00:00",
+  "package_revision": "58a7c8b5f8df938f068e8dc3881004e51ab0310afbfba769c6ba4b243a0fd483",
+  "prepared_against": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+  "private_lineage_handle": "pln_3026972f32767f347900657823eab742",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8bab46b82aa9d3d569e808784322f1900c94f8ae31309e5b2ba3a76e44bb4f09",
+    "updated_at": "2026-10-20T20:28:15Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-692/T1"
+}
