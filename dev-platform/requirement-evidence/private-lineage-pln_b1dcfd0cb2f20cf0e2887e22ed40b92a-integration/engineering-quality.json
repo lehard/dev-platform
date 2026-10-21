@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-    "candidate_head": "43ad3cd3f92fa4a8c65e04f7e9b9939a7bf129e3",
-    "diff_sha256": "e0237c5b3936459d0bb9b727c677d094f9220be9a503ad6e8fc316f963fa5152"
+    "candidate_head": "eec8d7ea60b202dab25e73c23c6f80fb8bb6fa39",
+    "diff_sha256": "9a8bbe8b65871a81308336e14265ac27d8f1e1c8573185bc008aad8a75ac3502"
   },
-  "completed_at": "2026-10-21T21:19:55+00:00",
+  "completed_at": "2026-10-21T23:28:05+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` calls `tempfile.mkdtemp(prefix=\"dp-sandboxed-claude-\")`. It then raises `RoutingError` on a `prepare_sandboxed_checkout` failure or a `SandboxedWriterError` (non-macOS, missing srt, CLI or token) without cleaning up. `dispatch_claude_sandboxed` only calls `shutil.rmtree(run[\"workdir\"])` for the `completed` outcome. Each pre-launch refusal therefore leaves a `dp-sandboxed-claude-*` temp directory behind. Before a refusal after checkout preparation, that directory can already hold a full task copy. It holds no token, since the profile is written only after the token is read, so this is a hygiene issue rather than a containment one.",
-      "id": "sandboxed-dispatch-workdir-leak-on-refusal",
+      "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` calls `launch(argv, checkout, integration_root=..., platform_root=..., workdir=root, home=home, tmp=tmp, config=..., runner=runner)` with no `timeout`. template/scripts/sandboxed_writer.py:1819-1821 defines `timeout: int | None = None` and forwards it to `run_llm`.",
+      "id": "sandboxed-dispatch-no-writer-timeout",
       "severity": "advisory",
-      "summary": "The disposable workdir is not removed when the sandboxed dispatch fails before or around launch. Retention of a failed run's workdir for diagnosis is documented, but retention on a pre-launch refusal is not."
+      "summary": "The dispatch never bounds the writer's runtime. `launch_sandboxed_writer` accepts `timeout`, but `run_claude_sandboxed` does not pass one. A hung writer therefore holds the route's open delegation indefinitely."
+    },
+    {
+      "evidence": "`run_claude_sandboxed` creates `workdir = Path(tempfile.mkdtemp(prefix=\"dp-sandboxed-claude-\"))` and builds the checkout before `launch(...)`. The `SandboxedWriterError` branch re-raises `RoutingError` without cleanup. `dispatch_claude_sandboxed` calls `shutil.rmtree(run[\"workdir\"])` only when `execution[\"outcome\"] == \"completed\"`.",
+      "id": "sandboxed-dispatch-prelaunch-workdir-leak",
+      "severity": "advisory",
+      "summary": "On a pre-launch refusal, `run_claude_sandboxed` leaves its `dp-sandboxed-claude-*` workdir behind. The refusals are non-macOS, missing npx/claude, or a bad token. The directory holds a full copy of the task worktree, including uncommitted task state. Only the `completed` outcome removes the workdir."
     }
   ],
-  "launched_at": "2026-10-21T21:19:18+00:00",
-  "output_sha256": "fd66ce09ce1e7f7f1ef84489979b1e439ebd4b6427046492ccc57b5dd3b9fc61",
+  "launched_at": "2026-10-21T23:27:27+00:00",
+  "output_sha256": "f7d68c4cc9a82e5b02e3829706d7b3893c74354663d8b5866b6f347a47164915",
   "perspective": "engineering-quality",
-  "request_id": "6743baaa-e946-4ac0-a5f9-ca351d1c93fe",
+  "request_id": "0b982708-78cc-4f04-b712-b64960e0d333",
   "reviewer": {
-    "context_id": "c2bc508e-5213-49dd-aa17-39dfe7a6bc46",
+    "context_id": "f987b363-745b-45d1-a9dd-ecb1221b3fd0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-62524fa2-e181-4ca2-aa66-0b3ad7755d3a",
+    "launch_id": "platform-launch-17ba49fb-ca0e-483f-922b-4288335d9611",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 61365
+        "value": 58452
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 183777
+        "value": 217278
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32301
+        "value": 33573
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35745
+        "value": 37061
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2682
+        "value": 3107
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "284af864859fc89c944460521431f834def802500541a27c8e935ef3a791e027"
+  "task_content_digest": "73b311be7c5e33233d9d3e8a46a60b3f059781452a602629d92e4953b9a83127"
 }

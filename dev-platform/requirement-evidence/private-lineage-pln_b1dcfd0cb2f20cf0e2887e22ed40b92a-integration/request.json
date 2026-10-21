@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-    "candidate_head": "43ad3cd3f92fa4a8c65e04f7e9b9939a7bf129e3",
-    "diff_sha256": "e0237c5b3936459d0bb9b727c677d094f9220be9a503ad6e8fc316f963fa5152"
+    "candidate_head": "eec8d7ea60b202dab25e73c23c6f80fb8bb6fa39",
+    "diff_sha256": "9a8bbe8b65871a81308336e14265ac27d8f1e1c8573185bc008aad8a75ac3502"
   },
   "change": "private-lineage-pln_b1dcfd0cb2f20cf0e2887e22ed40b92a-integration",
   "children": [
@@ -136,13 +136,13 @@
       ]
     }
   },
-  "prepared_at": "2026-10-21T21:18:27+00:00",
-  "request_id": "6743baaa-e946-4ac0-a5f9-ca351d1c93fe",
+  "prepared_at": "2026-10-21T23:26:34+00:00",
+  "request_id": "0b982708-78cc-4f04-b712-b64960e0d333",
   "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
   "schema_version": 1,
   "task_content": {
-    "base": "32f5ab7e61a06a56ea15b815f9c9ec37411ec7bd",
-    "digest": "284af864859fc89c944460521431f834def802500541a27c8e935ef3a791e027",
+    "base": "51298a11dc5242a2c17c84e935b96e57506ab887",
+    "digest": "73b311be7c5e33233d9d3e8a46a60b3f059781452a602629d92e4953b9a83127",
     "paths": {
       "dev-platform/checks.toml": "de689c5fb2fbc25c9fb2741ea12a933025e428c3",
       "docs/decisions/0003-sandboxed-claude-writer.md": "f1334a87d104c5ed9c2cb57845053cd8c094ca12",
@@ -168,7 +168,7 @@
       "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md": "a2a7ef98352068053049ce392d9ff10779546512",
       "openspec/changes/sandboxed-writer-probes-decision/tasks.md": "7c97f1014f56af64b375b95596606cc9b1ab7e9f",
       "scripts/sandboxed_writer_probes.py": "17be1f6383d5481006e74b4afbad518ad07134ab",
-      "template/dev-platform/platform-manifest.json": "ad7580c18e97a6ad4f37497be65df7845aeff056",
+      "template/dev-platform/platform-manifest.json": "1d9a802ebae5dfa154153e65722690161499cd9f",
       "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
       "template/scripts/lifecycle_workers.py": "44e1155c783a8607f0b2679cb308a6d1cb355275",
       "template/scripts/model_routing.py": "8b394cd733ec12cd0d7287837651c3988c1687fa",
