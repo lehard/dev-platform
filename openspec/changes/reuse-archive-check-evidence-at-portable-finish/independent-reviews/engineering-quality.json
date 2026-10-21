@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_ref": "origin/main",
+    "candidate_head": "71daf7aea093209d9d1c813ef21d4c5b8bb757d8",
+    "diff_sha256": "be83739b18ad0154a42842499355a82b3fb34465892130bc8ae5784688423035"
+  },
+  "completed_at": "2026-10-21T00:14:36+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_portable_finish_check_reuse.py, test_main_validates_through_the_wrapper_on_the_github_path_only: it uses inspect.getsource(finish_task.main) and asserts source.count(\"validate_or_reuse(\") == 1 and source.count(\"run_checks(\") == 1. A rename, an added call, or a comment containing these strings would change the counts without changing behavior.",
+      "id": "brittle-source-inspection-test",
+      "severity": "advisory",
+      "summary": "The wiring test checks main() by counting substrings in its source, so it breaks on harmless refactors and does not prove behavior."
+    }
+  ],
+  "launched_at": "2026-10-21T00:14:24+00:00",
+  "output_sha256": "0ed138584a435f5161bb31e3d6b87ddacf5803084f3134932e2e8493ba2a3751",
+  "perspective": "engineering-quality",
+  "request_id": "ff8a11c6-6de9-4d59-92ac-a3c2cef52117",
+  "reviewer": {
+    "context_id": "05d92a90-6bcb-4d06-9204-3a586c0696c6",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c93bace2-d242-4c9f-8f1a-a9cfec06129a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30031
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 83628
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11231
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11540
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1192
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1e1326247670aab50e9729f81b09a740eaacb755f23c0b97a0b3c9c19acbdd9e"
+}

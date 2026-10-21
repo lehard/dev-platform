@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5978f4713b0a00e7c321ee7a90ad08a80b7431f5",
+    "base_ref": "origin/main",
+    "candidate_head": "71daf7aea093209d9d1c813ef21d4c5b8bb757d8",
+    "diff_sha256": "be83739b18ad0154a42842499355a82b3fb34465892130bc8ae5784688423035"
+  },
+  "completed_at": "2026-10-21T00:14:24+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md 3.2: \"Integration test in a rendered `portable` project \u2026 check Copier update of an existing render\". tests/test_portable_finish_check_reuse.py builds a project by `shutil.copytree(SCRIPTS, \u2026)` plus a hand-written `.dev-platform.toml`. It has no Copier render or update step. The only added assertion about the shipped template is the platform-manifest.json hash change. The scenarios, the execution counts and the named stop after a code change are covered. The rendered-project and Copier-update parts of the task text are not.",
+      "id": "tasks-3-2-copier-and-render-not-covered",
+      "severity": "advisory",
+      "summary": "tasks.md 3.2 is checked complete but promises an integration test in a rendered `portable` project and a Copier update check of an existing render. The candidate tests don't do either."
+    }
+  ],
+  "launched_at": "2026-10-21T00:14:13+00:00",
+  "output_sha256": "25a302fca4e0738fa3925840f087e5710b83701d45981a3389a6e91f630f457e",
+  "perspective": "spec-fidelity",
+  "request_id": "ff8a11c6-6de9-4d59-92ac-a3c2cef52117",
+  "reviewer": {
+    "context_id": "aec49d49-0a17-44f8-9c56-276eb963e119",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-896da512-1eea-4a75-bcdd-78d48d515c71",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35928
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51215
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9934
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10103
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1149
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1e1326247670aab50e9729f81b09a740eaacb755f23c0b97a0b3c9c19acbdd9e"
+}
