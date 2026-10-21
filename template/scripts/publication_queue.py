@@ -1465,6 +1465,24 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
     return status(root, data["number"])
 
 
+def semantic_readmission(root: Path, branch: str) -> dict[str, Any] | None:
+    """This branch's admitted PR when it awaits a fresh semantic-verification handoff of the local head.
+
+    Only a candidate whose proven head stopped ``blocked-retryable`` on the
+    ``semantic-verification`` red gate, and whose PR head is exactly the local
+    head awaiting developer re-admission, qualifies; anything else is ``None``.
+    """
+    observed = local_status(root, branch)
+    if observed is None or observed.get("state") != "readmission":
+        return None
+    number = observed["number"]
+    lineage = _latest(root, number, _comments(root, _repo(root), number), observed["proven_head"])
+    if (lineage is None or lineage.get("state") != "blocked-retryable"
+            or (lineage.get("red_gate") or {}).get("name") != "semantic-verification"):
+        return None
+    return {**observed, "lineage": lineage}
+
+
 def sync_merged_task(root: Path, branch: str, number: int) -> None:
     """Fast-forward only this clean task branch to its proven merged PR head."""
     repo = _repo(root)
