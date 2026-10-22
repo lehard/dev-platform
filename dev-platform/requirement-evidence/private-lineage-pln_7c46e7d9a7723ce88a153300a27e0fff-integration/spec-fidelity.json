@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "51298a11dc5242a2c17c84e935b96e57506ab887",
+    "base_ref": "51298a11dc5242a2c17c84e935b96e57506ab887",
+    "candidate_head": "b75f2530a8e875bd1ec1fe53e720a730430df90d",
+    "diff_sha256": "53773cadc0faec86ca31e60b7a63486b05d1e253173dffe10a6d8c76d6f7517d"
+  },
+  "completed_at": "2026-10-22T18:42:34+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py `generated_files` rejects any entry whose keys are not exactly {path, regenerate, check}. docs/engineering/agent-workflow.md (the behind-mergeable paragraph) and openspec/changes/handoff-mergeable-task-base/design.md say \"`[[generated_files]]` with `path` and a `regenerate` argv\" and \"Each entry has `path` ... and `regenerate`\". Only the T2 design records `check`. A project that follows the T1 text gets a hard TaskFreshnessError at every behind-main handoff.",
+      "id": "declaration-shape-docs-drift",
+      "severity": "advisory",
+      "summary": "The merged declaration contract requires exactly `path`, `regenerate` and `check`. The T1 artifacts and the shared agent-workflow doc still describe it as `path` and `regenerate` only."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py `_prepare` calls `generated_files(root, \"HEAD\")` twice, once in the unrecorded-update recovery branch and once in the main path. Neither call is wrapped. `_platform_common.generated_files` raises TaskFreshnessError for every irregularity. Because T1 and T2 share one reader, a bad declaration on main would break queue preparation for all candidates, not just ones touching generated files.",
+      "id": "queue-declaration-error-not-bounded",
+      "severity": "advisory",
+      "summary": "The queue reads the generated-file declaration from its own default-branch HEAD in `_prepare`. A malformed declaration, or one whose `check` is not in `full_commands`, raises TaskFreshnessError. That error is neither IntegrationRepairNeeded nor QueueError, so it is not converted into the bounded integration-repair or recovery outcome."
+    }
+  ],
+  "launched_at": "2026-10-22T18:41:58+00:00",
+  "output_sha256": "9ddc4bf631b7f6267714bfeb507d3a0d359b840b7d07cf5f3ba94866a8b13774",
+  "perspective": "spec-fidelity",
+  "request_id": "3672bb8a-4c77-403d-891e-2c76eef5b2e8",
+  "reviewer": {
+    "context_id": "a517ef17-9cfa-470b-b0dd-ea8422063f2a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b8a8e913-e711-4cca-bc16-2c393e9c9ae0",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 67743
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 174481
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32856
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34691
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3106
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8c8553238d897ce19fa7a2a9056c2e5c8e2f60ed1262af4f15815e4f63b0ac37"
+}
