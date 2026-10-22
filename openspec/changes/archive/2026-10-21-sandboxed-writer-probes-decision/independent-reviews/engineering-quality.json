@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "base_ref": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "candidate_head": "c0fe8f478dd6dcfa52c7fefedcec73162fd6246e",
+    "diff_sha256": "b6ccbafd939565f3b142ea528150f51caa113ef9ee385de29f040bf27ae8159a"
+  },
+  "completed_at": "2026-10-20T06:04:35+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/sandboxed_writer_probes.py:~108 sets `\"status\": \"refused\" if entry[\"exit\"] != 0 else \"succeeded\"`. The exit codes come from the writer's own `PROBES_JSON` line (design.md: \"Reads are judged from the writer's reported exit codes (the only evidence for a refused read)\"). Neither the probe code nor the report checks that the target exists or that the output shows a sandbox denial such as \"Operation not permitted\". A pre-flight that the target paths exist, or a check of the denial text, would make the evidence stronger.",
+      "id": "read-probe-refusal-from-exit-code",
+      "severity": "advisory",
+      "summary": "Read probes and the GitHub API probe count as \"refused\" for any non-zero exit code that the model itself reports. A missing ~/.ssh or ~/.config/gh, a missing `security` binary, or a curl failure would also pass, and so would a model that misreports. A sandbox gap on those reads could go unnoticed."
+    },
+    {
+      "evidence": "scripts/sandboxed_writer_probes.py:197 `platform_root=REPO.parent`. The production dispatch uses `Path(route.integration_root).parent` (template/scripts/model_routing.py:2053). Nothing in the probe command checks that `work` is outside `platform_root`.",
+      "id": "probe-rmtree-and-platform-root-edge",
+      "severity": "advisory",
+      "summary": "The probe command passes `platform_root=REPO.parent` and builds its work directory with `mkdtemp` in the default temp dir. If the checkout's parent directory contains the temp dir, or is itself the temp dir, the profile's deny rules would overlap the allowed writer roots. The failure mode would be a confusing run failure, not a clear refusal."
+    }
+  ],
+  "launched_at": "2026-10-20T06:04:13+00:00",
+  "output_sha256": "7cf354611c518776dc84a167921b48a4659e4d04d20173c1b104498af4919269",
+  "perspective": "engineering-quality",
+  "request_id": "ffd2646c-42db-4704-9398-3db701e73dfa",
+  "reviewer": {
+    "context_id": "98be3d98-5c25-4867-9d94-74926a2a679d",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-fb04b955-1018-43e2-ab09-7f51156bcd51",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30444
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50541
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20616
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20979
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1577
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14"
+}

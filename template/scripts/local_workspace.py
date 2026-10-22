@@ -473,6 +473,9 @@ def _sync(registry_path: Path) -> list[str]:
             if root.is_symlink() or not root.is_dir() or not (root / '.git').is_dir() or (root / '.git').is_symlink():
                 continue
             try:
+                # A checkout without an origin remote cannot be a registered project.
+                if git(root, 'config', '--get', 'remote.origin.url', optional=True) is None:
+                    continue
                 origin = git(root, 'remote', 'get-url', 'origin')
                 matches = [item for item in projects if item['origin'] == origin]
                 if not matches:
@@ -542,7 +545,7 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
         raise PolicyError('run sync to install the reviewed runtime first')
     content = plistlib.dumps({'Label': 'dev.platform.local-workspace',
                              'ProgramArguments': [sys.executable, str(runtime), 'sync', '--registry', str(registry)],
-                             'RunAtLoad': True, 'StartInterval': 300, 'Umask': 2,
+                             'RunAtLoad': True, 'StartInterval': 1800, 'Umask': 2,
                              'StandardOutPath': str(runtime.parent / f'sync-{os.geteuid()}.log'),
                              'StandardErrorPath': str(runtime.parent / f'sync-{os.geteuid()}.log')})
     if not destination.exists() or destination.read_bytes() != content:
@@ -560,23 +563,32 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
             subprocess.run(['launchctl', 'bootstrap', f'gui/{os.geteuid()}', str(destination)], check=True)
 
 
-def inherited_hooks_path(root: Path) -> str | None:
+def hooks_directory(value: str) -> Path:
+    expanded = Path(os.path.expanduser(value))
+    return expanded if expanded.is_absolute() else Path.cwd() / expanded
+
+
+def inherited_hooks_path(root: Path, dispatcher: Path) -> str | None:
     result = subprocess.run(['git', '-C', str(root), 'config', '--show-scope', '--get-all', 'core.hooksPath'],
                             capture_output=True, text=True)
     values = [line.split('\t', 1)[1] for line in result.stdout.splitlines()
               if '\t' in line and line.split('\t', 1)[0] not in ('local', 'worktree')]
+    # A non-local value naming the dispatcher (e.g. `git -c core.hooksPath=<dispatcher> worktree add`)
+    # restates this attachment, not the invoking user's hooks; delegating to it would re-enter itself.
+    values = [value for value in values if os.path.realpath(hooks_directory(value)) != os.path.realpath(dispatcher)]
     return values[-1] if values else None
 
 
 def delegate_hooks(root: Path, state: dict, name: str, args: list[str]) -> int:
-    original = Path(state['original_directory']) / name
+    dispatcher = Path(state['dispatcher'])
     # A repository-local hooksPath is shared; an inherited one belongs to the invoking user.
-    configured_original = state['original_config'] if state['original_config'] is not None else inherited_hooks_path(root)
+    configured_original = state['original_config'] if state['original_config'] is not None else inherited_hooks_path(root, dispatcher)
     if configured_original is None:
         original = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')) / 'hooks' / name
     else:
-        expanded = Path(os.path.expanduser(configured_original))
-        original = (expanded if expanded.is_absolute() else Path.cwd() / expanded) / name
+        original = hooks_directory(configured_original) / name
+    if os.path.realpath(original.parent) == os.path.realpath(dispatcher):
+        raise PolicyError(f'delegated hook is the local workspace dispatcher itself; refusing recursive re-entry: {original}')
     hooks = [original] if original.is_file() and os.access(original, os.X_OK) else []
     if name in ('pre-commit', 'pre-merge-commit'):
         doctor = Path(git(root, 'rev-parse', '--path-format=absolute', '--git-common-dir')) / 'hooks' / name

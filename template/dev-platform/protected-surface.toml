@@ -262,6 +262,10 @@ path = "scripts/hosted_workers.py"
 category = "credentials"
 
 [[protected]]
+path = "scripts/sandboxed_writer.py"
+category = "credentials"
+
+[[protected]]
 path = "scripts/independent_review_runner.py"
 category = "credentials"
 

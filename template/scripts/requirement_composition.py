@@ -426,8 +426,12 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
     """Check the parent retrospective and full final head before readiness and queue admission.
 
     ``candidate`` is the record whose gates are re-established on ``head``; the
-    queue passes the record of the head its own ``main`` update replaced.
+    queue passes the record of the head its own ``main`` update replaced. Such a
+    carried record already proved the Requirement retrospective (the receipt is
+    a file on the Requirement owner's machine, absent in CI), so its reusable
+    ``requirement-retrospective`` gate evidence is the receipt.
     """
+    carried = candidate is not None
     from project_publish import _set_pr_draft
     from publication_state import PrRef
     from _platform_common import github_cli_env
@@ -446,7 +450,12 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
             _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
             return {"status": "await-requirement-retrospective", "head": head}
         try:
-            receipt = (checkpoint or require_checkpoint)(root, requirement=contributions.private_requirement(root, manifest))
+            if checkpoint is None and carried:
+                receipt = retrospective["evidence"]
+                if not isinstance(receipt, dict):
+                    raise RequirementRetrospectiveError("carried Requirement retrospective gate has no receipt evidence")
+            else:
+                receipt = (checkpoint or require_checkpoint)(root, requirement=contributions.private_requirement(root, manifest))
         except RequirementRetrospectiveError:
             _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
             return {"status": "await-requirement-retrospective", "head": head}

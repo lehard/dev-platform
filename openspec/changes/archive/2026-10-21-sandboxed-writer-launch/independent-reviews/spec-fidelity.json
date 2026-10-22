@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "candidate_head": "614185cc4b6cc4cab289ffff4cc72c8830be3e4f",
+    "diff_sha256": "db11b92f73ce6134a1b1bb4bf1f40e2435d11f9b52f0ea5b5276fa4c706d74fb"
+  },
+  "completed_at": "2026-10-20T04:03:52+00:00",
+  "findings": [
+    {
+      "evidence": "design.md says the launcher uses `npx --yes ...@<pinned>` \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\". The spec says the launch is refused \"when the pinned sandbox runtime ... is unavailable\". `template/scripts/sandboxed_writer.py` `srt_launcher()` (diff lines 319-322) checks only `shutil.which(\"npx\")` and returns the npx command. It never resolves an `srt` binary or checks its version. A failure to fetch or run the runtime would surface only as a non-zero exit from the launched process, not as a pre-launch refusal. The pinned-version string is covered by `test_launcher_pinned_and_requires_npx`, but the runtime-unavailable and version-mismatch refusals are not.",
+      "id": "pinned-runtime-availability-not-checked",
+      "severity": "advisory",
+      "summary": "The design and spec require an explicit refusal when the pinned sandbox runtime is unavailable or mismatched. The launcher only checks that `npx` is on PATH and does not verify the runtime itself."
+    }
+  ],
+  "launched_at": "2026-10-20T04:03:39+00:00",
+  "output_sha256": "4a51b0874aac82bcf2d46bee05f82e3f8b6cdca8d2ae191dafca7b9f00262883",
+  "perspective": "spec-fidelity",
+  "request_id": "db2a569f-ab4d-41b4-b769-20b56880cec6",
+  "reviewer": {
+    "context_id": "3b45ffad-620c-4ef6-8c77-20e9e89b7a8b",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bbf9e396-195d-40e7-afce-8fac6b865e75",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31245
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14846
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12315
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12483
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1473
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b"
+}

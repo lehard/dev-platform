@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "hosted-lifecycle-workers-placement-decision",
+  "imported_at": "2026-10-22T07:47:53+00:00",
+  "package_revision": "c0eb0f92d8dd69d49686e47553da1e9846836b6fec06f642ff8da43a38d6f5fc",
+  "prepared_against": "d71b0690ac1d05cfa44871f213167913b04fc390",
+  "private_lineage_handle": "pln_799f50bda5aaa00259d44c75968b11ad",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "faa96c01ae8fba5556b3e191c49fca56563915da480c42decb16b7b8a425fdf2",
+    "updated_at": "2026-10-12T08:09:14Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-610/T3"
+}

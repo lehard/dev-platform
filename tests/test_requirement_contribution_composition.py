@@ -937,6 +937,52 @@ class CompositionTests(unittest.TestCase):
                 self.assertEqual(postmerge["kind"], "retrospective")
                 self.assertNotEqual(workers.job_id({**postmerge, "number": 11}), workers.job_id(job))
 
+    def test_carried_composition_reuses_its_recorded_retrospective_receipt_without_the_local_file(self):
+        import requirement_retrospective as retrospective
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            receipt = {"version": 1, "result": "none", "event_ids": [], "review_note": "Reviewed actual Requirement path"}
+            original_checkout = workers.prepare_checkout
+            carried = {"number": 11, "head": "f" * 40, "task_identity": identity, "state": "ready",
+                       "gates": {"review": gate, "finalization": gate,
+                                 "requirement-retrospective": {"result": "passed", "identity": identity, "evidence": receipt}}}
+            adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False, "draft": False},
+                _comments=lambda *a: [], _derive=mock.Mock(side_effect=AssertionError("carried record must be used")),
+                publish_job=mock.Mock(), _transition=mock.Mock(), github_cli_env=lambda root: {},
+                trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options: original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
+                 mock.patch.object(composition, "require_final_gates"), \
+                 mock.patch.object(retrospective, "require_checkpoint",
+                                   side_effect=AssertionError("the local receipt file is absent in CI")):
+                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                               adapter=adapter, enqueue=False, candidate=carried,
+                                                               full_checks=mock.Mock())
+            self.assertEqual(result["status"], "ready")
+            adapter.publish_job.assert_not_called()
+            gates = adapter._transition.call_args.kwargs["gates"]
+            self.assertEqual(gates["requirement-retrospective"]["evidence"], receipt)
+            self.assertEqual(gates["full-checks"]["evidence"], {"head": head})
+
+    def test_carried_composition_without_a_reusable_retrospective_offers_it_again(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            original_checkout = workers.prepare_checkout
+            carried = {"number": 11, "head": "f" * 40, "task_identity": identity, "state": "ready",
+                       "gates": {"review": gate, "finalization": gate}}
+            adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
+                _comments=lambda *a: [], _derive=lambda *a: carried, publish_job=mock.Mock(), _transition=mock.Mock(),
+                trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options: original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
+                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                               adapter=adapter, enqueue=False, candidate=carried)
+            self.assertEqual(result["status"], "await-requirement-retrospective")
+
     def premerge_retrospective_receipts(self, head, outcomes):
         rows = []
         for attempt, outcome in enumerate(outcomes):

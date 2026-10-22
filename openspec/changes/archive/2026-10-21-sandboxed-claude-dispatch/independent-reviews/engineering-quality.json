@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+    "base_ref": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+    "candidate_head": "4e946914930149ef4fcb69be545018c7bfd2e0df",
+    "diff_sha256": "da2499a984ccf88852c9a28ec1671ae612eddbaead1e992861e9efee45111e9b"
+  },
+  "completed_at": "2026-10-20T04:55:00+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` creates `workdir = Path(tempfile.mkdtemp(...))`. The `except SandboxedWriterError -> RoutingError` path and the `prepare_sandboxed_checkout` failure path raise without cleanup. `dispatch_claude_sandboxed` only calls `shutil.rmtree(run[\"workdir\"])` on `completed`, so a pre-launch refusal (for example non-macOS) leaves the copy in the system temp dir.",
+      "id": "workdir-leak-on-prelaunch-failure",
+      "severity": "advisory",
+      "summary": "The disposable workdir created by `tempfile.mkdtemp` is never removed when the dispatch fails before launch, or when the launcher raises. It holds a full copy of the task worktree including uncommitted state."
+    },
+    {
+      "evidence": "`_sandboxed_claude_completed` (model_routing.py) checks only `mechanism`, `launch_evidence`, `launched`, `outcome`, `returncode` and the presence of a `participant` dict. `require_routing_gate` then returns the route, skipping the clean containment postcheck that the native Claude path requires. Because the gate bypasses the postcheck, the evidence it relies on is no longer cross-checked against the delegation record or the patch hash.",
+      "id": "gate-trusts-execution-fields-alone",
+      "severity": "advisory",
+      "summary": "The new gate branch accepts any Claude execution whose JSON fields match the sandboxed shape. It does not check that a closed platform-observed delegation exists, that the patch evidence is present, or that the task content matches the applied patch."
+    }
+  ],
+  "launched_at": "2026-10-20T04:54:41+00:00",
+  "output_sha256": "00ce27ae9a7c79a99cbcd04918cb9d3b0f563bd3023cdf5a375e1990ba819138",
+  "perspective": "engineering-quality",
+  "request_id": "11f54779-715a-4b54-bce6-f3dd2276bd76",
+  "reviewer": {
+    "context_id": "ee0292f7-17b3-4f4f-a6fc-897b2466c731",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ff78c5af-2f0e-4bc8-a890-006fd7c7da0e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31033
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49884
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18261
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18518
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2240
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f"
+}
