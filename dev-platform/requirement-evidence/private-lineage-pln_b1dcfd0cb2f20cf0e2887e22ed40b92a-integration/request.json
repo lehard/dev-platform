@@ -1,0 +1,184 @@
+{
+  "candidate": {
+    "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+    "candidate_head": "b9ed3e1835d7b18df46a02ad971ff15551b6d470",
+    "diff_sha256": "4d6fc5c172417fc05e4b6755056198437ab661a1c694d428b3757ab1ff6dfada"
+  },
+  "change": "private-lineage-pln_b1dcfd0cb2f20cf0e2887e22ed40b92a-integration",
+  "children": [
+    {
+      "change": "sandboxed-writer-launch",
+      "head": "8b8429612a189a73728dd746baa40a88fcc6e92b",
+      "identity": {
+        "change": "sandboxed-writer-launch",
+        "contribution_base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+        "kind": "contribution",
+        "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+        "source_issue": "pln_ce754494c25449dc961be05efe29c908",
+        "target_branch": "requirement/BR-576",
+        "task_content": {
+          "base": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+          "digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b",
+          "paths": {
+            "dev-platform/checks.toml": "13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0",
+            "docs/engineering/model-routing.md": "3d5d9025dcc619d18866f00d253c4ea6170e82e4",
+            "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+            "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+            "openspec/changes/sandboxed-writer-launch/design.md": "47159b737f7a4d9df3c16c1d2a88e70a10ec6099",
+            "openspec/changes/sandboxed-writer-launch/proposal.md": "e9945f6bd729140ea27dbd1b4c8e95196cd17b83",
+            "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "bfe23023fb11d9736c2db32ee30ec9cae5dbf854",
+            "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+            "template/dev-platform/platform-manifest.json": "0339c1a8c6208604f67d909fdb4291209be943d2",
+            "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+            "template/scripts/lifecycle_workers.py": "4b88ae480222a51d023156e3cffdf5b302b6ffd9",
+            "template/scripts/sandboxed_writer.py": "1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0",
+            "tests/test_sandboxed_writer.py": "057b001e5ff0bbbfb4ace57f80c14e252b96b926",
+            "tests/test_shared_writer_guard.py": "fbc5609fa0945b5c1eed0c0f7a857431f903f425"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-576/T1"
+      },
+      "reviewed_evidence_digest": "d6997fa58054f9e5c4d75d06c1b169e20e4a38d1b51c444788aeb83e23bd8f7e"
+    },
+    {
+      "change": "sandboxed-claude-dispatch",
+      "head": "2518428c7bf40723fa2f05791d959a1e85faeb72",
+      "identity": {
+        "change": "sandboxed-claude-dispatch",
+        "contribution_base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+        "kind": "contribution",
+        "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+        "source_issue": "pln_e7f2d06e193c3db634c5c1ae99c47c47",
+        "target_branch": "requirement/BR-576",
+        "task_content": {
+          "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+          "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+          "paths": {
+            "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+            "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+            "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+            "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+            "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+            "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+            "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+            "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+            "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+            "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+            "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+            "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+            "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+            "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-576/T2"
+      },
+      "reviewed_evidence_digest": "3c4c25721ce99169e67eced979da2bf8744f050390632b2a740decea307e0fa2"
+    },
+    {
+      "change": "sandboxed-writer-probes-decision",
+      "head": "29024cc215ab11ae2c5a14630af9aa38860ab49d",
+      "identity": {
+        "change": "sandboxed-writer-probes-decision",
+        "contribution_base": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+        "kind": "contribution",
+        "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+        "source_issue": "pln_c7d4c51dae29a572606bdf2c61cff8ff",
+        "target_branch": "requirement/BR-576",
+        "task_content": {
+          "base": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+          "digest": "cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14",
+          "paths": {
+            "dev-platform/checks.toml": "c00c6cbbc701880f9f14f964456b2bed1f108855",
+            "docs/decisions/0003-sandboxed-claude-writer.md": "f1334a87d104c5ed9c2cb57845053cd8c094ca12",
+            "docs/decisions/README.md": "7381738bcb0f210dcf6dba0197096aa916a8a144",
+            "docs/engineering/model-routing.md": "515e1037f08082997828c1cc9a8adeb5ec426665",
+            "openspec/changes/sandboxed-writer-launch/design.md": "b145b820f1492da6d927a8426b891cd9f8d63d42",
+            "openspec/changes/sandboxed-writer-launch/proposal.md": "8d998d9dce5b845dc9a2119e41992a23f48ad8a4",
+            "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98",
+            "openspec/changes/sandboxed-writer-probes-decision/.managed-task.json": "6a0b4422140e46b7924a48d0233a83a2ed423041",
+            "openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+            "openspec/changes/sandboxed-writer-probes-decision/design.md": "82c3871d5c15d658d2237807e3e67434552995da",
+            "openspec/changes/sandboxed-writer-probes-decision/proposal.md": "09b16b19ab880fb25cba14fca77ea330a9e23449",
+            "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md": "a2a7ef98352068053049ce392d9ff10779546512",
+            "openspec/changes/sandboxed-writer-probes-decision/tasks.md": "7c97f1014f56af64b375b95596606cc9b1ab7e9f",
+            "scripts/sandboxed_writer_probes.py": "17be1f6383d5481006e74b4afbad518ad07134ab",
+            "template/dev-platform/platform-manifest.json": "e6b527abeaf5177d02241b31d694c2abd4f9de51",
+            "template/scripts/sandboxed_writer.py": "b473b10e5f924cb8edbd55f9bfb28509f8015d78",
+            "tests/test_sandboxed_writer.py": "d83a196a647414970e483295abafbd01a22886b9",
+            "tests/test_sandboxed_writer_probes.py": "fc8b9373ffd98bae46e308efee45ddbd8af1c2aa"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-576/T3"
+      },
+      "reviewed_evidence_digest": "a18ebf71c713f456adc420320bd6f0a9748fac57935d89dcc8f562a31d9fa799"
+    }
+  ],
+  "fresh_context_required": true,
+  "kind": "requirement-composition",
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: \u0414\u0435\u043b\u0435\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 Claude-\u0438\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u043e\u0439 headless (`claude -p`) \u043f\u043e\u0434 sandbox-runtime \u0432 \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0439 disposable-\u043a\u043e\u043f\u0438\u0438 task worktree, \u0447\u0435\u0440\u0435\u0437 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0439 \u043c\u0435\u0445\u0430\u043d\u0438\u0437\u043c `lifecycle_workers` (disposable checkout, scratch HOME, credential-free \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u0435, harness). \u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u0438 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u044c integration checkout, \u0435\u0433\u043e Git refs \u0438 remote, \u043e\u0431\u0440\u0430\u0442\u0438\u0442\u044c\u0441\u044f \u043a GitHub, \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c credentials, keychain \u0438 SSH. \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044f \u0441\u0443\u043f\u0435\u0440\u0432\u0438\u0437\u043e\u0440\u0443 \u043f\u0430\u0442\u0447\u0435\u043c \u0447\u0435\u0440\u0435\u0437 harness, \u0441\u0443\u043f\u0435\u0440\u0432\u0438\u0437\u043e\u0440 \u0440\u0435\u0432\u044c\u044e\u0438\u0442 \u0438 \u0438\u0434\u0451\u0442 \u0448\u0442\u0430\u0442\u043d\u044b\u043c `finish`. \u0417\u0430\u043f\u0443\u0441\u043a \u043d\u0430\u0431\u043b\u044e\u0434\u0430\u0435\u043c \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u043e\u0439, \u0430 \u043d\u0435 self-reported. \u041f\u0435\u0440\u0432\u0430\u044f \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043c\u0430\u044f \u0441\u0440\u0435\u0434\u0430 \u2014 macOS; \u043d\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u044b\u0435 \u0441\u0440\u0435\u0434\u044b \u043d\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u044f\u044e\u0442\u0441\u044f HARD.\nReviewed children: [{\"change\": \"sandboxed-writer-launch\", \"head\": \"8b8429612a189a73728dd746baa40a88fcc6e92b\", \"identity\": {\"change\": \"sandboxed-writer-launch\", \"contribution_base\": \"80e2675b471f085c9d58e6eac40f414d08b4fe95\", \"kind\": \"contribution\", \"requirement\": \"pln_b1dcfd0cb2f20cf0e2887e22ed40b92a\", \"source_issue\": \"pln_ce754494c25449dc961be05efe29c908\", \"target_branch\": \"requirement/BR-576\", \"task_content\": {\"base\": \"80e2675b471f085c9d58e6eac40f414d08b4fe95\", \"digest\": \"ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b\", \"paths\": {\"dev-platform/checks.toml\": \"13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0\", \"docs/engineering/model-routing.md\": \"3d5d9025dcc619d18866f00d253c4ea6170e82e4\", \"openspec/changes/sandboxed-writer-launch/.managed-task.json\": \"8aa901d2761b67fab863aa4fd142e0855db0f0d4\", \"openspec/changes/sandboxed-writer-launch/.openspec.yaml\": \"9076a660974f3317b462f7d628e644b1d02ca8f0\", \"openspec/changes/sandboxed-writer-launch/design.md\": \"47159b737f7a4d9df3c16c1d2a88e70a10ec6099\", \"openspec/changes/sandboxed-writer-launch/proposal.md\": \"e9945f6bd729140ea27dbd1b4c8e95196cd17b83\", \"openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md\": \"bfe23023fb11d9736c2db32ee30ec9cae5dbf854\", \"openspec/changes/sandboxed-writer-launch/tasks.md\": \"4a393f75474b80a0566110318561435150bf2f61\", \"template/dev-platform/platform-manifest.json\": \"0339c1a8c6208604f67d909fdb4291209be943d2\", \"template/dev-platform/protected-surface.toml\": \"7c2478c73cca4b0bc847a35d4cc42b8e8967d25d\", \"template/scripts/lifecycle_workers.py\": \"4b88ae480222a51d023156e3cffdf5b302b6ffd9\", \"template/scripts/sandboxed_writer.py\": \"1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0\", \"tests/test_sandboxed_writer.py\": \"057b001e5ff0bbbfb4ace57f80c14e252b96b926\", \"tests/test_shared_writer_guard.py\": \"fbc5609fa0945b5c1eed0c0f7a857431f903f425\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-576/T1\"}, \"reviewed_evidence_digest\": \"d6997fa58054f9e5c4d75d06c1b169e20e4a38d1b51c444788aeb83e23bd8f7e\"}, {\"change\": \"sandboxed-claude-dispatch\", \"head\": \"2518428c7bf40723fa2f05791d959a1e85faeb72\", \"identity\": {\"change\": \"sandboxed-claude-dispatch\", \"contribution_base\": \"ba370a2aef1f880e5a1edd83aa4496abea3cffe5\", \"kind\": \"contribution\", \"requirement\": \"pln_b1dcfd0cb2f20cf0e2887e22ed40b92a\", \"source_issue\": \"pln_e7f2d06e193c3db634c5c1ae99c47c47\", \"target_branch\": \"requirement/BR-576\", \"task_content\": {\"base\": \"ba370a2aef1f880e5a1edd83aa4496abea3cffe5\", \"digest\": \"530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f\", \"paths\": {\"dev-platform/checks.toml\": \"5d82ff9830a5193d95b158e47ac65f2ecf994c59\", \"docs/engineering/model-routing.md\": \"482d9699d12da2376d15ce59ca4f2e09e2524aac\", \"openspec/changes/sandboxed-claude-dispatch/.managed-task.json\": \"11e9b845e6a1c399fa65d7d7f720008eb0467705\", \"openspec/changes/sandboxed-claude-dispatch/.openspec.yaml\": \"9076a660974f3317b462f7d628e644b1d02ca8f0\", \"openspec/changes/sandboxed-claude-dispatch/design.md\": \"d09ab4403cc0e1f2bebdf64d67761d893242ba3e\", \"openspec/changes/sandboxed-claude-dispatch/proposal.md\": \"1c234e8f2e32ca32ad50ec4204865191253aef60\", \"openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md\": \"4a9f1487b9157e3216c1668e7c4efeff447187e9\", \"openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md\": \"e24b4c7a3554b2340fae149c57a925dfacf05e58\", \"openspec/changes/sandboxed-claude-dispatch/tasks.md\": \"6cb73a2ec745ee08e30900cd7e65c1146ed5461d\", \"template/dev-platform/platform-manifest.json\": \"0ee43275c4fc6412c9adff7b675a113e10bc238a\", \"template/scripts/lifecycle_workers.py\": \"49e468d0d463b89223d4c541b69613be8084ef3c\", \"template/scripts/model_routing.py\": \"d0069c9ba740faf5129b05039dade94d5b6cf828\", \"tests/test_sandboxed_claude_dispatch.py\": \"2ed96d61d1f773f40260dac675a06097bcb45168\", \"tests/test_shared_writer_guard.py\": \"dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-576/T2\"}, \"reviewed_evidence_digest\": \"3c4c25721ce99169e67eced979da2bf8744f050390632b2a740decea307e0fa2\"}, {\"change\": \"sandboxed-writer-probes-decision\", \"head\": \"29024cc215ab11ae2c5a14630af9aa38860ab49d\", \"identity\": {\"change\": \"sandboxed-writer-probes-decision\", \"contribution_base\": \"896e8b816d0c0b0d8d3967a6114a3d64b3de2302\", \"kind\": \"contribution\", \"requirement\": \"pln_b1dcfd0cb2f20cf0e2887e22ed40b92a\", \"source_issue\": \"pln_c7d4c51dae29a572606bdf2c61cff8ff\", \"target_branch\": \"requirement/BR-576\", \"task_content\": {\"base\": \"896e8b816d0c0b0d8d3967a6114a3d64b3de2302\", \"digest\": \"cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14\", \"paths\": {\"dev-platform/checks.toml\": \"c00c6cbbc701880f9f14f964456b2bed1f108855\", \"docs/decisions/0003-sandboxed-claude-writer.md\": \"f1334a87d104c5ed9c2cb57845053cd8c094ca12\", \"docs/decisions/README.md\": \"7381738bcb0f210dcf6dba0197096aa916a8a144\", \"docs/engineering/model-routing.md\": \"515e1037f08082997828c1cc9a8adeb5ec426665\", \"openspec/changes/sandboxed-writer-launch/design.md\": \"b145b820f1492da6d927a8426b891cd9f8d63d42\", \"openspec/changes/sandboxed-writer-launch/proposal.md\": \"8d998d9dce5b845dc9a2119e41992a23f48ad8a4\", \"openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md\": \"f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98\", \"openspec/changes/sandboxed-writer-probes-decision/.managed-task.json\": \"6a0b4422140e46b7924a48d0233a83a2ed423041\", \"openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml\": \"9076a660974f3317b462f7d628e644b1d02ca8f0\", \"openspec/changes/sandboxed-writer-probes-decision/design.md\": \"82c3871d5c15d658d2237807e3e67434552995da\", \"openspec/changes/sandboxed-writer-probes-decision/proposal.md\": \"09b16b19ab880fb25cba14fca77ea330a9e23449\", \"openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md\": \"a2a7ef98352068053049ce392d9ff10779546512\", \"openspec/changes/sandboxed-writer-probes-decision/tasks.md\": \"7c97f1014f56af64b375b95596606cc9b1ab7e9f\", \"scripts/sandboxed_writer_probes.py\": \"17be1f6383d5481006e74b4afbad518ad07134ab\", \"template/dev-platform/platform-manifest.json\": \"e6b527abeaf5177d02241b31d694c2abd4f9de51\", \"template/scripts/sandboxed_writer.py\": \"b473b10e5f924cb8edbd55f9bfb28509f8015d78\", \"tests/test_sandboxed_writer.py\": \"d83a196a647414970e483295abafbd01a22886b9\", \"tests/test_sandboxed_writer_probes.py\": \"fc8b9373ffd98bae46e308efee45ddbd8af1c2aa\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-576/T3\"}, \"reviewed_evidence_digest\": \"a18ebf71c713f456adc420320bd6f0a9748fac57935d89dcc8f562a31d9fa799\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: \u0414\u0435\u043b\u0435\u0433\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0439 Claude-\u0438\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u043e\u0439 headless (`claude -p`) \u043f\u043e\u0434 sandbox-runtime \u0432 \u0438\u0437\u043e\u043b\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0439 disposable-\u043a\u043e\u043f\u0438\u0438 task worktree, \u0447\u0435\u0440\u0435\u0437 \u0441\u0443\u0449\u0435\u0441\u0442\u0432\u0443\u044e\u0449\u0438\u0439 \u043c\u0435\u0445\u0430\u043d\u0438\u0437\u043c `lifecycle_workers` (disposable checkout, scratch HOME, credential-free \u043e\u043a\u0440\u0443\u0436\u0435\u043d\u0438\u0435, harness). \u0418\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u0438 \u043d\u0435 \u043c\u043e\u0436\u0435\u0442 \u0438\u0437\u043c\u0435\u043d\u0438\u0442\u044c integration checkout, \u0435\u0433\u043e Git refs \u0438 remote, \u043e\u0431\u0440\u0430\u0442\u0438\u0442\u044c\u0441\u044f \u043a GitHub, \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c credentials, keychain \u0438 SSH. \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044f \u0441\u0443\u043f\u0435\u0440\u0432\u0438\u0437\u043e\u0440\u0443 \u043f\u0430\u0442\u0447\u0435\u043c \u0447\u0435\u0440\u0435\u0437 harness, \u0441\u0443\u043f\u0435\u0440\u0432\u0438\u0437\u043e\u0440 \u0440\u0435\u0432\u044c\u044e\u0438\u0442 \u0438 \u0438\u0434\u0451\u0442 \u0448\u0442\u0430\u0442\u043d\u044b\u043c `finish`. \u0417\u0430\u043f\u0443\u0441\u043a \u043d\u0430\u0431\u043b\u044e\u0434\u0430\u0435\u043c \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u043e\u0439, \u0430 \u043d\u0435 self-reported. \u041f\u0435\u0440\u0432\u0430\u044f \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043c\u0430\u044f \u0441\u0440\u0435\u0434\u0430 \u2014 macOS; \u043d\u0435\u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043d\u044b\u0435 \u0441\u0440\u0435\u0434\u044b \u043d\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u044f\u044e\u0442\u0441\u044f HARD.\nReviewed children: [{\"change\": \"sandboxed-writer-launch\", \"head\": \"8b8429612a189a73728dd746baa40a88fcc6e92b\", \"identity\": {\"change\": \"sandboxed-writer-launch\", \"contribution_base\": \"80e2675b471f085c9d58e6eac40f414d08b4fe95\", \"kind\": \"contribution\", \"requirement\": \"pln_b1dcfd0cb2f20cf0e2887e22ed40b92a\", \"source_issue\": \"pln_ce754494c25449dc961be05efe29c908\", \"target_branch\": \"requirement/BR-576\", \"task_content\": {\"base\": \"80e2675b471f085c9d58e6eac40f414d08b4fe95\", \"digest\": \"ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b\", \"paths\": {\"dev-platform/checks.toml\": \"13c109e0cfe9fa34eb139ad33d7d2b7ef71470d0\", \"docs/engineering/model-routing.md\": \"3d5d9025dcc619d18866f00d253c4ea6170e82e4\", \"openspec/changes/sandboxed-writer-launch/.managed-task.json\": \"8aa901d2761b67fab863aa4fd142e0855db0f0d4\", \"openspec/changes/sandboxed-writer-launch/.openspec.yaml\": \"9076a660974f3317b462f7d628e644b1d02ca8f0\", \"openspec/changes/sandboxed-writer-launch/design.md\": \"47159b737f7a4d9df3c16c1d2a88e70a10ec6099\", \"openspec/changes/sandboxed-writer-launch/proposal.md\": \"e9945f6bd729140ea27dbd1b4c8e95196cd17b83\", \"openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md\": \"bfe23023fb11d9736c2db32ee30ec9cae5dbf854\", \"openspec/changes/sandboxed-writer-launch/tasks.md\": \"4a393f75474b80a0566110318561435150bf2f61\", \"template/dev-platform/platform-manifest.json\": \"0339c1a8c6208604f67d909fdb4291209be943d2\", \"template/dev-platform/protected-surface.toml\": \"7c2478c73cca4b0bc847a35d4cc42b8e8967d25d\", \"template/scripts/lifecycle_workers.py\": \"4b88ae480222a51d023156e3cffdf5b302b6ffd9\", \"template/scripts/sandboxed_writer.py\": \"1dccde9c373e9f7c4da30b36978e39bb8c2ca7a0\", \"tests/test_sandboxed_writer.py\": \"057b001e5ff0bbbfb4ace57f80c14e252b96b926\", \"tests/test_shared_writer_guard.py\": \"fbc5609fa0945b5c1eed0c0f7a857431f903f425\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-576/T1\"}, \"reviewed_evidence_digest\": \"d6997fa58054f9e5c4d75d06c1b169e20e4a38d1b51c444788aeb83e23bd8f7e\"}, {\"change\": \"sandboxed-claude-dispatch\", \"head\": \"2518428c7bf40723fa2f05791d959a1e85faeb72\", \"identity\": {\"change\": \"sandboxed-claude-dispatch\", \"contribution_base\": \"ba370a2aef1f880e5a1edd83aa4496abea3cffe5\", \"kind\": \"contribution\", \"requirement\": \"pln_b1dcfd0cb2f20cf0e2887e22ed40b92a\", \"source_issue\": \"pln_e7f2d06e193c3db634c5c1ae99c47c47\", \"target_branch\": \"requirement/BR-576\", \"task_content\": {\"base\": \"ba370a2aef1f880e5a1edd83aa4496abea3cffe5\", \"digest\": \"530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f\", \"paths\": {\"dev-platform/checks.toml\": \"5d82ff9830a5193d95b158e47ac65f2ecf994c59\", \"docs/engineering/model-routing.md\": \"482d9699d12da2376d15ce59ca4f2e09e2524aac\", \"openspec/changes/sandboxed-claude-dispatch/.managed-task.json\": \"11e9b845e6a1c399fa65d7d7f720008eb0467705\", \"openspec/changes/sandboxed-claude-dispatch/.openspec.yaml\": \"9076a660974f3317b462f7d628e644b1d02ca8f0\", \"openspec/changes/sandboxed-claude-dispatch/design.md\": \"d09ab4403cc0e1f2bebdf64d67761d893242ba3e\", \"openspec/changes/sandboxed-claude-dispatch/proposal.md\": \"1c234e8f2e32ca32ad50ec4204865191253aef60\", \"openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md\": \"4a9f1487b9157e3216c1668e7c4efeff447187e9\", \"openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md\": \"e24b4c7a3554b2340fae149c57a925dfacf05e58\", \"openspec/changes/sandboxed-claude-dispatch/tasks.md\": \"6cb73a2ec745ee08e30900cd7e65c1146ed5461d\", \"template/dev-platform/platform-manifest.json\": \"0ee43275c4fc6412c9adff7b675a113e10bc238a\", \"template/scripts/lifecycle_workers.py\": \"49e468d0d463b89223d4c541b69613be8084ef3c\", \"template/scripts/model_routing.py\": \"d0069c9ba740faf5129b05039dade94d5b6cf828\", \"tests/test_sandboxed_claude_dispatch.py\": \"2ed96d61d1f773f40260dac675a06097bcb45168\", \"tests/test_shared_writer_guard.py\": \"dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-576/T2\"}, \"reviewed_evidence_digest\": \"3c4c25721ce99169e67eced979da2bf8744f050390632b2a740decea307e0fa2\"}, {\"change\": \"sandboxed-writer-probes-decision\", \"head\": \"29024cc215ab11ae2c5a14630af9aa38860ab49d\", \"identity\": {\"change\": \"sandboxed-writer-probes-decision\", \"contribution_base\": \"896e8b816d0c0b0d8d3967a6114a3d64b3de2302\", \"kind\": \"contribution\", \"requirement\": \"pln_b1dcfd0cb2f20cf0e2887e22ed40b92a\", \"source_issue\": \"pln_c7d4c51dae29a572606bdf2c61cff8ff\", \"target_branch\": \"requirement/BR-576\", \"task_content\": {\"base\": \"896e8b816d0c0b0d8d3967a6114a3d64b3de2302\", \"digest\": \"cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14\", \"paths\": {\"dev-platform/checks.toml\": \"c00c6cbbc701880f9f14f964456b2bed1f108855\", \"docs/decisions/0003-sandboxed-claude-writer.md\": \"f1334a87d104c5ed9c2cb57845053cd8c094ca12\", \"docs/decisions/README.md\": \"7381738bcb0f210dcf6dba0197096aa916a8a144\", \"docs/engineering/model-routing.md\": \"515e1037f08082997828c1cc9a8adeb5ec426665\", \"openspec/changes/sandboxed-writer-launch/design.md\": \"b145b820f1492da6d927a8426b891cd9f8d63d42\", \"openspec/changes/sandboxed-writer-launch/proposal.md\": \"8d998d9dce5b845dc9a2119e41992a23f48ad8a4\", \"openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md\": \"f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98\", \"openspec/changes/sandboxed-writer-probes-decision/.managed-task.json\": \"6a0b4422140e46b7924a48d0233a83a2ed423041\", \"openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml\": \"9076a660974f3317b462f7d628e644b1d02ca8f0\", \"openspec/changes/sandboxed-writer-probes-decision/design.md\": \"82c3871d5c15d658d2237807e3e67434552995da\", \"openspec/changes/sandboxed-writer-probes-decision/proposal.md\": \"09b16b19ab880fb25cba14fca77ea330a9e23449\", \"openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md\": \"a2a7ef98352068053049ce392d9ff10779546512\", \"openspec/changes/sandboxed-writer-probes-decision/tasks.md\": \"7c97f1014f56af64b375b95596606cc9b1ab7e9f\", \"scripts/sandboxed_writer_probes.py\": \"17be1f6383d5481006e74b4afbad518ad07134ab\", \"template/dev-platform/platform-manifest.json\": \"e6b527abeaf5177d02241b31d694c2abd4f9de51\", \"template/scripts/sandboxed_writer.py\": \"b473b10e5f924cb8edbd55f9bfb28509f8015d78\", \"tests/test_sandboxed_writer.py\": \"d83a196a647414970e483295abafbd01a22886b9\", \"tests/test_sandboxed_writer_probes.py\": \"fc8b9373ffd98bae46e308efee45ddbd8af1c2aa\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-576/T3\"}, \"reviewed_evidence_digest\": \"a18ebf71c713f456adc420320bd6f0a9748fac57935d89dcc8f562a31d9fa799\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-21T23:59:09+00:00",
+  "request_id": "7b6ca9da-ea3a-4fe7-ac62-6badb613fe69",
+  "requirement": "pln_b1dcfd0cb2f20cf0e2887e22ed40b92a",
+  "schema_version": 1,
+  "task_content": {
+    "base": "83182deada91e81b856280247d626c4df2d22bc9",
+    "digest": "e385a6d0f2169ebd504e61d3cf0c2200e4c7273758608fe80e6fc6985991de50",
+    "paths": {
+      "dev-platform/checks.toml": "de689c5fb2fbc25c9fb2741ea12a933025e428c3",
+      "docs/decisions/0003-sandboxed-claude-writer.md": "f1334a87d104c5ed9c2cb57845053cd8c094ca12",
+      "docs/decisions/README.md": "7381738bcb0f210dcf6dba0197096aa916a8a144",
+      "docs/engineering/model-routing.md": "ba6e65dc39d758c80fbc6bfc8ba2add8a1a11ba4",
+      "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+      "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+      "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+      "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+      "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+      "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+      "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+      "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-writer-launch/design.md": "b145b820f1492da6d927a8426b891cd9f8d63d42",
+      "openspec/changes/sandboxed-writer-launch/proposal.md": "8d998d9dce5b845dc9a2119e41992a23f48ad8a4",
+      "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98",
+      "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+      "openspec/changes/sandboxed-writer-probes-decision/.managed-task.json": "6a0b4422140e46b7924a48d0233a83a2ed423041",
+      "openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-writer-probes-decision/design.md": "82c3871d5c15d658d2237807e3e67434552995da",
+      "openspec/changes/sandboxed-writer-probes-decision/proposal.md": "09b16b19ab880fb25cba14fca77ea330a9e23449",
+      "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md": "a2a7ef98352068053049ce392d9ff10779546512",
+      "openspec/changes/sandboxed-writer-probes-decision/tasks.md": "7c97f1014f56af64b375b95596606cc9b1ab7e9f",
+      "scripts/sandboxed_writer_probes.py": "17be1f6383d5481006e74b4afbad518ad07134ab",
+      "template/dev-platform/platform-manifest.json": "ef5141bb9b6d6f4f106781a75b4317218cc432eb",
+      "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+      "template/scripts/lifecycle_workers.py": "44e1155c783a8607f0b2679cb308a6d1cb355275",
+      "template/scripts/model_routing.py": "8b394cd733ec12cd0d7287837651c3988c1687fa",
+      "template/scripts/sandboxed_writer.py": "b473b10e5f924cb8edbd55f9bfb28509f8015d78",
+      "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+      "tests/test_sandboxed_writer.py": "d83a196a647414970e483295abafbd01a22886b9",
+      "tests/test_sandboxed_writer_probes.py": "fc8b9373ffd98bae46e308efee45ddbd8af1c2aa",
+      "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+    },
+    "scope": "requirement-composition-v1",
+    "version": 1
+  }
+}

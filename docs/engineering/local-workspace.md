@@ -67,7 +67,7 @@ A checkout with unresolved source findings is diagnosed before new attachment.
 
 
 Each user separately installs their own macOS LaunchAgent. It runs at login and
-every five minutes, with umask `0002`, writing a per-uid log in the runtime
+every thirty minutes, with umask `0002`, writing a per-uid log in the runtime
 directory. Install retries an existing but unloaded agent. Unsupported OS,
 launchctl errors and missing runtime are explicit failures. Automation changes
 permission metadata and local Git attachment configuration only; it never

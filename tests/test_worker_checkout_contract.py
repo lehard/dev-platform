@@ -55,6 +55,26 @@ class InstallSourceContractTests(unittest.TestCase):
             with self.assertRaisesRegex(workers.WorkerError, "neither .dev-platform.toml nor dev-platform/source-contract.toml"):
                 workers.prepare_checkout(remote.as_uri(), tmp, "checkout", head)
 
+    def test_head_reachable_only_through_a_pull_ref_is_checked_out(self) -> None:
+        # A merged PR whose branch was deleted keeps its head only under refs/pull/N/head,
+        # which a plain clone does not fetch (post-merge jobs of #628 failed on exactly this).
+        public = 'platform_version = "source"\n'
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, _ = seed_repository(Path(tmp), {"dev-platform/source-contract.toml": public})
+            seed = Path(tmp) / "seed"
+            (seed / "change.txt").write_text("merged pull request head\n", encoding="utf-8")
+            git(seed, "add", "."); git(seed, "commit", "-m", "pull head")
+            head = git(seed, "rev-parse", "HEAD")
+            git(seed, "push", "origin", "HEAD:refs/pull/1/head")
+            checkout = workers.prepare_checkout(remote.as_uri(), tmp, "checkout", head)
+            self.assertEqual(git(checkout, "rev-parse", "HEAD"), head)
+
+    def test_unknown_head_still_fails_explicitly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            remote, _ = seed_repository(Path(tmp), {"dev-platform/source-contract.toml": 'platform_version = "source"\n'})
+            with self.assertRaisesRegex(workers.WorkerError, "git fetch failed"):
+                workers.prepare_checkout(remote.as_uri(), tmp, "checkout", "f" * 40)
+
     def test_this_repository_commits_the_public_source_contract(self) -> None:
         self.assertIn('platform_version = "source"', (ROOT / "dev-platform" / "source-contract.toml").read_text())
 

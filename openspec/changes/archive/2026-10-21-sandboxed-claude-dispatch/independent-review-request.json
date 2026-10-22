@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+    "base_ref": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+    "candidate_head": "4e946914930149ef4fcb69be545018c7bfd2e0df",
+    "diff_sha256": "da2499a984ccf88852c9a28ec1671ae612eddbaead1e992861e9efee45111e9b"
+  },
+  "change": "openspec/changes/sandboxed-claude-dispatch",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/sandboxed-claude-dispatch/automated-checks.json",
+    "openspec/changes/sandboxed-claude-dispatch/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/sandboxed-claude-dispatch/design.md",
+        "openspec/changes/sandboxed-claude-dispatch/proposal.md",
+        "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md",
+        "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md",
+        "openspec/changes/sandboxed-claude-dispatch/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/sandboxed-claude-dispatch/proposal.md",
+        "openspec/changes/sandboxed-claude-dispatch/design.md",
+        "openspec/changes/sandboxed-claude-dispatch/tasks.md",
+        "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md",
+        "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-20T04:54:22+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/sandboxed-claude-dispatch/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "11f54779-715a-4b54-bce6-f3dd2276bd76",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ba370a2aef1f880e5a1edd83aa4496abea3cffe5",
+    "digest": "530054d5867d7a7609295132e6bb64715e019454adaf333dde08de104bef4b1f",
+    "paths": {
+      "dev-platform/checks.toml": "5d82ff9830a5193d95b158e47ac65f2ecf994c59",
+      "docs/engineering/model-routing.md": "482d9699d12da2376d15ce59ca4f2e09e2524aac",
+      "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+      "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+      "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+      "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+      "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+      "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+      "template/dev-platform/platform-manifest.json": "0ee43275c4fc6412c9adff7b675a113e10bc238a",
+      "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+      "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+      "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+      "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

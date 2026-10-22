@@ -1,0 +1,151 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.834,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.218,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1196.547,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/sandboxed_writer_probes.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/model_routing.py",
+        "template/scripts/sandboxed_writer.py",
+        "tests/test_sandboxed_claude_dispatch.py",
+        "tests/test_sandboxed_writer.py",
+        "tests/test_sandboxed_writer_probes.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_c7d4c51dae29a572606bdf2c61cff8ff",
+    "change": "sandboxed-writer-probes-decision",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sandboxed-writer-probes-decision",
+    "branch": "agent/br-576-t3-sandboxed-writer-probes-decision",
+    "head": "a5e2e64018d412c89e3bffe4f2e72d7e21e3dcae",
+    "task_content": {
+      "version": 1,
+      "digest": "1e2f441695c0231d7297e01ef306c030fe3d127188a3546694b8a5e90c519b8a",
+      "paths": {
+        "dev-platform/checks.toml": "c00c6cbbc701880f9f14f964456b2bed1f108855",
+        "dev-platform/requirement-integrations/private-lineage-pln_b1dcfd0cb2f20cf0e2887e22ed40b92a-integration.json": "ddefc6dc6a351b2da1f492a12d124fe612e7399b",
+        "docs/decisions/0003-sandboxed-claude-writer.md": "f1334a87d104c5ed9c2cb57845053cd8c094ca12",
+        "docs/decisions/README.md": "7381738bcb0f210dcf6dba0197096aa916a8a144",
+        "docs/engineering/model-routing.md": "515e1037f08082997828c1cc9a8adeb5ec426665",
+        "openspec/changes/sandboxed-claude-dispatch/.managed-task.json": "11e9b845e6a1c399fa65d7d7f720008eb0467705",
+        "openspec/changes/sandboxed-claude-dispatch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+        "openspec/changes/sandboxed-claude-dispatch/automated-checks.json": "39c5dbd030bab130d707190dc5f4219f18bf3f9d",
+        "openspec/changes/sandboxed-claude-dispatch/design.md": "d09ab4403cc0e1f2bebdf64d67761d893242ba3e",
+        "openspec/changes/sandboxed-claude-dispatch/independent-review-request.json": "2c374a5f54b6f0e0dd4d67c28d47e0fe147b4bb9",
+        "openspec/changes/sandboxed-claude-dispatch/independent-reviews/engineering-quality.json": "b36bbb9d2552172cfe8b9a7d2005fc62937b44ac",
+        "openspec/changes/sandboxed-claude-dispatch/independent-reviews/spec-fidelity.json": "f72b29dd860725edb83156b41e59ad655930cd35",
+        "openspec/changes/sandboxed-claude-dispatch/proposal.md": "1c234e8f2e32ca32ad50ec4204865191253aef60",
+        "openspec/changes/sandboxed-claude-dispatch/specs/model-routing/spec.md": "4a9f1487b9157e3216c1668e7c4efeff447187e9",
+        "openspec/changes/sandboxed-claude-dispatch/specs/platform-delegation/spec.md": "e24b4c7a3554b2340fae149c57a925dfacf05e58",
+        "openspec/changes/sandboxed-claude-dispatch/tasks.md": "6cb73a2ec745ee08e30900cd7e65c1146ed5461d",
+        "openspec/changes/sandboxed-claude-dispatch/verification.md": "dc63fc1800e018079352251319b6ac6ebf333313",
+        "openspec/changes/sandboxed-writer-launch/.managed-task.json": "8aa901d2761b67fab863aa4fd142e0855db0f0d4",
+        "openspec/changes/sandboxed-writer-launch/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+        "openspec/changes/sandboxed-writer-launch/automated-checks.json": "c3c2cb91375ba9c7f4e7dccd835660f32beef655",
+        "openspec/changes/sandboxed-writer-launch/design.md": "b145b820f1492da6d927a8426b891cd9f8d63d42",
+        "openspec/changes/sandboxed-writer-launch/independent-review-request.json": "93c4378b656a09586f6a275ea94e8f81b21ff640",
+        "openspec/changes/sandboxed-writer-launch/independent-reviews/engineering-quality.json": "cdc9f77857b89311e0c124da30cdae66482a3a23",
+        "openspec/changes/sandboxed-writer-launch/independent-reviews/spec-fidelity.json": "e3bb98f92ecd436ddd0b45839d1a33a441830c84",
+        "openspec/changes/sandboxed-writer-launch/proposal.md": "8d998d9dce5b845dc9a2119e41992a23f48ad8a4",
+        "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98",
+        "openspec/changes/sandboxed-writer-launch/tasks.md": "4a393f75474b80a0566110318561435150bf2f61",
+        "openspec/changes/sandboxed-writer-launch/verification.md": "33a5971ce6d431722d05e81e5a8583a65957fa6d",
+        "openspec/changes/sandboxed-writer-probes-decision/.managed-task.json": "6a0b4422140e46b7924a48d0233a83a2ed423041",
+        "openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+        "openspec/changes/sandboxed-writer-probes-decision/design.md": "82c3871d5c15d658d2237807e3e67434552995da",
+        "openspec/changes/sandboxed-writer-probes-decision/proposal.md": "09b16b19ab880fb25cba14fca77ea330a9e23449",
+        "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md": "a2a7ef98352068053049ce392d9ff10779546512",
+        "openspec/changes/sandboxed-writer-probes-decision/tasks.md": "7c97f1014f56af64b375b95596606cc9b1ab7e9f",
+        "openspec/changes/sandboxed-writer-probes-decision/verification.md": "6991fcc173a56f9f92d8f626614e69b06efff909",
+        "scripts/sandboxed_writer_probes.py": "17be1f6383d5481006e74b4afbad518ad07134ab",
+        "template/dev-platform/platform-manifest.json": "e6b527abeaf5177d02241b31d694c2abd4f9de51",
+        "template/dev-platform/protected-surface.toml": "7c2478c73cca4b0bc847a35d4cc42b8e8967d25d",
+        "template/scripts/lifecycle_workers.py": "49e468d0d463b89223d4c541b69613be8084ef3c",
+        "template/scripts/model_routing.py": "d0069c9ba740faf5129b05039dade94d5b6cf828",
+        "template/scripts/sandboxed_writer.py": "b473b10e5f924cb8edbd55f9bfb28509f8015d78",
+        "tests/test_sandboxed_claude_dispatch.py": "2ed96d61d1f773f40260dac675a06097bcb45168",
+        "tests/test_sandboxed_writer.py": "d83a196a647414970e483295abafbd01a22886b9",
+        "tests/test_sandboxed_writer_probes.py": "fc8b9373ffd98bae46e308efee45ddbd8af1c2aa",
+        "tests/test_shared_writer_guard.py": "dec5bd1fdd8aa99c13d4c32d6ccb6b66c17771ca"
+      },
+      "base": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14",
+    "paths": {
+      "dev-platform/checks.toml": "c00c6cbbc701880f9f14f964456b2bed1f108855",
+      "docs/decisions/0003-sandboxed-claude-writer.md": "f1334a87d104c5ed9c2cb57845053cd8c094ca12",
+      "docs/decisions/README.md": "7381738bcb0f210dcf6dba0197096aa916a8a144",
+      "docs/engineering/model-routing.md": "515e1037f08082997828c1cc9a8adeb5ec426665",
+      "openspec/changes/sandboxed-writer-launch/design.md": "b145b820f1492da6d927a8426b891cd9f8d63d42",
+      "openspec/changes/sandboxed-writer-launch/proposal.md": "8d998d9dce5b845dc9a2119e41992a23f48ad8a4",
+      "openspec/changes/sandboxed-writer-launch/specs/lifecycle-workers/spec.md": "f93129e216ec4c8f0fb5d1fb938d28efdf8d8c98",
+      "openspec/changes/sandboxed-writer-probes-decision/.managed-task.json": "6a0b4422140e46b7924a48d0233a83a2ed423041",
+      "openspec/changes/sandboxed-writer-probes-decision/.openspec.yaml": "9076a660974f3317b462f7d628e644b1d02ca8f0",
+      "openspec/changes/sandboxed-writer-probes-decision/design.md": "82c3871d5c15d658d2237807e3e67434552995da",
+      "openspec/changes/sandboxed-writer-probes-decision/proposal.md": "09b16b19ab880fb25cba14fca77ea330a9e23449",
+      "openspec/changes/sandboxed-writer-probes-decision/specs/platform-delegation/spec.md": "a2a7ef98352068053049ce392d9ff10779546512",
+      "openspec/changes/sandboxed-writer-probes-decision/tasks.md": "7c97f1014f56af64b375b95596606cc9b1ab7e9f",
+      "scripts/sandboxed_writer_probes.py": "17be1f6383d5481006e74b4afbad518ad07134ab",
+      "template/dev-platform/platform-manifest.json": "e6b527abeaf5177d02241b31d694c2abd4f9de51",
+      "template/scripts/sandboxed_writer.py": "b473b10e5f924cb8edbd55f9bfb28509f8015d78",
+      "tests/test_sandboxed_writer.py": "d83a196a647414970e483295abafbd01a22886b9",
+      "tests/test_sandboxed_writer_probes.py": "fc8b9373ffd98bae46e308efee45ddbd8af1c2aa"
+    },
+    "base": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/sandboxed_writer_probes.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/model_routing.py --changed-file template/scripts/sandboxed_writer.py --changed-file tests/test_sandboxed_claude_dispatch.py --changed-file tests/test_sandboxed_writer.py --changed-file tests/test_sandboxed_writer_probes.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 184.078,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

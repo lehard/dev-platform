@@ -113,3 +113,17 @@ class ReleaseInstallationValidationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BackgroundGitMaintenanceTests(unittest.TestCase):
+    """Copier's temporary repositories must not get a detached auto-gc writing during their removal."""
+
+    def test_auto_gc_and_maintenance_are_disabled_without_dropping_existing_config(self) -> None:
+        import validate_release_installation as validation
+
+        env = validation.without_background_git_maintenance(
+            {"GIT_CONFIG_COUNT": "1", "GIT_CONFIG_KEY_0": "safe.directory", "GIT_CONFIG_VALUE_0": "*"})
+        self.assertEqual(env["GIT_CONFIG_COUNT"], "3")
+        self.assertEqual((env["GIT_CONFIG_KEY_0"], env["GIT_CONFIG_VALUE_0"]), ("safe.directory", "*"))
+        settings = {env[f"GIT_CONFIG_KEY_{i}"]: env[f"GIT_CONFIG_VALUE_{i}"] for i in (1, 2)}
+        self.assertEqual(settings, {"gc.auto": "0", "maintenance.auto": "false"})

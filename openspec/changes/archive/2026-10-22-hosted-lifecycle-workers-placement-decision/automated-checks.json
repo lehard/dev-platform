@@ -1,0 +1,116 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 2
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.039,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 0.922,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.234,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/build_explorer.py check",
+      "duration_seconds": 3.33,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "docs/engineering/hosted-lifecycle-workers.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/.managed-task.json",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/.openspec.yaml",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/automated-checks.json",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/design.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/specs/lifecycle-workers/spec.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/tasks.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration",
+        "configuration"
+      ]
+    },
+    {
+      "id": "explorer",
+      "paths": [
+        "docs/engineering/hosted-lifecycle-workers.md"
+      ],
+      "commands": [
+        "python3 scripts/build_explorer.py check"
+      ],
+      "evidence_types": [
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_799f50bda5aaa00259d44c75968b11ad",
+    "change": "hosted-lifecycle-workers-placement-decision",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/hosted-lifecycle-workers-placement-decision",
+    "branch": "agent/br-610-t3-hosted-lifecycle-workers-placement-decision",
+    "head": "ad5e3e5508abfa68d48d16b4129d09fa9a703212",
+    "task_content": {
+      "version": 1,
+      "digest": "c67bcb382beb52ea3f66faa0095918a3de1046e976fb837607fffe31616566ad",
+      "paths": {
+        "docs/engineering/hosted-lifecycle-workers.md": "d2dba5af75c802dd757c1a21e95c8646e1380c91",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/.managed-task.json": "4eb2e94c018316772424b7ee56aca32f66fdd130",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/automated-checks.json": "a67688e504da3987060449c872a19d8573b6d5c6",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/design.md": "c4b6cb44d04ecfdc9cd67df37f068ade748ae399",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/proposal.md": "03a46b9708d90640fc0b45236bd0f36959835fd2",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/specs/lifecycle-workers/spec.md": "9fae66ba7b59a7c846b8add0325be903e6884dee",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/tasks.md": "d1dda53eda6d7e11d9f36a675584f80e594b0282",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/verification.md": "140a21f94c5ba4705344e3673bd5de2945cc7a89"
+      },
+      "base": "3a0e6e23c997812c58e04e7afb19a0d111ddd1c1"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "ca191e461b703c51a1a5a3eb8473ce12b0a8a8045537f7d8bf8df4b0db97578d",
+    "paths": {
+      "docs/engineering/hosted-lifecycle-workers.md": "d2dba5af75c802dd757c1a21e95c8646e1380c91",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/.managed-task.json": "4eb2e94c018316772424b7ee56aca32f66fdd130",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/design.md": "c4b6cb44d04ecfdc9cd67df37f068ade748ae399",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/proposal.md": "03a46b9708d90640fc0b45236bd0f36959835fd2",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/specs/lifecycle-workers/spec.md": "9fae66ba7b59a7c846b8add0325be903e6884dee",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/tasks.md": "d1dda53eda6d7e11d9f36a675584f80e594b0282"
+    },
+    "base": "3a0e6e23c997812c58e04e7afb19a0d111ddd1c1",
+    "scope": "independent-review-v1"
+  },
+  "task_base": {
+    "contract": "behind-disjoint",
+    "main": "bb8b506a831d63539afe8e4dff8ca2ec838c3276",
+    "base": "3a0e6e23c997812c58e04e7afb19a0d111ddd1c1"
+  }
+}
