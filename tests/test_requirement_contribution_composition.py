@@ -1104,7 +1104,7 @@ class SupervisorTests(unittest.TestCase):
                 with self.subTest(state=state):
                     identity = {"kind": "contribution", "change": "first", "requirement": REQUIREMENT,
                                 "target_branch": "requirement/BR-7"}
-                    adapter = SimpleNamespace(_gh=mock.Mock(return_value=[{"number": 8}]), _comments=lambda *a: [],
+                    adapter = SimpleNamespace(_gh=mock.Mock(return_value=[{"number": 8, "state": "OPEN"}]), _comments=lambda *a: [],
                         _pr=lambda *a: {}, _derive=lambda *a: {}, _malformed=lambda *a: False,
                         _latest=lambda *a: {"state": state, "head": "b" * 40, "task_identity": identity})
                     owned = contributions.in_flight_children(root, "acme/project", REQUIREMENT,
@@ -1116,6 +1116,29 @@ class SupervisorTests(unittest.TestCase):
                     self.assertIn("coordinator", result["waiting"][0]["reason"])
             adapter._malformed = lambda *a: True
             with self.assertRaisesRegex(contributions.ContributionError, "malformed coordinator ownership"):
+                contributions.in_flight_children(root, "acme/project", REQUIREMENT, "requirement/BR-7", adapter=adapter)
+
+    def test_closed_unmerged_contribution_releases_its_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            identity = {"kind": "contribution", "change": "first", "requirement": REQUIREMENT,
+                        "target_branch": "requirement/BR-7"}
+            latest = {8: {"state": "repair-pending", "head": "b" * 40, "task_identity": identity},
+                      9: {"state": "review-pending", "head": "c" * 40, "task_identity": identity}}
+            rows = [{"number": 8, "state": "CLOSED"}, {"number": 9, "state": "OPEN"}]
+            adapter = SimpleNamespace(_gh=mock.Mock(return_value=rows), _comments=lambda *a: [a[2]],
+                _pr=lambda *a: {}, _derive=lambda *a: {}, _malformed=lambda *a: False,
+                _latest=lambda root, number, comments: latest[number])
+            owned = contributions.in_flight_children(root, "acme/project", REQUIREMENT, "requirement/BR-7", adapter=adapter)
+            self.assertEqual(owned["first"]["pr"], 9)
+            rows[1:] = []
+            self.assertEqual(contributions.in_flight_children(root, "acme/project", REQUIREMENT,
+                                                              "requirement/BR-7", adapter=adapter), {})
+            rows[:] = [{"number": 8, "state": "OPEN"}, {"number": 9, "state": "OPEN"}]
+            with self.assertRaisesRegex(contributions.ContributionError, "ambiguous coordinator ownership"):
+                contributions.in_flight_children(root, "acme/project", REQUIREMENT, "requirement/BR-7", adapter=adapter)
+            rows[:] = [{"number": 8}]
+            with self.assertRaisesRegex(contributions.ContributionError, "unknown state"):
                 contributions.in_flight_children(root, "acme/project", REQUIREMENT, "requirement/BR-7", adapter=adapter)
 
     def test_two_independent_children_start_together_on_same_exact_boundary(self):
