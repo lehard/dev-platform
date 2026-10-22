@@ -3,34 +3,21 @@
   "candidate": {
     "base_head": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
     "base_ref": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
-    "candidate_head": "eec8d7ea60b202dab25e73c23c6f80fb8bb6fa39",
-    "diff_sha256": "9a8bbe8b65871a81308336e14265ac27d8f1e1c8573185bc008aad8a75ac3502"
+    "candidate_head": "b9ed3e1835d7b18df46a02ad971ff15551b6d470",
+    "diff_sha256": "4d6fc5c172417fc05e4b6755056198437ab661a1c694d428b3757ab1ff6dfada"
   },
-  "completed_at": "2026-10-21T23:28:05+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/model_routing.py `run_claude_sandboxed` calls `launch(argv, checkout, integration_root=..., platform_root=..., workdir=root, home=home, tmp=tmp, config=..., runner=runner)` with no `timeout`. template/scripts/sandboxed_writer.py:1819-1821 defines `timeout: int | None = None` and forwards it to `run_llm`.",
-      "id": "sandboxed-dispatch-no-writer-timeout",
-      "severity": "advisory",
-      "summary": "The dispatch never bounds the writer's runtime. `launch_sandboxed_writer` accepts `timeout`, but `run_claude_sandboxed` does not pass one. A hung writer therefore holds the route's open delegation indefinitely."
-    },
-    {
-      "evidence": "`run_claude_sandboxed` creates `workdir = Path(tempfile.mkdtemp(prefix=\"dp-sandboxed-claude-\"))` and builds the checkout before `launch(...)`. The `SandboxedWriterError` branch re-raises `RoutingError` without cleanup. `dispatch_claude_sandboxed` calls `shutil.rmtree(run[\"workdir\"])` only when `execution[\"outcome\"] == \"completed\"`.",
-      "id": "sandboxed-dispatch-prelaunch-workdir-leak",
-      "severity": "advisory",
-      "summary": "On a pre-launch refusal, `run_claude_sandboxed` leaves its `dp-sandboxed-claude-*` workdir behind. The refusals are non-macOS, missing npx/claude, or a bad token. The directory holds a full copy of the task worktree, including uncommitted task state. Only the `completed` outcome removes the workdir."
-    }
-  ],
-  "launched_at": "2026-10-21T23:27:27+00:00",
-  "output_sha256": "f7d68c4cc9a82e5b02e3829706d7b3893c74354663d8b5866b6f347a47164915",
+  "completed_at": "2026-10-22T00:00:15+00:00",
+  "findings": [],
+  "launched_at": "2026-10-21T23:59:53+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "0b982708-78cc-4f04-b712-b64960e0d333",
+  "request_id": "7b6ca9da-ea3a-4fe7-ac62-6badb613fe69",
   "reviewer": {
-    "context_id": "f987b363-745b-45d1-a9dd-ecb1221b3fd0",
+    "context_id": "c7d964b5-8d6a-47fc-9696-27daef91e623",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-17ba49fb-ca0e-483f-922b-4288335d9611",
+    "launch_id": "platform-launch-b3c3dae2-9200-42da-b7b8-911be5c8ba26",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58452
+        "value": 43651
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 217278
+        "value": 94469
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33573
+        "value": 19336
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37061
+        "value": 20449
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3107
+        "value": 1841
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "73b311be7c5e33233d9d3e8a46a60b3f059781452a602629d92e4953b9a83127"
+  "task_content_digest": "e385a6d0f2169ebd504e61d3cf0c2200e4c7273758608fe80e6fc6985991de50"
 }
