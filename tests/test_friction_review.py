@@ -360,7 +360,7 @@ class FrictionReviewTests(unittest.TestCase):
 
         agent_friction.gh = fake_gh
         retry = agent_friction.route_pending()
-        self.assertEqual(retry, {"pending": 1, "routed": 1, "failures": 0})
+        self.assertEqual(retry, {"pending": 1, "routed": 1, "failures": 0, "withheld": 0})
         self.assertEqual(agent_friction.read_state()["routes"]["route-me"]["status"], "routed")
 
     def test_open_fingerprint_beyond_first_page_is_updated(self) -> None:

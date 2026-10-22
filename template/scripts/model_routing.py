@@ -14,7 +14,9 @@ import ast
 import hashlib
 import json
 import math
+import os
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -772,7 +774,11 @@ def require_routing_gate(root: Path, source_issue: str, change: str) -> Route:
         ):
             raise RoutingError("routing gate requires a clean successful native Codex executor launch for routine/standard work")
         return route
-    # Claude: the gate cannot rely on `launched` (the Agent tool has no
+    if _sandboxed_claude_completed(execution):
+        # Platform-launched under the OS sandbox in a disposable copy: the launch is observed and the
+        # writer never had write access to the integration checkout, so no detection-only postcheck applies.
+        return route
+    # Native Claude hand-off: the gate cannot rely on `launched` (the Agent tool has no
     # platform-verifiable receipt); it accepts only an explicit self-reported
     # claim backed by a clean containment postcheck. A legacy record carrying
     # `launched: True` without that explicit outcome is refused so it gets
@@ -807,6 +813,8 @@ def _has_real_delegation(route: Route) -> bool:
         if delegation["state"] == "open":
             return True
         execution = route.execution
+        if delegation.get("launch_evidence") == LAUNCH_EVIDENCE_PLATFORM_OBSERVED:
+            return _launch_confirmed(execution)
         return isinstance(execution, dict) and execution.get("outcome") == "claimed" and execution.get("launch_evidence") == "self-reported"
     return delegation.get("opened_at") is not None and (
         delegation["state"] == "open" or _launch_confirmed(route.execution)
@@ -1898,6 +1906,275 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
     _write_route(path, next_route)
     _persist_completed_execution(next_route)
     return execution
+
+
+# ---- platform-launched sandboxed Claude writer ------------------------------
+#
+# The native Agent-tool hand-off above has no OS boundary and no observable
+# launch. This path launches headless `claude -p` itself, through the
+# sandboxed writer launch (sandboxed_writer.py), in a disposable copy of the
+# assigned task worktree, and returns the result as a harness-validated patch.
+
+SANDBOX_MECHANISM = "sandbox-runtime"
+CLAUDE_WRITER_TOOLS = "Read,Grep,Glob,Edit,Write,Bash"
+# Lifecycle state a sandboxed writer never changes, beyond the harness lifecycle-evidence rule.
+SANDBOXED_REFUSED_NAMES = (".managed-task.json", ".managed-task-state.json", ".dev-platform.toml", ".openspec.yaml")
+
+
+def claude_sandboxed_argv(route: Route, prompt: str) -> list[str]:
+    """The headless Claude writer command; the OS sandbox, not the permission mode, is the boundary."""
+    if not prompt.strip():
+        raise RoutingError("the sandboxed Claude writer task is empty")
+    return ["claude", "-p", "--output-format", "json", "--permission-mode", "dontAsk",
+            "--allowedTools", CLAUDE_WRITER_TOOLS, "--no-session-persistence", "--strict-mcp-config",
+            "--model", route.executor_model, prompt]
+
+
+def _trusted_git(repo: Path, *args: str) -> str:
+    """Git in the supervisor's own task worktree only, never in the writer checkout."""
+    import lifecycle_workers
+
+    done = subprocess.run(["git", *lifecycle_workers.SAFE_GIT, *args], cwd=repo, text=True, capture_output=True,
+                          check=False, stdin=subprocess.DEVNULL)
+    if done.returncode:
+        raise RoutingError(f"git {' '.join(args[:2])} failed in {repo}: {done.stderr.strip()[:300]}")
+    return done.stdout
+
+
+def _uncommitted_paths(task: Path) -> tuple[list[str], list[str]]:
+    """``(present, deleted)`` uncommitted task paths, untracked files included, read from the task worktree."""
+    out = _trusted_git(task, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames")
+    present, deleted = [], []
+    for entry in (item for item in out.split("\0") if item):
+        status, path = entry[:2], entry[3:]
+        (deleted if "D" in status else present).append(path)
+    return present, deleted
+
+
+def prepare_sandboxed_checkout(task: Path, root: Path) -> tuple[Path, str]:
+    """A disposable checkout of the task worktree's HEAD plus its uncommitted state as one baseline commit.
+
+    The harness commits the baseline before the writer starts, so the writer's result is measured
+    against exactly the task content it was given and the patch carries only the writer's change.
+    """
+    import lifecycle_workers
+
+    head = _trusted_git(task, "rev-parse", "HEAD").strip()
+    # The task worktree's installed contract is the trusted one this task already runs under.
+    checkout = lifecycle_workers.prepare_checkout(str(task), str(root), "llm-checkout", head,
+                                                  contract_from=task / ".dev-platform.toml")
+    present, deleted = _uncommitted_paths(task)
+    for relative in present:
+        source, target = task / relative, checkout / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if target.is_symlink() or target.exists():
+            target.unlink()
+        if source.is_symlink():
+            target.symlink_to(os.readlink(source))
+        else:
+            shutil.copy2(source, target)
+    for relative in deleted:
+        (checkout / relative).unlink()
+    lifecycle_workers.harness_git(checkout, "add", "-A")
+    lifecycle_workers.harness_git(checkout, *lifecycle_workers.HARNESS_IDENTITY, "commit", "-q", "--no-verify",
+                                  "--allow-empty", "-m", "Sandboxed writer baseline")
+    return checkout, lifecycle_workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+
+
+def _refuse_sandboxed_paths(changed: list[str]) -> None:
+    import lifecycle_workers
+
+    refused = [path for path in changed
+               if lifecycle_workers._forbidden(path) or Path(path).name in SANDBOXED_REFUSED_NAMES
+               or path.split("/", 1)[0] in {".claude", ".git"}]
+    if refused:
+        raise lifecycle_workers._refusal("sandboxed writer changed lifecycle state", refused)
+
+
+def collect_sandboxed_patch(task: Path, checkout: Path, root: Path, baseline: str) -> tuple[str, list[str]]:
+    """The writer result as a binary patch over the baseline, built only in a harness-owned staging clone.
+
+    The writer checkout stays data: only its result commit is fetched and its files are imported by plain
+    copies (``import_worktree``), so hooks, attributes drivers or config planted there never execute.
+    """
+    import lifecycle_workers
+
+    result_head = lifecycle_workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+    stage = lifecycle_workers.prepare_harness(str(task), checkout, root, result_head, name="writer-stage")
+    lifecycle_workers.harness_git(stage, "checkout", "-q", "--detach", result_head)
+    with (stage / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
+        handle.write("".join(f"\n/{name}" for name in lifecycle_workers.INSTALLED_FILES) + "\n")
+    lifecycle_workers.import_worktree(checkout, stage)
+    leftover = lifecycle_workers.worktree_changes(stage)
+    if leftover and result_head != baseline:
+        raise lifecycle_workers._refusal("writer committed and also left uncommitted changes", leftover)
+    if leftover:
+        _refuse_sandboxed_paths(leftover)
+        lifecycle_workers.harness_git(stage, "--literal-pathspecs", "add", "--", *leftover)
+        lifecycle_workers.harness_git(stage, *lifecycle_workers.HARNESS_IDENTITY, "commit", "-q", "--no-verify",
+                                      "-m", "Sandboxed writer edits")
+    final = lifecycle_workers.harness_git(stage, "rev-parse", "HEAD").strip()
+    if final == baseline:
+        return "", []
+    names = [name for name in lifecycle_workers.harness_git(
+        stage, "diff", "--name-only", "--no-renames", "-z", baseline, final).split("\0") if name]
+    # The writer's scope is the whole task; validate_worker_result still proves the fast-forward,
+    # refuses gitlinks, workflow and lifecycle-evidence edits.
+    changed = lifecycle_workers.validate_worker_result(stage, baseline, final, names, kind="repair")
+    _refuse_sandboxed_paths(changed)
+    return lifecycle_workers.harness_git(stage, "diff", "--binary", "--no-renames", baseline, final), changed
+
+
+def _claude_result(stdout: str) -> dict[str, Any] | None:
+    try:
+        value = json.loads(stdout or "null")
+    except json.JSONDecodeError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def run_claude_sandboxed(route: Route, prompt: str, *, launch_hook: Callable[[], None],
+                         launcher: Callable[..., Any] | None = None) -> dict[str, Any]:
+    """Launch the sandboxed Claude writer once and return the execution evidence plus the validated patch.
+
+    Pre-launch refusals (platform, runtime, CLI, token, profile) raise ``RoutingError`` before any process
+    exists. ``launch_hook`` runs only once the writer process exists.
+    """
+    import lifecycle_workers
+    import sandboxed_writer
+
+    launch = sandboxed_writer.launch_sandboxed_writer if launcher is None else launcher
+    argv = claude_sandboxed_argv(route, prompt)
+    task = Path(route.task_worktree)
+    workdir = Path(tempfile.mkdtemp(prefix="dp-sandboxed-claude-"))
+    root = workdir.resolve()
+    try:
+        checkout, baseline = prepare_sandboxed_checkout(task, root)
+    except lifecycle_workers.WorkerError as exc:
+        raise RoutingError(f"cannot prepare the sandboxed writer checkout: {exc}") from exc
+    tmp = lifecycle_workers.writer_tmp(root)
+    home = lifecycle_workers.scratch_home(root)
+    started_at = _platform_timestamp()
+    started_tick = time.perf_counter_ns()
+    launched = {"value": False}
+
+    def runner(command: list[str], **kwargs: Any) -> Any:
+        def started() -> None:
+            launched["value"] = True
+            launch_hook()
+        return lifecycle_workers.run_in_session(command, on_start=started, **kwargs)
+
+    try:
+        done = launch(argv, checkout, integration_root=Path(route.integration_root),
+                      platform_root=Path(route.integration_root).parent, workdir=root, home=home, tmp=tmp,
+                      config=read_platform_config(Path(route.integration_root)), runner=runner)
+    except sandboxed_writer.SandboxedWriterError as exc:
+        raise RoutingError(f"sandboxed Claude writer refused to launch: {exc}") from exc
+    elapsed_ms = max(0, round((time.perf_counter_ns() - started_tick) / 1_000_000))
+    result = _claude_result(done.stdout)
+    session_id = result.get("session_id") if isinstance(result, dict) and isinstance(result.get("session_id"), str) else None
+    output: dict[str, Any] = {
+        "mechanism": SANDBOX_MECHANISM,
+        "tier": EnforcementTier.HARD.value,
+        "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED,
+        "launched": launched["value"],
+        "returncode": done.returncode,
+        "efficiency": {"timing": efficiency_timing(started_at, elapsed_ms), "usage": efficiency_unknown_usage()},
+        "participant": _participant(
+            role="executor", provider="claude", profile=route.profile, model=route.executor_model,
+            effort_value=None, effort_source=SOURCE_UNKNOWN,
+            execution_id=session_id, execution_id_kind="claude-session" if session_id else None,
+        ),
+    }
+    if done.returncode or result is None or result.get("is_error") is True:
+        output["outcome"] = "failed"
+        output["error"] = f"claude exited {done.returncode}" if done.returncode else "claude reported an error result"
+        return {"execution": output, "patch": "", "changed": [], "workdir": str(root)}
+    try:
+        patch, changed = collect_sandboxed_patch(task, checkout, root, baseline)
+    except lifecycle_workers.WorkerError as exc:
+        output["outcome"] = "rejected"
+        output["error"] = str(exc)[:300]
+        return {"execution": output, "patch": "", "changed": [], "workdir": str(root)}
+    output["outcome"] = "completed"
+    output["changed_paths"] = changed
+    return {"execution": output, "patch": patch, "changed": changed, "workdir": str(root)}
+
+
+def _apply_sandboxed_patch(route: Route, patch_path: Path) -> None:
+    diverged = _task_content_diverged(route)
+    if diverged:
+        raise RoutingError(
+            f"task content changed during the sandboxed run ({_format_paths(diverged)}); the writer patch was not applied "
+            f"and is retained at {patch_path}")
+    _trusted_git(Path(route.task_worktree), "apply", "--binary", "--whitespace=nowarn", str(patch_path))
+
+
+def dispatch_claude_sandboxed(root: Path, *, prompt: str, launcher: Callable[..., Any] | None = None) -> dict[str, Any]:
+    """Launch the platform-observed sandboxed Claude child for a prepared delegated-child Claude route."""
+    route, path = _read_route(root)
+    if route.provider != "claude":
+        raise RoutingError("the prepared route is not a Claude route")
+    _refuse_child_writer_on_standalone_clone(route)
+    plan = _require_plan(route, "launching a sandboxed Claude child")
+    if plan["mode"] != PLAN_DELEGATED:
+        raise RoutingError(f"the execution plan is {plan['mode']}; a child executor cannot be launched under it")
+    if route.execution is not None or plan.get("delegation") is not None:
+        raise RoutingError("a delegation or execution is already recorded for this route; re-route before launching another child")
+    diverged = _task_content_diverged(route)
+    if diverged:
+        raise RoutingError(f"refusing to open a delegation after task content diverged from the route pre-snapshot ({_format_paths(diverged)})")
+    opened: dict[str, Any] | None = None
+
+    def confirmed_launch() -> None:
+        nonlocal opened
+        opened = {"state": "open", "provider": "claude", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED,
+                  "mechanism": SANDBOX_MECHANISM, "opened_at": utc_now()}
+        _write_route(path, Route(**{**asdict(route), "execution_plan": {**plan, "delegation": opened}}))
+
+    def close(outcome: str) -> dict[str, Any]:
+        attempt = opened or {"provider": "claude", "launch_evidence": LAUNCH_EVIDENCE_PLATFORM_OBSERVED, "mechanism": SANDBOX_MECHANISM}
+        return {**attempt, "state": "closed", "closed_at": utc_now(), "outcome": outcome,
+                "task_content_post": _task_content_state(Path(route.task_worktree), route.change)}
+
+    try:
+        run = run_claude_sandboxed(route, prompt, launch_hook=confirmed_launch, launcher=launcher)
+    except BaseException:
+        _write_route(path, Route(**{**asdict(route), "execution_plan": {**plan, "delegation": close("not-launched" if opened is None else "abnormal")}}))
+        raise
+    execution = run["execution"]
+    if not execution["launched"]:
+        _write_route(path, Route(**{**asdict(route), "execution_plan": {**plan, "delegation": close("not-launched")}}))
+        raise RoutingError("the sandboxed Claude writer did not start")
+    patch_path = path.with_name(f"{route.change}.sandboxed.patch")
+    if execution["outcome"] == "completed" and run["patch"]:
+        atomic_write_text(patch_path, run["patch"])
+        execution["patch"] = {"path": str(patch_path), "sha256": hashlib.sha256(run["patch"].encode()).hexdigest()}
+        try:
+            _apply_sandboxed_patch(route, patch_path)
+        except RoutingError as exc:
+            execution["outcome"] = "rejected"
+            execution["error"] = str(exc)[:300]
+    elif execution["outcome"] == "completed":
+        execution["outcome"] = "no-change"
+    execution["recorded_at"] = utc_now()
+    route = Route(**{**asdict(route), "execution": execution, "execution_plan": {**plan, "delegation": close(execution["outcome"])}})
+    _write_route(path, route)
+    _persist_completed_execution(route)
+    output = {"route": asdict(route), "delegated": True, "execution": execution, "workdir": run["workdir"]}
+    if execution["outcome"] == "completed":
+        shutil.rmtree(run["workdir"])  # the applied patch is retained; the disposable copy is not evidence
+        output["workdir"] = None
+    if execution["outcome"] != "completed":
+        raise RoutingError(f"sandboxed Claude execution ended {execution['outcome']}: {execution.get('error', 'no change')}; "
+                           "its real outcome was persisted in routing provenance")
+    return output
+
+
+def _sandboxed_claude_completed(execution: dict[str, Any]) -> bool:
+    return (execution.get("mechanism") == SANDBOX_MECHANISM and execution.get("launch_evidence") == LAUNCH_EVIDENCE_PLATFORM_OBSERVED
+            and execution.get("launched") is True and execution.get("outcome") == "completed"
+            and execution.get("returncode") == 0 and isinstance(execution.get("participant"), dict))
 
 
 def _retention_route(root: Path) -> tuple[Route, Path]:
@@ -3758,6 +4035,11 @@ def main() -> int:
     )
     dispatch_claude_parser.add_argument("--rationale", required=True)
     dispatch_claude_parser.add_argument("--evidence", action="append", default=[])
+    sandboxed_parser = subparsers.add_parser(
+        "dispatch-claude-sandboxed",
+        help="launch the prepared delegated-child Claude route as a platform-observed headless writer under sandbox-runtime (macOS only)",
+    )
+    sandboxed_parser.add_argument("--prompt", required=True, help="the writer task")
     subparsers.add_parser(
         "begin-claude-delegation",
         help="open the self-reported delegation that must precede the native Agent call",
@@ -3859,6 +4141,8 @@ def main() -> int:
         elif args.command == "claude-agent": output = claude_agent(_read_route(root)[0])
         elif args.command == "dispatch-claude":
             output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence)
+        elif args.command == "dispatch-claude-sandboxed":
+            output = dispatch_claude_sandboxed(root, prompt=args.prompt)
         elif args.command == "begin-claude-delegation":
             output = begin_claude_delegation(root)
         elif args.command == "record-claude-execution":

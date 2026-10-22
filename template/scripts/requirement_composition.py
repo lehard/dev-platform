@@ -413,15 +413,25 @@ def _offer_premerge_retrospective(root: Path, repo: str, number: int, head: str,
 
 
 def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, number: int, *, adapter,
-                              source_repo=None, full_checks=None, checkpoint=None, enqueue=True) -> dict:
-    """Check the parent retrospective and full final head before readiness and queue admission."""
+                              source_repo=None, full_checks=None, checkpoint=None, enqueue=True,
+                              candidate=None) -> dict:
+    """Check the parent retrospective and full final head before readiness and queue admission.
+
+    ``candidate`` is the record whose gates are re-established on ``head``; the
+    queue passes the record of the head its own ``main`` update replaced. Such a
+    carried record already proved the Requirement retrospective (the receipt is
+    a file on the Requirement owner's machine, absent in CI), so its reusable
+    ``requirement-retrospective`` gate evidence is the receipt.
+    """
+    carried = candidate is not None
     from project_publish import _set_pr_draft
     from publication_state import PrRef
     from _platform_common import github_cli_env
     from requirement_retrospective import require_checkpoint, RequirementRetrospectiveError
     from pr_review_gate import reusable
 
-    candidate = adapter._derive(root, adapter._pr(root, repo, number), adapter._comments(root, repo, number))
+    if candidate is None:
+        candidate = adapter._derive(root, adapter._pr(root, repo, number), adapter._comments(root, repo, number))
     with tempfile.TemporaryDirectory(prefix="composition-ready-") as temporary:
         checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head)
         identity = composition_identity(checkout, manifest)
@@ -432,7 +442,12 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
             _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
             return {"status": "await-requirement-retrospective", "head": head}
         try:
-            receipt = (checkpoint or require_checkpoint)(root, requirement=contributions.private_requirement(root, manifest))
+            if checkpoint is None and carried:
+                receipt = retrospective["evidence"]
+                if not isinstance(receipt, dict):
+                    raise RequirementRetrospectiveError("carried Requirement retrospective gate has no receipt evidence")
+            else:
+                receipt = (checkpoint or require_checkpoint)(root, requirement=contributions.private_requirement(root, manifest))
         except RequirementRetrospectiveError:
             _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
             return {"status": "await-requirement-retrospective", "head": head}

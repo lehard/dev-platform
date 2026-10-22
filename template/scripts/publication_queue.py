@@ -344,7 +344,7 @@ def build_evidence_record(event: dict[str, Any], *, attribution: dict[str, str |
 
     import agent_friction
 
-    missing = [key for key in ("task", "number", "head", "stage", "worker", "dedupe_key", "triggers", *_EVIDENCE_TEXT)
+    missing = [key for key in ("task", "number", "head", "stage", "worker", "dedupe_key", "triggers", "reason", *_EVIDENCE_TEXT)
                if event.get(key) in (None, "", [])]
     if missing:
         raise QueueError("coordinator evidence event lacks " + ", ".join(missing))
@@ -359,6 +359,7 @@ def build_evidence_record(event: dict[str, Any], *, attribution: dict[str, str |
         "event_id": evidence_event_id(event["dedupe_key"]),
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "triggers": sorted(set(event["triggers"])),
+        "reason": agent_friction.normalize_text(event["reason"], "reason", agent_friction.REASON_MAX),
     }
     for key in _EVIDENCE_TEXT:
         record[key] = agent_friction.normalize_text(event[key], key, 100 if key == "category" else 1000)
@@ -403,6 +404,9 @@ def _evidence_records(root: Path, number: int, comments: list[dict[str, Any]]) -
             raise invalid("triggers are missing")
         if payload["event_id"] != evidence_event_id(payload["dedupe_key"]):
             raise invalid("event id does not match its dedupe key")
+        # Records written before reason was required carry none; routing withholds those.
+        if "reason" in payload and (not isinstance(payload["reason"], str) or not payload["reason"].strip()):
+            raise invalid("reason is malformed")
         payload["comment_id"] = row.get("id")
         records.append(payload)
     return records
@@ -446,6 +450,8 @@ def requirement_evidence(root: Path, requirement: str, children: Sequence[str] =
                 "triggers": record["triggers"], "severity": record["severity"],
                 "observation": record["observation"], "evidence": record["evidence"],
                 "hypothesis": record["hypothesis"], "proposal": record["proposal"],
+                **({"reason": record["reason"]} if "reason" in record else {}),
+                "candidate": {"task": record["task"], "number": number, "head": record["head"]},
                 "scope": "platform", "classification": "process-friction", "context": None,
                 "durable": {"number": number, "head": record["head"], "stage": record["stage"],
                             "worker": record["worker"]},
@@ -487,6 +493,21 @@ def use_default_friction_sink(root: Path, *, worker: str) -> None:
     set_friction_sink(default_friction_sink(root), worker=worker)
 
 
+def friction_reason(number: int, kind: str, red_gate: dict[str, Any] | None) -> str:
+    """One bounded line naming the red gate and its cause; a transition without one fails."""
+    if not isinstance(red_gate, dict) or not isinstance(red_gate.get("name"), str) or not red_gate["name"]:
+        raise QueueError(f"friction recording for PR #{number} ({kind}) requires a named red gate as its reason")
+    parts = [str(red_gate[key]) for key in ("cause", "limitation") if red_gate.get(key)]
+    if not parts:
+        evidence = red_gate.get("evidence")
+        if isinstance(evidence, (dict, list)):
+            evidence = json.dumps(evidence, ensure_ascii=False, sort_keys=True, default=str)
+        if evidence in (None, ""):
+            raise QueueError(f"friction recording for PR #{number} ({kind}): red gate {red_gate['name']} carries no cause or evidence")
+        parts = [str(evidence)]
+    return " ".join(f"{red_gate['name']}: {'; '.join(parts)}".split())[:240]
+
+
 def require_friction_attribution(branch: str | None) -> None:
     """Prove, before a job starts, that the registered sink can attribute this candidate's friction.
 
@@ -506,13 +527,18 @@ def require_friction_attribution(branch: str | None) -> None:
         raise QueueError(f"friction cannot be attributed for {branch}: {exc}") from exc
 
 
-def emit_friction(number: int, branch: str | None, kind: str, head: str, detail: str, *,
+def emit_friction(number: int, branch: str | None, kind: str, head: str, red_gate: dict[str, Any] | None, *,
                   attempts: dict[str, int] | None = None) -> None:
     """Record required friction before publishing a transition; failures leave it retryable."""
     if _friction_sink is None:
         return
     if not isinstance(branch, str) or not branch:
         raise QueueError("friction recording requires a candidate branch; retry transition")
+    if kind == "blocked-retryable" and red_gate is None:
+        # Waiting on exact-head required checks (see red_retry_blocks_integration): no gate failed, no event.
+        return
+    reason = friction_reason(number, kind, red_gate)
+    detail = str(red_gate.get("evidence", ""))[:300]
     if not isinstance(_friction_worker, str) or not _friction_worker:
         raise QueueError("friction sink is installed without a worker run identity")
     import hashlib
@@ -525,6 +551,7 @@ def emit_friction(number: int, branch: str | None, kind: str, head: str, detail:
         _friction_sink({"task": branch, "number": number, "category": category, "severity": severity,
                         "triggers": triggers, "observation": observation,
                         "evidence": f"PR #{number} {kind} at head {head[:12]}: {detail}"[:1000],
+                        "reason": reason,
                         "hypothesis": "Recorded automatically by the publication coordinator; see the PR lifecycle records.",
                         "proposal": "Review whether the gate, the evidence or the repair path should change.",
                         "dedupe_key": f"coordinator:{key}", "head": head, "stage": kind,
@@ -607,8 +634,7 @@ def _transition(
     branch = observed.get("head", {}).get("ref")
     if not identity_changed and not new_attempts and previous.get("state") == state and red_gate in (None, previous.get("red_gate")) and not new_gates and not new_job and not new_route:
         if state in _FRICTION_STATES:
-            emit_friction(number, branch, state, head, str((previous.get("red_gate") or {}).get("evidence", ""))[:300],
-                          attempts=previous.get("attempts"))
+            emit_friction(number, branch, state, head, previous.get("red_gate"), attempts=previous.get("attempts"))
         _project_lifecycle_label(root, repo, number, observed, state)
         if state == "blocked-escalation" and previous:
             # A lost indication is repaired on the next observation of the same escalation.
@@ -641,7 +667,7 @@ def _transition(
         provider_switch=recorded_switch,
     )
     if state in _FRICTION_STATES:
-        emit_friction(number, branch, state, head, str((red_gate or {}).get("evidence", ""))[:300], attempts=attempts)
+        emit_friction(number, branch, state, head, red_gate, attempts=attempts)
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
     if state == "blocked-escalation":
@@ -1571,7 +1597,7 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     updates = [e for e in events if e.get("kind") == "update" and e.get("comment_id", 0) > admission["comment_id"]]
     proven = admission.get("head") if not updates else updates[-1].get("head")
     if pr.get("head", {}).get("ref", "").startswith("requirement/BR-"):
-        require_composition_finalized(root, repo, number, head)
+        require_composition_finalized(root, repo, number, head, through_update=True)
     if head != proven:
         # A runner can die after GitHub updates the branch but before it writes
         # the update comment. Recover only a clean merge of proven head + main.
@@ -2324,21 +2350,57 @@ def branch_head(root: Path, branch: str) -> str:
     return result[0]
 
 
-def require_composition_finalized(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
+def _composition_lineage(root: Path, repo: str, number: int, head: str) -> dict[str, Any]:
+    """The latest composition record at ``head`` or at the head the coordinator's own update moved it from.
+
+    Records are exact-head, and the queue merges current ``main`` into a ready
+    composition itself (``update`` markers): the new head has no record until the
+    final-head refresh re-establishes it. Only that recorded chain is followed; a
+    record at a visited head that is not a composition record stops the walk.
+    """
+    comments = _comments(root, repo, number)
+    moved_from = {event.get("head"): event.get("previous") for event in _events(root, repo, number)
+                  if event.get("kind") == "update"}
+    seen: set[str] = set()
+    current: Any = head
+    while isinstance(current, str) and current not in seen:
+        seen.add(current)
+        record = _latest(root, number, comments, current)
+        if record is not None:
+            identity = record.get("task_identity")
+            if isinstance(identity, dict) and identity.get("kind") == "requirement-composition":
+                return record
+            break
+        current = moved_from.get(current)
+    raise QueueError("Requirement publication lacks composition identity")
+
+
+def require_composition_finalized(root: Path, repo: str, number: int, head: str, *,
+                                  through_update: bool = False) -> dict[str, Any]:
+    """Prove the final composition gates at ``head``.
+
+    ``through_update`` accepts gates proven at the head the coordinator's own
+    recorded ``main`` update replaced (integration preparation only); admission
+    and merge always need the exact head.
+    """
     import tempfile
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, require_final_gates
     from requirement_contributions import ContributionError
 
-    current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
+    if through_update:
+        current = _composition_lineage(root, repo, number, head)
+    else:
+        current = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
     identity = current.get("task_identity")
     if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
         raise QueueError("Requirement publication lacks composition identity")
+    proven = current.get("head")
     try:
         with tempfile.TemporaryDirectory(prefix="requirement-merge-gates-") as temporary:
-            checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
+            checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", proven)
             manifest = candidate_manifest(checkout, identity["requirement"])
-            require_final_gates(checkout, manifest, current, head)
+            require_final_gates(checkout, manifest, current, proven)
             return {"task_identity": identity, "gates": current["gates"]}
     except ContributionError as exc:
         raise QueueError(str(exc)) from exc
@@ -2349,12 +2411,14 @@ def refresh_composition_checks(root: Path, repo: str, number: int, head: str) ->
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, advance_final_publication
 
-    candidate = _derive(root, _pr(root, repo, number), _comments(root, repo, number))
-    identity = candidate.get("task_identity", {})
+    # The coordinator has just merged main into the composition: its gates are on the replaced head.
+    candidate = _composition_lineage(root, repo, number, head)
+    identity = candidate["task_identity"]
     with tempfile.TemporaryDirectory(prefix="composition-main-refresh-") as temporary:
         checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
         manifest = candidate_manifest(checkout, identity["requirement"])
-    result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__], enqueue=False)
+    result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__],
+                                       enqueue=False, candidate=candidate)
     if result["status"] != "ready":
         raise QueueError("Requirement final-head checks await fresh composition gates")
 

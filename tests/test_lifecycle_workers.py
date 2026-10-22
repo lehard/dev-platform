@@ -462,6 +462,29 @@ class EnvironmentTests(unittest.TestCase):
             self.assertFalse(marker.exists())
             self.assertFalse(held.exists())
 
+    def test_kill_process_group_accepts_a_group_of_only_zombies(self):
+        # an unreaped exited leader keeps its group alive as a zombie; macOS answers killpg with EPERM
+        process = subprocess.Popen([sys.executable, "-c", "pass"], start_new_session=True)
+        try:
+            deadline = time.monotonic() + 10
+            while workers.live_group_members(process.pid):
+                self.assertLess(time.monotonic(), deadline)
+                time.sleep(0.05)
+            workers.kill_process_group(process.pid)
+        finally:
+            process.wait()
+        workers.kill_process_group(process.pid)  # reaped: the group is gone
+
+    def test_kill_process_group_refuses_eperm_while_a_live_member_remains(self):
+        process = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"], start_new_session=True)
+        try:
+            with mock.patch.object(workers.os, "killpg", side_effect=PermissionError(1, "Operation not permitted")):
+                with self.assertRaisesRegex(workers.WorkerError, f"live members remain: {process.pid} "):
+                    workers.kill_process_group(process.pid)
+        finally:
+            workers.kill_process_group(process.pid)
+            process.wait()
+
     def test_run_in_session_timeout_kills_the_group(self):
         with self.assertRaises(subprocess.TimeoutExpired):
             workers.run_in_session([sys.executable, "-c", "import time; time.sleep(30)"], capture_output=True,

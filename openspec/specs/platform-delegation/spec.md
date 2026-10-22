@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the safety contract for delegating bounded platform work while preserving ownership and auditability.
+
 ## Requirements
+
 ### Requirement: Write-capable delegation carries an assigned worktree
 
 Every platform-supported write-capable subagent/subprocess delegation SHALL carry an absolute `assigned_worktree` path that resolves to a registered git worktree of the integration repository and is distinct from the integration copy itself. The platform SHALL validate that assignment before launching a write-capable child.
@@ -230,3 +232,28 @@ Dev Platform SHALL persist an abnormal route outcome that distinguishes external
 - **WHEN** cleanup succeeds after an interrupted executor changed files within its assigned worktree
 - **THEN** the receipt reports the interruption class and bounded retained-work state
 - **AND** no automatic retry or quality claim is made
+
+### Requirement: Sandboxed Claude writers work in a disposable copy and return a patch
+
+A platform-launched sandboxed Claude writer SHALL run in a disposable copy of the assigned task worktree containing its HEAD and current uncommitted task state, never in the task worktree or integration checkout. The harness SHALL build the result in its own staging clone without executing Git in the writer checkout, SHALL apply the lifecycle write rules, and SHALL apply the resulting patch to the assigned task worktree only when task content still equals the route pre-snapshot; otherwise it SHALL refuse and retain the patch. Integration `main` moving during the run SHALL NOT be classified as a containment violation of this writer.
+
+#### Scenario: Sibling session advances integration main during the run
+- **GIVEN** a sandboxed Claude writer is running
+- **WHEN** another session fast-forwards integration `main`
+- **THEN** the writer's result is still applied and no containment violation is recorded
+
+#### Scenario: Task content changed during the run
+- **WHEN** the assigned task worktree content differs from the route pre-snapshot at apply time
+- **THEN** the patch is not applied, it is retained, and the dispatch fails naming the diverged paths
+
+### Requirement: Sandboxed writer containment is proven by reproducible negative probes
+
+The platform SHALL provide a reproducible probe command that launches a real sandboxed Claude writer against a synthetic integration repository, linked worktree and bare remote, has it attempt to write into the integration checkout, move its refs through the shared Git directory, push to the remote, call the GitHub API and read SSH, GitHub CLI and keychain credentials, and then verifies from the harness that the integration content, refs and remote are unchanged. The command SHALL never print the writer credential and SHALL exit non-zero when any probe succeeded or any harness-side check changed.
+
+#### Scenario: All probes refused
+- **WHEN** the probe command runs on macOS with the sandboxed writer launch
+- **THEN** every probe is reported refused, the integration and remote are unchanged and the command exits zero
+
+#### Scenario: A probe succeeds
+- **WHEN** any probe action succeeds or the integration or remote changed
+- **THEN** the command exits non-zero naming that probe

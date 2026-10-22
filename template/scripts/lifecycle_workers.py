@@ -106,7 +106,10 @@ def _parse_time(value: Any) -> datetime | None:
 
 def job_id(job: dict) -> str:
     suffix = ":t" + job["target_head"] if job.get("target_head") else ""
-    reoffer = f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) else ""
+    # A re-offered pre-merge retrospective moves to its next bounded attempt, which already makes the
+    # id distinct; its operator event stays audit-only so the attempt bound keeps counting results.
+    reoffer = (f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) and job.get("phase") != "pre-merge"
+               else "")
     return (f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + suffix
             + (":pre-merge" if job.get("phase") == "pre-merge" else ""))
 
@@ -123,7 +126,7 @@ def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *,
     if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
         raise ValueError("invalid job phase")
     if reoffer is not None and (not isinstance(reoffer, dict) or type(reoffer.get("seq")) is not int or reoffer["seq"] < 1
-                                or kind not in {"review", "repair", "finalize"}):
+                                or not (kind in {"review", "repair", "finalize"} or phase == "pre-merge")):
         raise ValueError("invalid job re-offer")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
             **({"phase": phase} if phase else {}),
@@ -350,16 +353,37 @@ def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, so
     return home
 
 
+def live_group_members(pgid: int) -> list[str]:
+    """The ``ps`` rows (``pid stat``) of the members of process group ``pgid`` that are not zombies."""
+    listing = subprocess.run(["ps", "-A", "-o", "pid=,pgid=,stat="], capture_output=True, text=True, check=True)
+    live = []
+    for row in listing.stdout.splitlines():
+        pid, group, state = row.split()
+        if int(group) == pgid and not state.startswith("Z"):
+            live.append(f"{pid} {state}")
+    return live
+
+
 def kill_process_group(pgid: int) -> None:
-    """SIGKILL a whole process group; a group that is already gone is the only tolerated failure."""
+    """SIGKILL a whole process group; only a group with no live member left is tolerated.
+
+    macOS refuses (EPERM) to signal a group whose remaining members are all zombies awaiting their
+    reaper, for example killed grandchildren not yet reaped by launchd. EPERM is accepted only after
+    ``ps`` proves no non-zombie member is left; a live member that refuses SIGKILL fails loudly.
+    """
     try:
         os.killpg(pgid, signal.SIGKILL)
     except ProcessLookupError:
         pass  # no member is left
+    except PermissionError as error:
+        live = live_group_members(pgid)
+        if live:
+            raise WorkerError(f"cannot SIGKILL process group {pgid}; live members remain: {', '.join(live)}") from error
 
 
 def run_in_session(command: list[str], *, capture_output: bool = False, check: bool = False,
-                   timeout: float | None = None, **popen: Any) -> subprocess.CompletedProcess:
+                   timeout: float | None = None, on_start: Callable[[], None] | None = None,
+                   **popen: Any) -> subprocess.CompletedProcess:
     """``subprocess.run`` in a new session whose whole process group is killed when the leader exits.
 
     A writer cannot leave a same-group background process running past its own exit (to tamper with
@@ -372,6 +396,8 @@ def run_in_session(command: list[str], *, capture_output: bool = False, check: b
     process = subprocess.Popen(command, start_new_session=True, **popen)
     deadline = None if timeout is None else time.monotonic() + timeout
     try:
+        if on_start is not None:
+            on_start()  # the process exists: a caller may now record an observed launch
         while True:
             try:
                 stdout, stderr = process.communicate(timeout=0.2)
@@ -403,16 +429,23 @@ def writer_tmp(root: Path) -> Path:
 
 def run_llm(command: list[str], checkout: Path, *, tmp: Path, env: dict[str, str] | None = None,
             runner: Callable[..., Any] = run_in_session, timeout: int | None = None,
-            home: Path | None = None) -> Any:
+            home: Path | None = None, runtime_tmp: Path | None = None,
+            extra_env: dict[str, str] | None = None) -> Any:
     """Run the LLM command in a checkout with no credential, a scratch home, a dedicated ``TMPDIR`` and no stdin.
 
     The inherited ``TMPDIR`` would make the harness work directory writable to a sandboxed writer, so the
     writer gets ``tmp`` (from ``writer_tmp``) instead. The runner must contain the writer's process group.
+    ``runtime_tmp`` (sandboxed launch only) gives the outer process a different, short ``TMPDIR`` while
+    the writer receives ``tmp`` through the inner command; ``extra_env`` is added after the credential-free
+    filter and is reserved for the scoped writer credential.
     """
     if runner is subprocess.run:
         raise WorkerError("the writer runner must kill its process group; use run_in_session")
     clean = credential_free_env(dict(os.environ if env is None else env), home)
-    clean.update(TMPDIR=str(tmp), TMP=str(tmp), TEMP=str(tmp))
+    outer = tmp if runtime_tmp is None else runtime_tmp
+    clean.update(TMPDIR=str(outer), TMP=str(outer), TEMP=str(outer))
+    if extra_env:
+        clean.update(extra_env)
     return runner(command, cwd=checkout, env=clean, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                   check=False, timeout=timeout)
 
@@ -589,7 +622,7 @@ def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[
     """One push process only; no token in argv, config files or writer checkouts."""
     from urllib.parse import urlsplit
 
-    result = dict(os.environ if env is None else env)
+    result = {k: v for k, v in (os.environ if env is None else env).items() if k != "CLAUDE_CODE_OAUTH_TOKEN"}
     origin = harness_git(checkout, "remote", "get-url", "--push", "origin").strip()
     parsed = urlsplit(origin)
     if not origin:
@@ -716,7 +749,8 @@ def harness_git(repo: Path, *args: str) -> str:
     Ambient author/committer variables are dropped so a harness commit carries ``HARNESS_IDENTITY`` only.
     """
     env = {key: value for key, value in credential_free_env(dict(os.environ), repo.parent / "harness-home").items()
-           if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"}}
+           if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+                          "CLAUDE_CODE_OAUTH_TOKEN"}}
     done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True, check=False,
                           stdin=subprocess.DEVNULL, env=env)
     if done.returncode:

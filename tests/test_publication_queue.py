@@ -1209,6 +1209,21 @@ class WorkflowTrustBoundaryTests(unittest.TestCase):
         self.assertIn("pull_request_target", job["if"])
         self.assertIn("publication:queued", job["if"])
 
+    def test_candidate_readiness_and_ci_completion_trigger_the_queue(self) -> None:
+        # The schedule is throttled by GitHub to hours apart; readiness and the
+        # candidate's CI result must wake the queue themselves.
+        job = self.workflow["jobs"]["publish-next"]
+        self.assertIn("lifecycle:ready", job["if"])
+        self.assertEqual(self.triggers["workflow_run"], {"workflows": ["Platform CI"], "types": ["completed"]})
+        self.assertIn("github.event.workflow_run.event == 'pull_request'", job["if"])
+
+    def test_filtered_events_cannot_displace_a_pending_queue_run(self) -> None:
+        # A workflow-level group let a label event the job filters out cancel a
+        # pending dispatch and then end as skipped; the group must be job-level.
+        self.assertNotIn("concurrency", self.workflow)
+        self.assertEqual(self.workflow["jobs"]["publish-next"]["concurrency"],
+                         {"group": "dev-platform-final-publication", "cancel-in-progress": False})
+
     def test_no_step_checks_out_pull_request_content(self) -> None:
         for step in self.steps:
             if not str(step.get("uses", "")).startswith("actions/checkout@"):
@@ -1795,3 +1810,54 @@ class ContributionRequiredChecksGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CompositionUpdateLineageTests(unittest.TestCase):
+    """The queue's own main update must not strand a ready composition's gates on the replaced head."""
+
+    IDENTITY = {"kind": "requirement-composition", "requirement": "owner/repo#576",
+                "task_content": {"digest": "composition-proof"}}
+
+    def records(self, by_head: dict) -> object:
+        return lambda root, number, comments, head=None: by_head.get(head)
+
+    def test_lineage_follows_the_coordinator_update_to_the_replaced_head(self) -> None:
+        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY, "gates": {"review": {}}}
+        with patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_events", return_value=[{"kind": "update", "previous": HEAD, "head": NEW_HEAD}]), \
+             patch.object(queue, "_latest", side_effect=self.records({HEAD: ready})):
+            self.assertEqual(queue._composition_lineage(ROOT_PATH, REPO, 1, NEW_HEAD), ready)
+
+    def test_lineage_refuses_a_head_without_a_recorded_update(self) -> None:
+        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY, "gates": {}}
+        with patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_events", return_value=[]), \
+             patch.object(queue, "_latest", side_effect=self.records({HEAD: ready})):
+            with self.assertRaisesRegex(queue.QueueError, "lacks composition identity"):
+                queue._composition_lineage(ROOT_PATH, REPO, 1, NEW_HEAD)
+
+    def test_lineage_stops_at_a_non_composition_record_on_the_new_head(self) -> None:
+        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY, "gates": {}}
+        escalated = {"head": NEW_HEAD, "state": "blocked-escalation", "task_identity": {"head": NEW_HEAD}}
+        with patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_events", return_value=[{"kind": "update", "previous": HEAD, "head": NEW_HEAD}]), \
+             patch.object(queue, "_latest", side_effect=self.records({HEAD: ready, NEW_HEAD: escalated})):
+            with self.assertRaisesRegex(queue.QueueError, "lacks composition identity"):
+                queue._composition_lineage(ROOT_PATH, REPO, 1, NEW_HEAD)
+
+    def test_final_head_refresh_reestablishes_the_replaced_heads_gates(self) -> None:
+        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY, "gates": {"review": {}}}
+        with patch.object(queue, "_composition_lineage", return_value=ready) as lineage, \
+             patch("lifecycle_workers.prepare_checkout"), \
+             patch("requirement_composition.candidate_manifest", return_value={"work_identity": "BR-576"}), \
+             patch("requirement_composition.advance_final_publication", return_value={"status": "ready"}) as advance:
+            queue.refresh_composition_checks(ROOT_PATH, REPO, 1, NEW_HEAD)
+        lineage.assert_called_once_with(ROOT_PATH, REPO, 1, NEW_HEAD)
+        self.assertIs(advance.call_args.kwargs["candidate"], ready)
+        self.assertEqual(advance.call_args.args[3], NEW_HEAD)
+        self.assertFalse(advance.call_args.kwargs["enqueue"])
+
+    def test_integration_preparation_proves_gates_through_the_update_but_merge_needs_the_exact_head(self) -> None:
+        source = Path(queue.__file__).read_text(encoding="utf-8")
+        self.assertIn("require_composition_finalized(root, repo, number, head, through_update=True)", source)
+        self.assertEqual(source.count("through_update=True"), 1)
