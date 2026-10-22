@@ -1,13 +1,16 @@
 {
   "candidate": {
-    "base_head": "8a13069166e411bd197245c327216aee28c0287a",
-    "base_ref": "8a13069166e411bd197245c327216aee28c0287a",
-    "candidate_head": "58997a68a840801be91f7cbc5d20e2edd15a6195",
-    "diff_sha256": "426175376ef49b9bb32b4050e525d30e12b01341ccbe8f5cca147ead02b68c8c"
+    "base_head": "441812beb762b512b466dc180595a0222d2bd35c",
+    "base_ref": "441812beb762b512b466dc180595a0222d2bd35c",
+    "candidate_head": "88a5fff1854b71ccd1b68e580580797bed418d11",
+    "diff_sha256": "d2df771dfe41b0289a08b96dda302363124f7997d5ae15c2c85fa8997f7a86f3"
   },
   "change": "openspec/changes/queue-regenerates-generated-files",
   "excluded_lifecycle_paths": [
     "openspec/changes/queue-regenerates-generated-files/automated-checks.json",
+    "openspec/changes/queue-regenerates-generated-files/independent-review-request.json",
+    "openspec/changes/queue-regenerates-generated-files/independent-reviews/engineering-quality.json",
+    "openspec/changes/queue-regenerates-generated-files/independent-reviews/spec-fidelity.json",
     "openspec/changes/queue-regenerates-generated-files/verification.md"
   ],
   "fresh_context_required": true,
@@ -36,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-22T12:01:37+00:00",
+  "prepared_at": "2026-10-22T16:44:16+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/queue-regenerates-generated-files/independent-reviews",
     "required_perspectives": [
@@ -45,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "b3c6fb78-f906-4c41-89e5-24fd4698d407",
+  "request_id": "e3ff0743-79dd-4851-96f0-6699df3686de",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,10 +60,10 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "8a13069166e411bd197245c327216aee28c0287a",
-    "digest": "8b1e13949de7d831430c7847a279f44e836165c0c1d766c06559b797f64b050c",
+    "base": "441812beb762b512b466dc180595a0222d2bd35c",
+    "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
     "paths": {
-      "dev-platform/checks.toml": "a06b7c447d525010eb388e7aaa3d7d47f3944743",
+      "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
       "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
       "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
       "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
@@ -70,12 +73,12 @@
       "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
       "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
       "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
-      "template/dev-platform/platform-manifest.json": "e1e4f75b279b54da5b4826622d6e5f4a9d153024",
+      "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
       "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
       "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
       "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
       "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
-      "template/scripts/requirement_composition.py": "6557475cbd086419f1a171e15ad4398c713edcd5",
+      "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
       "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
       "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
       "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
@@ -84,7 +87,7 @@
       "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
       "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
       "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
-      "tests/test_requirement_contribution_composition.py": "8dda61afef26829e8dd7552fd6f363486beef152",
+      "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
       "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
       "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
       "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
