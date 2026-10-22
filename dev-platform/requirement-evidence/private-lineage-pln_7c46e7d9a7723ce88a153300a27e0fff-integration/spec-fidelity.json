@@ -3,34 +3,21 @@
   "candidate": {
     "base_head": "51298a11dc5242a2c17c84e935b96e57506ab887",
     "base_ref": "51298a11dc5242a2c17c84e935b96e57506ab887",
-    "candidate_head": "b75f2530a8e875bd1ec1fe53e720a730430df90d",
-    "diff_sha256": "53773cadc0faec86ca31e60b7a63486b05d1e253173dffe10a6d8c76d6f7517d"
+    "candidate_head": "04191195232fc8cc840e2d0973a1e0cf691d7e8f",
+    "diff_sha256": "7233e890623b01743c85e92df0b576c3848dd9a3966e586adf9d6313d5e91efe"
   },
-  "completed_at": "2026-10-22T18:42:34+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/_platform_common.py `generated_files` rejects any entry whose keys are not exactly {path, regenerate, check}. docs/engineering/agent-workflow.md (the behind-mergeable paragraph) and openspec/changes/handoff-mergeable-task-base/design.md say \"`[[generated_files]]` with `path` and a `regenerate` argv\" and \"Each entry has `path` ... and `regenerate`\". Only the T2 design records `check`. A project that follows the T1 text gets a hard TaskFreshnessError at every behind-main handoff.",
-      "id": "declaration-shape-docs-drift",
-      "severity": "advisory",
-      "summary": "The merged declaration contract requires exactly `path`, `regenerate` and `check`. The T1 artifacts and the shared agent-workflow doc still describe it as `path` and `regenerate` only."
-    },
-    {
-      "evidence": "template/scripts/publication_queue.py `_prepare` calls `generated_files(root, \"HEAD\")` twice, once in the unrecorded-update recovery branch and once in the main path. Neither call is wrapped. `_platform_common.generated_files` raises TaskFreshnessError for every irregularity. Because T1 and T2 share one reader, a bad declaration on main would break queue preparation for all candidates, not just ones touching generated files.",
-      "id": "queue-declaration-error-not-bounded",
-      "severity": "advisory",
-      "summary": "The queue reads the generated-file declaration from its own default-branch HEAD in `_prepare`. A malformed declaration, or one whose `check` is not in `full_commands`, raises TaskFreshnessError. That error is neither IntegrationRepairNeeded nor QueueError, so it is not converted into the bounded integration-repair or recovery outcome."
-    }
-  ],
-  "launched_at": "2026-10-22T18:41:58+00:00",
-  "output_sha256": "9ddc4bf631b7f6267714bfeb507d3a0d359b840b7d07cf5f3ba94866a8b13774",
+  "completed_at": "2026-10-22T19:53:51+00:00",
+  "findings": [],
+  "launched_at": "2026-10-22T19:52:46+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "3672bb8a-4c77-403d-891e-2c76eef5b2e8",
+  "request_id": "ca49a222-e8e1-4b68-b69c-3c97d2794f17",
   "reviewer": {
-    "context_id": "a517ef17-9cfa-470b-b0dd-ea8422063f2a",
+    "context_id": "e8b47140-5db2-49d1-abaf-511f99580cc8",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b8a8e913-e711-4cca-bc16-2c393e9c9ae0",
+    "launch_id": "platform-launch-988ed141-c60b-4e7c-818e-32ede638ce92",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 67743
+        "value": 47710
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 174481
+        "value": 213234
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32856
+        "value": 61026
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34691
+        "value": 63416
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 16
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3106
+        "value": 2279
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8c8553238d897ce19fa7a2a9056c2e5c8e2f60ed1262af4f15815e4f63b0ac37"
+  "task_content_digest": "da8a154fe33c74df7477a8ee62e95a91dfbffcb2dc90626a1a07c0f57fd57a74"
 }

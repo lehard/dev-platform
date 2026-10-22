@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "51298a11dc5242a2c17c84e935b96e57506ab887",
     "base_ref": "51298a11dc5242a2c17c84e935b96e57506ab887",
-    "candidate_head": "b75f2530a8e875bd1ec1fe53e720a730430df90d",
-    "diff_sha256": "53773cadc0faec86ca31e60b7a63486b05d1e253173dffe10a6d8c76d6f7517d"
+    "candidate_head": "04191195232fc8cc840e2d0973a1e0cf691d7e8f",
+    "diff_sha256": "7233e890623b01743c85e92df0b576c3848dd9a3966e586adf9d6313d5e91efe"
   },
   "change": "private-lineage-pln_7c46e7d9a7723ce88a153300a27e0fff-integration",
   "children": [
@@ -116,13 +116,13 @@
       ]
     }
   },
-  "prepared_at": "2026-10-22T18:41:50+00:00",
-  "request_id": "3672bb8a-4c77-403d-891e-2c76eef5b2e8",
+  "prepared_at": "2026-10-22T19:52:34+00:00",
+  "request_id": "ca49a222-e8e1-4b68-b69c-3c97d2794f17",
   "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
   "schema_version": 1,
   "task_content": {
-    "base": "6ffdc3d20e86cbb86d3b3ece720b56bce338f5eb",
-    "digest": "8c8553238d897ce19fa7a2a9056c2e5c8e2f60ed1262af4f15815e4f63b0ac37",
+    "base": "d486cde814ff18a4abac895a6697db40c1116b6f",
+    "digest": "da8a154fe33c74df7477a8ee62e95a91dfbffcb2dc90626a1a07c0f57fd57a74",
     "paths": {
       "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
       "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
@@ -142,7 +142,7 @@
       "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
       "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
       "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
-      "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+      "template/dev-platform/platform-manifest.json": "e97664c6cd0764b7e1442f6fc2cbbd238f790dfd",
       "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
       "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
       "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
@@ -161,7 +161,7 @@
       "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
       "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
       "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
-      "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+      "tests/test_requirement_contribution_composition.py": "8178effa9c6b1c6eea6912829d8e9ede8a9cb37a",
       "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
       "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
       "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
