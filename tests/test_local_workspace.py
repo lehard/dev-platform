@@ -156,7 +156,7 @@ class LocalWorkspaceTests(unittest.TestCase):
             hook.write_text('#!/bin/sh\nexit 7\n')
             hook.chmod(0o755)
             state = {'original_directory': str(hooks), 'original_config': '~/operator-hooks',
-                     'effective_config': '~/operator-hooks'}
+                     'effective_config': '~/operator-hooks', 'dispatcher': str(self.base / 'dispatcher.hooks')}
             with mock.patch.dict(os.environ, {'HOME': home}):
                 self.assertEqual(local.delegate_hooks(self.root, state, 'pre-commit', []), 7)
 
@@ -186,12 +186,42 @@ class LocalWorkspaceTests(unittest.TestCase):
             hook.write_text('#!/bin/sh\nexit 9\n')
             hook.chmod(0o755)
             (Path(home) / '.gitconfig').write_text(f'[core]\n\thooksPath = {hooks}\n')
-            state = {'original_directory': '/users/a/hooks', 'original_config': None, 'effective_config': '/users/a/hooks'}
+            state = {'original_directory': '/users/a/hooks', 'original_config': None, 'effective_config': '/users/a/hooks',
+                     'dispatcher': str(self.base / 'dispatcher.hooks')}
             env = {'HOME': home, 'XDG_CONFIG_HOME': str(Path(home) / 'xdg'), 'GIT_CONFIG_NOSYSTEM': '1'}
             with mock.patch.dict(os.environ, env):
                 os.environ.pop('GIT_CONFIG_GLOBAL', None)
                 os.environ.pop('GIT_CONFIG_SYSTEM', None)
                 self.assertEqual(local.delegate_hooks(self.root, state, 'pre-push', []), 9)
+
+    def test_command_scope_dispatcher_hooks_path_does_not_recurse(self):
+        receipt = self.base / 'post-checkout'
+        hook = self.root / '.git/hooks/post-checkout'
+        hook.write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >> {receipt}\n')
+        hook.chmod(0o770)
+        self.attach()
+        dispatcher = self.git('config', 'core.hooksPath')
+        # `git -c` exports the dispatcher to every hook as command-scope configuration.
+        command = ['git', '-C', str(self.root), '-c', f'core.hooksPath={dispatcher}',
+                   'worktree', 'add', '-qb', 'task', str(self.workspace / 'task')]
+        process = subprocess.Popen(command, start_new_session=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            _, stderr = process.communicate(timeout=20)
+        finally:
+            if process.poll() is None:
+                os.killpg(process.pid, 9)
+                process.wait()
+        self.assertEqual(process.returncode, 0, stderr)
+        lines = receipt.read_text().splitlines()
+        self.assertEqual(len(lines), 1)
+        self.assertTrue(lines[0].startswith('0' * 40 + ' ') and lines[0].endswith(' 1'), lines)
+
+    def test_original_hooks_path_naming_dispatcher_fails_explicitly(self):
+        policy = self.attach()
+        state = local.read_json(policy.with_suffix('.attachment.json'))
+        state['original_config'] = state['dispatcher']
+        with self.assertRaisesRegex(local.PolicyError, 'recursive re-entry'):
+            local.delegate_hooks(self.root, state, 'post-checkout', [])
 
     def test_invalid_inherited_git_dir_does_not_opt_out(self):
         self.attach()
