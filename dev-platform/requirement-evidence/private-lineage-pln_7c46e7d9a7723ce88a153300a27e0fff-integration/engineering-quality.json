@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "51298a11dc5242a2c17c84e935b96e57506ab887",
+    "base_ref": "51298a11dc5242a2c17c84e935b96e57506ab887",
+    "candidate_head": "04191195232fc8cc840e2d0973a1e0cf691d7e8f",
+    "diff_sha256": "7233e890623b01743c85e92df0b576c3848dd9a3966e586adf9d6313d5e91efe"
+  },
+  "completed_at": "2026-10-22T19:54:42+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py classify_task_base_currency calls generated_files(root, main_sha). template/scripts/task_content_identity.py review_exclusion calls generated_files(root, main_base). template/scripts/publication_queue.py _prepare and post_review_finalization.prepare_derived_specs call generated_files(root, \"HEAD\").",
+      "id": "generated-declaration-read-from-three-commits",
+      "severity": "advisory",
+      "summary": "The set of declared generated files is read at three different commits depending on the contour. The handoff gate uses the observed main SHA. Review exclusion uses the merge base of HEAD and origin/main. The queue uses its own checkout's HEAD. If main adds, removes, or changes a `[[generated_files]]` entry between these reads, the contours can disagree. A handoff could pass on a conflict that the queue then no longer treats as generated, and that becomes integration repair rather than a silent defect. This is not a gate weakening."
+    }
+  ],
+  "launched_at": "2026-10-22T19:53:51+00:00",
+  "output_sha256": "03326edff660e9d05f4a5f7fb6c81ab5d0db39f935cffebdb3ff2a3881c4e5fd",
+  "perspective": "engineering-quality",
+  "request_id": "ca49a222-e8e1-4b68-b69c-3c97d2794f17",
+  "reviewer": {
+    "context_id": "494cea6d-82c0-4e55-8f17-20f96e79be8e",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8aba9dfb-e87c-4d10-a1cb-a5a139f3a153",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38812
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 279359
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48696
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50655
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3651
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "da8a154fe33c74df7477a8ee62e95a91dfbffcb2dc90626a1a07c0f57fd57a74"
+}

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from _platform_common import (
     RECONCILE_COMMAND,
-    TASK_BASE_BEHIND_DISJOINT,
+    TASK_BASE_BEHIND_MERGEABLE,
     TaskFreshnessError,
     classify_task_base_currency,
     coordinator_candidate,
@@ -43,7 +43,7 @@ class Freshness:
     state: str
     authoritative_sha: str
     # Set for a coordinator candidate's head that does not contain main: the
-    # merge base of ``behind-disjoint``, or why reconciliation is required.
+    # merge base of ``behind-mergeable``, or why reconciliation is required.
     merge_base: str | None = None
     detail: str | None = None
 
@@ -70,7 +70,7 @@ def observe(root: Path, *, read_only: bool = False) -> Freshness:
 
 
 def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
-    """``observe``, where a coordinator candidate behind a disjoint main is ``behind-disjoint``.
+    """``observe``, where a coordinator candidate behind a mergeable main is ``behind-mergeable``.
 
     The publication queue merges main into a coordinator candidate and gates on
     the integrated head, so such a head needs no reconcile. Candidacy is read
@@ -86,8 +86,8 @@ def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
     if read_only:
         fetch_commit_objects(root, "origin", main_branch, freshness.authoritative_sha)
     currency = classify_task_base_currency(root, freshness.authoritative_sha)
-    if currency.state == TASK_BASE_BEHIND_DISJOINT:
-        return Freshness(state=TASK_BASE_BEHIND_DISJOINT, authoritative_sha=currency.main, merge_base=currency.base)
+    if currency.state == TASK_BASE_BEHIND_MERGEABLE:
+        return Freshness(state=TASK_BASE_BEHIND_MERGEABLE, authoritative_sha=currency.main, merge_base=currency.base)
     # Main's objects are now present, so the exact relation replaces a read-only "behind".
     return Freshness(state=relation(root, "HEAD", currency.main), authoritative_sha=currency.main,
                      merge_base=currency.base, detail=currency.describe(f"origin/{main_branch}"))

@@ -10,8 +10,10 @@ import copy
 import hashlib
 import importlib.util
 import json
+import shutil
 import subprocess
 import sys
+import tempfile
 import tomllib
 import unittest
 from pathlib import Path
@@ -104,6 +106,38 @@ class PlatformManifestTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertEqual("routing-provenance-evidence", protected.get(path))
                 self.assertNotIn(path, surface["hotfixable"])
+
+
+class PlatformManifestRootTests(unittest.TestCase):
+    def run_generator(self, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(GENERATOR), *args], cwd=ROOT, text=True, capture_output=True)
+
+    def test_root_regenerates_another_checkout_without_touching_this_one(self) -> None:
+        before = MANIFEST.read_bytes()
+        with tempfile.TemporaryDirectory() as tmp:
+            copy = Path(tmp)
+            shutil.copytree(ROOT / "template", copy / "template", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+            shutil.copy(ROOT / "copier.yml", copy / "copier.yml")
+            changed = copy / "template" / "scripts" / "platform_divergence.py"
+            changed.write_bytes(changed.read_bytes() + b"\n# changed in the copy\n")
+
+            stale = self.run_generator("--check", "--root", str(copy))
+            self.assertEqual(1, stale.returncode, stale.stdout + stale.stderr)
+            self.assertIn("scripts/platform_divergence.py", stale.stderr)
+
+            written = self.run_generator("--write", "--root", str(copy))
+            self.assertEqual(0, written.returncode, written.stdout + written.stderr)
+            copied = json.loads((copy / "template" / "dev-platform" / "platform-manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(hashlib.sha256(changed.read_bytes()).hexdigest(), copied["files"]["scripts/platform_divergence.py"])
+            checked = self.run_generator("--check", "--root", str(copy))
+            self.assertEqual(0, checked.returncode, checked.stdout + checked.stderr)
+        self.assertEqual(before, MANIFEST.read_bytes())
+
+    def test_root_without_a_template_directory_fails_explicitly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            completed = self.run_generator("--write", "--root", tmp)
+        self.assertEqual(1, completed.returncode, completed.stdout + completed.stderr)
+        self.assertIn("has no template/ directory", completed.stderr)
 
 
 if __name__ == "__main__":

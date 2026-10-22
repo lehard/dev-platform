@@ -24,6 +24,11 @@ project's `.dev-platform.toml` `platform_version`.
 
     python3 scripts/generate_platform_manifest.py --write   # regenerate
     python3 scripts/generate_platform_manifest.py --check   # fail on a stale manifest
+
+`--root <dir>` rebinds the template tree, surface file, `copier.yml` and manifest to
+another checkout of this repository (it must contain a `template/` directory) while
+the generator's own code stays this one's. A project's `[[generated_files]]`
+declaration uses it to regenerate a different tree from trusted code.
 """
 from __future__ import annotations
 
@@ -172,13 +177,28 @@ def mismatches(expected: dict, committed_text: str) -> list[str]:
     return problems
 
 
+def rebind_root(root: Path) -> None:
+    """Point every tree-relative module path at ``root``, a checkout with a ``template/`` directory."""
+    global ROOT, TEMPLATE, SURFACE, MANIFEST
+    root = root.resolve()
+    if not (root / "template").is_dir():
+        raise ManifestError(f"--root {root} has no template/ directory")
+    ROOT = root
+    TEMPLATE = root / "template"
+    SURFACE = TEMPLATE / "dev-platform" / "protected-surface.toml"
+    MANIFEST = TEMPLATE / MANIFEST_RENDERED
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--write", action="store_true", help="regenerate template/dev-platform/platform-manifest.json")
     group.add_argument("--check", action="store_true", help="exit non-zero naming every path whose digest differs from the template tree")
+    parser.add_argument("--root", type=Path, help="regenerate or check this checkout instead of the generator's own")
     args = parser.parse_args()
     try:
+        if args.root is not None:
+            rebind_root(args.root)
         expected = build_manifest()
     except ManifestError as exc:
         print(f"generate_platform_manifest: {exc}", file=sys.stderr)

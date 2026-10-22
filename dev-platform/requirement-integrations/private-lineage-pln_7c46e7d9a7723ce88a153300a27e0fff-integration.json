@@ -1,0 +1,703 @@
+{
+  "base": "51298a11dc5242a2c17c84e935b96e57506ab887",
+  "children": [
+    {
+      "change": "handoff-mergeable-task-base",
+      "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/handoff-mergeable-task-base/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "e841a315778d1634414a44e21d342659a8b9dba2"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "0ca245694b41069cf25d434adbc3b9ce75dcb6de",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/_platform_common.py in the diff: `paths = read_platform_config(root).get(\"paths\")` and `checks_path = paths.get(\"checks\")`, followed by `git show {commit}:{checks_path}`. A candidate can edit `[paths] checks` to point at another TOML file that already exists at main and carries a `[[generated_files]]` table. The declared-generated set is then taken from that file instead of the real check configuration. The impact is limited to files main already declares, and no new path can be",
+                  "id": "checks-path-read-from-working-tree",
+                  "severity": "advisory",
+                  "summary": "`generated_files()` takes the declaration file location from the working-tree `.dev-platform.toml`, which is candidate-controlled. The content is read at the observed main commit, but the file name is not. The spec and design say the declaration is read only from observed main and never from the can"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "628ec06f68e55b9a29e239a2458737cd13fc05e1e434325817fc01873e9897c3"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/_platform_common.py: in `classify_task_base_currency`, `generated_files(root, main_sha)` is called only inside the `merged.returncode == 1` branch after `conflicted` is non-empty. The tests are named `test_malformed_declaration_at_main_fails_explicitly_for_a_conflict` and `test_missing_check_configuration_at_main_fails_explicitly_for_a_conflict`, so they cover only the conflict path. The spec text (\"a malformed declaration SHALL fail explicitly\") and the agent-workflow.md paragr",
+                  "id": "declaration-validated-only-on-conflict",
+                  "severity": "advisory",
+                  "summary": "The spec and docs say a malformed declaration, a missing `paths.checks`, or a missing file at main \"fails explicitly\". The implementation reads the declaration only when the trial merge exits 1 with named conflicts. On a clean merge it is never read or validated, so the gate passes despite a malform"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "d878038df3ac634f1fc3670301b916cac7de3764e0820585d116b7997b2f26c6"
+            }
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 7052,
+            "path": "openspec/changes/handoff-mergeable-task-base/automated-checks.json",
+            "sha256": "61e7c441d60edb5fe8a45e9c18ffa63d592fc26988b549c7fe34d8bca0dad64e"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 6340,
+            "path": "openspec/changes/handoff-mergeable-task-base/verification.md",
+            "sha256": "e566ef849cba472e021f068640e16117485a95feb0f1304f73be97dffda3fc06"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "0ca245694b41069cf25d434adbc3b9ce75dcb6de",
+      "integrated_head": "842b7cfeca0a4defaccf43b85d16a39bf3c408de",
+      "pr_number": 687,
+      "reviewed_evidence_digest": "7ef1db5806a8c74ea26d13d81e535b7a9fd7c266e739f7d77c50c4ff0d082940",
+      "source_branch": "agent/br-748-t1-handoff-mergeable-task-base",
+      "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+      "task_identity": {
+        "change": "handoff-mergeable-task-base",
+        "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+        "kind": "contribution",
+        "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+        "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+        "target_branch": "requirement/BR-748",
+        "task_content": {
+          "base": "50d12669d77b7fc569083a25400191586294d940",
+          "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+          "paths": {
+            "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+            "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+            "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+            "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+            "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+            "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+            "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+            "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+            "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+            "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+            "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+            "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+            "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+            "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+            "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+            "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+            "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+            "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+            "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-748/T1"
+      },
+      "work_identity": "BR-748/T1"
+    },
+    {
+      "change": "queue-regenerates-generated-files",
+      "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/queue-regenerates-generated-files/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "88a5fff1854b71ccd1b68e580580797bed418d11"
+          },
+          "identity": {
+            "change": "queue-regenerates-generated-files",
+            "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "441812beb762b512b466dc180595a0222d2bd35c",
+              "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
+              "paths": {
+                "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
+                "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
+                "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
+                "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
+                "openspec/changes/queue-regenerates-generated-files/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/queue-regenerates-generated-files/design.md": "e35c265017fae5b81156dcc33fc722a3faaeeb06",
+                "openspec/changes/queue-regenerates-generated-files/proposal.md": "a3d0efc2731a0cb0547e6075b3bf66d23907613b",
+                "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
+                "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
+                "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
+                "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+                "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
+                "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
+                "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
+                "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
+                "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
+                "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
+                "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
+                "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
+                "tests/test_integration_advance_receipts.py": "1960ec9dda2660936480a9b083cdea331fe75c36",
+                "tests/test_model_routing.py": "48fa782bbafe6e3df811b27fec2c5d752aea3b3a",
+                "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
+                "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
+                "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
+                "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+                "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
+                "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
+                "tests/test_task_freshness.py": "28eb4a26245492c5ed96904d856425b69b68b75d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "10f716ecf8f0bc7afe8a995ea1b46e286a52f7cd",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "queue-regenerates-generated-files",
+            "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "441812beb762b512b466dc180595a0222d2bd35c",
+              "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
+              "paths": {
+                "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
+                "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
+                "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
+                "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
+                "openspec/changes/queue-regenerates-generated-files/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/queue-regenerates-generated-files/design.md": "e35c265017fae5b81156dcc33fc722a3faaeeb06",
+                "openspec/changes/queue-regenerates-generated-files/proposal.md": "a3d0efc2731a0cb0547e6075b3bf66d23907613b",
+                "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
+                "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
+                "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
+                "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+                "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
+                "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
+                "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
+                "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
+                "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
+                "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
+                "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
+                "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
+                "tests/test_integration_advance_receipts.py": "1960ec9dda2660936480a9b083cdea331fe75c36",
+                "tests/test_model_routing.py": "48fa782bbafe6e3df811b27fec2c5d752aea3b3a",
+                "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
+                "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
+                "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
+                "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+                "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
+                "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
+                "tests/test_task_freshness.py": "28eb4a26245492c5ed96904d856425b69b68b75d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/task_content_identity.py `review_exclusion` now raises TaskFreshnessError when main_branch is missing or merge-base HEAD origin/<main> fails. It also calls `generated_files`, which requires `paths.checks` and the file at that commit (_platform_common.py:575-583), even when no `[[generated_files]]` table exists. The diff had to patch many test fixtures to add `checks.toml` and `main_branch` (test_independent_review, test_central_dogfood_lifecycle, test_integration_advance_receipt",
+                  "id": "identity-requires-checks-config",
+                  "severity": "advisory",
+                  "summary": "Task-content identity now hard-fails for any repository without `main_branch`, `paths.checks` or an `origin/<main>` merge base. This is a wide new failure surface for a feature most projects don't use."
+                },
+                {
+                  "evidence": "publication_queue.py `_prepare` calls `generated_files(root, \"HEAD\")` in the unrecorded-update recovery path and again for every candidate before routing. A malformed declaration, a missing `paths.checks`, or a `check` not in `full_commands` on the queue's default branch now raises TaskFreshnessError. That aborts preparation of all candidates, including ones unrelated to generated files. Previously only the derived-spec path could fail this way.",
+                  "id": "queue-prepare-unguarded-declaration-read",
+                  "severity": "advisory",
+                  "summary": "`_prepare` reads the generated-file declaration unconditionally on every call, and `TaskFreshnessError` is not mapped to a queue or integration-repair error."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "771930a01e0b50ee7ef73913837ec2dc3dd2679a8a17ebef2845b22737aee27e"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/publication_queue.py `_prepare` calls `generated_files(root, \"HEAD\")` twice, in the unrecorded-update recovery path and in the main preparation path, with no try/except. `prepare_derived_specs` catches only `workers.WorkerError`. A `TaskFreshnessError` from a malformed declaration, or from a `check` missing from `[settings].full_commands`, therefore escapes as an unclassified exception. It is neither `IntegrationRepairNeeded` nor `QueueError`. This happens even for candidates th",
+                  "id": "declaration-error-not-bounded-in-queue",
+                  "severity": "advisory",
+                  "summary": "The queue reads the generated-file declaration with no handling for a declaration the reader rejects. The `check` requirement makes rejection a new failure mode on the default branch. The spec says only that reading fails explicitly. It does not say how the queue treats that failure."
+                },
+                {
+                  "evidence": "task_content_identity.py `review_exclusion` raises `TaskFreshnessError` when `main_branch` is absent, when there is no merge base, or (through `generated_files`) when `paths.checks` is missing. About eight test fixtures had to gain `dev-platform/checks.toml` plus `paths.checks`: test_model_routing, test_independent_review, test_integration_advance_receipts, test_central_dogfood_lifecycle, and others. `parallel_lifecycle_acceptance.py` was edited the same way. Projects without `paths.checks` will",
+                  "id": "identity-requires-checks-config-everywhere",
+                  "severity": "advisory",
+                  "summary": "`review_exclusion` now always reads the declaration at the main merge base. Every review or composition identity computation therefore needs `main_branch`, `origin/<main>` and a check configuration. The completion-lifecycle spec covers a missing configuration, but the design does not discuss this wi"
+                },
+                {
+                  "evidence": "`.managed-task.json` `artifacts` lists proposal.md, design.md, specs/publication-queue/spec.md and tasks.md. It omits specs/completion-lifecycle/spec.md. The proposal Impact section names completion-lifecycle among the affected specs, and the candidate adds specs/completion-lifecycle/spec.md.",
+                  "id": "managed-task-artifacts-omit-completion-lifecycle-spec",
+                  "severity": "advisory",
+                  "summary": "The imported package metadata does not list the completion-lifecycle delta spec, although that spec is part of the active delta."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "8d396569a38ce0a2443cc523327aa9606c2651d9fdb0ad411ba891612c4a0cfa"
+            }
+          },
+          "identity": {
+            "change": "queue-regenerates-generated-files",
+            "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "441812beb762b512b466dc180595a0222d2bd35c",
+              "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
+              "paths": {
+                "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
+                "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
+                "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
+                "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
+                "openspec/changes/queue-regenerates-generated-files/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/queue-regenerates-generated-files/design.md": "e35c265017fae5b81156dcc33fc722a3faaeeb06",
+                "openspec/changes/queue-regenerates-generated-files/proposal.md": "a3d0efc2731a0cb0547e6075b3bf66d23907613b",
+                "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
+                "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
+                "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
+                "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+                "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
+                "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
+                "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
+                "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
+                "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
+                "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
+                "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
+                "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
+                "tests/test_integration_advance_receipts.py": "1960ec9dda2660936480a9b083cdea331fe75c36",
+                "tests/test_model_routing.py": "48fa782bbafe6e3df811b27fec2c5d752aea3b3a",
+                "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
+                "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
+                "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
+                "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+                "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
+                "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
+                "tests/test_task_freshness.py": "28eb4a26245492c5ed96904d856425b69b68b75d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 13589,
+            "path": "openspec/changes/queue-regenerates-generated-files/automated-checks.json",
+            "sha256": "59fc3810e2302c80ad48e4ac23682ea62565836ed829d68b5333e340b60ea56b"
+          },
+          "identity": {
+            "change": "queue-regenerates-generated-files",
+            "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "441812beb762b512b466dc180595a0222d2bd35c",
+              "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
+              "paths": {
+                "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
+                "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
+                "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
+                "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
+                "openspec/changes/queue-regenerates-generated-files/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/queue-regenerates-generated-files/design.md": "e35c265017fae5b81156dcc33fc722a3faaeeb06",
+                "openspec/changes/queue-regenerates-generated-files/proposal.md": "a3d0efc2731a0cb0547e6075b3bf66d23907613b",
+                "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
+                "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
+                "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
+                "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+                "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
+                "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
+                "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
+                "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
+                "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
+                "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
+                "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
+                "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
+                "tests/test_integration_advance_receipts.py": "1960ec9dda2660936480a9b083cdea331fe75c36",
+                "tests/test_model_routing.py": "48fa782bbafe6e3df811b27fec2c5d752aea3b3a",
+                "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
+                "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
+                "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
+                "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+                "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
+                "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
+                "tests/test_task_freshness.py": "28eb4a26245492c5ed96904d856425b69b68b75d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 8854,
+            "path": "openspec/changes/queue-regenerates-generated-files/verification.md",
+            "sha256": "cf589a48a03ba07c5737b7414d0f39ba40cb6c670d198ca268ad4e22b48cecab"
+          },
+          "identity": {
+            "change": "queue-regenerates-generated-files",
+            "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "441812beb762b512b466dc180595a0222d2bd35c",
+              "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
+              "paths": {
+                "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
+                "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
+                "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
+                "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
+                "openspec/changes/queue-regenerates-generated-files/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/queue-regenerates-generated-files/design.md": "e35c265017fae5b81156dcc33fc722a3faaeeb06",
+                "openspec/changes/queue-regenerates-generated-files/proposal.md": "a3d0efc2731a0cb0547e6075b3bf66d23907613b",
+                "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
+                "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
+                "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
+                "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+                "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
+                "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
+                "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
+                "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
+                "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
+                "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
+                "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
+                "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
+                "tests/test_integration_advance_receipts.py": "1960ec9dda2660936480a9b083cdea331fe75c36",
+                "tests/test_model_routing.py": "48fa782bbafe6e3df811b27fec2c5d752aea3b3a",
+                "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
+                "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
+                "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
+                "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+                "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
+                "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
+                "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
+                "tests/test_task_freshness.py": "28eb4a26245492c5ed96904d856425b69b68b75d"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "10f716ecf8f0bc7afe8a995ea1b46e286a52f7cd",
+      "integrated_head": "da6b2b9984c3fb83438f183184e0c07aee926cda",
+      "pr_number": 703,
+      "reviewed_evidence_digest": "54f50c0623b181424c6e9927239f0e2b9c58d76f419b54a7900a2e1dac0b3a1d",
+      "source_branch": "agent/br-748-t2-queue-regenerates-generated-files",
+      "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+      "task_identity": {
+        "change": "queue-regenerates-generated-files",
+        "contribution_base": "441812beb762b512b466dc180595a0222d2bd35c",
+        "kind": "contribution",
+        "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+        "source_issue": "pln_ca94abec5f234ceb5802f54e8444bc79",
+        "target_branch": "requirement/BR-748",
+        "task_content": {
+          "base": "441812beb762b512b466dc180595a0222d2bd35c",
+          "digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753",
+          "paths": {
+            "dev-platform/checks.toml": "8c8220b93622d7714c58e1eb801bc63065d36e33",
+            "docs/engineering/agent-workflow.md": "5721edb5f035b8361e619de5a9ccb63247afd908",
+            "docs/engineering/openspec-workflow.md": "5bc764a2675ab7cafe1e2bd1360307e86dd0ee56",
+            "openspec/changes/queue-regenerates-generated-files/.managed-task.json": "cb3e7bdce9612563bf10006997e1784e0647732e",
+            "openspec/changes/queue-regenerates-generated-files/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+            "openspec/changes/queue-regenerates-generated-files/design.md": "e35c265017fae5b81156dcc33fc722a3faaeeb06",
+            "openspec/changes/queue-regenerates-generated-files/proposal.md": "a3d0efc2731a0cb0547e6075b3bf66d23907613b",
+            "openspec/changes/queue-regenerates-generated-files/specs/completion-lifecycle/spec.md": "3872e6e92fa9b849808f10a53eb057d9ecd270ea",
+            "openspec/changes/queue-regenerates-generated-files/specs/publication-queue/spec.md": "b9ed59a19a8ec16ed94d52767dc6ff9b0442b978",
+            "openspec/changes/queue-regenerates-generated-files/tasks.md": "169b0399ddd98abbeba07b90aa55abbfb49093e6",
+            "template/dev-platform/platform-manifest.json": "d3504b07a68cbd43be9890c8150c5c18dc875aed",
+            "template/scripts/_platform_common.py": "3ec20ce4678db9ddac46b2b92c24d338d36f6c83",
+            "template/scripts/parallel_lifecycle_acceptance.py": "7c81b7c2d4a10ce4478085c0d27a971494c3aad8",
+            "template/scripts/post_review_finalization.py": "a3d648ff0308941169562b583cfa01806361046f",
+            "template/scripts/publication_queue.py": "9f575ebfbd6bd5e4f9f07726ed9809d6ea925d7c",
+            "template/scripts/requirement_composition.py": "cce40ab15f60819a83696794bf9b8aa6bf955221",
+            "template/scripts/task_content_identity.py": "9883ec7290803a1e5fa70a8165259e223f035cbd",
+            "tests/test_central_dogfood_lifecycle.py": "344f7301f0608149fdfba8c6dbb5d65cea79f54b",
+            "tests/test_independent_review.py": "64ecec6837da50534acd6a9895037d795275c445",
+            "tests/test_integration_advance_receipts.py": "1960ec9dda2660936480a9b083cdea331fe75c36",
+            "tests/test_model_routing.py": "48fa782bbafe6e3df811b27fec2c5d752aea3b3a",
+            "tests/test_post_review_finalization.py": "ea66bbd9fd2ad56f2a72583ac8aa73d62419b7f0",
+            "tests/test_pr_review_gate.py": "4190d4419161d77fa98f3f109f86e66166863889",
+            "tests/test_publication_queue.py": "431348a27a84f55cdacc4852974e7a6467487c99",
+            "tests/test_requirement_contribution_composition.py": "d01636f118ed35d1bc9c16d88ec68449d0b4f293",
+            "tests/test_select_checks.py": "4db1c11d060f158a7a026e4853ec916de0a09f38",
+            "tests/test_standard_profile_lifecycle_compatibility.py": "e4bad21acb24282bdcca518ded4e5cf29bdc6959",
+            "tests/test_task_content_identity.py": "4acd193aadb9a13a8bffcf3a14e16e172ace0a6f",
+            "tests/test_task_freshness.py": "28eb4a26245492c5ed96904d856425b69b68b75d"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-748/T2"
+      },
+      "work_identity": "BR-748/T2"
+    }
+  ],
+  "dependencies": {
+    "handoff-mergeable-task-base": [],
+    "queue-regenerates-generated-files": [
+      "handoff-mergeable-task-base"
+    ]
+  },
+  "digest": "55db04cd865f7043e5e42bbe48adf11c61fbe210ed5913ff69a96ae5d08aefd0",
+  "expected_changes": [
+    "handoff-mergeable-task-base",
+    "queue-regenerates-generated-files"
+  ],
+  "integration_branch": "requirement/BR-748",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+  "version": 2,
+  "work_identity": "BR-748"
+}

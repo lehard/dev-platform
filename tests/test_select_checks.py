@@ -466,8 +466,8 @@ class ProvenBaseContractTests(unittest.TestCase):
         self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
                                             "origin/main is not observed in this checkout")
 
-class BehindDisjointEvidenceTests(unittest.TestCase):
-    """Developer evidence of a coordinator candidate behind a disjoint main, on real Git history."""
+class BehindMergeableEvidenceTests(unittest.TestCase):
+    """Developer evidence of a coordinator candidate behind a mergeable main, on real Git history."""
 
     def git(self, cwd: Path, *args: str) -> str:
         return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
@@ -483,11 +483,12 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
         self.git(self.task, "config", "user.email", "disjoint@example.invalid")
         self.git(self.task, "config", "user.name", "Behind Disjoint")
         self.git(self.task, "checkout", "-q", "-b", "main")
-        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT, encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT + '[paths]\nchecks = "dev-platform/checks.toml"\n', encoding="utf-8")
         checks = self.task / "dev-platform/checks.toml"
         checks.parent.mkdir()
         checks.write_text('[settings]\nfull_commands = ["printf ran > validation-ran.txt"]\n', encoding="utf-8")
         (self.task / "shared.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
+        (self.task / "gen.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
         self.git(self.task, "add", "-A")
         self.git(self.task, "commit", "-qm", "seed")
         self.git(self.task, "push", "-q", "-u", "origin", "main")
@@ -523,36 +524,66 @@ class BehindDisjointEvidenceTests(unittest.TestCase):
         self.predicate = predicate
         return code, output.getvalue()
 
-    def test_candidate_behind_a_disjoint_main_runs_checks_and_records_the_contract(self) -> None:
+    def test_candidate_behind_a_mergeable_main_runs_checks_and_records_the_contract(self) -> None:
         self.commit(self.task, "task.txt", "task\n")
         main = self.advance_main("main.txt", "main\n")
 
         code, output = self.select("--evidence", "evidence.json", candidate=True)
 
         self.assertEqual(code, 0, output)
-        self.assertIn("coordinator-candidate behind-disjoint contract", output)
+        self.assertIn("coordinator-candidate behind-mergeable contract", output)
         self.assertIn(f"origin/main ({main})", output)
         self.assertIn(f"merge base {self.seed}", output)
         self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
         evidence = json.loads((self.task / "evidence.json").read_text())
         self.assertEqual(evidence["outcome"], "success")
-        self.assertEqual(evidence["task_base"], {"contract": "behind-disjoint", "main": main, "base": self.seed})
+        self.assertEqual(evidence["task_base"], {
+            "contract": "behind-mergeable", "main": main, "base": self.seed, "overlapping": [], "generated_conflicts": [],
+        })
 
-    def test_candidate_overlapping_main_is_blocked_before_any_command_naming_the_file(self) -> None:
+    def test_candidate_overlapping_main_with_a_clean_merge_runs_checks_and_records_the_overlap(self) -> None:
         self.commit(self.task, "shared.txt", "ONE\ntwo\nthree\n")
-        self.advance_main("shared.txt", "one\ntwo\nTHREE\n")
+        main = self.advance_main("shared.txt", "one\ntwo\nTHREE\n")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=True)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("both changed shared.txt", output)
+        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
+        evidence = json.loads((self.task / "evidence.json").read_text())
+        self.assertEqual(evidence["task_base"]["main"], main)
+        self.assertEqual(evidence["task_base"]["overlapping"], ["shared.txt"])
+
+    def test_candidate_conflicting_only_in_a_generated_file_runs_checks_and_records_it(self) -> None:
+        self.commit(self.task, "gen.txt", "ONE\ntwo\nthree\n")
+        declared = Path(self.other, "dev-platform/checks.toml")
+        declared.write_text(declared.read_text() + '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\ncheck = ["printf", "ran", ">", "validation-ran.txt"]\n', encoding="utf-8")
+        self.git(self.other, "add", "-A")
+        self.git(self.other, "-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-qm", "declare")
+        self.advance_main("gen.txt", "uno\ntwo\nthree\n")
+
+        code, output = self.select("--evidence", "evidence.json", candidate=True)
+
+        self.assertEqual(code, 0, output)
+        self.assertIn("declared generated files gen.txt", output)
+        evidence = json.loads((self.task / "evidence.json").read_text())
+        self.assertEqual(evidence["task_base"]["generated_conflicts"], ["gen.txt"])
+
+    def test_candidate_conflicting_with_main_is_blocked_before_any_command_naming_the_file(self) -> None:
+        self.commit(self.task, "shared.txt", "ONE\ntwo\nthree\n")
+        self.advance_main("shared.txt", "uno\ntwo\nthree\n")
 
         code, output = self.select("--evidence", "evidence.json", candidate=True)
 
         self.assertNotEqual(code, 0, output)
         self.assertIn("before any expensive command started", output)
-        self.assertIn("both changed shared.txt", output)
+        self.assertIn("a trial merge conflicts in shared.txt", output)
         self.assertIn("python3 scripts/finish_task.py --reconcile", output)
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
         self.assertFalse((self.task / "validation-ran.txt").exists())
         self.assertFalse((self.task / "evidence.json").exists())
 
-    def test_non_candidate_behind_a_disjoint_main_keeps_the_fresh_base_rule(self) -> None:
+    def test_non_candidate_behind_a_mergeable_main_keeps_the_fresh_base_rule(self) -> None:
         self.commit(self.task, "task.txt", "task\n")
         self.advance_main("main.txt", "main\n")
 

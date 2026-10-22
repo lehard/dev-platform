@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "441812beb762b512b466dc180595a0222d2bd35c",
+    "base_ref": "441812beb762b512b466dc180595a0222d2bd35c",
+    "candidate_head": "88a5fff1854b71ccd1b68e580580797bed418d11",
+    "diff_sha256": "d2df771dfe41b0289a08b96dda302363124f7997d5ae15c2c85fa8997f7a86f3"
+  },
+  "completed_at": "2026-10-22T16:45:19+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/task_content_identity.py `review_exclusion` now raises TaskFreshnessError when main_branch is missing or merge-base HEAD origin/<main> fails. It also calls `generated_files`, which requires `paths.checks` and the file at that commit (_platform_common.py:575-583), even when no `[[generated_files]]` table exists. The diff had to patch many test fixtures to add `checks.toml` and `main_branch` (test_independent_review, test_central_dogfood_lifecycle, test_integration_advance_receipts, parallel_lifecycle_acceptance). That shows the break reaches every review and composition identity computation. Downstream projects without a checks path, and sandbox clones without remote-tracking refs, fail identity computation outright. The requirement_composition fetch workaround is a symptom of this.",
+      "id": "identity-requires-checks-config",
+      "severity": "advisory",
+      "summary": "Task-content identity now hard-fails for any repository without `main_branch`, `paths.checks` or an `origin/<main>` merge base. This is a wide new failure surface for a feature most projects don't use."
+    },
+    {
+      "evidence": "publication_queue.py `_prepare` calls `generated_files(root, \"HEAD\")` in the unrecorded-update recovery path and again for every candidate before routing. A malformed declaration, a missing `paths.checks`, or a `check` not in `full_commands` on the queue's default branch now raises TaskFreshnessError. That aborts preparation of all candidates, including ones unrelated to generated files. Previously only the derived-spec path could fail this way.",
+      "id": "queue-prepare-unguarded-declaration-read",
+      "severity": "advisory",
+      "summary": "`_prepare` reads the generated-file declaration unconditionally on every call, and `TaskFreshnessError` is not mapped to a queue or integration-repair error."
+    }
+  ],
+  "launched_at": "2026-10-22T16:44:54+00:00",
+  "output_sha256": "40696e77db33428fbd24a8c226e38660cfd3e7a2c5a06390c776593bf78ab34d",
+  "perspective": "engineering-quality",
+  "request_id": "e3ff0743-79dd-4851-96f0-6699df3686de",
+  "reviewer": {
+    "context_id": "c9d1eacc-9eb4-4953-9a4f-d38bc3e010bb",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-2b8cfc5d-9172-4fec-983e-9bd4d681b127",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33528
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53446
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24692
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24990
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1706
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753"
+}

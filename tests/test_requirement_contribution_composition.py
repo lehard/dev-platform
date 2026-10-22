@@ -47,6 +47,9 @@ def setUpModule() -> None:
         unittest.addModuleCleanup(patcher.stop)
 
 
+PROJECT_CONTRACT = 'platform_version = "1.0.0"\nmain_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n'
+
+
 class Repository:
     def __init__(self, root, *, committed_contract=True):
         self.root = root
@@ -54,13 +57,16 @@ class Repository:
         git(root, "config", "user.name", "Test")
         git(root, "config", "user.email", "test@example.test")
         (root / "AGENTS.md").write_text("Bounded test repository\n")
-        (root / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
+        (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)  # committed project contract
+        (root / "dev-platform").mkdir()
+        (root / "dev-platform/checks.toml").write_text("# no generated files\n")
         if not committed_contract:
             # A source-repository history from before its public contract was committed:
             # the composition checkout only carries an installed, locally excluded contract.
             with (root / ".git" / "info" / "exclude").open("a") as handle:
                 handle.write(".dev-platform.toml\n")
         self.base = self.commit("base")
+        git(root, "update-ref", "refs/remotes/origin/main", self.base)
         self.manifest = contributions.seal({"version": 2, "requirement": REQUIREMENT,
             "repository": "acme/project", "work_identity": "BR-7", "base": self.base,
             "integration_branch": "requirement/BR-7", "expected_changes": ["first", "second"],
@@ -416,7 +422,9 @@ class ContributionTests(unittest.TestCase):
             git(seed, "init", "-b", "main")
             git(seed, "config", "user.name", "Test"); git(seed, "config", "user.email", "test@example.test")
             (seed / "AGENTS.md").write_text("test\n")
-            (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
+            (seed / ".dev-platform.toml").write_text(PROJECT_CONTRACT)  # committed project contract
+            (seed / "dev-platform").mkdir()
+            (seed / "dev-platform/checks.toml").write_text("# no generated files\n")
             git(seed, "add", "."); git(seed, "commit", "-m", "base")
             git(seed, "remote", "add", "origin", str(remote)); git(seed, "push", "origin", "main")
             kwargs = {"requirement": REQUIREMENT, "repository": "acme/project", "expected_changes": ["first", "second"],
