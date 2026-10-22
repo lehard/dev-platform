@@ -1,13 +1,316 @@
 {
   "base": "51298a11dc5242a2c17c84e935b96e57506ab887",
-  "children": [],
+  "children": [
+    {
+      "change": "handoff-mergeable-task-base",
+      "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/handoff-mergeable-task-base/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "e841a315778d1634414a44e21d342659a8b9dba2"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "0ca245694b41069cf25d434adbc3b9ce75dcb6de",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/_platform_common.py in the diff: `paths = read_platform_config(root).get(\"paths\")` and `checks_path = paths.get(\"checks\")`, followed by `git show {commit}:{checks_path}`. A candidate can edit `[paths] checks` to point at another TOML file that already exists at main and carries a `[[generated_files]]` table. The declared-generated set is then taken from that file instead of the real check configuration. The impact is limited to files main already declares, and no new path can be",
+                  "id": "checks-path-read-from-working-tree",
+                  "severity": "advisory",
+                  "summary": "`generated_files()` takes the declaration file location from the working-tree `.dev-platform.toml`, which is candidate-controlled. The content is read at the observed main commit, but the file name is not. The spec and design say the declaration is read only from observed main and never from the can"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "628ec06f68e55b9a29e239a2458737cd13fc05e1e434325817fc01873e9897c3"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/_platform_common.py: in `classify_task_base_currency`, `generated_files(root, main_sha)` is called only inside the `merged.returncode == 1` branch after `conflicted` is non-empty. The tests are named `test_malformed_declaration_at_main_fails_explicitly_for_a_conflict` and `test_missing_check_configuration_at_main_fails_explicitly_for_a_conflict`, so they cover only the conflict path. The spec text (\"a malformed declaration SHALL fail explicitly\") and the agent-workflow.md paragr",
+                  "id": "declaration-validated-only-on-conflict",
+                  "severity": "advisory",
+                  "summary": "The spec and docs say a malformed declaration, a missing `paths.checks`, or a missing file at main \"fails explicitly\". The implementation reads the declaration only when the trial merge exits 1 with named conflicts. On a clean merge it is never read or validated, so the gate passes despite a malform"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "d878038df3ac634f1fc3670301b916cac7de3764e0820585d116b7997b2f26c6"
+            }
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 7052,
+            "path": "openspec/changes/handoff-mergeable-task-base/automated-checks.json",
+            "sha256": "61e7c441d60edb5fe8a45e9c18ffa63d592fc26988b549c7fe34d8bca0dad64e"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 6340,
+            "path": "openspec/changes/handoff-mergeable-task-base/verification.md",
+            "sha256": "e566ef849cba472e021f068640e16117485a95feb0f1304f73be97dffda3fc06"
+          },
+          "identity": {
+            "change": "handoff-mergeable-task-base",
+            "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+            "kind": "contribution",
+            "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+            "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+            "target_branch": "requirement/BR-748",
+            "task_content": {
+              "base": "50d12669d77b7fc569083a25400191586294d940",
+              "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+              "paths": {
+                "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+                "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+                "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+                "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+                "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+                "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+                "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+                "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+                "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+                "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+                "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+                "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+                "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+                "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+                "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+                "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+                "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+                "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+                "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-748/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "0ca245694b41069cf25d434adbc3b9ce75dcb6de",
+      "integrated_head": "842b7cfeca0a4defaccf43b85d16a39bf3c408de",
+      "pr_number": 687,
+      "reviewed_evidence_digest": "7ef1db5806a8c74ea26d13d81e535b7a9fd7c266e739f7d77c50c4ff0d082940",
+      "source_branch": "agent/br-748-t1-handoff-mergeable-task-base",
+      "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+      "task_identity": {
+        "change": "handoff-mergeable-task-base",
+        "contribution_base": "50d12669d77b7fc569083a25400191586294d940",
+        "kind": "contribution",
+        "requirement": "pln_7c46e7d9a7723ce88a153300a27e0fff",
+        "source_issue": "pln_b616ac9c81e6731bb59129a46417b7f1",
+        "target_branch": "requirement/BR-748",
+        "task_content": {
+          "base": "50d12669d77b7fc569083a25400191586294d940",
+          "digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2",
+          "paths": {
+            "dev-platform/checks.toml": "fefe8991a2e160e3702e0272d781a049e4d06825",
+            "docs/engineering/agent-workflow.md": "14925d70a421e0f8b9bbba8219aa91cf301b769f",
+            "openspec/changes/handoff-mergeable-task-base/.managed-task.json": "014a82d6d6a3675a46475cfa545f0fcc5303a565",
+            "openspec/changes/handoff-mergeable-task-base/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+            "openspec/changes/handoff-mergeable-task-base/design.md": "e16549185216cd2e916bad3d50f173e9d32d8cf9",
+            "openspec/changes/handoff-mergeable-task-base/proposal.md": "53889be2818779fe0bc9cee1ac7e50a055dbdc83",
+            "openspec/changes/handoff-mergeable-task-base/specs/platform-lifecycle/spec.md": "2721124473c1489fa3029623143e86d649c35149",
+            "openspec/changes/handoff-mergeable-task-base/tasks.md": "33547dcd8c796b2eb4eeb3de854df7b2d2fa8d91",
+            "scripts/generate_platform_manifest.py": "a0c8cadc8e67218a11cb4a2fd05eb5ed26e87b90",
+            "template/dev-platform/blocking-gates.toml": "8409e754382ceda9f8c1b8581e5f28d4a9933caa",
+            "template/dev-platform/platform-manifest.json": "0a0244c0507de75b19fa8d54dbf7d84ac5601917",
+            "template/scripts/_platform_common.py": "fd33eb727d97d36c899283a2667c9a0f038e53c0",
+            "template/scripts/finish_task.py": "1c9813b7af3ecfaa5327c745131d3505bece4d07",
+            "template/scripts/project_publish.py": "5fa43770be8321b5a4cf3f754ec06475f9a8434c",
+            "template/scripts/select_checks.py": "e26e987e369483683dab2cd228b37843a5c51b79",
+            "template/scripts/task_reconciliation.py": "5f40ab4e08d38ad9c75031d0a1d9f14a7fbb5f59",
+            "tests/test_platform_manifest.py": "60ea8cb3a6e2955dfb25f5bcaf3633dd165b9bc4",
+            "tests/test_select_checks.py": "7c83c2a41be3667b01311613a8110d945135afbc",
+            "tests/test_task_freshness.py": "eb6ad4bd824d56b1bac8e0ed6159490645065c90"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-748/T1"
+      },
+      "work_identity": "BR-748/T1"
+    }
+  ],
   "dependencies": {
     "handoff-mergeable-task-base": [],
     "queue-regenerates-generated-files": [
       "handoff-mergeable-task-base"
     ]
   },
-  "digest": "dc70da77b169a2af916feb52e0700a42468bebf3d8c20f52ab7f45471c0df032",
+  "digest": "79d99f5bb72575f03c3fdbd143b8175f2e03a180ba0dcc25a615ef2e5f098264",
   "expected_changes": [
     "handoff-mergeable-task-base",
     "queue-regenerates-generated-files"
