@@ -95,6 +95,10 @@ class LaunchTimeout(Exception):
     """The reviewer process exceeded its bounded runtime."""
 
 
+class ProcessGroupError(RuntimeError):
+    """The reviewer's process group could not be terminated and reaped."""
+
+
 class ReviewOutputError(Exception):
     """The reviewer output does not match the findings contract."""
 
@@ -129,14 +133,29 @@ def subprocess_launcher(argv: list[str], cwd: Path, timeout: float, *, env: dict
 
 
 def _kill_process_group(process: subprocess.Popen) -> None:
+    """SIGKILL the reviewer's process group and reap its leader, or fail loudly.
+
+    macOS refuses (EPERM) to signal a group whose remaining members are all zombies;
+    EPERM is accepted only after ``ps`` proves no non-zombie member is left.
+    """
     try:
         os.killpg(process.pid, signal.SIGKILL)
-    except (ProcessLookupError, PermissionError):
-        pass
+    except ProcessLookupError:
+        pass  # no member is left
+    except PermissionError as exc:
+        from lifecycle_workers import live_group_members
+
+        live = live_group_members(process.pid)
+        if live:
+            raise ProcessGroupError(
+                f"cannot SIGKILL reviewer process group {process.pid}; live members remain: {', '.join(live)}"
+            ) from exc
     try:
         process.communicate(timeout=10)
-    except (subprocess.TimeoutExpired, ValueError, OSError):
-        pass
+    except subprocess.TimeoutExpired as exc:
+        raise ProcessGroupError(f"reviewer process {process.pid} was not reaped 10s after SIGKILL") from exc
+    except OSError as exc:
+        raise ProcessGroupError(f"reviewer process {process.pid} could not be reaped: {exc}") from exc
 
 
 def settings(root: Path) -> dict[str, Any]:
