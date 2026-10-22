@@ -268,3 +268,10 @@ targets = [
 ]
 mode = "parallel"
 
+# Files regenerated from other sources. A trial merge that conflicts only in
+# these (as read from the observed main) does not block a coordinator handoff;
+# the queue-side integration regenerates them. `{tree}` is replaced by the
+# checkout to regenerate.
+[[generated_files]]
+path = "template/dev-platform/platform-manifest.json"
+regenerate = ["python3", "scripts/generate_platform_manifest.py", "--write", "--root", "{tree}"]

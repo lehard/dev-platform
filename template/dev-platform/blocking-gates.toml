@@ -199,7 +199,7 @@ rejection_tests = [
 ]
 recovery_tests = [
   "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_a_claimed_worktree_with_a_valid_board_still_passes",
-  "tests/test_select_checks.py::BehindDisjointEvidenceTests::test_not_applicable_flag_declares_a_ci_checkout_without_a_board",
+  "tests/test_select_checks.py::BehindMergeableEvidenceTests::test_not_applicable_flag_declares_a_ci_checkout_without_a_board",
 ]
 
 [[gate]]

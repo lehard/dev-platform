@@ -171,8 +171,12 @@ class TaskFreshnessTests(unittest.TestCase):
         self.assertEqual(git("rev-parse", "origin/main", cwd=self.task).stdout.strip(), before)
 
 
+CHECKS = "dev-platform/checks.toml"
+DECLARE_GEN = '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\n'
+
+
 class TaskBaseCurrencyTests(unittest.TestCase):
-    """The behind-disjoint classifier and the coordinator handoff gates, on real Git history."""
+    """The behind-mergeable classifier and the coordinator handoff gates, on real Git history."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -185,10 +189,14 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         configure(self.task)
         git("checkout", "-q", "-b", "main", cwd=self.task)
         (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n',
+            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n'
+            '[paths]\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",
         )
+        (self.task / "dev-platform").mkdir()
+        (self.task / CHECKS).write_text("# no generated files\n", encoding="utf-8")
         (self.task / "shared.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
+        (self.task / "gen.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
         git("add", "-A", cwd=self.task)
         git("commit", "-qm", "seed", cwd=self.task)
         git("push", "-q", "-u", "origin", "main", cwd=self.task)
@@ -224,39 +232,140 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.assertEqual(currency.state, "fresh")
         self.assertEqual(currency.main, self.seed)
 
-    def test_disjoint_main_with_a_clean_trial_merge_is_behind_disjoint(self) -> None:
+    def test_disjoint_main_with_a_clean_trial_merge_is_behind_mergeable(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
         main = self.advance_main({"main.txt": "main\n"})
 
         currency = self.classify()
 
-        self.assertEqual(currency.state, "behind-disjoint")
+        self.assertEqual(currency.state, "behind-mergeable")
         self.assertEqual((currency.main, currency.base), (main, self.seed))
-        self.assertEqual(currency.evidence(), {"contract": "behind-disjoint", "main": main, "base": self.seed})
+        self.assertEqual(currency.evidence(), {
+            "contract": "behind-mergeable", "main": main, "base": self.seed, "overlapping": [], "generated_conflicts": [],
+        })
         # Classification never merges or moves the task head.
         self.assertEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), head)
 
-    def test_a_file_both_sides_changed_requires_reconcile_even_when_it_merges_cleanly(self) -> None:
+    def test_a_file_both_sides_changed_that_merges_cleanly_is_behind_mergeable(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "one\ntwo\nTHREE\n", "main.txt": "main\n"})
+        main = self.advance_main({"shared.txt": "one\ntwo\nTHREE\n", "main.txt": "main\n"})
 
         currency = self.classify()
 
-        self.assertEqual(currency.state, "reconcile-required")
+        self.assertEqual(currency.state, "behind-mergeable")
         self.assertEqual(currency.overlapping, ("shared.txt",))
+        self.assertEqual(currency.generated_conflicts, ())
+        self.assertEqual(currency.evidence()["overlapping"], ["shared.txt"])
+        self.assertEqual(currency.evidence()["main"], main)
         self.assertIn("main and the task both changed shared.txt", currency.describe("origin/main"))
-        with self.assertRaises(ValueError):
-            currency.evidence()
+        self.assertIn("a trial merge is clean", currency.describe("origin/main"))
 
-    def test_a_rename_on_main_counts_its_old_path(self) -> None:
+    def test_a_rename_on_main_counts_its_old_path_and_merges_cleanly(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
         self.advance_main({"shared.txt": None, "moved.txt": "one\ntwo\nthree\n"})
 
         currency = self.classify()
 
-        self.assertEqual(currency.state, "reconcile-required")
+        self.assertEqual(currency.state, "behind-mergeable")
         self.assertEqual(currency.overlapping, ("shared.txt",))
+
+    def test_a_real_conflict_requires_reconcile_naming_the_file(self) -> None:
+        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
+        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
+
+        currency = self.classify()
+
+        self.assertEqual(currency.state, "reconcile-required")
+        self.assertEqual(currency.conflicts, ("shared.txt",))
+        self.assertIn("a trial merge conflicts in shared.txt", currency.describe("origin/main"))
+        with self.assertRaises(ValueError):
+            currency.evidence()
+
+    def test_a_conflict_only_in_a_file_main_declares_generated_is_behind_mergeable(self) -> None:
+        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n"})
+        self.advance_main({"gen.txt": "uno\ntwo\nthree\n", CHECKS: DECLARE_GEN})
+
+        currency = self.classify()
+
+        self.assertEqual(currency.state, "behind-mergeable")
+        self.assertEqual(currency.generated_conflicts, ("gen.txt",))
+        self.assertEqual(currency.overlapping, ("gen.txt",))
+        self.assertEqual(currency.evidence()["generated_conflicts"], ["gen.txt"])
+        self.assertIn("declared generated files gen.txt", currency.describe("origin/main"))
+
+    def test_a_declaration_added_only_by_the_candidate_does_not_apply(self) -> None:
+        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n", CHECKS: DECLARE_GEN})
+        self.advance_main({"gen.txt": "uno\ntwo\nthree\n"})
+
+        currency = self.classify()
+
+        self.assertEqual(currency.state, "reconcile-required")
+        self.assertEqual(currency.conflicts, ("gen.txt",))
+
+    def test_a_generated_conflict_beside_a_real_one_names_only_the_real_one(self) -> None:
+        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n", "shared.txt": "ONE\ntwo\nthree\n"})
+        self.advance_main({"gen.txt": "uno\ntwo\nthree\n", "shared.txt": "uno\ntwo\nthree\n", CHECKS: DECLARE_GEN})
+
+        currency = self.classify()
+
+        self.assertEqual(currency.state, "reconcile-required")
+        self.assertEqual(currency.conflicts, ("shared.txt",))
+        self.assertNotIn("gen.txt", currency.describe("origin/main"))
+
+    def test_a_malformed_declaration_at_main_fails_explicitly_for_a_conflict(self) -> None:
+        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n"})
+        self.advance_main({"gen.txt": "uno\ntwo\nthree\n", CHECKS: '[[generated_files]]\npath = "gen.txt"\n'})
+
+        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "exactly the keys 'path' and 'regenerate'"):
+            self.classify()
+
+    def test_missing_check_configuration_at_main_fails_explicitly_for_a_conflict(self) -> None:
+        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
+        self.advance_main({"shared.txt": "uno\ntwo\nthree\n", CHECKS: None})
+
+        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "dev-platform/checks.toml is absent at"):
+            self.classify()
+
+    def test_missing_paths_checks_key_fails_explicitly_for_a_conflict(self) -> None:
+        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
+        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
+        (self.task / ".dev-platform.toml").write_text(
+            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n'
+            '[capabilities]\nagent_board = false\n[paths]\nworktrees = ".claude/worktrees"\n',
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, r"\[paths\] checks must be a repository-relative path"):
+            self.classify()
+
+    def test_generated_file_reader_rejects_each_malformed_shape(self) -> None:
+        cases = {
+            "invalid TOML": ("[[generated_files", "not valid TOML"),
+            "not an array": ('[generated_files]\npath = "a"\n', "must be an array of tables"),
+            "extra key": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\nnote = "n"\n', "exactly the keys"),
+            "absolute path": ('[[generated_files]]\npath = "/a"\nregenerate = ["x", "{tree}"]\n', "repository-relative file path"),
+            "parent path": ('[[generated_files]]\npath = "../a"\nregenerate = ["x", "{tree}"]\n', "repository-relative file path"),
+            "no placeholder": ('[[generated_files]]\npath = "a"\nregenerate = ["x"]\n', "placeholder"),
+            "empty argv": ('[[generated_files]]\npath = "a"\nregenerate = []\n', "non-empty list of strings"),
+            "string argv": ('[[generated_files]]\npath = "a"\nregenerate = "x {tree}"\n', "non-empty list of strings"),
+            "duplicate": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\n'
+                          '[[generated_files]]\npath = "a"\nregenerate = ["y", "{tree}"]\n', "duplicates the declared path"),
+        }
+        for name, (content, message) in cases.items():
+            with self.subTest(name):
+                self.commit(self.task, name, {CHECKS: content})
+                with self.assertRaisesRegex(_platform_common.TaskFreshnessError, message):
+                    _platform_common.generated_files(self.task, "HEAD")
+
+    def test_generated_file_reader_returns_declarations_and_none_without_a_table(self) -> None:
+        self.assertEqual(_platform_common.generated_files(self.task, "HEAD"), ())
+        self.commit(self.task, "declare", {CHECKS: DECLARE_GEN})
+        # Read from the commit, not the working tree.
+        (self.task / CHECKS).write_text("# edited\n", encoding="utf-8")
+
+        self.assertEqual(_platform_common.generated_files(self.task, "HEAD"),
+                         (_platform_common.GeneratedFile("gen.txt", ("regen", "{tree}")),))
 
     def test_a_conflicting_trial_merge_of_disjoint_files_requires_reconcile(self) -> None:
         # Disjoint paths that still conflict: main adds a file where the task adds a directory.
@@ -268,6 +377,23 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.assertEqual(currency.state, "reconcile-required")
         self.assertEqual(currency.overlapping, ())
         self.assertTrue(currency.conflicts)
+        self.assertIn("a trial merge conflicts", currency.describe("origin/main"))
+
+    def test_trial_merge_conflict_without_named_paths_fails_closed(self) -> None:
+        self.commit(self.task, "task", {"task.txt": "task\n"})
+        self.advance_main({"main.txt": "main\n"})
+        real = _platform_common.run_git
+
+        def unnamed_conflict(args, *rest, **kwargs):
+            if args[:1] == ["merge-tree"]:
+                return subprocess.CompletedProcess(["git", *args], 1, "0" * 40 + "\n", "")
+            return real(args, *rest, **kwargs)
+
+        with mock.patch.object(_platform_common, "run_git", side_effect=unnamed_conflict):
+            currency = self.classify()
+
+        self.assertEqual(currency.state, "reconcile-required")
+        self.assertEqual(currency.conflicts, ())
         self.assertIn("a trial merge conflicts", currency.describe("origin/main"))
 
     def test_no_merge_base_fails_explicitly(self) -> None:
@@ -292,24 +418,24 @@ class TaskBaseCurrencyTests(unittest.TestCase):
             with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "git 2.37 cannot run a trial merge"):
                 self.classify()
 
-    def test_handoff_gate_accepts_behind_disjoint_only_for_a_coordinator_candidate(self) -> None:
+    def test_handoff_gate_accepts_behind_mergeable_only_for_a_coordinator_candidate(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         self.advance_main({"main.txt": "main\n"})
 
         with mock.patch.object(_platform_common, "coordinator_candidate", return_value=True):
             currency = _platform_common.require_handoff_task_base(self.task, "origin", "main")
-        self.assertEqual(currency.state, "behind-disjoint")
+        self.assertEqual(currency.state, "behind-mergeable")
         with mock.patch.object(_platform_common, "coordinator_candidate", return_value=False):
             with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "diverged relative to freshly observed origin/main"):
                 _platform_common.require_handoff_task_base(self.task, "origin", "main")
 
     def test_handoff_gate_names_the_overlap_and_the_reconcile_command(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "one\ntwo\nTHREE\n"})
+        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
 
         with mock.patch.object(_platform_common, "coordinator_candidate", return_value=True):
             with self.assertRaisesRegex(_platform_common.TaskFreshnessError,
-                                        r"both changed shared.txt; reconcile first \(python3 scripts/finish_task.py --reconcile\)"):
+                                        r"a trial merge conflicts in shared.txt; reconcile first \(python3 scripts/finish_task.py --reconcile\)"):
                 _platform_common.require_handoff_task_base(self.task, "origin", "main")
 
     def push(self, *, coordinator_handoff: bool) -> str:
@@ -323,23 +449,23 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         return run("git", "--git-dir", str(self.remote), "rev-parse", "--verify", "-q", "refs/heads/agent/task",
                    cwd=self.base, check=False).stdout.strip()
 
-    def test_developer_handoff_pushes_a_behind_disjoint_candidate_and_names_the_contract(self) -> None:
+    def test_developer_handoff_pushes_a_behind_mergeable_candidate_and_names_the_contract(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
         main = self.advance_main({"main.txt": "main\n"})
 
         output = self.push(coordinator_handoff=True)
 
-        self.assertIn("Task base contract behind-disjoint", output)
+        self.assertIn("Task base contract behind-mergeable", output)
         self.assertIn(f"origin/main ({main})", output)
         self.assertIn(f"merge base {self.seed}", output)
         self.assertEqual(self.remote_branch(), head)
 
     def test_developer_handoff_of_an_overlapping_candidate_is_blocked_before_push(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "one\ntwo\nTHREE\n"})
+        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
 
-        with self.assertRaisesRegex(SystemExit, r"both changed shared.txt\. Reconcile explicitly \(python3 scripts/finish_task.py --reconcile\)"):
+        with self.assertRaisesRegex(SystemExit, r"a trial merge conflicts in shared.txt\. Reconcile explicitly \(python3 scripts/finish_task.py --reconcile\)"):
             self.push(coordinator_handoff=True)
         self.assertEqual(self.remote_branch(), "")
 
@@ -351,14 +477,14 @@ class TaskBaseCurrencyTests(unittest.TestCase):
             self.push(coordinator_handoff=False)
         self.assertEqual(self.remote_branch(), "")
 
-    def test_status_reports_behind_disjoint_candidate_without_reconcile_or_moving_origin_main(self) -> None:
+    def test_status_reports_behind_mergeable_candidate_without_reconcile_or_moving_origin_main(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         main = self.advance_main({"main.txt": "main\n"})
 
         with mock.patch.object(task_reconciliation, "coordinator_candidate", return_value=True):
             payload = task_reconciliation.status_payload(self.task)
 
-        self.assertEqual(payload["task_freshness"], "behind-disjoint")
+        self.assertEqual(payload["task_freshness"], "behind-mergeable")
         self.assertFalse(payload["reconcile_required"])
         self.assertIsNone(payload["reconcile_command"])
         self.assertEqual((payload["authoritative_main"], payload["task_merge_base"]), (main, self.seed))
@@ -367,14 +493,14 @@ class TaskBaseCurrencyTests(unittest.TestCase):
 
     def test_status_of_an_overlapping_candidate_requires_reconcile_and_names_the_file(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "one\ntwo\nTHREE\n"})
+        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
 
         with mock.patch.object(task_reconciliation, "coordinator_candidate", return_value=True):
             payload = task_reconciliation.status_payload(self.task)
 
         self.assertEqual(payload["task_freshness"], "diverged")
         self.assertTrue(payload["reconcile_required"])
-        self.assertIn("both changed shared.txt", payload["freshness_detail"])
+        self.assertIn("a trial merge conflicts in shared.txt", payload["freshness_detail"])
 
     def test_status_of_a_non_candidate_behind_main_still_requires_reconcile(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})

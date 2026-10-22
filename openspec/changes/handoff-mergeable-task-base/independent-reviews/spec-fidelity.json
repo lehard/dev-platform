@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "50d12669d77b7fc569083a25400191586294d940",
+    "base_ref": "50d12669d77b7fc569083a25400191586294d940",
+    "candidate_head": "e841a315778d1634414a44e21d342659a8b9dba2",
+    "diff_sha256": "5189ab984b73476f107d83f0dbd8110fd4c98940dc804aecc76d9eacba6db998"
+  },
+  "completed_at": "2026-10-22T00:27:32+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py: in `classify_task_base_currency`, `generated_files(root, main_sha)` is called only inside the `merged.returncode == 1` branch after `conflicted` is non-empty. The tests are named `test_malformed_declaration_at_main_fails_explicitly_for_a_conflict` and `test_missing_check_configuration_at_main_fails_explicitly_for_a_conflict`, so they cover only the conflict path. The spec text (\"a malformed declaration SHALL fail explicitly\") and the agent-workflow.md paragraph don't say the error appears only when a conflict occurs.",
+      "id": "declaration-validated-only-on-conflict",
+      "severity": "advisory",
+      "summary": "The spec and docs say a malformed declaration, a missing `paths.checks`, or a missing file at main \"fails explicitly\". The implementation reads the declaration only when the trial merge exits 1 with named conflicts. On a clean merge it is never read or validated, so the gate passes despite a malformed or missing declaration at main."
+    }
+  ],
+  "launched_at": "2026-10-22T00:27:21+00:00",
+  "output_sha256": "a9d134e84a0df66c06d9e1b6d93afd85ef628bb5bbe1f105be5e69bdd4724dc4",
+  "perspective": "spec-fidelity",
+  "request_id": "c7f96969-0d85-4623-b700-9ec1d60ff261",
+  "reviewer": {
+    "context_id": "afdd0bf8-ecb1-4c0f-8282-4cc5b9b4ecef",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-236dfc4a-e8d5-4d44-b569-549d359aafea",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48343
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54492
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10374
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10542
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1215
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2"
+}

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "50d12669d77b7fc569083a25400191586294d940",
+    "base_ref": "50d12669d77b7fc569083a25400191586294d940",
+    "candidate_head": "e841a315778d1634414a44e21d342659a8b9dba2",
+    "diff_sha256": "5189ab984b73476f107d83f0dbd8110fd4c98940dc804aecc76d9eacba6db998"
+  },
+  "completed_at": "2026-10-22T00:27:49+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py in the diff: `paths = read_platform_config(root).get(\"paths\")` and `checks_path = paths.get(\"checks\")`, followed by `git show {commit}:{checks_path}`. A candidate can edit `[paths] checks` to point at another TOML file that already exists at main and carries a `[[generated_files]]` table. The declared-generated set is then taken from that file instead of the real check configuration. The impact is limited to files main already declares, and no new path can be declared. Reading `paths.checks` from main's own `.dev-platform.toml` (`git show {commit}:.dev-platform.toml`) would match the stated trust model.",
+      "id": "checks-path-read-from-working-tree",
+      "severity": "advisory",
+      "summary": "`generated_files()` takes the declaration file location from the working-tree `.dev-platform.toml`, which is candidate-controlled. The content is read at the observed main commit, but the file name is not. The spec and design say the declaration is read only from observed main and never from the candidate."
+    }
+  ],
+  "launched_at": "2026-10-22T00:27:32+00:00",
+  "output_sha256": "f980a701c9536c4173432e2d5935d583246d857c448b9d4d80e33a0c41a3dede",
+  "perspective": "engineering-quality",
+  "request_id": "c7f96969-0d85-4623-b700-9ec1d60ff261",
+  "reviewer": {
+    "context_id": "338fcd32-b8c3-488d-b976-7ecd811e8cca",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-1449d767-b890-450f-8bc4-0fa5fb37d1f4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43989
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 99066
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15638
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16000
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1506
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "12d0a5f2bf2110fb5b0e2d5f2db97d2ea3946346ca6bfb82964fbc27840555a2"
+}
