@@ -9,7 +9,9 @@ After the developer handoff accepts a head behind a mergeable `main` (handoff-me
 - Recovery of an unrecorded coordinator update also accepts a merge that differs from both parents only in archive-derived specs and declared generated files.
 - The App token never executes pull-request-controlled code: the generator and its declaration come from the default branch; the merged tree is input data.
 
+- Owner decision 2026-10-22 (see design): declared generated files leave task-content identity, so regeneration does not reset content-bound gates of an archived candidate. Each declaration names the required `check` that verifies the file, and that check must be in `[settings].full_commands`; otherwise the declaration fails explicitly. Identity reads the declaration at the main merge base, never from the candidate. Every other task path stays in identity.
+
 ## Impact
 
-- `template/scripts/publication_queue.py` (`_prepare`), `template/scripts/post_review_finalization.py` (generalized re-derivation, `derived_merge_only`).
-- Spec: publication-queue. Docs: `docs/engineering/chat-coordinator.md` if it describes integration bookkeeping.
+- `template/scripts/publication_queue.py` (`_prepare`), `template/scripts/post_review_finalization.py` (generalized re-derivation, `derived_merge_only`), `template/scripts/task_content_identity.py` (`review_exclusion`), `template/scripts/_platform_common.py` (declaration `check`), `dev-platform/checks.toml`.
+- Specs: publication-queue, completion-lifecycle. Docs: `docs/engineering/chat-coordinator.md` if it describes integration bookkeeping.
