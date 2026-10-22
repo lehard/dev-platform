@@ -87,7 +87,7 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 - **Advanced `main`.** `main` did not advance while a hosted job was running. When `main` advanced between rounds (#669), integration repair ran on the local node and the next review round was a new job.
 - **Failures.** All 15 failed runs exited `refused-or-failed` with a named cause and published nothing:
   - five (#619 and #637, 2026-10-19 and 2026-10-20 03:10-03:15): a review with findings could not record its friction because the runner has no Development Backlog configuration. #636 fixed this by deriving the public work identity before the reviewer starts, and the next two hosted reviews of #637 passed;
-  - ten (#628): the composition review resolves the private parent Requirement through the Development Backlog, which neither the runner configuration nor the repository-scoped App token can reach. This is still open: the hosted worker claims a composition review it cannot finish. It is recorded as friction and not fixed in this change.
+  - ten (#628): the composition review resolves the private parent Requirement through the Development Backlog, which neither the runner configuration nor the repository-scoped App token can reach. Since BR-767 a worker without a configured Development Backlog skips such a review before it claims it, so the job waits for the local worker without a hosted claim. A contribution-contract failure inside a composition review is posted as a `failed` result and escalates the candidate with the named cause instead of crashing the run and leaving the claim until it expires.
 
 ### Comparison with the minimal local fallback
 
@@ -95,7 +95,7 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 | --- | --- | --- |
 | Starts without a running session | yes, `workflow_run` within a minute of the handoff | only while a local worker loop runs |
 | Development Backlog and machine-local state | not reachable | reachable |
-| Composition (`requirement/BR-N`) review | fails after claiming the job (#628) | works |
+| Composition (`requirement/BR-N`) review of a private Requirement | skipped before the claim | works |
 | Credential boundary | proven by the preflight on every run | the local boundary contract, unchanged |
 | Merge authority | none; the queue merges | none; the CI-only protocol is unchanged |
 
@@ -103,7 +103,7 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 
 | Kind | Placement | Basis |
 | --- | --- | --- |
-| `review` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review`) for task and contribution PRs | The preflight passed and real PRs were reviewed after the session ended, with the constraints above. A Requirement composition review stays on the local operator node (BR-433) until the hosted worker can read the private Requirement or stops claiming that job. |
+| `review` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review`) for task and contribution PRs | The preflight passed and real PRs were reviewed after the session ended, with the constraints above. A Requirement composition review of a private Requirement stays on the local operator node (BR-433): the hosted worker has no Development Backlog and does not claim it. |
 | `finalize` | **Not enabled; not evaluated** | It runs candidate code beside a contents-write token. It is evaluated only if the owner enables it. Until then the local worker finalizes, as it did for every PR above. |
 | `repair`, `integration-repair` | **Local operator node (BR-433)** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). |
 | `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
