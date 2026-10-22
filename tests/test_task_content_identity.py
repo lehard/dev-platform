@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+from _platform_common import TaskFreshnessError  # noqa: E402
 from task_content_identity import (  # noqa: E402
     REVIEW_SCOPE,
     content_identity,
@@ -32,6 +33,8 @@ class TaskContentIdentityTests(unittest.TestCase):
         git(self.root, "config", "user.name", "Test")
         git(self.root, "config", "user.email", "test@example.invalid")
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
+        (self.root / "dev-platform").mkdir()
+        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "base")
         git(self.root, "branch", "origin/main")
@@ -104,6 +107,8 @@ class ReviewContentIdentityBaseTests(unittest.TestCase):
         git(self.root, "config", "user.name", "Test")
         git(self.root, "config", "user.email", "test@example.invalid")
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
+        (self.root / "dev-platform").mkdir()
+        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
         self.commit("base")
         git(self.root, "branch", "origin/main")
         git(self.root, "switch", "-c", "agent/dependent")
@@ -280,6 +285,108 @@ class ReviewContentIdentityBaseTests(unittest.TestCase):
             self.root, self.CHANGE, exclude=review_exclusion(self.root, self.CHANGE), scope=REVIEW_SCOPE,
         )
         self.assertEqual(proof, plain)
+
+
+SETTINGS = '[settings]\nfull_commands = ["verify-gen"]\n'
+DECLARATION = '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\ncheck = ["verify-gen"]\n'
+
+
+class GeneratedFileExclusionTests(unittest.TestCase):
+    """Declared generated files leave review identity; the declaration is read at the main merge base."""
+
+    CHANGE = "archived-change"
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        git(self.root, "init", "-b", "main")
+        git(self.root, "config", "user.name", "Test")
+        git(self.root, "config", "user.email", "test@example.invalid")
+        (self.root / "dev-platform").mkdir()
+        self.write_checks(SETTINGS + DECLARATION)
+        (self.root / "gen.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
+        (self.root / "feature.txt").write_text("a\nb\nc\nd\ne\nf\ng\n", encoding="utf-8")
+        self.commit("base")
+        git(self.root, "branch", "origin/main")
+        git(self.root, "switch", "-c", "agent/task")
+        archive = self.root / "openspec/changes/archive/2026-10-22-archived-change"
+        archive.mkdir(parents=True)
+        (archive / "proposal.md").write_text("proposal\n", encoding="utf-8")
+        (self.root / "gen.txt").write_text("ONE\ntwo\nthree\n", encoding="utf-8")
+        (self.root / "own.txt").write_text("own\n", encoding="utf-8")
+        self.commit("task")
+
+    def write_checks(self, text: str) -> None:
+        (self.root / "dev-platform/checks.toml").write_text(text, encoding="utf-8")
+
+    def commit(self, message: str) -> None:
+        git(self.root, "add", ".")
+        git(self.root, "commit", "-m", message)
+
+    def advance_main(self, files: dict[str, str]) -> None:
+        git(self.root, "switch", "main")
+        for name, text in files.items():
+            (self.root / name).write_text(text, encoding="utf-8")
+        self.commit("main advances")
+        git(self.root, "branch", "-f", "origin/main", "main")
+        git(self.root, "switch", "agent/task")
+
+    def merge_main(self, regenerated: str) -> None:
+        subprocess.run(["git", "merge", "--no-commit", "--no-ff", "main"], cwd=self.root, text=True, capture_output=True, check=False)
+        (self.root / "gen.txt").write_text(regenerated, encoding="utf-8")
+        self.commit("merge main with regenerated file")
+
+    def paths(self) -> set[str]:
+        return set(review_content_identity(self.root, self.CHANGE)["paths"])
+
+    def test_declared_generated_file_is_not_task_content_but_every_other_path_is(self) -> None:
+        self.assertEqual(self.paths(), {"own.txt", "openspec/changes/archived-change/proposal.md"})
+
+    def test_regenerating_only_the_manifest_keeps_the_identity_and_the_proof_equivalent(self) -> None:
+        before = review_content_identity(self.root, self.CHANGE)
+        self.advance_main({"gen.txt": "one\ntwo\nTHREE\n"})
+        self.merge_main("ONE\ntwo\nTHREE\n")
+        after = review_content_identity(self.root, self.CHANGE)
+        self.assertEqual(before["digest"], after["digest"])
+        self.assertTrue(equivalent_proofs(self.root, before, after))
+
+    def test_an_ordinary_task_path_changing_with_the_manifest_changes_the_identity(self) -> None:
+        (self.root / "feature.txt").write_text("A\nb\nc\nd\ne\nf\ng\n", encoding="utf-8")
+        self.commit("task edits feature")
+        before = review_content_identity(self.root, self.CHANGE)
+        self.advance_main({"gen.txt": "one\ntwo\nTHREE\n", "feature.txt": "a\nb\nc\nd\ne\nf\nG\n"})
+        self.merge_main("ONE\ntwo\nTHREE\n")
+        after = review_content_identity(self.root, self.CHANGE)
+        self.assertNotEqual(before["digest"], after["digest"])
+        self.assertFalse(equivalent_proofs(self.root, before, after))
+
+    def test_a_declaration_only_in_the_candidate_is_ignored(self) -> None:
+        # Main never declared gen.txt; the candidate adds the declaration itself.
+        git(self.root, "switch", "main")
+        self.write_checks("# no generated files\n")
+        self.commit("main declares nothing")
+        git(self.root, "branch", "-f", "origin/main", "main")
+        git(self.root, "switch", "-c", "other-task")
+        self.write_checks(SETTINGS + DECLARATION)
+        (self.root / "gen.txt").write_text("changed by the candidate\n", encoding="utf-8")
+        self.commit("candidate declares its own generated file")
+        self.assertIn("gen.txt", self.paths())
+
+    def test_a_declaration_whose_check_is_not_a_full_command_fails_explicitly(self) -> None:
+        git(self.root, "switch", "main")
+        self.write_checks('[settings]\nfull_commands = ["other"]\n' + DECLARATION)
+        self.commit("main declares an unchecked file")
+        git(self.root, "branch", "-f", "origin/main", "main")
+        git(self.root, "switch", "agent/task")
+        git(self.root, "merge", "main")
+        with self.assertRaisesRegex(TaskFreshnessError, "generated file gen.txt is not in .settings..full_commands"):
+            review_content_identity(self.root, self.CHANGE)
+
+    def test_an_unreadable_merge_base_fails_explicitly(self) -> None:
+        git(self.root, "branch", "-D", "origin/main")
+        with self.assertRaisesRegex(TaskFreshnessError, "no merge base of HEAD and origin/main"):
+            review_content_identity(self.root, self.CHANGE)
 
 
 if __name__ == "__main__":

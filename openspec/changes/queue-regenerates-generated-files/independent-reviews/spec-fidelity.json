@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "441812beb762b512b466dc180595a0222d2bd35c",
+    "base_ref": "441812beb762b512b466dc180595a0222d2bd35c",
+    "candidate_head": "88a5fff1854b71ccd1b68e580580797bed418d11",
+    "diff_sha256": "d2df771dfe41b0289a08b96dda302363124f7997d5ae15c2c85fa8997f7a86f3"
+  },
+  "completed_at": "2026-10-22T16:44:54+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py `_prepare` calls `generated_files(root, \"HEAD\")` twice, in the unrecorded-update recovery path and in the main preparation path, with no try/except. `prepare_derived_specs` catches only `workers.WorkerError`. A `TaskFreshnessError` from a malformed declaration, or from a `check` missing from `[settings].full_commands`, therefore escapes as an unclassified exception. It is neither `IntegrationRepairNeeded` nor `QueueError`. This happens even for candidates that have no overlap with the generated file.",
+      "id": "declaration-error-not-bounded-in-queue",
+      "severity": "advisory",
+      "summary": "The queue reads the generated-file declaration with no handling for a declaration the reader rejects. The `check` requirement makes rejection a new failure mode on the default branch. The spec says only that reading fails explicitly. It does not say how the queue treats that failure."
+    },
+    {
+      "evidence": "task_content_identity.py `review_exclusion` raises `TaskFreshnessError` when `main_branch` is absent, when there is no merge base, or (through `generated_files`) when `paths.checks` is missing. About eight test fixtures had to gain `dev-platform/checks.toml` plus `paths.checks`: test_model_routing, test_independent_review, test_integration_advance_receipts, test_central_dogfood_lifecycle, and others. `parallel_lifecycle_acceptance.py` was edited the same way. Projects without `paths.checks` will fail identity computation. The design and proposal do not address this.",
+      "id": "identity-requires-checks-config-everywhere",
+      "severity": "advisory",
+      "summary": "`review_exclusion` now always reads the declaration at the main merge base. Every review or composition identity computation therefore needs `main_branch`, `origin/<main>` and a check configuration. The completion-lifecycle spec covers a missing configuration, but the design does not discuss this wider reach. The Rollout cost paragraph covers only digest changes."
+    },
+    {
+      "evidence": "`.managed-task.json` `artifacts` lists proposal.md, design.md, specs/publication-queue/spec.md and tasks.md. It omits specs/completion-lifecycle/spec.md. The proposal Impact section names completion-lifecycle among the affected specs, and the candidate adds specs/completion-lifecycle/spec.md.",
+      "id": "managed-task-artifacts-omit-completion-lifecycle-spec",
+      "severity": "advisory",
+      "summary": "The imported package metadata does not list the completion-lifecycle delta spec, although that spec is part of the active delta."
+    }
+  ],
+  "launched_at": "2026-10-22T16:44:19+00:00",
+  "output_sha256": "10ff0bff80ddcc24e3efd09a328b52e9e4e4e8582c65e9d7f1a7a996fc649082",
+  "perspective": "spec-fidelity",
+  "request_id": "e3ff0743-79dd-4851-96f0-6699df3686de",
+  "reviewer": {
+    "context_id": "d4a32b34-a171-4916-ab60-b9d38b0c9ae9",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6a954197-3901-4dd3-8a76-fabcd95191df",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52494
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51927
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34551
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34670
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3416
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1710664dc3eec8281330cee1f9b16e80639fed0b65ed4da605eb4c4c62d46753"
+}
