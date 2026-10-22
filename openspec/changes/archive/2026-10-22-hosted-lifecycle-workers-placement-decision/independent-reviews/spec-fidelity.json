@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "bb8b506a831d63539afe8e4dff8ca2ec838c3276",
+    "base_ref": "origin/main",
+    "candidate_head": "474cd2f7cd15bc1b40721c58bf4f0c3d16c8aca9",
+    "diff_sha256": "8f056726b6436f30a72e827c5cddcc03957d45147e3b4126af95b2d08a88aa98"
+  },
+  "completed_at": "2026-10-22T12:33:25+00:00",
+  "findings": [
+    {
+      "evidence": "spec.md lists \"token scope\" in the required constraints. In docs/engineering/hosted-lifecycle-workers.md the pilot record covers runtime/credentials, boundary, duration, cost, trigger volume and failures. Token scope appears only indirectly, as \"repository-scoped App token\" in the #628 failure bullet and \"contents-write token\" in the `finalize` row.",
+      "id": "token-scope-not-recorded",
+      "severity": "advisory",
+      "summary": "The spec requires the per-kind record to include token scope among the verified constraints. The pilot record has no explicit token-scope entry for `review`."
+    },
+    {
+      "evidence": "The doc says \"This is still open: the hosted worker claims a composition review it cannot finish\" (#628, ten failed runs, ~7h delay). The decision table sets `review` to Hosted via DEV_PLATFORM_HOSTED_KINDS=review and says composition review \"stays on the local operator node (BR-433) until the hosted worker ... stops claiming that job\". Nothing in the candidate makes the hosted worker stop claiming it. The defect is recorded as friction, which task 2.3 allows, but the decision is only descriptive until it is fixed.",
+      "id": "composition-review-placement-not-enforced",
+      "severity": "advisory",
+      "summary": "The placement decision says Requirement composition reviews stay on the local node. The record also says the hosted worker still claims those jobs and cannot finish them, so the decision does not match the configured behavior."
+    }
+  ],
+  "launched_at": "2026-10-22T12:33:11+00:00",
+  "output_sha256": "ed16bcf0e8e9b4cbc565b628599f0ce99311cbefd2943c8fe8b7bb7cb58160aa",
+  "perspective": "spec-fidelity",
+  "request_id": "92409401-41a6-48aa-a80f-992a92fe0830",
+  "reviewer": {
+    "context_id": "daf368e6-8796-45e8-91d5-abc8b8399793",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-911d2ba8-60db-471c-9554-663f2ca87096",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17548
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14838
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13238
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13408
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1408
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ca191e461b703c51a1a5a3eb8473ce12b0a8a8045537f7d8bf8df4b0db97578d"
+}

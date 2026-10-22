@@ -1,0 +1,72 @@
+{
+  "candidate": {
+    "base_head": "bb8b506a831d63539afe8e4dff8ca2ec838c3276",
+    "base_ref": "origin/main",
+    "candidate_head": "474cd2f7cd15bc1b40721c58bf4f0c3d16c8aca9",
+    "diff_sha256": "8f056726b6436f30a72e827c5cddcc03957d45147e3b4126af95b2d08a88aa98"
+  },
+  "change": "openspec/changes/hosted-lifecycle-workers-placement-decision",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/hosted-lifecycle-workers-placement-decision/automated-checks.json",
+    "openspec/changes/hosted-lifecycle-workers-placement-decision/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/design.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/specs/lifecycle-workers/spec.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/proposal.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/design.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/tasks.md",
+        "openspec/changes/hosted-lifecycle-workers-placement-decision/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-22T12:33:06+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/hosted-lifecycle-workers-placement-decision/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "92409401-41a6-48aa-a80f-992a92fe0830",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3a0e6e23c997812c58e04e7afb19a0d111ddd1c1",
+    "digest": "ca191e461b703c51a1a5a3eb8473ce12b0a8a8045537f7d8bf8df4b0db97578d",
+    "paths": {
+      "docs/engineering/hosted-lifecycle-workers.md": "d2dba5af75c802dd757c1a21e95c8646e1380c91",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/.managed-task.json": "4eb2e94c018316772424b7ee56aca32f66fdd130",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/.openspec.yaml": "7cc41bb519e271c0a74068d5a8e912100b55e58c",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/design.md": "c4b6cb44d04ecfdc9cd67df37f068ade748ae399",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/proposal.md": "03a46b9708d90640fc0b45236bd0f36959835fd2",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/specs/lifecycle-workers/spec.md": "9fae66ba7b59a7c846b8add0325be903e6884dee",
+      "openspec/changes/hosted-lifecycle-workers-placement-decision/tasks.md": "d1dda53eda6d7e11d9f36a675584f80e594b0282"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
