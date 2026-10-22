@@ -95,7 +95,7 @@
     "scripts/integration_state.py": "bffa4716c88f48871c33dd8766357f5441b9a4f2c535bb4a3579715ef25a931c",
     "scripts/lifecycle_overview.py": "de206a3275a34476be23759d9747e6cc808a6e949fb81e13875f5e745d5dbd42",
     "scripts/lifecycle_workers.py": "4b2cad8d747dc7efb0b253e009b89603376e53ba5e6a82ba41226b8984585cb7",
-    "scripts/local_workspace.py": "bd09e4d0af92f81e679262942e0e7ff37b0c30ee6c102b16a0e2edcd1aa30e39",
+    "scripts/local_workspace.py": "a0f14fc943b8658a19a6f10531f4636d8c691e57c0ec796c3c3c56d6cdff7592",
     "scripts/machine_pool.py": "9467ee8704f79ed971009f2b7dd91ecd58e1cc120d433d07eacee5967aa1f91a",
     "scripts/managed_project_status.py": "5c05ab488343840c55073c1b20f1d8e689c1ddeaa085e1c3509610e52c72eb9b",
     "scripts/managed_task.py": "ad566b9f8b06284439c4955fda7698038d71f812cbf897d8c8f990b9a99f3f5f",
