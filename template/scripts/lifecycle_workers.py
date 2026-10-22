@@ -353,12 +353,32 @@ def scratch_home(root: Path, home_files: list[str] | tuple[str, ...] = (), *, so
     return home
 
 
+def live_group_members(pgid: int) -> list[str]:
+    """The ``ps`` rows (``pid stat``) of the members of process group ``pgid`` that are not zombies."""
+    listing = subprocess.run(["ps", "-A", "-o", "pid=,pgid=,stat="], capture_output=True, text=True, check=True)
+    live = []
+    for row in listing.stdout.splitlines():
+        pid, group, state = row.split()
+        if int(group) == pgid and not state.startswith("Z"):
+            live.append(f"{pid} {state}")
+    return live
+
+
 def kill_process_group(pgid: int) -> None:
-    """SIGKILL a whole process group; a group that is already gone is the only tolerated failure."""
+    """SIGKILL a whole process group; only a group with no live member left is tolerated.
+
+    macOS refuses (EPERM) to signal a group whose remaining members are all zombies awaiting their
+    reaper, for example killed grandchildren not yet reaped by launchd. EPERM is accepted only after
+    ``ps`` proves no non-zombie member is left; a live member that refuses SIGKILL fails loudly.
+    """
     try:
         os.killpg(pgid, signal.SIGKILL)
     except ProcessLookupError:
         pass  # no member is left
+    except PermissionError as error:
+        live = live_group_members(pgid)
+        if live:
+            raise WorkerError(f"cannot SIGKILL process group {pgid}; live members remain: {', '.join(live)}") from error
 
 
 def run_in_session(command: list[str], *, capture_output: bool = False, check: bool = False,
