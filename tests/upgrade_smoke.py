@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -18,44 +19,36 @@ os.environ["GIT_CONFIG_KEY_0"] = "maintenance.auto"
 os.environ["GIT_CONFIG_VALUE_0"] = "false"
 os.environ["GIT_CONFIG_KEY_1"] = "gc.auto"
 os.environ["GIT_CONFIG_VALUE_1"] = "0"
-FALLBACK_BASE_REF = "cb46d0c787334c473f8e8c46f018ca14e665c507"
+STABLE_TAG = re.compile(r"v\d+\.\d+\.\d+")
 
 
 def run(command: list[str], cwd: Path, *, capture: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, cwd=cwd, text=True, check=True, capture_output=capture)
 
 
-def _ref_exists(ref: str) -> bool:
-    return subprocess.run(
-        ["git", "cat-file", "-e", f"{ref}^{{commit}}"],
-        cwd=ROOT,
-        capture_output=True,
-        check=False,
-    ).returncode == 0
+def choose_base_ref() -> str:
+    """Return the Copier upgrade baseline: the newest stable tag merged into HEAD.
 
-
-def choose_base_ref() -> str | None:
-    """Return the Copier upgrade baseline, or ``None`` if none is resolvable.
-
-    A fresh-history checkout (for example a public-distribution snapshot
-    with one synthetic root commit) has neither a stable tag nor the
-    bootstrap fallback commit in its own history, so there is no meaningful
-    prior platform state to upgrade from there.
+    A branch older than the latest release upgrades from the release it
+    actually descends from; prerelease tags are never baselines.
     """
     explicit = os.environ.get("UPGRADE_BASE_REF")
     if explicit:
         return explicit
     result = subprocess.run(
-        ["git", "tag", "--list", "v[0-9]*", "--sort=-v:refname"],
+        ["git", "tag", "--list", "v[0-9]*", "--merged", "HEAD", "--sort=-v:refname"],
         cwd=ROOT,
         text=True,
         capture_output=True,
         check=True,
     )
-    tags = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    if tags:
-        return tags[0]
-    return FALLBACK_BASE_REF if _ref_exists(FALLBACK_BASE_REF) else None
+    for line in result.stdout.splitlines():
+        if STABLE_TAG.fullmatch(tag := line.strip()):
+            return tag
+    raise SystemExit(
+        "Copier upgrade smoke requires a stable vX.Y.Z tag in HEAD's history; "
+        "fetch full tag history or set UPGRADE_BASE_REF explicitly."
+    )
 
 
 def append_sentinel(path: Path, sentinel: str) -> None:
@@ -69,13 +62,6 @@ def main() -> int:
     args = parser.parse_args()
 
     base_ref = choose_base_ref()
-    if base_ref is None:
-        print(
-            "Skipping Copier upgrade smoke: no historical platform tag or bootstrap "
-            "baseline commit exists in this checkout (a fresh-history checkout has "
-            "nothing to upgrade from)."
-        )
-        return 0
     with tempfile.TemporaryDirectory(prefix=f"dev-platform-upgrade-{args.profile}-") as tmp:
         target = Path(tmp) / "project"
         # read_platform_config() opens operator.config_path once [operator] is
