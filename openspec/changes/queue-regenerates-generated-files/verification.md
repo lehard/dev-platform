@@ -23,6 +23,8 @@ A delegated native Claude executor (standard route, sonnet) wrote all code and t
 - `dev-platform/checks.toml`: the manifest entry has `check = ["python3", "scripts/generate_platform_manifest.py", "--check"]`, which is added to `full_commands` (with a matching evidence type).
 - Docs: one sentence each in `docs/engineering/agent-workflow.md` and `docs/engineering/openspec-workflow.md`. The manifest is regenerated.
 
+- Fixtures and seeds that wrote a `.dev-platform.toml` without `main_branch` or `paths.checks`, or had no committed check configuration, now carry a real project contract. These are tests in `test_independent_review`, `test_model_routing`, `test_integration_advance_receipts`, `test_central_dogfood_lifecycle` and `test_standard_profile_lifecycle_compatibility`, plus the seed in `template/scripts/parallel_lifecycle_acceptance.py`. The strict reader is unchanged. These were found by the affected precheck and the full run (2 and 3 failures) before the final run.
+
 Supervisor review checked:
 - worker and queue checkouts are plain clones, so `origin/<main>` exists for the identity merge base;
 - no caller converts the new explicit errors into "unknown identity".
