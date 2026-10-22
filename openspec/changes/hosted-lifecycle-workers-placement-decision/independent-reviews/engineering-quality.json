@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "bb8b506a831d63539afe8e4dff8ca2ec838c3276",
+    "base_ref": "origin/main",
+    "candidate_head": "474cd2f7cd15bc1b40721c58bf4f0c3d16c8aca9",
+    "diff_sha256": "8f056726b6436f30a72e827c5cddcc03957d45147e3b4126af95b2d08a88aa98"
+  },
+  "completed_at": "2026-10-22T12:33:40+00:00",
+  "findings": [
+    {
+      "evidence": "In hosted-lifecycle-workers.md, the Placement decision table keeps `review` hosted via `DEV_PLATFORM_HOSTED_KINDS=review`. It also says composition review 'stays on the local operator node (BR-433)'. The #628 observation shows ten hosted runs each claiming the job and failing, with about seven hours of delay, and says 'This is still open: the hosted worker claims a composition review it cannot finish'. The spec requires that a kind whose prerequisites cannot be proven 'SHALL stay off the hosted path'. The document records the gap as friction, but the stated placement does not match the actual configuration and behavior. The change should either link the friction event or follow-up, or state plainly that the hazard persists until it is fixed.",
+      "id": "composition-review-still-claimed-hosted",
+      "severity": "advisory",
+      "summary": "The placement decision says Requirement composition reviews stay on the local operator node, but nothing in the change enforces that. The hosted worker keeps claiming those jobs, fails, and holds each claim for 30 minutes."
+    },
+    {
+      "evidence": "The record cites 306 runs, 19 `job-reviewed` runs, 58 cancelled runs, 15 failed runs and a median of 97s, with no query, saved run list or artifact reference. The PR list adds up to 15 distinct PRs and 16 reviews, against 19 reviewing runs, and the text never explains the gap. A reader cannot reproduce the numbers or tell whether the duplicates are re-reviews.",
+      "id": "pilot-metrics-unverifiable-in-diff",
+      "severity": "advisory",
+      "summary": "The pilot figures cannot be checked from the repository. Some counts are loosely reconciled."
+    }
+  ],
+  "launched_at": "2026-10-22T12:33:25+00:00",
+  "output_sha256": "c71968402001424cdfb2d53e220f8115c943211a0b4637ff2bd2120c6a424dd4",
+  "perspective": "engineering-quality",
+  "request_id": "92409401-41a6-48aa-a80f-992a92fe0830",
+  "reviewer": {
+    "context_id": "0ba95e28-7ceb-430d-8ee8-c963110dcc5e",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-38aae30c-9f81-4507-93fe-46f8eaaae329",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14709
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16444
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13918
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14064
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1412
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ca191e461b703c51a1a5a3eb8473ce12b0a8a8045537f7d8bf8df4b0db97578d"
+}
