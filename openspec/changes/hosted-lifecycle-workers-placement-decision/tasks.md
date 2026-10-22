@@ -11,4 +11,4 @@
 
 ## 3. Delivery
 
-- [ ] 3.1 Required platform checks, truthful verification, developer handoff.
+- [x] 3.1 Required platform checks, truthful verification, developer handoff.
