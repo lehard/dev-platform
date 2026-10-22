@@ -2,7 +2,7 @@
 
 After a developer handoff the coordinator publishes head-bound jobs, and a worker must claim them. The hosted worker runs the existing `lifecycle_workers.py work-next --run` contract on a GitHub-hosted runner, so a published review or finalize job no longer waits for a running Codex/Claude session or for the owner. It adds a placement, not a second queue or state store: claims, results, trust, exact-head discard and the harness-only push are unchanged, and merging stays with the publication queue.
 
-This document is the owner's enablement instruction and the record of the pilot. The workflow `.github/workflows/lifecycle-workers.yml` has three triggers: manual `workflow_dispatch`, `workflow_run` on completion of the *Dev Platform publication queue* workflow, and a `schedule` of every 10 minutes as a backstop for missed events. All run the default-branch workflow under the same default-branch guard, and no step reads the triggering event's payload. A run still fails explicitly until the owner has completed enablement steps 1-4 below.
+This document is the owner's enablement instruction. The workflow `.github/workflows/lifecycle-workers.yml` has three triggers: manual `workflow_dispatch`, `workflow_run` on completion of the *Dev Platform publication queue* workflow, and a `schedule` of every 10 minutes as a backstop for missed events. All run the default-branch workflow under the same default-branch guard, and no step reads the triggering event's payload. A run still fails explicitly until the owner has completed enablement steps 1-4 below.
 
 ## What runs hosted and what does not
 
@@ -57,55 +57,12 @@ A review or repair job derives its friction attribution before the reviewer or w
 
 After its own lease-protected evidence push a worker waits up to 60 seconds for the PR API to report the pushed head. A different head or a changed claim still discards the job; a head that never converges fails the run with that cause. Gates bound to unchanged task content survive the harness's own evidence push, including when an interrupted run is recovered from its `validated-push` receipt.
 
-## Pilot record (2026-10-19 to 2026-10-22)
+## What the pilot still has to verify
 
-The automatic triggers have been on `main` since 2026-10-13 and `DEV_PLATFORM_HOSTED_KINDS` is `review`. The record below comes from the claim/result comments on real pull requests and from the job summaries of every non-cancelled run of the workflow created from 2026-10-19 to 2026-10-22 06:40 UTC (306 runs). No synthetic job was created. `finalize` was not enabled, so everything below is about `review`.
+This change delivers the mechanism and its tests. The real-PR pilot and the per-kind placement decision are the next slice of BR-610 and need the credentials above. For each kind it records:
 
-### Real PRs reviewed after the developer session ended
-
-In each case the developer session ended at its handoff (queue `admit`), the `workflow_run` trigger started the worker, and nobody ran a command. The worker claimed the job as `gha-<run_id>-1-review` and published `validated-push` and `reviewed` results under the App identity. A local worker then finalized the candidate and the publication queue merged it.
-
-| PR | Handoff (`admit`) | Hosted claim | Run | Result |
-| --- | --- | --- | --- | --- |
-| #668 | 2026-10-20 23:56:50 | 23:57:42 | 39518284656 | `reviewed`, evidence pushed, merged |
-| #669 | 2026-10-21 00:13:00 | 00:13:57 | 39519980583 | `reviewed`, evidence pushed |
-| #669 (re-handoff) | 2026-10-21 09:09:53 | 09:10:53 | 39574875517 | `reviewed`, evidence pushed, merged |
-| #687 | 2026-10-22 00:26:28 | 00:27:06 | 39699692512 | `reviewed`, evidence pushed, merged |
-
-The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, #639, #644, #649 and #656 (19 `job-reviewed` runs in total).
-
-### Observed constraints for `review`
-
-- **Runtime and credentials.** The pinned Claude CLI on Node 22.12.0 and the repository's provider secret worked on every run that reached the work step. No `provider-unavailable` outcome was observed.
-- **Credential boundary and workspace.** The runtime preflight, including the credential-free child check, passed on every run that reached the work step. No run failed on the reviewer's before/after workspace check: all 15 failures have the causes listed below.
-- **Duration.** From handoff to hosted claim: 38-60 seconds. The `work` job of the 19 reviewing runs took 66-147 seconds (median 97). The whole run took 79-214 seconds, except one that waited about 30 minutes in the per-class concurrency group before it started. No run reached the 25-minute timeout.
-- **Cost and rate limits.** Unobserved. The provider token is a subscription OAuth token and the runner reports no per-job usage, so there is no per-job cost to record. No rate-limit response was observed.
-- **Trigger volume.** The `workflow_run` trigger started all 19 reviews. The 10-minute `schedule` fired only 5-8 times a day (GitHub throttles scheduled workflows), so it is a weak backstop. 58 runs were `cancelled`: a burst of queue completions superseded the pending `work` job in the per-class concurrency group. A running worker was never cancelled.
-- **Duplicate claim.** On #668 the hosted worker and a local worker claimed the same job one second apart (23:57:42 and 23:57:43). The first claim won, only the hosted worker published a result and the local worker published nothing.
-- **Moved head.** Five runs ended `job-discarded` (#619 three times, #629, #637) because the head or claim changed during the job. No result was published for them.
-- **Expired claim.** On #628 (a Requirement composition PR, `requirement/BR-576`) ten hosted runs from 2026-10-20 06:17 to 12:46 claimed the same review job and failed. Each claim held the job until it expired after 30 minutes, then the next run claimed it again. A local worker reviewed it at 13:19. The expiry worked as designed, but the job was delayed about seven hours.
-- **Advanced `main`.** `main` did not advance while a hosted job was running. When `main` advanced between rounds (#669), integration repair ran on the local node and the next review round was a new job.
-- **Failures.** All 15 failed runs exited `refused-or-failed` with a named cause and published nothing:
-  - five (#619 and #637, 2026-10-19 and 2026-10-20 03:10-03:15): a review with findings could not record its friction because the runner has no Development Backlog configuration. #636 fixed this by deriving the public work identity before the reviewer starts, and the next two hosted reviews of #637 passed;
-  - ten (#628): the composition review resolves the private parent Requirement through the Development Backlog, which neither the runner configuration nor the repository-scoped App token can reach. This is still open: the hosted worker claims a composition review it cannot finish. It is recorded as friction and not fixed in this change.
-
-### Comparison with the minimal local fallback
-
-| Constraint | Hosted `review` | Local worker on the operator node |
-| --- | --- | --- |
-| Starts without a running session | yes, `workflow_run` within a minute of the handoff | only while a local worker loop runs |
-| Development Backlog and machine-local state | not reachable | reachable |
-| Composition (`requirement/BR-N`) review | fails after claiming the job (#628) | works |
-| Credential boundary | proven by the preflight on every run | the local boundary contract, unchanged |
-| Merge authority | none; the queue merges | none; the CI-only protocol is unchanged |
-
-## Placement decision
-
-| Kind | Placement | Basis |
-| --- | --- | --- |
-| `review` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review`) for task and contribution PRs | The preflight passed and real PRs were reviewed after the session ended, with the constraints above. A Requirement composition review stays on the local operator node (BR-433) until the hosted worker can read the private Requirement or stops claiming that job. |
-| `finalize` | **Not enabled; not evaluated** | It runs candidate code beside a contents-write token. It is evaluated only if the owner enables it. Until then the local worker finalizes, as it did for every PR above. |
-| `repair`, `integration-repair` | **Local operator node (BR-433)** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). |
-| `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
-
-No kind moved to CI by default, and no local worker gained merge or `main` authority beyond the CI-only protocol.
+- the Claude runtime and credential working on a hosted runner, and the observed per-job duration, cost and rate limits;
+- the credential-boundary proof on a real runner, and that the read-only reviewer left the workspace unchanged (the existing before/after check);
+- behavior under a duplicate trigger, an expired claim, a moved head and an advanced `main`;
+- failure behavior of provider, authentication, network and check errors;
+- a comparison with the minimal local fallback, and for any kind that cannot be proven the basis for the local operator node (BR-433). No kind is moved to CI by default and no local worker gains merge authority beyond the CI-only protocol.
