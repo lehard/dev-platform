@@ -90,6 +90,27 @@ class ReleaseInstallationValidationTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "requires a stable baseline"):
                 validation.main()
 
+    def test_baseline_is_newest_stable_tag_merged_into_head(self) -> None:
+        def git(root: Path, *args: str) -> None:
+            subprocess.run(["git", *args], cwd=root, check=True, capture_output=True)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            git(root, "init", "-q", "-b", "main")
+            git(root, "config", "user.name", "test")
+            git(root, "config", "user.email", "test@example.invalid")
+            for message, tag in (("one", "v1.0.0"), ("two", "v1.1.0")):
+                git(root, "commit", "-q", "--allow-empty", "-m", message)
+                git(root, "tag", tag)
+            git(root, "checkout", "-q", "-b", "older", "v1.0.0")
+            git(root, "commit", "-q", "--allow-empty", "-m", "older work")
+            git(root, "tag", "v1.2.0-rc.1")
+            with patch.object(validation, "ROOT", root):
+                self.assertEqual(validation.stable_baseline_ref(), "v1.0.0")
+                git(root, "checkout", "-q", "--orphan", "fresh")
+                git(root, "commit", "-q", "--allow-empty", "-m", "fresh history")
+                self.assertIsNone(validation.stable_baseline_ref())
+
     def test_shallow_snapshot_requires_explicit_skip(self) -> None:
         with patch.object(validation, "shallow_repository", return_value=True), patch.object(sys, "argv", ["validate_release_installation.py"]):
             with self.assertRaisesRegex(SystemExit, "requires complete Git history"):

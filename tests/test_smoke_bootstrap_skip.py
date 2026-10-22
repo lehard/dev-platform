@@ -41,29 +41,34 @@ class HermeticRepoCase(unittest.TestCase):
 
 
 class ChooseBaseRefTests(HermeticRepoCase):
+    def commit(self, text: str) -> None:
+        (self.root / "file.txt").write_text(text, encoding="utf-8")
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-q", "-m", text)
+
     def test_returns_latest_tag_when_present(self) -> None:
         git(self.root, "tag", "v1.0.0")
-        (self.root / "file.txt").write_text("two\n", encoding="utf-8")
-        git(self.root, "add", "-A")
-        git(self.root, "commit", "-q", "-m", "second")
+        self.commit("two\n")
         git(self.root, "tag", "v1.1.0")
         with mock.patch.object(upgrade_smoke, "ROOT", self.root):
             self.assertEqual(upgrade_smoke.choose_base_ref(), "v1.1.0")
 
-    def test_falls_back_to_bootstrap_commit_when_resolvable(self) -> None:
-        fallback = git(self.root, "rev-parse", "HEAD").stdout.strip()
-        with (
-            mock.patch.object(upgrade_smoke, "ROOT", self.root),
-            mock.patch.object(upgrade_smoke, "FALLBACK_BASE_REF", fallback),
-        ):
-            self.assertEqual(upgrade_smoke.choose_base_ref(), fallback)
+    def test_branch_older_than_latest_release_uses_its_own_ancestor_tag(self) -> None:
+        git(self.root, "tag", "v1.0.0")
+        git(self.root, "branch", "older")
+        self.commit("two\n")
+        git(self.root, "tag", "v1.1.0")
+        git(self.root, "checkout", "-q", "older")
+        self.commit("older work\n")
+        git(self.root, "tag", "v1.2.0-rc.1")
+        with mock.patch.object(upgrade_smoke, "ROOT", self.root):
+            self.assertEqual(upgrade_smoke.choose_base_ref(), "v1.0.0")
 
-    def test_returns_none_when_no_tag_and_fallback_unresolvable(self) -> None:
-        with (
-            mock.patch.object(upgrade_smoke, "ROOT", self.root),
-            mock.patch.object(upgrade_smoke, "FALLBACK_BASE_REF", "0" * 40),
-        ):
-            self.assertIsNone(upgrade_smoke.choose_base_ref())
+    def test_missing_stable_tag_fails_explicitly(self) -> None:
+        git(self.root, "tag", "v1.0.0-rc.1")
+        with mock.patch.object(upgrade_smoke, "ROOT", self.root):
+            with self.assertRaisesRegex(SystemExit, "requires a stable vX.Y.Z tag"):
+                upgrade_smoke.choose_base_ref()
 
     def test_explicit_env_override_always_wins(self) -> None:
         with (
@@ -72,13 +77,13 @@ class ChooseBaseRefTests(HermeticRepoCase):
         ):
             self.assertEqual(upgrade_smoke.choose_base_ref(), "explicit-ref")
 
-    def test_main_skips_cleanly_when_no_baseline_is_resolvable(self) -> None:
+    def test_main_fails_without_a_baseline(self) -> None:
         with (
             mock.patch.object(upgrade_smoke, "ROOT", self.root),
-            mock.patch.object(upgrade_smoke, "FALLBACK_BASE_REF", "0" * 40),
             mock.patch.object(sys, "argv", ["upgrade_smoke.py", "--profile", "light", "--publish-mode", "direct"]),
         ):
-            self.assertEqual(upgrade_smoke.main(), 0)
+            with self.assertRaisesRegex(SystemExit, "requires a stable vX.Y.Z tag"):
+                upgrade_smoke.main()
 
 
 class RolloutRecopySmokeSkipTests(HermeticRepoCase):

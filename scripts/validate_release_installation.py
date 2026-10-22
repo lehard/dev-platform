@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -17,6 +18,7 @@ from pathlib import Path
 from rollout_project import normalize_copier_answers, validate_platform_installation
 
 ROOT = Path(__file__).resolve().parents[1]
+STABLE_TAG = re.compile(r"v\d+\.\d+\.\d+")
 
 
 @dataclass(frozen=True)
@@ -61,14 +63,15 @@ def run(command: list[str], cwd: Path) -> None:
 
 
 def stable_baseline_ref() -> str | None:
+    """Return the newest stable vX.Y.Z tag in HEAD's history; prereleases and newer unmerged releases are not baselines."""
     result = subprocess.run(
-        ["git", "tag", "--list", "v[0-9]*", "--sort=-version:refname"],
+        ["git", "tag", "--list", "v[0-9]*", "--merged", "HEAD", "--sort=-version:refname"],
         cwd=ROOT,
         text=True,
         capture_output=True,
         check=True,
     )
-    return next((tag for line in result.stdout.splitlines() if (tag := line.strip())), None)
+    return next((tag for line in result.stdout.splitlines() if STABLE_TAG.fullmatch(tag := line.strip())), None)
 
 
 def shallow_repository() -> bool:
@@ -134,7 +137,7 @@ def validate_upgrade(case: InstallationCase, root: Path, baseline: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate representative Copier installations before publication.")
-    parser.add_argument("--baseline-ref", help="Stable tag to upgrade from (defaults to newest local vX.Y.Z tag).")
+    parser.add_argument("--baseline-ref", help="Stable tag to upgrade from (defaults to the newest vX.Y.Z tag merged into HEAD).")
     parser.add_argument("--allow-missing-baseline", action="store_true", help="Skip upgrades only for local snapshot checks without tag history.")
     parser.add_argument("--allow-shallow-snapshot", action="store_true", help="Skip all cases only for an explicitly local shallow checkout; CI and publication must have complete history.")
     args = parser.parse_args()
