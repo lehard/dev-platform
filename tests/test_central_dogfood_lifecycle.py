@@ -32,11 +32,9 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         (self.root / ".gitignore").write_text(".claude/\n", encoding="utf-8")
         (self.root / ".dev-platform.toml").write_text(
             'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\npublish_mode = "pr"\npr_merge_mode = "auto"\n'
-            'source_required_paths = ["scripts/dogfood_task.py"]\n[paths]\nworktrees = ".claude/worktrees"\nchecks = "dev-platform/checks.toml"\n',
+            'source_required_paths = ["scripts/dogfood_task.py"]\n[paths]\nworktrees = ".claude/worktrees"\n',
             encoding="utf-8",
         )
-        (self.root / "dev-platform").mkdir()
-        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
         (self.root / "scripts").mkdir()
         (self.root / "scripts" / "dogfood_task.py").write_text("# adapter\n", encoding="utf-8")
         (self.root / "README.md").write_text("base\n", encoding="utf-8")

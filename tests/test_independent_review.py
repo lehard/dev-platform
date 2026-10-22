@@ -97,8 +97,6 @@ class IndependentReviewTests(unittest.TestCase):
         git(self.root, "config", "user.name", "Review Test")
         (self.root / "README.md").write_text("base\n", encoding="utf-8")
         self.write_config()
-        (self.root / "dev-platform").mkdir()
-        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
         git(self.root, "add", "-A")
         git(self.root, "commit", "-qm", "base")
         git(self.root, "update-ref", "refs/remotes/origin/main", "main")
@@ -124,7 +122,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.temp.cleanup()
 
     def write_config(self, extra: str = 'provider = "codex"\n', enabled: str = "true") -> None:
-        (self.root / ".dev-platform.toml").write_text(f'platform_version = "customer"\nmain_branch = "main"\npaths = {{checks = "dev-platform/checks.toml"}}\n[independent_review]\nenabled = {enabled}\n{extra}', encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(f'platform_version = "customer"\n[independent_review]\nenabled = {enabled}\n{extra}', encoding="utf-8")
 
     def commit(self, message: str) -> None:
         git(self.root, "add", "-A")

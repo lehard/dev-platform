@@ -29,9 +29,6 @@ routing = load("model_routing", "model_routing.py")
 agent_friction = load("agent_friction", "agent_friction.py")
 
 
-CONTRACT = 'main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n'
-
-
 def git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, text=True, capture_output=True)
 
@@ -77,13 +74,11 @@ class ModelRoutingTests(unittest.TestCase):
         git(self.integration, "config", "user.email", "routing@example.test")
         git(self.integration, "config", "user.name", "Routing Test")
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
-        (self.integration / "dev-platform").mkdir()
-        (self.integration / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
-        git(self.integration, "add", "README.md", "dev-platform")
+        git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
         # Head-move verification reads the integration root's platform contract and never assumes a default one.
         # It is excluded from Git so snapshots and task worktrees see exactly the state they did before.
-        (self.integration / ".dev-platform.toml").write_text(CONTRACT, encoding="utf-8")
+        (self.integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
         with (self.integration / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
             handle.write("/.dev-platform.toml\n")
         route_ready(self.integration)
@@ -92,7 +87,7 @@ class ModelRoutingTests(unittest.TestCase):
         change = self.task / "openspec" / "changes" / "routing-change"
         change.mkdir(parents=True)
         (change / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8")
-        (self.task / ".dev-platform.toml").write_text(CONTRACT + "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n", encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text("[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n", encoding="utf-8")
 
     def record_path(self) -> Path:
         return self.task / ".claude" / "model-routing" / "routing-change.json"
@@ -679,7 +674,7 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual(argv[-1], "implement")
 
     def test_dogfood_standard_dispatch_records_terra_and_launches_executor(self) -> None:
-        (self.task / ".dev-platform.toml").write_text(CONTRACT +
+        (self.task / ".dev-platform.toml").write_text(
             "[model_routing.codex]\nstandard_model = \"gpt-5.6-terra\"\ncomplex_model = \"gpt-5.6-sol\"\n",
             encoding="utf-8",
         )
@@ -711,7 +706,7 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertIn("gpt-5.6-terra", launched.call_args.kwargs["argv"])
 
     def test_dogfood_complex_dispatch_remains_on_sol(self) -> None:
-        (self.task / ".dev-platform.toml").write_text(CONTRACT +
+        (self.task / ".dev-platform.toml").write_text(
             "[model_routing.codex]\nstandard_model = \"gpt-5.6-terra\"\ncomplex_model = \"gpt-5.6-sol\"\n",
             encoding="utf-8",
         )
@@ -968,7 +963,7 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertNotIn("Traceback", completed.stderr)
 
     def enable_context_delegation(self) -> None:
-        (self.task / ".dev-platform.toml").write_text(CONTRACT +
+        (self.task / ".dev-platform.toml").write_text(
             "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n"
             "[context_delegation]\nenabled = true\n",
             encoding="utf-8",
@@ -1074,7 +1069,7 @@ class ModelRoutingTests(unittest.TestCase):
         )
         if min_bytes is not None:
             body += f"min_bytes = {min_bytes}\n"
-        (self.task / ".dev-platform.toml").write_text(CONTRACT + body, encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text(body, encoding="utf-8")
 
     def observation_store_path(self, handle: str) -> Path:
         return self.task / ".claude" / "observations" / "routing-change" / f"{handle}.json"
@@ -1321,7 +1316,7 @@ class ModelRoutingTests(unittest.TestCase):
         )
         if observations:
             body += "[observation_lifecycle]\nenabled = true\nmin_bytes = 10\n"
-        (self.task / ".dev-platform.toml").write_text(CONTRACT + body, encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text(body, encoding="utf-8")
 
     def compaction_request(self, **overrides):
         request = {
@@ -1418,16 +1413,14 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
         git(self.clone, "config", "user.email", "routing@example.test")
         git(self.clone, "config", "user.name", "Routing Test")
         (self.clone / "README.md").write_text("base\n", encoding="utf-8")
-        (self.clone / "dev-platform").mkdir()
-        (self.clone / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
-        git(self.clone, "add", "README.md", "dev-platform")
+        git(self.clone, "add", "README.md")
         git(self.clone, "commit", "-qm", "base")
         route_ready(self.clone)
         git(self.clone, "switch", "-c", "agent/routing")
         change = self.clone / "openspec" / "changes" / "routing-change"
         change.mkdir(parents=True)
         (change / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8")
-        (self.clone / ".dev-platform.toml").write_text(CONTRACT +
+        (self.clone / ".dev-platform.toml").write_text(
             "workflow_profile = \"standard\"\n"
             "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n",
             encoding="utf-8",
@@ -1538,13 +1531,11 @@ class ExternalAdvanceRecoveryTests(unittest.TestCase):
         git(self.integration, "config", "user.email", "routing@example.test")
         git(self.integration, "config", "user.name", "Routing Test")
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
-        (self.integration / "dev-platform").mkdir()
-        (self.integration / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
-        git(self.integration, "add", "README.md", "dev-platform")
+        git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
         # Head-move verification reads the integration root's platform contract and never assumes a default one.
         # It is excluded from Git so snapshots and task worktrees see exactly the state they did before.
-        (self.integration / ".dev-platform.toml").write_text(CONTRACT, encoding="utf-8")
+        (self.integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
         with (self.integration / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
             handle.write("/.dev-platform.toml\n")
         route_ready(self.integration)
@@ -1555,7 +1546,7 @@ class ExternalAdvanceRecoveryTests(unittest.TestCase):
         (change / ".managed-task.json").write_text(
             json.dumps({"source_issue": "owner/backlog#135", "change": "recovery-change"}), encoding="utf-8"
         )
-        (self.task / ".dev-platform.toml").write_text(CONTRACT, encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
         with patch.object(routing, "main_root", return_value=self.integration):
             self.route = routing.prepare(
                 self.task, provider="codex", profile="standard",
@@ -1833,9 +1824,7 @@ class RoutingCalibrationTests(unittest.TestCase):
         git(self.task, "config", "user.name", "Routing Test")
         (self.task / "openspec" / "changes").mkdir(parents=True)
         (self.task / "README.md").write_text("base\n", encoding="utf-8")
-        (self.task / "dev-platform").mkdir()
-        (self.task / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
-        git(self.task, "add", "README.md", "dev-platform")
+        git(self.task, "add", "README.md")
         git(self.task, "commit", "-qm", "base")
 
     def tearDown(self) -> None:
@@ -3023,8 +3012,7 @@ class EarlyRoutingGateTemplateParityTests(unittest.TestCase):
             (project / "dev-platform").mkdir()
             shutil.copy2(SCRIPTS.parent / "dev-platform" / "blocking-gates.toml", project / "dev-platform" / "blocking-gates.toml")
             (project / ".gitignore").write_text(".claude/\n.managed-task-state.json\n__pycache__/\n", encoding="utf-8")
-            (project / ".dev-platform.toml").write_text('workflow_profile = "multi-agent"\n' + CONTRACT, encoding="utf-8")
-            (project / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
+            (project / ".dev-platform.toml").write_text('workflow_profile = "multi-agent"\nmain_branch = "main"\n', encoding="utf-8")
             git(project, "add", "-A")
             git(project, "commit", "-qm", "rendered project")
             git(project, "update-ref", "refs/remotes/origin/main", "main")

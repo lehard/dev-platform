@@ -104,13 +104,11 @@ class IntegrationRepoMixin:
         git(self.integration, "config", "user.email", "advance@example.test")
         git(self.integration, "config", "user.name", "Advance Test")
         (self.integration / "README.md").write_text("base\n", encoding="utf-8")
-        (self.integration / "dev-platform").mkdir()
-        (self.integration / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
-        git(self.integration, "add", "README.md", "dev-platform")
+        git(self.integration, "add", "README.md")
         git(self.integration, "commit", "-qm", "base")
         # Head-move verification reads the integration root's platform contract and never assumes a default one.
         # It is excluded from Git so snapshots and task worktrees see exactly the state they did before.
-        (self.integration / ".dev-platform.toml").write_text(routing_fixtures.CONTRACT, encoding="utf-8")
+        (self.integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
         with (self.integration / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
             handle.write("/.dev-platform.toml\n")
         routing_fixtures.route_ready(self.integration)
@@ -366,7 +364,7 @@ class ClaudeRoutingFixture(IntegrationRepoMixin):
         (change / ".managed-task.json").write_text(
             json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8"
         )
-        (self.task / ".dev-platform.toml").write_text(routing_fixtures.CONTRACT, encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
         with patch.object(routing, "main_root", return_value=self.integration), patch.object(
             routing, "determine_claude_tier", return_value=DETECTION_ONLY
         ):

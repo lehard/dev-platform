@@ -45,14 +45,6 @@ def validate_children(checkout: Path, manifest: dict) -> None:
             # head reviewed before the public source contract existed carries none.
             child_checkout = workers.prepare_checkout(str(checkout), temporary, "harness", child["head"],
                                                       contract_from=checkout / ".dev-platform.toml")
-            # Identity reads the generated-file declaration at the merge base with origin/<main>; a
-            # sandbox clone of the composition checkout carries no remote-tracking refs, so copy that one.
-            from _platform_common import read_platform_config
-            main_branch = read_platform_config(checkout).get("main_branch")
-            if not isinstance(main_branch, str) or not main_branch:
-                raise contributions.ContributionError(".dev-platform.toml main_branch is required to bind child identity")
-            workers.harness_git(child_checkout, "fetch", "--no-tags", str(checkout),
-                                f"refs/remotes/origin/{main_branch}:refs/remotes/origin/{main_branch}")
             from task_content_identity import review_content_identity
             actual = review_content_identity(child_checkout, child["change"], child["contribution_base"])
             if actual != identity["task_content"]:

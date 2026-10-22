@@ -1241,10 +1241,7 @@ class EndToEndTests(unittest.TestCase):
         git(self.root, "init", "-qb", "main")
         git(self.root, "config", "user.name", "Fixture")
         git(self.root, "config", "user.email", "fixture@localhost")
-        (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n[independent_review]\nenabled = true\nprovider = "codex"\n')
-        (self.root / "dev-platform").mkdir()
-        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n")
+        (self.root / ".dev-platform.toml").write_text('[independent_review]\nenabled = true\nprovider = "codex"\n')
         (self.root / "src.py").write_text("value = 0\n")
         git(self.root, "add", "-A")
         git(self.root, "commit", "-qm", "base")

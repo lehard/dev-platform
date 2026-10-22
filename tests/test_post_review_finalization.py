@@ -314,9 +314,7 @@ class Remote:
         git(self.root, "init", "-qb", "main")
         git(self.root, "config", "user.name", "Fixture")
         git(self.root, "config", "user.email", "fixture@localhost")
-        (self.root / ".dev-platform.toml").write_text('main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n')
-        (self.root / "dev-platform").mkdir()
-        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n")
+        (self.root / ".dev-platform.toml").write_text("")
         (self.root / "src.py").write_text("value = 0\n")
         self.write_spec(SPEC)
         git(self.root, "add", "-A")
@@ -609,7 +607,6 @@ class FinalizeTests(CandidateCase):
 
 
 SOURCE_CONTRACT = """platform_version = "source"
-paths = {checks = "dev-platform/checks.toml"}
 main_branch = "main"
 workflow_profile = "standard"
 harness_mode = "platform"
@@ -625,7 +622,7 @@ def commit_source_contract(root: Path, tmp: Path) -> Path:
     """Commit a coordinator source contract with one full check to main; return the check's log path."""
     ran = tmp / "selected-checks.log"
     (root / ".dev-platform.toml").write_text(SOURCE_CONTRACT)
-    (root / "dev-platform").mkdir(exist_ok=True)
+    (root / "dev-platform").mkdir()
     (root / "dev-platform/checks.toml").write_text(f'[settings]\nfull_commands = ["printf ran >> {ran}"]\n')
     git(root, "add", "-A")
     git(root, "commit", "-qm", "source contract")
@@ -1055,272 +1052,6 @@ class RederivationTests(unittest.TestCase):
         self.assertEqual(self.repo.head("agent/b"), before)
 
 
-GENERATOR = """import os, sys
-from pathlib import Path
-
-tree, log = Path(sys.argv[1]), Path(sys.argv[2])
-log.write_text(os.getcwd())
-if (tree / "fail-generation").exists():
-    sys.exit(3)
-names = sorted(p.stem for p in (tree / "entries").glob("*.txt"))
-(tree / "manifest.txt").write_text("".join(f"{name}\\n" for name in names))
-"""
-
-
-class GeneratedFileMergeTests(unittest.TestCase):
-    """A candidate and main both changed neighbouring entries of a declared generated file."""
-
-    MANIFEST = "manifest.txt"
-    TASK_PATHS = {"entries/e3.txt", "manifest.txt"}
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        tmp = Path(self.tmp.name)
-        self.repo = Remote(tmp)
-        root = self.repo.root
-        (root / "entries").mkdir()
-        for name in ("e1", "e4"):
-            (root / "entries" / f"{name}.txt").write_text("entry\n")
-        (root / self.MANIFEST).write_text("e1\ne4\n")
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "entries")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "checkout", "-qb", "agent/b")
-        self.add_entry("e3", "e1\ne3\ne4\n")
-        self.repo.push("agent/b")
-        git(root, "checkout", "-q", "main")
-        self.add_entry("e2", "e1\ne2\ne4\n")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "checkout", "-q", "agent/b")
-        # The trusted default-branch checkout holds the declaration and the generator; the candidate has neither.
-        self.trusted = tmp / "trusted"
-        self.trusted.mkdir()
-        self.log = tmp / "generator-cwd.log"
-        git(self.trusted, "init", "-qb", "main")
-        git(self.trusted, "config", "user.name", "Fixture")
-        git(self.trusted, "config", "user.email", "fixture@localhost")
-        (self.trusted / ".dev-platform.toml").write_text('[paths]\nchecks = "dev-platform/checks.toml"\n')
-        (self.trusted / "dev-platform").mkdir()
-        (self.trusted / "dev-platform/checks.toml").write_text(
-            f'[settings]\nfull_commands = ["python3 gen.py --check"]\n'
-            f'[[generated_files]]\npath = "{self.MANIFEST}"\nregenerate = ["python3", "gen.py", "{{tree}}", "{self.log}"]\n'
-            'check = ["python3", "gen.py", "--check"]\n')
-        (self.trusted / "gen.py").write_text(GENERATOR)
-        git(self.trusted, "add", "-A")
-        git(self.trusted, "commit", "-qm", "trusted")
-        self.generated = final.generated_files(self.trusted, "HEAD")
-
-    def add_entry(self, name: str, manifest: str) -> None:
-        root = self.repo.root
-        (root / "entries" / f"{name}.txt").write_text("entry\n")
-        (root / self.MANIFEST).write_text(manifest)
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", f"add {name}")
-
-    def derive(self, **options):
-        options.setdefault("generated", self.generated)
-        options.setdefault("trusted_root", self.trusted)
-        with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
-            return final.rederive_archived_specs(
-                source_repo=self.repo.remote.as_uri(), branch="agent/b", head=self.repo.head("agent/b"),
-                task_paths=self.TASK_PATHS, workdir=workdir, **options)
-
-    def test_neighbouring_entries_integrate_with_a_regenerated_file_from_trusted_code(self):
-        before = self.repo.head("agent/b")
-        self.assertFalse((self.repo.root / "gen.py").exists())
-        new_head, main_sha = self.derive()
-        self.assertEqual(self.repo.head("agent/b"), new_head)
-        self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", new_head).split()[1:],
-                         [before, main_sha])
-        self.assertEqual(git(self.repo.remote, "show", f"{new_head}:{self.MANIFEST}"), "e1\ne2\ne3\ne4")
-        # The regenerate command ran from the trusted root, not from the candidate checkout.
-        self.assertEqual(Path(self.log.read_text()).resolve(), self.trusted.resolve())
-
-    def test_prepare_records_the_coordinator_update(self):
-        before = self.repo.head("agent/b")
-        pr = {"head": {"ref": "agent/b", "sha": before}}
-        with mock.patch.object(queue, "_comment") as comment:
-            new_head, main_sha = final.prepare_derived_specs(
-                self.trusted, "o/r", 7, pr, before, self.TASK_PATHS, source_repo=self.repo.remote.as_uri())
-        self.assertEqual(self.repo.head("agent/b"), new_head)
-        comment.assert_called_once_with(self.trusted, "o/r", 7,
-                                        {"kind": "update", "previous": before, "head": new_head, "base": main_sha})
-        self.assertEqual(git(self.repo.remote, "show", f"{new_head}:{self.MANIFEST}"), "e1\ne2\ne3\ne4")
-
-    def test_ordinary_file_conflict_is_not_resolved_and_nothing_is_pushed(self):
-        root = self.repo.root
-        git(root, "checkout", "-q", "main")
-        (root / "src.py").write_text("value = 1\n")
-        git(root, "commit", "-qam", "main edits src")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "checkout", "-q", "agent/b")
-        (root / "src.py").write_text("value = 2\n")
-        git(root, "commit", "-qam", "candidate edits src")
-        self.repo.push("agent/b")
-        before = self.repo.head("agent/b")
-        with self.assertRaisesRegex(final.RederivationFailed, "conflicts outside.*src.py"):
-            self.derive()
-        self.assertEqual(self.repo.head("agent/b"), before)
-
-    def test_failed_regeneration_names_the_file_and_pushes_nothing(self):
-        root = self.repo.root
-        (root / "fail-generation").write_text("x\n")
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "make the generator fail")
-        self.repo.push("agent/b")
-        before = self.repo.head("agent/b")
-        with self.assertRaisesRegex(final.RederivationFailed, "regeneration of manifest.txt failed"):
-            self.derive()
-        self.assertEqual(self.repo.head("agent/b"), before)
-
-    def test_missing_generated_output_fails_explicitly(self):
-        # A second declared file whose command exits 0 but leaves no output.
-        broken = final.GeneratedFile("absent-output.txt", (
-            "python3", "-c", "import os, sys; os.remove(os.path.join(sys.argv[1], 'absent-output.txt'))", "{tree}"),
-            ("python3", "gen.py", "--check"))
-        root = self.repo.root
-        git(root, "checkout", "-q", "main")
-        (root / "absent-output.txt").write_text("m\n")
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "main adds output")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "checkout", "-q", "agent/b")
-        (root / "absent-output.txt").write_text("c\n")
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "candidate adds output")
-        self.repo.push("agent/b")
-        before = self.repo.head("agent/b")
-        with self.assertRaisesRegex(final.RederivationFailed, "regeneration of absent-output.txt produced no file"):
-            self.derive(generated=(*self.generated, broken))
-        self.assertEqual(self.repo.head("agent/b"), before)
-
-    def test_generated_files_require_a_trusted_root(self):
-        with self.assertRaisesRegex(final.RederivationFailed, "trusted default-branch root"):
-            self.derive(trusted_root=None)
-
-    def test_merge_differing_only_in_a_declared_generated_path_is_recognized(self):
-        before = self.repo.head("agent/b")
-        new_head, main_sha = self.derive()
-        root = self.repo.root
-        git(root, "fetch", "-q", "origin")
-        declared = [item.path for item in self.generated]
-        self.assertTrue(final.derived_merge_only(root, new_head, before, main_sha, self.TASK_PATHS, declared))
-        self.assertFalse(final.derived_merge_only(root, new_head, before, main_sha, self.TASK_PATHS))
-        git(root, "checkout", "-q", "-b", "tamper", new_head)
-        (root / "src.py").write_text("value = 7\n")
-        git(root, "commit", "-qam", "tamper")
-        self.assertFalse(final.derived_merge_only(root, git(root, "rev-parse", "HEAD"), before, main_sha,
-                                                  self.TASK_PATHS, declared))
-
-
-class ArchivedGeneratedMergeTests(unittest.TestCase):
-    """An archived candidate: the derived merge keeps task-content identity when only the generated file is regenerated."""
-
-    CHANGE = "x"
-    ARCHIVE = "openspec/changes/archive/2026-10-22-x"
-    TASK_PATHS = {f"{ARCHIVE}/proposal.md", f"{ARCHIVE}/specs/cap/spec.md", "entries/e3.txt", "manifest.txt", "multi.txt"}
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        tmp = Path(self.tmp.name)
-        self.repo = Remote(tmp)
-        root = self.repo.root
-        (root / ".dev-platform.toml").write_text('main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n')
-        (root / "dev-platform").mkdir(exist_ok=True)
-        (root / "dev-platform/checks.toml").write_text(
-            '[settings]\nfull_commands = ["python3 gen.py --check"]\n'
-            '[[generated_files]]\npath = "manifest.txt"\nregenerate = ["python3", "gen.py", "{tree}", "log"]\n'
-            'check = ["python3", "gen.py", "--check"]\n')
-        (root / "entries").mkdir()
-        for name in ("e1", "e4"):
-            (root / "entries" / f"{name}.txt").write_text("entry\n")
-        (root / "manifest.txt").write_text("e1\ne4\n")
-        (root / "multi.txt").write_text("a\nb\nc\nd\ne\nf\ng\n")
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "base")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "fetch", "-q", "origin")
-        git(root, "checkout", "-qb", "agent/x")
-        (root / "entries/e3.txt").write_text("entry\n")
-        (root / "manifest.txt").write_text("e1\ne3\ne4\n")
-        (root / self.ARCHIVE / "specs/cap").mkdir(parents=True)
-        (root / self.ARCHIVE / "proposal.md").write_text("## Why\nx\n")
-        (root / self.ARCHIVE / "specs/cap/spec.md").write_text("## ADDED Requirements\n")
-        self.commit("archived candidate")
-        self.trusted = tmp / "trusted"
-        self.trusted.mkdir()
-        git(self.trusted, "init", "-qb", "main")
-        git(self.trusted, "config", "user.name", "Fixture")
-        git(self.trusted, "config", "user.email", "fixture@localhost")
-        (self.trusted / ".dev-platform.toml").write_text('[paths]\nchecks = "dev-platform/checks.toml"\n')
-        (self.trusted / "dev-platform").mkdir()
-        (self.trusted / "dev-platform/checks.toml").write_text(
-            '[settings]\nfull_commands = ["python3 gen.py --check"]\n'
-            f'[[generated_files]]\npath = "manifest.txt"\nregenerate = ["python3", "gen.py", "{{tree}}", "{tmp / "cwd.log"}"]\n'
-            'check = ["python3", "gen.py", "--check"]\n')
-        (self.trusted / "gen.py").write_text(GENERATOR)
-        git(self.trusted, "add", "-A")
-        git(self.trusted, "commit", "-qm", "trusted")
-        self.generated = final.generated_files(self.trusted, "HEAD")
-
-    def commit(self, message: str) -> None:
-        git(self.repo.root, "add", "-A")
-        git(self.repo.root, "commit", "-qm", message)
-        self.repo.push("agent/x")
-
-    def advance_main(self, files: dict[str, str]) -> None:
-        root = self.repo.root
-        git(root, "checkout", "-q", "main")
-        for name, text in files.items():
-            (root / name).write_text(text)
-        git(root, "add", "-A")
-        git(root, "commit", "-qm", "main advances")
-        git(root, "push", "-q", "origin", "HEAD:main")
-        git(root, "checkout", "-q", "agent/x")
-
-    def derive(self):
-        with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
-            return final.rederive_archived_specs(
-                source_repo=self.repo.remote.as_uri(), branch="agent/x", head=self.repo.head("agent/x"),
-                task_paths=self.TASK_PATHS, workdir=workdir, replay=lambda checkout, archive: None,
-                validate=lambda checkout: None, generated=self.generated, trusted_root=self.trusted)
-
-    def reviewed_identity(self, ref: str) -> dict:
-        checkout = Path(self.tmp.name) / f"identity-{ref.replace('/', '-')}"
-        if not checkout.exists():
-            git(Path(self.tmp.name), "clone", "-q", str(self.repo.remote), str(checkout))
-        git(checkout, "fetch", "-q", "origin")
-        git(checkout, "checkout", "-q", "--detach", ref)
-        from task_content_identity import review_content_identity
-        return review_content_identity(checkout, self.CHANGE)
-
-    def test_regenerating_only_the_manifest_keeps_identity_and_gates_reusable(self):
-        from task_content_identity import equivalent_proofs
-        before_head = self.repo.head("agent/x")
-        before = self.reviewed_identity(before_head)
-        self.advance_main({"entries/e2.txt": "entry\n", "manifest.txt": "e1\ne2\ne4\n"})
-        new_head, main_sha = self.derive()  # must not raise "changed the task-content identity"
-        self.assertEqual(git(self.repo.remote, "show", f"{new_head}:manifest.txt"), "e1\ne2\ne3\ne4")
-        after = self.reviewed_identity(new_head)
-        self.assertEqual(before["digest"], after["digest"])
-        self.assertTrue(equivalent_proofs(self.repo.root, before, after))
-
-    def test_an_ordinary_task_path_changed_by_the_merge_stops_the_merge(self):
-        # Identity itself changing is proven in test_task_content_identity; here the both-sides bound
-        # (or, failing that, the identity check) refuses and nothing is pushed.
-        root = self.repo.root
-        (root / "multi.txt").write_text("A\nb\nc\nd\ne\nf\ng\n")
-        self.commit("candidate edits multi")
-        before_head = self.repo.head("agent/x")
-        self.advance_main({"entries/e2.txt": "entry\n", "manifest.txt": "e1\ne2\ne4\n", "multi.txt": "a\nb\nc\nd\ne\nf\nG\n"})
-        with self.assertRaisesRegex(final.RederivationFailed,
-                                    "changed paths beyond archive-derived specs and declared generated files: multi.txt"):
-            self.derive()
-        self.assertEqual(self.repo.head("agent/x"), before_head)
-
-
 class PreparationTests(unittest.TestCase):
     HEAD, BASE, MAIN = "a" * 40, "b" * 40, "c" * 40
     DELTA = {"openspec/changes/archive/2026-10-06-x/specs/cap/spec.md", "openspec/specs/cap/spec.md", "src.py"}
@@ -1330,7 +1061,7 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(final.derived_spec_paths(self.DELTA, overlap), {"openspec/specs/cap/spec.md"})
         self.assertEqual(final.derived_spec_paths({"src.py"}, overlap), set())
 
-    def prepare(self, overlap, rederive, contains_main=1, task_paths=None):
+    def prepare(self, overlap, rederive, contains_main=1):
         def run_git(args, **kwargs):
             out = ""
             if args[:2] == ["merge-base", "--is-ancestor"]:
@@ -1343,10 +1074,8 @@ class PreparationTests(unittest.TestCase):
         with mock.patch.object(queue, "run_git", side_effect=run_git), \
                 mock.patch.object(queue, "_events", return_value=[]), \
                 mock.patch.object(queue, "_main", return_value=self.MAIN), \
-                mock.patch.object(queue, "_task_paths", return_value=set(task_paths or self.DELTA)), \
+                mock.patch.object(queue, "_task_paths", return_value=set(self.DELTA)), \
                 mock.patch.object(queue, "_raise_if_owned_elsewhere"), \
-                mock.patch("_platform_common.generated_files", return_value=(
-                    final.GeneratedFile(self.MANIFEST, ("regen", "{tree}"), ("verify",)),)), \
                 mock.patch.object(final, "prepare_derived_specs", side_effect=rederive) as derived:
             result = queue._prepare(ROOT, "o/r", 7, {"head": self.HEAD, "base": self.BASE, "comment_id": 1}, pr)
         return result, derived
@@ -1372,35 +1101,6 @@ class PreparationTests(unittest.TestCase):
                                            lambda *a, **k: self.fail("must not re-derive"))
         self.assertEqual(result, ("d" * 40, self.MAIN))
         derived.assert_not_called()
-
-    MANIFEST = "template/dev-platform/platform-manifest.json"
-
-    def test_both_sides_change_of_a_declared_generated_file_is_derived_merged(self):
-        result, derived = self.prepare([self.MANIFEST], lambda *a, **k: ("d" * 40, self.MAIN),
-                                       task_paths=self.DELTA | {self.MANIFEST})
-        self.assertEqual(result, ("d" * 40, self.MAIN))
-        derived.assert_called_once()
-
-    def test_conflict_only_in_derived_and_generated_paths_is_derived_merged(self):
-        with mock.patch.object(queue, "merge_conflicts", return_value=[self.MANIFEST, "openspec/specs/cap/spec.md"]):
-            result, derived = self.prepare(["src.py"], lambda *a, **k: ("d" * 40, self.MAIN),
-                                           task_paths=self.DELTA | {self.MANIFEST})
-        self.assertEqual(result, ("d" * 40, self.MAIN))
-        derived.assert_called_once()
-
-    def test_conflict_in_an_ordinary_file_is_integration_repair_and_pushes_nothing(self):
-        with mock.patch.object(queue, "merge_conflicts", return_value=[self.MANIFEST, "src.py"]), \
-                mock.patch.object(queue, "_gh") as gh, \
-                self.assertRaisesRegex(queue.IntegrationRepairNeeded, "conflicts in: .*src.py"):
-            _, derived = self.prepare(["src.py"], lambda *a, **k: self.fail("must not derive"))
-        gh.assert_not_called()
-
-    def test_failed_regeneration_is_integration_repair_naming_the_failure(self):
-        def failing(*args, **kwargs):
-            raise final.RederivationFailed("regeneration of manifest.txt failed (gen.py)")
-
-        with self.assertRaisesRegex(queue.IntegrationRepairNeeded, "regeneration of manifest.txt failed"):
-            self.prepare([self.MANIFEST], failing, task_paths=self.DELTA | {self.MANIFEST})
 
     def test_failed_re_derivation_becomes_integration_repair(self):
         def failing(*args, **kwargs):

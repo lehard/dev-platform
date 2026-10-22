@@ -1613,11 +1613,9 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         actual_tree = run_git(["rev-parse", f"{head}^{{tree}}"], cwd=root).stdout.strip()
         if expected_tree.returncode or expected_tree.stdout.splitlines()[0].strip() != actual_tree:
             # A re-derivation push whose update marker was lost: accept only that exact shape.
-            from _platform_common import generated_files
             from post_review_finalization import derived_merge_only
 
-            declared = [item.path for item in generated_files(root, "HEAD")]
-            if not derived_merge_only(root, head, proven, prior_main, _task_paths(root, repo, admission), declared):
+            if not derived_merge_only(root, head, proven, prior_main, _task_paths(root, repo, admission)):
                 raise QueueError("unrecorded branch update is not a clean main merge")
         _comment(root, repo, number, {"kind": "update", "previous": proven, "head": head, "base": prior_main})
     base = admission.get("base")
@@ -1636,36 +1634,34 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     changed = set(run_git(["diff", "--name-only", f"{base}..{current_main}"], cwd=root).stdout.splitlines())
     task_paths = _task_paths(root, repo, admission)
     overlap = changed & task_paths
-    from _platform_common import generated_files
-    from post_review_finalization import RederivationFailed, derived_spec_paths, prepare_derived_specs
+    from post_review_finalization import derived_spec_paths
 
-    # The declaration comes from the queue's own default-branch checkout, never from the candidate.
-    generated = {item.path for item in generated_files(root, "HEAD")}
     derived = derived_spec_paths(task_paths, overlap)
-    run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
-    # If the previously prepared head already contains current main, do not
-    # perform a redundant update or trigger another CI run.
-    if _is_ancestor(root, current_main, head):
-        return head, current_main
-    # Derived merge when main changed a declared generated file the task also changed, or only
-    # derived paths overlap main (existing), or the merge conflicts only in derived paths.
-    route = bool(generated & overlap) or (bool(derived) and overlap == derived)
-    if not route:
+    if overlap != derived:
         # Path overlap alone never blocks: a clean merge is judged by the merge result and the
         # checks on the actual merged candidate; a real conflict becomes integration repair.
-        conflicts = merge_conflicts(root, head, current_main)
-        if conflicts and set(conflicts) <= derived_spec_paths(task_paths, set(conflicts)) | generated:
-            route = True
-        elif conflicts:
-            raise IntegrationRepairNeeded("merge of current main conflicts in: " + ", ".join(conflicts[:8]))
-    if route:
-        # Re-derive archive-derived specs and regenerate declared generated files on the actual
-        # base. A failure is integration repair; checks still run on the result.
+        derived = set()
+    run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
+    if derived and _is_ancestor(root, current_main, head):
+        return head, current_main  # already re-derived on this main: nothing to redo
+    if derived:
+        # Only the candidate's own archive-derived spec paths overlap main: re-derive them on the
+        # actual base. A failure is integration repair; checks still run on the result.
+        from post_review_finalization import RederivationFailed, prepare_derived_specs
+
         _raise_if_owned_elsewhere(root, repo, number, head)
         try:
             return prepare_derived_specs(root, repo, number, pr, head, task_paths)
         except RederivationFailed as exc:
-            raise IntegrationRepairNeeded(f"derived merge (archive-derived specs, generated files) failed: {exc}") from exc
+            raise IntegrationRepairNeeded(f"archive-derived spec re-derivation failed: {exc}") from exc
+    # If the previously prepared head already contains current main, do not
+    # perform a redundant update or trigger another CI run.
+    run_git(["fetch", "origin", pr["head"]["ref"]], cwd=root)
+    if _is_ancestor(root, current_main, head):
+        return head, current_main
+    conflicts = merge_conflicts(root, head, current_main)
+    if conflicts:
+        raise IntegrationRepairNeeded("merge of current main conflicts in: " + ", ".join(conflicts[:8]))
     # Last observation before mutating the branch: never update a head that review or repair
     # claimed meanwhile (atomic job claims arrive with the worker contract).
     _raise_if_owned_elsewhere(root, repo, number, head)

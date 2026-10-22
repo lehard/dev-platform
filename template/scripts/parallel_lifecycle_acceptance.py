@@ -113,9 +113,7 @@ def build_seed(seed: Path) -> None:
     git(seed, "init", "-q", "-b", "main")
     git(seed, "config", "user.name", "Fixture")
     git(seed, "config", "user.email", "fixture@localhost")
-    put(seed / ".dev-platform.toml",
-        'main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n[independent_review]\nenabled = true\nprovider = "codex"\n')
-    put(seed / "dev-platform/checks.toml", '[settings]\nfull_commands = ["python3 check.py"]\n')
+    put(seed / ".dev-platform.toml", 'main_branch = "main"\n[independent_review]\nenabled = true\nprovider = "codex"\n')
     put(seed / "check.py", CHECK)
     put(seed / "shared.py", SHARED)
     put(seed / "openspec/config.yaml", "schema: spec-driven\n")

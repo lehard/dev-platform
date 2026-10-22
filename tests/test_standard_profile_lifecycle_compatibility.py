@@ -51,7 +51,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
         git(root, "add", "README.md")
         git(root, "commit", "-qm", "initial")
         (root / ".dev-platform.toml").write_text(
-            'workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n', encoding="utf-8"
+            'workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8"
         )
         scripts = root / "scripts"
         scripts.mkdir()
@@ -59,9 +59,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
             (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
         # Routing refuses diverged task content and needs the review base a real
         # managed task always has, so commit the project files and record origin/main.
-        (root / "dev-platform").mkdir()
-        (root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
-        git(root, "add", ".dev-platform.toml", "scripts", "dev-platform")
+        git(root, "add", ".dev-platform.toml", "scripts")
         git(root, "commit", "-qm", "project files")
         git(root, "update-ref", "refs/remotes/origin/main", "main")
         return root

@@ -11,7 +11,7 @@ import json
 from pathlib import Path
 from typing import Callable
 
-from _platform_common import TaskFreshnessError, generated_files, read_platform_config, run_git
+from _platform_common import run_git
 
 
 def _canonical_path(path: str, change: str) -> str:
@@ -95,22 +95,9 @@ def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> 
 
     ``openspec/specs/<capability>/spec.md`` is excluded only after archive and
     only for capabilities the change's own delta specs name, because archive
-    materializes exactly those files. Files the project declares generated are
-    excluded too; the declaration is read at the merge base of ``HEAD`` and
-    ``origin/<main_branch>`` (a main commit, never candidate content), and any
-    failure to read it raises.
+    materializes exactly those files.
     """
     active = f"openspec/changes/{change}/"
-    main_branch = read_platform_config(root).get("main_branch")
-    if not isinstance(main_branch, str) or not main_branch:
-        raise TaskFreshnessError("cannot exclude declared generated files: .dev-platform.toml main_branch is required")
-    main_base = run_git(["merge-base", "HEAD", f"origin/{main_branch}"], cwd=root, check=False)
-    if main_base.returncode or not main_base.stdout.strip():
-        raise TaskFreshnessError(
-            f"cannot read the generated-file declaration: no merge base of HEAD and origin/{main_branch}: "
-            + (main_base.stderr or main_base.stdout).strip()
-        )
-    generated = {item.path for item in generated_files(root, main_base.stdout.strip())}
     capabilities: set[str] = set()
     base = run_git(["merge-base", "HEAD", base_ref], cwd=root, check=False)
     if base.returncode == 0 and base.stdout.strip():
@@ -129,8 +116,6 @@ def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> 
     ) and not (root / active).is_dir()
 
     def exclude(canonical: str, raw: str) -> bool:
-        if canonical in generated:
-            return True
         if canonical.startswith(active):
             relative = canonical[len(active):]
             return relative in REVIEW_EXCLUDED_FILES or relative.startswith(REVIEW_EXCLUDED_DIRS)
@@ -161,8 +146,8 @@ def review_path_partition(
     changed = run_git(["diff", "--name-only", "--no-renames", "-z", f"{merge_base}...HEAD"], cwd=root, check=False)
     if changed.returncode != 0:
         return None
-    _, main_delivered = _review_base(root, change, base_ref)
     exclude = review_exclusion(root, change, base_ref)
+    _, main_delivered = _review_base(root, change, base_ref)
     reviewed: list[str] = []
     excluded: list[str] = []
     for raw in sorted(dict.fromkeys(item for item in changed.stdout.split("\0") if item)):

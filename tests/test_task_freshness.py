@@ -172,8 +172,7 @@ class TaskFreshnessTests(unittest.TestCase):
 
 
 CHECKS = "dev-platform/checks.toml"
-SETTINGS = '[settings]\nfull_commands = ["verify-gen"]\n'
-DECLARE_GEN = SETTINGS + '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\ncheck = ["verify-gen"]\n'
+DECLARE_GEN = '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\n'
 
 
 class TaskBaseCurrencyTests(unittest.TestCase):
@@ -318,7 +317,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n"})
         self.advance_main({"gen.txt": "uno\ntwo\nthree\n", CHECKS: '[[generated_files]]\npath = "gen.txt"\n'})
 
-        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "exactly the keys 'path', 'regenerate' and 'check'"):
+        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "exactly the keys 'path' and 'regenerate'"):
             self.classify()
 
     def test_missing_check_configuration_at_main_fails_explicitly_for_a_conflict(self) -> None:
@@ -344,22 +343,18 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         cases = {
             "invalid TOML": ("[[generated_files", "not valid TOML"),
             "not an array": ('[generated_files]\npath = "a"\n', "must be an array of tables"),
-            "extra key": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\ncheck = ["verify-gen"]\nnote = "n"\n', "exactly the keys"),
-            "absolute path": ('[[generated_files]]\npath = "/a"\nregenerate = ["x", "{tree}"]\ncheck = ["verify-gen"]\n', "repository-relative file path"),
-            "parent path": ('[[generated_files]]\npath = "../a"\nregenerate = ["x", "{tree}"]\ncheck = ["verify-gen"]\n', "repository-relative file path"),
-            "no placeholder": ('[[generated_files]]\npath = "a"\nregenerate = ["x"]\ncheck = ["verify-gen"]\n', "placeholder"),
-            "empty argv": ('[[generated_files]]\npath = "a"\nregenerate = []\ncheck = ["verify-gen"]\n', "non-empty list of strings"),
-            "string argv": ('[[generated_files]]\npath = "a"\nregenerate = "x {tree}"\ncheck = ["verify-gen"]\n', "non-empty list of strings"),
-            "duplicate": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\ncheck = ["verify-gen"]\n'
-                          '[[generated_files]]\npath = "a"\nregenerate = ["y", "{tree}"]\ncheck = ["verify-gen"]\n', "duplicates the declared path"),
-            "missing check": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\n', "exactly the keys"),
-            "empty check": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\ncheck = []\n', "check for a must be a non-empty list"),
-            "check not in full_commands": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\ncheck = ["other"]\n',
-                                           "check 'other' of generated file a is not in .settings..full_commands"),
+            "extra key": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\nnote = "n"\n', "exactly the keys"),
+            "absolute path": ('[[generated_files]]\npath = "/a"\nregenerate = ["x", "{tree}"]\n', "repository-relative file path"),
+            "parent path": ('[[generated_files]]\npath = "../a"\nregenerate = ["x", "{tree}"]\n', "repository-relative file path"),
+            "no placeholder": ('[[generated_files]]\npath = "a"\nregenerate = ["x"]\n', "placeholder"),
+            "empty argv": ('[[generated_files]]\npath = "a"\nregenerate = []\n', "non-empty list of strings"),
+            "string argv": ('[[generated_files]]\npath = "a"\nregenerate = "x {tree}"\n', "non-empty list of strings"),
+            "duplicate": ('[[generated_files]]\npath = "a"\nregenerate = ["x", "{tree}"]\n'
+                          '[[generated_files]]\npath = "a"\nregenerate = ["y", "{tree}"]\n', "duplicates the declared path"),
         }
         for name, (content, message) in cases.items():
             with self.subTest(name):
-                self.commit(self.task, name, {CHECKS: SETTINGS + content})
+                self.commit(self.task, name, {CHECKS: content})
                 with self.assertRaisesRegex(_platform_common.TaskFreshnessError, message):
                     _platform_common.generated_files(self.task, "HEAD")
 
@@ -370,7 +365,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         (self.task / CHECKS).write_text("# edited\n", encoding="utf-8")
 
         self.assertEqual(_platform_common.generated_files(self.task, "HEAD"),
-                         (_platform_common.GeneratedFile("gen.txt", ("regen", "{tree}"), ("verify-gen",)),))
+                         (_platform_common.GeneratedFile("gen.txt", ("regen", "{tree}")),))
 
     def test_a_conflicting_trial_merge_of_disjoint_files_requires_reconcile(self) -> None:
         # Disjoint paths that still conflict: main adds a file where the task adds a directory.

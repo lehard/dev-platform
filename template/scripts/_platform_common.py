@@ -542,11 +542,10 @@ class TaskBaseCurrency(NamedTuple):
 
 
 class GeneratedFile(NamedTuple):
-    """One file a project declares generated: its path, the argv that regenerates a tree and the required check that verifies it."""
+    """One file a project declares generated: its path and the argv that regenerates a tree."""
 
     path: str
     regenerate: tuple[str, ...]
-    check: tuple[str, ...]
 
 
 def _bounded_paths(paths: tuple[str, ...]) -> str:
@@ -595,9 +594,9 @@ def generated_files(root: Path, commit: str) -> tuple[GeneratedFile, ...]:
     seen: set[str] = set()
     for index, entry in enumerate(entries):
         label = f"{where} entry {index + 1}"
-        if not isinstance(entry, dict) or set(entry) != {"path", "regenerate", "check"}:
-            raise TaskFreshnessError(f"{label} must be a table with exactly the keys 'path', 'regenerate' and 'check'")
-        path, regenerate, check = entry["path"], entry["regenerate"], entry["check"]
+        if not isinstance(entry, dict) or set(entry) != {"path", "regenerate"}:
+            raise TaskFreshnessError(f"{label} must be a table with exactly the keys 'path' and 'regenerate'")
+        path, regenerate = entry["path"], entry["regenerate"]
         if not _relative_repository_path(path):
             raise TaskFreshnessError(f"{label} path must be a repository-relative file path, got {path!r}")
         if path in seen:
@@ -611,16 +610,8 @@ def generated_files(root: Path, commit: str) -> tuple[GeneratedFile, ...]:
             raise TaskFreshnessError(
                 f"{label} regenerate must be a non-empty list of strings containing the {GENERATED_TREE_PLACEHOLDER} placeholder"
             )
-        if not isinstance(check, list) or not check or not all(isinstance(item, str) and item for item in check):
-            raise TaskFreshnessError(f"{label} check for {path} must be a non-empty list of strings")
-        settings = document.get("settings")
-        full_commands = settings.get("full_commands") if isinstance(settings, dict) else None
-        if not isinstance(full_commands, list) or " ".join(check) not in full_commands:
-            raise TaskFreshnessError(
-                f"{label}: the check '{' '.join(check)}' of generated file {path} is not in [settings].full_commands of {checks_path} at {commit}"
-            )
         seen.add(path)
-        declared.append(GeneratedFile(path, tuple(regenerate), tuple(check)))
+        declared.append(GeneratedFile(path, tuple(regenerate)))
     return tuple(declared)
 
 

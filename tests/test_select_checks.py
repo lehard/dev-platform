@@ -557,7 +557,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
     def test_candidate_conflicting_only_in_a_generated_file_runs_checks_and_records_it(self) -> None:
         self.commit(self.task, "gen.txt", "ONE\ntwo\nthree\n")
         declared = Path(self.other, "dev-platform/checks.toml")
-        declared.write_text(declared.read_text() + '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\ncheck = ["printf", "ran", ">", "validation-ran.txt"]\n', encoding="utf-8")
+        declared.write_text(declared.read_text() + '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\n', encoding="utf-8")
         self.git(self.other, "add", "-A")
         self.git(self.other, "-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-qm", "declare")
         self.advance_main("gen.txt", "uno\ntwo\nthree\n")
