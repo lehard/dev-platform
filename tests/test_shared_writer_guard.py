@@ -126,7 +126,10 @@ REVIEWED_BASELINE: dict[str, int] = {
     # Empty owner-local advisory lock in system temp: no-follow, regular/single-link
     # checked; no identity data, registry, integration writes or inode-removal race.
     'managed_work_identity.py:allocation_lock:open': 1,
+    # Sandboxed Claude dispatch writes only its own disposable writer checkout and harness staging clone.
+    'model_routing.py:collect_sandboxed_patch:open': 1,
     'model_routing.py:delegate_codex_context:write_text': 1,
+    'model_routing.py:prepare_sandboxed_checkout:copy2': 1,
     'platform_bootstrap.py:ensure_project_context_map:write_text': 1,
     'platform_bootstrap.py:initialize_openspec:write_text': 1,
     'platform_bootstrap.py:sync_operator_integration:write_text': 1,
@@ -140,6 +143,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     'requirement_merge_recovery.py:prepare:write_text': 1,
     'run_test_groups.py:main:write_text': 1,
     'run_test_groups.py:write_git_template:write_text': 2,
+    'sandboxed_writer.py:write_profile:write_text': 1,
     'select_checks.py:write_evidence:write_text': 1,
     'shared_workspace.py:atomic_write_text:mkstemp': 1,
     'shared_workspace.py:atomic_write_text:replace': 1,

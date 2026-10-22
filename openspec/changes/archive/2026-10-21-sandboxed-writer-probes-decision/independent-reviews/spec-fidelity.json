@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "base_ref": "896e8b816d0c0b0d8d3967a6114a3d64b3de2302",
+    "candidate_head": "c0fe8f478dd6dcfa52c7fefedcec73162fd6246e",
+    "diff_sha256": "b6ccbafd939565f3b142ea528150f51caa113ef9ee385de29f040bf27ae8159a"
+  },
+  "completed_at": "2026-10-20T06:04:13+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/sandboxed_writer_probes.py evaluate(): `\"status\": \"refused\" if entry[\"exit\"] != 0 else \"succeeded\"`. The read probes (`ls ~/.ssh`, `ls ~/.config/gh`, `security list-keychains`, `curl api.github.com`) also exit non-zero if the directory is missing, the network is down or the tool is absent. Nothing checks that the target exists. The same applies to the write and ref probes: harness snapshots only show that nothing changed, not that the sandbox refused the attempt. A missing `~/.ssh` would therefore read as a pass.",
+      "id": "probe-refused-inferred-from-self-reported-exit",
+      "severity": "advisory",
+      "summary": "A probe is marked \"refused\" solely because the writer reported a non-zero exit code. The harness does not show that the sandbox caused the failure, and the report does not say so. The delta's wording, \"verifies from the harness\", and design.md's \"harness-side evidence where available\" suggest more than this."
+    },
+    {
+      "evidence": "specs/platform-delegation/spec.md, scenario \"A probe succeeds\", compared with failures() in scripts/sandboxed_writer_probes.py. The harness-check branch emits `harness check {name} {state}` and does not map the change to a probe.",
+      "id": "probe-failure-not-always-naming-a-probe",
+      "severity": "advisory",
+      "summary": "The spec scenario says a changed integration or remote makes the command exit non-zero \"naming that probe\". A harness-check change names only the check (for example `harness check integration_refs changed`), not a probe."
+    },
+    {
+      "evidence": "scripts/sandboxed_writer_probes.py probe_commands(): `\"keychain\": \"security list-keychains\"`. spec.md: \"read SSH, GitHub CLI and keychain credentials\".",
+      "id": "keychain-probe-lists-not-reads",
+      "severity": "advisory",
+      "summary": "The requirement says the writer attempts to \"read ... keychain credentials\". The keychain probe runs `security list-keychains`, which lists the keychain search list and does not read a credential. DEC-0003 calls it \"keychain search list\", but the spike evidence cites the keychain credential helper and securityd."
+    }
+  ],
+  "launched_at": "2026-10-20T06:03:54+00:00",
+  "output_sha256": "11ef86145edaa7c2d71870b5569fbe00af74c08c31889647aa7b7e3bba031a7e",
+  "perspective": "spec-fidelity",
+  "request_id": "ffd2646c-42db-4704-9398-3db701e73dfa",
+  "reviewer": {
+    "context_id": "e599362a-32ae-4cb5-9bd1-f69e6140bb82",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-79789112-cd90-4792-a30e-c64748baf04c",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34960
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11584
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17949
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18104
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2030
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "cc7d3c4049ab39e774fb5f8a0196ced943586a82e02f45db0bb11cb98f7d0c14"
+}

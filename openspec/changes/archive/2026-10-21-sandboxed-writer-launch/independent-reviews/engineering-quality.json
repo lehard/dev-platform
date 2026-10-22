@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "base_ref": "80e2675b471f085c9d58e6eac40f414d08b4fe95",
+    "candidate_head": "614185cc4b6cc4cab289ffff4cc72c8830be3e4f",
+    "diff_sha256": "db11b92f73ce6134a1b1bb4bf1f40e2435d11f9b52f0ea5b5276fa4c706d74fb"
+  },
+  "completed_at": "2026-10-20T04:04:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/sandboxed_writer.py:319-322 (`srt_launcher` only builds the npx argv); launch_sandboxed_writer passes `extra_env={TOKEN_ENV: token}` at :503-505, so the token goes to the outer process. design.md says: \"or a resolvable `srt` binary whose `--version` matches; a mismatch is an explicit refusal\".",
+      "id": "npx-runs-with-token-before-sandbox",
+      "severity": "advisory",
+      "summary": "The outer `npx --yes @anthropic-ai/sandbox-runtime@<ver>` process, and anything npx fetches or runs, starts with `CLAUDE_CODE_OAUTH_TOKEN` in its environment before the sandbox is applied. The version is pinned, but there is no integrity check. Design.md also promises a resolvable `srt` binary whose `--version` matches, and the code only implements the npx path."
+    },
+    {
+      "evidence": "template/scripts/sandboxed_writer.py:459-467",
+      "id": "srt-tmp-mode-not-verified",
+      "severity": "advisory",
+      "summary": "`srt_tmp` sets mode 0700 only when it creates the directory. When `/private/tmp/dp-srt-<uid>` already exists, it checks that it is a directory and that the current user owns it, but not that its mode is 0700. A pre-existing looser mode is accepted. A race between `exists()` and `mkdir` is also unhandled: a `FileExistsError` is not turned into a SandboxedWriterError."
+    },
+    {
+      "evidence": "template/scripts/sandboxed_writer.py:348-357 and build_profile `deny_read` at :403-404",
+      "id": "protected-set-snapshot-at-launch",
+      "severity": "advisory",
+      "summary": "The protected paths come from `git worktree list` once, at launch. Worktrees that sibling tasks create during a long writer run are not in `denyRead`. Writes stay safe because `allowWrite` is a whitelist, but the writer can read those worktrees. The model-routing doc describes \"every registered worktree\" as protected without noting that it is a launch-time snapshot."
+    },
+    {
+      "evidence": "template/scripts/sandboxed_writer.py:433 vs :479-483; :439-446",
+      "id": "token-path-expanduser-vs-operator-home",
+      "severity": "advisory",
+      "summary": "The token path is expanded with `os.path.expanduser`, which uses the inherited `HOME`. The profile's home-relative entries use the account-database home instead (`operator_home()`). If `HOME` is overridden, a `~/` token_file may resolve differently from the deny entries, though the token file itself is always denied by its resolved path. The mode check and the read are also separate `stat` and `read_text` calls, so the file can change between them."
+    }
+  ],
+  "launched_at": "2026-10-20T04:03:52+00:00",
+  "output_sha256": "0737688c2f3dd62248912da0e47c994bc7de76c7bb7b2b29171f556d5fa17c15",
+  "perspective": "engineering-quality",
+  "request_id": "db2a569f-ab4d-41b4-b769-20b56880cec6",
+  "reviewer": {
+    "context_id": "903d7060-288e-4194-b284-c2ff86aa84f9",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-de4f4f28-6241-436e-b51c-0a6452b23f99",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28273
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16450
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21520
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21969
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2369
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ac8272042b64c137cb0b43d5cc4e6e7d137951389c589f8fae7f75e44073841b"
+}
