@@ -430,6 +430,14 @@ class LocalWorkspaceTests(unittest.TestCase):
         local.detach(self.root)
         self.assertIsNone(local.git(self.root, 'config', '--local', '--get', 'core.hooksPath', optional=True))
 
+    def test_sync_skips_unrelated_checkout_without_origin(self):
+        other = self.workspace / 'no-origin'
+        other.mkdir()
+        subprocess.run(['git', '-C', str(other), 'init', '-q'], check=True)
+        self.attach()
+        self.assertEqual(local.sync(self.registry), [])
+        self.assertNotIn('hooksPath', (other / '.git/config').read_text())
+
     def test_excluded_clone_does_not_mask_absent_canonical_checkout(self):
         self.data['projects'][0]['checkout_names'] = ['absent-project']
         self.registry.write_text(json.dumps(self.data))
@@ -545,7 +553,7 @@ class LocalWorkspaceTests(unittest.TestCase):
             local.launchagent(self.registry, destination)
             payload = local.plistlib.loads(destination.read_bytes())
             self.assertEqual(payload['Umask'], 2)
-            self.assertEqual(payload['StartInterval'], 300)
+            self.assertEqual(payload['StartInterval'], 1800)
             self.assertIn(str(self.registry), payload['ProgramArguments'])
             timestamp = destination.stat().st_mtime_ns
             local.launchagent(self.registry, destination)

@@ -473,6 +473,9 @@ def _sync(registry_path: Path) -> list[str]:
             if root.is_symlink() or not root.is_dir() or not (root / '.git').is_dir() or (root / '.git').is_symlink():
                 continue
             try:
+                # A checkout without an origin remote cannot be a registered project.
+                if git(root, 'config', '--get', 'remote.origin.url', optional=True) is None:
+                    continue
                 origin = git(root, 'remote', 'get-url', 'origin')
                 matches = [item for item in projects if item['origin'] == origin]
                 if not matches:
@@ -542,7 +545,7 @@ def launchagent(registry: Path, destination: Path, *, remove: bool = False) -> N
         raise PolicyError('run sync to install the reviewed runtime first')
     content = plistlib.dumps({'Label': 'dev.platform.local-workspace',
                              'ProgramArguments': [sys.executable, str(runtime), 'sync', '--registry', str(registry)],
-                             'RunAtLoad': True, 'StartInterval': 300, 'Umask': 2,
+                             'RunAtLoad': True, 'StartInterval': 1800, 'Umask': 2,
                              'StandardOutPath': str(runtime.parent / f'sync-{os.geteuid()}.log'),
                              'StandardErrorPath': str(runtime.parent / f'sync-{os.geteuid()}.log')})
     if not destination.exists() or destination.read_bytes() != content:
