@@ -25,6 +25,11 @@ def setUpModule() -> None:
     patcher = patch.object(queue, "_require_finalized")
     patcher.start()
     unittest.addModuleCleanup(patcher.stop)
+    # ROOT_PATH is not a repository: the declared-generated-file reader (covered by
+    # test_post_review_finalization with real repositories) declares none here.
+    declared = patch("_platform_common.generated_files", return_value=())
+    declared.start()
+    unittest.addModuleCleanup(declared.stop)
 
 
 def admission(number: int, key: int, head: str = HEAD) -> dict:
