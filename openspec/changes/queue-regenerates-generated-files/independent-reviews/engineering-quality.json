@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8a13069166e411bd197245c327216aee28c0287a",
+    "base_ref": "8a13069166e411bd197245c327216aee28c0287a",
+    "candidate_head": "58997a68a840801be91f7cbc5d20e2edd15a6195",
+    "diff_sha256": "426175376ef49b9bb32b4050e525d30e12b01341ccbe8f5cca147ead02b68c8c"
+  },
+  "completed_at": "2026-10-22T12:02:47+00:00",
+  "findings": [
+    {
+      "evidence": "task_content_identity.py review_exclusion raises TaskFreshnessError on a missing main_branch or merge base, and calls `generated_files(root, main_base)`. `_platform_common.generated_files` raises when `paths.checks` is unset, while select_checks.py:44 and run_test_groups.py:52 default it. The diff had to add `paths.checks` and a checks.toml to the fixtures in test_central_dogfood_lifecycle, test_independent_review, test_integration_advance_receipts and the parallel acceptance seed. Existing downstream projects without that key will fail identity, review and composition checks until they update. The template renders the key (`.dev-platform.toml.jinja:96`), so new projects are fine.",
+      "id": "identity-requires-checks-config",
+      "severity": "advisory",
+      "summary": "`review_exclusion` now raises for every task-content identity computation when `.dev-platform.toml` lacks `main_branch` or `paths.checks`, or when `origin/<main>` has no merge base with HEAD. Projects with no generated files are affected too. Other readers of `paths.checks` default it to dev-platform/checks.toml, but `generated_files` and the new identity path do not."
+    },
+    {
+      "evidence": "publication_queue.py `_prepare` calls `generated = {item.path for item in generated_files(root, \"HEAD\")}` unconditionally, before the ancestor shortcut. The unrecorded-update branch calls `generated_files(root, \"HEAD\")` as well. Neither is wrapped in a handler for `TaskFreshnessError`.",
+      "id": "prepare-generated-read-uncaught",
+      "severity": "advisory",
+      "summary": "In `_prepare`, a `TaskFreshnessError` from reading the declaration at the queue's HEAD is not mapped to integration repair. A malformed declaration, or a `check` missing from `full_commands`, on the default branch therefore aborts preparation of every candidate, not just those touching generated files."
+    }
+  ],
+  "launched_at": "2026-10-22T12:02:17+00:00",
+  "output_sha256": "c4dc3d4539ff66e2ce6355111891833d559221bf05853fa073263d8afe315e62",
+  "perspective": "engineering-quality",
+  "request_id": "b3c6fb78-f906-4c41-89e5-24fd4698d407",
+  "reviewer": {
+    "context_id": "1579e590-bba4-4e6a-86c4-2d245398e47a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6442f332-7ab1-4336-a449-0872b8172306",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34939
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53178
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29376
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29654
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2508
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8b1e13949de7d831430c7847a279f44e836165c0c1d766c06559b797f64b050c"
+}

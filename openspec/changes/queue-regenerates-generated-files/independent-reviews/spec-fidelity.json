@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8a13069166e411bd197245c327216aee28c0287a",
+    "base_ref": "8a13069166e411bd197245c327216aee28c0287a",
+    "candidate_head": "58997a68a840801be91f7cbc5d20e2edd15a6195",
+    "diff_sha256": "426175376ef49b9bb32b4050e525d30e12b01341ccbe8f5cca147ead02b68c8c"
+  },
+  "completed_at": "2026-10-22T12:02:17+00:00",
+  "findings": [
+    {
+      "evidence": "The candidate edits docs/engineering/agent-workflow.md in the same paragraph (the integration-contour sentence) but leaves the declaration description unchanged: \"`[[generated_files]]` with `path` and a `regenerate` argv containing `{tree}`\". Meanwhile template/scripts/_platform_common.py now requires exactly the keys 'path', 'regenerate' and 'check', and requires `check` to be in `[settings].full_commands`. The paragraph also says nothing about generated files leaving task-content identity.",
+      "id": "workflow-doc-declaration-shape-stale",
+      "severity": "advisory",
+      "summary": "The agent-workflow.md behind-mergeable paragraph still describes a `[[generated_files]]` declaration as `path` plus a `regenerate` argv. The delta makes `check` mandatory, and a check missing from `[settings].full_commands` makes the reader raise. That reader also runs in the handoff gate, so the documented contract is incomplete."
+    }
+  ],
+  "launched_at": "2026-10-22T12:01:42+00:00",
+  "output_sha256": "6548c0039128acf79bb084084d8aa5cf2818a07a008d23ca8ad4eb0f8afbd307",
+  "perspective": "spec-fidelity",
+  "request_id": "b3c6fb78-f906-4c41-89e5-24fd4698d407",
+  "reviewer": {
+    "context_id": "df0721e2-fa97-48b8-b4a1-8872fe7163f7",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8d983c22-c541-49ba-aab4-2f5a0647482e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 66351
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 103266
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33921
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34095
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3480
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8b1e13949de7d831430c7847a279f44e836165c0c1d766c06559b797f64b050c"
+}
