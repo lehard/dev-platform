@@ -491,7 +491,10 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
         steps = [["checkout", "--detach", head]]
     else:
         path = Path(root) / name
-        steps = [["clone", "--no-local", "--no-checkout", source, str(path)], ["checkout", "--detach", head]]
+        # A merged PR's branch may be deleted while its head stays reachable only through the
+        # pull ref, which a clone does not fetch: fetch the exact head explicitly.
+        steps = [["clone", "--no-local", "--no-checkout", source, str(path)],
+                 ["fetch", "--quiet", "origin", head], ["checkout", "--detach", head]]
     for step in steps:
         done = subprocess.run(["git", *SAFE_GIT, *step], cwd=path if path.exists() else root, text=True,
                               capture_output=True, check=False, stdin=subprocess.DEVNULL)

@@ -29,7 +29,8 @@ jobs:
     if: >-
       (github.event_name != 'pull_request_target'
         || github.event.label.name == 'publication:queued'
-        || github.event.label.name == 'lifecycle:ready')
+        || github.event.label.name == 'lifecycle:ready'
+        || github.event.label.name == 'lifecycle:contribution-integration-pending')
       && (github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request')
     concurrency:
       group: dev-platform-final-publication
