@@ -362,7 +362,8 @@ def kill_process_group(pgid: int) -> None:
 
 
 def run_in_session(command: list[str], *, capture_output: bool = False, check: bool = False,
-                   timeout: float | None = None, **popen: Any) -> subprocess.CompletedProcess:
+                   timeout: float | None = None, on_start: Callable[[], None] | None = None,
+                   **popen: Any) -> subprocess.CompletedProcess:
     """``subprocess.run`` in a new session whose whole process group is killed when the leader exits.
 
     A writer cannot leave a same-group background process running past its own exit (to tamper with
@@ -375,6 +376,8 @@ def run_in_session(command: list[str], *, capture_output: bool = False, check: b
     process = subprocess.Popen(command, start_new_session=True, **popen)
     deadline = None if timeout is None else time.monotonic() + timeout
     try:
+        if on_start is not None:
+            on_start()  # the process exists: a caller may now record an observed launch
         while True:
             try:
                 stdout, stderr = process.communicate(timeout=0.2)
@@ -406,16 +409,23 @@ def writer_tmp(root: Path) -> Path:
 
 def run_llm(command: list[str], checkout: Path, *, tmp: Path, env: dict[str, str] | None = None,
             runner: Callable[..., Any] = run_in_session, timeout: int | None = None,
-            home: Path | None = None) -> Any:
+            home: Path | None = None, runtime_tmp: Path | None = None,
+            extra_env: dict[str, str] | None = None) -> Any:
     """Run the LLM command in a checkout with no credential, a scratch home, a dedicated ``TMPDIR`` and no stdin.
 
     The inherited ``TMPDIR`` would make the harness work directory writable to a sandboxed writer, so the
     writer gets ``tmp`` (from ``writer_tmp``) instead. The runner must contain the writer's process group.
+    ``runtime_tmp`` (sandboxed launch only) gives the outer process a different, short ``TMPDIR`` while
+    the writer receives ``tmp`` through the inner command; ``extra_env`` is added after the credential-free
+    filter and is reserved for the scoped writer credential.
     """
     if runner is subprocess.run:
         raise WorkerError("the writer runner must kill its process group; use run_in_session")
     clean = credential_free_env(dict(os.environ if env is None else env), home)
-    clean.update(TMPDIR=str(tmp), TMP=str(tmp), TEMP=str(tmp))
+    outer = tmp if runtime_tmp is None else runtime_tmp
+    clean.update(TMPDIR=str(outer), TMP=str(outer), TEMP=str(outer))
+    if extra_env:
+        clean.update(extra_env)
     return runner(command, cwd=checkout, env=clean, stdin=subprocess.DEVNULL, capture_output=True, text=True,
                   check=False, timeout=timeout)
 
@@ -592,7 +602,7 @@ def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[
     """One push process only; no token in argv, config files or writer checkouts."""
     from urllib.parse import urlsplit
 
-    result = dict(os.environ if env is None else env)
+    result = {k: v for k, v in (os.environ if env is None else env).items() if k != "CLAUDE_CODE_OAUTH_TOKEN"}
     origin = harness_git(checkout, "remote", "get-url", "--push", "origin").strip()
     parsed = urlsplit(origin)
     if not origin:
@@ -719,7 +729,8 @@ def harness_git(repo: Path, *args: str) -> str:
     Ambient author/committer variables are dropped so a harness commit carries ``HARNESS_IDENTITY`` only.
     """
     env = {key: value for key, value in credential_free_env(dict(os.environ), repo.parent / "harness-home").items()
-           if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"}}
+           if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
+                          "CLAUDE_CODE_OAUTH_TOKEN"}}
     done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True, check=False,
                           stdin=subprocess.DEVNULL, env=env)
     if done.returncode:

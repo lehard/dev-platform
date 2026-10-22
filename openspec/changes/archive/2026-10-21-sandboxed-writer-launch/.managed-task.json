@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "sandboxed-writer-launch",
+  "imported_at": "2026-10-19T21:01:29+00:00",
+  "package_revision": "e9904d5b4b3365ffe3fe5b4fd96d47af21f541a83cf3b99019cf63107821fcb1",
+  "prepared_against": "a8f6ea777b83a4d3a04ae7d2f7859936d7dcb966",
+  "private_lineage_handle": "pln_ce754494c25449dc961be05efe29c908",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "045f414c446540e5276c5f8491aaad7522d4aa3a1ffa15f81d410004512d6818",
+    "updated_at": "2026-10-19T20:31:53Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-576/T1"
+}
