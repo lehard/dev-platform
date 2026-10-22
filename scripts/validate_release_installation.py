@@ -38,9 +38,26 @@ FRESH_CASES = (
 UPGRADE_CASES = FRESH_CASES
 
 
+def without_background_git_maintenance(env: dict[str, str]) -> dict[str, str]:
+    """Disable git's detached auto-gc and maintenance for the commands this validation runs.
+
+    Copier works in temporary git repositories and removes them on exit; a background
+    ``git gc --auto`` that git detaches there can still write into ``objects`` while the
+    directory is being removed, failing the update with "Directory not empty: 'objects'".
+    """
+    count = int(env.get("GIT_CONFIG_COUNT", "0"))
+    extra = {"gc.auto": "0", "maintenance.auto": "false"}
+    result = dict(env)
+    for offset, (key, value) in enumerate(extra.items()):
+        result[f"GIT_CONFIG_KEY_{count + offset}"] = key
+        result[f"GIT_CONFIG_VALUE_{count + offset}"] = value
+    result["GIT_CONFIG_COUNT"] = str(count + len(extra))
+    return result
+
+
 def run(command: list[str], cwd: Path) -> None:
     print("+ " + " ".join(command), flush=True)
-    subprocess.run(command, cwd=cwd, text=True, check=True)
+    subprocess.run(command, cwd=cwd, text=True, check=True, env=without_background_git_maintenance(dict(os.environ)))
 
 
 def stable_baseline_ref() -> str | None:
