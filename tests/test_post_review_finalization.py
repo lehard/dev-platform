@@ -607,6 +607,7 @@ class FinalizeTests(CandidateCase):
 
 
 SOURCE_CONTRACT = """platform_version = "source"
+paths = {checks = "dev-platform/checks.toml"}
 main_branch = "main"
 workflow_profile = "standard"
 harness_mode = "platform"
@@ -1052,6 +1053,162 @@ class RederivationTests(unittest.TestCase):
         self.assertEqual(self.repo.head("agent/b"), before)
 
 
+GENERATOR = """import os, sys
+from pathlib import Path
+
+tree, log = Path(sys.argv[1]), Path(sys.argv[2])
+log.write_text(os.getcwd())
+if (tree / "fail-generation").exists():
+    sys.exit(3)
+names = sorted(p.stem for p in (tree / "entries").glob("*.txt"))
+(tree / "manifest.txt").write_text("".join(f"{name}\\n" for name in names))
+"""
+
+
+class GeneratedFileMergeTests(unittest.TestCase):
+    """A candidate and main both changed neighbouring entries of a declared generated file."""
+
+    MANIFEST = "manifest.txt"
+    TASK_PATHS = {"entries/e3.txt", "manifest.txt"}
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        tmp = Path(self.tmp.name)
+        self.repo = Remote(tmp)
+        root = self.repo.root
+        (root / "entries").mkdir()
+        for name in ("e1", "e4"):
+            (root / "entries" / f"{name}.txt").write_text("entry\n")
+        (root / self.MANIFEST).write_text("e1\ne4\n")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "entries")
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "checkout", "-qb", "agent/b")
+        self.add_entry("e3", "e1\ne3\ne4\n")
+        self.repo.push("agent/b")
+        git(root, "checkout", "-q", "main")
+        self.add_entry("e2", "e1\ne2\ne4\n")
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "checkout", "-q", "agent/b")
+        # The trusted default-branch checkout holds the declaration and the generator; the candidate has neither.
+        self.trusted = tmp / "trusted"
+        self.trusted.mkdir()
+        self.log = tmp / "generator-cwd.log"
+        git(self.trusted, "init", "-qb", "main")
+        git(self.trusted, "config", "user.name", "Fixture")
+        git(self.trusted, "config", "user.email", "fixture@localhost")
+        (self.trusted / ".dev-platform.toml").write_text('[paths]\nchecks = "dev-platform/checks.toml"\n')
+        (self.trusted / "dev-platform").mkdir()
+        (self.trusted / "dev-platform/checks.toml").write_text(
+            f'[[generated_files]]\npath = "{self.MANIFEST}"\nregenerate = ["python3", "gen.py", "{{tree}}", "{self.log}"]\n')
+        (self.trusted / "gen.py").write_text(GENERATOR)
+        git(self.trusted, "add", "-A")
+        git(self.trusted, "commit", "-qm", "trusted")
+        self.generated = final.generated_files(self.trusted, "HEAD")
+
+    def add_entry(self, name: str, manifest: str) -> None:
+        root = self.repo.root
+        (root / "entries" / f"{name}.txt").write_text("entry\n")
+        (root / self.MANIFEST).write_text(manifest)
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", f"add {name}")
+
+    def derive(self, **options):
+        options.setdefault("generated", self.generated)
+        options.setdefault("trusted_root", self.trusted)
+        with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
+            return final.rederive_archived_specs(
+                source_repo=self.repo.remote.as_uri(), branch="agent/b", head=self.repo.head("agent/b"),
+                task_paths=self.TASK_PATHS, workdir=workdir, **options)
+
+    def test_neighbouring_entries_integrate_with_a_regenerated_file_from_trusted_code(self):
+        before = self.repo.head("agent/b")
+        self.assertFalse((self.repo.root / "gen.py").exists())
+        new_head, main_sha = self.derive()
+        self.assertEqual(self.repo.head("agent/b"), new_head)
+        self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", new_head).split()[1:],
+                         [before, main_sha])
+        self.assertEqual(git(self.repo.remote, "show", f"{new_head}:{self.MANIFEST}"), "e1\ne2\ne3\ne4")
+        # The regenerate command ran from the trusted root, not from the candidate checkout.
+        self.assertEqual(Path(self.log.read_text()).resolve(), self.trusted.resolve())
+
+    def test_prepare_records_the_coordinator_update(self):
+        before = self.repo.head("agent/b")
+        pr = {"head": {"ref": "agent/b", "sha": before}}
+        with mock.patch.object(queue, "_comment") as comment:
+            new_head, main_sha = final.prepare_derived_specs(
+                self.trusted, "o/r", 7, pr, before, self.TASK_PATHS, source_repo=self.repo.remote.as_uri())
+        self.assertEqual(self.repo.head("agent/b"), new_head)
+        comment.assert_called_once_with(self.trusted, "o/r", 7,
+                                        {"kind": "update", "previous": before, "head": new_head, "base": main_sha})
+        self.assertEqual(git(self.repo.remote, "show", f"{new_head}:{self.MANIFEST}"), "e1\ne2\ne3\ne4")
+
+    def test_ordinary_file_conflict_is_not_resolved_and_nothing_is_pushed(self):
+        root = self.repo.root
+        git(root, "checkout", "-q", "main")
+        (root / "src.py").write_text("value = 1\n")
+        git(root, "commit", "-qam", "main edits src")
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "checkout", "-q", "agent/b")
+        (root / "src.py").write_text("value = 2\n")
+        git(root, "commit", "-qam", "candidate edits src")
+        self.repo.push("agent/b")
+        before = self.repo.head("agent/b")
+        with self.assertRaisesRegex(final.RederivationFailed, "conflicts outside.*src.py"):
+            self.derive()
+        self.assertEqual(self.repo.head("agent/b"), before)
+
+    def test_failed_regeneration_names_the_file_and_pushes_nothing(self):
+        root = self.repo.root
+        (root / "fail-generation").write_text("x\n")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "make the generator fail")
+        self.repo.push("agent/b")
+        before = self.repo.head("agent/b")
+        with self.assertRaisesRegex(final.RederivationFailed, "regeneration of manifest.txt failed"):
+            self.derive()
+        self.assertEqual(self.repo.head("agent/b"), before)
+
+    def test_missing_generated_output_fails_explicitly(self):
+        # A second declared file whose command exits 0 but leaves no output.
+        broken = final.GeneratedFile("absent-output.txt", (
+            "python3", "-c", "import os, sys; os.remove(os.path.join(sys.argv[1], 'absent-output.txt'))", "{tree}"))
+        root = self.repo.root
+        git(root, "checkout", "-q", "main")
+        (root / "absent-output.txt").write_text("m\n")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "main adds output")
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "checkout", "-q", "agent/b")
+        (root / "absent-output.txt").write_text("c\n")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "candidate adds output")
+        self.repo.push("agent/b")
+        before = self.repo.head("agent/b")
+        with self.assertRaisesRegex(final.RederivationFailed, "regeneration of absent-output.txt produced no file"):
+            self.derive(generated=(*self.generated, broken))
+        self.assertEqual(self.repo.head("agent/b"), before)
+
+    def test_generated_files_require_a_trusted_root(self):
+        with self.assertRaisesRegex(final.RederivationFailed, "trusted default-branch root"):
+            self.derive(trusted_root=None)
+
+    def test_merge_differing_only_in_a_declared_generated_path_is_recognized(self):
+        before = self.repo.head("agent/b")
+        new_head, main_sha = self.derive()
+        root = self.repo.root
+        git(root, "fetch", "-q", "origin")
+        declared = [item.path for item in self.generated]
+        self.assertTrue(final.derived_merge_only(root, new_head, before, main_sha, self.TASK_PATHS, declared))
+        self.assertFalse(final.derived_merge_only(root, new_head, before, main_sha, self.TASK_PATHS))
+        git(root, "checkout", "-q", "-b", "tamper", new_head)
+        (root / "src.py").write_text("value = 7\n")
+        git(root, "commit", "-qam", "tamper")
+        self.assertFalse(final.derived_merge_only(root, git(root, "rev-parse", "HEAD"), before, main_sha,
+                                                  self.TASK_PATHS, declared))
+
+
 class PreparationTests(unittest.TestCase):
     HEAD, BASE, MAIN = "a" * 40, "b" * 40, "c" * 40
     DELTA = {"openspec/changes/archive/2026-10-06-x/specs/cap/spec.md", "openspec/specs/cap/spec.md", "src.py"}
@@ -1061,7 +1218,7 @@ class PreparationTests(unittest.TestCase):
         self.assertEqual(final.derived_spec_paths(self.DELTA, overlap), {"openspec/specs/cap/spec.md"})
         self.assertEqual(final.derived_spec_paths({"src.py"}, overlap), set())
 
-    def prepare(self, overlap, rederive, contains_main=1):
+    def prepare(self, overlap, rederive, contains_main=1, task_paths=None):
         def run_git(args, **kwargs):
             out = ""
             if args[:2] == ["merge-base", "--is-ancestor"]:
@@ -1074,7 +1231,7 @@ class PreparationTests(unittest.TestCase):
         with mock.patch.object(queue, "run_git", side_effect=run_git), \
                 mock.patch.object(queue, "_events", return_value=[]), \
                 mock.patch.object(queue, "_main", return_value=self.MAIN), \
-                mock.patch.object(queue, "_task_paths", return_value=set(self.DELTA)), \
+                mock.patch.object(queue, "_task_paths", return_value=set(task_paths or self.DELTA)), \
                 mock.patch.object(queue, "_raise_if_owned_elsewhere"), \
                 mock.patch.object(final, "prepare_derived_specs", side_effect=rederive) as derived:
             result = queue._prepare(ROOT, "o/r", 7, {"head": self.HEAD, "base": self.BASE, "comment_id": 1}, pr)
@@ -1101,6 +1258,35 @@ class PreparationTests(unittest.TestCase):
                                            lambda *a, **k: self.fail("must not re-derive"))
         self.assertEqual(result, ("d" * 40, self.MAIN))
         derived.assert_not_called()
+
+    MANIFEST = "template/dev-platform/platform-manifest.json"
+
+    def test_both_sides_change_of_a_declared_generated_file_is_derived_merged(self):
+        result, derived = self.prepare([self.MANIFEST], lambda *a, **k: ("d" * 40, self.MAIN),
+                                       task_paths=self.DELTA | {self.MANIFEST})
+        self.assertEqual(result, ("d" * 40, self.MAIN))
+        derived.assert_called_once()
+
+    def test_conflict_only_in_derived_and_generated_paths_is_derived_merged(self):
+        with mock.patch.object(queue, "merge_conflicts", return_value=[self.MANIFEST, "openspec/specs/cap/spec.md"]):
+            result, derived = self.prepare(["src.py"], lambda *a, **k: ("d" * 40, self.MAIN),
+                                           task_paths=self.DELTA | {self.MANIFEST})
+        self.assertEqual(result, ("d" * 40, self.MAIN))
+        derived.assert_called_once()
+
+    def test_conflict_in_an_ordinary_file_is_integration_repair_and_pushes_nothing(self):
+        with mock.patch.object(queue, "merge_conflicts", return_value=[self.MANIFEST, "src.py"]), \
+                mock.patch.object(queue, "_gh") as gh, \
+                self.assertRaisesRegex(queue.IntegrationRepairNeeded, "conflicts in: .*src.py"):
+            _, derived = self.prepare(["src.py"], lambda *a, **k: self.fail("must not derive"))
+        gh.assert_not_called()
+
+    def test_failed_regeneration_is_integration_repair_naming_the_failure(self):
+        def failing(*args, **kwargs):
+            raise final.RederivationFailed("regeneration of manifest.txt failed (gen.py)")
+
+        with self.assertRaisesRegex(queue.IntegrationRepairNeeded, "regeneration of manifest.txt failed"):
+            self.prepare([self.MANIFEST], failing, task_paths=self.DELTA | {self.MANIFEST})
 
     def test_failed_re_derivation_becomes_integration_repair(self):
         def failing(*args, **kwargs):

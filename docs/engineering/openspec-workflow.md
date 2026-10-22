@@ -254,4 +254,6 @@ and for non-coordinator finish), not at PR publication. When main changed only
 the archive-derived current-spec paths of the candidate's own capabilities, the
 coordinator re-derives them by replaying the archived deltas on main; this is
 bookkeeping, required checks still run, and a failed replay is integration
-repair. This handoff does not claim terminal delivery.
+repair. In the same derived merge the coordinator regenerates files that its
+default branch declares generated (`[[generated_files]]`), running the declared
+command from default-branch code over the merged tree. This handoff does not claim terminal delivery.
