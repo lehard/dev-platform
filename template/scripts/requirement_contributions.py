@@ -25,13 +25,19 @@ def in_flight_children(root: Path, repo: str, requirement: str, target: str, *, 
     if adapter is None:
         import publication_queue as adapter
     rows = adapter._gh(root, "pr", "list", "--state", "all", "--base", target,
-                       "--limit", "100", "--json", "number")
+                       "--limit", "100", "--json", "number,state")
     if not isinstance(rows, list) or len(rows) >= 100:
         raise ContributionError("Requirement contribution inventory unavailable or exceeds bound")
     public = integration._public_requirement(root, requirement)
     owned = {}
     for row in rows:
         number = row["number"]
+        if row.get("state") not in ("OPEN", "MERGED", "CLOSED"):
+            raise ContributionError(f"unknown state for contribution PR #{number}")
+        if row["state"] == "CLOSED":
+            # Closed without merge is abandoned: it no longer owns its change. Reopening it while a
+            # replacement exists makes the ownership ambiguous below, which fails explicitly.
+            continue
         comments = adapter._comments(root, repo, number)
         current = adapter._derive(root, adapter._pr(root, repo, number), comments)
         if adapter._malformed(current):

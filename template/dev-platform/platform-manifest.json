@@ -124,7 +124,7 @@
     "scripts/requirement_board.py": "c0266b4b67413e699c28f05639d1c553ac9200cbce4e3f88de071067e58a47b6",
     "scripts/requirement_child_context.py": "54e345ee7ca8d4a117b8362c243273da8510845a4ac210b64fdd59d1d323642f",
     "scripts/requirement_composition.py": "333eb88d6c23e9c0ff7066ebaecf26dc8bd743aafa4aa3036aac5894a56c44f7",
-    "scripts/requirement_contributions.py": "4c63af38f24941cf05e0e6776cb1c3f21d09f46f8bca8795b1cd2ed6b887968f",
+    "scripts/requirement_contributions.py": "91a290f2fc5e6835101534cb8d1cf7c7096aaf808fd8d5a73d4bb8b8caaa7f2d",
     "scripts/requirement_intake.py": "b3f868a622ca778d0795610685bbc9bf96fb9918bef5133f477538f2a092839a",
     "scripts/requirement_integration.py": "85bc40fd7da48cd283634672c1f922fe6b274b1102977811158f47c6fda1bf79",
     "scripts/requirement_merge_recovery.py": "0b557925babc07605010a77b3f582062daf221c2d490ff89b46690c8971109b0",
