@@ -13,4 +13,4 @@
 
 ## 4. Verification
 - [x] 4.1 Regression tests: manifest-only conflict integrates with a regenerated manifest that passes `--check`; ordinary-file conflict goes to integration repair; regeneration failure goes to integration repair; unrecorded-update recovery accepts a generated-only merge; no candidate code runs for regeneration.
-- [ ] 4.2 Run full validation and semantic OpenSpec verification.
+- [x] 4.2 Run full validation and semantic OpenSpec verification.
