@@ -14,9 +14,9 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
-from _platform_common import current_worktree_root, gate_message, read_platform_config, run_git
+from _platform_common import GitCommandError, current_worktree_root, gate_message, read_platform_config, run_git
 from publication_state import required_check_state_for_ref
 from candidate_lifecycle import CLAIM_STATES, MalformedMarkerError, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
@@ -43,6 +43,17 @@ class IntegrationRepairNeeded(QueueError):
     def __init__(self, message: str, *, gate: str = "integration"):
         super().__init__(message)
         self.gate = gate
+
+
+class TransientQueueError(QueueError):
+    """A network, GitHub 5xx or timeout failure: the candidate waits for the next run, it is never blocked."""
+
+
+def _transient(detail: str) -> bool:
+    from _platform_common import is_transient_github_failure
+
+    return is_transient_github_failure(detail) or bool(
+        re.search(r"returned error: 5\d\d|could not resolve host|rpc failed", detail or "", re.IGNORECASE))
 
 
 class NotFinalized(QueueError):
@@ -80,7 +91,8 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
     else:
         result = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:
-        raise QueueError(result.stderr.strip() or result.stdout.strip() or f"gh exit {result.returncode}")
+        detail = result.stderr.strip() or result.stdout.strip() or f"gh exit {result.returncode}"
+        raise (TransientQueueError if _transient(detail) else QueueError)(detail)
     if not result.stdout.strip():
         return None
     try:
@@ -1324,11 +1336,17 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     return {"number": number, "position_key": admitted["comment_id"], "head": expected_head, "state": "queued"}
 
 
-def _queued(root: Path, repo: str) -> list[tuple[int, int, dict[str, Any]]]:
+QUEUE_INVENTORY_LIMIT = 300
+MAX_MERGE_REFUSALS = 3
+
+
+def _queued(root: Path, repo: str, skipped: list[str] | None = None) -> list[tuple[int, int, dict[str, Any]]]:
+    """Admitted queued PRs in admission order; a labeled PR without a valid admission is listed in ``skipped``."""
     # Filter remotely before bounding. Merged queued contributions still need
     # recovery if the worker stopped between GitHub merge and manifest publication.
-    rows = _gh(root, "pr", "list", "--state", "all", "--label", QUEUE, "--limit", "100", "--json", "number,labels")
-    if not isinstance(rows, list) or len(rows) >= 100:
+    rows = _gh(root, "pr", "list", "--state", "all", "--label", QUEUE, "--limit", str(QUEUE_INVENTORY_LIMIT),
+               "--json", "number,labels")
+    if not isinstance(rows, list) or len(rows) >= QUEUE_INVENTORY_LIMIT:
         raise QueueError("queued PR inventory is unavailable or exceeds the bounded limit")
     queue = []
     for row in rows:
@@ -1337,9 +1355,17 @@ def _queued(root: Path, repo: str) -> list[tuple[int, int, dict[str, Any]]]:
         number = row.get("number")
         if not isinstance(number, int):
             raise QueueError("queued PR has no number")
-        admission = _admission(_events(root, repo, number), number)
+        try:
+            admission = _admission(_events(root, repo, number), number)
+        except QueueError as exc:
+            admission, cause = None, str(exc)
+        else:
+            cause = "lacks a valid admission"
         if admission is None:
-            raise QueueError(f"queued PR #{number} lacks a valid admission")
+            # One PR's label without an admission never stops the queue for the others.
+            if skipped is not None:
+                skipped.append(f"#{number} queued but {cause}"[:300])
+            continue
         queue.append((admission["comment_id"], number, admission))
     return sorted(queue)
 
@@ -1713,7 +1739,7 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
             _comment(root, repo, number, {"kind": "update", "previous": head, "head": observed, "base": current_main})
             return observed, current_main
         time.sleep(3)
-    raise QueueError("GitHub branch update is still pending; retry coordinator")
+    raise TransientQueueError("GitHub branch update is still pending; retry coordinator")
 
 
 def merge_conflicts(root: Path, head: str, main: str) -> list[str]:
@@ -1937,147 +1963,179 @@ def worker(root: Path) -> dict[str, Any]:
     that holds final integration ownership (checks pending, main moved, merge accepted) ends
     the run so at most one candidate integrates at a time.
     """
+    from lifecycle_workers import WorkerError
+    from requirement_integration import RequirementIntegrationError
+
     repo = _repo(root)
-    queue = _queued(root, repo)
-    if not queue:
-        return {"state": "empty"}
     skipped: list[str] = []
+    queue = _queued(root, repo, skipped)
+    if not queue:
+        return {"state": "empty", **({"skipped": skipped} if skipped else {})}
     blocked: dict[str, Any] | None = None
     # At most one candidate holds final integration ownership: resume the one
     # already active before granting ownership to any other.
-    observed_prs = {number: _pr(root, repo, number) for _, number, _ in queue}
+    observed_prs: dict[int, dict[str, Any]] = {}
+    failures = 0
+    for _, number, _ in queue:
+        try:
+            observed_prs[number] = _pr(root, repo, number)
+        except QueueError as exc:
+            skipped.append(f"#{number} not observable: {exc}"[:300])
+            failures += 1
+    candidates = len(queue)
+    queue = [item for item in queue if item[1] in observed_prs]
 
     def active(number: int) -> bool:
         return ACTIVE in {label.get("name") for label in observed_prs[number].get("labels", []) if isinstance(label, dict)}
 
     queue = sorted(queue, key=lambda item: not active(item[1]))
     for _, number, admission in queue:
-        pr = observed_prs[number]
-        comments = _comments(root, repo, number)
         try:
-            newest_record = _latest(root, number, comments)
-        except MalformedRecord as exc:
-            if pr.get("merged"):  # a confirmed merge stays authoritative over a malformed record
-                _label(root, repo, number, QUEUE, present=False)
-                return {"state": "merged", "number": number}
-            blocked = _block(root, repo, number, str(exc))
-            skipped.append(f"#{number} blocked: {exc}"[:300])
+            outcome, block = _worker_candidate(root, repo, number, admission, observed_prs[number], skipped, active)
+        except (QueueError, WorkerError, RequirementIntegrationError, GitCommandError) as exc:
+            # One candidate's failure (GitHub read, harness git, contribution contract) never stops the rest.
+            skipped.append(f"#{number} skipped: {type(exc).__name__}: {exc}"[:300])
+            failures += 1
             continue
-        # legitimate absence: a candidate admitted before v2 records exists has no task identity to classify.
-        identity = newest_record.get("task_identity", {}) if newest_record is not None else {}
-        if isinstance(identity, dict) and identity.get("kind") == "contribution":
-            from requirement_contributions import merge_reviewed_contribution, ContributionError
-            current = candidate_status(root, number, repo=repo)
-            if (current["state"] == "repair-pending"
-                    and (current.get("red_gate") or {}).get("name") == "required-checks"
-                    and (current.get("next_job") or {}).get("kind") != "repair"):
-                failure = current["red_gate"]
-                if "required-checks" in failure["evidence"]:
-                    red_gate = failure  # State was recorded before an interrupted job publication.
-                else:
-                    red_gate = {**failure, "evidence": {"required-checks": {"findings": [{
-                        "id": "required-checks-failed", "severity": "material",
-                        "summary": "Repair failed required contribution checks", "evidence": failure["evidence"]}]}}}
-                _transition(root, repo, number, "repair-pending", current["head"],
-                            task_identity=current["task_identity"], inherit_identity=False,
-                            gates=current.get("gates", {}), red_gate=red_gate)
-                try:
-                    publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
-                                attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
-                except QueueError as exc:
-                    skipped.append(f"#{number} contribution repair job not published: {exc}"[:300])
-                    continue
-                return {"state": "repair-pending", "number": number}
-            if current["state"] in {"contribution-integration-pending", "contribution-integrated"}:
-                try:
-                    outcome = merge_reviewed_contribution(root, repo, current)
-                except (ContributionError, QueueError) as exc:
-                    skipped.append(f"#{number} contribution: {exc}")
-                    continue
-                _label(root, repo, number, QUEUE, present=False)
-                return outcome
-            skipped.append(f"#{number} contribution: {current['state']}")
-            continue
-        if pr.get("merged"):
-            _label(root, repo, number, QUEUE, present=False)
-            return {"state": "merged", "number": number}
-        # Without any v2 record the v1 admission alone governs (it reads as ready).
-        has_v2 = any(str(row.get("body", "")).startswith(V2_PREFIX) for row in comments)
-        current = _derive(root, pr, comments) if has_v2 else {"state": "ready"}
-        if has_v2 and str(current.get("reason", "")).startswith("recover validated integration-repair push"):
-            # A repair job pushed its validated result but was interrupted before advancing: record it.
-            from integration_contour import recover_integration_repair
-
-            if recover_integration_repair(root, repo, number, pr, comments):
-                comments = _comments(root, repo, number)
-                current = _derive(root, pr, comments)
-        if (has_v2 and current.get("state") == "ready"
-                and str(current.get("reason", "")).startswith("recover validated finalization push")):
-            # A finalize job pushed its validated archive but its ready record was lost: record it.
-            from lifecycle_workers import WorkerError
-            from post_review_finalization import recover_finalization_push
-
-            try:
-                recorded = recover_finalization_push(root, repo, number, pr, comments)
-            except WorkerError as exc:
-                skipped.append(f"#{number} finalization push not recovered: {exc}"[:300])
-                continue
-            if recorded:
-                comments = _comments(root, repo, number)
-                current = _derive(root, pr, comments)
-        if current["state"] == "blocked-escalation" and current.get("reason", "").startswith("malformed marker"):
-            blocked = _block(root, repo, number, current["reason"])
-            skipped.append(f"#{number} blocked: {current['reason']}"[:300])
-            continue
-        # Only a record for the exact current head can hand the candidate to other
-        # work; otherwise _prepare must still recover an interrupted branch update.
-        exact_head_record = current.get("task_identity") is not None and current.get("head") == pr.get("head", {}).get("sha")
-        newest = _latest(root, number, comments) if has_v2 else None
-        if newest is None:
-            # legitimate absence: a v1-only candidate, or v2 comments that are all untrusted and ignored by design.
-            newest = {}
-        awaiting = _awaiting_readmission(root, repo, number, pr, comments, admission) if has_v2 else None
-        if awaiting is not None:
-            # The developer pushed a new head onto a candidate waiting for a human, a retry or an unclaimed
-            # job: it awaits developer re-admission, never integration or a block of the unrecorded head.
-            skipped.append(f"#{number} {awaiting['reason']}")
-            if active(number):
-                _label(root, repo, number, ACTIVE, present=False)
-            continue
-        if newest.get("state") in CLAIM_STATES:
-            # A review/repair claim on an earlier head still owns the candidate:
-            # never prepare (update or block) it under that work.
-            skipped.append(f"#{number} {newest['state']} claim on {str(newest.get('head'))[:12]}")
-            if active(number):
-                _label(root, repo, number, ACTIVE, present=False)  # relinquish to the claiming work
-            continue
-        if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)
-                                  or red_retry_blocks_integration(current)):
-            # A candidate owned by other work does not hold up the rest of the queue.
-            skipped.append(f"#{number} {current['state']}: {current['next_action']}")
-            if current["state"] == "integration-repair-pending" and not current.get("next_job"):
-                # Interrupted between the state record and its job: publish the missing job (idempotent).
-                try:
-                    publish_job(root, repo, number, "integration-repair", current["head"],
-                                task_identity=current["task_identity"],
-                                attempt=max(1, current.get("attempts", {}).get("integration-repair", 1)))
-                except QueueError as exc:
-                    skipped.append(f"#{number} integration-repair job not published: {exc}"[:300])
-            if active(number):
-                _label(root, repo, number, ACTIVE, present=False)
-            continue
-        outcome = _integrate(root, repo, number, admission, pr)
-        if outcome.pop("released", False):
-            skipped.append(f"#{number} {outcome.get('state')}: {outcome.get('reason', '')}"[:300])
-            if outcome.get("state") == "blocked":
-                blocked = outcome
-            continue
-        if skipped:
-            outcome["skipped"] = skipped
-        return outcome
+        if block is not None:
+            blocked = block
+        if outcome is not None:
+            return outcome
     if blocked is not None:
         return {**blocked, "skipped": skipped}  # the run still reports a block (non-zero exit), after trying the rest
+    if failures == candidates:
+        # Every candidate failed: that is the explicit failure of this run, not a quiet wait.
+        raise QueueError("no queue candidate could be evaluated: " + "; ".join(skipped))
     return {"state": "waiting", "reason": "no integrable candidate; " + "; ".join(skipped)}
+
+
+def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, Any], pr: dict[str, Any],
+                      skipped: list[str], active: Callable[[int], bool]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """One queue candidate: ``(outcome that ends the run, block to report)``; ``(None, None)`` moves on."""
+    if pr.get("state") == "closed" and not pr.get("merged"):
+        # A PR closed without merge leaves the queue; its label must not stall the inventory.
+        _label(root, repo, number, ACTIVE, present=False)
+        _label(root, repo, number, QUEUE, present=False)
+        skipped.append(f"#{number} closed without merge: dequeued")
+        return None, None
+    comments = _comments(root, repo, number)
+    try:
+        newest_record = _latest(root, number, comments)
+    except MalformedRecord as exc:
+        if pr.get("merged"):  # a confirmed merge stays authoritative over a malformed record
+            _label(root, repo, number, QUEUE, present=False)
+            return {"state": "merged", "number": number}, None
+        skipped.append(f"#{number} blocked: {exc}"[:300])
+        return None, _block(root, repo, number, str(exc))
+    # legitimate absence: a candidate admitted before v2 records exists has no task identity to classify.
+    identity = newest_record.get("task_identity", {}) if newest_record is not None else {}
+    if isinstance(identity, dict) and identity.get("kind") == "contribution":
+        from requirement_contributions import merge_reviewed_contribution, ContributionError
+        current = candidate_status(root, number, repo=repo)
+        if (current["state"] == "repair-pending"
+                and (current.get("red_gate") or {}).get("name") == "required-checks"
+                and (current.get("next_job") or {}).get("kind") != "repair"):
+            failure = current["red_gate"]
+            if "required-checks" in failure["evidence"]:
+                red_gate = failure  # State was recorded before an interrupted job publication.
+            else:
+                red_gate = {**failure, "evidence": {"required-checks": {"findings": [{
+                    "id": "required-checks-failed", "severity": "material",
+                    "summary": "Repair failed required contribution checks", "evidence": failure["evidence"]}]}}}
+            _transition(root, repo, number, "repair-pending", current["head"],
+                        task_identity=current["task_identity"], inherit_identity=False,
+                        gates=current.get("gates", {}), red_gate=red_gate)
+            try:
+                publish_job(root, repo, number, "repair", current["head"], task_identity=current["task_identity"],
+                            attempt=max(1, current.get("attempts", {}).get("repair", 0) + 1))
+            except QueueError as exc:
+                skipped.append(f"#{number} contribution repair job not published: {exc}"[:300])
+                return None, None
+            return {"state": "repair-pending", "number": number}, None
+        if current["state"] in {"contribution-integration-pending", "contribution-integrated"}:
+            try:
+                outcome = merge_reviewed_contribution(root, repo, current)
+            except (ContributionError, QueueError) as exc:
+                skipped.append(f"#{number} contribution: {exc}")
+                return None, None
+            _label(root, repo, number, QUEUE, present=False)
+            return outcome, None
+        skipped.append(f"#{number} contribution: {current['state']}")
+        return None, None
+    if pr.get("merged"):
+        _label(root, repo, number, QUEUE, present=False)
+        return {"state": "merged", "number": number}, None
+    # Without any v2 record the v1 admission alone governs (it reads as ready).
+    has_v2 = any(str(row.get("body", "")).startswith(V2_PREFIX) for row in comments)
+    current = _derive(root, pr, comments) if has_v2 else {"state": "ready"}
+    if has_v2 and str(current.get("reason", "")).startswith("recover validated integration-repair push"):
+        # A repair job pushed its validated result but was interrupted before advancing: record it.
+        from integration_contour import recover_integration_repair
+
+        if recover_integration_repair(root, repo, number, pr, comments):
+            comments = _comments(root, repo, number)
+            current = _derive(root, pr, comments)
+    if (has_v2 and current.get("state") == "ready"
+            and str(current.get("reason", "")).startswith("recover validated finalization push")):
+        # A finalize job pushed its validated archive but its ready record was lost: record it.
+        from lifecycle_workers import WorkerError
+        from post_review_finalization import recover_finalization_push
+
+        try:
+            recorded = recover_finalization_push(root, repo, number, pr, comments)
+        except WorkerError as exc:
+            skipped.append(f"#{number} finalization push not recovered: {exc}"[:300])
+            return None, None
+        if recorded:
+            comments = _comments(root, repo, number)
+            current = _derive(root, pr, comments)
+    if current["state"] == "blocked-escalation" and current.get("reason", "").startswith("malformed marker"):
+        skipped.append(f"#{number} blocked: {current['reason']}"[:300])
+        return None, _block(root, repo, number, current["reason"])
+    # Only a record for the exact current head can hand the candidate to other
+    # work; otherwise _prepare must still recover an interrupted branch update.
+    exact_head_record = current.get("task_identity") is not None and current.get("head") == pr.get("head", {}).get("sha")
+    newest = _latest(root, number, comments) if has_v2 else None
+    if newest is None:
+        # legitimate absence: a v1-only candidate, or v2 comments that are all untrusted and ignored by design.
+        newest = {}
+    awaiting = _awaiting_readmission(root, repo, number, pr, comments, admission) if has_v2 else None
+    if awaiting is not None:
+        # The developer pushed a new head onto a candidate waiting for a human, a retry or an unclaimed
+        # job: it awaits developer re-admission, never integration or a block of the unrecorded head.
+        skipped.append(f"#{number} {awaiting['reason']}")
+        if active(number):
+            _label(root, repo, number, ACTIVE, present=False)
+        return None, None
+    if newest.get("state") in CLAIM_STATES:
+        # A review/repair claim on an earlier head still owns the candidate:
+        # never prepare (update or block) it under that work.
+        skipped.append(f"#{number} {newest['state']} claim on {str(newest.get('head'))[:12]}")
+        if active(number):
+            _label(root, repo, number, ACTIVE, present=False)  # relinquish to the claiming work
+        return None, None
+    if exact_head_record and (current["state"] in NOT_INTEGRABLE or review_owned(current)
+                              or red_retry_blocks_integration(current)):
+        # A candidate owned by other work does not hold up the rest of the queue.
+        skipped.append(f"#{number} {current['state']}: {current['next_action']}")
+        if current["state"] == "integration-repair-pending" and not current.get("next_job"):
+            # Interrupted between the state record and its job: publish the missing job (idempotent).
+            try:
+                publish_job(root, repo, number, "integration-repair", current["head"],
+                            task_identity=current["task_identity"],
+                            attempt=max(1, current.get("attempts", {}).get("integration-repair", 1)))
+            except QueueError as exc:
+                skipped.append(f"#{number} integration-repair job not published: {exc}"[:300])
+        if active(number):
+            _label(root, repo, number, ACTIVE, present=False)
+        return None, None
+    outcome = _integrate(root, repo, number, admission, pr)
+    if outcome.pop("released", False):
+        skipped.append(f"#{number} {outcome.get('state')}: {outcome.get('reason', '')}"[:300])
+        return None, outcome if outcome.get("state") == "blocked" else None
+    if skipped:
+        outcome["skipped"] = skipped
+    return outcome, None
 
 
 def _released(result: dict[str, Any]) -> dict[str, Any]:
@@ -2156,7 +2214,17 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
                 pass
             return {"state": "merged", "number": number, "head": head}
         if result.returncode:
-            return {"state": "waiting", "number": number, "reason": "protected merge refused; will re-evaluate: " + (result.stderr.strip() or "unknown")[:300]}
+            refusal = (result.stderr.strip() or "unknown")[:300]
+            _comment(root, repo, number, {"kind": "merge-refused", "head": head, "reason": refusal})
+            refusals = sum(1 for event in _events(root, repo, number)
+                           if event.get("kind") == "merge-refused" and event.get("head") == head
+                           and event.get("comment_id", 0) > admission["comment_id"])
+            if refusals >= MAX_MERGE_REFUSALS:
+                return _released(_block(root, repo, number, f"protected merge refused {refusals} times: {refusal}", head=head))
+            # Released: a refused merge never holds integration ownership from the rest of the queue.
+            _label(root, repo, number, ACTIVE, present=False)
+            return _released({"state": "waiting", "number": number,
+                              "reason": f"protected merge refused ({refusals}/{MAX_MERGE_REFUSALS}); will re-evaluate: {refusal}"})
         return {"state": "waiting", "number": number, "reason": "merge accepted; awaiting GitHub confirmation"}
     except LifecycleOwnershipChanged as exc:
         _label(root, repo, number, ACTIVE, present=False)
@@ -2177,7 +2245,17 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         return _released({"state": "waiting", "number": number, "reason": str(exc)})
     except IntegrationRepairNeeded as exc:
         return _released(_integration_repair(root, repo, number, admission, exc))
+    except GitCommandError as exc:
+        if not _transient(str(exc)):
+            raise  # not a candidate defect the queue can classify: the worker skips this candidate, naming it
+        _label(root, repo, number, ACTIVE, present=False)
+        return _released({"state": "waiting", "number": number, "reason": f"transient failure; will re-evaluate: {exc}"[:500]})
     except (QueueError, subprocess.CalledProcessError) as exc:
+        detail = str(exc) if isinstance(exc, QueueError) else f"{exc}: {(exc.stderr or '').strip()}"
+        if isinstance(exc, TransientQueueError) or (isinstance(exc, subprocess.CalledProcessError) and _transient(detail)):
+            # A network, GitHub 5xx or timeout failure is not a candidate defect: wait, never block.
+            _label(root, repo, number, ACTIVE, present=False)
+            return _released({"state": "waiting", "number": number, "reason": f"transient failure; will re-evaluate: {detail}"[:500]})
         head_now = pr.get("head", {}).get("sha")
         try:
             # Never block a candidate that review or repair claimed meanwhile.
