@@ -860,6 +860,26 @@ class PublishJobRouteTests(unittest.TestCase):
         with self.assertRaisesRegex(self.queue.QueueError, "exactly one provider"):
             self.publish("repair", [handoff_comment(route=ROUTE)], providers=["claude", "codex"])
 
+    def test_unrouted_composition_and_quick_task_get_the_recorded_default_route(self):
+        composition = {"kind": "requirement-composition", "change": "br-748-composition", "requirement": "r",
+                       "task_content": "c", "children": [{"change": "a"}]}
+        for identity, ref, change in ((composition, "requirement/BR-748", "br-748-composition"),
+                                      ("t", "agent/fix-thing", "fix-thing")):
+            record = lifecycle.build_handoff_record(
+                number=7, state="review-pending", head=HEAD, task_identity=identity, gates={}, red_gate=None,
+                not_reverified=[], attempts={}, next_job={"kind": "review"}, at="2026-10-05T08:00:00Z")
+            comments = [{"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}]
+            pr = {"number": 7, "head": {"sha": HEAD, "ref": ref}, "state": "open"}
+            for kind in ("repair", "integration-repair"):
+                with self.subTest(ref=ref, kind=kind), mock.patch.object(self.queue, "_pr", return_value=pr), \
+                     mock.patch.object(self.queue, "_comments", return_value=comments), \
+                     mock.patch.object(self.queue, "_derive", wraps=lambda r, p, c, checks=None: lifecycle.derive_candidate(p, c)), \
+                     mock.patch.object(self.queue, "_transition", return_value={}) as transition:
+                    self.queue.publish_job(Path("."), "o/r", 7, kind, HEAD, task_identity=identity)
+                    self.assertEqual(transition.call_args.kwargs["route"],
+                                     {"provider": "claude", "profile": "standard", "change": change})
+                    self.assertEqual(transition.call_args.kwargs["next_job"]["providers"], ["claude"])
+
     def test_publish_accepts_a_non_route_provider_only_with_its_recorded_switch(self):
         comments = [handoff_comment(route=ROUTE)]
         event = {"seq": 2, "action": "switch-provider", "from": ["claude"], "to": ["codex"], "reason": "quota"}

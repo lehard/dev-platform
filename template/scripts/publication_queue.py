@@ -772,6 +772,34 @@ def _require_route(candidate: dict[str, Any], number: int, kind: str) -> dict[st
     return route
 
 
+# Owner decision (BR-768, variant A): a candidate without a developer route (Requirement composition, quick
+# task) is repaired by the Claude writer on the balanced R2 tier; the route is recorded on the candidate.
+DEFAULT_REPAIR_PROVIDER = "claude"
+DEFAULT_REPAIR_PROFILE = "standard"
+
+
+def _repair_route(candidate: dict[str, Any], observed: dict[str, Any], number: int, kind: str) -> tuple[dict[str, str], bool]:
+    """``(route, recorded_now)`` for a repair or integration-repair job.
+
+    A recorded route wins. Without one, a Requirement composition or a quick task (an ``agent/`` branch whose
+    identity names no managed change) gets the default route; any other candidate fails explicitly naming why.
+    """
+    if isinstance(candidate.get("route"), dict):
+        return _require_route(candidate, number, kind), False
+    identity = candidate.get("task_identity")
+    branch = str(observed.get("head", {}).get("ref") or "")
+    if isinstance(identity, dict) and identity.get("kind") == "requirement-composition":
+        change = identity.get("change")
+    elif branch.startswith("agent/") and not (isinstance(identity, dict) and identity.get("change")):
+        change = branch.removeprefix("agent/")
+    else:
+        raise QueueError(f"{kind} job for PR #{number} has no originating task route and is not a Requirement "
+                         "composition or quick task, which alone get the default route; re-run developer handoff")
+    if not isinstance(change, str) or not change:
+        raise QueueError(f"{kind} job for PR #{number} cannot name the change of its default route")
+    return {"provider": DEFAULT_REPAIR_PROVIDER, "profile": DEFAULT_REPAIR_PROFILE, "change": change}, True
+
+
 def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                 task_identity: str | dict[str, Any], attempt: int | None = None,
                 providers=None, target_head=None, phase=None, reoffer=None) -> dict[str, Any] | None:
@@ -782,8 +810,10 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
     current = _derive(root, observed, _comments(root, repo, number))
     if attempt is None:
         attempt = current.get("attempts", {}).get(kind, 0)
+    recorded_route = None
     if kind in {"repair", "integration-repair"}:
-        route = _require_route(current, number, kind)
+        route, recorded_now = _repair_route(current, observed, number, kind)
+        recorded_route = route if recorded_now else None
         switched = (current.get("provider_switch") or {}).get("repair")
         providers = (list(switched) if switched else [route["provider"]]) if providers is None else list(providers)
         try:
@@ -801,6 +831,7 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
                        red_gate=current.get("red_gate") if kind in {"repair", "integration-repair"} else None,
+                       route=recorded_route,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
                                            providers=providers, target_head=target_head, phase=phase, reoffer=reoffer))
 
