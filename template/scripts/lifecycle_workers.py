@@ -467,6 +467,48 @@ def run_in_session(command: list[str], *, capture_output: bool = False, check: b
     return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
 
 
+WRITERS = ("claude-sandboxed",)
+
+
+def sandboxed_claude_writer(root: Path) -> tuple[list[str], Callable[..., Any]]:
+    """The platform repair writer: Claude on the balanced R2 tier under the BR-576 sandbox launch.
+
+    Returns the writer argv (the job task is appended as its final argument) and the launch that replaces
+    ``run_llm``. Every prerequisite (macOS, sandbox runtime, Claude CLI, operator token file) is checked by
+    the launch and a missing one fails the job explicitly; there is no unsandboxed fallback.
+    """
+    import model_routing
+    import sandboxed_writer
+
+    config = read_platform_config(root)
+    argv = ["claude", "-p", "--permission-mode", "dontAsk", "--allowedTools", model_routing.CLAUDE_WRITER_TOOLS,
+            "--no-session-persistence", "--strict-mcp-config", "--model", model_routing._model_for(config, "claude", "standard")]
+
+    def launch(command: list[str], checkout: Path, *, tmp: Path, env, runner, home: Path) -> Any:
+        try:
+            return sandboxed_writer.launch_sandboxed_writer(
+                command, checkout, integration_root=root, platform_root=root.parent, workdir=Path(tmp).parent,
+                home=home, tmp=tmp, config=config, runner=runner)
+        except sandboxed_writer.SandboxedWriterError as exc:
+            raise WorkerError(f"sandboxed Claude writer refused to launch: {exc}") from exc
+
+    return argv, launch
+
+
+CANDIDATE_PATHS_LIMIT = 300
+
+
+def candidate_paths(repo: str, number: int, *, gh_json: Callable[..., Any] | None = None) -> list[str]:
+    """The paths the pull request itself changes (GitHub compares from the merge base), bounded."""
+    rows = (gh_json or _gh_json)("api", "--paginate", f"repos/{repo}/pulls/{number}/files?per_page=100")
+    if not isinstance(rows, list) or len(rows) >= CANDIDATE_PATHS_LIMIT:
+        raise WorkerError(f"PR #{number} changed-path inventory is unavailable or exceeds {CANDIDATE_PATHS_LIMIT} files")
+    paths = [row.get("filename") for row in rows if isinstance(row, dict)]
+    if not paths or not all(isinstance(path, str) and path for path in paths):
+        raise WorkerError(f"PR #{number} has no provable changed paths for the writer scope")
+    return sorted(set(paths))
+
+
 def writer_tmp(root: Path) -> Path:
     """A fresh writer temporary directory beside, never above, the harness clones of ``root``."""
     tmp = root / "llm-tmp"
@@ -1024,7 +1066,8 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
                 review_handler: Callable[[Path], dict] | None = None,
                 before_push: Callable[[Path, str], None] | None = None,
                 claim_current: Callable[[], bool] = lambda: True,
-                runtime_check: Callable[[], str | None] | None = None) -> dict:
+                runtime_check: Callable[[], str | None] | None = None,
+                launch: Callable[..., Any] | None = None) -> dict:
     """Run one claimed job. The LLM only ever touches its own disposable checkout.
 
     Validation and the only push happen in a separate harness-owned clone that
@@ -1066,8 +1109,8 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         return outcome
     before = (_git(checkout, "rev-parse", "HEAD").strip(), tree_snapshot(checkout))
     try:
-        done = run_llm(command, checkout, tmp=writer_tmp(root), env=env, runner=runner,
-                       home=scratch_home(root, home_files))
+        done = (launch or run_llm)(command, checkout, tmp=writer_tmp(root), env=env, runner=runner,
+                                   home=scratch_home(root, home_files))
     except OSError as exc:
         if kind != "repair" or runtime_check is None:
             raise  # only the repair gate handles an unavailable runtime
@@ -1186,6 +1229,9 @@ def main(argv: list[str] | None = None) -> int:
     nxt.add_argument("--dry-run", action="store_true")
     nxt.add_argument("--run", action="store_true", help="execute the claimed job")
     nxt.add_argument("--llm-command")
+    nxt.add_argument("--writer", choices=WRITERS,
+                     help="platform repair writer instead of --llm-command: claude-sandboxed runs Claude (R2) under the "
+                          "BR-576 sandbox for repair and integration-repair")
     nxt.add_argument("--pr", type=int, action="append", help="select only jobs of this PR (repeatable)")
     nxt.add_argument("--providers", help="comma list of review providers this worker offers; each must pass a readiness probe")
     nxt.add_argument("--repair-provider", help="provider behind --llm-command; required to claim repair with --run or --providers")
@@ -1204,8 +1250,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args.worker = resolve_worker_identity(args.worker, os.environ, hostname=socket.gethostname(),
                                               pid=os.getpid(), nonce=secrets.token_hex(6))
-        if set(args.kinds.split(",")) & WRITE_KINDS and args.provider is None:
-            raise WorkerError("--provider is required for repair kinds")
+        if set(args.kinds.split(",")) & WRITE_KINDS and args.provider is None and args.writer is None:
+            raise WorkerError("--provider is required for repair kinds (or --writer, which names its own provider)")
     except WorkerError as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2
@@ -1225,6 +1271,19 @@ def main(argv: list[str] | None = None) -> int:
     try:
         needs_writer = set(args.kinds.split(",")) - {"review", "finalize", "integration-repair", "contribution-integration"} - POST_MERGE_KINDS
         kinds = set(args.kinds.split(","))
+        writer_launch = None
+        if args.writer is not None:
+            if args.llm_command:
+                raise WorkerError("--writer and --llm-command are exclusive: the platform writer builds its own command")
+            if not kinds & WRITE_KINDS:
+                raise WorkerError("--writer applies only to repair and integration-repair kinds")
+            for option, value in (("--provider", args.provider), ("--repair-provider", args.repair_provider)):
+                if value not in (None, "claude"):
+                    raise WorkerError(f"--writer claude-sandboxed runs claude, but {option} names {value}")
+            args.provider = "claude"
+            if "repair" in kinds:
+                args.repair_provider = "claude"
+            args.llm_command, writer_launch = sandboxed_claude_writer(Path.cwd())
         if "repair" in kinds and (args.run or args.providers) and not args.repair_provider:
             raise WorkerError("claiming repair jobs with --run or --providers needs --repair-provider (the provider behind --llm-command)")
         if args.repair_provider and "repair" not in kinds:
@@ -1237,7 +1296,7 @@ def main(argv: list[str] | None = None) -> int:
             raise WorkerError("--providers needs at least one provider")
         if args.run and "integration-repair" in args.kinds.split(",") and not args.llm_command:
             raise WorkerError("--run needs --llm-command for integration repair")
-        if args.run and needs_writer and (not args.llm_command or not args.allow):
+        if args.run and needs_writer and (not args.llm_command or not (args.allow or writer_launch)):
             raise WorkerError("--run needs --llm-command and at least one --allow path")
         if args.run:
             import publication_queue
@@ -1264,6 +1323,8 @@ def main(argv: list[str] | None = None) -> int:
                            **_coordinator_trust(Path.cwd(), repo))
         if args.run and result["status"] == "claimed":
             job = result["job"]
+            # The platform writer is bounded by the candidate's own changed paths unless --allow narrows it.
+            allowed = args.allow or (candidate_paths(repo, job["number"]) if writer_launch is not None else args.allow)
             try:
                 with tempfile.TemporaryDirectory(prefix="lifecycle-worker-") as workdir:
                     if job["kind"] in {"review", "repair"} and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
@@ -1278,10 +1339,11 @@ def main(argv: list[str] | None = None) -> int:
                             if args.repair_provider else None,
                             source_repo=args.source or f"https://github.com/{repo}.git",
                             branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                            allowed_paths=args.allow, llm_command=args.llm_command,
+                            allowed_paths=allowed, llm_command=args.llm_command,
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
                             post_result=lambda body: post_comment(job["number"], body),
-                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
+                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider,
+                            launch=writer_launch)
                     elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
                         from post_review_finalization import run_claimed_finalize
                         import publication_queue
@@ -1319,10 +1381,11 @@ def main(argv: list[str] | None = None) -> int:
                             Path.cwd(), repo, candidate, job,
                             source_repo=args.source or f"https://github.com/{repo}.git",
                             branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                            allowed_paths=args.allow, llm_command=args.llm_command,
+                            allowed_paths=allowed, llm_command=args.llm_command,
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
                             post_result=lambda body: post_comment(job["number"], body),
-                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
+                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider,
+                            launch=writer_launch)
                     elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
                           and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
                         from requirement_composition import run_claimed_retrospective
@@ -1345,6 +1408,11 @@ def main(argv: list[str] | None = None) -> int:
                         except publication_queue.AttentionError as exc:
                             raise WorkerError(str(exc)) from exc
                     else:
+                        if writer_launch is not None:
+                            # The generic executor appends no task to the writer command: the platform writer runs
+                            # only platform-briefed repair (findings) and integration repair (conflicts, red gate).
+                            raise WorkerError(f"--writer cannot run PR #{job['number']} {job['kind']} job: it has no "
+                                              "platform task brief")
                         outcome = execute_job(
                             job, source_repo=args.source or f"https://github.com/{repo}.git",
                             branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,

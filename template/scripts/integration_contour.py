@@ -158,7 +158,8 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
                                runner=workers.run_in_session, env: dict[str, str] | None = None,
                                push_env: dict[str, str] | None = None, home_files=(),
                                before_push: Callable[[Path, str], None] | None = None,
-                               claim_current: Callable[[], bool] = lambda: True) -> dict:
+                               claim_current: Callable[[], bool] = lambda: True,
+                               launch: Callable[..., object] | None = None) -> dict:
     """Merge current main into a disposable checkout, let the writer resolve it, validate, push once."""
     root = Path(workdir).resolve()
     checkout = workers.prepare_checkout(source_repo, str(root), "integration-checkout", job["head"])
@@ -181,7 +182,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
                   "both sides' intent, fix the failing integration check if one is named, and leave the result "
                   "in the working tree (do not rely on commits; only file content is taken). Do not edit workflow or lifecycle evidence files. Brief: "
                   + json.dumps({**brief, "conflicts": conflicted or brief.get("conflicts", [])}, sort_keys=True))
-        done = workers.run_llm([*command, prompt], checkout, tmp=workers.writer_tmp(root), env=env, runner=runner,
+        done = (launch or workers.run_llm)([*command, prompt], checkout, tmp=workers.writer_tmp(root), env=env, runner=runner,
                                home=workers.scratch_home(root, home_files))
         if done.returncode:
             return {"status": "failed", "reason": f"llm exited {done.returncode}"}
@@ -255,7 +256,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
                                    branch: str, allowed_paths, llm_command, current_head, post_result,
                                    workdir: str, worker: str, adapter=queue, runner=None,
                                    provider: str | None = None, claim_current=None, push_env=None, home_files=(), env=None,
-                                   conflicts: list[str] | None = None) -> dict:
+                                   conflicts: list[str] | None = None, launch=None) -> dict:
     """Execute and advance one claimed integration-repair job, without the developer."""
     import subprocess as sp
 
@@ -304,7 +305,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
             job, integration_brief(observed, conflicts or []), source_repo=source_repo, branch=branch,
             allowed_paths=allowed_paths, llm_command=llm_command, current_head=current_head, workdir=workdir,
             runner=runner, env=env, push_env=push_env, home_files=home_files, before_push=before_push,
-            claim_current=claim_current)
+            claim_current=claim_current, launch=launch)
     except workers.WorkerError as exc:
         return fail(str(exc))
     if outcome["status"] == "discarded":

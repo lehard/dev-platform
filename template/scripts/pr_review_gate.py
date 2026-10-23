@@ -352,8 +352,12 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
 def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
                 branch: str, allowed_paths, llm_command, current_head, post_result,
                 workdir: str, worker: str, adapter=None, runner=None, launcher=None, home_files=(),
-                provider: str | None = None, claim_current=None, review_ready=None, repair_runtime_check=None) -> dict:
-    """Execute and advance one claimed exact-head job, without the developer."""
+                provider: str | None = None, claim_current=None, review_ready=None, repair_runtime_check=None,
+                launch=None) -> dict:
+    """Execute and advance one claimed exact-head job, without the developer.
+
+    ``launch`` replaces the plain writer launch of a repair job (the sandboxed Claude writer).
+    """
     import lifecycle_workers as workers
     if adapter is None:
         import publication_queue as adapter
@@ -448,7 +452,8 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                                   provider=provider if kind == "repair" else None,
                                   review_handler=review_handler if kind == "review" else None, before_push=before_push,
                                   claim_current=claim_current,
-                                  runtime_check=repair_runtime_check if kind == "repair" else None)
+                                  runtime_check=repair_runtime_check if kind == "repair" else None,
+                                  launch=launch if kind == "repair" else None)
     if outcome["status"] == "discarded":
         return outcome
     head = outcome.get("pushed_head") or job["head"]
