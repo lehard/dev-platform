@@ -507,9 +507,8 @@ def start_managed_task(
         existing_root = Path(str(transaction["worktree"])).resolve()
         if existing_root.is_dir() and canonical_provenance_candidates(existing_root, package.change):
             if contribution is not None:
-                from requirement_child_context import context_path
-                cached = json.loads(context_path(existing_root, package.change).read_text())
-                if cached.get("contribution") != contribution:
+                from requirement_child_context import cached_contribution
+                if cached_contribution(existing_root, package.change, requirement=contribution["requirement"]) != contribution:
                     raise ManagedTaskError("resumed contribution base differs from its start boundary")
             return _resume_existing_managed_task(root, package, existing_root, scope, predecessor)
 
