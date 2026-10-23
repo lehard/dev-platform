@@ -624,7 +624,7 @@ def publish_pr(
     if lookup.exact_merged is None:
         push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing
                             and not (developer_handoff and handoff_identity.get("kind") == "contribution"),
-                            coordinator_handoff=developer_handoff or queue_integrated(root))
+                            coordinator_handoff=developer_handoff or (selected_mode == "coordinator" and queue_integrated(root)))
         if grows_existing:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
             if not lookup.available or lookup.exact_open is None:
