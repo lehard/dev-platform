@@ -28,7 +28,7 @@ Delta scenarios:
 - Event cannot be attributed: `test_unattributable_event_is_reported_and_refuses_the_manual_checkpoint` (manual refusal names both commands; no receipt is written). The automated refusal stays covered by `test_ambiguous_attribution_blocks_instead_of_recording_none` and the window tests.
 - Automatic no-task overridden by an explicit task: `test_automatic_no_task_can_be_attributed_to_a_task`.
 
-All tasks in `tasks.md` are complete except 3.2. 3.2 is satisfied by this receipt together with the selected checks below.
+All tasks in `tasks.md` are complete; 3.2 is this receipt together with the selected checks below.
 
 ## Correctness and coherence
 

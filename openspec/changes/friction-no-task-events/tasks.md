@@ -10,4 +10,4 @@
 
 ## 3. Verification
 - [x] 3.1 Regression tests: an event recorded outside a task during candidate A does not block candidate B's automated retrospective; explicit `--no-task` appears in review-path output and conflicts with a task attribution; a manual checkpoint refuses a genuinely ambiguous event like the automated one; a legacy `unattributed` main-branch event is no-task.
-- [ ] 3.2 Run full validation and semantic OpenSpec verification.
+- [x] 3.2 Run full validation and semantic OpenSpec verification.
