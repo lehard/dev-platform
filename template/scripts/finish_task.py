@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from _platform_common import (
+    TASK_BASE_BEHIND_MERGEABLE,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -737,13 +738,16 @@ def observe_completion_blockers(
     if not clean(work):
         blockers.append(("worktree-clean", "Current worktree is dirty. Commit or remove changes first."))
 
-    freshness_observation = task_reconciliation.observe(work)
+    # A task the queue integrates (coordinator candidate or quick task, BR-774) behind a main that
+    # merges cleanly is behind-mergeable: the queue merges main and gates on the integrated head.
+    freshness_observation = task_reconciliation.observe_candidate(work)
     freshness_state = freshness_observation.state
     reconcile_required = freshness_observation.reconcile_required
     if reconcile_required:
+        detail = f" ({freshness_observation.detail})" if freshness_observation.detail else ""
         blockers.append((
             "task-freshness",
-            f"{branch} is {freshness_state} relative to freshly observed {remote_main}. "
+            f"{branch} is {freshness_state} relative to freshly observed {remote_main}{detail}. "
             f"Reconcile before expensive validation: {RECONCILE_COMMAND}",
         ))
 
@@ -751,6 +755,7 @@ def observe_completion_blockers(
         mode == "pr"
         and branch != main_branch
         and exact_open_pr is None
+        and freshness_state != TASK_BASE_BEHIND_MERGEABLE
         and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0
     ):
         blockers.append((
