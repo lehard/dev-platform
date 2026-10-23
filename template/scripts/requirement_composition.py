@@ -175,9 +175,21 @@ def require_no_private_references(trusted_root: Path, evidence: list[Path]) -> N
                                   + ", ".join(leaking))
 
 
-def execute_composition_review(checkout: Path, job: dict, *, source_repo: str, branch: str, current_head,
-                               trusted_root: Path, runner=subprocess.run, launcher=None, review_config=None,
-                               before_push=None, claim_current=lambda: True, push_env=None) -> dict:
+def execute_composition_review(checkout: Path, job: dict, **options) -> dict:
+    """Review one claimed composition; a contribution-contract failure is a failed result, not a crash.
+
+    The failed outcome is posted as the job result and escalates the candidate with the named cause,
+    so the claim does not hang until its lifetime ends and the job is not re-offered unchanged.
+    """
+    try:
+        return _execute_composition_review(checkout, job, **options)
+    except contributions.ContributionError as exc:
+        return {"status": "failed", "cause": f"composition review: {exc}"[:300]}
+
+
+def _execute_composition_review(checkout: Path, job: dict, *, source_repo: str, branch: str, current_head,
+                                trusted_root: Path, runner=subprocess.run, launcher=None, review_config=None,
+                                before_push=None, claim_current=lambda: True, push_env=None) -> dict:
     from independent_review import PERSPECTIVES, _validate_report
     import independent_review_runner as reviewer
 

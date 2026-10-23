@@ -181,6 +181,34 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual(self.work({5: ["codex"], 9: ["claude"]})[0]["job"]["number"], 5)
         self.assertEqual(self.work({5: ["codex"]}, only_prs=frozenset({9}))[0]["status"], "idle")
 
+    def test_worker_without_backlog_skips_private_composition_review_before_claim(self):
+        def composition(number, requirement):
+            record = lifecycle.build_handoff_record(
+                number=number, state="review-pending", head=HEAD, gates={}, red_gate=None, not_reverified=[],
+                task_identity={"kind": "requirement-composition", "change": "br-7", "requirement": requirement,
+                               "task_content": "c" * 64, "children": [{"change": "a"}]},
+                attempts={"review": 1}, next_job={"kind": "review", "attempt": 1, "providers": ["claude"]},
+                at="2026-10-05T08:00:00Z")
+            return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+        def work(store, backlog_configured):
+            posted = []
+            def post(number, body):
+                posted.append(number)
+                store[number].append({"id": 50 + len(posted), "author_association": "OWNER", "body": body})
+            prs = [{"number": n, "head": {"sha": HEAD}, "state": "open"} for n in store]
+            result = workers.work_next(frozenset({"review"}), list_prs=lambda: prs, comments_for=lambda n: list(store[n]),
+                                       post_comment=post, worker="w", now=NOW,
+                                       eligible=lambda job: workers.job_eligible(job, backlog_configured=backlog_configured))
+            return result, posted
+        private = lambda: {5: [composition(5, "BR-7-opaque")], 9: [provider_comment(9, ["claude"])]}
+        result, posted = work(private(), False)
+        self.assertEqual((result["status"], result["job"]["number"], posted), ("claimed", 9, [9]))
+        result, posted = work({5: [composition(5, "BR-7-opaque")]}, False)
+        self.assertEqual((result["status"], posted), ("idle", []))
+        # A worker with the Backlog, and any worker for a public Requirement, still claims it.
+        self.assertEqual(work(private(), True)[0]["job"]["number"], 5)
+        self.assertEqual(work({5: [composition(5, "acme/backlog#7")]}, False)[0]["job"]["number"], 5)
+
     def test_repair_eligibility_uses_the_declared_writer_provider(self):
         job = {"kind": "repair", "providers": ["codex"]}
         self.assertTrue(workers.job_eligible(job, repair_ready=frozenset({"codex"})))
