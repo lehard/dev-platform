@@ -543,8 +543,8 @@ def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] =
         if not isinstance(receipt, dict):
             raise MalformedMarkerError(f"trusted job result comment {row.get('id')} is not an object")
         outcome = str(receipt.get("outcome", ""))
-        if (receipt.get("head") == head
-                and outcome != "validated-push" and not outcome.startswith("discarded")):
+        if (receipt.get("head") == head  # a released claim is a failed run, never an outcome of the job
+                and outcome != "validated-push" and not outcome.startswith(("discarded", "released"))):
             outcomes.setdefault(str(receipt.get("job")), []).append(outcome)
     return outcomes
 
