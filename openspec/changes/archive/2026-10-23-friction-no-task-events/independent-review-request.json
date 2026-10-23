@@ -1,0 +1,78 @@
+{
+  "candidate": {
+    "base_head": "37b977cea99e12d3e77d94d8b0cf2633b00a3131",
+    "base_ref": "origin/main",
+    "candidate_head": "a6cc837a0b1231b1e4e9ef2f97fbfb0d25a96db9",
+    "diff_sha256": "137261f9e27b5a219cb7d4575f5b944177787f197ff4b34500703b1d624293cc"
+  },
+  "change": "openspec/changes/friction-no-task-events",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/friction-no-task-events/automated-checks.json",
+    "openspec/changes/friction-no-task-events/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/friction-no-task-events/design.md",
+        "openspec/changes/friction-no-task-events/proposal.md",
+        "openspec/changes/friction-no-task-events/specs/platform-lifecycle/spec.md",
+        "openspec/changes/friction-no-task-events/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/friction-no-task-events/proposal.md",
+        "openspec/changes/friction-no-task-events/design.md",
+        "openspec/changes/friction-no-task-events/tasks.md",
+        "openspec/changes/friction-no-task-events/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-23T15:51:42+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/friction-no-task-events/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "5c2cd3de-98a0-4890-a545-040f3b454e67",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "37b977cea99e12d3e77d94d8b0cf2633b00a3131",
+    "digest": "2ad641f00790fbd78ebe412b76b1b64fdaef8213a01c972e67a27772cc0325ce",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "d96b796cd86a0fe94788bf536974999a35e96c40",
+      "openspec/changes/friction-no-task-events/.managed-task.json": "0d5c244c63cb51d0f7b5417179dcbb05b01c2c5a",
+      "openspec/changes/friction-no-task-events/.openspec.yaml": "f56fe13917aafd9b0317d1339a8548906dd40edf",
+      "openspec/changes/friction-no-task-events/design.md": "a29e514a162600d7fd10bb4698671062989ed693",
+      "openspec/changes/friction-no-task-events/proposal.md": "6c0492dc8e7e74dc654cee628a461094091f77ff",
+      "openspec/changes/friction-no-task-events/specs/platform-lifecycle/spec.md": "6f582eb0e7169f2221b2e0cba0177a373648cedd",
+      "openspec/changes/friction-no-task-events/tasks.md": "da0737873bab941165b59c778d5eb9eb597cb0c0",
+      "template/docs/engineering/agent-workflow.md.jinja": "2410bf5d2785ab8777b19ef12aace1292decec20",
+      "template/scripts/agent_friction.py": "4fd4a240703dd2563d4e49adc1e77a560c638e7b",
+      "template/scripts/requirement_retrospective.py": "c9f89028102f2a844f983d27209302645b17399e",
+      "tests/test_autonomous_integration_contour.py": "3168d7b783a4d3992c6bb084870bc6763ae98536",
+      "tests/test_retrospective_attribution.py": "34797ec09a4ce563ba808b5e966cb845c3829dfa"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

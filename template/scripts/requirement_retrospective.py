@@ -184,6 +184,10 @@ def main() -> int:
     root = main_root()
     try:
         if args.command == "checkpoint":
+            with agent_friction.local_gap_scope(sorted(set(args.accept_gaps))):
+                ambiguous = agent_friction.ambiguous_attribution_events()
+            if ambiguous:
+                raise RequirementRetrospectiveError(agent_friction.ambiguous_attribution_instruction(ambiguous))
             result = checkpoint(root, requirement=args.requirement, result=args.result, event_ids=args.events, review_note=args.review_note,
                                     dispositions=args.dispositions, accepted_gaps=args.accept_gaps)
         elif args.command == "review-path":
@@ -211,6 +215,7 @@ def main() -> int:
                     "lifecycle_failures": [str(event.get("id")) for event in agent_friction.current_lifecycle_failures(args.requirement)],
                     "inferred_attribution": agent_friction.inferred_event_ids(args.requirement),
                     "ambiguous_attribution": [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()][:10],
+                    "no_task_events": agent_friction.no_task_events()[:10],
                     "evidence_sources": agent_friction.evidence_source_status(args.requirement),
                     **agent_friction.review_guidance(root, None),
                 }

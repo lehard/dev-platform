@@ -63,6 +63,7 @@ FINGERPRINT_MARKER_RE = re.compile(r"<!-- dev-platform-friction:[a-f0-9]{24} -->
 LIFECYCLE_FAILURE_PREFIX = "lifecycle-"
 LIFECYCLE_DISPOSITIONS = ("resolved-in-task", "already-recorded", "expected-behavior")
 NON_TASK_BRANCHES = frozenset({"unknown", "main", "master"})
+NO_TASK = "no-task"
 AMBIGUOUS_WINDOW_DAYS = 14
 LEGACY_POSITIONAL_ID_RE = re.compile(r"legacy-\d+")
 MAX_PROJECT_QUESTIONS = 5
@@ -105,7 +106,7 @@ ATTRIBUTION_TASK_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[1-9][0-9]*")
 
 
 def read_attributions() -> dict[str, dict]:
-    """Event id -> its explicit attribution; a malformed or conflicting record fails."""
+    """Event id -> its explicit attribution (a task, or ``no_task``); a malformed or conflicting record fails."""
     path = attributions_path()
     if not path.exists():
         return {}
@@ -115,22 +116,28 @@ def read_attributions() -> dict[str, dict]:
             continue
         try:
             record = json.loads(line)
-            event_id, task = record["id"], record["task"]
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            event_id = record["id"]
+            task = None if record.get("no_task") is True else record["task"]
+        except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as exc:
             raise SystemExit(f"Invalid friction attribution record at {path}:{index}: {exc}") from exc
-        if not isinstance(event_id, str) or not isinstance(task, str) or not ATTRIBUTION_TASK_RE.fullmatch(task):
+        if not isinstance(event_id, str) or (task is None and "task" in record) or (
+                task is not None and (not isinstance(task, str) or not ATTRIBUTION_TASK_RE.fullmatch(task))):
             raise SystemExit(f"Invalid friction attribution record at {path}:{index}")
         event_id = resolve_positional_id(event_id, f"attribution {path}:{index}")
         previous = found.get(event_id)
-        if previous is not None and previous["task"] != task:
+        if previous is not None and previous.get("task") != task:
             raise SystemExit(f"Conflicting friction attributions for event {event_id} at {path}:{index}")
         found.setdefault(event_id, {**record, "id": event_id})
     return found
 
 
-def attribute_event(event_id: str, task: str, reason: str) -> dict:
-    """Attribute one recorded event to ``task`` once; the original event is left untouched."""
-    if not ATTRIBUTION_TASK_RE.fullmatch(task):
+def attribute_event(event_id: str, task: str | None, reason: str) -> dict:
+    """Attribute one recorded event to ``task``, or to no task when ``task`` is None, once.
+
+    The original event is left untouched. A task and a no-task attribution of the
+    same event conflict.
+    """
+    if task is not None and not ATTRIBUTION_TASK_RE.fullmatch(task):
         raise SystemExit(f"attribution task must be owner/repo#N, got {task!r}")
     reason = normalize_text(reason, "reason")
     with friction_lock():
@@ -138,10 +145,11 @@ def attribute_event(event_id: str, task: str, reason: str) -> dict:
             raise SystemExit(f"no recorded friction event has id {event_id!r}")
         existing = read_attributions().get(event_id)
         if existing is not None:
-            if existing["task"] != task:
-                raise SystemExit(f"event {event_id} is already attributed to {existing['task']}")
+            if existing.get("task") != task:
+                raise SystemExit(f"event {event_id} is already attributed to {existing.get('task') or 'no task'}")
             return existing
-        record = {"id": event_id, "task": task, "reason": reason, "at": utc_now()}
+        target = {"no_task": True} if task is None else {"task": task}
+        record = {"id": event_id, **target, "reason": reason, "at": utc_now()}
         path = attributions_path()
         with path.open("a", encoding="utf-8") as fh:
             ensure_shared_path(path)
@@ -286,12 +294,12 @@ def non_task_names(root: Path | None = None) -> frozenset[str]:
 
 
 def default_attribution(explicit: str | None) -> tuple[str | None, str]:
-    """Task for a new event: explicit, else the current task branch, else unattributed."""
+    """Task for a new event: explicit, else the current task branch, else no task."""
     if explicit:
         return normalize_text(explicit, "task", 300), "explicit"
     branch = current_branch()
     if branch in non_task_names():
-        return None, "unattributed"
+        return None, NO_TASK
     return branch, "branch"
 
 
@@ -424,15 +432,57 @@ def inferred_event_ids(task: str) -> list[str]:
     return [str(event.get("id")) for event in events_for_task(task) if not event.get("task")]
 
 
+def no_task_reason(event: dict) -> str | None:
+    """Why a task-less event belongs to no task, or None when it is not classified so.
+
+    An explicit no-task attribution gives its reason. Otherwise an event with no
+    task identity that was recorded outside a task (the record-time ``no-task``
+    attribution, or a legacy event whose recorded branch is a non-task name) is
+    no-task. An explicit task attribution wins over a recorded classification.
+    """
+    explicit = read_attributions().get(str(event.get("id")))
+    if explicit is not None:
+        return explicit["reason"] if explicit.get("no_task") else None
+    if event.get("task") or event_identities(event):
+        return None
+    if event.get("attribution") == NO_TASK:
+        return "recorded outside a task"
+    branch = event.get("branch")
+    if isinstance(branch, str) and branch in non_task_names():
+        return f"recorded outside a task on {branch}"
+    return None
+
+
+def no_task_events(since: datetime | None = None) -> list[dict]:
+    """Recent events that belong to no task: never a signal of, nor a block for, any retrospective."""
+    found = []
+    for event in read_events(AMBIGUOUS_WINDOW_DAYS):
+        if since is not None and parse_time(event["at"]) < since:
+            continue
+        reason = no_task_reason(event)
+        if reason is not None:
+            found.append({"id": str(event.get("id")), "reason": reason})
+    return found
+
+
 def ambiguous_attribution_events(since: datetime | None = None) -> list[dict]:
-    """Recent events with neither a task nor usable branch/source-issue evidence.
+    """Recent events with no task, no usable branch/source-issue evidence and no no-task classification.
 
     ``since`` keeps only events recorded at or after a proven lifecycle start: an
     event recorded before a Requirement or candidate existed cannot belong to it.
     """
     return [event for event in read_events(AMBIGUOUS_WINDOW_DAYS)
-            if not event.get("task") and not event_identities(event)
+            if not event.get("task") and not event_identities(event) and no_task_reason(event) is None
             and (since is None or parse_time(event["at"]) >= since)]
+
+
+def ambiguous_attribution_instruction(events: list[dict]) -> str:
+    ids = ", ".join(str(event.get("id")) for event in events[:10])
+    return (
+        f"ambiguous friction attribution needs a decision before a checkpoint: {ids}. Attribute each with "
+        "`python3 scripts/agent_friction.py attribute --id ID --task owner/repo#N --reason TEXT`, or mark it "
+        "as belonging to no task with `python3 scripts/agent_friction.py attribute --id ID --no-task --reason TEXT`."
+    )
 
 
 def evidence_source_status(requirement: str | None = None) -> dict[str, str]:
@@ -1406,6 +1456,7 @@ def _review_path(args: argparse.Namespace) -> int:
         "lifecycle_failures": [str(event.get("id")) for event in current_lifecycle_failures(task)],
         "inferred_attribution": inferred_event_ids(task),
         "ambiguous_attribution": [str(event.get("id")) for event in ambiguous_attribution_events()][:10],
+        "no_task_events": no_task_events()[:10],
         "evidence_sources": evidence_source_status(),
         **review_guidance(current_worktree_root(), changed_paths(current_worktree_root())),
     }
@@ -1500,15 +1551,18 @@ def cmd_checkpoint(args: argparse.Namespace) -> int:
             "checkpoint requires --result none for a clean retrospective, or --result/--event with one or more recorded finding ids"
         )
     accepted_gaps = list(getattr(args, "accept_gaps", []) or [])
+    with local_gap_scope(accepted_gaps):
+        ambiguous = ambiguous_attribution_events()
+        unrelated = no_task_events()
+    if ambiguous:
+        raise SystemExit(ambiguous_attribution_instruction(ambiguous))
     checkpoint = record_checkpoint(
         branch, root, event_ids=event_ids, review_note=getattr(args, "review_note", "") or "",
         lifecycle_dispositions=list(getattr(args, "lifecycle_dispositions", []) or []),
         accepted_gaps=accepted_gaps)
     result = {"status": "recorded", "checkpoint": checkpoint}
-    with local_gap_scope(accepted_gaps):
-        ambiguous = [str(event.get("id")) for event in ambiguous_attribution_events()]
-    if ambiguous:
-        result["ambiguous_attribution_not_attributed"] = ambiguous[:10]
+    if unrelated:
+        result["no_task_events"] = unrelated[:10]
     print(json.dumps(result, ensure_ascii=False))
     return 0
 
@@ -1718,7 +1772,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
 
 
 def cmd_attribute(args: argparse.Namespace) -> int:
-    print(json.dumps(attribute_event(args.id, args.task, args.reason), sort_keys=True))
+    print(json.dumps(attribute_event(args.id, None if args.no_task else args.task, args.reason), sort_keys=True))
     return 0
 
 
@@ -2061,10 +2115,12 @@ def main() -> int:
     p.add_argument("--days", type=int, default=7)
     p.set_defaults(func=cmd_review)
 
-    p = sub.add_parser("attribute", help="attribute one recorded task-less event to its owning task (append-only)")
+    p = sub.add_parser("attribute", help="attribute one recorded task-less event to its owning task, or to no task (append-only)")
     p.add_argument("--id", required=True, help="recorded friction event id")
-    p.add_argument("--task", required=True, help="owning Issue as owner/repo#N")
-    p.add_argument("--reason", required=True, help="why the event belongs to that task")
+    target = p.add_mutually_exclusive_group(required=True)
+    target.add_argument("--task", help="owning Issue as owner/repo#N")
+    target.add_argument("--no-task", action="store_true", help="the event belongs to no task: it never blocks a retrospective")
+    p.add_argument("--reason", required=True, help="why the event belongs to that task, or to none")
     p.set_defaults(func=cmd_attribute)
 
     p = sub.add_parser("resolve-candidate", help="resolve a candidate route state: attach the event to an open root issue or create a new root")

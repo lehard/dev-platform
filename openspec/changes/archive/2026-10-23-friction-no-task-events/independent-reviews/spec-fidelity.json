@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "37b977cea99e12d3e77d94d8b0cf2633b00a3131",
+    "base_ref": "origin/main",
+    "candidate_head": "a6cc837a0b1231b1e4e9ef2f97fbfb0d25a96db9",
+    "diff_sha256": "137261f9e27b5a219cb7d4575f5b944177787f197ff4b34500703b1d624293cc"
+  },
+  "completed_at": "2026-10-23T15:52:06+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_friction.py:443-446: `no_task_reason` returns the explicit reason before it checks identities. template/scripts/agent_friction.py:415: `events_for_task` includes `not event.get(\"task\") and event_identities(event) & identities` and does not check `no_task_reason`. `event_identities` (lines 306-314) still returns the event's `branch` and `run.source_issue`. `attribute_event` does not reject an event that already has an identity. design.md says no-task events are excluded from every task's mandatory signals, and the spec scenario says the explicit classification lists the event as `no-task`. For such an event the two statements contradict each other. The tests cover only an explicit no-task on a branch-less event.",
+      "id": "explicit-no-task-not-excluded-from-task-signals",
+      "severity": "advisory",
+      "summary": "An explicit `attribute --no-task` on an event that still has a branch or source-issue identity is listed as `no_task_events`, but `events_for_task` still counts it as an inferred signal of that task. The spec says a `no-task` event SHALL NOT be a signal of any retrospective."
+    }
+  ],
+  "launched_at": "2026-10-23T15:51:50+00:00",
+  "output_sha256": "5121cef11494570ba8939326101f330cfdf315f3a2fbd7b9121a9c7d749ab3bf",
+  "perspective": "spec-fidelity",
+  "request_id": "5c2cd3de-98a0-4890-a545-040f3b454e67",
+  "reviewer": {
+    "context_id": "0b4dd062-13a4-490d-8423-f1c3acd6d035",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ccff7ef5-e7e3-4562-aa3e-87ac9f21a7a9",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31330
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 100351
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15412
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15609
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1559
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2ad641f00790fbd78ebe412b76b1b64fdaef8213a01c972e67a27772cc0325ce"
+}

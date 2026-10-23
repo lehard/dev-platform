@@ -72,7 +72,7 @@ class AttributionTests(Fixture):
         self.assertEqual(friction.default_attribution(None), (BRANCH, "branch"))
         self.assertEqual(friction.default_attribution("acme/backlog#7"), ("acme/backlog#7", "explicit"))
         with mock.patch.object(friction, "current_branch", lambda: "main"):
-            self.assertEqual(friction.default_attribution(None), (None, "unattributed"))
+            self.assertEqual(friction.default_attribution(None), (None, "no-task"))
 
     def test_lost_task_attribution_is_recovered_from_branch_and_source_issue(self) -> None:
         self.write(
@@ -97,15 +97,48 @@ class AttributionTests(Fixture):
         self.log.write_text("{bad\n" + good * 600, encoding="utf-8")
         self.assertEqual(friction.evidence_source_status(), {"friction-log": "partial"})
 
-    def test_unattributable_event_is_reported_not_assigned_or_hidden(self) -> None:
-        self.write(self.signal("orphan", task=None, branch="main", at=friction.utc_now()))
+    def test_unattributable_event_is_reported_and_refuses_the_manual_checkpoint(self) -> None:
+        self.write(self.signal("orphan", task=None, at=friction.utc_now()))
         self.assertEqual(friction.current_retrospective_signals(BRANCH), [])
         with redirect_stdout(StringIO()) as out:
             friction.cmd_review_path(type("A", (), {"task": BRANCH})())
         self.assertEqual(json.loads(out.getvalue())["ambiguous_attribution"], ["orphan"])
-        with redirect_stdout(StringIO()) as out:
+        with self.assertRaisesRegex(SystemExit, r"orphan.*--task owner/repo#N.*--no-task"):
             friction.cmd_checkpoint(self.args(result="none"))
-        self.assertEqual(json.loads(out.getvalue())["ambiguous_attribution_not_attributed"], ["orphan"])
+        self.assertFalse(self.state.exists())
+        with mock.patch.object(friction, "attributions_path", lambda: self.root / ".claude" / "attributions.jsonl"):
+            friction.attribute_event("orphan", None, "incident in another project")
+            with redirect_stdout(StringIO()) as out:
+                friction.cmd_checkpoint(self.args(result="none"))
+        self.assertEqual(json.loads(out.getvalue())["no_task_events"],
+                         [{"id": "orphan", "reason": "incident in another project"}])
+
+    def test_event_recorded_outside_a_task_is_no_task_not_ambiguous(self) -> None:
+        now = friction.utc_now()
+        self.write(self.signal("recorded", task=None, branch="main", attribution="no-task", at=now),
+                   self.signal("legacy", task=None, branch="main", attribution="unattributed", at=now))
+        self.assertEqual(friction.ambiguous_attribution_events(), [])
+        self.assertEqual(friction.current_retrospective_signals(BRANCH), [])
+        with redirect_stdout(StringIO()) as out:
+            friction.cmd_review_path(type("A", (), {"task": BRANCH})())
+        self.assertEqual([item["id"] for item in json.loads(out.getvalue())["no_task_events"]], ["recorded", "legacy"])
+        with redirect_stdout(StringIO()):
+            friction.cmd_checkpoint(self.args(result="none"))
+
+    def test_no_task_and_task_attribution_of_one_event_conflict(self) -> None:
+        self.write(self.signal("evt", task=None, branch="main", at=friction.utc_now()))
+        with mock.patch.object(friction, "attributions_path", lambda: self.root / ".claude" / "attributions.jsonl"):
+            friction.attribute_event("evt", None, "not related to any task")
+            self.assertEqual(friction.attribute_event("evt", None, "again")["no_task"], True)
+            with self.assertRaisesRegex(SystemExit, "already attributed to no task"):
+                friction.attribute_event("evt", "acme/backlog#7", "belongs to the Requirement")
+
+    def test_automatic_no_task_can_be_attributed_to_a_task(self) -> None:
+        self.write(self.signal("evt", task=None, branch="main", attribution="no-task", at=friction.utc_now()))
+        with mock.patch.object(friction, "attributions_path", lambda: self.root / ".claude" / "attributions.jsonl"):
+            friction.attribute_event("evt", REQUIREMENT, "coordinator observed it for the Requirement")
+            self.assertEqual(friction.no_task_events(), [])
+            self.assertEqual([e["id"] for e in friction.events_for_task(REQUIREMENT)], ["evt"])
 
     def test_other_tasks_events_are_not_attributed(self) -> None:
         self.write(self.signal("other", task="another-branch"), self.signal("other-legacy", task=None, branch="another-branch"))

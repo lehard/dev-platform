@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "friction-no-task-events",
+  "imported_at": "2026-10-23T11:05:43+00:00",
+  "package_revision": "070afbf27e15086306692f251db93f4a12854f16d4a4f9251e85c6e32cfba709",
+  "prepared_against": "5666762f631fc7915a817337685e49ae5ea642fc",
+  "private_lineage_handle": "pln_b4f106191a6164f471bcf691fdb40907",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "40bdbc86dd74b07d5f5f104c29a1d51c4ca32de02ddc428564308fbdce22c2d0",
+    "updated_at": "2026-10-23T10:58:26Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-769/T1"
+}
