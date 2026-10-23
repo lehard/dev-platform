@@ -199,13 +199,24 @@ class IntegrationRepairBoundTests(unittest.TestCase):
             prepare.assert_not_called()  # owned by the repair job: skipped, not re-prepared
             self.assertEqual(len(multi.comments[7]), records)
 
-    def test_conflict_without_a_recorded_route_blocks_explicitly_and_publishes_no_job(self):
+    def test_quick_task_conflict_without_a_route_gets_the_recorded_default_claude_route(self):
         with Multi({7: head_for(7)}) as multi:
             queue._transition(ROOT, "o/r", 7, "ready", multi.heads[7],
                               task_identity={"branch": "agent/br-7-t7-task", "head": multi.heads[7]}, inherit_identity=False)
             result = multi.run_worker(prepare=self.conflict())
+            self.assertEqual(result["state"], "waiting")
+            candidate = multi.candidate(7)
+            self.assertEqual(candidate["route"], {"provider": "claude", "profile": "standard", "change": "br-7-t7-task"})
+            job = workers.build_job(candidate)
+            self.assertEqual((job["kind"], job["providers"]), ("integration-repair", ["claude"]))
+
+    def test_managed_conflict_without_a_recorded_route_blocks_explicitly_and_publishes_no_job(self):
+        with Multi({7: head_for(7)}) as multi:
+            queue._transition(ROOT, "o/r", 7, "ready", multi.heads[7],
+                              task_identity={"change": "managed-change", "task_content": {"digest": "d"}}, inherit_identity=False)
+            result = multi.run_worker(prepare=self.conflict())
             self.assertEqual(result["state"], "blocked")
-            self.assertIn("no originating task route", result["reason"])
+            self.assertIn("no originating task route and is not a Requirement composition or quick task", result["reason"])
             self.assertIsNone(workers.build_job(multi.candidate(7)))
 
     def test_interrupted_offer_is_completed_on_the_next_run(self):
