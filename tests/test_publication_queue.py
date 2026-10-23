@@ -102,8 +102,20 @@ class AdmissionTests(unittest.TestCase):
             return [r for r in history + queued if r["labels"]]
         with patch.object(queue, "_gh", side_effect=gh), patch.object(queue, "_events", return_value=[admission(151, 17)]):
             self.assertEqual(queue._queued(ROOT_PATH, REPO)[0][1], 151)
-        with patch.object(queue, "_gh", return_value=queued * 100), self.assertRaisesRegex(queue.QueueError, "bounded limit"):
+        with patch.object(queue, "_gh", return_value=queued * 100), patch.object(queue, "_events", return_value=[admission(151, 17)]):
+            self.assertEqual(len(queue._queued(ROOT_PATH, REPO)), 100)  # 100 queued PRs no longer stop the queue
+        with patch.object(queue, "_gh", return_value=queued * queue.QUEUE_INVENTORY_LIMIT), \
+                self.assertRaisesRegex(queue.QueueError, "bounded limit"):
             queue._queued(ROOT_PATH, REPO)
+
+    def test_queued_pr_without_admission_is_skipped_not_fatal(self):
+        rows = [{"number": n, "labels": [{"name": queue.QUEUE}]} for n in (5, 9)]
+        events = {5: [], 9: [admission(9, 17)]}
+        skipped: list[str] = []
+        with patch.object(queue, "_gh", return_value=rows), \
+                patch.object(queue, "_events", side_effect=lambda _r, _repo, number: events[number]):
+            self.assertEqual([number for _, number, _ in queue._queued(ROOT_PATH, REPO, skipped)], [9])
+        self.assertEqual(skipped, ["#5 queued but lacks a valid admission"])
 
     def test_concurrent_identical_admissions_reuse_oldest_slot(self) -> None:
         events = [admission(1, 19), admission(1, 17)]
@@ -838,6 +850,86 @@ class WorkerSkipAndMergeTests(unittest.TestCase):
             result = queue.worker(ROOT_PATH)
         self.assertEqual(result["state"], "merged")
         block.assert_not_called()
+
+
+class PerCandidateIsolationTests(unittest.TestCase):
+    """One anomalous queued PR is skipped (or dequeued) and the next candidate is still processed."""
+
+    def run_worker(self, prs, comments_for=None, prepare=None, labels=None):
+        queued = [(17 + index, number, admission(number, 17 + index)) for index, number in enumerate(prs)]
+        prepared: list[int] = []
+        def default_prepare(_r, _repo, number, _admission, _pr):
+            prepared.append(number)
+            raise queue.QueueError("stop after prepare")
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=queued), \
+             patch.object(queue, "_pr", side_effect=lambda _r, _repo, number: prs[number]), \
+             patch.object(queue, "_comments", side_effect=comments_for or (lambda *a: [])), \
+             patch.object(queue, "_label", side_effect=labels), patch.object(queue, "_comment"), \
+             patch.object(queue, "_transition"), \
+             patch.object(queue, "_prepare", side_effect=prepare or default_prepare), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch.object(queue, "_block", side_effect=lambda _r, _repo, number, reason, **_k: {
+                 "state": "blocked", "number": number, "reason": reason}) as block:
+            result = queue.worker(ROOT_PATH)
+        return result, prepared, block
+
+    def test_closed_unmerged_pr_is_dequeued_and_the_next_is_processed(self):
+        removed: list[tuple[int, str]] = []
+        prs = {1: {**pr(1), "state": "closed"}, 2: pr(2)}
+        result, prepared, _ = self.run_worker(prs, labels=lambda _r, _repo, number, name, *, present: (
+            removed.append((number, name)) if not present else None))
+        self.assertIn((1, queue.QUEUE), removed)
+        self.assertEqual(prepared, [2])
+        self.assertIn("#1 closed without merge: dequeued", result["skipped"])
+
+    def test_candidate_read_failure_is_skipped_and_the_next_is_processed(self):
+        def comments_for(_r, _repo, number):
+            if number == 1:
+                raise queue.QueueError("HTTP 404 for #1 comments")
+            return []
+        result, prepared, block = self.run_worker({1: pr(1), 2: pr(2)}, comments_for=comments_for)
+        self.assertEqual(prepared, [2])
+        self.assertTrue(any(item.startswith("#1 skipped: QueueError") for item in result["skipped"]))
+        self.assertEqual([call.args[2] for call in block.call_args_list], [2])  # #1 is not blocked
+
+    def test_worker_error_in_a_contribution_is_skipped(self):
+        import lifecycle_workers
+
+        contribution = {"task_identity": {"kind": "contribution"}}
+        with patch.object(queue, "_latest", side_effect=lambda _r, number, _c: contribution if number == 1 else None), \
+             patch.object(queue, "candidate_status", side_effect=lifecycle_workers.WorkerError("harness clone failed")):
+            result, prepared, _ = self.run_worker({1: pr(1), 2: pr(2)})
+        self.assertEqual(prepared, [2])
+        self.assertTrue(any("#1 skipped: WorkerError: harness clone failed" in item for item in result["skipped"]))
+
+    def test_every_candidate_failing_fails_the_run_explicitly(self):
+        with self.assertRaisesRegex(queue.QueueError, "no queue candidate could be evaluated"):
+            self.run_worker({1: pr(1)}, comments_for=lambda *a: (_ for _ in ()).throw(queue.QueueError("gh down")))
+
+    def test_transient_failures_wait_instead_of_blocking(self):
+        from _platform_common import GitCommandError
+        from subprocess import CompletedProcess
+
+        fetch = GitCommandError(["fetch", "origin", "main"], None, CompletedProcess([], 128, "",
+                                "fatal: unable to access: The requested URL returned error: 502"))
+        for failure in (queue.TransientQueueError("HTTP 503 from update-branch"), fetch,
+                        queue.TransientQueueError("GitHub branch update is still pending; retry coordinator")):
+            with self.subTest(failure=type(failure).__name__):
+                result, _, block = self.run_worker({1: pr(1), 2: pr(2)}, prepare=lambda *a, failure=failure: (_ for _ in ()).throw(failure))
+                block.assert_not_called()
+                self.assertEqual(result["state"], "waiting")
+                self.assertIn("#1 waiting: transient failure; will re-evaluate", result["reason"])
+                self.assertIn("#2 waiting: transient failure", result["reason"])
+
+    def test_gh_classifies_transient_failures(self):
+        from subprocess import CompletedProcess
+
+        for stderr, kind in (("HTTP 502: Bad Gateway", queue.TransientQueueError), ("HTTP 422: Validation Failed", queue.QueueError)):
+            with self.subTest(stderr=stderr), patch.object(queue.subprocess, "run", return_value=CompletedProcess([], 1, "", stderr)):
+                with self.assertRaises(kind) as caught:
+                    queue._gh(ROOT_PATH, "api", "-X", "PUT", "repos/o/r/pulls/1/update-branch")
+                self.assertIs(type(caught.exception), kind)
 
 
 class LineageAndOwnershipTests(unittest.TestCase):
@@ -1707,15 +1799,25 @@ class RequiredCheckObservationMappingTests(unittest.TestCase):
              patch.object(queue, "_main", return_value=BASE), \
              patch.object(queue, "_raise_if_owned_elsewhere"), \
              patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("passed")), \
-             patch.object(queue, "_block") as block, \
+             patch.object(queue, "_block", return_value={"state": "blocked", "number": 1}) as block, \
+             patch.object(queue, "_comment", side_effect=lambda _r, _repo, number, payload: events.append(
+                 {**payload, "version": 1, "number": number, "comment_id": 30 + len(events)})), \
+             patch.object(queue, "_events", side_effect=lambda *a: list(events)), \
              patch.object(queue.subprocess, "run", return_value=CompletedProcess([], 1, "", refusal)) as process:
+            events: list[dict] = []
+            for refusal_count in range(1, queue.MAX_MERGE_REFUSALS):
+                result = queue.worker(ROOT_PATH)
+                self.assertEqual(process.call_args.args[0], ["gh", "api", "-X", "PUT", f"repos/{REPO}/pulls/1/merge",
+                                                             "-f", "merge_method=squash", "-f", f"sha={HEAD}"])
+                self.assertEqual(result["state"], "waiting")
+                self.assertIn(f"protected merge refused ({refusal_count}/{queue.MAX_MERGE_REFUSALS}); will re-evaluate:",
+                              result["reason"])
+                self.assertIn("Cannot update this protected ref", result["reason"])
+                block.assert_not_called()
+            # The bounded counter ends the cycle: the next refusal blocks with the cause.
             result = queue.worker(ROOT_PATH)
-        self.assertEqual(process.call_args.args[0], ["gh", "api", "-X", "PUT", f"repos/{REPO}/pulls/1/merge",
-                                                     "-f", "merge_method=squash", "-f", f"sha={HEAD}"])
-        self.assertEqual(result["state"], "waiting")
-        self.assertTrue(result["reason"].startswith("protected merge refused; will re-evaluate:"))
-        self.assertIn("Cannot update this protected ref", result["reason"])
-        block.assert_not_called()
+        self.assertEqual(result["state"], "blocked")
+        self.assertIn(f"protected merge refused {queue.MAX_MERGE_REFUSALS} times", block.call_args.args[3])
         self.assertNotIn("merged", [call.args[3] for call in transition.call_args_list])
 
     def test_checks_unreported_past_the_bound_block_naming_them(self) -> None:
