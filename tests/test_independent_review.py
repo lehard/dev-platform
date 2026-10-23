@@ -687,6 +687,32 @@ class IndependentReviewTests(unittest.TestCase):
         time.sleep(3)
         self.assertFalse(marker.exists(), "a reviewer descendant outlived the timeout")
 
+    def test_process_group_kill_and_reap_failures_are_explicit(self) -> None:
+        class Reviewer:
+            pid = 424242
+
+            def __init__(self, error: BaseException | None = None) -> None:
+                self.error = error
+
+            def communicate(self, timeout: float) -> tuple[str, None]:
+                if self.error is not None:
+                    raise self.error
+                return "", None
+
+        with mock.patch.object(runner.os, "killpg", side_effect=PermissionError("EPERM")):
+            with mock.patch("lifecycle_workers.live_group_members", return_value=["424243 S"]):
+                with self.assertRaisesRegex(runner.ProcessGroupError, "live members remain: 424243 S"):
+                    runner._kill_process_group(Reviewer())
+            # macOS EPERM for an all-zombie group is tolerated only when ps proves no live member.
+            with mock.patch("lifecycle_workers.live_group_members", return_value=[]):
+                runner._kill_process_group(Reviewer())
+        with mock.patch.object(runner.os, "killpg", side_effect=ProcessLookupError()):
+            runner._kill_process_group(Reviewer())
+            with self.assertRaisesRegex(runner.ProcessGroupError, "not reaped 10s after SIGKILL"):
+                runner._kill_process_group(Reviewer(subprocess.TimeoutExpired("reviewer", 10)))
+            with self.assertRaisesRegex(runner.ProcessGroupError, "could not be reaped"):
+                runner._kill_process_group(Reviewer(OSError("EIO")))
+
     def test_main_merge_touching_task_path_is_not_accepted(self) -> None:
         self.run_review()
         self.commit("review evidence")
