@@ -724,10 +724,10 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
         contribution = {"requirement": requirement, "branch": f"origin/{branch}", "target_branch": branch,
                         "head": head, "dependencies": [integrated[d] for d in graph[change]]}
         # A resumed child keeps its original exact base even as other contributions arrive.
-        from requirement_child_context import context_path
-        cached = context_path(machine_path("worktrees", integration) / change, change)
-        if cached.is_file():
-            contribution = json.loads(cached.read_text()).get("contribution") or contribution
+        from requirement_child_context import cached_contribution
+        worktree = machine_path("worktrees", integration) / change
+        if worktree.is_dir() and managed_task.canonical_provenance_candidates(worktree, change):
+            contribution = cached_contribution(worktree, change, requirement=requirement)
         try:
             started, _, _ = start_managed_task.start_managed_task(integration, linked[change], contribution=contribution)
         except start_managed_task.ManagedAdmissionWait as exc:

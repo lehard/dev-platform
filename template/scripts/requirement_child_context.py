@@ -25,6 +25,21 @@ def context_path(root: Path, change: str) -> Path:
     return root / ".claude" / "requirement-child-context" / f"{change}.json"
 
 
+def cached_contribution(root: Path, change: str, *, requirement: str) -> dict:
+    """Return the exact contribution boundary an existing child worktree recorded when it started."""
+    path = context_path(root, change)
+    contribution = json.loads(path.read_text()).get("contribution") if path.is_file() else None
+    if not contribution:
+        state = "records no contribution boundary" if path.is_file() else "is missing"
+        raise ManagedTaskError(
+            f"Requirement child context cache {path} {state}; the exact contribution start boundary of the existing "
+            f"child worktree {root} cannot be re-derived. Restore that cache from the child's original start, or have "
+            f"the operator retire the child worktree, then rerun "
+            f"`python3 scripts/execute_requirement.py advance --requirement {requirement}`."
+        )
+    return contribution
+
+
 def derive_context(
     root: Path, package: Package, *, issue_body: str | None = None,
     predecessor: ReadyForIntegrationReceipt | None = None, contribution: dict | None = None,
