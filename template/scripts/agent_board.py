@@ -18,8 +18,12 @@ from _platform_common import (
     main_root,
     PlatformConfigError,
     read_platform_config,
+    ref_sha,
+    remote_ref,
     require_main_branch,
     run_git,
+    task_own_paths,
+    TaskFreshnessError,
     utc_now,
 )
 import publication_state
@@ -173,10 +177,20 @@ def _concrete_declared_scope_paths(scope: str, root: Path) -> set[str]:
 
 
 def _factual_scope_paths(worktree: Path, root: Path, main_branch: str) -> set[str]:
-    result = run_git(["diff", "--name-only", f"{main_branch}...HEAD"], cwd=worktree, check=False)
-    if result.returncode != 0:
-        return set()
-    return _normalized_scope_paths(result.stdout, root)
+    """The task's own changed paths, against the observed ``origin/<main>`` (never a stale local main).
+
+    Files the task branch only received from main through a reconcile are not its scope. An unobserved
+    ``origin/<main>`` or an unreadable task diff is a scope-gate failure, never an empty scope.
+    """
+    authoritative = remote_ref("origin", main_branch)
+    main_sha = ref_sha(worktree, authoritative)
+    if not main_sha:
+        raise _scope_gate_unavailable(f"{authoritative} is not observed in {worktree}; fetch origin before the scope gate")
+    try:
+        paths = task_own_paths(worktree, main_sha)
+    except TaskFreshnessError as exc:
+        raise _scope_gate_unavailable(f"cannot read the task scope of {worktree}: {exc}") from exc
+    return _normalized_scope_paths("\n".join(sorted(paths)), root)
 
 
 def _claim_candidates(item: dict, root: Path, main_branch: str) -> set[str]:

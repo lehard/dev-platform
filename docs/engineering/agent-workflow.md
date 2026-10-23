@@ -261,7 +261,7 @@ Opt-in application source permissions, external hook attachment and per-user
 automation are documented in [local-workspace.md](local-workspace.md). The
 operator-local policy is checked separately from platform shared state.
 
-The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template. GitHub sync/publish, checks, OpenSpec policy and release pinning are core; worktrees/board are multi-agent capabilities. In multi-agent admission, only a valid active board record with a proven worktree/branch identity can block a concrete file claim; degraded or terminal sibling records remain hygiene diagnostics, while unreadable or un-lockable board state fails closed.
+The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profiles select capabilities rather than forking the template. GitHub sync/publish, checks, OpenSpec policy and release pinning are core; worktrees/board are multi-agent capabilities. In multi-agent admission, only a valid active board record with a proven worktree/branch identity can block a concrete file claim; a task's factual scope is its own diff from its merge base with the observed `origin/<main>` (never the possibly stale local `main`), so files a reconcile brought in from main are not task scope, and an unobserved `origin/<main>` stops the scope gate instead of yielding an empty scope; degraded or terminal sibling records remain hygiene diagnostics, while unreadable or un-lockable board state fails closed.
 
 ## Validation
 
