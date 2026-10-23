@@ -36,20 +36,8 @@ from integration_state import (
 )
 import publication_state
 from requirement_integration import RequirementIntegrationError, require_independent_publication_exception
-try:
-    from openspec_lifecycle import require_automated_evidence
-except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
-    def require_automated_evidence(change: Path, *, root: Path | None = None) -> None:
-        return None
-try:
-    from openspec_lifecycle import require_publication_review_evidence
-except (ImportError, ModuleNotFoundError):  # Compatibility while old renders are upgraded.
-    def require_publication_review_evidence(change: Path, *, root: Path | None = None) -> None:
-        return None
-try:
-    import task_reconciliation
-except ModuleNotFoundError:  # Compatibility while an existing project is being upgraded by Copier.
-    task_reconciliation = None
+from openspec_lifecycle import require_automated_evidence, require_publication_review_evidence
+import task_reconciliation
 from managed_project_status import (
     ManagedProjectStatusError,
     block_for_scope_conflict,
@@ -57,53 +45,19 @@ from managed_project_status import (
     reconcile as reconcile_managed_project,
     resume_from_scope_conflict,
 )
-try:
-    from worktree_cleanup import _read_deferred_cleanup, defer_completed_task, targeted_cleanup_command
-except ImportError:  # Compatibility while an existing project is being upgraded by Copier.
-    _read_deferred_cleanup = None
-    defer_completed_task = None
-    targeted_cleanup_command = None
+from worktree_cleanup import _read_deferred_cleanup, defer_completed_task, targeted_cleanup_command
 from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
-try:
-    from managed_task import (
-        ManagedTaskError,
-        assert_integration_identity_cross_check,
-        delivery_identity,
-        observe_source_issue_drift,
-        observe_process_evidence_obligations,
-        require_managed_checkout_identity,
-        require_no_orphan_active_openspec,
-        require_delivery_provenance,
-        resolve_process_evidence_after_delivery,
-    )
-except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
-    class ManagedTaskError(RuntimeError):
-        pass
-
-    def require_delivery_provenance(root: Path):
-        return None
-
-    def require_no_orphan_active_openspec(root: Path) -> None:
-        return None
-
-    def delivery_identity(root: Path):
-        return None
-
-    def assert_integration_identity_cross_check(integration: Path, identity) -> None:
-        return None
-
-    def observe_source_issue_drift(root: Path):
-        return None
-
-    def require_managed_checkout_identity(root: Path, *, expected_change: str | None = None, expected_source_issue: str | None = None):
-        return None
-
-    def resolve_process_evidence_after_delivery(root: Path, identity, implementation_sha: str) -> None:
-        return None
-
-    def observe_process_evidence_obligations(root: Path, identity) -> list[dict[str, str]]:
-        return []
-
+from managed_task import (
+    ManagedTaskError,
+    assert_integration_identity_cross_check,
+    delivery_identity,
+    observe_source_issue_drift,
+    observe_process_evidence_obligations,
+    require_managed_checkout_identity,
+    require_no_orphan_active_openspec,
+    require_delivery_provenance,
+    resolve_process_evidence_after_delivery,
+)
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
 # The rendered lifecycle entrypoint; it reconciles quick and managed tasks.
@@ -410,8 +364,6 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
     obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
     durability = publication_state.merge_durability_capability(config, env, work)
     try:
-        if task_reconciliation is None:
-            raise RuntimeError("task reconciliation helper is not installed")
         freshness = task_reconciliation.status_payload(work)
     except Exception as exc:
         freshness = {"task_freshness": "unavailable", "reconcile_required": False, "freshness_detail": str(exc)}
@@ -434,16 +386,13 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
                     if evidence["state"] not in {"fulfilled", "disposed"}:
                         obligations.append({"kind": "process-evidence", **evidence})
             if profile(config) == "multi-agent":
-                if _read_deferred_cleanup is None:
-                    obligations.append({"kind": "cleanup", "state": "unknown", "detail": "cleanup observer unavailable"})
+                records = _read_deferred_cleanup(integration, config)
+                deferred = any(item["path"] == str(work.resolve()) and item["branch"] == branch
+                               and item["head"] == payload.get("local_head") for item in records)
+                if not deferred:
+                    obligations.append({"kind": "cleanup", "state": "pending", "detail": "finish has not recorded or completed exact worktree cleanup"})
                 else:
-                    records = _read_deferred_cleanup(integration, config)
-                    deferred = any(item["path"] == str(work.resolve()) and item["branch"] == branch
-                                   and item["head"] == payload.get("local_head") for item in records)
-                    if not deferred:
-                        obligations.append({"kind": "cleanup", "state": "pending", "detail": "finish has not recorded or completed exact worktree cleanup"})
-                    else:
-                        obligations.append({"kind": "cleanup", "state": "warning", "detail": "exact deferred cleanup is recorded"})
+                    obligations.append({"kind": "cleanup", "state": "warning", "detail": "exact deferred cleanup is recorded"})
         except Exception as exc:
             obligations.append({"kind": "terminal-reconciliation", "state": "unknown", "detail": str(exc)})
         if any(item["state"] != "warning" for item in obligations):
@@ -649,12 +598,6 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
         return
 
     if _caller_cwd_is_within(work):
-        if defer_completed_task is None:
-            print(
-                f"WARNING: task is integrated, but cleanup is deferred because the caller cwd is inside {work}; "
-                "the installed worktree cleanup recovery helper is unavailable."
-            )
-            return
         try:
             record, target = defer_completed_task(integration, work, branch)
         except (OSError, SystemExit) as exc:
@@ -666,7 +609,7 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
         print(
             f"WARNING: task is integrated; deferred cleanup of caller worktree {work} is recorded at {record}. "
             "From a surviving integration context, run exactly: "
-            f"{targeted_cleanup_command(target) if targeted_cleanup_command else 'the recorded targeted cleanup command'}."
+            f"{targeted_cleanup_command(target)}."
         )
         return
 
@@ -794,14 +737,9 @@ def observe_completion_blockers(
     if not clean(work):
         blockers.append(("worktree-clean", "Current worktree is dirty. Commit or remove changes first."))
 
-    if task_reconciliation is None:
-        stale_state = relation(work, "HEAD", remote_main)
-        freshness_state = stale_state
-        reconcile_required = stale_state in {"behind", "diverged"}
-    else:
-        freshness_observation = task_reconciliation.observe(work)
-        freshness_state = freshness_observation.state
-        reconcile_required = freshness_observation.reconcile_required
+    freshness_observation = task_reconciliation.observe(work)
+    freshness_state = freshness_observation.state
+    reconcile_required = freshness_observation.reconcile_required
     if reconcile_required:
         blockers.append((
             "task-freshness",
@@ -952,8 +890,6 @@ def main() -> int:
             return subprocess.run(["python3", str(work / "scripts" / "gitlab_delivery.py"), "status"], cwd=work, stdin=subprocess.DEVNULL).returncode
         return run_status(work, integration, config, as_json=args.json)
     if args.reconcile:
-        if task_reconciliation is None:
-            raise SystemExit("Task reconciliation helper is unavailable; update the rendered platform lifecycle before using --reconcile.")
         task_reconciliation.reconcile(work)
         return 0
     if harness_mode(config) != "platform":

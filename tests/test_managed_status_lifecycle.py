@@ -494,15 +494,16 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
 
 
 class FinishTaskLegacyCleanupCompatibilityTests(unittest.TestCase):
-    def test_legacy_worktree_cleanup_without_defer_helper_keeps_finish_importable(self) -> None:
+    def test_legacy_worktree_cleanup_without_defer_helper_fails_finish_import(self) -> None:
+        # worktree_cleanup.py ships with finish_task.py; a partial install must not silently skip cleanup.
         legacy_cleanup = types.ModuleType("worktree_cleanup")
         module_name = "finish_task_legacy_worktree_cleanup"
         spec = importlib.util.spec_from_file_location(module_name, SCRIPTS / "finish_task.py")
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
         with mock.patch.dict(sys.modules, {"worktree_cleanup": legacy_cleanup, module_name: module}):
-            spec.loader.exec_module(module)
-        self.assertIsNone(module.defer_completed_task)
+            with self.assertRaisesRegex(ImportError, "_read_deferred_cleanup"):
+                spec.loader.exec_module(module)
 
 
 if __name__ == "__main__":

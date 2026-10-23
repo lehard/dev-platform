@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,7 +28,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "openspec_lifecycle.py", "requirement_integration.py", "managed_task.py", "managed_work_identity.py", "private_lineage.py", "start_tier_routing.py"):
+    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "worktree_cleanup.py", "openspec_lifecycle.py", "requirement_integration.py", "managed_task.py", "managed_work_identity.py", "private_lineage.py", "start_tier_routing.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 
@@ -201,6 +202,39 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
         self.assertEqual(git("branch", "--show-current", cwd=self.repo).stdout.strip(), "main")
         self.assertEqual(git("rev-parse", "main", cwd=self.repo).stdout.strip(), squash_sha)
         self.assertTrue((self.repo / "feature.txt").exists())
+
+
+
+class FinishTaskGateImportTests(unittest.TestCase):
+    """finish_task must not degrade its evidence, review or provenance gates into no-ops."""
+
+    def import_finish_task_without(self, module: str, attribute: str | None = None) -> subprocess.CompletedProcess[str]:
+        # A missing module is simulated with a None sys.modules entry; a missing name with a stub module.
+        setup = (
+            f"import types; stub = types.ModuleType({module!r}); sys.modules[{module!r}] = stub"
+            if attribute
+            else f"sys.modules[{module!r}] = None"
+        )
+        code = f"import sys; sys.path.insert(0, {str(SCRIPT_SOURCE)!r}); {setup}; import finish_task"
+        return subprocess.run([sys.executable, "-c", code], text=True, capture_output=True)
+
+    def test_missing_gate_helpers_fail_the_import_loudly(self) -> None:
+        cases = (
+            ("openspec_lifecycle", "require_automated_evidence"),
+            ("task_reconciliation", None),
+            ("worktree_cleanup", None),
+            ("managed_task", None),
+        )
+        for module, attribute in cases:
+            with self.subTest(module=module):
+                result = self.import_finish_task_without(module, attribute)
+                self.assertNotEqual(result.returncode, 0, f"finish_task imported without {module}")
+                self.assertRegex(result.stderr, rf"(ImportError|ModuleNotFoundError): .*{attribute or module}")
+
+    def test_complete_render_imports(self) -> None:
+        code = f"import sys; sys.path.insert(0, {str(SCRIPT_SOURCE)!r}); import finish_task"
+        result = subprocess.run([sys.executable, "-c", code], text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":
