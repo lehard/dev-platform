@@ -234,14 +234,16 @@ class ClaudeGuardHookTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def _decide(self, tool_input: dict) -> dict:
+        return self._decide_raw(json.dumps({"tool_name": "Write", "tool_input": tool_input}))
+
+    def _decide_raw(self, payload: str) -> dict:
         written = guard.write_claude_guard(self.assigned_worktree)
         self.assertTrue(written.settings_path.exists())
         settings = json.loads(written.settings_path.read_text(encoding="utf-8"))
         self.assertEqual(settings["hooks"]["PreToolUse"][0]["matcher"], "Write|Edit|NotebookEdit")
-        payload = {"tool_name": "Write", "tool_input": tool_input}
         completed = subprocess.run(
             [sys.executable, str(written.hook_script)],
-            input=json.dumps(payload),
+            input=payload,
             text=True,
             capture_output=True,
             check=True,
@@ -275,6 +277,19 @@ class ClaudeGuardHookTests(unittest.TestCase):
     def test_tool_input_without_recognized_target_key_allows(self) -> None:
         decision = self._decide({"some_other_field": "value"})
         self.assertEqual(decision["permissionDecision"], "allow")
+
+
+    def test_unreadable_payload_is_denied(self) -> None:
+        decision = self._decide_raw('{"tool_name": "Write", "tool_input": ')
+        self.assertEqual(decision["permissionDecision"], "deny")
+        self.assertIn("unreadable PreToolUse payload", decision["permissionDecisionReason"])
+
+    def test_malformed_payload_shapes_are_denied(self) -> None:
+        for payload in ('["file_path"]', '{"tool_name": "Write", "tool_input": "x.py"}'):
+            with self.subTest(payload=payload):
+                decision = self._decide_raw(payload)
+                self.assertEqual(decision["permissionDecision"], "deny")
+                self.assertIn("malformed PreToolUse payload", decision["permissionDecisionReason"])
 
 
 class GuardedDelegationTests(unittest.TestCase):
