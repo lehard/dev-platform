@@ -186,6 +186,7 @@ targets = [
   "test_local_workspace",
   "test_shared_writer_guard",
   "test_task_freshness",
+  "test_task_base_matrix",
   "test_template_contract",
   "test_protected_surface",
   "test_platform_manifest",
