@@ -1,0 +1,117 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.167,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.592,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1150.167,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.147,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/agent_friction.py",
+        "template/scripts/requirement_retrospective.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_retrospective_attribution.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test",
+        "configuration"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b4f106191a6164f471bcf691fdb40907",
+    "change": "friction-no-task-events",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/friction-no-task-events",
+    "branch": "agent/br-769-t1-friction-no-task-events",
+    "head": "41f1556dc8d6da635a2b8f56ee73b85e72a26de0",
+    "task_content": {
+      "version": 1,
+      "digest": "3bd07260d8a355c9af85b14b1c52226d68ab8fccdad7e9492dfab194d04ca42d",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "d96b796cd86a0fe94788bf536974999a35e96c40",
+        "openspec/changes/friction-no-task-events/.managed-task.json": "0d5c244c63cb51d0f7b5417179dcbb05b01c2c5a",
+        "openspec/changes/friction-no-task-events/.openspec.yaml": "f56fe13917aafd9b0317d1339a8548906dd40edf",
+        "openspec/changes/friction-no-task-events/design.md": "a29e514a162600d7fd10bb4698671062989ed693",
+        "openspec/changes/friction-no-task-events/proposal.md": "6c0492dc8e7e74dc654cee628a461094091f77ff",
+        "openspec/changes/friction-no-task-events/specs/platform-lifecycle/spec.md": "6f582eb0e7169f2221b2e0cba0177a373648cedd",
+        "openspec/changes/friction-no-task-events/tasks.md": "da0737873bab941165b59c778d5eb9eb597cb0c0",
+        "openspec/changes/friction-no-task-events/verification.md": "3eac2a04cc251d5db3635db312466ad1d026edbf",
+        "template/dev-platform/platform-manifest.json": "bf625184f06060eef6709e3c28d1c6361a55105d",
+        "template/docs/engineering/agent-workflow.md.jinja": "2410bf5d2785ab8777b19ef12aace1292decec20",
+        "template/scripts/agent_friction.py": "4fd4a240703dd2563d4e49adc1e77a560c638e7b",
+        "template/scripts/requirement_retrospective.py": "c9f89028102f2a844f983d27209302645b17399e",
+        "tests/test_autonomous_integration_contour.py": "3168d7b783a4d3992c6bb084870bc6763ae98536",
+        "tests/test_retrospective_attribution.py": "34797ec09a4ce563ba808b5e966cb845c3829dfa"
+      },
+      "base": "37b977cea99e12d3e77d94d8b0cf2633b00a3131"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "2ad641f00790fbd78ebe412b76b1b64fdaef8213a01c972e67a27772cc0325ce",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "d96b796cd86a0fe94788bf536974999a35e96c40",
+      "openspec/changes/friction-no-task-events/.managed-task.json": "0d5c244c63cb51d0f7b5417179dcbb05b01c2c5a",
+      "openspec/changes/friction-no-task-events/.openspec.yaml": "f56fe13917aafd9b0317d1339a8548906dd40edf",
+      "openspec/changes/friction-no-task-events/design.md": "a29e514a162600d7fd10bb4698671062989ed693",
+      "openspec/changes/friction-no-task-events/proposal.md": "6c0492dc8e7e74dc654cee628a461094091f77ff",
+      "openspec/changes/friction-no-task-events/specs/platform-lifecycle/spec.md": "6f582eb0e7169f2221b2e0cba0177a373648cedd",
+      "openspec/changes/friction-no-task-events/tasks.md": "da0737873bab941165b59c778d5eb9eb597cb0c0",
+      "template/docs/engineering/agent-workflow.md.jinja": "2410bf5d2785ab8777b19ef12aace1292decec20",
+      "template/scripts/agent_friction.py": "4fd4a240703dd2563d4e49adc1e77a560c638e7b",
+      "template/scripts/requirement_retrospective.py": "c9f89028102f2a844f983d27209302645b17399e",
+      "tests/test_autonomous_integration_contour.py": "3168d7b783a4d3992c6bb084870bc6763ae98536",
+      "tests/test_retrospective_attribution.py": "34797ec09a4ce563ba808b5e966cb845c3829dfa"
+    },
+    "base": "37b977cea99e12d3e77d94d8b0cf2633b00a3131",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_friction.py --changed-file template/scripts/requirement_retrospective.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_retrospective_attribution.py",
+    "duration_seconds": 187.406,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
