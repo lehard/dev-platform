@@ -1009,8 +1009,11 @@ _GUARD_SCRIPT_TEMPLATE = textwrap.dedent(
     def main() -> int:
         try:
             payload = json.load(sys.stdin)
-        except json.JSONDecodeError:
-            _decision("allow")
+        except json.JSONDecodeError as exc:
+            _decision("deny", f"unreadable PreToolUse payload; refusing unverified write: {{exc}}")
+            return 0
+        if not isinstance(payload, dict) or not isinstance(payload.get("tool_input", {{}}), dict):
+            _decision("deny", "malformed PreToolUse payload; refusing unverified write")
             return 0
         tool_input = payload.get("tool_input") or {{}}
         target = next((tool_input[key] for key in TARGET_KEYS if key in tool_input), None)
