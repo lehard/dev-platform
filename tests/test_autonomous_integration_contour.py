@@ -632,7 +632,7 @@ class FrictionFixture(unittest.TestCase):
 class FrictionAttributionTests(FrictionFixture):
     def task_less(self, event_id):
         with self.log.open("a") as handle:
-            handle.write(json.dumps({"id": event_id, "at": friction.utc_now(), "branch": "main", "category": "x",
+            handle.write(json.dumps({"id": event_id, "at": friction.utc_now(), "category": "x",
                                      "severity": "medium", "triggers": ["excessive-retry"]}) + "\n")
 
     def test_attribution_is_append_only_and_resolves_ambiguity(self):
@@ -805,6 +805,16 @@ class PostMergeJobTests(FrictionFixture):
         self.assertEqual(outcome["status"], "blocked")
         self.assertIn("inside", posted[0])
         self.assertNotIn("older", posted[0])
+
+    def test_event_recorded_outside_a_task_does_not_block_another_candidate(self):
+        with self.log.open("a") as handle:
+            handle.write(json.dumps({"id": "elsewhere", "at": WINDOW_INSIDE, "branch": "main", "task": None,
+                                     "attribution": "no-task", "category": "x", "severity": "medium",
+                                     "triggers": ["excessive-retry"]}) + "\n")
+        outcome, posted = self.run_job("retrospective", FakeOps(started=WINDOW_STARTED))
+        self.assertNotEqual(outcome["status"], "blocked")
+        self.assertNotIn("elsewhere", posted[0])
+        self.assertEqual(json.loads(self.state.read_text())["checkpoints"][self.branch]["event_ids"], [])
 
     def test_requirement_window_starts_at_its_creation(self):
         self.unattributed("older", WINDOW_OLDER)

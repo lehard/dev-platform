@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "37b977cea99e12d3e77d94d8b0cf2633b00a3131",
+    "base_ref": "origin/main",
+    "candidate_head": "a6cc837a0b1231b1e4e9ef2f97fbfb0d25a96db9",
+    "diff_sha256": "137261f9e27b5a219cb7d4575f5b944177787f197ff4b34500703b1d624293cc"
+  },
+  "completed_at": "2026-10-23T15:52:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_friction.py cmd_checkpoint calls `ambiguous_attribution_events()` with no `since` and raises SystemExit. template/scripts/requirement_retrospective.py main does the same before `checkpoint(...)`. The design says 'The existing window and `since` bounds stay', but the manual paths pass no bound.",
+      "id": "manual-checkpoint-global-ambiguity-block",
+      "severity": "advisory",
+      "summary": "The manual task and Requirement checkpoints now refuse on any ambiguous event in the whole 14-day global log, with no `since` bound. A legacy branchless event unrelated to the task therefore blocks every checkpoint until someone attributes it. This is the cross-task blocking the change is meant to remove, and the automated path avoids it with `since`."
+    },
+    {
+      "evidence": "agent_friction.py no_task_reason checks only `event.get('task')` and `event_identities(event)`. `events_for_task.attributed` also matches `event.get('requirement') == task` and coordinator `work_identity`.",
+      "id": "no-task-event-with-requirement-field",
+      "severity": "advisory",
+      "summary": "`no_task_reason` classifies an event as no-task whenever it has no `task` and no identity. It ignores the `requirement` field and coordinator attribution that `events_for_task` uses to claim an event for a Requirement. An event recorded outside a task that also names a Requirement could be a Requirement signal and also be listed under `no_task_events`. The two classifications are not reconciled."
+    }
+  ],
+  "launched_at": "2026-10-23T15:52:06+00:00",
+  "output_sha256": "7c7b450183ec0fdfff9fbab8229961625d72b4752b5a9101729658c426e0f015",
+  "perspective": "engineering-quality",
+  "request_id": "5c2cd3de-98a0-4890-a545-040f3b454e67",
+  "reviewer": {
+    "context_id": "ca7b20b4-4241-4033-8add-c9cec36f3e2e",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-468cf58b-9b9e-4136-ad7b-9e21b2ef2b73",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23598
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43270
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13696
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13949
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1365
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2ad641f00790fbd78ebe412b76b1b64fdaef8213a01c972e67a27772cc0325ce"
+}
