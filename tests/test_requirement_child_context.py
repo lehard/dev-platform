@@ -66,6 +66,18 @@ class RequirementChildContextTests(unittest.TestCase):
         context.refresh_context(self.root, self.package, predecessor=changed)
         context.validate_context(self.root, self.package, issue_body=body, predecessor=changed)
 
+    def test_resumed_child_without_cached_contribution_fails_with_action(self) -> None:
+        path = context.context_path(self.root, "child")
+        with self.assertRaisesRegex(context.ManagedTaskError, r"is missing.*execute_requirement.py advance --requirement acme/backlog#7"):
+            context.cached_contribution(self.root, "child", requirement="acme/backlog#7")
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps({"version": 1, "change": "child"}), encoding="utf-8")
+        with self.assertRaisesRegex(context.ManagedTaskError, "records no contribution boundary"):
+            context.cached_contribution(self.root, "child", requirement="acme/backlog#7")
+        boundary = {"requirement": "acme/backlog#7", "head": self.head}
+        path.write_text(json.dumps({"contribution": boundary}), encoding="utf-8")
+        self.assertEqual(context.cached_contribution(self.root, "child", requirement="acme/backlog#7"), boundary)
+
     def test_ambiguous_parent_fails_closed(self) -> None:
         with self.assertRaisesRegex(context.ManagedTaskError, "ambiguous"):
             context.derive_context(
