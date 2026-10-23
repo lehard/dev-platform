@@ -644,6 +644,19 @@ def _require_trial_merge_support(root: Path) -> None:
         )
 
 
+def task_own_paths(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> frozenset[str]:
+    """The paths ``task_ref`` itself changes: from its merge base with ``main_sha`` to ``task_ref``.
+
+    The same task diff ``classify_task_base_currency`` compares with main. Files a reconcile merged
+    in from main are not the task's own; a missing merge base or a failing git raises.
+    """
+    result = run_git(["merge-base", task_ref, main_sha], cwd=root, check=False)
+    base = result.stdout.strip()
+    if result.returncode or not base:
+        raise TaskFreshnessError(f"task ref {task_ref!r} has no merge base with main {main_sha}; cannot name its own changes")
+    return frozenset(_changed_paths(root, base, task_ref))
+
+
 def classify_task_base_currency(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> TaskBaseCurrency:
     """Classify ``task_ref`` against a main commit already present in this checkout.
 

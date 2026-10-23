@@ -52,6 +52,8 @@ class WorktreeHarnessCase(unittest.TestCase):
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "base")
+        # The board measures a task's own scope against the observed origin/main, as a fetched checkout has it.
+        git(self.root, "update-ref", "refs/remotes/origin/main", "main")
         self.managed = self.root / ".claude" / "worktrees"
         self.managed.mkdir(parents=True)
 
@@ -1082,6 +1084,51 @@ class AgentBoardAcknowledgmentTests(WorktreeHarnessCase):
         )
         self.assertEqual(self.hard_conflicts(board, second), [])
         self.enforce_gate(board, second)  # Does not raise.
+
+
+    def squash_into_origin_main(self, worktree: Path) -> str:
+        """Land the sibling's content on origin/main as a squash commit; local main stays stale."""
+        scratch = Path(self.tmp.name) / f"squash-{worktree.name}"
+        git(self.root, "worktree", "add", "--detach", str(scratch), "refs/remotes/origin/main")
+        git(scratch, "config", "user.name", "Test")
+        git(scratch, "config", "user.email", "test@example.invalid")
+        git(scratch, "merge", "--squash", f"agent/{worktree.name}")
+        git(scratch, "commit", "-m", f"squash {worktree.name}")
+        landed = git(scratch, "rev-parse", "HEAD").stdout.strip()
+        git(self.root, "update-ref", "refs/remotes/origin/main", landed)
+        git(self.root, "worktree", "remove", "--force", str(scratch))
+        return landed
+
+    def test_files_a_reconcile_brought_from_main_are_not_task_scope(self) -> None:
+        """BR-777: after reconcile with a main holding a sibling's merged files, there is no hard overlap on them."""
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        self.squash_into_origin_main(first)  # the sibling's PR merged; its board entry is still active
+        git(second, "merge", "--no-edit", "refs/remotes/origin/main")  # the reconcile
+        self.assertNotEqual(git(self.root, "rev-parse", "main").stdout, git(self.root, "rev-parse", "refs/remotes/origin/main").stdout)
+        board = self.register_board(self.board_item("first-id", "first task", first),
+                                    self.board_item("second-id", "second task", second))
+        self.assertEqual(self.hard_conflicts(board, second), [])
+        self.assertEqual(agent_board._factual_scope_paths(second, self.root, "main"), {"second.txt"})
+
+    def test_a_file_both_tasks_change_themselves_stays_a_hard_overlap(self) -> None:
+        first = self.add_worktree("first")
+        second = self.add_worktree("second")
+        for worktree in (first, second):
+            (worktree / "shared.txt").write_text(f"{worktree.name}\n", encoding="utf-8")
+            git(worktree, "add", ".")
+            git(worktree, "commit", "-m", "shared")
+        self.squash_into_origin_main(first)
+        git(second, "merge", "-X", "ours", "--no-edit", "refs/remotes/origin/main")
+        board = self.register_board(self.board_item("first-id", "first task", first),
+                                    self.board_item("second-id", "second task", second))
+        self.assertIn(("first-id", "first task", "shared.txt"), self.hard_conflicts(board, second))
+
+    def test_an_unobserved_origin_main_stops_the_scope_gate_instead_of_an_empty_scope(self) -> None:
+        second = self.add_worktree("second")
+        git(self.root, "update-ref", "-d", "refs/remotes/origin/main")
+        with self.assertRaisesRegex(SystemExit, "refs/remotes/origin/main is not observed"):
+            agent_board._factual_scope_paths(second, self.root, "main")
 
 
 class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
