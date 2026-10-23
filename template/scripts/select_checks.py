@@ -642,10 +642,10 @@ def main() -> int:
                         SystemExit,
                     )
                 print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
-            elif evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root):
-                # Developer handoff evidence: a coordinator candidate behind a
-                # mergeable main passes; the queue merges main and gates on the
-                # integrated head. Any other head keeps the fresh-base rule.
+            elif args.mode == "local-affected" and coordinator_contract(root):
+                # Under the coordinator contract a task the queue integrates (a coordinator
+                # candidate or a quick task) behind a mergeable main passes; the queue merges
+                # main and gates on the integrated head. Any other head keeps the fresh-base rule.
                 main_branch = require_main_branch(read_platform_config(root), SystemExit)
                 try:
                     currency = require_handoff_task_base(root, "origin", main_branch)
@@ -656,9 +656,9 @@ def main() -> int:
                 if currency.state == TASK_BASE_FRESH:
                     print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({currency.main}).")
                 else:
-                    base_contract = currency.evidence()
+                    base_contract = currency.evidence() if evidence_path is not None else None
                     print(
-                        "Task freshness gate passed (coordinator-candidate behind-mergeable contract): "
+                        "Task freshness gate passed (queue-integrated behind-mergeable contract): "
                         f"{currency.describe('origin/' + main_branch)}; merge base {currency.base}."
                     )
             else:

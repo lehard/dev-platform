@@ -323,6 +323,9 @@ class TaskReconciliationTests(unittest.TestCase):
             task_reconciliation.task_kind(self.task, "main")
 
     def test_freshness_blockers_name_the_working_reconcile_command(self) -> None:
+        # A head behind main reads the lifecycle contract (portable here) to decide queue integration.
+        config = self.task / ".dev-platform.toml"
+        config.write_text(config.read_text(encoding="utf-8") + 'platform_version = "1.9.3"\n', encoding="utf-8")
         self.commit_task_work()
         self.advance_main()
         git("fetch", "origin", cwd=self.task)
@@ -339,6 +342,39 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertIn("Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile", blockers["task-freshness"])
         self.assertIn("python3 scripts/finish_task.py --reconcile", blockers["branch-base"])
         self.assertNotIn("Rebase", blockers["branch-base"])
+
+    def finish_blockers(self, *, integrated: bool) -> dict[str, str]:
+        git("fetch", "origin", cwd=self.task)
+        with (
+            mock.patch.object(finish_task, "run_openspec_hygiene", return_value=None),
+            mock.patch.object(finish_task, "observe_friction_checkpoint_blocker", return_value=None),
+            mock.patch.object(finish_task, "enforce_scope_gate"),
+            mock.patch.object(finish_task, "observe_private_reference_blocker", return_value=None),
+            mock.patch.object(task_reconciliation, "queue_integrated", return_value=integrated),
+        ):
+            return dict(finish_task.observe_completion_blockers(
+                self.task, self.task, "agent/task", "main", "origin/main", "pr", None
+            ))
+
+    def test_queue_integrated_quick_task_behind_a_mergeable_main_finishes_without_reconcile(self) -> None:
+        """BR-774: the queue merges main into the admitted PR and gates on its integrated head."""
+        self.commit_task_work()
+        self.advance_main()
+        blockers = self.finish_blockers(integrated=True)
+        self.assertNotIn("task-freshness", blockers)
+        self.assertNotIn("branch-base", blockers)
+        self.assertIn("task-freshness", self.finish_blockers(integrated=False))
+
+    def test_queue_integrated_quick_task_with_a_real_conflict_still_requires_reconcile(self) -> None:
+        (self.task / "main.txt").write_text("task side\n", encoding="utf-8")
+        git("add", "main.txt", cwd=self.task); git("commit", "-m", "task edits main.txt", cwd=self.task)
+        self.advance_main("main.txt", "main side\n")
+        import _platform_common
+
+        with mock.patch.object(_platform_common, "generated_files", return_value=()):  # main declares none
+            blockers = self.finish_blockers(integrated=True)
+        self.assertIn("a trial merge conflicts in main.txt", blockers["task-freshness"])
+        self.assertIn("branch-base", blockers)
 
     def test_read_only_status_detects_advanced_main_without_updating_origin_main(self) -> None:
         # A head behind main reads the lifecycle contract (portable here) to decide candidacy.
