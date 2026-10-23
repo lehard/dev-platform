@@ -985,6 +985,47 @@ elif mode == "commit-and-leftover":
 """
 
 
+class SandboxedWriterOptionTests(unittest.TestCase):
+    """The platform repair writer (BR-768): sandboxed Claude, R2, replaces only the writer launch."""
+
+    def test_writer_is_claude_on_the_r2_model_under_the_sandbox_launch(self):
+        import model_routing
+        import sandboxed_writer
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            argv, launch = workers.sandboxed_claude_writer(root)
+            self.assertEqual(argv[:2], ["claude", "-p"])
+            self.assertEqual(argv[argv.index("--model") + 1], model_routing.DEFAULT_MODELS["claude"]["standard"])
+            with mock.patch.object(sandboxed_writer, "launch_sandboxed_writer", return_value="done") as sandboxed:
+                self.assertEqual(launch([*argv, "task"], root / "co", tmp=root / "job/llm-tmp", env=None,
+                                        runner=workers.run_in_session, home=root / "home"), "done")
+            kwargs = sandboxed.call_args.kwargs
+            self.assertEqual((kwargs["integration_root"], kwargs["workdir"], kwargs["tmp"]), (root, root / "job", root / "job/llm-tmp"))
+            with mock.patch.object(sandboxed_writer, "launch_sandboxed_writer",
+                                   side_effect=sandboxed_writer.SandboxedWriterError("npx is not on PATH")), \
+                    self.assertRaisesRegex(workers.WorkerError, "sandboxed Claude writer refused to launch: npx"):
+                launch(argv, root, tmp=root / "t", env=None, runner=workers.run_in_session, home=root)
+
+    def test_writer_scope_is_the_candidate_changed_paths_and_fails_without_proof(self):
+        rows = [{"filename": "b.py"}, {"filename": "a/x.md"}, {"filename": "b.py"}]
+        self.assertEqual(workers.candidate_paths("o/r", 7, gh_json=lambda *a: rows), ["a/x.md", "b.py"])
+        for bad in ([], None, [{"filename": ""}], [{"filename": "f"}] * workers.CANDIDATE_PATHS_LIMIT):
+            with self.subTest(bad=str(bad)[:40]), self.assertRaisesRegex(workers.WorkerError, "PR #7"):
+                workers.candidate_paths("o/r", 7, gh_json=lambda *a, bad=bad: bad)
+
+    def test_writer_option_conflicts_fail_before_any_github_call(self):
+        cases = [(["--kinds", "repair", "--writer", "claude-sandboxed", "--llm-command", "x"], "exclusive"),
+                 (["--kinds", "review", "--writer", "claude-sandboxed"], "applies only to repair"),
+                 (["--kinds", "integration-repair", "--writer", "claude-sandboxed", "--provider", "codex"], "names codex")]
+        for extra, message in cases:
+            err = mock.Mock()
+            with self.subTest(message), mock.patch.object(workers, "_gh_json", side_effect=AssertionError("no GitHub call")), \
+                    mock.patch("sys.stderr", new=mock.Mock(write=err)):
+                self.assertEqual(workers.main(["work-next", "--repo", "o/r", "--worker", "w", *extra]), 2)
+            self.assertIn(message, "".join(call.args[0] for call in err.call_args_list))
+
+
 class ExecuteJobTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -1035,6 +1076,23 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertTrue(self.posted[-1].startswith(workers.RESULT_PREFIX))
         self.assertEqual(json.loads(self.posted[-1][len(workers.RESULT_PREFIX):])["pushed_head"], remote)
         self.assertEqual(git(self.src, "log", "-1", "--format=%an <%ae>", "refs/heads/task"), "t <t@t>")  # writer's own commit
+
+    def test_platform_writer_launch_replaces_the_plain_writer_launch(self):
+        calls = []
+        def launch(command, checkout, *, tmp, env, runner, home):
+            calls.append((command, checkout, tmp, home))
+            return workers.run_llm(command, checkout, tmp=tmp, env=env, runner=runner, home=home)
+        os.environ.update(FAKE_MODE="edit", HOOK_MARK=str(self.mark), PROMPT_SEEN=str(self.prompt_seen))
+        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("FAKE_MODE", "HOOK_MARK", "PROMPT_SEEN")])
+        result = workers.execute_job(
+            self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
+            llm_command=[sys.executable, str(self.script), "Repair the findings"], current_head=lambda: self.head,
+            post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
+            env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull}, launch=launch)
+        self.assertEqual(result["status"], "pushed")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0][-1], "Repair the findings")
+        self.assertEqual(calls[0][2], self.work.resolve() / "llm-tmp")
 
     def remote_head(self):
         return git(self.src, "rev-parse", "refs/heads/task")
