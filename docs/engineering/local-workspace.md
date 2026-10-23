@@ -54,11 +54,10 @@ python3 scripts/local_workspace.py install-agent --registry /reviewed/registry.j
 Sync copies the runtime into the external directory, records its SHA-256, and
 creates per-checkout policies and hook dispatchers there. Concurrent sync uses
 a non-blocking shared lock and reports a retry when another sync is active. Repeated sync leaves
-identical files unchanged. For automatic runtime upgrades, configure `runtime_source` with `checkout`,
-`origin`, `branch` and repository-relative `path`. Only the committed runtime
+identical files unchanged. The registry must configure `runtime_source` with `checkout`,
+`origin`, `branch` and repository-relative `path`; sync without it fails explicitly. Only the committed runtime
 blob on that exact reviewed branch is eligible; uncommitted runtime changes
 block updates. Installed automation consumes and executes the verified update.
-Without `runtime_source`, update by running sync from a reviewed release.
 Generated external files are atomically updated by cooperating group members;
 application source remains owner-only. Shared generated directories require
 group read/write/traversal and setgid. Optional per-project `checkout_names`

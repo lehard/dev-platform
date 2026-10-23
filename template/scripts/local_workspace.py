@@ -88,7 +88,8 @@ def shared_directory(path: Path) -> None:
 def reviewed_runtime(registry: dict) -> bytes:
     source = registry.get('runtime_source')
     if source is None:
-        return Path(__file__).read_bytes()
+        raise PolicyError('registry has no runtime_source; sync deploys only the committed runtime of a reviewed '
+                          'integration checkout: add runtime_source with checkout, origin, branch and path')
     root = absolute(source['checkout'])
     if git(root, 'rev-parse', '--show-toplevel') != str(root):
         raise PolicyError('runtime source must be an integration checkout')

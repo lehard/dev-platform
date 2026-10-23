@@ -39,6 +39,7 @@ class LocalWorkspaceTests(unittest.TestCase):
         self.runtime = self.base / 'runtime'
         self.registry = self.base / 'registry.json'
         self.data = {'version': 1, 'runtime_dir': str(self.runtime), 'workspace_roots': [str(self.workspace)],
+                     'runtime_source': self.reviewed_source(self.base / 'reviewed-platform'),
                      'projects': [{'origin': 'https://example.invalid/approved.git',
                                    'group': os.getegid(), 'source_roots': ['src']}]}
         self.registry.write_text(json.dumps(self.data))
@@ -52,6 +53,18 @@ class LocalWorkspaceTests(unittest.TestCase):
             patch = mock.patch.object(local, 'expected_bits', side_effect=lambda info: self.bits(info) & ~stat.S_ISGID)
             patch.start()
             self.addCleanup(patch.stop)
+
+    @staticmethod
+    def reviewed_source(source):
+        source.mkdir()
+        for args in (('init', '-q'), ('config', 'user.email', 'test@example.invalid'), ('config', 'user.name', 'Test'),
+                     ('remote', 'add', 'origin', 'https://example.invalid/platform.git')):
+            subprocess.run(['git', '-C', str(source), *args], check=True)
+        (source / 'runtime.py').write_bytes((SCRIPTS / 'local_workspace.py').read_bytes())
+        subprocess.run(['git', '-C', str(source), 'add', '.'], check=True)
+        subprocess.run(['git', '-C', str(source), 'commit', '-qm', 'reviewed runtime'], check=True)
+        branch = subprocess.run(['git', '-C', str(source), 'symbolic-ref', '--short', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
+        return {'checkout': str(source), 'origin': 'https://example.invalid/platform.git', 'branch': branch, 'path': 'runtime.py'}
 
     def git(self, *args):
         return subprocess.run(['git', '-C', str(self.root), *args], capture_output=True, text=True, check=True).stdout.strip()
@@ -365,20 +378,17 @@ class LocalWorkspaceTests(unittest.TestCase):
         self.assertNotIn('hooksPath', (other / '.git/config').read_text())
         self.assertNotIn('localWorkspacePolicy', (other / '.git/config').read_text())
 
-    def test_installed_runtime_updates_from_clean_reviewed_source(self):
-        source = self.workspace / 'platform'
-        source.mkdir()
-        subprocess.run(['git', '-C', str(source), 'init', '-q'], check=True)
-        subprocess.run(['git', '-C', str(source), 'config', 'user.email', 'test@example.invalid'], check=True)
-        subprocess.run(['git', '-C', str(source), 'config', 'user.name', 'Test'], check=True)
-        subprocess.run(['git', '-C', str(source), 'remote', 'add', 'origin', 'https://example.invalid/platform.git'], check=True)
-        runtime = source / 'runtime.py'
-        runtime.write_bytes((SCRIPTS / 'local_workspace.py').read_bytes())
-        subprocess.run(['git', '-C', str(source), 'add', '.'], check=True)
-        subprocess.run(['git', '-C', str(source), 'commit', '-qm', 'reviewed runtime'], check=True)
-        branch = subprocess.run(['git', '-C', str(source), 'symbolic-ref', '--short', 'HEAD'], check=True, capture_output=True, text=True).stdout.strip()
-        self.data['runtime_source'] = {'checkout': str(source), 'origin': 'https://example.invalid/platform.git', 'branch': branch, 'path': 'runtime.py'}
+    def test_sync_without_runtime_source_fails_instead_of_deploying_executing_file(self):
+        del self.data['runtime_source']
         self.registry.write_text(json.dumps(self.data))
+        with self.assertRaisesRegex(local.PolicyError, 'no runtime_source'):
+            local.sync(self.registry)
+        self.assertFalse((self.runtime / 'local_workspace.py').exists())
+        self.assertIsNone(local.policy_for(self.root))
+
+    def test_installed_runtime_updates_from_clean_reviewed_source(self):
+        source = Path(self.data['runtime_source']['checkout'])
+        runtime = source / 'runtime.py'
         self.attach()
         runtime.write_bytes(runtime.read_bytes() + b'\n# reviewed next version\n')
         with self.assertRaisesRegex(local.PolicyError, 'uncommitted'):
