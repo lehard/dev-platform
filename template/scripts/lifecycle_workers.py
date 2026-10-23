@@ -55,6 +55,9 @@ INSTALLED_FILES = (".dev-platform.toml", disposable_repository_sandbox.MARKER)
 WRITER_OUTPUT_TAIL = 4000
 # Bound of an outcome text a job posts (rejection reasons can quote writer-chosen paths).
 POSTED_OUTCOME_LIMIT = 300
+# A claim released by a failed run is counted per job; this many releases stop offering the job.
+MAX_RELEASES = 3
+RELEASED = "released"
 
 
 class WorkerError(RuntimeError):
@@ -251,13 +254,39 @@ def _claims(job: dict, comments: list[dict], trusted_apps, trusted_writers) -> l
     return found
 
 
+def _releases(job: dict, comments: list[dict], trusted_apps, trusted_writers) -> list[tuple[dict, dict]]:
+    """Trusted ``released`` results of this exact job, in comment order."""
+    found = []
+    for row in sorted(comments, key=lambda item: item.get("id", 0)):
+        body = row.get("body")
+        if not isinstance(body, str) or not body.startswith(RESULT_PREFIX):
+            continue
+        if not trusted_marker_comment(row, trusted_apps, trusted_writers):
+            continue
+        try:
+            record = json.loads(body[len(RESULT_PREFIX):])
+        except ValueError:
+            continue
+        if (isinstance(record, dict) and record.get("job") == job_id(job) and record.get("head") == job["head"]
+                and str(record.get("outcome", "")).startswith(RELEASED)):
+            found.append((row, record))
+    return found
+
+
+def release_count(job: dict, comments: list[dict], *, trusted_apps=frozenset(), trusted_writers=frozenset()) -> int:
+    return len(_releases(job, comments, trusted_apps, trusted_writers))
+
+
 def winning_claim(job: dict, comments: list[dict], *, now: datetime | None = None,
                   trusted_apps: frozenset[str] = frozenset(),
                   trusted_writers: frozenset[str] = frozenset()) -> dict | None:
-    """Earliest valid, unexpired, trusted claim for this job and exact head."""
+    """Earliest valid, unexpired, trusted claim for this job and exact head that its worker has not released."""
     current = _now(now)
+    releases = _releases(job, comments, trusted_apps, trusted_writers)
     for row, record in _claims(job, comments, trusted_apps, trusted_writers):
-        if _parse_time(record["expires_at"]) > current:
+        released = any(rel_row.get("id", 0) > row.get("id", 0) and rel.get("worker") == record["worker"]
+                       for rel_row, rel in releases)
+        if not released and _parse_time(record["expires_at"]) > current:
             return {**record, "comment_id": row.get("id")}
     return None
 
@@ -287,14 +316,34 @@ def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), 
             continue
         if (isinstance(record, dict) and record.get("job") == job_id(job) and record.get("head") == job["head"]
                 and record.get("outcome") != "validated-push"
-                and not str(record.get("outcome", "")).startswith(("discarded", "unavailable"))):
+                and not str(record.get("outcome", "")).startswith(("discarded", "unavailable", RELEASED))):
             return True
     return False
 
 
 def is_claimable(job: dict, comments: list[dict], **kwargs) -> bool:
+    """Unclaimed, not completed, and released fewer than ``MAX_RELEASES`` times."""
     trust = {key: kwargs[key] for key in ("trusted_apps", "trusted_writers") if key in kwargs}
-    return winning_claim(job, comments, **kwargs) is None and not job_completed(job, comments, **trust)
+    return (winning_claim(job, comments, **kwargs) is None and not job_completed(job, comments, **trust)
+            and release_count(job, comments, **trust) < MAX_RELEASES)
+
+
+def release_claim(job: dict, worker: str, exc: BaseException, *, comments_for: Callable[[int], list[dict]],
+                  post_comment: Callable[[int, str], None], trusted_apps=frozenset(), trusted_writers=frozenset(),
+                  now: datetime | None = None) -> int | None:
+    """Release this worker's claim after its run failed; the job's release count, or ``None`` if not ours.
+
+    The posted ``released`` result names the cause, ends the claim at once instead of at its expiry,
+    and completes nothing: the job stays claimable until it has been released ``MAX_RELEASES`` times.
+    """
+    comments = comments_for(job["number"])
+    writers = frozenset(trusted_writers(comments)) if callable(trusted_writers) else frozenset(trusted_writers)
+    trust = dict(trusted_apps=trusted_apps, trusted_writers=writers)
+    if not i_won(job, worker, comments, now=now, **trust):
+        return None
+    cause = f"{RELEASED}: {type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]
+    post_comment(job["number"], result_body(job, worker, cause))
+    return release_count(job, comments, **trust) + 1
 
 
 def i_won(job: dict, worker: str, comments: list[dict], **kwargs) -> bool:
@@ -678,11 +727,14 @@ def push_validated(repo: Path, branch: str, expected_head: str, result_head: str
 def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict[int, list[dict]], *,
                now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset(),
                only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None,
-               executor_provider: str | None = None, unauthorized: list[dict] | None = None) -> dict | None:
+               executor_provider: str | None = None, unauthorized: list[dict] | None = None,
+               invalid: list[dict] | None = None) -> dict | None:
     """The first claimable job of the requested kinds.
 
     A repair job is validated (one supported provider) and offered only to a worker serving that
     provider; other workers see it listed in ``unauthorized`` and it stays claimable for a match.
+    With ``invalid`` a job whose provider record is invalid is listed there with its cause and skipped,
+    so it never stops the selection of other PRs; without it the error is raised.
     """
     for candidate in sorted(candidates, key=lambda item: item.get("number", 0)):
         if only_prs is not None and candidate.get("number") not in only_prs:
@@ -694,10 +746,16 @@ def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict
             if job["kind"] in WRITE_KINDS:
                 if executor_provider is None:
                     raise WorkerError("--provider is required for repair kinds")
-                providers = job_providers(job)
-                authorized_repair_providers(candidate.get("route"), providers, job.get("reoffer"),
-                                            f"PR #{job['number']} {job['kind']} job",
-                                            switched=(candidate.get("provider_switch") or {}).get("repair"))
+                try:
+                    providers = job_providers(job)
+                    authorized_repair_providers(candidate.get("route"), providers, job.get("reoffer"),
+                                                f"PR #{job['number']} {job['kind']} job",
+                                                switched=(candidate.get("provider_switch") or {}).get("repair"))
+                except WorkerError as exc:
+                    if invalid is None:
+                        raise
+                    invalid.append({"number": job["number"], "kind": job["kind"], "error": str(exc)[:POSTED_OUTCOME_LIMIT]})
+                    continue
                 if providers[0] != executor_provider:
                     if unauthorized is not None:
                         unauthorized.append({"number": job["number"], "kind": job["kind"], "required_provider": providers[0]})
@@ -712,7 +770,11 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               current_head: Callable[[int], str] | None = None, provider: str | None = None,
               trusted_apps=frozenset(), trusted_writers=frozenset(),
               only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None) -> dict:
-    """Select, claim, re-read and confirm one job; abandon if another worker won."""
+    """Select, claim, re-read and confirm one job; abandon if another worker won.
+
+    A PR whose record, comments or provider record cannot be read is skipped and listed under
+    ``skipped`` so it never stops the other PRs; when nothing else is claimable the run fails naming them.
+    """
     unknown = kinds - JOB_KINDS
     if unknown:
         raise WorkerError(f"unknown job kinds: {sorted(unknown)}")
@@ -723,31 +785,43 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
         return frozenset(trusted_writers(comments)) if callable(trusted_writers) else frozenset(trusted_writers)
 
     candidates, claims, all_writers = [], {}, set()
+    skipped: list[dict] = []
     for pr in list_prs():
         if only_prs is not None and pr["number"] not in only_prs:
             continue
-        comments = comments_for(pr["number"])
+        try:
+            comments = comments_for(pr["number"])
+            proven = writers(comments)
+            candidate = derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven)
+        except Exception as exc:  # one PR's unreadable record or comments never stops the other PRs
+            skipped.append({"number": pr["number"], "error": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]})
+            continue
         claims[pr["number"]] = comments
-        proven = writers(comments)
         all_writers |= proven
-        candidates.append(derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven))
+        candidates.append(candidate)
     trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
     unauthorized: list[dict] = []
+    skipped_jobs: list[dict] = []
     job = select_job(candidates, kinds, claims, only_prs=only_prs, eligible=eligible,
-                     executor_provider=provider, unauthorized=unauthorized, **trust)
+                     executor_provider=provider, unauthorized=unauthorized, invalid=skipped_jobs, **trust)
+    skipped += skipped_jobs
+    report = {**({"unauthorized": unauthorized} if unauthorized else {}), **({"skipped": skipped} if skipped else {})}
     if job is None:
-        return {"status": "idle", "job": None, **({"unauthorized": unauthorized} if unauthorized else {})}
+        if skipped:
+            # Nothing else was claimable: the anomalies themselves are the explicit failure of this run.
+            raise WorkerError("no job claimed; skipped " + "; ".join(f"PR #{item['number']}: {item['error']}" for item in skipped))
+        return {"status": "idle", "job": None, **report}
     if dry_run:
-        return {"status": "dry-run", "job": job}
+        return {"status": "dry-run", "job": job, **report}
     expires = datetime.fromtimestamp(current.timestamp() + ttl_seconds, timezone.utc).isoformat().replace("+00:00", "Z")
     post_comment(job["number"], claim_body(job, worker, expires, provider if job["kind"] in WRITE_KINDS else None))
     reread = comments_for(job["number"])
     trust["trusted_writers"] = frozenset(all_writers) | writers(reread)
     if not i_won(job, worker, reread, **trust):
-        return {"status": "lost", "job": job}
+        return {"status": "lost", "job": job, **report}
     if current_head is not None and current_head(job["number"]) != job["head"]:
-        return {"status": "stale", "job": job}  # head moved after the claim: abandon, re-evaluated next run
-    return {"status": "claimed", "job": job, "expires_at": expires}
+        return {"status": "stale", "job": job, **report}  # head moved after the claim: abandon, re-evaluated next run
+    return {"status": "claimed", "job": job, "expires_at": expires, **report}
 
 
 def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = None, *, task_identity=None,
@@ -1190,93 +1264,106 @@ def main(argv: list[str] | None = None) -> int:
                            **_coordinator_trust(Path.cwd(), repo))
         if args.run and result["status"] == "claimed":
             job = result["job"]
-            with tempfile.TemporaryDirectory(prefix="lifecycle-worker-") as workdir:
-                if job["kind"] in {"review", "repair"} and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
-                    from pr_review_gate import run_claimed
+            try:
+                with tempfile.TemporaryDirectory(prefix="lifecycle-worker-") as workdir:
+                    if job["kind"] in {"review", "repair"} and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
+                        from pr_review_gate import run_claimed
+                        import publication_queue
+
+                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        outcome = run_claimed(
+                            Path.cwd(), repo, candidate, job, review_ready=review_ready,
+                            repair_runtime_check=(lambda: provider_readiness(
+                                Path.cwd(), [args.repair_provider], workdir=workdir, home_files=args.llm_home_file)[args.repair_provider])
+                            if args.repair_provider else None,
+                            source_repo=args.source or f"https://github.com/{repo}.git",
+                            branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                            allowed_paths=args.allow, llm_command=args.llm_command,
+                            current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                            post_result=lambda body: post_comment(job["number"], body),
+                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
+                    elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
+                        from post_review_finalization import run_claimed_finalize
+                        import publication_queue
+
+                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        outcome = run_claimed_finalize(
+                            Path.cwd(), repo, candidate, job,
+                            source_repo=args.source or f"https://github.com/{repo}.git",
+                            branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                            current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                            post_result=lambda body: post_comment(job["number"], body),
+                            workdir=workdir, worker=args.worker)
+                    elif job["kind"] == "contribution-integration":
+                        from requirement_contributions import merge_reviewed_contribution
+                        import publication_queue
+
+                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        def contribution_claim_current():
+                            comments = comments_for(job["number"])
+                            return i_won(job, args.worker, comments,
+                                         trusted_apps=publication_queue.trusted_apps(Path.cwd()),
+                                         trusted_writers=publication_queue.trusted_writers(
+                                             Path.cwd(), comments, (CLAIM_PREFIX,), repo=repo))
+
+                        outcome = merge_reviewed_contribution(Path.cwd(), repo, candidate,
+                                                              source_repo=args.source, expected_target_head=job["target_head"],
+                                                              claim_current=contribution_claim_current)
+                        post_comment(job["number"], result_body(job, args.worker, outcome["state"]))
+                    elif job["kind"] == "integration-repair":
+                        from integration_contour import run_claimed_integration_repair
+                        import publication_queue
+
+                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        outcome = run_claimed_integration_repair(
+                            Path.cwd(), repo, candidate, job,
+                            source_repo=args.source or f"https://github.com/{repo}.git",
+                            branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                            allowed_paths=args.allow, llm_command=args.llm_command,
+                            current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                            post_result=lambda body: post_comment(job["number"], body),
+                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
+                    elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
+                          and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
+                        from requirement_composition import run_claimed_retrospective
+                        import publication_queue
+
+                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        outcome = run_claimed_retrospective(
+                            Path.cwd(), repo, candidate, job, source_repo=args.source or f"https://github.com/{repo}.git",
+                            post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
+                    elif job["kind"] in POST_MERGE_KINDS:
+                        from integration_contour import run_claimed_post_merge
+                        import publication_queue
+
+                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        outcome = run_claimed_post_merge(
+                            Path.cwd(), repo, candidate, job, branch=args.branch or pr_info(job["number"])["head"]["ref"],
+                            post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
+                        try:
+                            publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
+                        except publication_queue.AttentionError as exc:
+                            raise WorkerError(str(exc)) from exc
+                    else:
+                        outcome = execute_job(
+                            job, source_repo=args.source or f"https://github.com/{repo}.git",
+                            branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
+                            llm_command=args.llm_command, worker=args.worker, provider=args.provider, workdir=workdir,
+                            home_files=args.llm_home_file,
+                            current_head=lambda: pr_info(job["number"])["head"]["sha"],
+                            post_result=lambda body: post_comment(job["number"], body))
+            except Exception as exc:
+                # A failed run releases its claim at once (counted per job) instead of holding it until expiry.
+                trust = _coordinator_trust(Path.cwd(), repo)
+                releases = release_claim(job, args.worker, exc, comments_for=comments_for, post_comment=post_comment, **trust)
+                if releases is not None and releases >= MAX_RELEASES and job["kind"] not in POST_MERGE_KINDS:
                     import publication_queue
 
-                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                    outcome = run_claimed(
-                        Path.cwd(), repo, candidate, job, review_ready=review_ready,
-                        repair_runtime_check=(lambda: provider_readiness(
-                            Path.cwd(), [args.repair_provider], workdir=workdir, home_files=args.llm_home_file)[args.repair_provider])
-                        if args.repair_provider else None,
-                        source_repo=args.source or f"https://github.com/{repo}.git",
-                        branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                        allowed_paths=args.allow, llm_command=args.llm_command,
-                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                        post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
-                elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
-                    from post_review_finalization import run_claimed_finalize
-                    import publication_queue
-
-                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                    outcome = run_claimed_finalize(
-                        Path.cwd(), repo, candidate, job,
-                        source_repo=args.source or f"https://github.com/{repo}.git",
-                        branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                        post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, worker=args.worker)
-                elif job["kind"] == "contribution-integration":
-                    from requirement_contributions import merge_reviewed_contribution
-                    import publication_queue
-
-                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                    def contribution_claim_current():
-                        comments = comments_for(job["number"])
-                        return i_won(job, args.worker, comments,
-                                     trusted_apps=publication_queue.trusted_apps(Path.cwd()),
-                                     trusted_writers=publication_queue.trusted_writers(
-                                         Path.cwd(), comments, (CLAIM_PREFIX,), repo=repo))
-
-                    outcome = merge_reviewed_contribution(Path.cwd(), repo, candidate,
-                                                          source_repo=args.source, expected_target_head=job["target_head"],
-                                                          claim_current=contribution_claim_current)
-                    post_comment(job["number"], result_body(job, args.worker, outcome["state"]))
-                elif job["kind"] == "integration-repair":
-                    from integration_contour import run_claimed_integration_repair
-                    import publication_queue
-
-                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                    outcome = run_claimed_integration_repair(
-                        Path.cwd(), repo, candidate, job,
-                        source_repo=args.source or f"https://github.com/{repo}.git",
-                        branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                        allowed_paths=args.allow, llm_command=args.llm_command,
-                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                        post_result=lambda body: post_comment(job["number"], body),
-                        workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider)
-                elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
-                      and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
-                    from requirement_composition import run_claimed_retrospective
-                    import publication_queue
-
-                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                    outcome = run_claimed_retrospective(
-                        Path.cwd(), repo, candidate, job, source_repo=args.source or f"https://github.com/{repo}.git",
-                        post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
-                elif job["kind"] in POST_MERGE_KINDS:
-                    from integration_contour import run_claimed_post_merge
-                    import publication_queue
-
-                    candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                    outcome = run_claimed_post_merge(
-                        Path.cwd(), repo, candidate, job, branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                        post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
-                    try:
-                        publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
-                    except publication_queue.AttentionError as exc:
-                        raise WorkerError(str(exc)) from exc
-                else:
-                    outcome = execute_job(
-                        job, source_repo=args.source or f"https://github.com/{repo}.git",
-                        branch=args.branch or pr_info(job["number"])["head"]["ref"], allowed_paths=args.allow,
-                        llm_command=args.llm_command, worker=args.worker, provider=args.provider, workdir=workdir,
-                        home_files=args.llm_home_file,
-                        current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                        post_result=lambda body: post_comment(job["number"], body))
+                    publication_queue._transition(
+                        Path.cwd(), repo, job["number"], "blocked-escalation", job["head"], task_identity=job["task_identity"],
+                        red_gate={"name": job["kind"], "evidence": {"cause": "claim released after failed runs",
+                                                                "releases": releases, "last": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]}})
+                raise
             result = {**result, "execution": outcome}
         if readiness is not None:
             result = {**result, "providers": {"ready": sorted(name for name, limitation in readiness.items() if limitation is None),

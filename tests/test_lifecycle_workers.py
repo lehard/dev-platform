@@ -252,6 +252,125 @@ def repair_comment(providers=("codex",), *, provider=None, reoffer=None):
     return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
 
 
+class ClaimReleaseAndIsolationTests(unittest.TestCase):
+    def store(self, numbers):
+        return {n: [provider_comment(n, ["claude"])] for n in numbers}
+
+    def work(self, store, comments_for=None, kinds=frozenset({"review"}), **options):
+        posted = []
+        def post(number, body):
+            posted.append(number)
+            store[number].append({"id": 100 + len(store[number]), "author_association": "OWNER", "body": body})
+        prs = [{"number": n, "head": {"sha": HEAD}, "state": "open"} for n in store]
+        result = workers.work_next(kinds, list_prs=lambda: prs, comments_for=comments_for or (lambda n: list(store[n])),
+                                   post_comment=post, worker="w", now=NOW, **options)
+        return result, posted
+
+    def release(self, store, number, worker="w"):
+        return workers.release_claim({**JOB, "number": number}, worker, RuntimeError("boom"),
+                                     comments_for=lambda n: list(store[n]),
+                                     post_comment=lambda n, body: store[n].append(
+                                         {"id": 100 + len(store[n]), "author_association": "OWNER", "body": body}),
+                                     now=NOW)
+
+    def test_failed_run_releases_its_claim_and_counts_attempts(self):
+        store = self.store([7])
+        job = {**JOB, "number": 7}
+        for attempt in range(1, workers.MAX_RELEASES + 1):
+            result, _ = self.work(store)
+            self.assertEqual(result["status"], "claimed", attempt)
+            self.assertEqual(self.release(store, 7), attempt)
+            self.assertIsNone(workers.winning_claim(job, store[7], now=NOW))
+            self.assertFalse(workers.job_completed(job, store[7]))
+        # The job stops being offered after MAX_RELEASES failed runs instead of cycling forever.
+        self.assertFalse(workers.is_claimable(job, store[7], now=NOW))
+        self.assertEqual(self.work(store)[0]["status"], "idle")
+        last = json.loads(store[7][-1]["body"][len(workers.RESULT_PREFIX):])
+        self.assertEqual(last["outcome"], "released: RuntimeError: boom")
+
+    def test_release_by_another_worker_leaves_the_claim(self):
+        store = self.store([7])
+        self.work(store)
+        self.assertIsNone(self.release(store, 7, worker="other"))
+        self.assertIsNotNone(workers.winning_claim({**JOB, "number": 7}, store[7], now=NOW))
+
+    def test_released_result_is_not_a_job_outcome(self):
+        store = self.store([7])
+        self.work(store)
+        self.release(store, 7)
+        self.assertEqual(lifecycle.job_outcomes(HEAD, store[7]), {})
+
+    def test_unreadable_pr_is_skipped_and_the_next_is_claimed(self):
+        store = self.store([5, 9])
+        def comments_for(n):
+            if n == 5:
+                raise workers.WorkerError("gh api failed for #5")
+            return list(store[n])
+        result, posted = self.work(store, comments_for=comments_for)
+        self.assertEqual((result["status"], result["job"]["number"], posted), ("claimed", 9, [9]))
+        self.assertEqual(result["skipped"], [{"number": 5, "error": "WorkerError: gh api failed for #5"}])
+        store = self.store([5, 9])
+        store[5].append({"id": 2, "author_association": "OWNER", "body": workers.RESULT_PREFIX + "[]"})
+        with mock.patch.object(workers, "derive_candidate", side_effect=lambda pr, *a, **k: (
+                (_ for _ in ()).throw(lifecycle.MalformedMarkerError("bad receipt")) if pr["number"] == 5
+                else lifecycle.derive_candidate(pr, *a, **k))):
+            result, posted = self.work(store)
+        self.assertEqual((result["job"]["number"], posted, result["skipped"][0]["number"]), (9, [9], 5))
+
+    def test_skipped_anomaly_fails_the_run_only_when_nothing_else_is_claimable(self):
+        store = self.store([5])
+        with self.assertRaisesRegex(workers.WorkerError, "no job claimed; skipped PR #5: WorkerError: down"):
+            self.work(store, comments_for=lambda n: (_ for _ in ()).throw(workers.WorkerError("down")))
+
+    def test_invalid_repair_provider_on_one_pr_does_not_stop_selection(self):
+        bad = workers.job_record("repair", HEAD, "t", 1, providers=["gemini"])
+        record = lifecycle.build_handoff_record(
+            number=5, state="repair-pending", head=HEAD, task_identity="t", gates={}, red_gate=None,
+            not_reverified=[], attempts={}, next_job=bad, at="2026-10-05T08:00:00Z")
+        store = {5: [{"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}],
+                 9: [lifecycle_record_for(9)]}
+        result, posted = self.work(store, kinds=frozenset({"repair"}), provider="codex")
+        self.assertEqual((result["status"], result["job"]["number"], posted), ("claimed", 9, [9]))
+        self.assertEqual(result["skipped"][0]["number"], 5)
+        self.assertIn("PR #5", result["skipped"][0]["error"])
+
+    def test_cli_run_failure_releases_the_claim_and_escalates_after_the_bound(self):
+        store = self.store([7])
+        def gh(*args):
+            if args[1] == "repos/o/r/issues/7/comments" and "-f" in args:
+                store[7].append({"id": 100 + len(store[7]), "author_association": "OWNER", "body": args[-1][len("body="):]})
+                return {}
+            if "issues/7/comments" in args[-1]:
+                return list(store[7])
+            if args[-1] == "repos/o/r/pulls/7":
+                return {"head": {"sha": HEAD, "ref": "agent/x"}}
+            raise AssertionError(args)
+        queue = mock.Mock()
+        argv = ["work-next", "--kinds", "review", "--repo", "o/r", "--run", "--worker", "w"]
+        with mock.patch.object(workers, "_gh_json", side_effect=gh), \
+                mock.patch.object(workers, "candidate_prs", return_value=[{"number": 7, "head": {"sha": HEAD}, "state": "open"}]), \
+                mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(), "trusted_writers": frozenset()}), \
+                mock.patch.object(workers, "execute_job", side_effect=RuntimeError("boom")), \
+                mock.patch.dict(sys.modules, {"publication_queue": queue}):
+            for attempt in range(1, workers.MAX_RELEASES + 1):
+                with self.assertRaisesRegex(RuntimeError, "boom"):
+                    workers.main(argv)
+                self.assertIsNone(workers.winning_claim({**JOB, "number": 7}, store[7]), attempt)
+                self.assertEqual(queue._transition.called, attempt == workers.MAX_RELEASES)
+        call = queue._transition.call_args
+        self.assertEqual(call.args[2:5], (7, "blocked-escalation", HEAD))
+        self.assertEqual(call.kwargs["red_gate"]["evidence"]["releases"], workers.MAX_RELEASES)
+
+
+def lifecycle_record_for(number):
+    job = workers.job_record("repair", HEAD, "t", 1, providers=["codex"])
+    record = lifecycle.build_handoff_record(
+        number=number, state="repair-pending", head=HEAD, task_identity="t", gates={}, red_gate=None,
+        not_reverified=[], attempts={"repair": 1}, next_job=job, at="2026-10-05T08:00:00Z",
+        route={"provider": "codex", "profile": "standard", "change": "c"})
+    return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+
+
 class WorkerIdentityTests(unittest.TestCase):
     def resolve(self, explicit=None, environ=None, **kwargs):
         values = dict(hostname="host-a", pid=10, nonce="aa11")
