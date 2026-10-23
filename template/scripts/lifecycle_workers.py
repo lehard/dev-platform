@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from _platform_common import (REFUSED_HOME_PATHS, ProjectCheckRuntimeError, check_runtime_declaration,
-                              credential_free_env, project_check_env, refused_home_path)
+                              credential_free_env, project_check_env, read_platform_config, refused_home_path)
 from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 
@@ -468,8 +468,23 @@ def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=N
     return readiness
 
 
-def job_eligible(job: dict, *, review_ready=None, repair_ready=None) -> bool:
-    """Whether a worker that proved these providers can run the job; ``None`` means that kind is unfiltered."""
+def needs_private_backlog(job: dict) -> bool:
+    """A composition review of an opaque (private-lineage) Requirement resolves its parent through the Backlog."""
+    from requirement_integration import ISSUE_RE
+
+    identity = job.get("task_identity")
+    return (job["kind"] == "review" and isinstance(identity, dict) and identity.get("kind") == "requirement-composition"
+            and not ISSUE_RE.fullmatch(str(identity.get("requirement", ""))))
+
+
+def job_eligible(job: dict, *, review_ready=None, repair_ready=None, backlog_configured: bool | None = None) -> bool:
+    """Whether a worker that proved these providers can run the job; ``None`` means that kind is unfiltered.
+
+    ``backlog_configured=False`` names a worker without a Development Backlog (a hosted runner): it
+    skips, before any claim, a job it could not finish.
+    """
+    if backlog_configured is False and needs_private_backlog(job):
+        return False
     ready = {"review": review_ready, "repair": repair_ready}.get(job["kind"])
     if ready is None:
         return True
@@ -1164,9 +1179,11 @@ def main(argv: list[str] | None = None) -> int:
                 review_ready = frozenset(name for name in review_names if readiness[name] is None)
             if args.repair_provider:
                 repair_ready = frozenset([args.repair_provider]) if readiness[args.repair_provider] is None else frozenset()
+        backlog_configured = bool(read_platform_config(Path.cwd()).get("development_backlog", {}).get("repository"))
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
                            only_prs=frozenset(args.pr) if args.pr else None,
-                           eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready),
+                           eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
+                                                             backlog_configured=backlog_configured),
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
                            ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                            current_head=lambda n: pr_info(n)["head"]["sha"],

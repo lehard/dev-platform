@@ -78,7 +78,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     'lifecycle_workers.py:install_source_contract:copyfile': 1,
     'lifecycle_workers.py:install_source_contract:open': 1,
     # Trusted harness manifests/evidence and private reviewer scratch inputs.
-    'requirement_composition.py:execute_composition_review:write_text': 4,
+    'requirement_composition.py:_execute_composition_review:write_text': 4,
     'requirement_composition.py:run_child_review:write_text': 2,
     'requirement_contributions.py:write_manifest:write_text': 1,
     '_platform_common.py:locked_json:open': 1,

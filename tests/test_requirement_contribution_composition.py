@@ -891,6 +891,33 @@ class CompositionTests(unittest.TestCase):
             self.assertEqual(git(Path(tmp), "--git-dir", str(remote), "rev-list", "--count", "--all", "--not",
                                  git(Path(tmp), "--git-dir", str(remote), "rev-parse", "requirement/BR-7")), "0")
 
+    def test_contribution_error_is_a_posted_failed_result_not_a_crash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            seed = root / "seed"; seed.mkdir()
+            fixture = self.fixture(seed)
+            head = git(seed, "rev-parse", "HEAD")
+            identity = composition.composition_identity(seed, fixture.manifest)
+            remote = root / "remote.git"
+            git(root, "clone", "--bare", str(seed), str(remote))
+            job = {"kind": "review", "number": 11, "head": head, "attempt": 1, "task_identity": identity}
+            posted = []
+            (root / "work").mkdir()
+            missing = contributions.ContributionError("private Requirement resolution needs configured Backlog")
+            with mock.patch.object(composition, "private_lineage_requirement", return_value=True), \
+                    mock.patch.object(contributions, "private_requirement", side_effect=missing):
+                outcome = workers.execute_job(
+                    job, source_repo=remote.as_uri(), branch="requirement/BR-7", allowed_paths=[], llm_command=[],
+                    current_head=lambda: head, post_result=posted.append, workdir=str(root / "work"), worker="w",
+                    review_handler=lambda checkout: composition.execute_composition_review(
+                        checkout, job, source_repo=remote.as_uri(), branch="requirement/BR-7",
+                        current_head=lambda: head, trusted_root=seed, review_config={}, launcher=mock.Mock()))
+            self.assertEqual(outcome["status"], "failed")
+            self.assertIn("needs configured Backlog", outcome["cause"])
+            self.assertEqual(len(posted), 1)
+            self.assertEqual(json.loads(posted[0].removeprefix(workers.RESULT_PREFIX))["outcome"], "failed")
+            self.assertTrue(workers.job_completed(job, [{"id": 1, "author_association": "OWNER", "body": posted[0]}]))
+
     def test_requirement_outcome_requires_its_section(self):
         self.assertEqual(composition.requirement_outcome("Intro\n## Outcome\nShip it.\n## Context\nx\n"), "Ship it.")
         with self.assertRaisesRegex(workers.WorkerError, "no `## Outcome` section"):
