@@ -515,7 +515,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         self.addCleanup(os.chdir, previous)
         argv = ["select_checks.py", "--base", "origin/main", "--execute", *args]
         with mock.patch.object(sys, "argv", argv), redirect_stdout(output), \
-                mock.patch.object(_platform_common, "coordinator_candidate", return_value=candidate) as predicate:
+                mock.patch.object(_platform_common, "queue_integrated", return_value=candidate) as predicate:
             try:
                 code = select_checks.main()
             except SystemExit as exc:
@@ -531,7 +531,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         code, output = self.select("--evidence", "evidence.json", candidate=True)
 
         self.assertEqual(code, 0, output)
-        self.assertIn("coordinator-candidate behind-mergeable contract", output)
+        self.assertIn("queue-integrated behind-mergeable contract", output)
         self.assertIn(f"origin/main ({main})", output)
         self.assertIn(f"merge base {self.seed}", output)
         self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
@@ -594,15 +594,25 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
         self.assertFalse((self.task / "validation-ran.txt").exists())
 
-    def test_without_evidence_a_candidate_keeps_the_fresh_base_rule(self) -> None:
+    def test_without_evidence_a_queue_integrated_task_passes_behind_a_mergeable_main(self) -> None:
+        """BR-774: a quick task's own run (finish runs select_checks without evidence) needs no reconcile."""
         self.commit(self.task, "task.txt", "task\n")
         self.advance_main("main.txt", "main\n")
 
         code, output = self.select(candidate=True)
 
+        self.assertEqual(code, 0, output)
+        self.assertIn("queue-integrated behind-mergeable contract", output)
+        self.assertFalse((self.task / "evidence.json").exists())
+
+    def test_without_evidence_a_task_the_queue_does_not_integrate_keeps_the_fresh_base_rule(self) -> None:
+        self.commit(self.task, "task.txt", "task\n")
+        self.advance_main("main.txt", "main\n")
+
+        code, output = self.select(candidate=False)
+
         self.assertNotEqual(code, 0, output)
         self.assertIn("diverged relative to freshly observed origin/main", output)
-        self.predicate.assert_not_called()
 
     def test_fresh_head_never_consults_candidacy_and_records_no_contract(self) -> None:
         self.commit(self.task, "task.txt", "task\n")

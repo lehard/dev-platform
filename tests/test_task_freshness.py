@@ -423,22 +423,41 @@ class TaskBaseCurrencyTests(unittest.TestCase):
             with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "git 2.37 cannot run a trial merge"):
                 self.classify()
 
-    def test_handoff_gate_accepts_behind_mergeable_only_for_a_coordinator_candidate(self) -> None:
+    def test_handoff_gate_accepts_behind_mergeable_only_for_a_queue_integrated_task(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         self.advance_main({"main.txt": "main\n"})
 
-        with mock.patch.object(_platform_common, "coordinator_candidate", return_value=True):
+        with mock.patch.object(_platform_common, "queue_integrated", return_value=True):
             currency = _platform_common.require_handoff_task_base(self.task, "origin", "main")
         self.assertEqual(currency.state, "behind-mergeable")
-        with mock.patch.object(_platform_common, "coordinator_candidate", return_value=False):
+        with mock.patch.object(_platform_common, "queue_integrated", return_value=False):
             with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "diverged relative to freshly observed origin/main"):
                 _platform_common.require_handoff_task_base(self.task, "origin", "main")
+
+    def test_queue_integrates_coordinator_candidates_and_quick_tasks_only_with_the_queue_enabled(self) -> None:
+        import managed_task
+        import publication_queue
+
+        cases = [  # (lifecycle mode, queue enabled, provenance, candidate) -> integrated
+            (("coordinator", True, None, False), True),        # quick task
+            (("coordinator", True, object(), True), True),     # coordinator candidate
+            (("coordinator", True, object(), False), False),   # managed task that is not a candidate
+            (("coordinator", False, None, False), False),      # queue disabled on main
+            (("portable", True, None, False), False),          # no coordinator contract
+        ]
+        for (mode, enabled, provenance, candidate), expected in cases:
+            with self.subTest(mode=mode, enabled=enabled, provenance=provenance is not None, candidate=candidate), \
+                    mock.patch.object(_platform_common, "lifecycle_mode", return_value=mode), \
+                    mock.patch.object(publication_queue, "enabled", return_value=enabled), \
+                    mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+                    mock.patch.object(_platform_common, "coordinator_candidate", return_value=candidate):
+                self.assertIs(_platform_common.queue_integrated(self.task), expected)
 
     def test_handoff_gate_names_the_overlap_and_the_reconcile_command(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
         self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
 
-        with mock.patch.object(_platform_common, "coordinator_candidate", return_value=True):
+        with mock.patch.object(_platform_common, "queue_integrated", return_value=True):
             with self.assertRaisesRegex(_platform_common.TaskFreshnessError,
                                         r"a trial merge conflicts in shared.txt; reconcile first \(python3 scripts/finish_task.py --reconcile\)"):
                 _platform_common.require_handoff_task_base(self.task, "origin", "main")
@@ -486,7 +505,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.commit(self.task, "task", {"task.txt": "task\n"})
         main = self.advance_main({"main.txt": "main\n"})
 
-        with mock.patch.object(task_reconciliation, "coordinator_candidate", return_value=True):
+        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
             payload = task_reconciliation.status_payload(self.task)
 
         self.assertEqual(payload["task_freshness"], "behind-mergeable")
@@ -500,7 +519,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
         self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
 
-        with mock.patch.object(task_reconciliation, "coordinator_candidate", return_value=True):
+        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
             payload = task_reconciliation.status_payload(self.task)
 
         self.assertEqual(payload["task_freshness"], "diverged")
@@ -511,7 +530,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.commit(self.task, "task", {"task.txt": "task\n"})
         self.advance_main({"main.txt": "main\n"})
 
-        with mock.patch.object(task_reconciliation, "coordinator_candidate", return_value=False):
+        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=False):
             payload = task_reconciliation.status_payload(self.task)
 
         # Unchanged read-only status: main's commit is absent locally, so it reports "behind".

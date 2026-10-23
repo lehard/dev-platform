@@ -732,19 +732,39 @@ def coordinator_candidate(root: Path) -> bool:
     return managed_candidate(root)
 
 
-def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> TaskBaseCurrency:
-    """Fresh-base gate of developer evidence-producing validation.
+def queue_integrated(root: Path) -> bool:
+    """Whether the publication queue integrates this task: a coordinator candidate, or a quick task.
 
-    A head containing freshly fetched main passes. Otherwise only a coordinator
-    candidate passes, and only when its head is ``behind-mergeable``: the queue
-    merges main and gates on the integrated head. Every other head fails as
-    ``require_fresh_task_base`` does; candidacy is consulted only then.
+    Under the coordinator contract with the queue enabled on authoritative main, the queue merges
+    main into every admitted PR and merges only on green required checks of the integrated head
+    (BR-774), so a quick task (no canonical managed provenance) is integrated exactly like a managed
+    candidate. A managed task that is not a candidate is not. A missing or unsupported contract raises.
+    """
+    if lifecycle_mode(read_platform_config(root)) != "coordinator":
+        return False
+    import publication_queue
+    from managed_task import resolve_canonical_provenance
+
+    if not publication_queue.enabled(root):
+        return False
+    if resolve_canonical_provenance(root) is None:
+        return True
+    return coordinator_candidate(root)
+
+
+def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> TaskBaseCurrency:
+    """Fresh-base gate of validation under the coordinator contract.
+
+    A head containing freshly fetched main passes. Otherwise only a task the queue integrates
+    (``queue_integrated``: a coordinator candidate or a quick task) passes, and only when its head is
+    ``behind-mergeable``: the queue merges main and gates on the integrated head. Every other head
+    fails as ``require_fresh_task_base`` does; integration is consulted only then.
     """
     authoritative = f"{remote}/{main_branch}"
     state, main_sha = observe_task_base_freshness(root, remote, main_branch)
     if state in {"equal", "ahead"}:
         return TaskBaseCurrency(TASK_BASE_FRESH, main_sha, main_sha)
-    if not coordinator_candidate(root):
+    if not queue_integrated(root):
         raise TaskFreshnessError(
             f"task 'HEAD' is {state} relative to freshly observed {authoritative} ({main_sha}); "
             "rebase/reconcile first, then retry"

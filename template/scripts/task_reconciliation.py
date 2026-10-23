@@ -9,7 +9,7 @@ from _platform_common import (
     TASK_BASE_BEHIND_MERGEABLE,
     TaskFreshnessError,
     classify_task_base_currency,
-    coordinator_candidate,
+    queue_integrated,
     current_worktree_root,
     fetch_commit_objects,
     fetch_main,
@@ -78,7 +78,7 @@ def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
     an explicit reconcile still merges main into any head behind it.
     """
     freshness = observe(root, read_only=read_only)
-    if not freshness.reconcile_required or not coordinator_candidate(root):
+    if not freshness.reconcile_required or not queue_integrated(root):
         return freshness
     main_branch = read_platform_config(root).get("main_branch")
     if not isinstance(main_branch, str) or not main_branch:
