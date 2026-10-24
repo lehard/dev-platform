@@ -876,6 +876,29 @@ class PostMergeJobTests(FrictionFixture):
         outcome, _ = self.run_job("terminal-reconciliation", FakeOps(lineage={"requirement": None, "child": None}))
         self.assertEqual(outcome["status"], "blocked")
 
+    def test_a_quick_task_without_lineage_completes_and_the_queue_reaches_the_next_job(self):
+        ops = FakeOps()
+        ops._lineage = None  # a quick-task branch carries no BR identity
+        outcome, posted = self.run_job("terminal-reconciliation", ops)
+        self.assertEqual((outcome["status"], outcome["outcome"]), ("done", "no-source-issue: quick task"))
+        self.assertEqual(ops.calls, [])
+        rows = [record("merged", attempts={"post-merge": 1}), receipt("retrospective", 0, "task-recorded", 2),
+                receipt("terminal-reconciliation", 0, outcome["outcome"], 3)]
+        self.assertEqual(lifecycle.derive_candidate(merged_pr(), rows)["next_job"]["kind"], "cleanup")
+
+    def test_a_managed_candidate_that_lost_its_lineage_stays_blocked(self):
+        ops = FakeOps()
+        ops._lineage = None
+        merged = lifecycle.derive_candidate(merged_pr(), [record(
+            "merged", attempts={"post-merge": 1}, identity={"change": "managed-change", "task_content": {"digest": "d"}})])
+        job = {"number": 7, "kind": "terminal-reconciliation", "head": HEAD, "task_identity": merged["task_identity"], "attempt": 0}
+        with mock.patch.object(workers, "build_job", return_value=job):
+            outcome = contour.run_claimed_post_merge(ROOT, "o/r", merged, job, branch="agent/managed-change",
+                                                     post_result=lambda body: None, ops=ops,
+                                                     claim_current=lambda: True, worker="w")
+        self.assertEqual(outcome["status"], "blocked")
+        self.assertIn("cannot resolve the task's source Issue", outcome["outcome"])
+
     def test_operator_errors_are_failed_receipts_that_get_retried(self):
         ops = FakeOps()
         ops.reconcile_child = mock.Mock(side_effect=RuntimeError("no GitHub authentication"))
