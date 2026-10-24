@@ -16,6 +16,7 @@ import it at module level; callers import it lazily inside source-only branches.
 """
 from __future__ import annotations
 
+import functools
 import json
 from datetime import datetime
 import os
@@ -521,8 +522,19 @@ def run_retrospective(ops: LifecycleOps, root: Path, number: int, branch: str, h
     return "task-recorded; requirement retrospective awaits remaining children"
 
 
-def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: str) -> str:
+def quick_task(task_identity) -> bool:
+    """Whether a queue task identity is a quick task's: branch and head only, no managed change.
+
+    Admission never degrades a managed candidate to this identity and transitions inherit it,
+    so a missing change is a quick task, never a managed candidate that lost its lineage.
+    """
+    return isinstance(task_identity, dict) and "change" not in task_identity and "kind" not in task_identity
+
+
+def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: str, *, task_identity) -> str:
     lineage = ops.lineage(root, branch)
+    if lineage is None and quick_task(task_identity):
+        return "no-source-issue: quick task"
     if not lineage or not lineage.get("child"):
         raise JobBlocked("cannot resolve the task's source Issue; reconcile its Project state manually")
     child = lineage["child"]
@@ -567,7 +579,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
     if candidate.get("state") != "merged" or workers.build_job(candidate) != job:
         return {"status": "discarded"}
     ops = ops or LifecycleOps()
-    run = {"retrospective": run_retrospective, "terminal-reconciliation": run_terminal, "cleanup": run_cleanup}[kind]
+    run = {"retrospective": run_retrospective, "cleanup": run_cleanup,
+           "terminal-reconciliation": functools.partial(run_terminal, task_identity=job["task_identity"])}[kind]
     try:
         if isinstance(job.get("task_identity"), dict) and job["task_identity"].get("kind") == "requirement-composition":
             import tempfile
