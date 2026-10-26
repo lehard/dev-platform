@@ -166,6 +166,52 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
         self._active_change("- [x] 1.1 done\n")
         select_checks.require_active_change_ready(self.task, "managed-checkout", True)
 
+    def test_reusable_evidence_refuses_a_repeated_run_before_any_command(self) -> None:
+        self._active_change("- [x] 1.1 done\n")
+        (self.task / "openspec/changes/managed-checkout/automated-checks.json").write_text("{}\n", encoding="utf-8")
+        reused = {"decision": "reused", "reason": "evidence covers the current required selection for unchanged task content",
+                  "evidence": "openspec/changes/managed-checkout/automated-checks.json"}
+        with mock.patch.object(managed_task.ManagedCheckoutIdentity, "evidence_payload", return_value={"task_content": {}}), \
+                mock.patch.object(managed_task, "require_task_content"), \
+                mock.patch.object(openspec_lifecycle, "automated_evidence_reuse", return_value=reused) as decide:
+            message = self._run_select_checks("--evidence", "openspec/changes/managed-checkout/automated-checks.json")
+        self.assertIn("Repeated selected-check run refused before any command started", message)
+        self.assertIn("openspec/changes/managed-checkout/automated-checks.json already proves this task content", message)
+        self.assertIn("archive and finish reuse it", message)
+        self.assertEqual(decide.call_args.kwargs["base_ref"], "origin/main")
+
+    def test_not_reusable_evidence_is_printed_and_the_run_proceeds(self) -> None:
+        change = self._active_change("- [x] 1.1 done\n")
+        (change / "automated-checks.json").write_text("{}\n", encoding="utf-8")
+        stale = {"decision": "not-reusable", "reason": "evidence outcome is not success", "evidence": "x"}
+        with mock.patch.object(openspec_lifecycle, "automated_evidence_reuse", return_value=stale), \
+                mock.patch("sys.stdout") as stdout:
+            select_checks.refuse_repeated_run(self.task, "managed-checkout", False)
+        output = "".join(str(call.args[0]) for call in stdout.write.call_args_list)
+        self.assertIn('DEV_PLATFORM_CHECK_REUSE: {"decision": "not-reusable"', output)
+
+    def test_absent_managed_evidence_has_nothing_to_repeat(self) -> None:
+        self._active_change("- [x] 1.1 done\n")
+        with mock.patch.object(openspec_lifecycle, "automated_evidence_reuse", side_effect=AssertionError("decided")):
+            select_checks.refuse_repeated_run(self.task, "managed-checkout", False)
+
+    def test_reusable_quick_evidence_refuses_a_repeated_run(self) -> None:
+        reused = {"decision": "reused", "reason": "unchanged", "evidence": "/git/dev-platform-task-evidence.json"}
+        with mock.patch.object(openspec_lifecycle, "quick_evidence_reuse", return_value=reused) as decide, \
+                mock.patch.object(select_checks, "read_platform_config", return_value={"main_branch": "main"}):
+            with self.assertRaisesRegex(SystemExit, "Repeated selected-check run refused.*task-evidence.json already proves"):
+                select_checks.refuse_repeated_run(self.task, None, True)
+        decide.assert_called_once_with(self.task, base_ref="origin/main")
+
+    def test_private_reference_guard_stops_before_any_command(self) -> None:
+        self._active_change("- [x] 1.1 done\n")
+        import private_lineage
+
+        with mock.patch.object(private_lineage, "require_clean_candidate",
+                               side_effect=private_lineage.PrivateLineageError("private-reference guard blocked the candidate: x")):
+            message = self._run_select_checks("--evidence", "openspec/changes/managed-checkout/automated-checks.json")
+        self.assertIn("Private-reference guard blocked validation before any expensive command started", message)
+
     def test_detached_task_checkout_is_rejected(self) -> None:
         git(self.task, "checkout", "--detach", "-q")
         with self.assertRaisesRegex(managed_task.ManagedTaskError, "detached"):

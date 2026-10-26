@@ -1,0 +1,119 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.15,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.15,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.137,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 993.827,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/select_checks.py",
+        "tests/test_affected_precheck.py",
+        "tests/test_managed_checkout_identity.py",
+        "tests/test_openspec_lifecycle.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_2eb89ca7f0c8e4bf0017cc6c751bf9a5",
+    "change": "managed-checks-evidence-once",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/managed-checks-evidence-once",
+    "branch": "agent/br-773-t2-managed-checks-evidence-once",
+    "head": "a16b2280f698b1374f648bc88a031dfc5c390bab",
+    "task_content": {
+      "version": 1,
+      "digest": "d91920fc42982fda17de90234907901865452e2912a5c1eccc23aabb088e1622",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "88d04b8d0678e3430d9b88153ce435aa79dae3a8",
+        "openspec/changes/managed-checks-evidence-once/.managed-task.json": "023ee4eb9cc7dcb2640c26ff7c039040cb82123a",
+        "openspec/changes/managed-checks-evidence-once/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+        "openspec/changes/managed-checks-evidence-once/design.md": "7bcc8c6e5f33087416c949e907e48f9262a7c0af",
+        "openspec/changes/managed-checks-evidence-once/proposal.md": "f3a84622a6e1b650036670c900dee03c30a44655",
+        "openspec/changes/managed-checks-evidence-once/specs/completion-lifecycle/spec.md": "34e4ccbf57394bb6d4f98ff8307b1e12fbf3d760",
+        "openspec/changes/managed-checks-evidence-once/specs/platform-lifecycle/spec.md": "b1e2e97f658aa72314457b995330f3f539158088",
+        "openspec/changes/managed-checks-evidence-once/tasks.md": "c9785f4f6526cafceb9b2bfb36567d59a9f93cd4",
+        "template/dev-platform/platform-manifest.json": "8bec590766c83f133d1b095242d733c7035c587c",
+        "template/scripts/openspec_lifecycle.py": "f67229e062eb1640c75e220adc16d4f341f2faa0",
+        "template/scripts/select_checks.py": "a73e645dfaff2392e7d577442960ceba809af03a",
+        "tests/test_affected_precheck.py": "63378509d21503036d1a29562ea3ed9f3cca65c9",
+        "tests/test_managed_checkout_identity.py": "2ffe7e47b912b075efd82d09029cfaa3e06292e6",
+        "tests/test_openspec_lifecycle.py": "a3902834c37c0cb3af0b1bfcd0c06f1a4b132c8b"
+      },
+      "base": "3b7ca769bc2832992cd900b76481cba16203aa6c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "6d066ff8c9db7d73901b5beeb08415745911bcbca4cbcd78c6edf90a116eef66",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "88d04b8d0678e3430d9b88153ce435aa79dae3a8",
+      "openspec/changes/managed-checks-evidence-once/.managed-task.json": "023ee4eb9cc7dcb2640c26ff7c039040cb82123a",
+      "openspec/changes/managed-checks-evidence-once/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/managed-checks-evidence-once/design.md": "7bcc8c6e5f33087416c949e907e48f9262a7c0af",
+      "openspec/changes/managed-checks-evidence-once/proposal.md": "f3a84622a6e1b650036670c900dee03c30a44655",
+      "openspec/changes/managed-checks-evidence-once/specs/completion-lifecycle/spec.md": "34e4ccbf57394bb6d4f98ff8307b1e12fbf3d760",
+      "openspec/changes/managed-checks-evidence-once/specs/platform-lifecycle/spec.md": "b1e2e97f658aa72314457b995330f3f539158088",
+      "openspec/changes/managed-checks-evidence-once/tasks.md": "c9785f4f6526cafceb9b2bfb36567d59a9f93cd4",
+      "template/scripts/openspec_lifecycle.py": "f67229e062eb1640c75e220adc16d4f341f2faa0",
+      "template/scripts/select_checks.py": "a73e645dfaff2392e7d577442960ceba809af03a",
+      "tests/test_affected_precheck.py": "63378509d21503036d1a29562ea3ed9f3cca65c9",
+      "tests/test_managed_checkout_identity.py": "2ffe7e47b912b075efd82d09029cfaa3e06292e6",
+      "tests/test_openspec_lifecycle.py": "a3902834c37c0cb3af0b1bfcd0c06f1a4b132c8b"
+    },
+    "base": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/select_checks.py --changed-file tests/test_affected_precheck.py --changed-file tests/test_managed_checkout_identity.py --changed-file tests/test_openspec_lifecycle.py",
+    "duration_seconds": 253.334,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

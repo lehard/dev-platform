@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ae7de84a5854b5431886a994cba3c3a48d232be7",
+    "base_ref": "origin/main",
+    "candidate_head": "8c540fa189daa018ce5fb9c1f772445da341bc2a",
+    "diff_sha256": "1b262ad01edf17ec124f96aa64a6abbffa010d66a97394d11c3537a8f171b122"
+  },
+  "completed_at": "2026-10-26T21:51:58+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py, archive_change: `if evidence.is_file():` guards both the `automated_evidence_reuse` call and the `DEV_PLATFORM_CHECK_REUSE` print. The new test `test_archive_runs_checks_when_evidence_is_absent_or_not_reusable` asserts `decide.call_count == 0` for the absent case. The spec scenario 'Archive without reusable evidence' says 'WHEN archive runs with no evidence ... THEN archive prints the reason'.",
+      "id": "archive-absent-evidence-prints-no-reason",
+      "severity": "advisory",
+      "summary": "The spec says archive prints the reason when it runs the checks without reusable evidence. When `automated-checks.json` is absent, archive prints nothing and runs the checks silently."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py, `refuse_repeated_run(root, managed_change, quick)` takes no evidence_path. It builds `change / openspec_lifecycle.AUTOMATED_EVIDENCE_FILE` itself, and main() calls it with only `managed_checkout.change`. The spec requirement text says 'the evidence already recorded at that path'.",
+      "id": "repeat-refusal-ignores-evidence-path-arg",
+      "severity": "advisory",
+      "summary": "The spec refuses when the evidence 'recorded at that path' is reusable. `refuse_repeated_run` ignores the `--evidence` path and always inspects the change's default `automated-checks.json`. A run with a different `--evidence` path is refused or allowed based on another file. Quick runs have no existence guard and rely on `quick_evidence_reuse` to handle absent evidence."
+    }
+  ],
+  "launched_at": "2026-10-26T21:51:44+00:00",
+  "output_sha256": "268e665661c2101a837982caa07a6d088b2672d7191c59c7dcf17c4f0ba397fc",
+  "perspective": "spec-fidelity",
+  "request_id": "b79cbe22-73db-4e25-8275-2e65ee8d6eed",
+  "reviewer": {
+    "context_id": "01e5a9be-33d7-46e0-87a5-cc525c3828b7",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7cc2c6df-62d2-45c4-89ca-e96274eca626",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26011
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15027
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13410
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13504
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1450
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6d066ff8c9db7d73901b5beeb08415745911bcbca4cbcd78c6edf90a116eef66"
+}

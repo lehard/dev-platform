@@ -54,6 +54,49 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 review.assert_called_once_with(root, root / "openspec/changes/work")
                 validate.assert_not_called()
 
+    def _portable_archive_checks(self, decision: dict | None) -> tuple[mock.Mock, mock.Mock, str]:
+        """Drive portable archive to its selected-check step; stop at require_ready."""
+        import io
+        from contextlib import redirect_stdout
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            change = self.make_change(root, "work", "- [x] done\n")
+            if decision is not None:
+                (change / "automated-checks.json").write_text("{}\n", encoding="utf-8")
+            out = io.StringIO()
+            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer", "harness_mode": "platform"}), \
+                    mock.patch.object(lifecycle, "require_static_archive_readiness"), \
+                    mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
+                    mock.patch.object(lifecycle, "require_committed_package"), \
+                    mock.patch.object(lifecycle, "ensure_review_evidence"), \
+                    mock.patch.object(lifecycle, "archive_target_environment", return_value={}), \
+                    mock.patch.object(lifecycle, "automated_evidence_reuse", return_value=decision) as decide, \
+                    mock.patch.object(lifecycle, "run_checked") as validate, \
+                    mock.patch.object(lifecycle, "require_ready", side_effect=SystemExit("stop after checks")), \
+                    redirect_stdout(out):
+                with self.assertRaisesRegex(SystemExit, "stop after checks"):
+                    lifecycle.archive_change(root, "work")
+        return decide, validate, out.getvalue()
+
+    def test_archive_reuses_evidence_that_proves_unchanged_content(self) -> None:
+        decide, validate, output = self._portable_archive_checks(
+            {"decision": "reused", "reason": "evidence covers the current required selection for unchanged task content"})
+        decide.assert_called_once()
+        self.assertEqual(decide.call_args.kwargs["base_ref"], "origin/main")
+        validate.assert_not_called()
+        self.assertIn('DEV_PLATFORM_CHECK_REUSE: {"decision": "reused"', output)
+
+    def test_archive_runs_checks_when_evidence_is_absent_or_not_reusable(self) -> None:
+        for decision in (None, {"decision": "not-reusable", "reason": "evidence outcome is not success"}):
+            with self.subTest(decision=decision):
+                decide, validate, output = self._portable_archive_checks(decision)
+                self.assertEqual(decide.call_count, 0 if decision is None else 1)
+                validate.assert_called_once()
+                self.assertIn("--execute", validate.call_args.args[0])
+                if decision is not None:
+                    self.assertIn("evidence outcome is not success", output)
+
     def test_incomplete_change_is_not_stale(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
