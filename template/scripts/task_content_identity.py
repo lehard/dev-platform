@@ -88,6 +88,36 @@ REVIEW_EXCLUDED_FILES = (
 )
 REVIEW_EXCLUDED_DIRS = ("evidence/", "independent-reviews/")
 REVIEW_SCOPE = "independent-review-v1"
+QUICK_SCOPE = "quick-task-v1"
+QUICK_EVIDENCE_GIT_PATH = "dev-platform/check-evidence.json"
+
+
+def _declared_generated_at_base(root: Path) -> set[str]:
+    """Paths declared generated at the merge base of ``HEAD`` and ``origin/<main_branch>``; any failure raises."""
+    main_branch = read_platform_config(root).get("main_branch")
+    if not isinstance(main_branch, str) or not main_branch:
+        raise TaskFreshnessError("cannot exclude declared generated files: .dev-platform.toml main_branch is required")
+    main_base = run_git(["merge-base", "HEAD", f"origin/{main_branch}"], cwd=root, check=False)
+    if main_base.returncode or not main_base.stdout.strip():
+        raise TaskFreshnessError(
+            f"cannot read the generated-file declaration: no merge base of HEAD and origin/{main_branch}: "
+            + (main_base.stderr or main_base.stdout).strip()
+        )
+    return {item.path for item in generated_files(root, main_base.stdout.strip())}
+
+
+def quick_content_identity(root: Path, base_ref: str = "origin/main") -> dict[str, object] | None:
+    """Content proof of a quick task (no OpenSpec change): its own diff, declared generated files excluded."""
+    generated = _declared_generated_at_base(root)
+    return content_identity(root, [], base_ref, exclude=lambda canonical, raw: canonical in generated, scope=QUICK_SCOPE)
+
+
+def quick_task_evidence_path(root: Path) -> Path:
+    """Machine-local selected-check evidence of the quick task checked out at ``root``: in its own git directory."""
+    result = run_git(["rev-parse", "--path-format=absolute", "--git-path", QUICK_EVIDENCE_GIT_PATH], cwd=root, check=False)
+    if result.returncode or not result.stdout.strip():
+        raise TaskFreshnessError(f"cannot locate the git directory of {root} for quick-task check evidence: {result.stderr.strip()}")
+    return Path(result.stdout.strip())
 
 
 def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> Callable[[str, str], bool]:
@@ -101,16 +131,7 @@ def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> 
     failure to read it raises.
     """
     active = f"openspec/changes/{change}/"
-    main_branch = read_platform_config(root).get("main_branch")
-    if not isinstance(main_branch, str) or not main_branch:
-        raise TaskFreshnessError("cannot exclude declared generated files: .dev-platform.toml main_branch is required")
-    main_base = run_git(["merge-base", "HEAD", f"origin/{main_branch}"], cwd=root, check=False)
-    if main_base.returncode or not main_base.stdout.strip():
-        raise TaskFreshnessError(
-            f"cannot read the generated-file declaration: no merge base of HEAD and origin/{main_branch}: "
-            + (main_base.stderr or main_base.stdout).strip()
-        )
-    generated = {item.path for item in generated_files(root, main_base.stdout.strip())}
+    generated = _declared_generated_at_base(root)
     capabilities: set[str] = set()
     base = run_git(["merge-base", "HEAD", base_ref], cwd=root, check=False)
     if base.returncode == 0 and base.stdout.strip():

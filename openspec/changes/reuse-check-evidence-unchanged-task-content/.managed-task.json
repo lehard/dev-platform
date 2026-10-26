@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "reuse-check-evidence-unchanged-task-content",
+  "imported_at": "2026-10-26T11:09:33+00:00",
+  "package_revision": "e158f8e6a67e88e1fb201e5195485dcd4bcc5f049239a32f52a82dec4dae1b25",
+  "prepared_against": "597e6a54c392b52e415dd8dfc81839a878f27656",
+  "private_lineage_handle": "pln_917200e26a492f770e804af585d5ef18",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "check-evidence-reuse"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "eaa860ef64a61f4048280f59090a414bca1a126161aaadae493db9a4ccea0fae",
+    "updated_at": "2026-10-26T10:55:08Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-785/T1"
+}

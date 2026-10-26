@@ -113,7 +113,8 @@ def emit_finish_stage(label: str) -> None:
     print(f"DEV_PLATFORM_FINISH_STAGE: {label}", flush=True)
 
 
-def run_checks(root: Path, base: str, no_checks: bool) -> None:
+def run_checks(root: Path, base: str, no_checks: bool, *, task_evidence: bool = False) -> None:
+    """Run the required selected checks; ``task_evidence`` records a quick task's reusable evidence."""
     if no_checks:
         return
     # Imported here: only a run that executes checks depends on the machine pool.
@@ -125,7 +126,8 @@ def run_checks(root: Path, base: str, no_checks: bool) -> None:
     # multi-minute run, while still accumulating the full text for the bounded
     # failure evidence descriptor.
     proc = subprocess.Popen(
-        ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"],
+        ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"]
+        + (["--task-evidence"] if task_evidence else []),
         cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL, pass_fds=child_lease_descriptors(),
     )
@@ -860,23 +862,29 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     return result
 
 
-def validate_or_reuse(work: Path, remote_main: str, no_checks: bool, selected_mode: str, checked_delivery: object | None) -> None:
-    """Run the required validation, unless portable archive evidence provably covers this exact tree.
+def validate_or_reuse(
+    work: Path, remote_main: str, no_checks: bool, selected_mode: str, checked_delivery: object | None, *, quick_task: bool
+) -> None:
+    """Run the required validation, unless recorded check evidence proves this task content passed it (BR-785).
 
     ``checked_delivery`` is the managed delivery whose automated evidence already passed
-    ``require_automated_evidence``; every other path (coordinator, non-managed, ``--no-checks``)
-    validates exactly as before.
+    ``require_automated_evidence``; in the portable lifecycle it is reused by the shared rule. A quick
+    task, in either lifecycle, reuses its machine-local evidence by the same rule and otherwise runs the
+    checks recording that evidence. ``--no-checks`` and every other path validate exactly as before.
     """
-    if selected_mode == "portable" and checked_delivery is not None and not no_checks:
+    if not no_checks and (quick_task or (selected_mode == "portable" and checked_delivery is not None)):
         import openspec_lifecycle
 
-        decision = openspec_lifecycle.automated_evidence_reuse(checked_delivery.path, root=work, base_ref=remote_main)
+        if quick_task:
+            decision = openspec_lifecycle.quick_evidence_reuse(work, base_ref=remote_main)
+        else:
+            decision = openspec_lifecycle.automated_evidence_reuse(checked_delivery.path, root=work, base_ref=remote_main)
         print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
         if decision["decision"] == "reused":
-            emit_finish_stage("preflight clear: reusing archive check evidence")
+            emit_finish_stage("preflight clear: reusing recorded check evidence")
             return
     emit_finish_stage("preflight clear: starting required validation")
-    run_checks(work, remote_main, no_checks)
+    run_checks(work, remote_main, no_checks, task_evidence=quick_task)
 
 
 def main() -> int:
@@ -1066,7 +1074,8 @@ def main() -> int:
         report_completion_blockers(blockers)
         raise SystemExit(1)
 
-    validate_or_reuse(work, remote_main, args.no_checks, selected_mode, delivery if delivery is not None and not queue_merged else None)
+    validate_or_reuse(work, remote_main, args.no_checks, selected_mode, delivery if delivery is not None and not queue_merged else None,
+                      quick_task=delivery is None and not queue_merged)
 
     # The source repository has a public distribution boundary and a private
     # Backlog. Check the exact candidate immediately before publication. The

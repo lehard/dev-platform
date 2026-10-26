@@ -347,13 +347,14 @@ def execute(
     managed_checkout: object | None = None,
     precheck: list[str] | None = None,
     base_contract: dict[str, Any] | None = None,
+    quick_gate: dict[str, Any] | None = None,
 ) -> int:
     commands = commands_for(checks)
     if not commands:
         print("No applicable commands selected.")
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), [], "not-applicable", managed_checkout,
-                           base_contract=base_contract)
+                           base_contract=base_contract, quick_gate=quick_gate)
         return 0
 
     from run_test_groups import resolve_jobs
@@ -363,7 +364,7 @@ def execute(
     try:
         with machine_pool.lease(weight=resolve_jobs()[0], purpose="select_checks", bounded=True, root=root) as pool_lease:
             return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds,
-                                     base_contract)
+                                     base_contract, quick_gate)
     except machine_pool.PoolError as exc:
         print(f"Machine pool blocked validation before any command started: {exc}", file=sys.stderr, flush=True)
         return 2
@@ -378,6 +379,7 @@ def _execute_commands(
     precheck: list[str] | None,
     pass_fds: tuple[int, ...],
     base_contract: dict[str, Any] | None,
+    quick_gate: dict[str, Any] | None,
 ) -> int:
     records: list[dict[str, Any]] = []
     outcome = "success"
@@ -392,7 +394,7 @@ def _execute_commands(
     if precheck_record is not None and precheck_record["outcome"] == "failure":
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record,
-                           base_contract=base_contract)
+                           base_contract=base_contract, quick_gate=quick_gate)
         descriptor = failure_descriptor(checks, precheck_record["command"], result)
         descriptor["phase"] = "affected-precheck"
         print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(descriptor, ensure_ascii=False, sort_keys=True), flush=True)
@@ -421,7 +423,7 @@ def _execute_commands(
             outcome = "failure"
             if evidence_path is not None:
                 write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record,
-                           base_contract=base_contract)
+                           base_contract=base_contract, quick_gate=quick_gate)
             print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(failure_descriptor(checks, command, result), ensure_ascii=False, sort_keys=True), flush=True)
             detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
             if detail:
@@ -429,7 +431,7 @@ def _execute_commands(
             return result.returncode
     if evidence_path is not None:
         write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record,
-                           base_contract=base_contract)
+                           base_contract=base_contract, quick_gate=quick_gate)
     return 0
 
 
@@ -443,6 +445,7 @@ def write_evidence(
     precheck: dict[str, Any] | None = None,
     *,
     base_contract: dict[str, Any] | None = None,
+    quick_gate: dict[str, Any] | None = None,
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
@@ -462,6 +465,10 @@ def write_evidence(
         change = payload["managed_checkout"].get("change")
         if isinstance(change, str):
             payload["gate_task_content"] = review_content_identity(managed_checkout.worktree, change)
+    if quick_gate is not None:
+        # A quick task's machine-local evidence (--task-evidence): the validated head and its content proof.
+        payload["head"] = quick_gate["head"]
+        payload["gate_task_content"] = quick_gate["proof"]
     if precheck is not None:
         payload["affected_precheck"] = precheck
     if base_contract is not None:
@@ -548,6 +555,11 @@ def main() -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--evidence", help="Write the selected and actually executed command evidence to this JSON file.")
+    parser.add_argument(
+        "--task-evidence", action="store_true",
+        help="Quick task only: write the evidence with the task's content proof to its worktree git directory, "
+             "where finish reuses it while the task's own diff is unchanged.",
+    )
     parser.add_argument("--mode", choices=("local-affected", "protected-full"), default="local-affected")
     parser.add_argument("--protected-full", action="store_true", help="Alias for --mode protected-full.")
     parser.add_argument("--full", action="store_true", help="Deprecated alias for --mode protected-full.")
@@ -606,6 +618,8 @@ def main() -> int:
             print(f"Validation mode: {args.mode}; selection: not-applicable; no commands selected.")
     print("DEV_PLATFORM_CHECK_SELECTION: " + json.dumps(status, ensure_ascii=False, sort_keys=True), flush=True)
 
+    if args.task_evidence and (not args.execute or args.evidence or args.proven_base or args.contribution_base):
+        raise SystemExit("--task-evidence requires --execute and is refused with --evidence, --proven-base and --contribution-base")
     if args.execute:
         evidence_path = (root / args.evidence).resolve() if args.evidence else None
         # Managed task state makes this a protected evidence-producing path,
@@ -616,6 +630,24 @@ def main() -> int:
             managed_checkout = require_managed_checkout_identity(root)
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
+        quick_gate = None
+        if args.task_evidence:
+            if managed_checkout is not None:
+                raise SystemExit(
+                    "--task-evidence is for a quick task; a managed task records its evidence with "
+                    "--evidence openspec/changes/<change>/automated-checks.json"
+                )
+            from task_content_identity import quick_content_identity, quick_task_evidence_path
+
+            try:
+                evidence_path = quick_task_evidence_path(root)
+                proof = quick_content_identity(root)
+            except TaskFreshnessError as exc:
+                raise SystemExit("Quick-task check evidence blocked before any expensive command started: " + str(exc)) from exc
+            if proof is None:
+                raise SystemExit("Quick-task check evidence blocked before any expensive command started: "
+                                 "HEAD has no merge base with origin/main")
+            quick_gate = {"head": run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip(), "proof": proof}
         if managed_checkout is not None and evidence_path is not None:
             from managed_task import require_task_content
 
@@ -688,7 +720,7 @@ def main() -> int:
                 except HardScopeOverlap as exc:
                     block_for_scope_conflict(root, str(exc))
                     raise SystemExit(str(exc)) from exc
-        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), base_contract)
+        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), base_contract, quick_gate)
     return 0
 
 

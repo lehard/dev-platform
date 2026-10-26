@@ -1,4 +1,4 @@
-"""Portable finish reuses archive check evidence for the exact validated tree.
+"""Finish reuses check evidence for unchanged task content (portable managed path; BR-692, BR-785).
 
 The decision tests and the execution-count tests run the real ``select_checks.py`` (as a subprocess,
 exactly as ``openspec_lifecycle.archive_change`` and ``finish_task.run_checks`` do), the real
@@ -152,14 +152,27 @@ class PortableProject:
         self.validate_for_archive()
         self.archive()
 
-    def advance_main(self, *, merge: bool) -> None:
-        (self.integration / "other.txt").write_text("other\n", encoding="utf-8")
+    def advance_main(self, *, merge: bool, path: str = "other.txt", text: str = "other\n") -> None:
+        (self.integration / path).write_text(text, encoding="utf-8")
         git(self.integration, "add", "-A")
         git(self.integration, "commit", "-qm", "main advances")
         git(self.integration, "push", "-q", "origin", "main")
         git(self.worktree, "fetch", "-q", "origin")
         if merge:
             git(self.worktree, "merge", "-q", "--no-edit", "origin/main")
+
+    def add_quick_task(self) -> Path:
+        """A quick task (no managed provenance) with the same own change as the managed task."""
+        quick = self.worktree.parent / "quick"
+        git(self.integration, "worktree", "add", "-q", "-b", "agent/quick", str(quick), "origin/main")
+        (quick / "feature.txt").write_text("implemented\n", encoding="utf-8")
+        git(quick, "commit", "-qam", "quick implement")
+        result = subprocess.run(
+            ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--task-evidence"],
+            cwd=quick, stdin=subprocess.DEVNULL, text=True, capture_output=True, env=clean_environment(),
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        return quick
 
     def edit_evidence(self, mutate) -> None:
         path = self.archived / "automated-checks.json"
@@ -203,23 +216,30 @@ class ReuseDecisionTests(ProjectTestCase):
         self.assertEqual(decision["evidence"], f"openspec/changes/archive/{ARCHIVE}/automated-checks.json")
         self.assertEqual(project.executions(), 1, "deciding must not execute a check command")
 
-    def test_not_reusable_after_main_advanced_and_was_merged(self) -> None:
+    def test_reused_after_a_clean_merge_of_a_main_that_touched_no_task_path(self) -> None:
         project = self.project()
         project.archived_ready()
         project.advance_main(merge=True)
-        project.require_evidence()  # the existing gate accepts a clean, disjoint main merge ...
-        decision = project.reuse()  # ... but checks test the integrated tree
-        self.assertEqual(decision["decision"], "not-reusable")
-        self.assertRegex(decision["reason"], r"validated base [0-9a-f]{40} differs from current base [0-9a-f]{40}")
+        project.require_evidence()
+        decision = project.reuse()  # BR-785: required CI on the exact PR head tests the integrated tree
+        self.assertEqual(decision["decision"], "reused", decision)
+        self.assertEqual(decision["base"], git(project.worktree, "rev-parse", "origin/main"))
         self.assertEqual(project.executions(), 1)
 
-    def test_not_reusable_when_main_advanced_and_was_not_merged(self) -> None:
+    def test_main_behind_head_leaves_publishability_to_the_freshness_gate(self) -> None:
         project = self.project()
         project.archived_ready()
         project.advance_main(merge=False)
+        decision = project.reuse()  # the task content is unchanged; finish's preflight decides whether it may publish
+        self.assertEqual(decision["decision"], "reused", decision)
+
+    def test_not_reusable_when_main_changed_a_task_path_even_with_a_clean_merge(self) -> None:
+        project = self.project()
+        project.archived_ready()
+        project.advance_main(merge=True, path="feature.txt", text="implemented\n")  # same bytes: the merge is clean
         decision = project.reuse()
         self.assertEqual(decision["decision"], "not-reusable")
-        self.assertEqual(decision["reason"], "HEAD does not contain origin/main")
+        self.assertIn("main changed a task path", decision["reason"])
 
     def test_not_reusable_when_current_selection_needs_a_command_the_archive_did_not_run(self) -> None:
         project = self.project(extra_check=True)
@@ -319,7 +339,7 @@ class FinishWiringTests(unittest.TestCase):
         out = io.StringIO()
         with mock.patch.object(lifecycle, "automated_evidence_reuse", decision), \
                 mock.patch.object(finish_task, "run_checks") as run_checks, contextlib.redirect_stdout(out):
-            finish_task.validate_or_reuse(self.work, "origin/main", no_checks, mode, delivery)
+            finish_task.validate_or_reuse(self.work, "origin/main", no_checks, mode, delivery, quick_task=False)
         return decision, run_checks, out.getvalue()
 
     def test_portable_reused_skips_checks_and_prints_the_decision(self) -> None:
@@ -328,32 +348,32 @@ class FinishWiringTests(unittest.TestCase):
         run_checks.assert_not_called()
         decision.assert_called_once_with(self.delivery.path, root=self.work, base_ref="origin/main")
         self.assertIn(REUSE_PREFIX + json.dumps(reuse, sort_keys=True), out.splitlines())
-        self.assertIn("DEV_PLATFORM_FINISH_STAGE: preflight clear: reusing archive check evidence", out)
+        self.assertIn("DEV_PLATFORM_FINISH_STAGE: preflight clear: reusing recorded check evidence", out)
         self.assertNotIn("starting required validation", out)
 
     def test_portable_not_reusable_runs_the_required_checks(self) -> None:
         reuse = {"decision": "not-reusable", "reason": "validated base a differs from current base b"}
         _, run_checks, out = self.call("portable", reuse=reuse)
-        run_checks.assert_called_once_with(self.work, "origin/main", False)
+        run_checks.assert_called_once_with(self.work, "origin/main", False, task_evidence=False)
         self.assertIn(REUSE_PREFIX + json.dumps(reuse, sort_keys=True), out.splitlines())
         self.assertIn("DEV_PLATFORM_FINISH_STAGE: preflight clear: starting required validation", out)
 
     def test_coordinator_makes_no_reuse_decision(self) -> None:
         decision, run_checks, out = self.call("coordinator", reuse={"decision": "reused"})
         decision.assert_not_called()
-        run_checks.assert_called_once_with(self.work, "origin/main", False)
+        run_checks.assert_called_once_with(self.work, "origin/main", False, task_evidence=False)
         self.assertNotIn(REUSE_PREFIX, out)
         self.assertIn("starting required validation", out)
 
-    def test_non_managed_delivery_makes_no_reuse_decision(self) -> None:
+    def test_queue_merged_delivery_makes_no_reuse_decision(self) -> None:
         decision, run_checks, _ = self.call("portable", reuse={"decision": "reused"}, delivery=None)
         decision.assert_not_called()
-        run_checks.assert_called_once_with(self.work, "origin/main", False)
+        run_checks.assert_called_once_with(self.work, "origin/main", False, task_evidence=False)
 
     def test_no_checks_override_keeps_its_existing_path(self) -> None:
         decision, run_checks, out = self.call("portable", reuse={"decision": "reused"}, no_checks=True)
         decision.assert_not_called()
-        run_checks.assert_called_once_with(self.work, "origin/main", True)
+        run_checks.assert_called_once_with(self.work, "origin/main", True, task_evidence=False)
         self.assertNotIn(REUSE_PREFIX, out)
 
     def test_decision_error_stops_finish_without_running_checks(self) -> None:
@@ -361,7 +381,7 @@ class FinishWiringTests(unittest.TestCase):
         with mock.patch.object(lifecycle, "automated_evidence_reuse", decision), \
                 mock.patch.object(finish_task, "run_checks") as run_checks, contextlib.redirect_stdout(io.StringIO()):
             with self.assertRaisesRegex(SystemExit, "cannot compute merge-base"):
-                finish_task.validate_or_reuse(self.work, "origin/main", False, "portable", self.delivery)
+                finish_task.validate_or_reuse(self.work, "origin/main", False, "portable", self.delivery, quick_task=False)
         run_checks.assert_not_called()
 
     def test_main_validates_through_the_wrapper_on_the_github_path_only(self) -> None:
@@ -386,7 +406,7 @@ class ExecutionCountTests(ProjectTestCase):
         with contextlib.redirect_stdout(out):
             project.require_evidence()
             finish_task.validate_or_reuse(
-                project.worktree, "origin/main", False, mode, types.SimpleNamespace(path=project.archived)
+                project.worktree, "origin/main", False, mode, types.SimpleNamespace(path=project.archived), quick_task=False
             )
         return out.getvalue()
 
@@ -395,7 +415,7 @@ class ExecutionCountTests(ProjectTestCase):
         project.archived_ready()
         self.assertEqual(project.executions(), 1)  # archive
         out = self.finish(project)
-        self.assertIn("reusing archive check evidence", out)
+        self.assertIn("reusing recorded check evidence", out)
         self.assertEqual(project.executions(), 1)
 
     def test_coordinator_style_always_validating_path_executes_twice(self) -> None:
@@ -406,14 +426,21 @@ class ExecutionCountTests(ProjectTestCase):
         self.assertNotIn(REUSE_PREFIX, out)
         self.assertEqual(project.executions(), 2)
 
-    def test_base_changed_after_archive_executes_twice(self) -> None:
+    def test_clean_rebase_with_unchanged_own_diff_executes_once(self) -> None:
         project = self.project()
         project.archived_ready()
         project.advance_main(merge=True)
         out = self.finish(project)
-        self.assertIn('"decision": "not-reusable"', out)
-        self.assertIn("differs from current base", out)
-        self.assertEqual(project.executions(), 2)
+        self.assertIn('"decision": "reused"', out)
+        self.assertEqual(project.executions(), 1)
+
+    def test_main_changing_a_task_path_stops_at_the_evidence_gate(self) -> None:
+        project = self.project()
+        project.archived_ready()
+        project.advance_main(merge=True, path="feature.txt", text="implemented\n")
+        with self.assertRaisesRegex(SystemExit, "automated evidence checkout identity does not match"):
+            self.finish(project)
+        self.assertEqual(project.executions(), 1)
 
     def test_widened_selection_executes_twice(self) -> None:
         project = self.project(extra_check=True)
@@ -431,6 +458,113 @@ class ExecutionCountTests(ProjectTestCase):
         with self.assertRaisesRegex(SystemExit, "automated evidence checkout identity does not match"):
             self.finish(project)
         self.assertEqual(project.executions(), 1)
+
+
+class ReuseMatrixTests(ProjectTestCase):
+    """BR-785: one answer for a managed and a quick task, in the portable finish and the coordinator handoff.
+
+    Both tasks make the same own change and are validated once. Each scenario then applies the same main
+    advance or own edit to both; the portable managed decision, the quick decision (the same call in either
+    lifecycle, see ``QuickFinishWiringTests``) and the coordinator handoff's acceptance proof
+    (``equivalent_proofs`` of the evidence gate and the current review proof, as ``pr_review_gate.handoff_gates``
+    checks it) must agree.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.p = self.project()
+        self.p.archived_ready()
+        self.quick = self.p.add_quick_task()
+        self.validated = self.p.executions()
+
+    def merge_main(self, path: str, text: str) -> None:
+        self.p.advance_main(merge=True, path=path, text=text)
+        git(self.quick, "fetch", "-q", "origin")
+        git(self.quick, "merge", "-q", "--no-edit", "origin/main")
+
+    def answers(self) -> dict[str, str]:
+        from task_content_identity import equivalent_proofs, review_content_identity
+
+        managed = self.p.reuse()["decision"]
+        quick = lifecycle.quick_evidence_reuse(self.quick, base_ref="origin/main")["decision"]
+        gate = json.loads((self.p.archived / "automated-checks.json").read_text())["gate_task_content"]
+        accepted = equivalent_proofs(self.p.worktree, gate, review_content_identity(self.p.worktree, CHANGE))
+        self.assertEqual(self.p.executions(), self.validated, "deciding must not execute a check command")
+        return {"managed": managed, "quick": quick, "coordinator-handoff": "reused" if accepted else "not-reusable"}
+
+    def assertAnswer(self, expected: str) -> None:
+        self.assertEqual(self.answers(), {"managed": expected, "quick": expected, "coordinator-handoff": expected})
+
+    def test_unchanged(self) -> None:
+        self.assertAnswer("reused")
+
+    def test_clean_rebase_with_unchanged_own_diff(self) -> None:
+        self.merge_main("other.txt", "other\n")
+        self.assertAnswer("reused")
+
+    def test_main_changed_a_task_path(self) -> None:
+        self.merge_main("feature.txt", "implemented\n")  # same bytes: a clean merge, but main touched a task path
+        self.assertAnswer("not-reusable")
+
+    def test_own_diff_changed(self) -> None:
+        for worktree in (self.p.worktree, self.quick):
+            (worktree / "feature.txt").write_text("edited after validation\n", encoding="utf-8")
+            git(worktree, "commit", "-qam", "late change")
+        self.assertAnswer("not-reusable")
+
+    def test_quick_reason_names_the_task_content_and_absent_evidence(self) -> None:
+        self.merge_main("feature.txt", "implemented\n")
+        self.assertIn("main changed a task path", lifecycle.quick_evidence_reuse(self.quick, base_ref="origin/main")["reason"])
+        evidence_path = Path(git(self.quick, "rev-parse", "--path-format=absolute", "--git-path", "dev-platform/check-evidence.json"))
+        evidence_path.unlink()
+        self.assertEqual(lifecycle.quick_evidence_reuse(self.quick, base_ref="origin/main")["reason"], "no recorded quick-task evidence")
+
+    def test_quick_evidence_lives_outside_the_tree(self) -> None:
+        self.assertEqual(git(self.quick, "status", "--porcelain"), "")
+        payload = json.loads(Path(git(self.quick, "rev-parse", "--path-format=absolute", "--git-path",
+                                      "dev-platform/check-evidence.json")).read_text())
+        self.assertEqual(payload["head"], git(self.quick, "rev-parse", "HEAD"))
+        self.assertEqual(payload["gate_task_content"]["scope"], "quick-task-v1")
+        self.assertEqual(set(payload["gate_task_content"]["paths"]), {"feature.txt"})
+
+    def test_task_evidence_is_refused_on_a_managed_checkout(self) -> None:
+        result = subprocess.run(
+            ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--task-evidence"],
+            cwd=self.p.worktree, stdin=subprocess.DEVNULL, text=True, capture_output=True, env=clean_environment(),
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--task-evidence is for a quick task", result.stdout + result.stderr)
+
+
+class QuickFinishWiringTests(unittest.TestCase):
+    """A quick task reuses through the same call in the portable and the coordinator lifecycle."""
+
+    work = Path("/nonexistent/work")
+
+    def call(self, mode: str, reuse: dict):
+        decision = mock.Mock(return_value=reuse)
+        out = io.StringIO()
+        with mock.patch.object(lifecycle, "quick_evidence_reuse", decision), \
+                mock.patch.object(lifecycle, "automated_evidence_reuse") as managed, \
+                mock.patch.object(finish_task, "run_checks") as run_checks, contextlib.redirect_stdout(out):
+            finish_task.validate_or_reuse(self.work, "origin/main", False, mode, None, quick_task=True)
+        managed.assert_not_called()
+        decision.assert_called_once_with(self.work, base_ref="origin/main")
+        return run_checks, out.getvalue()
+
+    def test_reused_in_both_lifecycles(self) -> None:
+        for mode in ("portable", "coordinator"):
+            with self.subTest(mode=mode):
+                run_checks, out = self.call(mode, {"decision": "reused", "reason": "covered"})
+                run_checks.assert_not_called()
+                self.assertIn("reusing recorded check evidence", out)
+
+    def test_not_reusable_runs_checks_recording_quick_evidence_in_both_lifecycles(self) -> None:
+        for mode in ("portable", "coordinator"):
+            with self.subTest(mode=mode):
+                run_checks, out = self.call(mode, {"decision": "not-reusable", "reason": "no recorded quick-task evidence"})
+                run_checks.assert_called_once_with(self.work, "origin/main", False, task_evidence=True)
+                self.assertIn(REUSE_PREFIX, out)
 
 
 if __name__ == "__main__":
