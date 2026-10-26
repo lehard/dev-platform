@@ -1,8 +1,8 @@
-"""One task branch, one answer: the managed gate, the quick-task gate and the agent board agree (BR-774/BR-777).
+"""One task branch, one answer: the managed gate, the quick-task gate, publication and the agent board agree (BR-774/BR-777).
 
-Each scenario builds a real branch against a bare origin and asks the three consumers of the
-task-base classification about it. Owner requirement: a managed task, a quick task and the board
-give the same answer for the same branch.
+Each scenario builds a real branch against a bare origin and asks every consumer of the
+task-base classification about it. Owner requirement: a managed task, a quick task, the publish
+step and the board give the same answer for the same branch.
 """
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import ExitStack
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
@@ -20,6 +21,7 @@ sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
 import _platform_common  # noqa: E402
 import agent_board  # noqa: E402
+import finish_task  # noqa: E402
 import managed_task  # noqa: E402
 import publication_queue  # noqa: E402
 
@@ -86,20 +88,35 @@ class TaskBaseMatrixTests(unittest.TestCase):
         git(self.other, "push", "-q", "origin", "HEAD:main")
         git(self.root, "fetch", "-q", "origin")
 
-    # ---- the three consumers ------------------------------------------------------------------
+    # ---- the consumers ------------------------------------------------------------------------
+
+    def integrated(self, managed: bool) -> ExitStack:
+        """queue_integrated's own inputs for a managed candidate or a quick task."""
+        provenance = object() if managed else None
+        stack = ExitStack()
+        stack.enter_context(mock.patch.object(_platform_common, "lifecycle_mode", return_value="coordinator"))
+        stack.enter_context(mock.patch.object(publication_queue, "enabled", return_value=True))
+        stack.enter_context(mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance))
+        stack.enter_context(mock.patch.object(_platform_common, "coordinator_candidate", return_value=managed))
+        return stack
 
     def gate(self, *, managed: bool):
-        """The fresh-base gate as a managed candidate or a quick task sees it, through queue_integrated's own inputs."""
-        provenance = object() if managed else None
-        with mock.patch.object(_platform_common, "lifecycle_mode", return_value="coordinator"), \
-                mock.patch.object(publication_queue, "enabled", return_value=True), \
-                mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
-                mock.patch.object(_platform_common, "coordinator_candidate", return_value=managed):
+        """The fresh-base gate of validation as a managed candidate or a quick task sees it."""
+        with self.integrated(managed):
             try:
                 currency = _platform_common.require_handoff_task_base(self.task, "origin", "main")
             except _platform_common.TaskFreshnessError as exc:
                 return ("reconcile-required", str(exc))
             return (currency.state, tuple(currency.overlapping))
+
+    def publish(self, *, managed: bool):
+        """The publish step's fresh-base gate (finish_task) for the same task kind: passes, or names why not."""
+        with self.integrated(managed):
+            try:
+                finish_task.require_publication_task_base(self.task, "agent/task", "origin/main")
+            except SystemExit as exc:
+                return ("reconcile-required", str(exc))
+            return ("publishes", None)
 
     def board(self) -> tuple[frozenset[str], list[str]]:
         board = self.root / ".claude/agents-board.json"
@@ -116,6 +133,10 @@ class TaskBaseMatrixTests(unittest.TestCase):
     def answer(self) -> dict:
         managed, quick = self.gate(managed=True), self.gate(managed=False)
         self.assertEqual(managed, quick, "a managed task and a quick task must get the same gate answer")
+        for kind in (True, False):
+            published = self.publish(managed=kind)[0]
+            self.assertEqual(published == "publishes", managed[0] != "reconcile-required",
+                             "the publish step must agree with the validation gate")
         scope, overlaps = self.board()
         main = git(self.task, "rev-parse", "origin/main")
         self.assertEqual(scope, _platform_common.task_own_paths(self.task, main),
@@ -154,6 +175,7 @@ class TaskBaseMatrixTests(unittest.TestCase):
         answer = self.answer()
         self.assertEqual((answer["gate"], answer["scope"], answer["overlaps"]), ("reconcile-required", {"conflict.txt"}, []))
         self.assertIn("a trial merge conflicts in conflict.txt", self.gate(managed=False)[1])
+        self.assertIn("a trial merge conflicts in conflict.txt", self.publish(managed=False)[1])
 
 
 if __name__ == "__main__":
