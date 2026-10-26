@@ -54,6 +54,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 ## Always-on invariants
 
 - **No silent divergence.** If implementation reveals the agreed change is wrong, update the relevant OpenSpec artifact *before* changing direction. Never implement a different contract and repair the specification afterwards.
+- **Follow code over stale docs; report every mismatch.** When descriptive documentation (READMEs, `docs/`) contradicts existing code on conventions (structure, naming, commands, libraries, style), follow the code and do not rewrite working code to match the docs; `AGENTS.md` process and safety rules are not conventions and still apply. When code contradicts accepted specs or an active delta, do not silently pick a side: stop and report it. List every docs-vs-code mismatch found in the final report.
 - **Verification is not a checkbox count.** A non-trivial OpenSpec change is complete only after project checks, semantic verification, a truthful `verification.md` receipt, archive through the lifecycle helper, and publication in that order.
 - **Never fabricate a verification receipt.** The report must state what was actually checked and which method was used.
 - **Managed contract conflicts stop.** Repair formal/schema mismatches in an imported package; a material product-contract conflict returns to the user.
