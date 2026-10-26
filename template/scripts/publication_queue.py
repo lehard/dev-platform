@@ -71,6 +71,14 @@ class AttentionError(RuntimeError):
     """
 
 
+class QueueEnvironmentError(RuntimeError):
+    """The coordinator's own environment cannot prepare a candidate (for example a missing dependency).
+
+    Deliberately not a ``QueueError``: it is no candidate defect, so it never blocks the candidate or offers
+    integration repair; the run fails naming it (BR-768).
+    """
+
+
 class MalformedRecord(QueueError):
     """A trusted coordinator record is malformed.
 
@@ -648,7 +656,7 @@ def _transition(
         if state in _FRICTION_STATES:
             emit_friction(number, branch, state, head, previous.get("red_gate"), attempts=previous.get("attempts"))
         _project_lifecycle_label(root, repo, number, observed, state)
-        if state == "blocked-escalation" and previous:
+        if state in ATTENTION_STATES and previous:
             # A lost indication is repaired on the next observation of the same escalation.
             ensure_attention(root, repo, number, previous, comments)
         return previous
@@ -682,12 +690,31 @@ def _transition(
         emit_friction(number, branch, state, head, red_gate, attempts=attempts)
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
-    if state == "blocked-escalation":
+    if state in ATTENTION_STATES:
         ensure_attention(root, repo, number, record, comments)
     return record
 
 
 ATTENTION_PREFIX = "<!-- dev-platform-publication-queue:attention:v1 "
+# A writer-needing repair is escalated to the operator, who runs it; no writer starts automatically (BR-768).
+REPAIR_ATTENTION_KINDS = {"repair-pending": "repair", "integration-repair-pending": "integration-repair"}
+ATTENTION_STATES = frozenset({"blocked-escalation", *REPAIR_ATTENTION_KINDS})
+
+
+def repair_attention_body(repo: str, number: int, candidate: dict[str, Any]) -> str:
+    """The operator-facing "Repair needed" text: why, the evidence and the command that runs the published job."""
+    kind = REPAIR_ATTENTION_KINDS[candidate["state"]]
+    red = candidate.get("red_gate") or {}
+    return "\n".join([
+        f"{ATTENTION_PREFIX}{attention_key(number, candidate)} -->",
+        f"**Repair needed: PR #{number} is `{candidate['state']}`.**", "",
+        f"- Reason: {candidate.get('reason') or str(red.get('evidence') or red.get('name') or 'no reason recorded')[:300]}",
+        f"- Head: `{candidate.get('head')}`",
+        f"- Evidence: https://github.com/{repo}/pull/{number} (latest lifecycle record and `{red.get('name', kind)}` evidence)",
+        f"- Attempts: `{json.dumps(candidate.get('attempts', {}), sort_keys=True)}`", "",
+        f"The `{kind}` job is published and needs a writer; no writer runs automatically. An operator runs it:",
+        f"- `python3 scripts/lifecycle_workers.py work-next --repo {repo} --kinds {kind} --writer claude-sandboxed --run`",
+        "", "This comment is posted once per exact repair round; normal progress posts nothing."])
 
 
 def attention_key(number: int, candidate: dict[str, Any]) -> str:
@@ -704,6 +731,8 @@ def attention_body(repo: str, number: int, candidate: dict[str, Any], claim: dic
     """The human-readable comment: what stopped, the evidence, and what a human can or must decide."""
     from pr_review_gate import permitted_actions
 
+    if candidate.get("state") in REPAIR_ATTENTION_KINDS:
+        return repair_attention_body(repo, number, candidate)
     plan = permitted_actions(candidate, claim, number=number, retry_kind=retry_job_kind(candidate))
     if candidate.get("state") == "merged":
         plan = {"actions": [], "human_decision": candidate.get("reason") or "A post-merge obligation needs an operator."}
@@ -1694,7 +1723,8 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
     task_paths = _task_paths(root, repo, admission)
     overlap = changed & task_paths
     from _platform_common import generated_files
-    from post_review_finalization import RederivationFailed, derived_spec_paths, prepare_derived_specs
+    from post_review_finalization import (RederivationEnvironmentFailed, RederivationFailed, derived_spec_paths,
+                                          prepare_derived_specs)
 
     # The declaration comes from the queue's own default-branch checkout, never from the candidate.
     generated = {item.path for item in generated_files(root, "HEAD")}
@@ -1721,6 +1751,8 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         _raise_if_owned_elsewhere(root, repo, number, head)
         try:
             return prepare_derived_specs(root, repo, number, pr, head, task_paths)
+        except RederivationEnvironmentFailed as exc:
+            raise QueueEnvironmentError(f"PR #{number} derived merge cannot run on this coordinator: {exc}") from exc
         except RederivationFailed as exc:
             raise IntegrationRepairNeeded(f"derived merge (archive-derived specs, generated files) failed: {exc}") from exc
     # Last observation before mutating the branch: never update a head that review or repair
@@ -1989,9 +2021,20 @@ def worker(root: Path) -> dict[str, Any]:
         return ACTIVE in {label.get("name") for label in observed_prs[number].get("labels", []) if isinstance(label, dict)}
 
     queue = sorted(queue, key=lambda item: not active(item[1]))
+    environment: list[str] = []
+
+    def environment_failure(progress: dict[str, Any] | None = None) -> dict[str, Any]:
+        # Not a progress state: the run exits non-zero naming every cause, after trying the rest.
+        return {"state": "environment-error", "reason": "; ".join(environment), "skipped": skipped,
+                **({"progress": progress} if progress is not None else {})}
+
     for _, number, admission in queue:
         try:
             outcome, block = _worker_candidate(root, repo, number, admission, observed_prs[number], skipped, active)
+        except QueueEnvironmentError as exc:
+            # The candidate is left as it is: no block, no integration-repair job.
+            environment.append(str(exc)[:500])
+            continue
         except (QueueError, WorkerError, RequirementIntegrationError, GitCommandError) as exc:
             # One candidate's failure (GitHub read, harness git, contribution contract) never stops the rest.
             skipped.append(f"#{number} skipped: {type(exc).__name__}: {exc}"[:300])
@@ -2000,7 +2043,9 @@ def worker(root: Path) -> dict[str, Any]:
         if block is not None:
             blocked = block
         if outcome is not None:
-            return outcome
+            return environment_failure(outcome) if environment else outcome
+    if environment:
+        return environment_failure(blocked)
     if blocked is not None:
         return {**blocked, "skipped": skipped}  # the run still reports a block (non-zero exit), after trying the rest
     if failures == candidates:
@@ -2245,6 +2290,10 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         return _released({"state": "waiting", "number": number, "reason": str(exc)})
     except IntegrationRepairNeeded as exc:
         return _released(_integration_repair(root, repo, number, admission, exc))
+    except QueueEnvironmentError:
+        # No candidate defect: release integration ownership so later candidates proceed; the run fails naming it.
+        _label(root, repo, number, ACTIVE, present=False)
+        raise
     except GitCommandError as exc:
         if not _transient(str(exc)):
             raise  # not a candidate defect the queue can classify: the worker skips this candidate, naming it

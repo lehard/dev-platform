@@ -1,0 +1,114 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.329,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.239,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.301,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1725.993,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/post_review_finalization.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_post_review_finalization.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_d838babadc1f863132f0f2c6538ce7a8",
+    "change": "queue-environment-error-and-repair-escalation",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/queue-environment-error-and-repair-escalation",
+    "branch": "agent/br-768-t1-queue-environment-error-and-repair-escalation",
+    "head": "c4a22cbce32aaef997fc9043d24480cc135253d5",
+    "task_content": {
+      "version": 1,
+      "digest": "cc4ece9c7e1194dfda6c46d93ee61180445efdfe15b46dfbcbe3905f202cd1c8",
+      "paths": {
+        "docs/engineering/hosted-lifecycle-workers.md": "72cb535d53190e5ebc226140ef5018d04b585593",
+        "openspec/changes/queue-environment-error-and-repair-escalation/.managed-task.json": "7efc614c9ca611879025ce0099d1129a3f68356c",
+        "openspec/changes/queue-environment-error-and-repair-escalation/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+        "openspec/changes/queue-environment-error-and-repair-escalation/design.md": "9710bb24d37afb92f2199d8b07fcdf52328ea86d",
+        "openspec/changes/queue-environment-error-and-repair-escalation/proposal.md": "3ce6c85a49d6987ad1efdc24945f5bbc41f1eb7c",
+        "openspec/changes/queue-environment-error-and-repair-escalation/specs/publication-queue/spec.md": "cd9ede191387d80f859bf35a634f562493e7f1a6",
+        "openspec/changes/queue-environment-error-and-repair-escalation/tasks.md": "581b888ef1f28ce56e78a94691e54318430831be",
+        "template/dev-platform/platform-manifest.json": "3fd1445b61972e50cae6cdcc521e1b9a64d11804",
+        "template/scripts/post_review_finalization.py": "0474f278d67a33a809097700509c0f7baee3b9b2",
+        "template/scripts/publication_queue.py": "4c7a3909ce94c3633b45f092d8cdca0c4aaf0ce8",
+        "tests/test_post_review_finalization.py": "e91062b4e1efbee8605a57697c15c75efed6772f",
+        "tests/test_publication_queue.py": "7e31fdd77ef3c16a33b8c5e77859aad6cd47787d"
+      },
+      "base": "3b7ca769bc2832992cd900b76481cba16203aa6c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "d7da6a60baaa57986a33b43931fa3d0bf2c76f25b70cc0efb200cd5245a1c6cf",
+    "paths": {
+      "docs/engineering/hosted-lifecycle-workers.md": "72cb535d53190e5ebc226140ef5018d04b585593",
+      "openspec/changes/queue-environment-error-and-repair-escalation/.managed-task.json": "7efc614c9ca611879025ce0099d1129a3f68356c",
+      "openspec/changes/queue-environment-error-and-repair-escalation/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/queue-environment-error-and-repair-escalation/design.md": "9710bb24d37afb92f2199d8b07fcdf52328ea86d",
+      "openspec/changes/queue-environment-error-and-repair-escalation/proposal.md": "3ce6c85a49d6987ad1efdc24945f5bbc41f1eb7c",
+      "openspec/changes/queue-environment-error-and-repair-escalation/specs/publication-queue/spec.md": "cd9ede191387d80f859bf35a634f562493e7f1a6",
+      "openspec/changes/queue-environment-error-and-repair-escalation/tasks.md": "581b888ef1f28ce56e78a94691e54318430831be",
+      "template/scripts/post_review_finalization.py": "0474f278d67a33a809097700509c0f7baee3b9b2",
+      "template/scripts/publication_queue.py": "4c7a3909ce94c3633b45f092d8cdca0c4aaf0ce8",
+      "tests/test_post_review_finalization.py": "e91062b4e1efbee8605a57697c15c75efed6772f",
+      "tests/test_publication_queue.py": "7e31fdd77ef3c16a33b8c5e77859aad6cd47787d"
+    },
+    "base": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 164.152,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+    "base_ref": "origin/main",
+    "candidate_head": "dee8a3a0a6cdd597cef92ee1547322deea2175c1",
+    "diff_sha256": "918bcb28c2982623111835c7d56a306b1d87d37e165efea49ce0b351e9978e48"
+  },
+  "change": "openspec/changes/queue-environment-error-and-repair-escalation",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/queue-environment-error-and-repair-escalation/automated-checks.json",
+    "openspec/changes/queue-environment-error-and-repair-escalation/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/design.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/proposal.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/specs/publication-queue/spec.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/queue-environment-error-and-repair-escalation/proposal.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/design.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/tasks.md",
+        "openspec/changes/queue-environment-error-and-repair-escalation/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T21:32:00+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/queue-environment-error-and-repair-escalation/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "f55d40e7-0fec-43b9-b7f1-fe6d4eba683b",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+    "digest": "d7da6a60baaa57986a33b43931fa3d0bf2c76f25b70cc0efb200cd5245a1c6cf",
+    "paths": {
+      "docs/engineering/hosted-lifecycle-workers.md": "72cb535d53190e5ebc226140ef5018d04b585593",
+      "openspec/changes/queue-environment-error-and-repair-escalation/.managed-task.json": "7efc614c9ca611879025ce0099d1129a3f68356c",
+      "openspec/changes/queue-environment-error-and-repair-escalation/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/queue-environment-error-and-repair-escalation/design.md": "9710bb24d37afb92f2199d8b07fcdf52328ea86d",
+      "openspec/changes/queue-environment-error-and-repair-escalation/proposal.md": "3ce6c85a49d6987ad1efdc24945f5bbc41f1eb7c",
+      "openspec/changes/queue-environment-error-and-repair-escalation/specs/publication-queue/spec.md": "cd9ede191387d80f859bf35a634f562493e7f1a6",
+      "openspec/changes/queue-environment-error-and-repair-escalation/tasks.md": "581b888ef1f28ce56e78a94691e54318430831be",
+      "template/scripts/post_review_finalization.py": "0474f278d67a33a809097700509c0f7baee3b9b2",
+      "template/scripts/publication_queue.py": "4c7a3909ce94c3633b45f092d8cdca0c4aaf0ce8",
+      "tests/test_post_review_finalization.py": "e91062b4e1efbee8605a57697c15c75efed6772f",
+      "tests/test_publication_queue.py": "7e31fdd77ef3c16a33b8c5e77859aad6cd47787d"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
