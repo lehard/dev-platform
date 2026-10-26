@@ -1,0 +1,106 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.197,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.354,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1169.19,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.216,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/delegated_write_guard.py",
+        "tests/test_delegated_write_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/run_test_groups.py --all",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "test",
+        "configuration"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_e9ae3fa4b926f75a1ed1cf7801c98b4d",
+    "change": "guard-denies-missing-target",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/guard-denies-missing-target",
+    "branch": "agent/br-780-t1-guard-denies-missing-target",
+    "head": "99c18756dee84b0fbc303bbf092d197a55510f7b",
+    "task_content": {
+      "version": 1,
+      "digest": "0d6d8edc9e42268986350385541cee4b864f947759df6ebe157bb04bcf182f32",
+      "paths": {
+        "openspec/changes/guard-denies-missing-target/.managed-task.json": "8c9b057e23c5d2699b6bb81fe1f7f9b61fc52475",
+        "openspec/changes/guard-denies-missing-target/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+        "openspec/changes/guard-denies-missing-target/design.md": "2a79db80c870441f16ed6dec6c8e966959d88559",
+        "openspec/changes/guard-denies-missing-target/proposal.md": "ee655c38ea5f3c3d50ec222d30a1b5ae0908cc3d",
+        "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md": "c61ef9a2f27225d0e1467092d5ef5180b17edcfa",
+        "openspec/changes/guard-denies-missing-target/tasks.md": "77a2abc52dcb3973854f8ba0ed9d101f1b38b275",
+        "template/dev-platform/platform-manifest.json": "a59444dd0690891c9d9efe98a1c5cabaff8247c4",
+        "template/scripts/delegated_write_guard.py": "a3c5129441a20ae4e842f7891330b3bb22bdbe82",
+        "tests/test_delegated_write_guard.py": "2d0ef5368447ebe11eb5fa8dd22e307729e17d25"
+      },
+      "base": "79910537ca8d41bd4caad1be09c861e9d833bc5e"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "b47da2ae1a61c5364ad31ecee6696b2d3787c11d31071ac7c8327ae58ec2ff99",
+    "paths": {
+      "openspec/changes/guard-denies-missing-target/.managed-task.json": "8c9b057e23c5d2699b6bb81fe1f7f9b61fc52475",
+      "openspec/changes/guard-denies-missing-target/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/guard-denies-missing-target/design.md": "2a79db80c870441f16ed6dec6c8e966959d88559",
+      "openspec/changes/guard-denies-missing-target/proposal.md": "ee655c38ea5f3c3d50ec222d30a1b5ae0908cc3d",
+      "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md": "c61ef9a2f27225d0e1467092d5ef5180b17edcfa",
+      "openspec/changes/guard-denies-missing-target/tasks.md": "77a2abc52dcb3973854f8ba0ed9d101f1b38b275",
+      "template/scripts/delegated_write_guard.py": "a3c5129441a20ae4e842f7891330b3bb22bdbe82",
+      "tests/test_delegated_write_guard.py": "2d0ef5368447ebe11eb5fa8dd22e307729e17d25"
+    },
+    "base": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/delegated_write_guard.py --changed-file tests/test_delegated_write_guard.py",
+    "duration_seconds": 203.556,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
