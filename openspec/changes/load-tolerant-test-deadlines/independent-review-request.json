@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "a9736731ff58faf03d8744420ea1348dad6845a4",
     "base_ref": "origin/main",
-    "candidate_head": "17f1db886fddbdcb76e6cb1630fd3db17e29ab32",
-    "diff_sha256": "90d85a1384a426234984220c07bc89dc2ce0f850bcdc0de04cbc838d0448a641"
+    "candidate_head": "b2b2c5182bc34a998279eaa4701257845214711e",
+    "diff_sha256": "4f695a614843f761b65ce73fa6d1b1821be0ee9100958c2f4a14b9489106cae9"
   },
   "change": "openspec/changes/load-tolerant-test-deadlines",
   "excluded_lifecycle_paths": [
     "openspec/changes/load-tolerant-test-deadlines/automated-checks.json",
+    "openspec/changes/load-tolerant-test-deadlines/independent-review-request.json",
+    "openspec/changes/load-tolerant-test-deadlines/independent-reviews/engineering-quality.json",
+    "openspec/changes/load-tolerant-test-deadlines/independent-reviews/spec-fidelity.json",
     "openspec/changes/load-tolerant-test-deadlines/verification.md"
   ],
   "fresh_context_required": true,
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-26T23:20:36+00:00",
+  "prepared_at": "2026-10-26T23:37:54+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/load-tolerant-test-deadlines/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "321e900e-a7f4-4d28-80d4-0617ebce75f8",
+  "request_id": "5f7885a3-506e-4a7e-be86-ebd2d4c5b007",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "a9736731ff58faf03d8744420ea1348dad6845a4",
-    "digest": "a30bd6dde5e9a64cd0028606e502439df6ae9a063baf5dbee86f9b3cd0752cdc",
+    "digest": "11ee8839e252e9861d6e3599ab6c720fd8cdaa3667f50e94d63d94507521612f",
     "paths": {
       "openspec/changes/load-tolerant-test-deadlines/.managed-task.json": "b8e40605af1e25b9e62a720151854edfbdf69b54",
       "openspec/changes/load-tolerant-test-deadlines/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
@@ -67,8 +70,8 @@
       "tests/test_deepseek_harness_runtime.py": "100910ad485dde81f679e9b91b34f49faa492148",
       "tests/test_delegated_write_guard.py": "856eadf2861e31b697b0a881a59056b12306fe79",
       "tests/test_git_lifecycle.py": "4972ffde5d0895f6cc5ebf35b7e3b881e9923040",
-      "tests/test_independent_review.py": "0607a904bc5186d4664c2247028bfd5a15f39fb1",
-      "tests/test_pr_reconciliation_concurrency.py": "f12dfd740ea10713b88d5e6adf78173b10d7212e",
+      "tests/test_independent_review.py": "23a95a082943e8c7fe001efd33f05fe806d3f831",
+      "tests/test_pr_reconciliation_concurrency.py": "0ed65358dc8a6de9683072864da5c580e33e5fe4",
       "tests/test_requirement_intake.py": "7665d6d392402ffdb137f5e2a024d562a943136a"
     },
     "scope": "independent-review-v1",

@@ -3,34 +3,40 @@
   "candidate": {
     "base_head": "a9736731ff58faf03d8744420ea1348dad6845a4",
     "base_ref": "origin/main",
-    "candidate_head": "17f1db886fddbdcb76e6cb1630fd3db17e29ab32",
-    "diff_sha256": "90d85a1384a426234984220c07bc89dc2ce0f850bcdc0de04cbc838d0448a641"
+    "candidate_head": "b2b2c5182bc34a998279eaa4701257845214711e",
+    "diff_sha256": "4f695a614843f761b65ce73fa6d1b1821be0ee9100958c2f4a14b9489106cae9"
   },
-  "completed_at": "2026-10-26T23:20:55+00:00",
+  "completed_at": "2026-10-26T23:38:17+00:00",
   "findings": [
     {
-      "evidence": "tests/test_independent_review.py (diff lines ~246-247): `runner.subprocess_launcher([...], self.root, 5)` followed by `self.assertTrue(pid_file.exists(), \"the reviewer grandchild never started...\")`. The window is a hard-coded 5 s, not the shared bounded deadline (`process_deadline_seconds()`, 30 s). The pid-file read can also race: `echo $$ > file` creates the file before it writes the pid, so `int(pid_file.read_text())` can fail on an empty file.",
-      "id": "process-group-test-fixed-startup-window",
-      "severity": "material",
-      "summary": "The process-group kill test still depends on host speed. The launcher timeout is a fixed 5 s, and the grandchild must write its pid inside that window, otherwise the test fails with \"never started\". Under heavy load the grandchild can start late, so the test fails with no defect. This is the failure mode that the spec requirement \"A platform test SHALL NOT pass or fail on how fast the host schedules processes\" and the \"Loaded host delays a child\" scenario forbid."
+      "evidence": "tests/test_pr_reconciliation_concurrency.py: threading.Timer(.5, ...) writes the go file, then the holder writes the releasing marker. If the reconciliation step ran without waiting but was delayed past ~0.5 s on a loaded host, `released.exists()` could be True and the test would pass. The spec scenario and design say the proof is the release marker, and design.md says 'Without waiting for the lock the marker is absent'. That holds only on a fast host.",
+      "id": "lock-order-proof-timer-dependent",
+      "severity": "advisory",
+      "summary": "Lock-wait ordering proof still depends on a 0.5 s wall-clock timer, so a non-waiting step that runs late could pass."
     },
     {
-      "evidence": "tests/test_pr_reconciliation_concurrency.py (diff lines ~269-296): the holder runs `time.sleep(.35); Path(argv[4]).write_text('releasing'); lock.__exit__(...)`. The test asserts `observed == [True]`. design.md: \"Without waiting for the lock the marker is absent.\"",
-      "id": "lock-order-proof-not-load-robust",
+      "evidence": "tests/test_independent_review.py: `while True: ... runner.subprocess_launcher(..., launch_timeout); if pid_file.exists() or ...: break; launch_timeout *= 2`. The loop reruns the product launcher until the grandchild has started. design.md describes a single launch followed by a wait. The retry only repeats the setup and each attempt still asserts LaunchTimeout, so it does not obviously hide a defect. It is still an unspecified retry. The grandchild-start wait is also bounded by a launcher timeout rather than by readiness.",
+      "id": "review-kill-test-retry-loop",
       "severity": "advisory",
-      "summary": "The lock-wait test can pass without proving that the step waited for the lock. The holder releases 0.35 s after it signals ready. If the test thread is delayed beyond that, the release marker already exists when the serialized step runs, even if the step never waited on the lock. The design claims that without waiting the marker is absent, which holds only on a fast host. The test cannot fail from load, but its proof is weaker under load."
+      "summary": "The process-group kill test retries the launch with a doubled timeout, which sits uneasily with the 'no retry SHALL hide a failure' requirement."
+    },
+    {
+      "evidence": "tests/test_git_lifecycle.py: `self.assertGreater(ended - first_at, 1.5, ...)` remains. The proposal calls it the 'load-monotonic' check. It is a minimum elapsed-time assertion and goes beyond the spec's wording of 'not by a minimum or maximum elapsed time'.",
+      "id": "streaming-test-keeps-elapsed-lower-bound",
+      "severity": "advisory",
+      "summary": "The streaming test still asserts an elapsed-time lower bound, while the spec says order of events should be proven by markers and not by minimum or maximum elapsed time."
     }
   ],
-  "launched_at": "2026-10-26T23:20:38+00:00",
-  "output_sha256": "43816872cb8cc0907bac9dba3c0e73fe240fb048fadbd14337e924002bd62d74",
+  "launched_at": "2026-10-26T23:37:57+00:00",
+  "output_sha256": "854ad6da0d637ca3db1fc09dc15aa6d5a3c9c28ce9adc0925e6714c5f8232166",
   "perspective": "spec-fidelity",
-  "request_id": "321e900e-a7f4-4d28-80d4-0617ebce75f8",
+  "request_id": "5f7885a3-506e-4a7e-be86-ebd2d4c5b007",
   "reviewer": {
-    "context_id": "45fd2e10-71a8-47f3-96df-4fce69cf0376",
+    "context_id": "3bed7402-cb7c-4bc2-97b5-cf403366fcb9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-129e9e50-d693-4387-bf7f-17a2c92f341d",
+    "launch_id": "platform-launch-19896250-bc82-4138-9588-875e03ebd370",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,27 +51,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21859
+        "value": 19874
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11738
+        "value": 37203
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16363
+        "value": 19750
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16487
+        "value": 19942
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -75,11 +81,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1893
+        "value": 1701
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "a30bd6dde5e9a64cd0028606e502439df6ae9a063baf5dbee86f9b3cd0752cdc"
+  "task_content_digest": "11ee8839e252e9861d6e3599ab6c720fd8cdaa3667f50e94d63d94507521612f"
 }
