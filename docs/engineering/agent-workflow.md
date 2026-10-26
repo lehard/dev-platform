@@ -389,7 +389,7 @@ Whenever `finish` would run the selected checks it first decides, by one rule, w
 
 For coordinator-managed source candidates, `finish` ends at developer handoff,
 with the change still active. Before finish, run selected checks with
-`python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json`,
+`python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json`. While the managed change is active, `select_checks.py --execute` refuses before any command when `--evidence` is missing or the change is not archive-ready (an open `tasks.md` box, a new capability without `## Purpose`), so tick the last box and commit before the only full run. Then
 record semantic verification, commit the candidate and evidence, then record
 the developer friction checkpoint at that exact head. Finish publishes an exact-head PR, admits it as
 `review-pending`, and releases the developer board claim without waiting for CI,

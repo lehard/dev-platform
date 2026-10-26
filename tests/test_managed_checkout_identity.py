@@ -115,6 +115,57 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
         self.assertNotIn("SHOULD-NOT-RUN", output)
 
+    def _run_select_checks(self, *extra: str) -> str:
+        command = "printf SHOULD-NOT-RUN"
+        original_argv = sys.argv
+        try:
+            sys.argv = ["select_checks.py", "--mode", "protected-full", "--execute", *extra]
+            with (
+                mock.patch.object(select_checks, "current_worktree_root", return_value=self.task),
+                mock.patch.object(select_checks, "load_config", return_value={"settings": {"full_commands": [command]}}),
+                mock.patch.object(
+                    select_checks,
+                    "read_platform_config",
+                    return_value={"harness_mode": "platform", "main_branch": "main"},
+                ),
+                mock.patch("sys.stdout") as stdout,
+            ):
+                try:
+                    select_checks.main()
+                except SystemExit as exc:
+                    message = str(exc)
+                else:
+                    self.fail("select_checks did not stop")
+        finally:
+            sys.argv = original_argv
+        output = "".join(str(call.args[0]) for call in stdout.write.call_args_list)
+        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
+        self.assertNotIn("SHOULD-NOT-RUN", output)
+        return message
+
+    def _active_change(self, tasks: str) -> Path:
+        change = self.task / "openspec" / "changes" / "managed-checkout"
+        change.mkdir(parents=True)
+        (change / "tasks.md").write_text(tasks, encoding="utf-8")
+        return change
+
+    def test_active_managed_change_without_evidence_is_refused_before_any_command(self) -> None:
+        self._active_change("- [x] 1.1 done\n")
+        message = self._run_select_checks()
+        self.assertIn("Managed task preflight blocked validation before any expensive command started", message)
+        self.assertIn("--evidence openspec/changes/managed-checkout/automated-checks.json", message)
+
+    def test_open_task_checkbox_is_refused_before_any_command(self) -> None:
+        self._active_change("- [x] 1.1 done\n- [ ] 2.1 run checks\n")
+        message = self._run_select_checks("--evidence", "openspec/changes/managed-checkout/automated-checks.json")
+        self.assertIn("1 of 2 task(s) remain incomplete", message)
+        self.assertIn("before the full run", message)
+
+    def test_archive_ready_or_archived_change_passes_the_preflight(self) -> None:
+        select_checks.require_active_change_ready(self.task, "managed-checkout", False)  # archived: no active change
+        self._active_change("- [x] 1.1 done\n")
+        select_checks.require_active_change_ready(self.task, "managed-checkout", True)
+
     def test_detached_task_checkout_is_rejected(self) -> None:
         git(self.task, "checkout", "--detach", "-q")
         with self.assertRaisesRegex(managed_task.ManagedTaskError, "detached"):

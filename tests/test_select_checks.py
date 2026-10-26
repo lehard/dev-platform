@@ -182,6 +182,11 @@ class SelectChecksTests(unittest.TestCase):
         self.assertEqual(status["state"], "invalid-coverage")
         self.assertEqual(status["missing_required_evidence"], {"python": ["test"]})
 
+    def test_platform_full_set_checks_the_manifest_before_the_full_test_run(self) -> None:
+        commands = select_checks.load_config(ROOT)["settings"]["full_commands"]
+        self.assertLess(commands.index("python3 scripts/generate_platform_manifest.py --check"),
+                        commands.index("python3 scripts/run_test_groups.py --all"))
+
     def test_execution_evidence_records_exact_successful_commands(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             evidence_path = Path(directory) / "evidence.json"

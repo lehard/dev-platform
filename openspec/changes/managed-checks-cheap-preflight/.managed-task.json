@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "managed-checks-cheap-preflight",
+  "imported_at": "2026-10-26T17:55:47+00:00",
+  "package_revision": "f3c3172e9b9c51a664570359e1373b99e3642204124825bd8f9dd4f49460e15f",
+  "prepared_against": "6982017fc1766c24e693610cd0b7180042d0af8a",
+  "private_lineage_handle": "pln_da498cab1447db57819c735462a67924",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "812a1069fb6ec5425af94fad39b83322e3a575a43c15791edafe60f35675363d",
+    "updated_at": "2026-10-26T17:49:20Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-773/T1"
+}
