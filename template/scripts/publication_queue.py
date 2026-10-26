@@ -37,12 +37,15 @@ class IntegrationRepairNeeded(QueueError):
     """Integration preparation failed deterministically and needs integration repair, not a block.
 
     ``gate`` names the red gate: a real merge conflict is ``integration``; failing required
-    checks on the actual merged candidate are ``required-checks``.
+    checks on the actual merged candidate are ``required-checks``. ``merge_only`` marks an
+    ``integration`` failure whose trial merge with main is clean: it is offered as an LLM-free
+    ``integration-merge`` job, not a writer repair.
     """
 
-    def __init__(self, message: str, *, gate: str = "integration"):
+    def __init__(self, message: str, *, gate: str = "integration", merge_only: bool = False):
         super().__init__(message)
         self.gate = gate
+        self.merge_only = merge_only
 
 
 class TransientQueueError(QueueError):
@@ -656,7 +659,7 @@ def _transition(
         if state in _FRICTION_STATES:
             emit_friction(number, branch, state, head, previous.get("red_gate"), attempts=previous.get("attempts"))
         _project_lifecycle_label(root, repo, number, observed, state)
-        if state in ATTENTION_STATES and previous:
+        if previous and needs_attention(previous):
             # A lost indication is repaired on the next observation of the same escalation.
             ensure_attention(root, repo, number, previous, comments)
         return previous
@@ -690,7 +693,7 @@ def _transition(
         emit_friction(number, branch, state, head, red_gate, attempts=attempts)
     _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments", data={"body": marker_body(record)})
     _project_lifecycle_label(root, repo, number, observed, state)
-    if state in ATTENTION_STATES:
+    if needs_attention(record):
         ensure_attention(root, repo, number, record, comments)
     return record
 
@@ -699,6 +702,20 @@ ATTENTION_PREFIX = "<!-- dev-platform-publication-queue:attention:v1 "
 # A writer-needing repair is escalated to the operator, who runs it; no writer starts automatically (BR-768).
 REPAIR_ATTENTION_KINDS = {"repair-pending": "repair", "integration-repair-pending": "integration-repair"}
 ATTENTION_STATES = frozenset({"blocked-escalation", *REPAIR_ATTENTION_KINDS})
+
+
+def needs_attention(record: dict[str, Any]) -> bool:
+    """An escalation or a writer-needing repair round; an LLM-free integration merge needs no operator."""
+    if record.get("state") not in ATTENTION_STATES:
+        return False
+    return not (record["state"] == "integration-repair-pending" and integration_job_kind(record.get("red_gate")) != "integration-repair")
+
+
+def integration_job_kind(red_gate: dict[str, Any] | None) -> str:
+    """The job of an ``integration-repair-pending`` round: the LLM-free merge when the round is merge-only."""
+    from lifecycle_workers import MERGE_ONLY_KIND
+
+    return MERGE_ONLY_KIND if (red_gate or {}).get("merge_only") is True else "integration-repair"
 
 
 def repair_attention_body(repo: str, number: int, candidate: dict[str, Any]) -> str:
@@ -859,7 +876,7 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
             providers = [_require_route(current, number, kind)["provider"]]
     return _transition(root, repo, number, current["state"], head,
                        task_identity=current.get("task_identity") or task_identity,
-                       red_gate=current.get("red_gate") if kind in {"repair", "integration-repair"} else None,
+                       red_gate=current.get("red_gate") if kind in {"repair", "integration-repair", "integration-merge"} else None,
                        route=recorded_route,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
                                            providers=providers, target_head=target_head, phase=phase, reoffer=reoffer))
@@ -1754,7 +1771,8 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         except RederivationEnvironmentFailed as exc:
             raise QueueEnvironmentError(f"PR #{number} derived merge cannot run on this coordinator: {exc}") from exc
         except RederivationFailed as exc:
-            raise IntegrationRepairNeeded(f"derived merge (archive-derived specs, generated files) failed: {exc}") from exc
+            raise IntegrationRepairNeeded(f"derived merge (archive-derived specs, generated files) failed: {exc}",
+                                          merge_only=not merge_conflicts(root, head, current_main)) from exc
     # Last observation before mutating the branch: never update a head that review or repair
     # claimed meanwhile (atomic job claims arrive with the worker contract).
     _raise_if_owned_elsewhere(root, repo, number, head)
@@ -2166,7 +2184,7 @@ def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, A
         if current["state"] == "integration-repair-pending" and not current.get("next_job"):
             # Interrupted between the state record and its job: publish the missing job (idempotent).
             try:
-                publish_job(root, repo, number, "integration-repair", current["head"],
+                publish_job(root, repo, number, integration_job_kind(current.get("red_gate")), current["head"],
                             task_identity=current["task_identity"],
                             attempt=max(1, current.get("attempts", {}).get("integration-repair", 1)))
             except QueueError as exc:
@@ -2358,12 +2376,13 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
                       f"integration repair exhausted after {spent} attempts: {exc}"[:500], head=head_now)
     fallback = current.get("task_identity") or lineage.get("task_identity") or {
         "branch": admission.get("branch"), "head": head_now}
+    red_gate = {"name": exc.gate, "identity": head_now, "evidence": str(exc)[:500],
+                **({"merge_only": True} if exc.merge_only else {})}
     try:
         _transition(root, repo, number, "integration-repair-pending", head_now, task_identity=fallback,
-                    red_gate={"name": exc.gate, "identity": head_now, "evidence": str(exc)[:500]},
-                    set_attempts={"integration-repair": spent + 1},
+                    red_gate=red_gate, set_attempts={"integration-repair": spent + 1},
                     refuse_from=CLAIM_STATES, cross_head_claims=True)
-        publish_job(root, repo, number, "integration-repair", head_now,
+        publish_job(root, repo, number, integration_job_kind(red_gate), head_now,
                     task_identity=fallback, attempt=spent + 1)
     except LifecycleOwnershipChanged:
         pass

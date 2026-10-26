@@ -229,6 +229,27 @@ class IntegrationRepairBoundTests(unittest.TestCase):
             multi.run_worker()
             self.assertEqual(workers.build_job(multi.candidate(7))["kind"], "integration-repair")
 
+    def test_clean_trial_merge_after_a_failed_derived_merge_offers_an_llm_free_integration_merge(self):
+        merge_only = mock.Mock(side_effect=queue.IntegrationRepairNeeded("derived merge failed: x", merge_only=True))
+        with Multi({7: head_for(7)}) as multi:
+            multi.ready(7)
+            multi.run_worker(prepare=merge_only)
+            candidate = multi.candidate(7)
+            self.assertEqual((candidate["state"], candidate["red_gate"]["merge_only"]), ("integration-repair-pending", True))
+            job = workers.build_job(candidate)
+            self.assertEqual((job["kind"], job["attempt"]), ("integration-merge", 1))
+            self.assertNotIn("providers", job)
+            self.assertFalse(any(str(row.get("body", "")).startswith(queue.ATTENTION_PREFIX) for row in multi.comments[7]))
+
+    def test_interrupted_merge_only_offer_republishes_the_integration_merge(self):
+        with Multi({7: head_for(7)}) as multi:
+            multi.ready(7)
+            queue._transition(ROOT, "o/r", 7, "integration-repair-pending", multi.heads[7],
+                              task_identity={"head": "x"}, set_attempts={"integration-repair": 1},
+                              red_gate={"name": "integration", "identity": multi.heads[7], "evidence": "x", "merge_only": True})
+            multi.run_worker()
+            self.assertEqual(workers.build_job(multi.candidate(7))["kind"], "integration-merge")
+
     def test_failing_integration_check_creates_a_repair_job_not_a_block(self):
         with Multi({7: head_for(7)}) as multi:
             multi.ready(7)
@@ -366,6 +387,69 @@ class IntegrationRepairTests(RepairFixture):
             self.assertEqual(self.repo.head("agent/example"), before)
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
 
+    def offer_merge(self, fixture, *, attempt=1):
+        queue._transition(self.repo.root, "o/r", 7, "integration-repair-pending", fixture.head, task_identity=self.identity,
+                          inherit_identity=False, set_attempts={"integration-repair": attempt},
+                          red_gate={"name": "integration", "identity": fixture.head, "evidence": "derived merge failed",
+                                    "merge_only": True})
+        queue.publish_job(self.repo.root, "o/r", 7, "integration-merge", fixture.head,
+                          task_identity=self.identity, attempt=attempt)
+
+    def merge(self, fixture):
+        candidate = fixture.candidate()
+        job = workers.build_job(candidate)
+        self.assertEqual(job["kind"], "integration-merge")
+
+        def no_writer(command, **kwargs):
+            if command[0] != "git":
+                raise AssertionError(f"integration merge started a non-git process: {command}")
+            return subprocess.run(command, **kwargs)
+        with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
+            return contour.run_claimed_integration_repair(
+                self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(), branch="agent/example",
+                allowed_paths=[], llm_command=None, current_head=self.repo.head, post_result=self.post(fixture),
+                workdir=workdir, runner=no_writer, claim_current=lambda: True, worker="w", provider=None)
+
+    def test_integration_merge_meeting_a_conflict_starts_no_writer_and_offers_integration_repair(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer_merge(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.merge(fixture)
+            self.assertEqual(outcome["status"], "failed")
+            self.assertIn("needs a writer integration repair: conflicts in: src.py", outcome["reason"])
+            self.assertEqual(self.repo.head("agent/example"), before)
+            candidate = fixture.candidate()
+            self.assertNotIn("merge_only", candidate["red_gate"])
+            job = workers.build_job(candidate)
+            self.assertEqual((job["kind"], job["attempt"], job["providers"]), ("integration-repair", 2, [PROVIDER]))
+
+    def test_clean_integration_merge_pushes_the_merge_of_main_without_a_writer(self):
+        root = self.repo.root
+        (root / "src.py").write_text("value = 2\n")  # the same content as main: the merge is clean
+        git(root, "commit", "-qam", "candidate takes main's value")
+        self.repo.push("agent/example")
+        self.identity = gate.task_identity(root, "example")
+        with RemoteFixture(self.repo) as fixture:
+            self.offer_merge(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.merge(fixture)
+            self.assertEqual(outcome["status"], "integrated")
+            after = self.repo.head("agent/example")
+            main = git(self.repo.remote, "rev-parse", "refs/heads/main")
+            self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", after).split()[1:], [before, main])
+            self.assertTrue(any('"kind":"integration-merge"' in body or "integration-merge" in body for body in self.results))
+
+    def test_integration_merge_refuses_a_writer_command(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer_merge(fixture)
+            candidate = fixture.candidate()
+            job = workers.build_job(candidate)
+            with self.assertRaisesRegex(workers.WorkerError, "integration-merge job runs no writer"):
+                contour.run_claimed_integration_repair(
+                    self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(), branch="agent/example",
+                    allowed_paths=[], llm_command=["writer"], current_head=self.repo.head, post_result=self.post(fixture),
+                    workdir=self.tmp.name, claim_current=lambda: True, worker="w", provider=None)
+
     def test_filters_and_textconv_planted_in_the_writer_checkout_never_execute(self):
         sentinel = Path(self.tmp.name) / "sentinel"
 
@@ -445,6 +529,16 @@ class IntegrationRepairTests(RepairFixture):
             count = len(fixture.comments)
             self.assertFalse(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
             self.assertEqual(len(fixture.comments), count)
+
+    def test_validated_integration_merge_push_is_recovered_by_its_own_job(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer_merge(fixture)
+            job = workers.build_job(fixture.candidate())
+            git(self.repo.root, "commit", "-q", "--allow-empty", "-m", "merge")
+            self.repo.push("agent/example")
+            fixture.comments.append({"id": 100, "author_association": "OWNER", "body": workers.result_body(
+                job, "w", "validated-push", self.repo.head("agent/example"), task_identity=self.identity)})
+            self.assertEqual(fixture.candidate()["state"], "ready")
 
     def test_validated_push_recovery_without_a_recorded_lineage_head_is_an_error(self):
         with RemoteFixture(self.repo) as fixture:

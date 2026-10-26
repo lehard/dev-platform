@@ -33,9 +33,11 @@ from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 
 CLAIM_PREFIX = "dev-platform-lifecycle-claim:v1 "
-JOB_KINDS = frozenset({"review", "repair", "integration-repair", "finalize", "retrospective",
+JOB_KINDS = frozenset({"review", "repair", "integration-repair", "integration-merge", "finalize", "retrospective",
                        "terminal-reconciliation", "cleanup", "contribution-integration"})
 WRITE_KINDS = frozenset({"repair", "integration-repair"})
+# Integrates current main through the harness alone: no writer, no provider, no --llm-command (BR-768).
+MERGE_ONLY_KIND = "integration-merge"
 POST_MERGE_KINDS = frozenset({"retrospective", "terminal-reconciliation", "cleanup"})
 STATE_KIND = {"review-pending": "review", "reviewing": "review", "repair-pending": "repair",
               "repairing": "repair", "finalize-pending": "finalize",
@@ -1269,7 +1271,8 @@ def main(argv: list[str] | None = None) -> int:
         return _gh_json("api", f"repos/{repo}/pulls/{number}")
 
     try:
-        needs_writer = set(args.kinds.split(",")) - {"review", "finalize", "integration-repair", "contribution-integration"} - POST_MERGE_KINDS
+        needs_writer = (set(args.kinds.split(",")) - {"review", "finalize", "integration-repair", MERGE_ONLY_KIND,
+                                                       "contribution-integration"} - POST_MERGE_KINDS)
         kinds = set(args.kinds.split(","))
         writer_launch = None
         if args.writer is not None:
@@ -1372,20 +1375,21 @@ def main(argv: list[str] | None = None) -> int:
                                                               source_repo=args.source, expected_target_head=job["target_head"],
                                                               claim_current=contribution_claim_current)
                         post_comment(job["number"], result_body(job, args.worker, outcome["state"]))
-                    elif job["kind"] == "integration-repair":
+                    elif job["kind"] in {"integration-repair", MERGE_ONLY_KIND}:
                         from integration_contour import run_claimed_integration_repair
                         import publication_queue
 
                         candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
+                        merge_only = job["kind"] == MERGE_ONLY_KIND  # never handed a writer, provider or command
                         outcome = run_claimed_integration_repair(
                             Path.cwd(), repo, candidate, job,
                             source_repo=args.source or f"https://github.com/{repo}.git",
                             branch=args.branch or pr_info(job["number"])["head"]["ref"],
-                            allowed_paths=allowed, llm_command=args.llm_command,
+                            allowed_paths=allowed, llm_command=None if merge_only else args.llm_command,
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
                             post_result=lambda body: post_comment(job["number"], body),
-                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider,
-                            launch=writer_launch)
+                            workdir=workdir, home_files=args.llm_home_file, worker=args.worker,
+                            provider=None if merge_only else args.provider, launch=None if merge_only else writer_launch)
                     elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
                           and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
                         from requirement_composition import run_claimed_retrospective

@@ -413,7 +413,9 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
 
         kind = {"reviewing": "review", "repairing": "repair",
                 "integration-repair-pending": "integration-repair"}.get(newest["state"], "finalize")
-        old_job = {"number": number, "kind": kind, "head": newest["head"],
+        merge_only = kind == "integration-repair" and (newest.get("red_gate") or {}).get("merge_only") is True
+        # A merge-only round's job is the LLM-free integration merge; its attempts count as integration repair.
+        old_job = {"number": number, "kind": "integration-merge" if merge_only else kind, "head": newest["head"],
                    "attempt": newest.get("attempts", {}).get(kind, 0)}
         for row in sorted(comments, key=lambda item: item.get("id", 0), reverse=True):
             body = row.get("body", "")

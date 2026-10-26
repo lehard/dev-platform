@@ -1046,6 +1046,17 @@ class SandboxedWriterOptionTests(unittest.TestCase):
             self.assertIn(message, "".join(call.args[0] for call in err.call_args_list))
 
 
+    def test_integration_merge_runs_without_an_llm_command_while_integration_repair_needs_one(self):
+        def run(kinds):
+            err = mock.Mock()
+            with mock.patch.object(workers, "_gh_json", side_effect=workers.WorkerError("reached GitHub")), \
+                    mock.patch("sys.stderr", new=mock.Mock(write=err)), mock.patch("sys.stdout", new=mock.Mock()):
+                workers.main(["work-next", "--repo", "o/r", "--worker", "w", "--kinds", kinds, "--run"])
+            return "".join(call.args[0] for call in err.call_args_list)
+        # The merge-only kind passes every writer/provider option check and reaches the job selection.
+        self.assertIn("reached GitHub", run("integration-merge"))
+        self.assertIn("--provider is required for repair kinds", run("integration-repair"))
+
 class ExecuteJobTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
