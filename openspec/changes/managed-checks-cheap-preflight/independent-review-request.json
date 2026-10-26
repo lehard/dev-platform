@@ -1,0 +1,78 @@
+{
+  "candidate": {
+    "base_head": "ec09abff78abbd07d20a51af50ebfe0bc1f76188",
+    "base_ref": "origin/main",
+    "candidate_head": "bc93a3917107abd8b30d5cab7d265ecabbbbf25b",
+    "diff_sha256": "2afbb007b51e3372962410aade8370438281a32944c40365e4177c34456b0331"
+  },
+  "change": "openspec/changes/managed-checks-cheap-preflight",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/managed-checks-cheap-preflight/automated-checks.json",
+    "openspec/changes/managed-checks-cheap-preflight/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/managed-checks-cheap-preflight/design.md",
+        "openspec/changes/managed-checks-cheap-preflight/proposal.md",
+        "openspec/changes/managed-checks-cheap-preflight/specs/completion-lifecycle/spec.md",
+        "openspec/changes/managed-checks-cheap-preflight/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/managed-checks-cheap-preflight/proposal.md",
+        "openspec/changes/managed-checks-cheap-preflight/design.md",
+        "openspec/changes/managed-checks-cheap-preflight/tasks.md",
+        "openspec/changes/managed-checks-cheap-preflight/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T19:33:19+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/managed-checks-cheap-preflight/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "dfffb7a9-a91a-47f4-8e07-ae8de05136ca",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6982017fc1766c24e693610cd0b7180042d0af8a",
+    "digest": "9cad0496521e1d7e467a8f0d9143b156abb95f719eaa2b09d16f291cb0646445",
+    "paths": {
+      "dev-platform/checks.toml": "09aa5be54faa8d297f24c13e8ed393459c262e99",
+      "docs/engineering/agent-workflow.md": "d8199ddde5079c83bb12ed1ab41d700e34a0b903",
+      "openspec/changes/managed-checks-cheap-preflight/.managed-task.json": "b1ee690fa856601920008b8a506fc272f0cddc45",
+      "openspec/changes/managed-checks-cheap-preflight/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/managed-checks-cheap-preflight/design.md": "9dff84297cb0c70322db6652a97810a495dddb5b",
+      "openspec/changes/managed-checks-cheap-preflight/proposal.md": "56b0f5cf3c307e0d9604853308fdfd48b66de9ef",
+      "openspec/changes/managed-checks-cheap-preflight/specs/completion-lifecycle/spec.md": "5118b3c954f51ece7d469492e5b11774d958ff25",
+      "openspec/changes/managed-checks-cheap-preflight/tasks.md": "508fe80eea4c162ecb6cb352260ac222732e4da7",
+      "template/scripts/select_checks.py": "505e401b68ca65416975e0b6dff8c72636367072",
+      "tests/test_managed_checkout_identity.py": "9e895ae2ef5160f0c45faec1a83c6a3c14ae4c2c",
+      "tests/test_portable_finish_check_reuse.py": "772f0182beca42e9b164f6c1359d5ef9e980c947",
+      "tests/test_select_checks.py": "a9c2ecc0b4a85d81c956042fe34f70c8657d8de9"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

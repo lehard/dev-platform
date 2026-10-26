@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ec09abff78abbd07d20a51af50ebfe0bc1f76188",
+    "base_ref": "origin/main",
+    "candidate_head": "bc93a3917107abd8b30d5cab7d265ecabbbbf25b",
+    "diff_sha256": "2afbb007b51e3372962410aade8370438281a32944c40365e4177c34456b0331"
+  },
+  "completed_at": "2026-10-26T19:34:02+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_managed_checkout_identity.py: test_archive_ready_or_archived_change_passes_the_preflight calls select_checks.require_active_change_ready(...) directly. Only the two refusal tests go through main() via _run_select_checks. The spec scenarios 'Archive-ready managed run proceeds' and 'Archived managed change keeps the existing path' therefore have no end-to-end coverage. The call-site ordering in template/scripts/select_checks.py (about line 650) is protected only by the refusal tests.",
+      "id": "preflight-pass-path-not-tested-through-main",
+      "severity": "advisory",
+      "summary": "The archive-ready and archived scenarios are tested only by calling require_active_change_ready directly. Nothing checks that main() still reaches the existing gates after the preflight passes, or that the refusal runs before the precheck and scope gates."
+    }
+  ],
+  "launched_at": "2026-10-26T19:33:44+00:00",
+  "output_sha256": "65bfe70a84f62b8ba8cf162a298359f618b32a9290c165af1d3e92ae16c1c669",
+  "perspective": "engineering-quality",
+  "request_id": "dfffb7a9-a91a-47f4-8e07-ae8de05136ca",
+  "reviewer": {
+    "context_id": "10c37f86-4bd8-4ef2-a2f0-696001285003",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-63a6674b-6a08-439d-9e7e-272b9399a395",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16591
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36067
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17595
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17743
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 965
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9cad0496521e1d7e467a8f0d9143b156abb95f719eaa2b09d16f291cb0646445"
+}
