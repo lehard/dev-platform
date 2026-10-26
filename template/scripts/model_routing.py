@@ -80,6 +80,7 @@ PLAN_DELEGATED = "delegated-child"
 PLAN_RETAINED = "supervisor-retained"
 PLAN_MODES = (PLAN_DELEGATED, PLAN_RETAINED)
 OWNER_APPROVED_POLICY = "owner-approved"
+BALANCED_PARENT_POLICY = "balanced-parent"
 # A historical Claude recovery the platform cannot prove: an explicit owner risk acceptance, never a verified advance.
 CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY = "owner-authorized-historical-recovery"
 DELEGATION_STATES = ("open", "closed")
@@ -627,18 +628,22 @@ def read_route_for_change(root: Path, change: str) -> dict[str, str]:
     return {"provider": route.provider, "profile": route.profile, "change": change}
 
 
-def _retention_policy_for(profile: str, topology: str) -> str | None:
+def _retention_policy_for(profile: str, topology: str, *, delegate: bool = False) -> str | None:
     if profile == "complex":
         return "complex-parent"
     if profile in {"routine", "standard"} and topology == STANDALONE_CLONE:
         return "parent-only-topology"
-    return None
+    if delegate:
+        return None
+    return BALANCED_PARENT_POLICY
 
 
 def _retention_policy(route: Route) -> str | None:
     plan = route.execution_plan
     if isinstance(plan, dict) and plan.get("policy") == OWNER_APPROVED_POLICY:
         return OWNER_APPROVED_POLICY
+    if isinstance(plan, dict) and plan.get("mode") == PLAN_DELEGATED:
+        return None
     return _retention_policy_for(route.profile, route.topology)
 
 
@@ -870,6 +875,83 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
             RoutingError,
         )
     return route
+
+
+def check_task_write(root: Path, target: Path) -> None:
+    """Prospective write-time gate: refuse an implementation write that contradicts the routing plan.
+
+    Unlike `_early_routing_gate` the write itself is the divergence, so current
+    task content is not consulted. Lifecycle paths and non-managed roots are exempt.
+    """
+    if not _has_managed_task(root):
+        return
+    source_issue, change = current_managed_identity(root)
+    _, _, lineage = resolve_managed_provenance(root, source_issue, change)
+    if lineage != "active":
+        return
+    rel = target.resolve().relative_to(root.resolve()).as_posix()
+    if _is_lifecycle_path(rel, change):
+        return
+    path = _record_path(root, change)
+    if not path.is_file():
+        raise RoutingError(
+            f"no routing record exists for managed change {change}; route before the first implementation write: "
+            "python3 scripts/dogfood_task.py route-claude (routine/standard routes are supervisor-retained by default)"
+        )
+    route, _ = _read_route_at(path, source_issue, change)
+    if route.execution_plan is None:
+        if route.execution is None:
+            raise RoutingError(
+                f"routing record for managed change {change} has no execution plan and no execution outcome; "
+                "re-route required (route-codex or route-claude)"
+            )
+        return
+    if route.execution_plan["mode"] == PLAN_RETAINED or _has_real_delegation(route):
+        return
+    raise RoutingError(
+        f"the execution plan for managed change {change} is a delegated child and no delegation is open; write to {rel} refused before it happens. "
+        "Open the delegation first: python3 scripts/dogfood_task.py begin-claude-delegation, then invoke the emitted Agent hand-off "
+        "(or python3 scripts/model_routing.py dispatch-claude-sandboxed); a supervisor-written diff under a child-executor plan "
+        "needs an explicit owner decision recorded by approve-supervisor-diff"
+    )
+
+
+def _write_gate_main() -> int:
+    """Claude Code PreToolUse hook entrypoint: exit 0 allows, exit 2 denies with the reason on stderr."""
+    def deny(message: str) -> int:
+        print(f"dev-platform write gate: {message}", file=sys.stderr)
+        return 2
+    try:
+        payload = json.loads(sys.stdin.read())
+    except json.JSONDecodeError as exc:
+        return deny(f"hook payload is not valid JSON: {exc}")
+    if not isinstance(payload, dict) or not isinstance(payload.get("tool_input"), dict):
+        return deny("hook payload has no tool_input object")
+    tool_input = payload["tool_input"]
+    raw = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not isinstance(raw, str) or not raw:
+        return deny("hook payload has no tool_input.file_path or tool_input.notebook_path")
+    target = Path(raw)
+    if not target.is_absolute():
+        cwd = payload.get("cwd")
+        if not isinstance(cwd, str) or not cwd:
+            return deny(f"relative write path {raw} needs a payload cwd, which is missing")
+        target = Path(cwd) / target
+    try:
+        anchor = target.parent
+        while not anchor.is_dir():
+            if anchor.parent == anchor:
+                return deny(f"no existing ancestor directory for {target}")
+            anchor = anchor.parent
+        proc = subprocess.run(["git", "-C", str(anchor), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+        if proc.returncode != 0:
+            return 0
+        toplevel = Path(proc.stdout.strip())
+        os.chdir(toplevel)
+        check_task_write(toplevel, target)
+    except Exception as exc:
+        return deny(str(exc))
+    return 0
 
 
 def _write_route(path: Path, route: Route) -> None:
@@ -1176,7 +1258,7 @@ def recover_external_advance(
     return recovery
 
 
-def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, evidence: list[str]) -> Route:
+def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, evidence: list[str], delegate: bool = False) -> Route:
     """Record a route: confirm the authored start tier, or accept an explicit override.
 
     When ``profile`` is omitted, this is the bounded execution-time freshness
@@ -1232,7 +1314,7 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     if existing_path.is_file():
         previous, _ = _read_route(root)
         _require_recovery_safety(previous)
-    policy = _retention_policy_for(profile, topology)
+    policy = _retention_policy_for(profile, topology, delegate=delegate)
     plan: dict[str, Any] = {"mode": PLAN_RETAINED if policy else PLAN_DELEGATED, "declared_at": utc_now(), "task_content_pre": content, "delegation": None}
     if policy:
         plan["policy"] = policy
@@ -1667,7 +1749,7 @@ def dispatch_codex(
     and the native child launch in one operation prevents dogfood guidance from
     degrading into a recorded-but-never-executed routine/standard route.
     """
-    route = prepare(root, provider="codex", profile=profile, rationale=rationale, evidence=evidence)
+    route = prepare(root, provider="codex", profile=profile, rationale=rationale, evidence=evidence, delegate=True)
     output: dict[str, Any] = {"route": asdict(route), "delegated": False}
     if route.profile == "complex":
         output["reason"] = "complex profile remains on the strong Codex supervisor"
@@ -1712,7 +1794,7 @@ def claude_agent(route: Route) -> dict[str, Any]:
     return {"description": "Managed task executor; use only after supervisor routing preflight.", "model": route.executor_model, "prompt": "Work only in the current working directory, which is already the assigned task worktree for this managed dev-platform task -- do not request isolation or create a separate worktree. Preserve the canonical OpenSpec and return the exact diff, checks run, uncertainty, and any escalation trigger to the supervisor. Managed source: " + route.source_issue + "; change: " + route.change + "; assigned worktree: " + route.task_worktree + "."}
 
 
-def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, evidence: list[str]) -> dict[str, Any]:
+def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, evidence: list[str], delegate: bool = False) -> dict[str, Any]:
     """Atomically record a Claude route and, for lower-cost profiles, the hand-off to invoke.
 
     A native Claude Code subagent can only be launched by the supervisor's own
@@ -1723,10 +1805,21 @@ def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, e
     record_claude_execution with the result before finish's routing gate
     accepts a routine/standard Claude route.
     """
-    route = prepare(root, provider="claude", profile=profile, rationale=rationale, evidence=evidence)
+    route = prepare(root, provider="claude", profile=profile, rationale=rationale, evidence=evidence, delegate=delegate)
     output: dict[str, Any] = {"route": asdict(route), "delegated": False}
     if route.profile == "complex":
         output["reason"] = "complex profile remains on the strong Claude supervisor"
+        return output
+    if delegate:
+        _refuse_child_writer_on_standalone_clone(route)
+    plan = _require_plan(route, "building the Claude hand-off")
+    if plan["mode"] == PLAN_RETAINED:
+        output["reason"] = f"routine/standard Claude route is supervisor-retained by default (policy {plan['policy']}); implement in the assigned task worktree"
+        output["next_steps"] = [
+            "implement in the assigned task worktree",
+            "python3 scripts/model_routing.py record-retained-execution --reason \"<reason>\" after implementation",
+            "pass --delegate to route-claude/dispatch-claude only when a child executor is explicitly required",
+        ]
         return output
     _refuse_child_writer_on_standalone_clone(route)
     tier_decision = determine_claude_tier(shell_enabled=True)
@@ -1875,7 +1968,7 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
     if plan["mode"] != PLAN_RETAINED or policy is None or plan.get("policy") != policy:
         raise RoutingError(
             "this route's execution plan is not supervisor-retained: retention must be declared up front at route time "
-            "(policy-permitted complex or parent-only-topology) and is never converted from a delegated-child plan after the fact; "
+            "(policy-permitted complex, balanced-parent or parent-only-topology) and is never converted from a delegated-child plan after the fact; "
             "record the real child execution or, with a real recorded delegation or unchanged task content, escalate first; "
             "for an owner-approved supervisor-written diff, only `model_routing.py approve-supervisor-diff --approval \"<owner statement>\" "
             "--reason \"<reason>\"` records the owner's explicit decision"
@@ -3996,6 +4089,7 @@ def main() -> int:
     )
     prepare_parser.add_argument("--rationale", required=True)
     prepare_parser.add_argument("--evidence", action="append", default=[])
+    prepare_parser.add_argument("--delegate", action="store_true", help="explicitly request a delegated child executor for a routine/standard route")
     subparsers.add_parser("context", help="emit bounded executor/supervisor hand-off context")
     escalate_parser = subparsers.add_parser("escalate", help="promote routine/standard work to the strong profile")
     escalate_parser.add_argument("--reason", required=True)
@@ -4035,6 +4129,8 @@ def main() -> int:
     )
     dispatch_claude_parser.add_argument("--rationale", required=True)
     dispatch_claude_parser.add_argument("--evidence", action="append", default=[])
+    dispatch_claude_parser.add_argument("--delegate", action="store_true", help="explicitly request a delegated child executor for a routine/standard route")
+    subparsers.add_parser("write-gate", help="Claude Code PreToolUse hook: refuse an implementation write that contradicts the routing plan")
     sandboxed_parser = subparsers.add_parser(
         "dispatch-claude-sandboxed",
         help="launch the prepared delegated-child Claude route as a platform-observed headless writer under sandbox-runtime (macOS only)",
@@ -4118,9 +4214,11 @@ def main() -> int:
     subparsers.add_parser("efficiency-baseline", help="report bounded local execution-efficiency evidence without changing routing")
     subparsers.add_parser("routing-calibration", help="report bounded read-only R2/R3 routing calibration evidence without changing routing")
     args = parser.parse_args()
+    if args.command == "write-gate":
+        return _write_gate_main()
     root = current_worktree_root()
     try:
-        if args.command == "prepare": output: Any = asdict(prepare(root, provider=args.provider, profile=args.profile, rationale=args.rationale, evidence=args.evidence))
+        if args.command == "prepare": output: Any = asdict(prepare(root, provider=args.provider, profile=args.profile, rationale=args.rationale, evidence=args.evidence, delegate=args.delegate))
         elif args.command == "context": output = escalation_context(_read_route(root)[0])
         elif args.command == "escalate": output = asdict(escalate(root, args.reason))
         elif args.command == "approve-supervisor-diff": output = asdict(approve_supervisor_diff(root, approval=args.approval, reason=args.reason))
@@ -4140,7 +4238,7 @@ def main() -> int:
             )
         elif args.command == "claude-agent": output = claude_agent(_read_route(root)[0])
         elif args.command == "dispatch-claude":
-            output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence)
+            output = prepare_claude_handoff(root, profile=args.profile, rationale=args.rationale, evidence=args.evidence, delegate=args.delegate)
         elif args.command == "dispatch-claude-sandboxed":
             output = dispatch_claude_sandboxed(root, prompt=args.prompt)
         elif args.command == "begin-claude-delegation":

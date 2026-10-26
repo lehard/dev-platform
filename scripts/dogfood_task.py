@@ -306,6 +306,8 @@ def route_claude(args: argparse.Namespace) -> int:
     verify_source_contract(root)
     handoff = bounded_executor_prompt(root, "Read the canonical managed OpenSpec before implementation.")
     command = ["python3", "scripts/model_routing.py", "dispatch-claude"]
+    if args.delegate:
+        command += ["--delegate"]
     if args.profile:
         command += ["--profile", args.profile]
     command += ["--rationale", args.rationale]
@@ -386,6 +388,7 @@ def main() -> int:
     )
     route_claude_parser.add_argument("--rationale", required=True)
     route_claude_parser.add_argument("--evidence", action="append", default=[])
+    route_claude_parser.add_argument("--delegate", action="store_true", help="explicitly request a delegated child executor for a routine/standard route")
     route_claude_parser.set_defaults(func=route_claude)
     begin_claude_parser = sub.add_parser(
         "begin-claude-delegation",

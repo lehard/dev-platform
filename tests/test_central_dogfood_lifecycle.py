@@ -215,6 +215,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             profile="standard",
             rationale="Sol supervisor completed semantic preflight",
             evidence=["openspec/changes/central-task"],
+            delegate=False,
         )
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
             dogfood_task, "run"
@@ -223,10 +224,19 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
 
         command = run.call_args.args[0]
         self.assertEqual(command[:5], ["python3", "scripts/model_routing.py", "dispatch-claude", "--profile", "standard"])
+        self.assertNotIn("--delegate", command)
         self.assertIn("--rationale", command)
         self.assertIn("--evidence", command)
         self.assertNotIn("--prompt", command)
         self.assertEqual(run.call_args.args[1], self.root)
+
+    def test_route_claude_passes_explicit_delegate_through(self) -> None:
+        args = dogfood_task.argparse.Namespace(profile="standard", rationale="child required", evidence=[], delegate=True)
+        with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
+            dogfood_task, "run"
+        ) as run:
+            self.assertEqual(dogfood_task.route_claude(args), 0)
+        self.assertIn("--delegate", run.call_args.args[0])
 
     def test_route_claude_prints_validated_requirement_handoff(self) -> None:
         change = self.add_managed_change()
@@ -241,7 +251,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             **state, "managed_package": "openspec/changes/central-task", "repository_head": head,
             "managed_provenance_sha256": digest,
         }), encoding="utf-8")
-        args = dogfood_task.argparse.Namespace(profile="complex", rationale="R3 retained", evidence=[])
+        args = dogfood_task.argparse.Namespace(profile="complex", rationale="R3 retained", evidence=[], delegate=False)
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
             dogfood_task, "run"
         ), mock.patch("builtins.print") as printed:
@@ -253,6 +263,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             profile=None,
             rationale="freshness check: no new hard trigger found",
             evidence=[],
+            delegate=False,
         )
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
             dogfood_task, "run"

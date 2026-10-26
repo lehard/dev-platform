@@ -105,7 +105,7 @@ class ModelRoutingTests(unittest.TestCase):
 
     def prepare(self, provider: str = "codex", profile: str = "standard"):
         with patch.object(routing, "main_root", return_value=self.integration):
-            return routing.prepare(self.task, provider=provider, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"])
+            return routing.prepare(self.task, provider=provider, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"], delegate=True)
 
     def write_routing_receipt(self, tier: str, *, strong_trigger: str | None = None) -> None:
         provenance = self.task / "openspec" / "changes" / "routing-change" / ".managed-task.json"
@@ -142,7 +142,7 @@ class ModelRoutingTests(unittest.TestCase):
     def test_prepare_without_profile_confirms_authored_r2_tier(self) -> None:
         self.write_routing_receipt("R2")
         with patch.object(routing, "main_root", return_value=self.integration):
-            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger found", evidence=[])
+            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger found", evidence=[], delegate=True)
         self.assertEqual(route.profile, "standard")
         self.assertEqual(route.start_tier, "R2")
         self.assertEqual(route.freshness, "confirmed")
@@ -150,26 +150,26 @@ class ModelRoutingTests(unittest.TestCase):
     def test_prepare_without_profile_confirms_authored_r3_tier(self) -> None:
         self.write_routing_receipt("R3", strong_trigger="unresolved_architecture")
         with patch.object(routing, "main_root", return_value=self.integration):
-            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: trigger still holds", evidence=[])
+            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: trigger still holds", evidence=[], delegate=True)
         self.assertEqual(route.profile, "complex")
         self.assertEqual(route.start_tier, "R3")
 
     def test_prepare_without_profile_and_without_receipt_requires_explicit_profile(self) -> None:
         with patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaisesRegex(routing.RoutingError, "pass --profile explicitly"):
-                routing.prepare(self.task, provider="codex", profile=None, rationale="no receipt available", evidence=[])
+                routing.prepare(self.task, provider="codex", profile=None, rationale="no receipt available", evidence=[], delegate=True)
 
     def test_explicit_profile_override_still_records_authored_tier(self) -> None:
         self.write_routing_receipt("R2")
         with patch.object(routing, "main_root", return_value=self.integration):
-            route = routing.prepare(self.task, provider="codex", profile="complex", rationale="override to strong on new evidence", evidence=[])
+            route = routing.prepare(self.task, provider="codex", profile="complex", rationale="override to strong on new evidence", evidence=[], delegate=True)
         self.assertEqual(route.profile, "complex")
         self.assertEqual(route.start_tier, "R2")
 
     def test_escalate_marks_route_as_freshness_escalated(self) -> None:
         self.write_routing_receipt("R2")
         with patch.object(routing, "main_root", return_value=self.integration):
-            routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger found", evidence=[])
+            routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger found", evidence=[], delegate=True)
             escalated = routing.escalate(self.task, "freshness check found a new unresolved architecture trigger")
         self.assertEqual(escalated.profile, "complex")
         self.assertEqual(escalated.freshness, "escalated")
@@ -303,7 +303,7 @@ class ModelRoutingTests(unittest.TestCase):
         self.add_integrated_sibling()
         with patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaisesRegex(routing.RoutingError, "no managed task state names"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[], delegate=True)
 
     def test_task_state_naming_no_active_change_is_rejected(self) -> None:
         self.add_integrated_sibling()
@@ -312,14 +312,14 @@ class ModelRoutingTests(unittest.TestCase):
         )
         with patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaisesRegex(routing.RoutingError, "exactly one materialized managed OpenSpec change"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[], delegate=True)
 
     def test_task_state_without_change_is_rejected(self) -> None:
         self.add_integrated_sibling()
         (self.task / ".managed-task-state.json").write_text(json.dumps({"source_issue": "owner/backlog#7"}), encoding="utf-8")
         with patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaisesRegex(routing.RoutingError, "cannot read the managed task state"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="ambiguous", evidence=[], delegate=True)
 
     def test_route_preparation_remains_rejected_after_archive(self) -> None:
         archived = self.task / "openspec" / "changes" / "archive" / "2026-09-19-routing-change"
@@ -327,7 +327,7 @@ class ModelRoutingTests(unittest.TestCase):
         shutil.move(str(self.task / "openspec" / "changes" / "routing-change"), str(archived))
         with patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaisesRegex(routing.RoutingError, "exactly one materialized managed OpenSpec change"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="too late", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="too late", evidence=[], delegate=True)
 
     def test_run_codex_extracts_thread_id_from_json_event_stream(self) -> None:
         route = self.prepare()
@@ -741,7 +741,7 @@ class ModelRoutingTests(unittest.TestCase):
                 self.task,
                 profile="standard",
                 rationale="Sol supervisor completed bounded current-spec preflight",
-                evidence=["openspec/changes/routing-change"],
+                evidence=["openspec/changes/routing-change"], delegate=True,
             )
         self.assertEqual(result["delegated"], "pending_begin_delegation")
         self.assertIn("begin-claude-delegation", result["next_steps"][0])
@@ -766,7 +766,7 @@ class ModelRoutingTests(unittest.TestCase):
                     self.task,
                     profile="standard",
                     rationale="Sol supervisor completed bounded current-spec preflight",
-                    evidence=["openspec/changes/routing-change"],
+                    evidence=["openspec/changes/routing-change"], delegate=True,
                 )
 
     def test_claude_handoff_complex_remains_on_sol(self) -> None:
@@ -775,11 +775,76 @@ class ModelRoutingTests(unittest.TestCase):
                 self.task,
                 profile="complex",
                 rationale="Sol supervisor found a material cross-cutting contract boundary",
-                evidence=["openspec/specs/model-routing/spec.md"],
+                evidence=["openspec/specs/model-routing/spec.md"], delegate=True,
             )
         self.assertFalse(result["delegated"])
         self.assertNotIn("handoff", result)
         self.assertIn("remains on the strong", result["reason"])
+
+    def prepare_default(self, profile: str = "standard", *, delegate: bool = False):
+        with patch.object(routing, "main_root", return_value=self.integration):
+            return routing.prepare(self.task, provider="claude", profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"], delegate=delegate)
+
+    def test_default_routine_standard_route_is_balanced_parent_retained(self) -> None:
+        for profile in ("routine", "standard"):
+            route = self.prepare_default(profile)
+            self.assertEqual(route.execution_plan["mode"], routing.PLAN_RETAINED)
+            self.assertEqual(route.execution_plan["policy"], routing.BALANCED_PARENT_POLICY)
+        routing.check_task_write(self.task, self.task / "src" / "impl.py")
+        (self.task / "impl.txt").write_text("supervisor work\n", encoding="utf-8")
+        with patch.object(routing, "main_root", return_value=self.integration):
+            execution = routing.record_retained_execution(self.task, reason="balanced parent implemented in place")
+        self.assertEqual(execution["retained"]["policy"], routing.BALANCED_PARENT_POLICY)
+
+    def test_default_claude_handoff_is_retained_with_next_steps(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.integration):
+            result = routing.prepare_claude_handoff(self.task, profile="standard", rationale="bounded", evidence=["openspec/changes/routing-change"])
+        self.assertIs(result["delegated"], False)
+        self.assertNotIn("handoff", result)
+        self.assertIn("balanced-parent", result["reason"])
+        self.assertIn("record-retained-execution", result["next_steps"][1])
+
+    def test_explicit_delegate_write_is_denied_until_delegation_opens(self) -> None:
+        route = self.prepare_default(delegate=True)
+        self.assertEqual(route.execution_plan["mode"], routing.PLAN_DELEGATED)
+        with self.assertRaisesRegex(routing.RoutingError, "begin-claude-delegation"):
+            routing.check_task_write(self.task, self.task / "src" / "impl.py")
+        routing.check_task_write(self.task, self.task / "openspec" / "changes" / "routing-change" / "tasks.md")
+        routing.check_task_write(self.task, self.task / ".claude" / "x")
+        routing.begin_claude_delegation(self.task)
+        routing.check_task_write(self.task, self.task / "src" / "impl.py")
+
+    def test_write_gate_denies_write_without_routing_record(self) -> None:
+        with self.assertRaisesRegex(routing.RoutingError, "route-claude"):
+            routing.check_task_write(self.task, self.task / "src" / "impl.py")
+
+    def test_write_gate_ignores_non_managed_root(self) -> None:
+        routing.check_task_write(self.integration, self.integration / "README.md")
+
+    def test_complex_with_delegate_stays_complex_parent(self) -> None:
+        route = self.prepare_default("complex", delegate=True)
+        self.assertEqual(route.execution_plan["policy"], "complex-parent")
+
+    def run_write_gate(self, payload: str, cwd: Path) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, str(SCRIPTS / "model_routing.py"), "write-gate"], input=payload, cwd=cwd, text=True, capture_output=True)
+
+    def test_write_gate_cli_denies_and_allows(self) -> None:
+        self.prepare_default(delegate=True)
+        denied = self.run_write_gate(json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(self.task / "src" / "impl.py")}, "cwd": str(self.task)}), self.task)
+        self.assertEqual(denied.returncode, 2, denied.stderr)
+        self.assertIn("begin-claude-delegation", denied.stderr)
+        self.assertIn("dev-platform write gate:", denied.stderr)
+        relative = self.run_write_gate(json.dumps({"tool_input": {"file_path": "src/impl.py"}, "cwd": str(self.task)}), self.task)
+        self.assertEqual(relative.returncode, 2, relative.stderr)
+        invalid = self.run_write_gate("not json", self.task)
+        self.assertEqual(invalid.returncode, 2)
+        self.assertIn("not valid JSON", invalid.stderr)
+        missing = self.run_write_gate(json.dumps({"tool_input": {}}), self.task)
+        self.assertEqual(missing.returncode, 2)
+        with tempfile.TemporaryDirectory() as outside:
+            allowed = self.run_write_gate(json.dumps({"tool_input": {"file_path": str(Path(outside) / "a.txt")}}), self.task)
+            self.assertEqual(allowed.returncode, 0, allowed.stderr)
+            self.assertEqual(allowed.stderr, "")
 
     def test_record_claude_execution_persists_evidence_after_real_invocation(self) -> None:
         detection_only = guard.EnforcementDecision(guard.EnforcementTier.DETECTION_ONLY, "detection-only:claude-shell-capable", "no proven sandbox")
@@ -791,7 +856,7 @@ class ModelRoutingTests(unittest.TestCase):
                 self.task,
                 profile="standard",
                 rationale="Sol supervisor completed bounded current-spec preflight",
-                evidence=["openspec/changes/routing-change"],
+                evidence=["openspec/changes/routing-change"], delegate=True,
             )
             # Simulate the supervisor having actually invoked the emitted hand-off
             # and made a real change inside the assigned task worktree (not integration).
@@ -832,7 +897,7 @@ class ModelRoutingTests(unittest.TestCase):
                 self.task,
                 profile="standard",
                 rationale="Sol supervisor completed bounded current-spec preflight",
-                evidence=["openspec/changes/routing-change"],
+                evidence=["openspec/changes/routing-change"], delegate=True,
             )
             routing.begin_claude_delegation(self.task)
             (self.integration / "escape.txt").write_text("unexpected\n", encoding="utf-8")
@@ -849,7 +914,7 @@ class ModelRoutingTests(unittest.TestCase):
                 self.task,
                 profile="complex",
                 rationale="Sol supervisor found a material cross-cutting contract boundary",
-                evidence=["openspec/specs/model-routing/spec.md"],
+                evidence=["openspec/specs/model-routing/spec.md"], delegate=True,
             )
             with self.assertRaisesRegex(routing.RoutingError, "not delegated"):
                 routing.record_claude_execution(self.task, agent_id="agent-abc123")
@@ -864,7 +929,7 @@ class ModelRoutingTests(unittest.TestCase):
                 self.task,
                 profile="standard",
                 rationale="Sol supervisor completed bounded current-spec preflight",
-                evidence=["openspec/changes/routing-change"],
+                evidence=["openspec/changes/routing-change"], delegate=True,
             )
             routing.begin_claude_delegation(self.task)
             execution = routing.record_claude_execution(self.task, agent_id="anything-made-up")
@@ -1438,7 +1503,7 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
 
     def prepare(self, provider: str = "codex", profile: str = "standard"):
         with patch.object(routing, "main_root", return_value=self.clone):
-            return routing.prepare(self.clone, provider=provider, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"])
+            return routing.prepare(self.clone, provider=provider, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"], delegate=True)
 
     def test_prepare_records_the_standalone_clone_as_a_truthful_parent_only_route(self) -> None:
         route = self.prepare()
@@ -1485,8 +1550,17 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
             with self.assertRaisesRegex(routing.RoutingError, "standalone standard-profile clone"):
                 routing.prepare_claude_handoff(
                     self.clone, profile="standard", rationale="bounded current-spec preflight",
-                    evidence=["openspec/changes/routing-change"],
+                    evidence=["openspec/changes/routing-change"], delegate=True,
                 )
+
+    def test_claude_handoff_default_on_standalone_clone_is_parent_only_retained(self) -> None:
+        with patch.object(routing, "main_root", return_value=self.clone):
+            result = routing.prepare_claude_handoff(
+                self.clone, profile="standard", rationale="bounded current-spec preflight",
+                evidence=["openspec/changes/routing-change"],
+            )
+        self.assertIs(result["delegated"], False)
+        self.assertIn("parent-only-topology", result["reason"])
 
     def test_codex_argv_refuses_a_standalone_clone_route_read_back_from_disk(self) -> None:
         # Covers the raw `codex-argv`/`run-codex` CLI paths, which read an
@@ -1559,7 +1633,7 @@ class ExternalAdvanceRecoveryTests(unittest.TestCase):
         with patch.object(routing, "main_root", return_value=self.integration):
             self.route = routing.prepare(
                 self.task, provider="codex", profile="standard",
-                rationale="bounded current-spec preflight", evidence=["openspec/changes/recovery-change"],
+                rationale="bounded current-spec preflight", evidence=["openspec/changes/recovery-change"], delegate=True,
             )
         self.before_head = self.route.pre_snapshot["head"]
         (self.integration / "concurrent.txt").write_text("advance\n", encoding="utf-8")
@@ -2074,7 +2148,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
 
     def handoff(self, profile: str = "standard"):
         with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
-            return routing.prepare_claude_handoff(self.task, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"])
+            return routing.prepare_claude_handoff(self.task, profile=profile, rationale="bounded current-spec preflight", evidence=["openspec/changes/routing-change"], delegate=True)
 
     def gate(self):
         return routing.require_early_routing_gate(self.task)
@@ -2103,7 +2177,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
     def test_policy_requiring_child_records_delegated_plan_separate_from_tier_and_execution(self) -> None:
         self.write_routing_receipt("R2")
         with patch.object(routing, "main_root", return_value=self.integration):
-            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger", evidence=[])
+            route = routing.prepare(self.task, provider="codex", profile=None, rationale="freshness check: no new trigger", evidence=[], delegate=True)
         self.assertEqual(route.execution_plan["mode"], routing.PLAN_DELEGATED)
         self.assertNotIn("policy", route.execution_plan)
         self.assertIsNone(route.execution_plan["delegation"])
@@ -2699,7 +2773,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
                     delegation = self.plan()["delegation"]
                     self.assertEqual(delegation["launch_evidence"], "platform-observed")
                     self.assertEqual(delegation["outcome"], outcome)
-                    rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route after failed child", evidence=[])
+                    rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route after failed child", evidence=[], delegate=True)
                 self.assertEqual(rerouted.execution_plan["rerouted_from"]["outcome"], outcome)
                 self.assertEqual(json.loads(json.dumps(rerouted.execution_plan["rerouted_from"]["prior_route"])), prior_route)
                 self.assertIsNone(rerouted.execution_plan["delegation"])
@@ -2725,7 +2799,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
                     self.record_path().write_text(json.dumps(payload))
                     before = self.record_path().read_text()
                     with self.assertRaisesRegex(routing.RoutingError, diagnostic):
-                        routing.prepare(self.task, provider="codex", profile="complex", rationale="reviewed failure", evidence=[])
+                        routing.prepare(self.task, provider="codex", profile="complex", rationale="reviewed failure", evidence=[], delegate=True)
                     with self.assertRaisesRegex(routing.RoutingError, diagnostic):
                         routing.escalate(self.task, "reviewed child failure")
                     self.assertEqual(self.record_path().read_text(), before)
@@ -2733,7 +2807,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
             escaped = self.integration / "escaped.txt"
             escaped.write_text("escaped child writes")
             with self.assertRaises(routing.RoutingError):
-                routing.prepare(self.task, provider="codex", profile="complex", rationale="reviewed failure", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="complex", rationale="reviewed failure", evidence=[], delegate=True)
 
     def test_escalated_failed_child_finalizes_retention_preserving_provenance(self) -> None:
         with self.fake_codex("failed", write="partial.txt"), patch.object(routing, "main_root", return_value=self.integration):
@@ -2773,14 +2847,14 @@ class EarlyRoutingGateTests(unittest.TestCase):
                 routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
             self.write_content("supervisor-after.txt")
             with self.assertRaisesRegex(routing.RoutingError, r"routing must precede task content.*supervisor-after\.txt"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[], delegate=True)
 
     def test_clean_failed_child_retry_keeps_complete_prior_route(self) -> None:
         with self.fake_codex("failed"), patch.object(routing, "main_root", return_value=self.integration):
             with self.assertRaises(routing.RoutingError):
                 routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
             prior_route = json.loads(self.record_path().read_text(encoding="utf-8"))
-            rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="retry clean failure", evidence=[])
+            rerouted = routing.prepare(self.task, provider="codex", profile="standard", rationale="retry clean failure", evidence=[], delegate=True)
         self.assertEqual(rerouted.execution_plan["task_content_pre"]["paths"], {})
         self.assertEqual(rerouted.execution_plan["rerouted_from"]["outcome"], "failed")
         self.assertEqual(json.loads(json.dumps(rerouted.execution_plan["rerouted_from"]["prior_route"])), prior_route)
@@ -2806,7 +2880,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
             commit("supervisor edit\n")
             self.assertEqual(routing._content_differences({"committed": committed, "paths": {}}, routing._task_content_state(self.task, "routing-change")), [name])
             with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[], delegate=True)
 
     def test_incomplete_closed_claude_delegation_is_not_real_evidence(self) -> None:
         self.handoff()
@@ -2830,7 +2904,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
         with self.fake_codex("completed", write="done.txt"), patch.object(routing, "main_root", return_value=self.integration):
             routing.dispatch_codex(self.task, profile="standard", rationale="bounded preflight", evidence=[], prompt="implement")
             with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
-                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[])
+                routing.prepare(self.task, provider="codex", profile="standard", rationale="re-route", evidence=[], delegate=True)
         (self.task / "done.txt").unlink()
         self.record_path().unlink()
         self.durable_record_path().unlink()
@@ -2840,7 +2914,7 @@ class EarlyRoutingGateTests(unittest.TestCase):
         with patch.object(routing, "main_root", return_value=self.integration), patch.object(routing, "determine_claude_tier", return_value=DETECTION_ONLY):
             routing.record_claude_execution(self.task, agent_id="agent-1")
             with self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
-                routing.prepare(self.task, provider="claude", profile="standard", rationale="re-route", evidence=[])
+                routing.prepare(self.task, provider="claude", profile="standard", rationale="re-route", evidence=[], delegate=True)
 
     def test_reroute_refused_after_codex_failure_with_claude_provider_record(self) -> None:
         # A self-reported Claude delegation never qualifies even if its record later reads as a failure.
@@ -3037,7 +3111,7 @@ class EarlyRoutingGateTemplateParityTests(unittest.TestCase):
             def run(*args: str) -> subprocess.CompletedProcess[str]:
                 return subprocess.run([sys.executable, "scripts/model_routing.py", *args], cwd=task, text=True, capture_output=True)
 
-            routed = run("prepare", "--provider", "claude", "--profile", "standard", "--rationale", "parity preflight")
+            routed = run("prepare", "--provider", "claude", "--profile", "standard", "--rationale", "parity preflight", "--delegate")
             self.assertEqual(routed.returncode, 0, routed.stderr)
             self.assertEqual(json.loads(routed.stdout)["execution_plan"]["mode"], "delegated-child")
             verify = ("verify-routing", "--source-issue", "owner/backlog#9", "--change", "parity-change")
