@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "a9736731ff58faf03d8744420ea1348dad6845a4",
+    "base_ref": "origin/main",
+    "candidate_head": "17f1db886fddbdcb76e6cb1630fd3db17e29ab32",
+    "diff_sha256": "90d85a1384a426234984220c07bc89dc2ce0f850bcdc0de04cbc838d0448a641"
+  },
+  "change": "openspec/changes/load-tolerant-test-deadlines",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/load-tolerant-test-deadlines/automated-checks.json",
+    "openspec/changes/load-tolerant-test-deadlines/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/load-tolerant-test-deadlines/design.md",
+        "openspec/changes/load-tolerant-test-deadlines/proposal.md",
+        "openspec/changes/load-tolerant-test-deadlines/specs/platform-ci/spec.md",
+        "openspec/changes/load-tolerant-test-deadlines/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/load-tolerant-test-deadlines/proposal.md",
+        "openspec/changes/load-tolerant-test-deadlines/design.md",
+        "openspec/changes/load-tolerant-test-deadlines/tasks.md",
+        "openspec/changes/load-tolerant-test-deadlines/specs/platform-ci/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T23:20:36+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/load-tolerant-test-deadlines/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "321e900e-a7f4-4d28-80d4-0617ebce75f8",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "a9736731ff58faf03d8744420ea1348dad6845a4",
+    "digest": "a30bd6dde5e9a64cd0028606e502439df6ae9a063baf5dbee86f9b3cd0752cdc",
+    "paths": {
+      "openspec/changes/load-tolerant-test-deadlines/.managed-task.json": "b8e40605af1e25b9e62a720151854edfbdf69b54",
+      "openspec/changes/load-tolerant-test-deadlines/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/load-tolerant-test-deadlines/design.md": "d6229cde9e9d7154c10f29e90add163e4a7d9980",
+      "openspec/changes/load-tolerant-test-deadlines/proposal.md": "7f57053301d1d15fbca1163068e8783e1c324b8e",
+      "openspec/changes/load-tolerant-test-deadlines/specs/platform-ci/spec.md": "4ec8b9831b3306f3f6fce518a8fd2f2153d8ecad",
+      "openspec/changes/load-tolerant-test-deadlines/tasks.md": "217eef871cc4dfb198f94a6f06369b61d209bf86",
+      "tests/test_deepseek_harness_runtime.py": "100910ad485dde81f679e9b91b34f49faa492148",
+      "tests/test_delegated_write_guard.py": "856eadf2861e31b697b0a881a59056b12306fe79",
+      "tests/test_git_lifecycle.py": "4972ffde5d0895f6cc5ebf35b7e3b881e9923040",
+      "tests/test_independent_review.py": "0607a904bc5186d4664c2247028bfd5a15f39fb1",
+      "tests/test_pr_reconciliation_concurrency.py": "f12dfd740ea10713b88d5e6adf78173b10d7212e",
+      "tests/test_requirement_intake.py": "7665d6d392402ffdb137f5e2a024d562a943136a"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
