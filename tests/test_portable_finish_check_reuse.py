@@ -116,7 +116,7 @@ class PortableProject:
     def implement(self) -> None:
         (self.worktree / "feature.txt").write_text("implemented\n", encoding="utf-8")
         (self.change / "specs" / "cap").mkdir(parents=True)
-        (self.change / "specs" / "cap" / "spec.md").write_text("## ADDED Requirements\n", encoding="utf-8")
+        (self.change / "specs" / "cap" / "spec.md").write_text("## Purpose\n\nFixture capability.\n\n## ADDED Requirements\n", encoding="utf-8")
         (self.change / "tasks.md").write_text("- [x] 1.1 done\n", encoding="utf-8")
         (self.change / ".managed-task.json").write_text(
             json.dumps({"source_issue": "example-org/backlog#7", "change": CHANGE}) + "\n", encoding="utf-8"

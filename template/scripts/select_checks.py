@@ -528,7 +528,8 @@ def require_active_change_ready(root: Path, change: str, evidence_requested: boo
 
     problems = archive_content_problems(root, [directory])
     if problems:
-        raise SystemExit(prefix + "; ".join(problems) + ". Complete them and commit before the full run.")
+        raise SystemExit(prefix + "; ".join(problem.rstrip(".") for problem in problems)
+                         + ". Complete them and commit before the full run.")
 
 
 def require_disposable_checkout(root: Path) -> None:
