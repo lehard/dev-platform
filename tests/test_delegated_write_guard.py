@@ -274,9 +274,11 @@ class ClaudeGuardHookTests(unittest.TestCase):
         decision = self._decide({"notebook_path": str(target)})
         self.assertEqual(decision["permissionDecision"], "allow")
 
-    def test_tool_input_without_recognized_target_key_allows(self) -> None:
+    def test_tool_input_without_recognized_target_key_is_denied(self) -> None:
         decision = self._decide({"some_other_field": "value"})
-        self.assertEqual(decision["permissionDecision"], "allow")
+        self.assertEqual(decision["permissionDecision"], "deny")
+        self.assertIn("names no target (file_path, path, notebook_path)", decision["permissionDecisionReason"])
+        self.assertIn("refusing unverified write", decision["permissionDecisionReason"])
 
 
     def test_unreadable_payload_is_denied(self) -> None:
