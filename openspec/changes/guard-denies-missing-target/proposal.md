@@ -2,7 +2,7 @@
 
 The structured-write guard rendered by `delegated_write_guard.render_pretooluse_guard_script` answers `allow` when a guarded Write/Edit/NotebookEdit payload carries none of `file_path`, `path`, `notebook_path`. That is a silent fallback in a containment control: an unverified write passes.
 
-Slice A of Requirement lehard/development-backlog#780 (variant A, relayed by the backlog-revision session on 2026-10-26). The contribution-without-cache part of the Requirement is out of scope here and stays open on the Requirement.
+Slice A of Requirement BR-780 (variant A, relayed by the backlog-revision session on 2026-10-26). The contribution-without-cache part of the Requirement is out of scope here and stays open on the Requirement.
 
 ## What Changes
 
