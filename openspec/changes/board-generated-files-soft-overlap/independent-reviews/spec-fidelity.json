@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "59cb84e32c72cda791ecea57a7897d79b50ab34f",
+    "base_ref": "origin/main",
+    "candidate_head": "da67436615aaf2c4933366d9ac232be9831c5d96",
+    "diff_sha256": "2ab3d73dae058c3aeeb652c56e0054f74d3c261c11acd90ffebc14b3fa504e83"
+  },
+  "completed_at": "2026-10-26T10:23:09+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py:573 `read_platform_config(root).get(\"paths\")` is used by `generated_files(root, commit)`. `_declared_generated_paths` in template/scripts/agent_board.py calls it with `root` and `main_sha`. This is a narrow edge case. The effect is fail-closed or a no-op, never softer than the main declaration.",
+      "id": "checks-path-read-from-task-worktree",
+      "severity": "advisory",
+      "summary": "The generated-file declaration is read from the commit at origin/<main>, but the location of that file (`paths.checks`) comes from the task worktree's `.dev-platform.toml`. A task branch that changes `paths.checks` could therefore make the board read a different file at main, or fail the gate. The spec says the declaration is read at the observed remote integration branch and does not say where the path comes from."
+    }
+  ],
+  "launched_at": "2026-10-26T10:22:58+00:00",
+  "output_sha256": "810c342098eefba1f5c004ced226c5e6c76ee9dac2fcb56b1108d86adfc13a76",
+  "perspective": "spec-fidelity",
+  "request_id": "0a76f411-f69a-4e65-8fee-758ab064f45e",
+  "reviewer": {
+    "context_id": "0f138cb0-addf-4025-af11-3454c8b9bd9c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0e5683f6-bc81-44dc-bcbe-c3bc722c5d29",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24202
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34507
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10617
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10715
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1041
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "25575e7bc2c7b6da28afa23f7c1f28f812eb5410c6457eaeac5d2d8e761b8227"
+}
