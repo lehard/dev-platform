@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/worktree-coordination/spec.md",
+    "tasks.md"
+  ],
+  "change": "board-generated-files-soft-overlap",
+  "imported_at": "2026-10-26T09:25:20+00:00",
+  "package_revision": "ef3642f13fa9ae62d0ebf19dd3c283732d8f8478cf5b4c05a3c6672fe09e317b",
+  "prepared_against": "5cb06789f211bc43f4b62494aa22f108407ae215",
+  "private_lineage_handle": "pln_35114a6e80670a312e994e726a6a4905",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "high",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "board-scope"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "e265fa2935095be085281df192394f1e60f56ed1754bab72a609f789b025f6fc",
+    "updated_at": "2026-10-26T09:16:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-777/T1"
+}
