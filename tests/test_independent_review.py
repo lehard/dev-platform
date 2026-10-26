@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 from _platform_modules import load_platform_module  # noqa: E402
+from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 review = load_platform_module("independent_review", SCRIPTS / "independent_review.py")
 
@@ -679,13 +680,25 @@ class IndependentReviewTests(unittest.TestCase):
             review.record_report(self.root, self.change, source)
 
     def test_timeout_kills_the_whole_reviewer_process_group(self) -> None:
-        marker = self.root.parent / f"{self.root.name}-grandchild"
-        self.addCleanup(lambda: marker.unlink(missing_ok=True))
-        script = f"(sleep 2; touch {marker}) & sleep 30"
+        pid_file = self.root.parent / f"{self.root.name}-grandchild.pid"
+        self.addCleanup(lambda: pid_file.unlink(missing_ok=True))
+        # The grandchild records its pid and then outlives the test unless the group kill reaches it.
+        script = f"/bin/sh -c 'echo $$ > {pid_file}; exec sleep 600' & sleep 600"
+        # The launcher timeout is the product behavior under test; 5 s leaves a loaded host
+        # ample time to start the grandchild before the group is killed.
         with self.assertRaises(runner.LaunchTimeout):
-            runner.subprocess_launcher(["/bin/sh", "-c", script], self.root, 0.5)
-        time.sleep(3)
-        self.assertFalse(marker.exists(), "a reviewer descendant outlived the timeout")
+            runner.subprocess_launcher(["/bin/sh", "-c", script], self.root, 5)
+        self.assertTrue(pid_file.exists(), "the reviewer grandchild never started, so the kill was not exercised")
+        grandchild = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + process_deadline_seconds()
+        while time.monotonic() < deadline:
+            try:
+                os.kill(grandchild, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        os.kill(grandchild, 9)
+        self.fail(f"reviewer descendant {grandchild} outlived the timeout")
 
     def test_process_group_kill_and_reap_failures_are_explicit(self) -> None:
         class Reviewer:

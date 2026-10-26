@@ -155,24 +155,29 @@ class ReconciliationLockTests(unittest.TestCase):
                 [
                     sys.executable,
                     "-c",
-                    "import sys,time; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from finish_task import serialized_integration; lock=serialized_integration(Path(sys.argv[2]), {'paths': {'main_merge_lock': '.claude/main-merge.lock'}}, 2); lock.__enter__(); Path(sys.argv[3]).write_text('ready', encoding='utf-8'); time.sleep(.35); lock.__exit__(None,None,None)",
+                    "import sys,time; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from finish_task import serialized_integration; lock=serialized_integration(Path(sys.argv[2]), {'paths': {'main_merge_lock': '.claude/main-merge.lock'}}, 2); lock.__enter__(); Path(sys.argv[3]).write_text('ready', encoding='utf-8'); time.sleep(.35); Path(sys.argv[4]).write_text('releasing', encoding='utf-8'); lock.__exit__(None,None,None)",
                     str(SCRIPTS),
                     str(integration),
                     str(ready),
+                    str(integration / "lock-holder-releasing"),
                 ]
             )
             try:
                 wait_for_ready(ready, holder)
-                started = time.monotonic()
+                # Order, not elapsed time: the serialized step must run after the holder released.
+                released = integration / "lock-holder-releasing"
+                observed: list[bool] = []
                 with (
-                    mock.patch.object(finish_task, "sync_after_remote_pr_merge") as sync,
+                    mock.patch.object(finish_task, "sync_after_remote_pr_merge",
+                                      side_effect=lambda *_: observed.append(released.exists())) as sync,
                     mock.patch.object(finish_task, "reconcile_managed_project", return_value=None),
                     mock.patch.object(finish_task, "finish_board") as board,
                 ):
                     finish_task.reconcile_confirmed_remote_pr_merge(
-                        integration, integration, config, "agent/already-merged", "main", "multi-agent", cleanup=False, timeout_seconds=2
+                        integration, integration, config, "agent/already-merged", "main", "multi-agent", cleanup=False,
+                        timeout_seconds=process_deadline_seconds(),
                     )
-                self.assertGreaterEqual(time.monotonic() - started, 0.2)
+                self.assertEqual(observed, [True], "reconciliation ran before the lock holder released")
                 sync.assert_called_once_with(integration, integration, config, "main")
                 board.assert_called_once()
             finally:
