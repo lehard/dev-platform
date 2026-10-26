@@ -280,7 +280,7 @@ def select_depth(
 def _selection_status(root: Path, directory: Path, state: dict[str, Any]) -> dict[str, Any]:
     path = selection_path(directory)
     if not path.is_file():
-        return {"stage": "selection", "state": "missing", "action": "orchestrate_pre_authoring.py select-depth --depth <deterministic|bounded-evidence|material-design> --reason TEXT [--concern NAME]"}
+        return {"stage": "selection", "state": "missing", "action": f"orchestrate_pre_authoring.py --id {state['id']} select-depth --depth <deterministic|bounded-evidence|material-design> --reason TEXT [--concern NAME]"}
     selection = _load_json(path, "depth selection")
     if selection.get("version") != SELECTION_VERSION or selection.get("depth") not in DEPTHS:
         return {"stage": "selection", "state": "invalid", "action": "record a supported depth selection"}
@@ -350,7 +350,7 @@ def _decision_request(item: dict[str, Any], index: int) -> dict[str, Any]:
     return payload
 
 
-def _add_status(root: Path, directory: Path) -> dict[str, Any]:
+def _add_status(root: Path, directory: Path, state: dict[str, Any]) -> dict[str, Any]:
     path = add_path(directory)
     if not path.is_file():
         return {"stage": "add", "state": "missing", "action": "re-run select-depth --depth material-design with the recorded reason"}
@@ -367,7 +367,7 @@ def _add_status(root: Path, directory: Path) -> dict[str, Any]:
             "decisions": open_decisions,
             "action": (
                 "surface each decision to the human through the main agent; apply the accepted answer with "
-                "orchestrate_pre_authoring.py record-decision --index N --resolution TEXT"
+                f"orchestrate_pre_authoring.py --id {state['id']} record-decision --index N --resolution TEXT"
             ),
         }
     if document.get("approved") is not True:
@@ -511,7 +511,7 @@ def status(root: Path, *, requirement_id: str, base_dir: Path | None = None) -> 
     if depth == DEPTH_BOUNDED_EVIDENCE:
         return _finish_skip(directory, result, state, decision, snapshot_report["digest"])
 
-    add_report = _add_status(root, directory)
+    add_report = _add_status(root, directory, state)
     stages["add"] = add_report
     if add_report["state"] != "ready":
         result["current_stage"] = "add"

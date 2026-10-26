@@ -315,6 +315,11 @@ defect before repair, show the regression check passing after, and rerun the
 original failure path. Where no reasonable automated seam exists, state the
 limitation and actual alternative check truthfully; do not fabricate evidence.
 
+When a quick PR closes only part of an open Business Requirement, leave a
+comment on that Requirement naming what the PR did (with the PR link) and what
+remains, so the Requirement stays an accurate human-facing record without a
+second status ledger.
+
 If inspection reveals material behavioral,
 architectural, compatibility, data-contract, cross-session, or scope impact —
 or if a full active OpenSpec change is needed to govern the work — stop further
