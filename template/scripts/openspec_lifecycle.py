@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
+from _platform_common import TaskFreshnessError, current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
 from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
 try:
     from independent_review import require_review_evidence, review_is_required
@@ -385,13 +385,19 @@ def quick_evidence_reuse(root: Path, *, base_ref: str) -> dict[str, object]:
     """The same decision for a quick task's machine-local evidence; an absent record is a named reason."""
     from task_content_identity import quick_content_identity, quick_task_evidence_path
 
-    path = quick_task_evidence_path(root)
+    try:
+        path = quick_task_evidence_path(root)
+    except TaskFreshnessError as exc:
+        raise SystemExit(f"quick-task check evidence reuse blocked: {exc}") from exc
     facts: dict[str, object] = {"evidence": str(path), "validated_head": None, "base": None, "commands": []}
     if not path.exists():
         return _not_reusable("no recorded quick-task evidence", **facts)
     evidence = _read_check_evidence(path, f"quick-task check evidence {path} is unreadable")
     _current_base(root, base_ref)
-    current = quick_content_identity(root, base_ref)
+    try:
+        current = quick_content_identity(root, base_ref)
+    except TaskFreshnessError as exc:
+        raise SystemExit(f"quick-task check evidence reuse blocked: {exc}") from exc
     if current is None:
         raise SystemExit("cannot compute the current quick-task content proof for check evidence reuse")
     return check_evidence_reuse(path, evidence, current, root=root, base_ref=base_ref, validated_head=evidence.get("head"))

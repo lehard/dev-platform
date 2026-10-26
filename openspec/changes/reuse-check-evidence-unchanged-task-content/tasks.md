@@ -6,4 +6,4 @@
 
 ## 2. Verification
 - [x] 2.1 Regression matrix managed/quick × portable/coordinator: clean rebase with unchanged own diff is reused; changed own diff, a main advance touching a task path, and an uncovered selection are not reusable with the named reason; the coordinator handoff gives the same answer; absent quick evidence runs the checks.
-- [ ] 2.2 Run full validation and semantic OpenSpec verification.
+- [x] 2.2 Run full validation and semantic OpenSpec verification.
