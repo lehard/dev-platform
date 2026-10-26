@@ -30,6 +30,6 @@ All tasks in `tasks.md` are complete; 2.2 is this receipt together with the sele
 ## Correctness and coherence
 
 - On the pre-change code, `test_not_reusable_after_main_advanced_and_was_merged` showed the defect: evidence was not reusable after a clean disjoint merge. Its replacement `test_reused_after_a_clean_merge_of_a_main_that_touched_no_task_path` passes after the change.
-- `tests/test_portable_finish_check_reuse.py` (35 tests) passes.
+- `tests/test_portable_finish_check_reuse.py` (35 tests) passes. The finish lifecycle fixture in `tests/test_git_lifecycle.py` now installs `task_content_identity.py`, which a rendered project ships and quick-task reuse imports.
 - Limitation, stated truthfully: the coordinator cell of the matrix checks the handoff's acceptance proof (`equivalent_proofs`, as `pr_review_gate.handoff_gates` calls it) and the finish wiring in coordinator mode for quick tasks. It does not run a full coordinator `finish` with a publication queue.
 - Quick evidence lives in the worktree's git directory: `test_quick_evidence_lives_outside_the_tree` confirms a clean `git status`.
