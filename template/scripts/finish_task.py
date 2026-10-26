@@ -775,6 +775,22 @@ def observe_completion_blockers(
     return blockers
 
 
+def require_publication_task_base(work: Path, branch: str, remote_main: str) -> None:
+    """Publication's fresh-base gate: the same classification as the preflight ``task-freshness`` blocker.
+
+    Main is observed again because it can move during validation. A task the queue integrates
+    (``queue_integrated``, BR-774) behind a main that merges cleanly is ``behind-mergeable`` and
+    publishes; any other head behind or diverged from main must reconcile first.
+    """
+    freshness = task_reconciliation.observe_candidate(work)
+    if freshness.reconcile_required:
+        detail = f" ({freshness.detail})" if freshness.detail else ""
+        raise SystemExit(
+            f"{branch} is {freshness.state} relative to freshly observed {remote_main}{detail}. "
+            f"Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish."
+        )
+
+
 def observe_private_reference_blocker(root: Path, title: str | None, body: str | None) -> str | None:
     """Run the source-owned public-candidate guard without exposing its inputs.
 
@@ -1072,8 +1088,8 @@ def main() -> int:
     if mode == "pr":
         if branch == main_branch:
             raise SystemExit("publish_mode=pr requires a feature branch. Use standard/multi-agent profile or switch publish_mode deliberately.")
-        if exact_open_pr is None and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0:
-            raise SystemExit(f"{branch} is stale relative to {remote_main}. Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish.")
+        if exact_open_pr is None:
+            require_publication_task_base(work, branch, remote_main)
         if exact_open_pr is not None:
             print(f"Resuming existing exact-head PR: {exact_open_pr.get('url')}")
         command = ["python3", str(work / "scripts" / "project_publish.py"), "--mode", "pr"]

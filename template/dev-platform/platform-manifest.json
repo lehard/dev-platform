@@ -83,7 +83,7 @@
     "scripts/disposable_repository_sandbox.py": "290b29ff670fb03f4bc84282a7e3f780d5fdda642611f7423dec550fa8afe1e3",
     "scripts/execute_managed_task.py": "0b1ac8f76e401278e35d44aead20758728f95ed2d6ff80b1ea21e9f09cc60ca1",
     "scripts/execute_requirement.py": "e18ec6f8bcf8641d002de4824a2c214d7f5ab36e2a4d74ca7a1198d6c0e38e95",
-    "scripts/finish_task.py": "31c5755ed87d7d7d1bc4e0146b94f0f2b67ab6c2ee8cc17e489851be7689c9ec",
+    "scripts/finish_task.py": "36f41049ccca6590251c6f98e3173fcf3ae4511ee08c9999b73e58e1ee687e01",
     "scripts/git_hooks/pre-commit": "b2719741841aa0fa5f3f73b57a10f7527158680f99c0e5fa4ff0b156babacbd2",
     "scripts/git_hooks/pre-merge-commit": "3cfe2a1be6558931c10e655a2b949e60defc105c761f2ad235d6c5062856010f",
     "scripts/gitlab_delivery.py": "b6117f7a37a2e357e80c98a1926157ba0f1ef706423b575bd4d9fc56db56c34e",
