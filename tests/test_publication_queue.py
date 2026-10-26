@@ -591,6 +591,127 @@ class WorkerTests(unittest.TestCase):
         gh.assert_not_called()
 
 
+class DerivedMergeEnvironmentTests(unittest.TestCase):
+    """BR-768: a coordinator environment failure is a queue failure, never integration repair."""
+
+    def _prepare_generated(self, failure: Exception):
+        from subprocess import CompletedProcess
+        from _platform_common import GeneratedFile
+
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-base":
+                return CompletedProcess(args, 0 if args[2] == BASE else 1, "", "")
+            if args[0] == "diff":
+                return CompletedProcess(args, 0, "manifest.json\n", "")
+            return CompletedProcess(args, 0, "", "")
+        declared = (GeneratedFile("manifest.json", ("python3", "gen.py", "{tree}"), ("python3", "gen.py", "--check")),)
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=NEW_HEAD), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_task_paths", return_value={"manifest.json"}), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch("_platform_common.generated_files", return_value=declared), \
+             patch("post_review_finalization.prepare_derived_specs", side_effect=failure), \
+             patch.object(queue, "_gh") as gh:
+            try:
+                queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+            except (queue.QueueError, queue.QueueEnvironmentError) as exc:
+                return exc, gh
+        self.fail("derived merge failure was not raised")
+
+    def test_environment_failure_is_a_queue_environment_error(self) -> None:
+        import post_review_finalization as final
+
+        exc, gh = self._prepare_generated(final.RederivationEnvironmentFailed("regeneration of manifest.json fails on "
+                                                                               "pristine main as well: No module named 'yaml'"))
+        self.assertIsInstance(exc, queue.QueueEnvironmentError)
+        self.assertNotIsInstance(exc, queue.QueueError)
+        self.assertIn("No module named 'yaml'", str(exc))
+        gh.assert_not_called()
+
+    def test_candidate_regeneration_failure_stays_integration_repair(self) -> None:
+        import post_review_finalization as final
+
+        exc, gh = self._prepare_generated(final.RederivationFailed("regeneration of manifest.json failed"))
+        self.assertIsInstance(exc, queue.IntegrationRepairNeeded)
+        gh.assert_not_called()
+
+    def test_integrate_releases_ownership_and_records_nothing(self) -> None:
+        labels: list[tuple[str, bool]] = []
+        with patch.object(queue, "_label", side_effect=lambda *a, present: labels.append((a[3], present))), \
+             patch.object(queue, "_require_finalized"), \
+             patch.object(queue, "_prepare", side_effect=queue.QueueEnvironmentError("PR #1 derived merge cannot run")), \
+             patch.object(queue, "_transition") as transition, patch.object(queue, "publish_job") as publish, \
+             patch.object(queue, "_block") as block:
+            with self.assertRaisesRegex(queue.QueueEnvironmentError, "cannot run"):
+                queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        self.assertEqual(labels, [(queue.ACTIVE, True), (queue.ACTIVE, False)])
+        transition.assert_not_called(), publish.assert_not_called(), block.assert_not_called()
+
+    def test_worker_tries_the_rest_and_fails_the_run_naming_the_cause(self) -> None:
+        seen: list[int] = []
+
+        def candidate(_root, _repo, number, *_args):
+            seen.append(number)
+            if number == 1:
+                raise queue.QueueEnvironmentError("PR #1 derived merge cannot run on this coordinator: no yaml")
+            return None, None
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=[(20, 1, admission(1, 20)), (21, 2, admission(2, 21))]), \
+             patch.object(queue, "_pr", side_effect=lambda _root, _repo, number: pr(number)), \
+             patch.object(queue, "_worker_candidate", side_effect=candidate):
+            result = queue.worker(ROOT_PATH)
+        self.assertEqual(seen, [1, 2])
+        self.assertEqual(result["state"], "environment-error")
+        self.assertIn("no yaml", result["reason"])
+        self.assertNotIn(result["state"], queue.WORKER_PROGRESS_STATES)
+
+
+class RepairAttentionTests(unittest.TestCase):
+    """BR-768: a writer-needing repair is escalated to the operator once per exact round."""
+
+    def _transition(self, state: str, comments: list[dict]) -> list[str]:
+        from subprocess import CompletedProcess
+
+        posted: list[str] = []
+        observed = {"number": 7, "state": "open", "head": {"sha": HEAD}, "labels": []}
+        with patch.object(queue, "_gh", side_effect=lambda _r, *a, data=None: posted.append(data["body"])), \
+             patch.object(queue, "_label"), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_comments", return_value=comments), \
+             patch.object(queue, "trusted_apps", return_value=frozenset()), \
+             patch.object(queue.subprocess, "run", return_value=CompletedProcess([], 0, "", "")):
+            queue._transition(ROOT_PATH, REPO, 7, state, HEAD, task_identity={"head": HEAD},
+                              red_gate={"name": "integration", "identity": HEAD,
+                                        "evidence": "merge of current main conflicts in: task.py"},
+                              set_attempts={STATE_KINDS[state]: 1})
+        return posted
+
+    def test_integration_repair_posts_one_repair_needed_comment_with_the_operator_command(self) -> None:
+        posted = self._transition("integration-repair-pending", [])
+        self.assertEqual(len(posted), 2)
+        body = posted[1]
+        self.assertTrue(body.startswith(queue.ATTENTION_PREFIX))
+        self.assertIn("**Repair needed: PR #7 is `integration-repair-pending`.**", body)
+        self.assertIn("conflicts in: task.py", body)
+        self.assertIn(f"work-next --repo {REPO} --kinds integration-repair --writer claude-sandboxed --run", body)
+
+    def test_review_repair_names_the_repair_command(self) -> None:
+        posted = self._transition("repair-pending", [])
+        self.assertIn("--kinds repair --writer claude-sandboxed --run", posted[1])
+
+    def test_same_round_posts_nothing_more_and_a_lost_comment_is_reposted(self) -> None:
+        record_body, attention = self._transition("integration-repair-pending", [])
+        record = {"id": 1, "author_association": "OWNER", "body": record_body}
+        self.assertEqual(self._transition("integration-repair-pending",
+                                          [record, {"id": 2, "author_association": "OWNER", "body": attention}]), [])
+        reposted = self._transition("integration-repair-pending", [record])
+        self.assertEqual(len(reposted), 1)
+        self.assertTrue(reposted[0].startswith(queue.ATTENTION_PREFIX))
+
+
+STATE_KINDS = {"repair-pending": "repair", "integration-repair-pending": "integration-repair"}
+
+
 class TransitionRecordTests(unittest.TestCase):
     def test_transition_publishes_v2_record_and_projects_one_lifecycle_label(self) -> None:
         import json

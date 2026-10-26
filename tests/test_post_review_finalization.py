@@ -1174,6 +1174,27 @@ class GeneratedFileMergeTests(unittest.TestCase):
             self.derive()
         self.assertEqual(self.repo.head("agent/b"), before)
 
+    def test_regeneration_failing_on_pristine_main_is_an_environment_failure(self):
+        # The runner lacks the generator's dependency: it fails on main too, so it is never integration repair.
+        missing = final.GeneratedFile(self.MANIFEST, ("python3", "-c", "import dev_platform_absent_dependency", "{tree}"),
+                                      ("python3", "gen.py", "--check"))
+        before = self.repo.head("agent/b")
+        with self.assertRaisesRegex(final.RederivationEnvironmentFailed,
+                                    "regeneration of manifest.txt fails on pristine main as well.*dev_platform_absent_dependency"):
+            self.derive(generated=(missing,))
+        self.assertFalse(issubclass(final.RederivationEnvironmentFailed, final.RederivationFailed))
+        self.assertEqual(self.repo.head("agent/b"), before)
+
+    def test_unstartable_regeneration_command_is_an_environment_failure(self):
+        absent = final.GeneratedFile(self.MANIFEST, ("dev-platform-absent-generator", "{tree}"), ("true",))
+        with self.assertRaisesRegex(final.RederivationEnvironmentFailed, "could not start dev-platform-absent-generator"):
+            self.derive(generated=(absent,))
+
+    def test_missing_openspec_cli_is_an_environment_failure(self):
+        with mock.patch.object(final.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(final.RederivationEnvironmentFailed, "OpenSpec CLI"):
+                final._openspec(Path(self.tmp.name), "validate")
+
     def test_missing_generated_output_fails_explicitly(self):
         # A second declared file whose command exits 0 but leaves no output.
         broken = final.GeneratedFile("absent-output.txt", (
