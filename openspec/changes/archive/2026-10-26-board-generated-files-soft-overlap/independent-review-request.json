@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "59cb84e32c72cda791ecea57a7897d79b50ab34f",
+    "base_ref": "origin/main",
+    "candidate_head": "da67436615aaf2c4933366d9ac232be9831c5d96",
+    "diff_sha256": "2ab3d73dae058c3aeeb652c56e0054f74d3c261c11acd90ffebc14b3fa504e83"
+  },
+  "change": "openspec/changes/board-generated-files-soft-overlap",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/board-generated-files-soft-overlap/automated-checks.json",
+    "openspec/changes/board-generated-files-soft-overlap/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/board-generated-files-soft-overlap/design.md",
+        "openspec/changes/board-generated-files-soft-overlap/proposal.md",
+        "openspec/changes/board-generated-files-soft-overlap/specs/worktree-coordination/spec.md",
+        "openspec/changes/board-generated-files-soft-overlap/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/board-generated-files-soft-overlap/proposal.md",
+        "openspec/changes/board-generated-files-soft-overlap/design.md",
+        "openspec/changes/board-generated-files-soft-overlap/tasks.md",
+        "openspec/changes/board-generated-files-soft-overlap/specs/worktree-coordination/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T10:22:55+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/board-generated-files-soft-overlap/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "0a76f411-f69a-4e65-8fee-758ab064f45e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "59cb84e32c72cda791ecea57a7897d79b50ab34f",
+    "digest": "25575e7bc2c7b6da28afa23f7c1f28f812eb5410c6457eaeac5d2d8e761b8227",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "2d8270d94a530f7d335af00efa4192066f0b0625",
+      "openspec/changes/board-generated-files-soft-overlap/.managed-task.json": "751e8b0f7f0c915acc58550b96371734b6f4ac7b",
+      "openspec/changes/board-generated-files-soft-overlap/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/board-generated-files-soft-overlap/design.md": "653472167351d3c474524cf923e8ae714be96255",
+      "openspec/changes/board-generated-files-soft-overlap/proposal.md": "a64a46f6af6b8682bf390a25c533758f24c91d5c",
+      "openspec/changes/board-generated-files-soft-overlap/specs/worktree-coordination/spec.md": "9ec23593886bdfc02e5cc675341614114fa3e456",
+      "openspec/changes/board-generated-files-soft-overlap/tasks.md": "d2f9cce62e98b4f2086e1c1b5f71ee37ec1b1c01",
+      "template/scripts/agent_board.py": "30a2067a7a81c9c9d2cca1d4a31a1c5d2c7a56a8",
+      "tests/test_git_lifecycle.py": "02a0a5a1f96b1c0596d5544e61f300de7f8e698b",
+      "tests/test_task_base_matrix.py": "12820d81e155166b26962d0ac8f3aa498b60afd4",
+      "tests/test_worktree_hygiene.py": "0d3309e5247035ede6a66c2a1fdcaef35d6e296f"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -12,6 +12,7 @@ from pathlib import Path
 from _platform_common import (
     current_worktree_root,
     gate_failure,
+    generated_files,
     github_cli_env,
     locked_json,
     machine_path,
@@ -193,6 +194,22 @@ def _factual_scope_paths(worktree: Path, root: Path, main_branch: str) -> set[st
     return _normalized_scope_paths("\n".join(sorted(paths)), root)
 
 
+def _declared_generated_paths(root: Path, main_branch: str) -> frozenset[str]:
+    """Paths declared generated at the observed ``origin/<main>``: never a hard overlap, still a soft one.
+
+    Read at main, never on a task branch, so a task cannot declare its own shared file generated.
+    An unobserved ``origin/<main>`` or a malformed declaration is a scope-gate failure.
+    """
+    authoritative = remote_ref("origin", main_branch)
+    main_sha = ref_sha(root, authoritative)
+    if not main_sha:
+        raise _scope_gate_unavailable(f"{authoritative} is not observed in {root}; fetch origin before the scope gate")
+    try:
+        return frozenset(entry.path for entry in generated_files(root, main_sha))
+    except TaskFreshnessError as exc:
+        raise _scope_gate_unavailable(str(exc)) from exc
+
+
 def _claim_candidates(item: dict, root: Path, main_branch: str) -> set[str]:
     """Resolve concrete paths a task is asking to claim at admission time."""
     candidates = _concrete_declared_scope_paths(str(item.get("scope", "")), root)
@@ -301,11 +318,13 @@ def _admission_conflicts(
     caller records a successful claim in the same critical section, making the
     read-and-claim decision race-safe on one machine.  It is also reused
     read-only, outside the lock, to recheck evolving factual scope before
-    costly validation and again before publication.
+    costly validation and again before publication. Paths declared generated
+    at main are excluded; ``scope_overlap_diagnostics`` still warns about them.
     """
     current_claims = _claim_candidates(current, root, main_branch)
     if not current_claims:
         return []
+    current_claims -= _declared_generated_paths(root, main_branch)
     conflicts: list[tuple[str, str, str]] = []
     current_worktree = Path(str(current.get("worktree", ""))).expanduser().resolve()
     current_branch = str(current.get("branch", ""))

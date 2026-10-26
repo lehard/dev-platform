@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "59cb84e32c72cda791ecea57a7897d79b50ab34f",
+    "base_ref": "origin/main",
+    "candidate_head": "da67436615aaf2c4933366d9ac232be9831c5d96",
+    "diff_sha256": "2ab3d73dae058c3aeeb652c56e0054f74d3c261c11acd90ffebc14b3fa504e83"
+  },
+  "completed_at": "2026-10-26T10:23:29+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_board.py `_declared_generated_paths` calls `generated_files(root, main_sha)`. In `_platform_common.generated_files` (lines 573-583), a missing `paths.checks` key or a file absent at the commit raises `TaskFreshnessError`, which is mapped to `_scope_gate_unavailable`. The candidate had to add `checks = \"dev-platform/checks.toml\"` plus a stub file to the fixtures in tests/test_git_lifecycle.py and tests/test_worktree_hygiene.py. That shows the new coupling reaches existing board setups. The design says to fail closed on an unreadable declaration. It does not say that a project with no check configuration at main is blocked, for example the first task that introduces `checks.toml`, or a project that has not yet adopted it. Confirm that the template guarantees `paths.checks` and that its file exists at main in every profile that enables `agent_board`.",
+      "id": "board-fails-closed-without-checks-config",
+      "severity": "advisory",
+      "summary": "Every admission or scope-gate recheck with at least one claim candidate now depends on the main-committed check configuration being present and valid. A multi-agent project whose `paths.checks` file is missing at `origin/<main>` gets a scope-gate-unavailable stop, even when it declares no generated files."
+    }
+  ],
+  "launched_at": "2026-10-26T10:23:09+00:00",
+  "output_sha256": "a13b910220d0a9477e469fd2c4e2c68ddd4f11dfa3718c1c2d7767d200b47453",
+  "perspective": "engineering-quality",
+  "request_id": "0a76f411-f69a-4e65-8fee-758ab064f45e",
+  "reviewer": {
+    "context_id": "7421655a-4c65-41e2-a9d9-81d40099cab2",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-188452ae-cc76-40b6-99ec-cbd78bfad4a2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17466
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37449
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20112
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20206
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 969
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "25575e7bc2c7b6da28afa23f7c1f28f812eb5410c6457eaeac5d2d8e761b8227"
+}

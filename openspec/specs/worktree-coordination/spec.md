@@ -2,7 +2,9 @@
 
 ## Purpose
 Define coordination rules for concurrent task worktrees, scope claims, and safe integration.
+
 ## Requirements
+
 ### Requirement: Worktree registration has canonical identity
 
 Multi-agent board registration SHALL accept a canonical absolute path for the declared branch and SHALL reject a relative, nested, missing, main-copy or branch-mismatched path with an actionable domain error before it writes shared board state or launches a subprocess.
@@ -86,7 +88,7 @@ The admission result SHALL be:
 
 ### Requirement: Hard and soft overlap are classified deterministically
 
-The coordination mechanism SHALL distinguish a hard overlap from a soft or potential overlap using normalized repository-relative scope evidence. An exact concrete file path present in the current task's claim and another active task's concrete claimed or factual scope SHALL be a hard overlap. A shared directory, subsystem, broad glob, or other non-concrete proximity SHALL remain advisory by itself.
+The coordination mechanism SHALL distinguish a hard overlap from a soft or potential overlap using normalized repository-relative scope evidence. Except for a declared generated path, an exact concrete file path present in the current task's claim and another active task's concrete claimed or factual scope SHALL be a hard overlap. A shared directory, subsystem, broad glob, or other non-concrete proximity SHALL remain advisory by itself. A path the project declares generated in the committed check configuration at the observed remote integration branch SHALL NOT be a hard overlap and SHALL remain reported as a soft overlap; a declaration present only on a task branch SHALL NOT change the classification, and an unreadable declaration SHALL stop the scope gate instead of being treated as empty.
 
 When an active task has factual changed-file scope, that concrete evidence SHALL take precedence over a broader declared scope for determining hard overlap; the broader declaration MAY still contribute a warning.
 
@@ -112,6 +114,21 @@ When an active task has factual changed-file scope, that concrete evidence SHALL
 - **AND** its available factual changed-file scope contains no concrete path claimed by the current task
 - **WHEN** admission classifies the overlap
 - **THEN** the broad declaration does not become a hard blocker by itself
+
+#### Scenario: Tasks share only a declared generated file
+
+- **GIVEN** active task A and task B both change `template/dev-platform/platform-manifest.json`
+- **AND** that path is declared generated at the observed `origin/<main>`
+- **WHEN** task B runs admission or a scope-gate recheck
+- **THEN** no hard overlap is reported for that path
+- **AND** the advisory warning still lists it
+
+#### Scenario: A task cannot declare its own shared file generated
+
+- **GIVEN** task B adds a generated-file declaration for a file active task A also changes
+- **AND** the declaration is absent at the observed `origin/<main>`
+- **WHEN** task B runs a scope-gate recheck
+- **THEN** the shared file remains a hard overlap
 
 ### Requirement: Admission diagnostics are bounded and privacy-preserving
 
@@ -299,4 +316,3 @@ Before classifying a registered worktree as `not-merged`, the sanctioned cleanup
 - **WHEN** the sanctioned cleanup scanner classifies that worktree
 - **THEN** it remains ineligible for its original reason (dirty, active process, locked, or active board)
 - **AND** the merged-PR evidence does not override those independent checks
-

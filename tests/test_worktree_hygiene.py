@@ -46,9 +46,11 @@ class WorktreeHarnessCase(unittest.TestCase):
         git(self.root, "config", "user.email", "test@example.invalid")
         (self.root / ".gitignore").write_text(".claude/\n", encoding="utf-8")
         (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\n\n[capabilities]\nagent_board = true\n\n[paths]\nworktrees = ".claude/worktrees"\nagent_board = ".claude/agents-board.json"\npending_worktrees = ".claude/pending-worktrees.md"\n',
+            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\n\n[capabilities]\nagent_board = true\n\n[paths]\nworktrees = ".claude/worktrees"\nagent_board = ".claude/agents-board.json"\npending_worktrees = ".claude/pending-worktrees.md"\nchecks = "dev-platform/checks.toml"\n',
             encoding="utf-8",
         )
+        (self.root / "dev-platform").mkdir()
+        (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "base")
@@ -1138,7 +1140,7 @@ class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
         text = ('main_branch = "main"\n' if main_branch else "") + 'workflow_profile = "multi-agent"\n'
         if capabilities is not None:
             text += "\n[capabilities]\n" + capabilities
-        text += '\n[paths]\nagent_board = ".claude/agents-board.json"\n'
+        text += '\n[paths]\nagent_board = ".claude/agents-board.json"\nchecks = "dev-platform/checks.toml"\n'
         (self.root / ".dev-platform.toml").write_text(text, encoding="utf-8")
 
     def board(self, content: str) -> Path:

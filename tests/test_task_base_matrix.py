@@ -42,6 +42,10 @@ CONTRACT = ('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile 
             'checks = "dev-platform/checks.toml"\n')
 
 
+GENERATED = ('[settings]\nfull_commands = ["true"]\n\n[[generated_files]]\npath = "gen.json"\n'
+             'regenerate = ["cp", "gen.src", "{tree}/gen.json"]\ncheck = ["true"]\n')
+
+
 class TaskBaseMatrixTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -130,6 +134,12 @@ class TaskBaseMatrixTests(unittest.TestCase):
         scope = frozenset(agent_board._factual_scope_paths(self.task, self.root, "main"))
         return scope, sorted(path for _, _, path in conflicts)
 
+    def soft_warning(self) -> list[str]:
+        """The advisory scope-overlap warning of the task against its sibling."""
+        board = self.root / ".claude/agents-board.json"
+        items = json.loads(board.read_text())["items"]
+        return sorted(path for _, _, path in agent_board.scope_overlap_diagnostics(self.root, self.task, "agent/task", "", items))
+
     def answer(self) -> dict:
         managed, quick = self.gate(managed=True), self.gate(managed=False)
         self.assertEqual(managed, quick, "a managed task and a quick task must get the same gate answer")
@@ -168,6 +178,25 @@ class TaskBaseMatrixTests(unittest.TestCase):
         self.land_on_main({"shared.txt": edited(6)})  # main changes a distant line: clean merge
         self.assertEqual(self.answer(), {"gate": "behind-mergeable", "overlapping": ("shared.txt",),
                                          "scope": {"shared.txt"}, "overlaps": ["shared.txt"]})
+
+    def test_declared_generated_file(self) -> None:
+        self.land_on_main({"dev-platform/checks.toml": GENERATED})  # main declares gen.json generated
+        self.commit(self.task, {"gen.json": "task\n"}, "task regenerates")
+        self.commit(self.sibling, {"gen.json": "sibling\n"}, "sibling regenerates")
+        self.assertEqual(self.answer(), {"gate": "behind-mergeable", "overlapping": (), "scope": {"gen.json"}, "overlaps": []})
+        self.assertEqual(self.soft_warning(), ["gen.json"], "a declared generated file stays visible as a soft overlap")
+
+    def test_a_task_cannot_declare_its_own_shared_file_generated(self) -> None:
+        self.commit(self.task, {"dev-platform/checks.toml": GENERATED, "gen.json": "task\n"}, "task declares and edits")
+        self.commit(self.sibling, {"gen.json": "sibling\n"}, "sibling edits")
+        self.assertEqual(self.answer(), {"gate": "fresh", "overlapping": (), "scope": {"dev-platform/checks.toml", "gen.json"},
+                                         "overlaps": ["gen.json"]})
+
+    def test_a_malformed_generated_declaration_stops_the_board(self) -> None:
+        self.land_on_main({"dev-platform/checks.toml": '[[generated_files]]\npath = 1\n'})
+        self.commit(self.task, {"task.txt": "task\n"}, "task work")
+        with self.assertRaisesRegex(SystemExit, "scope-gate-unavailable: .*generated_files"):
+            self.board()
 
     def test_conflict(self) -> None:
         self.commit(self.task, {"conflict.txt": "task\ntwo\nthree\n"}, "task edits conflict")
