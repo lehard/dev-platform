@@ -15,7 +15,7 @@ Both classes use a GitHub App token for this repository with pull-requests write
 
 These kinds are refused by name and stay on the local operator node (BR-433):
 
-- `repair`, `integration-repair`: a writer holds a shell and the provider token, and no platform-supported hosted writer with proven containment exists yet (the sandboxed Claude writer is BR-576).
+- `repair`, `integration-repair`: a writer holds a shell and the provider token, and no platform-supported hosted writer with proven containment exists yet (the sandboxed Claude writer is BR-576). No writer starts automatically: the queue posts a "Repair needed: PR #N" attention comment with the reason and the `work-next --kinds <kind> --writer claude-sandboxed --run` command, and an operator runs it (BR-768).
 - `retrospective`, `terminal-reconciliation`, `cleanup`: they read machine-local lifecycle state (friction log, retrospective checkpoints) and Development Backlog Issues that a runner token cannot reach.
 
 A review job whose providers do not include `claude` is not picked up by the hosted worker; switch it with the operator re-offer command.
@@ -105,7 +105,7 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 | --- | --- | --- |
 | `review` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review`) for task and contribution PRs | The preflight passed and real PRs were reviewed after the session ended, with the constraints above. A Requirement composition review of a private Requirement stays on the local operator node (BR-433): the hosted worker has no Development Backlog and does not claim it. |
 | `finalize` | **Not enabled; not evaluated** | It runs candidate code beside a contents-write token. It is evaluated only if the owner enables it. Until then the local worker finalizes, as it did for every PR above. |
-| `repair`, `integration-repair` | **Local operator node (BR-433)** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). |
+| `repair`, `integration-repair` | **Local operator node (BR-433), run by an operator** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). The queue escalates each repair round with a "Repair needed" attention comment; no writer starts automatically (BR-768). |
 | `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
 
 No kind moved to CI by default, and no local worker gained merge or `main` authority beyond the CI-only protocol.

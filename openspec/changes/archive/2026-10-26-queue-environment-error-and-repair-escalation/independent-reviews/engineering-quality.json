@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+    "base_ref": "origin/main",
+    "candidate_head": "dee8a3a0a6cdd597cef92ee1547322deea2175c1",
+    "diff_sha256": "918bcb28c2982623111835c7d56a306b1d87d37e165efea49ce0b351e9978e48"
+  },
+  "completed_at": "2026-10-26T21:32:50+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py: `_transition` now uses `if state in ATTENTION_STATES: ensure_attention(...)`. `ensure_attention` wraps a failed POST as `AttentionError` (around line 773). `_integration_repair` (around lines 2361-2372) calls `_transition` and then `publish_job` under `except LifecycleOwnershipChanged` / `except QueueError` only. The `worker` loop catches `(QueueError, WorkerError, RequirementIntegrationError, GitCommandError)`, not `AttentionError`. Posting the attention comment after `publish_job`, or catching `AttentionError` on the repair paths, would keep a comment failure from blocking job publication.",
+      "id": "repair-attention-failure-aborts-before-job-publish",
+      "severity": "advisory",
+      "summary": "`_transition` now calls `ensure_attention` for `repair-pending` and `integration-repair-pending`. When the comment POST fails, `ensure_attention` raises `AttentionError`, which is a `RuntimeError` and not a `QueueError`. In `_integration_repair`, `_transition` runs before `publish_job`, and the `except QueueError` there does not catch it. Nothing in `worker` catches it either. A transient GitHub error on the new escalation comment therefore aborts the whole queue run. The `ACTIVE` label has already been released and the record is written, but the repair job is not published until a later pass recovers it. Before this change only `blocked-escalation` could raise this error, and a block is terminal. The new repair-state escalation sits on the job-publication path."
+    }
+  ],
+  "launched_at": "2026-10-26T21:32:20+00:00",
+  "output_sha256": "99f7d14449bcdf7e58bbb64787076a46a61854eb6a12dc20c0039a31f3a0aab7",
+  "perspective": "engineering-quality",
+  "request_id": "f55d40e7-0fec-43b9-b7f1-fe6d4eba683b",
+  "reviewer": {
+    "context_id": "8548706a-03f7-4bd3-8341-ed74f36b4d1c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-99549fb2-2fdd-4a1f-9df9-2abfa11ca5ae",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29752
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 138305
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29287
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29557
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2272
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d7da6a60baaa57986a33b43931fa3d0bf2c76f25b70cc0efb200cd5245a1c6cf"
+}

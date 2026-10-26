@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/publication-queue/spec.md",
+    "tasks.md"
+  ],
+  "change": "queue-environment-error-and-repair-escalation",
+  "imported_at": "2026-10-26T20:46:06+00:00",
+  "package_revision": "6ab20339e6dae11e39563f48700aefae46d353ceae2774dc4af3c1993f793cc4",
+  "prepared_against": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+  "private_lineage_handle": "pln_d838babadc1f863132f0f2c6538ce7a8",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "10805ea39ea0030eb52d12c4e0501f26c5dfd203d7bf78a057a9a5655282996d",
+    "updated_at": "2026-10-26T20:40:32Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-768/T1"
+}
