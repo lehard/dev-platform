@@ -512,6 +512,26 @@ def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
         raise gate_failure("proven-base-freshness", refused + str(exc), SystemExit) from exc
 
 
+def require_active_change_ready(root: Path, change: str, evidence_requested: bool) -> None:
+    """Refuse a managed run that cannot yield usable handoff evidence, before any command starts.
+
+    Applies only while the managed change is active; post-archive completion runs are unchanged.
+    """
+    directory = root / "openspec" / "changes" / change
+    if not directory.is_dir():
+        return
+    prefix = "Managed task preflight blocked validation before any expensive command started: "
+    if not evidence_requested:
+        raise SystemExit(prefix + f"active change {change} needs handoff evidence; rerun with "
+                         f"--evidence openspec/changes/{change}/automated-checks.json")
+    from openspec_lifecycle import archive_content_problems
+
+    problems = archive_content_problems(root, [directory])
+    if problems:
+        raise SystemExit(prefix + "; ".join(problem.rstrip(".") for problem in problems)
+                         + ". Complete them and commit before the full run.")
+
+
 def require_disposable_checkout(root: Path) -> None:
     """Refuse ``--scope-gate not-applicable`` in a task checkout: only a plain, disposable checkout may declare it.
 
@@ -630,6 +650,8 @@ def main() -> int:
             managed_checkout = require_managed_checkout_identity(root)
         except ManagedTaskError as exc:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
+        if managed_checkout is not None:
+            require_active_change_ready(root, managed_checkout.change, evidence_path is not None)
         quick_gate = None
         if args.task_evidence:
             if managed_checkout is not None:
