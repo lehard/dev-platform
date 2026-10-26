@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-delegation/spec.md",
+    "tasks.md"
+  ],
+  "change": "guard-denies-missing-target",
+  "imported_at": "2026-10-26T15:34:35+00:00",
+  "package_revision": "050ff676096162914aaaf5fb0d1fd7b4a2e3c50499ac80e802e65180372a7808",
+  "prepared_against": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+  "private_lineage_handle": "pln_e9ae3fa4b926f75a1ed1cf7801c98b4d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "e5f3f34648d6b07553990b3ad691b8e9e5321323b1b26a067156178a1adbf3e6",
+    "updated_at": "2026-10-26T15:29:10Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-780/T1"
+}

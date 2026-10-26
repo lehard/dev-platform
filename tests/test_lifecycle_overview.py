@@ -216,15 +216,37 @@ class ExceptionTests(unittest.TestCase):
         item = assess(comments)
         self.assertEqual((item["stage"], kinds(item)), ("unknown", ["unknown-source"]))
 
-    def test_not_started_requirement_is_in_development_not_unknown(self):
+    def test_requirement_without_children_is_not_started_not_unknown(self):
         aggregate = {"status": "pre-authoring", "progress": {"stage": "unknown", "diagnostics": [
             {"source": "orchestrator", "reason": "pre-authoring state is missing"}]}}
         result = overview.assess_requirement("o/b#5", aggregate, None, [])
-        self.assertEqual(result["stage"], "in-development")
+        self.assertEqual(result["stage"], "not-started")
         self.assertIn("machine-local", result["note"])
         contradictory = {"status": "pre-authoring", "progress": {"stage": "unknown", "diagnostics": [
             {"source": "children", "reason": "status unreadable"}]}}
         self.assertEqual(overview.assess_requirement("o/b#5", contradictory, None, [])["stage"], "unknown")
+
+    def test_open_requirements_are_filtered_by_project_label(self):
+        calls = []
+
+        def gh(root, *args):
+            calls.append(args)
+            return [{"number": 5}, {"number": 6, "pull_request": {}}]
+
+        config = {"development_backlog": {"repository": "o/b", "project_label": "project:dev-platform"}}
+        with mock.patch.object(overview, "read_platform_config", return_value=config), \
+                mock.patch.object(queue, "_gh", side_effect=gh):
+            backlog, label = overview._backlog_binding(ROOT)
+            self.assertEqual(overview._open_requirements(ROOT, backlog, label), ["o/b#5"])
+        self.assertEqual(calls, [("api", "--paginate",
+                                  "repos/o/b/issues?state=open&labels=type%3Arequirement,project%3Adev-platform&per_page=100")])
+
+    def test_missing_or_invalid_project_label_fails_explicitly(self):
+        for section in ({"repository": "o/b"}, {"repository": "o/b", "project_label": "dev-platform"}):
+            with self.subTest(section=section), \
+                    mock.patch.object(overview, "read_platform_config", return_value={"development_backlog": section}), \
+                    self.assertRaisesRegex(overview.OverviewError, "project_label"):
+                overview._backlog_binding(ROOT)
 
     def test_unreadable_pr_is_reported_unknown(self):
         pr = pull()
@@ -434,7 +456,7 @@ class ColdSessionTests(unittest.TestCase):
         aggregate = {"requirement": "o/b#5", "status": "In progress", "children": [], "progress": {"stage": "implementation"}}
         with mock.patch.object(overview, "read_platform_config", return_value={
                     "chat_coordinator": {"unclaimed_job_after_minutes": 30},
-                    "development_backlog": {"repository": "o/b"}}), \
+                    "development_backlog": {"repository": "o/b", "project_label": "project:b"}}), \
                 mock.patch.object(queue, "_repo", return_value="o/r"), \
                 mock.patch.object(workers, "candidate_prs", return_value=prs), \
                 mock.patch.object(queue, "_comments", side_effect=comments_for), \

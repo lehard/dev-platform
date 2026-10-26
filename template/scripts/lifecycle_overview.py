@@ -19,10 +19,11 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from _platform_common import current_worktree_root, read_platform_config
 
-STAGES = ("in-development", "handed-off", "delivering", "merged-open-obligations", "closed", "needs-intervention", "unknown")
+STAGES = ("not-started", "in-development", "handed-off", "delivering", "merged-open-obligations", "closed", "needs-intervention", "unknown")
 CHAIN = ("review", "repair", "re-review", "finalize", "integration", "retrospective", "terminal-reconciliation", "cleanup")
 SETTING = "unclaimed_job_after_minutes"
 SECTION = "chat_coordinator"
@@ -43,6 +44,7 @@ EXECUTOR_NOT_CONFIRMED = "executor not confirmed"
 ACTIVITY_NOT_CONFIRMED = "executor activity: not confirmed"
 READ_PARALLELISM = 8
 BR_BRANCH = re.compile(r"(?:^|/)br-([0-9]+)(?:-|$)", re.IGNORECASE)
+PROJECT_LABEL = re.compile(r"project:[A-Za-z0-9_.-]+")
 
 
 class OverviewError(RuntimeError):
@@ -272,7 +274,7 @@ def assess_requirement(requirement: str, aggregate: dict | None, error: str | No
     if status == "pre-authoring" and progress.get("stage") == "unknown" and sources == {"orchestrator"}:
         # No linked child and no pre-authoring state in this checkout (that state is machine-local):
         # the Requirement has not produced a technical child that this view can see.
-        stage, note = "in-development", "no linked child; pre-authoring state is machine-local and not visible from this checkout"
+        stage, note = "not-started", "no linked child; pre-authoring state is machine-local and not visible from this checkout"
     elif status == "Done":
         stage = "closed"
     elif progress.get("stage") == "unknown" or status == "unknown":
@@ -343,20 +345,25 @@ def _observe_requirement(root: Path, requirement: str, candidates: list[dict]) -
         return assess_requirement(requirement, None, str(exc), candidates)
 
 
-def _backlog_repository(root: Path) -> str:
+def _backlog_binding(root: Path) -> tuple[str, str]:
     section = read_platform_config(root).get("development_backlog")
-    value = section.get("repository") if isinstance(section, dict) else None
+    section = section if isinstance(section, dict) else {}
+    value, label = section.get("repository"), section.get("project_label")
     if not isinstance(value, str) or "/" not in value:
         raise OverviewError("[development_backlog] repository in .dev-platform.toml must name the Backlog repository (owner/name)")
-    return value
+    if not isinstance(label, str) or not PROJECT_LABEL.fullmatch(label):
+        raise OverviewError("[development_backlog] project_label in .dev-platform.toml must name this project's Backlog label (project:<slug>)")
+    return value, label
 
 
-def _open_requirements(root: Path, backlog: str) -> list[str]:
+def _open_requirements(root: Path, backlog: str, project_label: str) -> list[str]:
+    """Open Requirements of this project only: the shared Backlog also holds other projects' Requirements."""
     import publication_queue as queue
 
-    rows = queue._gh(root, "api", "--paginate", f"repos/{backlog}/issues?state=open&labels=type%3Arequirement&per_page=100")
+    labels = quote(f"type:requirement,{project_label}", safe=",")
+    rows = queue._gh(root, "api", "--paginate", f"repos/{backlog}/issues?state=open&labels={labels}&per_page=100")
     if not isinstance(rows, list):
-        raise OverviewError(f"open Requirements of {backlog} could not be listed")
+        raise OverviewError(f"open Requirements of {backlog} labeled {project_label} could not be listed")
     return [f"{backlog}#{row['number']}" for row in rows if isinstance(row, dict) and "pull_request" not in row]
 
 
@@ -373,13 +380,13 @@ def overview(root: Path, *, now: datetime) -> dict:
 
     threshold = unclaimed_threshold_minutes(root)
     repo = queue._repo(root)
-    backlog = _backlog_repository(root)
+    backlog, project_label = _backlog_binding(root)
     prs = candidate_prs(repo, include_merged=True, gh_json=lambda *args: queue._gh(root, *args))
     with ThreadPoolExecutor(max_workers=READ_PARALLELISM) as pool:  # independent read-only GitHub observations
         observed = list(pool.map(lambda pr: observe_candidate(root, repo, pr, now=now, threshold=threshold), prs))
         assessed = [item for item in observed if item is not None]
         without_record = len(observed) - len(assessed)
-        listed = _open_requirements(root, backlog)
+        listed = _open_requirements(root, backlog, project_label)
         requirements = list(pool.map(
             lambda requirement: _observe_requirement(root, requirement, [
                 item for item in assessed if _requirement_of(item) == parent_identity(requirement).split("-")[-1]]),

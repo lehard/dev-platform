@@ -1018,7 +1018,8 @@ _GUARD_SCRIPT_TEMPLATE = textwrap.dedent(
         tool_input = payload.get("tool_input") or {{}}
         target = next((tool_input[key] for key in TARGET_KEYS if key in tool_input), None)
         if target is None:
-            _decision("allow")
+            tool = payload.get("tool_name") or "tool"
+            _decision("deny", f"{{tool}} payload names no target ({{', '.join(TARGET_KEYS)}}); refusing unverified write")
             return 0
         resolved = Path(target)
         if not resolved.is_absolute():

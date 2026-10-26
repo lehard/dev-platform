@@ -1,0 +1,74 @@
+{
+  "candidate": {
+    "base_head": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+    "base_ref": "origin/main",
+    "candidate_head": "36aed3a605abf49c818720db6f426846855b9301",
+    "diff_sha256": "d9fee54f46191f53ee5f3cce7fdfa956d81d9f3b91ed42312786ca93a92c0b6a"
+  },
+  "change": "openspec/changes/guard-denies-missing-target",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/guard-denies-missing-target/automated-checks.json",
+    "openspec/changes/guard-denies-missing-target/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/guard-denies-missing-target/design.md",
+        "openspec/changes/guard-denies-missing-target/proposal.md",
+        "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md",
+        "openspec/changes/guard-denies-missing-target/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/guard-denies-missing-target/proposal.md",
+        "openspec/changes/guard-denies-missing-target/design.md",
+        "openspec/changes/guard-denies-missing-target/tasks.md",
+        "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T16:30:27+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/guard-denies-missing-target/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "ca2d8e89-b562-4847-9aad-b4e19a846fa2",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+    "digest": "335897c22451e2d65cca23cfaa37b9b381e4afa8432c7c915cf23b70a9bfd795",
+    "paths": {
+      "openspec/changes/guard-denies-missing-target/.managed-task.json": "8c9b057e23c5d2699b6bb81fe1f7f9b61fc52475",
+      "openspec/changes/guard-denies-missing-target/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/guard-denies-missing-target/design.md": "2a79db80c870441f16ed6dec6c8e966959d88559",
+      "openspec/changes/guard-denies-missing-target/proposal.md": "15cb3911062b8c4bf7bad8061d8d99ad80c78d3c",
+      "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md": "c61ef9a2f27225d0e1467092d5ef5180b17edcfa",
+      "openspec/changes/guard-denies-missing-target/tasks.md": "77a2abc52dcb3973854f8ba0ed9d101f1b38b275",
+      "template/scripts/delegated_write_guard.py": "a3c5129441a20ae4e842f7891330b3bb22bdbe82",
+      "tests/test_delegated_write_guard.py": "2d0ef5368447ebe11eb5fa8dd22e307729e17d25"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

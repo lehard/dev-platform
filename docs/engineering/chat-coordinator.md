@@ -25,7 +25,9 @@ python3 scripts/lifecycle_overview.py --json show --pr N    # same data, machine
 It requires `[chat_coordinator] unclaimed_job_after_minutes` in `.dev-platform.toml`
 (committed in `dev-platform/source-contract.toml`; the installed, locally excluded
 `.dev-platform.toml` must carry the same value) and fails naming the key when it
-is missing. It considers the candidate set the
+is missing. It lists only the open Requirements labeled with this project's
+`[development_backlog] project_label` and fails naming the key when it is
+missing or invalid. It considers the candidate set the
 lifecycle workers consider (open PRs plus one bounded page of recently merged
 PRs) and states that bound.
 
@@ -33,7 +35,8 @@ Stages:
 
 | Stage | Meaning |
 | --- | --- |
-| `in-development` | Requirement exists, no PR has been handed off yet |
+| `not-started` | Requirement exists with no linked technical child visible from this checkout |
+| `in-development` | Requirement has work in progress, no PR has been handed off yet |
 | `handed-off` | Developer handoff recorded; no executor has picked it up yet (within the threshold) |
 | `delivering` | A review/repair/finalize/integration step is claimed, queued or running its automatic course |
 | `merged-open-obligations` | The PR is merged, but retrospective, terminal reconciliation or cleanup is open, or the Requirement is not `Done` |
