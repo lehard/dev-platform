@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+    "base_ref": "origin/main",
+    "candidate_head": "36aed3a605abf49c818720db6f426846855b9301",
+    "diff_sha256": "d9fee54f46191f53ee5f3cce7fdfa956d81d9f3b91ed42312786ca93a92c0b6a"
+  },
+  "completed_at": "2026-10-26T16:30:51+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/delegated_write_guard.py:1019-1024. `target` is only checked for None, then `Path(target)` is called with no type check. A non-string value raises an uncaught exception and the hook never emits a decision. This was already the case before the change and is outside the delta, but it is the same containment gap the change targets. A one-line isinstance(target, str) check that denies would close it, and the new deny test could cover it.",
+      "id": "guard-non-string-target-crash-fails-open",
+      "severity": "advisory",
+      "summary": "The change closes the fail-open for a missing target key, but the neighbouring non-string target case is unchanged. A payload like {\"file_path\": 123} or {\"file_path\": [..]} makes Path(target) raise TypeError, so the hook exits non-zero with a traceback instead of emitting a deny. Claude Code normally treats a non-2 hook failure as non-blocking, so the write may proceed."
+    }
+  ],
+  "launched_at": "2026-10-26T16:30:37+00:00",
+  "output_sha256": "71cf51a033171f93e28031976c2147453c0b4e68ba50ab501f936b97f58c0c2c",
+  "perspective": "engineering-quality",
+  "request_id": "ca2d8e89-b562-4847-9aad-b4e19a846fa2",
+  "reviewer": {
+    "context_id": "839c6359-1d1c-4cda-9e08-25df3b5a13e3",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-318fe3c6-f9c1-4f1a-96c2-f79ce4cdab63",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14681
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34609
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13938
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14103
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 838
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "335897c22451e2d65cca23cfaa37b9b381e4afa8432c7c915cf23b70a9bfd795"
+}
