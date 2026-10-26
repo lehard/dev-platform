@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "ae7de84a5854b5431886a994cba3c3a48d232be7",
+    "base_ref": "origin/main",
+    "candidate_head": "8c540fa189daa018ce5fb9c1f772445da341bc2a",
+    "diff_sha256": "1b262ad01edf17ec124f96aa64a6abbffa010d66a97394d11c3537a8f171b122"
+  },
+  "change": "openspec/changes/managed-checks-evidence-once",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/managed-checks-evidence-once/automated-checks.json",
+    "openspec/changes/managed-checks-evidence-once/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/managed-checks-evidence-once/design.md",
+        "openspec/changes/managed-checks-evidence-once/proposal.md",
+        "openspec/changes/managed-checks-evidence-once/specs/completion-lifecycle/spec.md",
+        "openspec/changes/managed-checks-evidence-once/specs/platform-lifecycle/spec.md",
+        "openspec/changes/managed-checks-evidence-once/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/managed-checks-evidence-once/proposal.md",
+        "openspec/changes/managed-checks-evidence-once/design.md",
+        "openspec/changes/managed-checks-evidence-once/tasks.md",
+        "openspec/changes/managed-checks-evidence-once/specs/completion-lifecycle/spec.md",
+        "openspec/changes/managed-checks-evidence-once/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T21:51:39+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/managed-checks-evidence-once/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b79cbe22-73db-4e25-8275-2e65ee8d6eed",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3b7ca769bc2832992cd900b76481cba16203aa6c",
+    "digest": "6d066ff8c9db7d73901b5beeb08415745911bcbca4cbcd78c6edf90a116eef66",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "88d04b8d0678e3430d9b88153ce435aa79dae3a8",
+      "openspec/changes/managed-checks-evidence-once/.managed-task.json": "023ee4eb9cc7dcb2640c26ff7c039040cb82123a",
+      "openspec/changes/managed-checks-evidence-once/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/managed-checks-evidence-once/design.md": "7bcc8c6e5f33087416c949e907e48f9262a7c0af",
+      "openspec/changes/managed-checks-evidence-once/proposal.md": "f3a84622a6e1b650036670c900dee03c30a44655",
+      "openspec/changes/managed-checks-evidence-once/specs/completion-lifecycle/spec.md": "34e4ccbf57394bb6d4f98ff8307b1e12fbf3d760",
+      "openspec/changes/managed-checks-evidence-once/specs/platform-lifecycle/spec.md": "b1e2e97f658aa72314457b995330f3f539158088",
+      "openspec/changes/managed-checks-evidence-once/tasks.md": "c9785f4f6526cafceb9b2bfb36567d59a9f93cd4",
+      "template/scripts/openspec_lifecycle.py": "f67229e062eb1640c75e220adc16d4f341f2faa0",
+      "template/scripts/select_checks.py": "a73e645dfaff2392e7d577442960ceba809af03a",
+      "tests/test_affected_precheck.py": "63378509d21503036d1a29562ea3ed9f3cca65c9",
+      "tests/test_managed_checkout_identity.py": "2ffe7e47b912b075efd82d09029cfaa3e06292e6",
+      "tests/test_openspec_lifecycle.py": "a3902834c37c0cb3af0b1bfcd0c06f1a4b132c8b"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

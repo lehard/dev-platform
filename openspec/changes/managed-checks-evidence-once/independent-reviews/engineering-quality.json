@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ae7de84a5854b5431886a994cba3c3a48d232be7",
+    "base_ref": "origin/main",
+    "candidate_head": "8c540fa189daa018ce5fb9c1f772445da341bc2a",
+    "diff_sha256": "1b262ad01edf17ec124f96aa64a6abbffa010d66a97394d11c3537a8f171b122"
+  },
+  "completed_at": "2026-10-26T21:52:11+00:00",
+  "findings": [
+    {
+      "evidence": "The `automated_evidence_reuse` docstring in template/scripts/openspec_lifecycle.py says to call it only after `require_automated_evidence` passed. The new archive branch (`archive_change`, platform_owned path) and `select_checks.refuse_repeated_run` call it whenever `evidence.is_file()`. `_read_check_evidence` raises SystemExit on OSError/ValueError. A truncated evidence file therefore blocks both archive and a regenerating `select_checks --execute --evidence` run, even though the design says a decision error should stop only for git or selection failures and not-reusable evidence should proceed. The only way out is to delete the file by hand. Consider treating unreadable evidence as `not-reusable` in these two callers.",
+      "id": "corrupt-evidence-blocks-rerun",
+      "severity": "advisory",
+      "summary": "An unreadable or corrupt automated-checks.json makes the new reuse decision raise SystemExit instead of falling back to running the checks. The reuse decision runs on any existing evidence file, and it runs in archive without the `require_automated_evidence` precondition that the helper documents."
+    }
+  ],
+  "launched_at": "2026-10-26T21:51:58+00:00",
+  "output_sha256": "5bf0eeb9cc83a61cd9fb7e240135ebc381b717c8b293a6716efb9d5fdcf2ef45",
+  "perspective": "engineering-quality",
+  "request_id": "b79cbe22-73db-4e25-8275-2e65ee8d6eed",
+  "reviewer": {
+    "context_id": "155bfceb-032b-4081-be05-f23ddd4af778",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9a885577-44f1-4e9f-ab3a-30ff23a36286",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25350
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42993
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12518
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12740
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1281
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6d066ff8c9db7d73901b5beeb08415745911bcbca4cbcd78c6edf90a116eef66"
+}
