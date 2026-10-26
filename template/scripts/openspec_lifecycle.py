@@ -855,16 +855,23 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
             require_automated_evidence(change, root=root)
         elif platform_owned:
             evidence = change / AUTOMATED_EVIDENCE_FILE
-            # Imported here: only an archive that executes checks depends on the machine pool.
-            from machine_pool import child_lease_descriptors
+            # One receipt for archive and finish: evidence that proves this task content is not run again.
+            reused = False
+            if evidence.is_file():
+                decision = automated_evidence_reuse(change, root=root, base_ref="origin/main")
+                print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
+                reused = decision["decision"] == "reused"
+            if not reused:
+                # Imported here: only an archive that executes checks depends on the machine pool.
+                from machine_pool import child_lease_descriptors
 
-            env = archive_target_environment(root, name)
-            run_checked(
-                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
-                root,
-                env=env,
-                pass_fds=child_lease_descriptors(env),
-            )
+                env = archive_target_environment(root, name)
+                run_checked(
+                    ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
+                    root,
+                    env=env,
+                    pass_fds=child_lease_descriptors(env),
+                )
     require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=bool(composition))
     executable = shutil.which("openspec")
     if not executable:

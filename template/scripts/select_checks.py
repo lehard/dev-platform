@@ -387,20 +387,23 @@ def _execute_commands(
     if precheck:
         precheck_record, result = run_precheck(root, precheck, pass_fds)
         precheck_record["outcome"] = precheck_outcome(result)
-        if precheck_record["outcome"] == "unavailable":
-            # A runner/configuration error leaves no feedback; the full set
-            # still decides, so tooling trouble never blocks validation.
-            print("Affected-test precheck was unavailable (exit %d); continuing with the full set." % result.returncode, flush=True)
-    if precheck_record is not None and precheck_record["outcome"] == "failure":
+    if precheck_record is not None and precheck_record["outcome"] in {"failure", "unavailable"}:
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record,
                            base_contract=base_contract, quick_gate=quick_gate)
         descriptor = failure_descriptor(checks, precheck_record["command"], result)
         descriptor["phase"] = "affected-precheck"
+        if precheck_record["outcome"] == "unavailable":
+            descriptor["failure_class"] = "affected-precheck-unavailable"
         print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(descriptor, ensure_ascii=False, sort_keys=True), flush=True)
         detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
         if detail:
             print("DEV_PLATFORM_CHECK_DIAGNOSTIC:\n" + detail.rstrip(), flush=True)
+        if precheck_record["outcome"] == "unavailable":
+            # A runner/configuration fault is a named stop, never a silent switch to the full set.
+            print("Affected-test precheck was unavailable (exit %d): the runner reported no usable test aggregate; "
+                  "the full validation set was not started." % result.returncode, flush=True)
+            return result.returncode if result.returncode else 1
         print("Affected-test precheck failed; the full validation set was not started.", flush=True)
         return result.returncode
 
@@ -532,6 +535,41 @@ def require_active_change_ready(root: Path, change: str, evidence_requested: boo
                          + ". Complete them and commit before the full run.")
 
 
+def require_clean_private_lineage(root: Path) -> None:
+    """Run the private-reference guard archive and finish run, before any selected command starts."""
+    import private_lineage
+
+    try:
+        private_lineage.require_clean_candidate(root)
+    except private_lineage.PrivateLineageError as exc:
+        raise SystemExit("Private-reference guard blocked validation before any expensive command started: " + str(exc)) from exc
+
+
+def refuse_repeated_run(root: Path, managed_change: str | None, quick: bool) -> None:
+    """Refuse an evidence-producing run whose recorded evidence already proves the current task content.
+
+    The decision is ``check_evidence_reuse``, the rule archive and finish reuse evidence by; with no
+    recorded evidence there is nothing to repeat. A not-reusable decision is printed and the run proceeds.
+    """
+    import openspec_lifecycle
+
+    base_ref = "origin/" + require_main_branch(read_platform_config(root), SystemExit)
+    if quick:
+        decision = openspec_lifecycle.quick_evidence_reuse(root, base_ref=base_ref)
+    else:
+        change = root / "openspec" / "changes" / str(managed_change)
+        if not (change / openspec_lifecycle.AUTOMATED_EVIDENCE_FILE).is_file():
+            return
+        decision = openspec_lifecycle.automated_evidence_reuse(change, root=root, base_ref=base_ref)
+    if decision["decision"] != "reused":
+        print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
+        return
+    raise SystemExit(
+        f"Repeated selected-check run refused before any command started: {decision['evidence']} already "
+        f"proves this task content ({decision['reason']}). archive and finish reuse it; nothing to rerun."
+    )
+
+
 def require_disposable_checkout(root: Path) -> None:
     """Refuse ``--scope-gate not-applicable`` in a task checkout: only a plain, disposable checkout may declare it.
 
@@ -652,6 +690,7 @@ def main() -> int:
             raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
         if managed_checkout is not None:
             require_active_change_ready(root, managed_checkout.change, evidence_path is not None)
+        require_clean_private_lineage(root)
         quick_gate = None
         if args.task_evidence:
             if managed_checkout is not None:
@@ -677,6 +716,8 @@ def main() -> int:
                 require_task_content(managed_checkout.evidence_payload(), "selected-check evidence")
             except ManagedTaskError as exc:
                 raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
+        if quick_gate is not None or (managed_checkout is not None and evidence_path is not None):
+            refuse_repeated_run(root, managed_checkout.change if managed_checkout is not None else None, quick_gate is not None)
         base_contract = None
         # Narrow mapped selections that produce coordinator handoff evidence need the
         # same currency classification as full selections.
