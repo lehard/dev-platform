@@ -9,4 +9,4 @@
 ## 3. Docs and verification
 - [x] 3.1 Update `docs/engineering/model-routing.md` and `template/docs/engineering/model-routing.md`.
 - [x] 3.2 Regression tests: R2 write allowed without delegation; explicit delegation and first write denied with the next step; opened delegation allows the write with no extra step; no route denied; non-managed and lifecycle paths allowed; doctor installation idempotent and malformed settings fail.
-- [ ] 3.3 Update existing routing tests that assumed default delegation; run full validation and semantic OpenSpec verification.
+- [x] 3.3 Update existing routing tests that assumed default delegation; run full validation and semantic OpenSpec verification.
