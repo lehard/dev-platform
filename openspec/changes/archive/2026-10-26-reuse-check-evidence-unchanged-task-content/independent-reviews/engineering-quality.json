@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+    "base_ref": "origin/main",
+    "candidate_head": "466d095d9646f43cd86064b4e3828e13c08428cf",
+    "diff_sha256": "e735754cbf8e48ca9b6185cd2dfd698fccc172556d54e5801822b22f64286350"
+  },
+  "completed_at": "2026-10-26T14:33:07+00:00",
+  "findings": [
+    {
+      "evidence": "design.md says the evidence is \"unique per worktree\". The same claim appears in agent-workflow.md (\"its worktree's git directory\"). `task_content_identity.quick_task_evidence_path` uses `--git-path dev-platform/check-evidence.json`. Concurrent quick tasks overwrite each other's record, which causes spurious `not-reusable` decisions or unsynchronised writes. The digest and scope proof limits the harm to lost reuse, not wrong reuse. Consider keying the path by worktree, for example under `--git-dir`, which is per-worktree, or by branch name. Otherwise correct the docs. Nothing in the tests covers two quick worktrees at once.",
+      "id": "quick-evidence-path-shared-across-worktrees",
+      "severity": "advisory",
+      "summary": "The quick-task evidence file is described as per-worktree, but `git rev-parse --git-path dev-platform/check-evidence.json` resolves to the common git directory for linked worktrees. Git treats only a fixed set of paths as per-worktree, and this path isn't one of them. Every quick-task worktree of the repo therefore shares one evidence file."
+    }
+  ],
+  "launched_at": "2026-10-26T14:32:52+00:00",
+  "output_sha256": "150349dc9b898846f703492c2b51fff134d913d2a69551032f1a203b50f4ca32",
+  "perspective": "engineering-quality",
+  "request_id": "d3ba1f55-0034-4737-b05d-587d7c06cd2a",
+  "reviewer": {
+    "context_id": "90265da5-1716-49de-92d5-ba4fe4e2243a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-de98bda6-ee0b-462d-8390-86b5c929f36c",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33432
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16641
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14558
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14795
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1689
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d7b8814fa3861670f283a0cd872a998a79dfeb22ebd5202a87180d943a9147e8"
+}

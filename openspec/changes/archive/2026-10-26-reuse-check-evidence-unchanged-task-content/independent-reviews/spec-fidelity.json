@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "79910537ca8d41bd4caad1be09c861e9d833bc5e",
+    "base_ref": "origin/main",
+    "candidate_head": "466d095d9646f43cd86064b4e3828e13c08428cf",
+    "diff_sha256": "e735754cbf8e48ca9b6185cd2dfd698fccc172556d54e5801822b22f64286350"
+  },
+  "completed_at": "2026-10-26T14:32:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py, quick_evidence_reuse: `evidence = _read_check_evidence(path, f\"quick-task check evidence {path} is unreadable\")` raises SystemExit. The spec's only fail-closed rule for evidence is for managed evidence (\"unreadable, failed or mismatched managed evidence SHALL continue to stop publication\"). design.md describes quick evidence as \"a reuse hint for the same machine\". A damaged hint therefore blocks finish and the user has to delete the file by hand, instead of finish running the checks and overwriting it. Either the spec should state the intended behavior or the code should fall back to `not-reusable`.",
+      "id": "quick-evidence-unreadable-hard-stop",
+      "severity": "advisory",
+      "summary": "A corrupt or non-object machine-local quick-task evidence file stops finish with SystemExit. The spec and design treat that file as a reuse hint and say only that an absent record is a named reason to run the checks. The spec does not say what happens to an unreadable one."
+    }
+  ],
+  "launched_at": "2026-10-26T14:32:37+00:00",
+  "output_sha256": "f92e4fb88f0526c23035e8d20ad54adefa5097e874e0a94d91d10158c74c3faa",
+  "perspective": "spec-fidelity",
+  "request_id": "d3ba1f55-0034-4737-b05d-587d7c06cd2a",
+  "reviewer": {
+    "context_id": "dfebd1de-2302-4591-b010-82b13d941516",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5df51001-b365-413c-97b4-b513565b445a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40984
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11794
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13696
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13849
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1740
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d7b8814fa3861670f283a0cd872a998a79dfeb22ebd5202a87180d943a9147e8"
+}

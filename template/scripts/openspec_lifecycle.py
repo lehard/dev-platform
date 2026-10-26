@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from _platform_common import current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
+from _platform_common import TaskFreshnessError, current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
 from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
 try:
     from independent_review import require_review_evidence, review_is_required
@@ -356,41 +356,96 @@ def _required_selection(root: Path, base_ref: str) -> dict:
 
 
 def automated_evidence_reuse(change: Path, *, root: Path, base_ref: str) -> dict[str, object]:
-    """Decide whether archive check evidence can stand for the validation finish requires.
+    """Decide whether a managed change's archive check evidence can stand for the validation finish requires.
 
-    Call only after ``require_automated_evidence`` passed (checkout and task content bound).
-    Reuse additionally needs the recorded validated base to equal the current merge base with
-    ``base_ref`` (which ``HEAD`` must contain) and a successful executed command for every command
-    of the selection required now.  ``not-reusable`` carries the named reason and means the caller
-    runs the required validation.  Any git/selection failure raises; it is never a ``not-reusable``.
+    Call only after ``require_automated_evidence`` passed (checkout and task content bound). The current
+    proof is the review-scoped task-content identity of the change the evidence names; the rule is
+    ``check_evidence_reuse``. ``not-reusable`` carries the named reason; a git/selection failure raises.
     """
     path = change / AUTOMATED_EVIDENCE_FILE
+    evidence = _read_check_evidence(path, f"{change.name}: missing readable automated check evidence: {path}")
+    facts: dict[str, object] = {"evidence": os.path.relpath(path, root), "validated_head": None, "base": None, "commands": []}
+    checkout = evidence.get("managed_checkout")
+    for field, value in (("managed_checkout", checkout), ("gate_task_content", evidence.get("gate_task_content"))):
+        if not isinstance(value, dict):
+            return _not_reusable(f"evidence has no {field} (version {evidence.get('version', 1)} evidence)", **facts)
+    canonical = checkout.get("change")
+    current = None
+    if isinstance(canonical, str):
+        from task_content_identity import review_content_identity
+
+        _current_base(root, base_ref)
+        current = review_content_identity(root, canonical, base_ref)
+    if current is None:
+        raise SystemExit(f"{change.name}: cannot compute the current task-content proof for check evidence reuse")
+    return check_evidence_reuse(path, evidence, current, root=root, base_ref=base_ref, validated_head=checkout.get("head"))
+
+
+def quick_evidence_reuse(root: Path, *, base_ref: str) -> dict[str, object]:
+    """The same decision for a quick task's machine-local evidence; an absent record is a named reason."""
+    from task_content_identity import quick_content_identity, quick_task_evidence_path
+
+    try:
+        path = quick_task_evidence_path(root)
+    except TaskFreshnessError as exc:
+        raise SystemExit(f"quick-task check evidence reuse blocked: {exc}") from exc
+    facts: dict[str, object] = {"evidence": str(path), "validated_head": None, "base": None, "commands": []}
+    if not path.exists():
+        return _not_reusable("no recorded quick-task evidence", **facts)
+    evidence = _read_check_evidence(path, f"quick-task check evidence {path} is unreadable")
+    _current_base(root, base_ref)
+    try:
+        current = quick_content_identity(root, base_ref)
+    except TaskFreshnessError as exc:
+        raise SystemExit(f"quick-task check evidence reuse blocked: {exc}") from exc
+    if current is None:
+        raise SystemExit("cannot compute the current quick-task content proof for check evidence reuse")
+    return check_evidence_reuse(path, evidence, current, root=root, base_ref=base_ref, validated_head=evidence.get("head"))
+
+
+def _read_check_evidence(path: Path, message: str) -> dict:
     try:
         evidence = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        raise SystemExit(f"{change.name}: missing readable automated check evidence: {path}") from exc
-    facts: dict[str, object] = {"evidence": os.path.relpath(path, root), "validated_head": None, "base": None, "commands": []}
-    checkout = evidence.get("managed_checkout")
-    gate = evidence.get("gate_task_content")
-    for field, value in (("managed_checkout", checkout), ("gate_task_content", gate)):
-        if not isinstance(value, dict):
-            return _not_reusable(f"evidence has no {field} (version {evidence.get('version', 1)} evidence)", **facts)
-    facts["validated_head"] = checkout.get("head")
-    if evidence.get("outcome") != "success":
-        return _not_reusable("evidence outcome is not success", **facts)
+        raise SystemExit(message) from exc
+    if not isinstance(evidence, dict):
+        raise SystemExit(message)
+    return evidence
 
+
+def _current_base(root: Path, base_ref: str) -> str:
     merge_base = run_git(["merge-base", "HEAD", base_ref], cwd=root, check=False)
     if merge_base.returncode != 0 or not merge_base.stdout.strip():
         raise SystemExit(f"cannot compute merge-base(HEAD, {base_ref}) for check evidence reuse: {merge_base.stderr.strip()}")
-    current_base = merge_base.stdout.strip()
-    facts["base"] = current_base
-    if gate.get("base") != current_base:
-        return _not_reusable(f"validated base {gate.get('base')} differs from current base {current_base}", **facts)
-    contains = run_git(["merge-base", "--is-ancestor", base_ref, "HEAD"], cwd=root, check=False)
-    if contains.returncode not in (0, 1):
-        raise SystemExit(f"cannot test whether HEAD contains {base_ref} for check evidence reuse: {contains.stderr.strip()}")
-    if contains.returncode == 1:
-        return _not_reusable(f"HEAD does not contain {base_ref}", **facts)
+    return merge_base.stdout.strip()
+
+
+def check_evidence_reuse(
+    path: Path, evidence: dict, current: dict, *, root: Path, base_ref: str, validated_head: object
+) -> dict[str, object]:
+    """The one reuse rule for managed and quick tasks in every lifecycle (BR-785).
+
+    Reused when the evidence succeeded, its task-content proof is equivalent to ``current``
+    (``equivalent_proofs``: equal digest and scope; across a base move the recorded base is an
+    ancestor of the current one and no task path changed between them) and every command of the
+    selection required now was executed successfully. Publishability stays with finish's freshness
+    gate; this decides only whether the checks run again.
+    """
+    from task_content_identity import equivalent_proofs
+
+    facts: dict[str, object] = {
+        "evidence": os.path.relpath(path, root) if path.is_relative_to(root) else str(path),
+        "validated_head": validated_head, "base": current.get("base"), "commands": [],
+    }
+    gate = evidence.get("gate_task_content")
+    if not isinstance(gate, dict):
+        return _not_reusable(f"evidence has no gate_task_content (version {evidence.get('version', 1)} evidence)", **facts)
+    if evidence.get("outcome") != "success":
+        return _not_reusable("evidence outcome is not success", **facts)
+    if not equivalent_proofs(root, gate, current):
+        return _not_reusable(
+            f"task content differs from the validated content (validated base {gate.get('base')}, current base "
+            f"{current.get('base')}): the task's own diff changed or main changed a task path", **facts)
 
     from select_checks import commands_for
 
@@ -405,8 +460,8 @@ def automated_evidence_reuse(change: Path, *, root: Path, base_ref: str) -> dict
         if isinstance(executed, list) else set()
     for command in commands:
         if command not in succeeded:
-            return _not_reusable(f"required command was not executed successfully by the archive evidence: {command}", **facts)
-    return {"decision": "reused", "reason": "archive evidence covers the current required selection for the validated tree", **facts}
+            return _not_reusable(f"required command was not executed successfully by the evidence: {command}", **facts)
+    return {"decision": "reused", "reason": "evidence covers the current required selection for unchanged task content", **facts}
 
 
 def require_independent_review_receipt(change: Path) -> None:
