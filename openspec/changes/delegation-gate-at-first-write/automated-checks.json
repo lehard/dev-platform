@@ -9,25 +9,25 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.198,
+      "duration_seconds": 0.168,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.319,
+      "duration_seconds": 0.137,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 1131.716,
+      "duration_seconds": 1166.663,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/generate_platform_manifest.py --check",
-      "duration_seconds": 0.237,
+      "duration_seconds": 0.226,
       "outcome": "success",
       "exit_code": 0
     }
@@ -67,18 +67,20 @@
     "change": "delegation-gate-at-first-write",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/delegation-gate-at-first-write",
     "branch": "agent/br-770-t1-delegation-gate-at-first-write",
-    "head": "531d92bf68ec7e4211411598202e3c405b926580",
+    "head": "16e1f4f447e1b354b09f554e01008e5e81081c06",
     "task_content": {
       "version": 1,
-      "digest": "53fb2c55564912e9f1de349025bd1c09768453b0111e67ed3029d5af3c98ae8e",
+      "digest": "f6a2d545d44a78ddf0009dac98d00a1bac17dc0332311f8b73f93b0735da74e5",
       "paths": {
         "docs/engineering/model-routing.md": "62ee4f13d7282cecc394eb8e43ad1eb77c390642",
         "openspec/changes/delegation-gate-at-first-write/.managed-task.json": "26a2431d4735e9e7783250594a39c922f823d540",
         "openspec/changes/delegation-gate-at-first-write/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+        "openspec/changes/delegation-gate-at-first-write/automated-checks.json": "5940e155ea30ad1626cbdb8b9cba3f05d2e1a25e",
         "openspec/changes/delegation-gate-at-first-write/design.md": "7ef8e87e989578e01fdb554ac3439fb6b2d9c092",
         "openspec/changes/delegation-gate-at-first-write/proposal.md": "8ffbe70292e2bb757c40075a122584058ad57f69",
         "openspec/changes/delegation-gate-at-first-write/specs/model-routing/spec.md": "e7452b9431895f2b69c6aa11c8f92ca67d370317",
-        "openspec/changes/delegation-gate-at-first-write/tasks.md": "2f74a8f357b7c3bf3ac960e0e75dd90323c695f0",
+        "openspec/changes/delegation-gate-at-first-write/tasks.md": "1d9b2ebcfb48caed5dff0bee87c63cc88bc6e16f",
+        "openspec/changes/delegation-gate-at-first-write/verification.md": "714fb76ec5819c3acedc9ff3d5f6af982e607b21",
         "scripts/dogfood_task.py": "fc96926c0a77340fe38350eba93030857dcae9fc",
         "template/dev-platform/platform-manifest.json": "41bd0a5a0e0736f9349c0acbafd701a23119f043",
         "template/docs/engineering/model-routing.md": "be170a62dbfbf39189be201244bb1d19abb4400b",
@@ -94,7 +96,7 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "037374306fd159e29297d947ba977b65a72c85d104dc4e1aeaf6b586ae333fd8",
+    "digest": "766559267812c53033d601768975330bdcbf0f9caa339dd7e94ecc2e4058ad95",
     "paths": {
       "docs/engineering/model-routing.md": "62ee4f13d7282cecc394eb8e43ad1eb77c390642",
       "openspec/changes/delegation-gate-at-first-write/.managed-task.json": "26a2431d4735e9e7783250594a39c922f823d540",
@@ -102,7 +104,7 @@
       "openspec/changes/delegation-gate-at-first-write/design.md": "7ef8e87e989578e01fdb554ac3439fb6b2d9c092",
       "openspec/changes/delegation-gate-at-first-write/proposal.md": "8ffbe70292e2bb757c40075a122584058ad57f69",
       "openspec/changes/delegation-gate-at-first-write/specs/model-routing/spec.md": "e7452b9431895f2b69c6aa11c8f92ca67d370317",
-      "openspec/changes/delegation-gate-at-first-write/tasks.md": "2f74a8f357b7c3bf3ac960e0e75dd90323c695f0",
+      "openspec/changes/delegation-gate-at-first-write/tasks.md": "1d9b2ebcfb48caed5dff0bee87c63cc88bc6e16f",
       "scripts/dogfood_task.py": "fc96926c0a77340fe38350eba93030857dcae9fc",
       "template/docs/engineering/model-routing.md": "be170a62dbfbf39189be201244bb1d19abb4400b",
       "template/scripts/agent_doctor.py": "ae9c8c6b4da56c197f6848b0c89136e97a3bb177",
@@ -117,7 +119,7 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/dogfood_task.py --changed-file template/scripts/agent_doctor.py --changed-file template/scripts/model_routing.py --changed-file tests/test_central_dogfood_lifecycle.py --changed-file tests/test_harness_safety.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_model_routing.py",
-    "duration_seconds": 197.936,
+    "duration_seconds": 208.43,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"

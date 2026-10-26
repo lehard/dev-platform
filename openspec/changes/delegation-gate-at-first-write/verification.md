@@ -39,4 +39,4 @@ All tasks in `tasks.md` are complete.
 
 ## Selected checks
 
-`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on head 531d92bf (contains origin/main eb83dc25) passed: compileall, ruff, `run_test_groups.py --all` (1132 s), `generate_platform_manifest.py --check`. The first attempt stopped at the scope-overlap gate before any test; the overlap with BR-774 (2ffa12754f) is only the generated manifest and was acknowledged.
+`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on head 16e1f4f4 (contains origin/main eb83dc25) passed: compileall, ruff, `run_test_groups.py --all` (1167 s), `generate_platform_manifest.py --check`. An earlier identical pass on 531d92bf went stale because the final tasks.md checkbox was ticked afterwards (friction 6daaa236c646). The first attempt stopped at the scope-overlap gate before any test; the overlap with BR-774 (2ffa12754f) is only the generated manifest and was acknowledged.
