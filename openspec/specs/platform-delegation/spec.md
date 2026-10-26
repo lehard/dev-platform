@@ -84,6 +84,13 @@ For supported runtimes with proven native OS-level writable-root sandboxing or n
 - **WHEN** a structured filesystem write tool resolves a target outside `assigned_worktree`
 - **THEN** the fallback guard SHALL deny that tool use before the write occurs
 
+#### Scenario: Claude structured write payload names no target
+
+- **GIVEN** the structured-write guarded fallback is active for a Claude Code child/session
+- **WHEN** a guarded tool use carries no recognized target key (`file_path`, `path` or `notebook_path`)
+- **THEN** the fallback guard SHALL deny that tool use with a reason naming the missing target keys
+- **AND** SHALL NOT allow an unverified write
+
 #### Scenario: Claude shell-capable delegation has no real OS filesystem sandbox
 
 - **WHEN** arbitrary shell execution is available and no real OS writable-root boundary is proven
