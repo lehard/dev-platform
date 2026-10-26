@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/lifecycle-workers/spec.md",
+    "specs/publication-queue/spec.md",
+    "tasks.md"
+  ],
+  "change": "llm-free-hosted-integration-merge",
+  "imported_at": "2026-10-26T22:18:17+00:00",
+  "package_revision": "ecfde2065860b2b18bb4fb762529ac5959745c7ef473de70c56062e5fb0ff442",
+  "prepared_against": "a9736731ff58faf03d8744420ea1348dad6845a4",
+  "private_lineage_handle": "pln_d18b0c4778c0d4a9824acd8e7be39cb4",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "0daab1c7b72acf4fbac79efcd03285d5e0d510c61bc08564758acea3c5ffc1f6",
+    "updated_at": "2026-10-26T22:13:16Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-768/T2"
+}

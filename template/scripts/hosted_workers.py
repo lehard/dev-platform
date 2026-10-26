@@ -26,13 +26,16 @@ PROVIDER_FLAG_ENV = "PREFLIGHT_PROVIDER_SECRET_SET"
 PHASES = ("inputs", "runtime", "all")
 
 # One table drives the plan, the preflight and (through the structure tests) the workflow.
-# Both classes push an evidence commit to the candidate branch through the harness, so both need
-# contents write next to pull-request comment rights.
+# Every class pushes to the candidate branch through the harness (review evidence, the finalization
+# commit, the integration-merge commit), so each needs contents write next to pull-request comment rights.
+# ``integrate`` runs the LLM-free integration merge: no provider, no writer, no --llm-command (BR-768).
 CLASSES: dict[str, dict[str, Any]] = {
     "review": {"kinds": ("review",), "needs_provider": True, "tools": (),
                "permissions": {"contents": "write", "pull-requests": "write"}},
     "finalize": {"kinds": ("finalize",), "needs_provider": False, "tools": ("openspec",),
                  "permissions": {"contents": "write", "pull-requests": "write"}},
+    "integrate": {"kinds": (workers.MERGE_ONLY_KIND,), "needs_provider": False, "tools": (),
+                  "permissions": {"contents": "write", "pull-requests": "write"}},
 }
 HOSTED_KINDS = frozenset(kind for spec in CLASSES.values() for kind in spec["kinds"])
 
@@ -244,7 +247,7 @@ def preflight(root: Path, name: str, phase: str, env: Mapping[str, str], *, mode
 # ---- outcome report ----------------------------------------------------------------------------------
 
 _FAILED_EXECUTION = frozenset({"blocked-retryable", "blocked-escalation", "failed", "unavailable", "rejected", "error"})
-_RESULTED_EXECUTION = frozenset({"reviewed", "reused", "finalized", "returned-to-review", "changed"})
+_RESULTED_EXECUTION = frozenset({"reviewed", "reused", "finalized", "returned-to-review", "changed", "integrated"})
 
 
 def classify(result: Mapping[str, Any] | None, exit_code: int) -> tuple[str, bool, str]:

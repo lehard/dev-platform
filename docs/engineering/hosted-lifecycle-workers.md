@@ -10,8 +10,9 @@ This document is the owner's enablement instruction and the record of the pilot.
 | --- | --- | --- | --- |
 | `review` | `review` | Claude (headless, read-only tool allowlist) | pinned `@anthropic-ai/claude-code` |
 | `finalize` | `finalize` | none | pinned OpenSpec, Ruff, Jinja2, Copier |
+| `integrate` | `integration-merge` | none | none |
 
-Both classes use a GitHub App token for this repository with pull-requests write and contents write, because the harness posts the claim/result comments and pushes the review evidence or finalization commit to the candidate branch (expected-head guarded, never force, never `main`). The hosted worker issues no merge request.
+Every class uses a GitHub App token for this repository with pull-requests write and contents write, because the harness posts the claim/result comments and pushes the review evidence, the finalization commit or the integration-merge commit to the candidate branch (expected-head guarded, never force, never `main`). The hosted worker issues no merge request.
 
 These kinds are refused by name and stay on the local operator node (BR-433):
 
@@ -105,6 +106,7 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 | --- | --- | --- |
 | `review` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review`) for task and contribution PRs | The preflight passed and real PRs were reviewed after the session ended, with the constraints above. A Requirement composition review of a private Requirement stays on the local operator node (BR-433): the hosted worker has no Development Backlog and does not claim it. |
 | `finalize` | **Not enabled; not evaluated** | It runs candidate code beside a contents-write token. It is evaluated only if the owner enables it. Until then the local worker finalizes, as it did for every PR above. |
+| `integration-merge` | **Hosted class `integrate` once the owner adds it to `DEV_PLATFORM_HOSTED_KINDS`** | The queue offers it when integration failed on the `integration` gate with a clean trial merge (typically a failed derived merge). The harness merges current main without any writer, provider secret or `--llm-command`; a conflict or red required check at execution fails it by name and the next attempt is a writer `integration-repair` (BR-768). |
 | `repair`, `integration-repair` | **Local operator node (BR-433), run by an operator** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). The queue escalates each repair round with a "Repair needed" attention comment; no writer starts automatically (BR-768). |
 | `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
 
