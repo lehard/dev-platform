@@ -132,7 +132,9 @@ class OrchestratorFlowTests(unittest.TestCase):
                   target_repository="acme/billing", base_dir=self.base_dir)
         directory = orch.requirement_dir(self.base_dir, "add-tiered-pricing")
         self.assertFalse(orch.add_path(directory).exists())
-        self.assertEqual(self._status()["current_stage"], "selection")
+        selection = self._status()
+        self.assertEqual(selection["current_stage"], "selection")
+        self.assertIn("orchestrate_pre_authoring.py --id add-tiered-pricing select-depth", selection["blocker"]["action"])
         decision = orch.select_depth(self.root, requirement_id="add-tiered-pricing", depth=orch.DEPTH_DETERMINISTIC,
                                      reason="Mechanical correction", base_dir=self.base_dir)
         self.assertEqual(decision["routing"], "none")
@@ -372,6 +374,8 @@ class OrchestratorFlowTests(unittest.TestCase):
         result = self._status()
         self.assertEqual(result["current_stage"], "add")
         self.assertEqual(result["stages"]["add"]["state"], "needs-decision")
+        self.assertIn("orchestrate_pre_authoring.py --id add-tiered-pricing record-decision",
+                      result["stages"]["add"]["action"])
         decision = result["stages"]["add"]["decisions"][0]
         self.assertEqual(decision["question"], "Do tiers stack with per-seat pricing?")
         self.assertEqual(decision["alternatives"], ["stack", "replace"])
