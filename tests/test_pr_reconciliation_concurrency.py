@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -155,11 +156,12 @@ class ReconciliationLockTests(unittest.TestCase):
                 [
                     sys.executable,
                     "-c",
-                    "import sys,time; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from finish_task import serialized_integration; lock=serialized_integration(Path(sys.argv[2]), {'paths': {'main_merge_lock': '.claude/main-merge.lock'}}, 2); lock.__enter__(); Path(sys.argv[3]).write_text('ready', encoding='utf-8'); time.sleep(.35); Path(sys.argv[4]).write_text('releasing', encoding='utf-8'); lock.__exit__(None,None,None)",
+                    "import sys,time; from pathlib import Path; sys.path.insert(0, sys.argv[1]); from finish_task import serialized_integration; lock=serialized_integration(Path(sys.argv[2]), {'paths': {'main_merge_lock': '.claude/main-merge.lock'}}, 2); lock.__enter__(); Path(sys.argv[3]).write_text('ready', encoding='utf-8'); go=Path(sys.argv[5]); [time.sleep(.02) for _ in iter(lambda: not go.exists(), False)]; Path(sys.argv[4]).write_text('releasing', encoding='utf-8'); lock.__exit__(None,None,None)",
                     str(SCRIPTS),
                     str(integration),
                     str(ready),
                     str(integration / "lock-holder-releasing"),
+                    str(integration / "lock-holder-go"),
                 ]
             )
             try:
@@ -167,6 +169,11 @@ class ReconciliationLockTests(unittest.TestCase):
                 # Order, not elapsed time: the serialized step must run after the holder released.
                 released = integration / "lock-holder-releasing"
                 observed: list[bool] = []
+                # The holder keeps the lock until told to go, so a step that did not wait for the lock
+                # observes no release marker however slow this thread is.
+                go = threading.Timer(.5, lambda: (integration / "lock-holder-go").write_text("go", encoding="utf-8"))
+                go.start()
+                self.addCleanup(go.cancel)
                 with (
                     mock.patch.object(finish_task, "sync_after_remote_pr_merge",
                                       side_effect=lambda *_: observed.append(released.exists())) as sync,

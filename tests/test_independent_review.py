@@ -683,11 +683,18 @@ class IndependentReviewTests(unittest.TestCase):
         pid_file = self.root.parent / f"{self.root.name}-grandchild.pid"
         self.addCleanup(lambda: pid_file.unlink(missing_ok=True))
         # The grandchild records its pid and then outlives the test unless the group kill reaches it.
-        script = f"/bin/sh -c 'echo $$ > {pid_file}; exec sleep 600' & sleep 600"
-        # The launcher timeout is the product behavior under test; 5 s leaves a loaded host
-        # ample time to start the grandchild before the group is killed.
-        with self.assertRaises(runner.LaunchTimeout):
-            runner.subprocess_launcher(["/bin/sh", "-c", script], self.root, 5)
+        # The pid is published atomically so a reader never sees a created-but-empty file.
+        script = f"/bin/sh -c 'echo $$ > {pid_file}.tmp; mv {pid_file}.tmp {pid_file}; exec sleep 600' & sleep 600"
+        # The launcher timeout is the product behavior under test. A loaded host may delay the
+        # grandchild past a short timeout, so retry with a doubled timeout until it has started.
+        deadline = time.monotonic() + process_deadline_seconds()
+        launch_timeout = 2
+        while True:
+            with self.assertRaises(runner.LaunchTimeout):
+                runner.subprocess_launcher(["/bin/sh", "-c", script], self.root, launch_timeout)
+            if pid_file.exists() or time.monotonic() >= deadline:
+                break
+            launch_timeout *= 2
         self.assertTrue(pid_file.exists(), "the reviewer grandchild never started, so the kill was not exercised")
         grandchild = int(pid_file.read_text(encoding="utf-8"))
         deadline = time.monotonic() + process_deadline_seconds()
