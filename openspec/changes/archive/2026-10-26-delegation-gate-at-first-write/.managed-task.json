@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/model-routing/spec.md",
+    "tasks.md"
+  ],
+  "change": "delegation-gate-at-first-write",
+  "imported_at": "2026-10-26T07:32:35+00:00",
+  "package_revision": "5f6864bb7fe26f1a8db454aed2928222ee856eaa6a89ff5caf49d979cfb51d8f",
+  "prepared_against": "eb83dc2562a72e0eacfce645c662a83bba065309",
+  "private_lineage_handle": "pln_d5d08bdfc1ed1dadd9d007d782781727",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "918fa10355a1be7a7cc1bdd1e44756375ceab1f0c40497f332ca6f95be7b701c",
+    "updated_at": "2026-10-26T07:25:00Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-770/T1"
+}

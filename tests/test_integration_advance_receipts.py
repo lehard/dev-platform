@@ -372,7 +372,7 @@ class ClaudeRoutingFixture(IntegrationRepoMixin):
         ):
             routing.prepare_claude_handoff(
                 self.task, profile="standard", rationale="bounded current-spec preflight",
-                evidence=["openspec/changes/routing-change"],
+                evidence=["openspec/changes/routing-change"], delegate=True,
             )
         self.pre_head = rev(self.integration)
         routing.begin_claude_delegation(self.task)

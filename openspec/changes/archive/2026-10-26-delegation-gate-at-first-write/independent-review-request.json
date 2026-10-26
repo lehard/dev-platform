@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "5cb06789f211bc43f4b62494aa22f108407ae215",
+    "base_ref": "origin/main",
+    "candidate_head": "5924be728d5f47808f7df8440b80dfdcd686b48c",
+    "diff_sha256": "5b61c03200d27e3ddd59e871ee61cca278f74cc5a2e6bdfff5af1c1ba57eb79e"
+  },
+  "change": "openspec/changes/delegation-gate-at-first-write",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/delegation-gate-at-first-write/automated-checks.json",
+    "openspec/changes/delegation-gate-at-first-write/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/delegation-gate-at-first-write/design.md",
+        "openspec/changes/delegation-gate-at-first-write/proposal.md",
+        "openspec/changes/delegation-gate-at-first-write/specs/model-routing/spec.md",
+        "openspec/changes/delegation-gate-at-first-write/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/delegation-gate-at-first-write/proposal.md",
+        "openspec/changes/delegation-gate-at-first-write/design.md",
+        "openspec/changes/delegation-gate-at-first-write/tasks.md",
+        "openspec/changes/delegation-gate-at-first-write/specs/model-routing/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-26T09:08:37+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/delegation-gate-at-first-write/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b5792abb-e08e-4b82-ab3f-f24a9e37330d",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "eb83dc2562a72e0eacfce645c662a83bba065309",
+    "digest": "766559267812c53033d601768975330bdcbf0f9caa339dd7e94ecc2e4058ad95",
+    "paths": {
+      "docs/engineering/model-routing.md": "62ee4f13d7282cecc394eb8e43ad1eb77c390642",
+      "openspec/changes/delegation-gate-at-first-write/.managed-task.json": "26a2431d4735e9e7783250594a39c922f823d540",
+      "openspec/changes/delegation-gate-at-first-write/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/delegation-gate-at-first-write/design.md": "7ef8e87e989578e01fdb554ac3439fb6b2d9c092",
+      "openspec/changes/delegation-gate-at-first-write/proposal.md": "8ffbe70292e2bb757c40075a122584058ad57f69",
+      "openspec/changes/delegation-gate-at-first-write/specs/model-routing/spec.md": "e7452b9431895f2b69c6aa11c8f92ca67d370317",
+      "openspec/changes/delegation-gate-at-first-write/tasks.md": "1d9b2ebcfb48caed5dff0bee87c63cc88bc6e16f",
+      "scripts/dogfood_task.py": "fc96926c0a77340fe38350eba93030857dcae9fc",
+      "template/docs/engineering/model-routing.md": "be170a62dbfbf39189be201244bb1d19abb4400b",
+      "template/scripts/agent_doctor.py": "ae9c8c6b4da56c197f6848b0c89136e97a3bb177",
+      "template/scripts/model_routing.py": "be3e48bd6099782293e361be3c96a59883d7ee1c",
+      "tests/test_central_dogfood_lifecycle.py": "19c76431eb826a0233e83299ad85ee3308303c50",
+      "tests/test_harness_safety.py": "2d3afd4852508757e58816c4fc80b29531be63e7",
+      "tests/test_integration_advance_receipts.py": "a0ba4182894e84a7e964d56b4bf0a51127032706",
+      "tests/test_model_routing.py": "c82f87609998b07691c44e5e6ec3cb9686057f33"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

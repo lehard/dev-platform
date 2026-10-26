@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import json
 import subprocess
 import sys
 import tempfile
@@ -80,6 +81,41 @@ with serialized_integration(Path(%r), {"paths": {"main_merge_lock": ".claude/mai
             self.assertEqual(results["pre-commit"], "foreign-hook-kept")
             self.assertEqual(failures, 1)
             self.assertEqual(installed.read_text(encoding="utf-8"), before)
+
+    def test_agent_doctor_installs_claude_write_gate_idempotently(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = root / ".claude" / "settings.local.json"
+            settings.parent.mkdir()
+            settings.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}, "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": []}]}}), encoding="utf-8")
+            self.assertEqual(agent_doctor.ensure_claude_write_gate(root), ("installed", 0))
+            data = json.loads(settings.read_text(encoding="utf-8"))
+            self.assertEqual(data["permissions"], {"allow": ["Bash(ls)"]})
+            self.assertEqual(len(data["hooks"]["PreToolUse"]), 2)
+            self.assertEqual(data["hooks"]["PreToolUse"][1]["matcher"], "Write|Edit|MultiEdit|NotebookEdit")
+            self.assertEqual(data["hooks"]["PreToolUse"][1]["hooks"][0]["command"], agent_doctor.WRITE_GATE_COMMAND)
+            before = settings.read_text(encoding="utf-8")
+            self.assertEqual(agent_doctor.ensure_claude_write_gate(root), ("present", 0))
+            self.assertEqual(settings.read_text(encoding="utf-8"), before)
+
+    def test_agent_doctor_creates_missing_settings_for_write_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(agent_doctor.ensure_claude_write_gate(root), ("installed", 0))
+            self.assertTrue((root / ".claude" / "settings.local.json").is_file())
+
+    def test_agent_doctor_refuses_to_overwrite_malformed_write_gate_settings(self) -> None:
+        bad = ["{not json", "[]", json.dumps({"hooks": []}), json.dumps({"hooks": {"PreToolUse": {}}})]
+        for content in bad:
+            with self.subTest(content=content), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                settings = root / ".claude" / "settings.local.json"
+                settings.parent.mkdir()
+                settings.write_text(content, encoding="utf-8")
+                state, failures = agent_doctor.ensure_claude_write_gate(root)
+                self.assertTrue(state.startswith("malformed-settings"), state)
+                self.assertEqual(failures, 1)
+                self.assertEqual(settings.read_text(encoding="utf-8"), content)
 
     def test_main_copy_status_surfaces_dirty_integration_tree(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

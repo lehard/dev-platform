@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5cb06789f211bc43f4b62494aa22f108407ae215",
+    "base_ref": "origin/main",
+    "candidate_head": "5924be728d5f47808f7df8440b80dfdcd686b48c",
+    "diff_sha256": "5b61c03200d27e3ddd59e871ee61cca278f74cc5a2e6bdfff5af1c1ba57eb79e"
+  },
+  "completed_at": "2026-10-26T09:09:07+00:00",
+  "findings": [
+    {
+      "evidence": "design.md decision 3 says \"any internal error also denies with its message (fail closed only inside a managed task)\", and the spec says writes outside an active managed task \"SHALL NOT be affected\". In template/scripts/model_routing.py `_write_gate_main`, the invalid-JSON, missing-`file_path`, missing-`cwd` and no-existing-ancestor branches all return `deny(...)` before any managed-task check. The broad `except Exception` around the `git rev-parse` call and `check_task_write` also denies. A malformed payload or a git or OS error in an unrelated repository would therefore block a write the spec says is unaffected. The only tested outside-repo case is a well-formed payload, which is allowed.",
+      "id": "write-gate-fail-closed-scope-mismatch",
+      "severity": "advisory",
+      "summary": "design.md says an internal error denies only inside a managed task, but `_write_gate_main` denies on any payload or internal error, whether or not the target is in a managed task."
+    }
+  ],
+  "launched_at": "2026-10-26T09:08:40+00:00",
+  "output_sha256": "a6c09fec878caed563a5ed1a80837692c84ec612ebea89b641da642adf4abe6d",
+  "perspective": "spec-fidelity",
+  "request_id": "b5792abb-e08e-4b82-ab3f-f24a9e37330d",
+  "reviewer": {
+    "context_id": "57eda3c8-ac6e-4a69-9579-78d139bbe54c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6d519ea9-18e3-499c-a108-56622458b520",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50218
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50789
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26400
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26669
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3090
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "766559267812c53033d601768975330bdcbf0f9caa339dd7e94ecc2e4058ad95"
+}

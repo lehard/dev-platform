@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 from _platform_common import (
+    atomic_write_text,
     SharedWorkspaceError,
     current_worktree_root,
     fetch_main,
@@ -84,6 +85,42 @@ def ensure_git_hooks(root: Path) -> tuple[dict[str, str], int]:
         target.write_bytes(content)
         target.chmod(0o775)
     return results, failures
+
+
+WRITE_GATE_COMMAND = 'python3 "$CLAUDE_PROJECT_DIR/scripts/model_routing.py" write-gate'
+WRITE_GATE_MATCHER = "Write|Edit|MultiEdit|NotebookEdit"
+
+
+def ensure_claude_write_gate(integration: Path) -> tuple[str, int]:
+    """Install the routing write-gate PreToolUse hook into the integration checkout's local Claude settings.
+
+    Never overwrites settings it cannot parse into the expected shape.
+    """
+    path = integration / ".claude" / "settings.local.json"
+    settings: dict = {}
+    if path.exists():
+        try:
+            settings = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            return f"malformed-settings ({path}: invalid JSON: {exc})", 1
+        if not isinstance(settings, dict):
+            return f"malformed-settings ({path}: top level is not an object)", 1
+    hooks = settings.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return f"malformed-settings ({path}: hooks is not an object)", 1
+    pre_tool_use = hooks.get("PreToolUse", [])
+    if not isinstance(pre_tool_use, list):
+        return f"malformed-settings ({path}: hooks.PreToolUse is not a list)", 1
+    for entry in pre_tool_use:
+        for hook in entry.get("hooks", []) if isinstance(entry, dict) and isinstance(entry.get("hooks"), list) else []:
+            if isinstance(hook, dict) and hook.get("command") == WRITE_GATE_COMMAND:
+                return "present", 0
+    pre_tool_use.append({"matcher": WRITE_GATE_MATCHER, "hooks": [{"type": "command", "command": WRITE_GATE_COMMAND}]})
+    hooks["PreToolUse"] = pre_tool_use
+    settings["hooks"] = hooks
+    path.parent.mkdir(parents=True, exist_ok=True)
+    atomic_write_text(path, json.dumps(settings, indent=2) + "\n")
+    return "installed", 0
 
 
 def run_multi_agent_hygiene(integration: Path) -> int:
@@ -380,6 +417,9 @@ def main() -> int:
         for name, state in sorted(hook_results.items()):
             report("fail" if state == "foreign-hook-kept" else "ok", f"git hook {name}: {state}")
         failures += hook_failures
+        gate_state, gate_failures = ensure_claude_write_gate(integration)
+        report("fail" if gate_failures else "ok", f"claude write gate: {gate_state}")
+        failures += gate_failures
         dirty, conflicted = main_copy_status(integration)
         if conflicted:
             report("fail", "integration copy has unresolved conflicts: " + ", ".join(conflicted[:5]))

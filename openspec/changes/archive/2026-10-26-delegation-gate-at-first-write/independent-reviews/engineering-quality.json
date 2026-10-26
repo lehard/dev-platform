@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5cb06789f211bc43f4b62494aa22f108407ae215",
+    "base_ref": "origin/main",
+    "candidate_head": "5924be728d5f47808f7df8440b80dfdcd686b48c",
+    "diff_sha256": "5b61c03200d27e3ddd59e871ee61cca278f74cc5a2e6bdfff5af1c1ba57eb79e"
+  },
+  "completed_at": "2026-10-26T09:09:37+00:00",
+  "findings": [
+    {
+      "evidence": "template/docs/engineering/model-routing.md:67 reads \"routine/standard work retained only when the standalone parent-only topology prevents a safely contained child writer\". The diff adds `balanced-parent` as the default for routine/standard on linked worktrees. The same sentence in docs/engineering/model-routing.md (retained-execution section) was not updated either. Only the plan paragraphs and the route-claude paragraph were edited.",
+      "id": "stale-retention-doc-statement",
+      "severity": "advisory",
+      "summary": "Docs still say routine/standard work is retained only on the standalone parent-only topology, which this change makes untrue."
+    },
+    {
+      "evidence": "template/scripts/model_routing.py `_write_gate_main`: invalid JSON, a missing `tool_input.file_path`/`notebook_path`, a relative path without `cwd`, and any exception from `git rev-parse` or `check_task_write` all return `deny(...)` before the managed-task check. The hook is installed in the integration checkout's settings and matches every Write|Edit|MultiEdit|NotebookEdit call. A malformed payload or an unrelated internal error would therefore block writes everywhere in that session. design.md decision 3 says to \"fail closed only inside a managed task\".",
+      "id": "write-gate-fail-closed-outside-managed-task",
+      "severity": "advisory",
+      "summary": "The write-gate hook denies any Write/Edit if its payload is unexpected, even when the target is not in a managed task. The design says it fails closed only inside a managed task."
+    },
+    {
+      "evidence": "`check_task_write` returns for `PLAN_RETAINED or _has_real_delegation(route)` with no caller identity. A supervisor can run `begin-claude-delegation`, which is self-reported, and then write the code itself. Only the later containment postcheck and early gate see this. The docs mention the shell-write limit but not this one.",
+      "id": "write-gate-open-delegation-allows-supervisor-writes",
+      "severity": "advisory",
+      "summary": "The write-time gate cannot tell the supervisor from the delegated child, so once a self-reported delegation is open it allows any write, including the supervisor's own."
+    }
+  ],
+  "launched_at": "2026-10-26T09:09:07+00:00",
+  "output_sha256": "bac23f6dc7d38dfbbf5a5bdc25de2759bbd2d743ce4acca814fdc9cfabcfa8e4",
+  "perspective": "engineering-quality",
+  "request_id": "b5792abb-e08e-4b82-ab3f-f24a9e37330d",
+  "reviewer": {
+    "context_id": "f132f766-df13-4468-8745-4d4331c05dde",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3f8b8fb9-9a18-4479-b97a-125a61b848d2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46554
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 246367
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28913
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29236
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3666
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "766559267812c53033d601768975330bdcbf0f9caa339dd7e94ecc2e4058ad95"
+}
