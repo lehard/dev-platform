@@ -1,0 +1,124 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.19,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.235,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.259,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1217.386,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/select_checks.py",
+        "tests/test_managed_checkout_identity.py",
+        "tests/test_portable_finish_check_reuse.py",
+        "tests/test_select_checks.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_da498cab1447db57819c735462a67924",
+    "change": "managed-checks-cheap-preflight",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/managed-checks-cheap-preflight",
+    "branch": "agent/br-773-t1-managed-checks-cheap-preflight",
+    "head": "127eeb90102aff91f20decb9bbdb03cbfa980bd5",
+    "task_content": {
+      "version": 1,
+      "digest": "9ff392bc5942954950c8319cba3d548638086802a84d38045bde77caf46c06bd",
+      "paths": {
+        "dev-platform/checks.toml": "09aa5be54faa8d297f24c13e8ed393459c262e99",
+        "docs/engineering/agent-workflow.md": "d8199ddde5079c83bb12ed1ab41d700e34a0b903",
+        "openspec/changes/managed-checks-cheap-preflight/.managed-task.json": "b1ee690fa856601920008b8a506fc272f0cddc45",
+        "openspec/changes/managed-checks-cheap-preflight/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+        "openspec/changes/managed-checks-cheap-preflight/design.md": "9dff84297cb0c70322db6652a97810a495dddb5b",
+        "openspec/changes/managed-checks-cheap-preflight/proposal.md": "56b0f5cf3c307e0d9604853308fdfd48b66de9ef",
+        "openspec/changes/managed-checks-cheap-preflight/specs/completion-lifecycle/spec.md": "5118b3c954f51ece7d469492e5b11774d958ff25",
+        "openspec/changes/managed-checks-cheap-preflight/tasks.md": "508fe80eea4c162ecb6cb352260ac222732e4da7",
+        "template/dev-platform/platform-manifest.json": "c2b4961183bb8fc7606e956ff4dca9ef8b501a2b",
+        "template/scripts/select_checks.py": "505e401b68ca65416975e0b6dff8c72636367072",
+        "tests/test_managed_checkout_identity.py": "9e895ae2ef5160f0c45faec1a83c6a3c14ae4c2c",
+        "tests/test_portable_finish_check_reuse.py": "772f0182beca42e9b164f6c1359d5ef9e980c947",
+        "tests/test_select_checks.py": "a9c2ecc0b4a85d81c956042fe34f70c8657d8de9"
+      },
+      "base": "6982017fc1766c24e693610cd0b7180042d0af8a"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "9cad0496521e1d7e467a8f0d9143b156abb95f719eaa2b09d16f291cb0646445",
+    "paths": {
+      "dev-platform/checks.toml": "09aa5be54faa8d297f24c13e8ed393459c262e99",
+      "docs/engineering/agent-workflow.md": "d8199ddde5079c83bb12ed1ab41d700e34a0b903",
+      "openspec/changes/managed-checks-cheap-preflight/.managed-task.json": "b1ee690fa856601920008b8a506fc272f0cddc45",
+      "openspec/changes/managed-checks-cheap-preflight/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+      "openspec/changes/managed-checks-cheap-preflight/design.md": "9dff84297cb0c70322db6652a97810a495dddb5b",
+      "openspec/changes/managed-checks-cheap-preflight/proposal.md": "56b0f5cf3c307e0d9604853308fdfd48b66de9ef",
+      "openspec/changes/managed-checks-cheap-preflight/specs/completion-lifecycle/spec.md": "5118b3c954f51ece7d469492e5b11774d958ff25",
+      "openspec/changes/managed-checks-cheap-preflight/tasks.md": "508fe80eea4c162ecb6cb352260ac222732e4da7",
+      "template/scripts/select_checks.py": "505e401b68ca65416975e0b6dff8c72636367072",
+      "tests/test_managed_checkout_identity.py": "9e895ae2ef5160f0c45faec1a83c6a3c14ae4c2c",
+      "tests/test_portable_finish_check_reuse.py": "772f0182beca42e9b164f6c1359d5ef9e980c947",
+      "tests/test_select_checks.py": "a9c2ecc0b4a85d81c956042fe34f70c8657d8de9"
+    },
+    "base": "6982017fc1766c24e693610cd0b7180042d0af8a",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/select_checks.py --changed-file tests/test_managed_checkout_identity.py --changed-file tests/test_portable_finish_check_reuse.py --changed-file tests/test_select_checks.py",
+    "duration_seconds": 255.988,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "ec09abff78abbd07d20a51af50ebfe0bc1f76188",
+    "base": "6982017fc1766c24e693610cd0b7180042d0af8a",
+    "overlapping": [],
+    "generated_conflicts": []
+  }
+}
