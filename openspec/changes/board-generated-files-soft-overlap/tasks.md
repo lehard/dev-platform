@@ -4,4 +4,4 @@
 
 ## 2. Verification
 - [x] 2.1 Regression tests: two active tasks sharing only the declared generated manifest get no hard overlap and a soft warning; a shared undeclared file stays hard; a declaration added only on the task branch does not soften; a malformed declaration stops the gate.
-- [ ] 2.2 Run full validation and semantic OpenSpec verification.
+- [x] 2.2 Run full validation and semantic OpenSpec verification.
