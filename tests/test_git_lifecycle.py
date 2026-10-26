@@ -249,8 +249,11 @@ class GitLifecycleTests(unittest.TestCase):
             'agent_board = true\n'
             '[paths]\n'
             'agent_board = ".claude/agents-board.json"\n'
+            'checks = "dev-platform/checks.toml"\n'
         )
         (self.repo / ".dev-platform.toml").write_text(config, encoding="utf-8")
+        (self.repo / "dev-platform").mkdir(exist_ok=True)
+        (self.repo / "dev-platform" / "checks.toml").write_text("# no generated files\n", encoding="utf-8")
         git("add", ".", cwd=self.repo)
         git("commit", "-m", "multi-agent direct + board script", cwd=self.repo)
         git("push", cwd=self.repo)

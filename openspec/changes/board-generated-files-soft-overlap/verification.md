@@ -10,7 +10,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 - `template/scripts/agent_board.py`: `_declared_generated_paths` reads `[[generated_files]]` through `_platform_common.generated_files` at the observed `origin/<main>`. `_admission_conflicts`, which backs admission and both scope-gate rechecks (`hard_scope_conflicts`), removes those paths from the current task's claim before matching. An unobserved `origin/<main>` or a `TaskFreshnessError` from the declaration is a `scope-gate-unavailable` failure. `scope_overlap_diagnostics` (the advisory warning) is unchanged, so a generated path is still reported there.
 - `docs/engineering/agent-workflow.md`: the board/scope paragraph names the rule. The manifest is regenerated.
-- Test fixtures in `tests/test_worktree_hygiene.py` now declare `paths.checks` like a rendered project, because the board reads the declaration.
+- Test fixtures in `tests/test_worktree_hygiene.py` and the board hard-overlap fixture in `tests/test_git_lifecycle.py` now declare `paths.checks` like a rendered project, because the board reads the declaration.
 
 ## Completeness
 
