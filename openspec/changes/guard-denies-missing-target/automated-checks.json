@@ -9,25 +9,25 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 1.197,
+      "duration_seconds": 0.225,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.354,
+      "duration_seconds": 0.138,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 1169.19,
+      "duration_seconds": 1200.301,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/generate_platform_manifest.py --check",
-      "duration_seconds": 0.216,
+      "duration_seconds": 0.24,
       "outcome": "success",
       "exit_code": 0
     }
@@ -62,17 +62,19 @@
     "change": "guard-denies-missing-target",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/guard-denies-missing-target",
     "branch": "agent/br-780-t1-guard-denies-missing-target",
-    "head": "99c18756dee84b0fbc303bbf092d197a55510f7b",
+    "head": "8c85716b29b681cd2541c57a9dc2436d783c1f19",
     "task_content": {
       "version": 1,
-      "digest": "0d6d8edc9e42268986350385541cee4b864f947759df6ebe157bb04bcf182f32",
+      "digest": "78a270e0bdda8f03888c4a256ff51adf3a08df7a5687f1b85558924416b0d7fe",
       "paths": {
         "openspec/changes/guard-denies-missing-target/.managed-task.json": "8c9b057e23c5d2699b6bb81fe1f7f9b61fc52475",
         "openspec/changes/guard-denies-missing-target/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
+        "openspec/changes/guard-denies-missing-target/automated-checks.json": "f6b1dec03a9ad776ccdef738f2964fe201c151a6",
         "openspec/changes/guard-denies-missing-target/design.md": "2a79db80c870441f16ed6dec6c8e966959d88559",
-        "openspec/changes/guard-denies-missing-target/proposal.md": "ee655c38ea5f3c3d50ec222d30a1b5ae0908cc3d",
+        "openspec/changes/guard-denies-missing-target/proposal.md": "15cb3911062b8c4bf7bad8061d8d99ad80c78d3c",
         "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md": "c61ef9a2f27225d0e1467092d5ef5180b17edcfa",
         "openspec/changes/guard-denies-missing-target/tasks.md": "77a2abc52dcb3973854f8ba0ed9d101f1b38b275",
+        "openspec/changes/guard-denies-missing-target/verification.md": "67eacc9a2eb227b434b1cd1a0772b46eb197ee63",
         "template/dev-platform/platform-manifest.json": "a59444dd0690891c9d9efe98a1c5cabaff8247c4",
         "template/scripts/delegated_write_guard.py": "a3c5129441a20ae4e842f7891330b3bb22bdbe82",
         "tests/test_delegated_write_guard.py": "2d0ef5368447ebe11eb5fa8dd22e307729e17d25"
@@ -82,12 +84,12 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "b47da2ae1a61c5364ad31ecee6696b2d3787c11d31071ac7c8327ae58ec2ff99",
+    "digest": "335897c22451e2d65cca23cfaa37b9b381e4afa8432c7c915cf23b70a9bfd795",
     "paths": {
       "openspec/changes/guard-denies-missing-target/.managed-task.json": "8c9b057e23c5d2699b6bb81fe1f7f9b61fc52475",
       "openspec/changes/guard-denies-missing-target/.openspec.yaml": "d58ba023278aa6f86a07634f36bfd9ad72f3f2b3",
       "openspec/changes/guard-denies-missing-target/design.md": "2a79db80c870441f16ed6dec6c8e966959d88559",
-      "openspec/changes/guard-denies-missing-target/proposal.md": "ee655c38ea5f3c3d50ec222d30a1b5ae0908cc3d",
+      "openspec/changes/guard-denies-missing-target/proposal.md": "15cb3911062b8c4bf7bad8061d8d99ad80c78d3c",
       "openspec/changes/guard-denies-missing-target/specs/platform-delegation/spec.md": "c61ef9a2f27225d0e1467092d5ef5180b17edcfa",
       "openspec/changes/guard-denies-missing-target/tasks.md": "77a2abc52dcb3973854f8ba0ed9d101f1b38b275",
       "template/scripts/delegated_write_guard.py": "a3c5129441a20ae4e842f7891330b3bb22bdbe82",
@@ -98,7 +100,7 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/delegated_write_guard.py --changed-file tests/test_delegated_write_guard.py",
-    "duration_seconds": 203.556,
+    "duration_seconds": 182.123,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"

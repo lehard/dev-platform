@@ -23,4 +23,4 @@ All tasks in `tasks.md` are complete.
 
 ## Selected checks
 
-`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on head 99c18756 (contains origin/main 79910537) passed: compileall, ruff, `run_test_groups.py --all` (1169 s), `generate_platform_manifest.py --check`.
+`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on head 8c85716b (contains origin/main 79910537) passed: compileall, ruff, `run_test_groups.py --all` (1200 s), `generate_platform_manifest.py --check`.
