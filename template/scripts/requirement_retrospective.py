@@ -12,7 +12,7 @@ from typing import Any, Iterator
 
 import agent_friction
 import requirement_intake
-from _platform_common import atomic_write_text, current_worktree_root, main_root, utc_now
+from _platform_common import atomic_write_text, current_worktree_root, github_cli_env, main_root, utc_now
 
 
 class RequirementRetrospectiveError(RuntimeError):
@@ -34,14 +34,52 @@ def _identity(requirement: str, parent: dict[str, Any]) -> dict[str, Any]:
     number = requirement_intake.issue_ref(requirement)[1]
     body = str(parent.get("body") or "")
     children = requirement_intake.parse_requirement_body(body)["children"]
-    if not children or len(children) != len(set(children)):
-        raise RequirementRetrospectiveError("Requirement retrospective needs an unambiguous, nonempty child set")
+    if len(children) != len(set(children)):
+        raise RequirementRetrospectiveError("Requirement retrospective needs an unambiguous child set")
     return {
         "requirement": requirement,
         "number": number,
         "parent_body_sha256": hashlib.sha256(_identity_body(body).encode("utf-8")).hexdigest(),
         "children": children,
     }
+
+
+def _require_delivery(children: list[str], quick_prs: list[str]) -> None:
+    """A Requirement without managed children is reviewable only through the quick PRs that delivered it."""
+    if not children and not quick_prs:
+        raise RequirementRetrospectiveError(
+            "Requirement has no linked managed children; name the merged quick PRs that delivered it with "
+            "--quick-pr owner/repo#N (repeatable)"
+        )
+
+
+def _merged_quick_prs(root: Path, values: list[str]) -> list[str]:
+    """Normalize ``owner/repo#N`` references and require each pull request to be merged."""
+    refs: list[str] = []
+    for value in values:
+        try:
+            repository, number = requirement_intake.issue_ref(value)
+        except requirement_intake.ManagedTaskError as exc:
+            raise RequirementRetrospectiveError(f"--quick-pr {value}: {exc}") from exc
+        refs.append(f"{repository}#{number}")
+    if len(refs) != len(set(refs)):
+        raise RequirementRetrospectiveError("duplicate --quick-pr")
+    if not refs:
+        return refs
+    env = github_cli_env(root)
+    if env is None:
+        raise RequirementRetrospectiveError("GitHub CLI authentication is required to verify --quick-pr; run gh auth login")
+    for ref in refs:
+        repository, number = ref.rsplit("#", 1)
+        try:
+            state = requirement_intake.run(
+                ["gh", "pr", "view", number, "--repo", repository, "--json", "state", "--jq", ".state"], root, env
+            ).stdout.strip()
+        except requirement_intake.ManagedTaskError as exc:
+            raise RequirementRetrospectiveError(f"quick PR {ref} cannot be read: {exc}") from exc
+        if state != "MERGED":
+            raise RequirementRetrospectiveError(f"quick PR {ref} is {state or 'unknown'}, not merged")
+    return sorted(refs)
 
 
 def _receipt_path(root: Path, number: int) -> Path:
@@ -101,7 +139,7 @@ def _parse_dispositions(requirement: str, values: list[str]) -> dict[str, str]:
 
 def checkpoint(
     root: Path, *, requirement: str, result: str, event_ids: list[str], review_note: str,
-    dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None,
+    dispositions: list[str] | None = None, accepted_gaps: list[str] | None = None, quick_prs: list[str] | None = None,
 ) -> dict[str, Any]:
     if result not in ("none", "findings"):
         raise RequirementRetrospectiveError("result must be none or findings")
@@ -112,6 +150,8 @@ def checkpoint(
     review_note = agent_friction.normalize_text(review_note, "review note", 500)
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
+    _require_delivery(identity["children"], list(quick_prs or []))
+    quick = _merged_quick_prs(root, list(quick_prs or []))
     accepted = sorted(set(accepted_gaps or []))
     with _durable_scope(requirement, accepted):
         _check_events(requirement, event_ids, identity["children"])
@@ -122,6 +162,8 @@ def checkpoint(
         "dispositions": [{"event_id": key, "disposition": value} for key, value in parsed.items()],
         "accepted_gaps": accepted, "review_note": review_note, "recorded_at": utc_now(),
     }
+    if quick:
+        receipt["quick_prs"] = quick
     path = _receipt_path(root, identity["number"])
     path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_text(path, json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + "\n")
@@ -152,6 +194,13 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
         raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")
     if (result == "none") != (not events) or len(events) != len(set(events)):
         raise RequirementRetrospectiveError(f"Requirement retrospective result is inconsistent; {instruction}")
+    quick = receipt.get("quick_prs", [])
+    if not isinstance(quick, list) or not all(isinstance(ref, str) and ref for ref in quick) or len(quick) != len(set(quick)):
+        raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")
+    try:
+        _require_delivery(identity["children"], quick)
+    except RequirementRetrospectiveError as exc:
+        raise RequirementRetrospectiveError(f"{exc}; {instruction}") from exc
     if not isinstance(receipt.get("review_note"), str) or not receipt["review_note"].strip():
         raise RequirementRetrospectiveError(f"Requirement retrospective path review is missing; {instruction}")
     stored = receipt.get("dispositions") or []
@@ -175,6 +224,9 @@ def main() -> int:
     write.add_argument("--disposition", action="append", default=[], dest="dispositions",
                        help="<event-id>=resolved-in-task|already-recorded|expected-behavior for a mandatory signal (a known-recurrence can only be linked)")
     write.add_argument("--accept-gap", action="append", default=[], dest="accept_gaps", help="accept a named unreadable/partial evidence source")
+    write.add_argument("--quick-pr", action="append", default=[], dest="quick_prs",
+                       help="owner/repo#N of a merged quick PR that delivered the Requirement (repeatable); required "
+                            "when the Requirement has no linked managed children")
     write.add_argument("--review-note", required=True, help="short factual Requirement path reviewed, including workarounds, overrides, recurrences and drift")
     review = sub.add_parser("review-path", help="show bounded full-Requirement review prompts and recorded signals")
     review.add_argument("--requirement", required=True)
@@ -189,7 +241,8 @@ def main() -> int:
             if ambiguous:
                 raise RequirementRetrospectiveError(agent_friction.ambiguous_attribution_instruction(ambiguous))
             result = checkpoint(root, requirement=args.requirement, result=args.result, event_ids=args.events, review_note=args.review_note,
-                                    dispositions=args.dispositions, accepted_gaps=args.accept_gaps)
+                                    dispositions=args.dispositions, accepted_gaps=args.accept_gaps,
+                                    quick_prs=args.quick_prs)
         elif args.command == "review-path":
             parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(args.requirement))
             identity = _identity(args.requirement, parent)
