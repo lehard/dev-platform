@@ -5,8 +5,33 @@
     "command_count": 4,
     "check_count": 1
   },
-  "outcome": "failure",
-  "executed_commands": [],
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.751,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.144,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.134,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 913.519,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
   "selected_checks": [
     {
       "id": "full-trigger",
@@ -39,49 +64,50 @@
     "change": "remove-select-checks-and-finish-fallbacks",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/remove-select-checks-and-finish-fallbacks",
     "branch": "agent/br-772-t1-remove-select-checks-and-finish-fallbacks",
-    "head": "a577596ac9fb33cd2f868cd8387f91075560b08e",
+    "head": "af28ec7aa9b58d98963db21617e03629cfbbec80",
     "task_content": {
       "version": 1,
-      "digest": "5e2f6fb64ff61e7b5f234a312526ac31000c0eaf19b245d78ea079379226ff09",
+      "digest": "d91f83263878f50ef5bd484e714b43506dfcf542be5c1c5b3dfaeda13de95c44",
       "paths": {
         "dev-platform/checks.toml": "c1dc08fc10287c85cd499e8ea48ff3646a603cf9",
         "openspec/changes/remove-select-checks-and-finish-fallbacks/.managed-task.json": "b34c0373750acab92fcc8a9e55a08482d86605d1",
         "openspec/changes/remove-select-checks-and-finish-fallbacks/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
-        "openspec/changes/remove-select-checks-and-finish-fallbacks/design.md": "f1539a470f25c681a28cc5982e71fdc5d6a8ddf6",
-        "openspec/changes/remove-select-checks-and-finish-fallbacks/proposal.md": "525fc8b55212a4bc0a173cf70dbeda3a14af10ad",
-        "openspec/changes/remove-select-checks-and-finish-fallbacks/specs/gate-fail-explicit/spec.md": "905fbb8dc87fa8138ec2f7c22ac38efc9c8f12ce",
-        "openspec/changes/remove-select-checks-and-finish-fallbacks/tasks.md": "9d89d682c047d17402f0e381aa563b2bcb34772f",
-        "template/dev-platform/platform-manifest.json": "fb68db1c11c94626a19af89a211aea517847e7f4",
-        "template/scripts/finish_task.py": "7c532a9fa9dff8a29a3f8c8281cc6d31b1dbc1c5",
+        "openspec/changes/remove-select-checks-and-finish-fallbacks/automated-checks.json": "d94be0210aad943d3749021d286387188b9143bf",
+        "openspec/changes/remove-select-checks-and-finish-fallbacks/design.md": "bcf4804702cf28f9124c9115d0ba87b844d98ce9",
+        "openspec/changes/remove-select-checks-and-finish-fallbacks/proposal.md": "dca09832b0b586160669dc4d29763ba7ba0335d1",
+        "openspec/changes/remove-select-checks-and-finish-fallbacks/specs/gate-fail-explicit/spec.md": "a59ae67327eb2ec7628a0819d0b616142e5a9965",
+        "openspec/changes/remove-select-checks-and-finish-fallbacks/tasks.md": "64892872fc7f192f4d82f5bad0d62c861c8c72d9",
+        "template/dev-platform/platform-manifest.json": "05b33308219f67713c3ec920758daddd0091f93a",
+        "template/scripts/finish_task.py": "3902878b42b2223f7a4a00b1f20e81c781182bed",
         "template/scripts/select_checks.py": "58197c35c08b935a90bbdb787273b3cbd772f01e",
-        "tests/test_finish_explicit_fallbacks.py": "06b3b8df96b9a0afc9cdb5a12bea56de015a6c6b"
+        "tests/test_finish_explicit_fallbacks.py": "60a6da967c944992c06ee63ba48aa4f1e51c6834"
       },
       "base": "4f8b6c93c2d0c487df09630de374a7bd45489d30"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "98bb7e0e7b99df764b08f298684b7d50a53423cfb876656c8e9cdd5aea11cb4b",
+    "digest": "f367aeb8b952e1e1cc076346b538b8afc4c7842ce89e90322c1268004d6ec638",
     "paths": {
       "dev-platform/checks.toml": "c1dc08fc10287c85cd499e8ea48ff3646a603cf9",
       "openspec/changes/remove-select-checks-and-finish-fallbacks/.managed-task.json": "b34c0373750acab92fcc8a9e55a08482d86605d1",
       "openspec/changes/remove-select-checks-and-finish-fallbacks/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
-      "openspec/changes/remove-select-checks-and-finish-fallbacks/design.md": "f1539a470f25c681a28cc5982e71fdc5d6a8ddf6",
-      "openspec/changes/remove-select-checks-and-finish-fallbacks/proposal.md": "525fc8b55212a4bc0a173cf70dbeda3a14af10ad",
-      "openspec/changes/remove-select-checks-and-finish-fallbacks/specs/gate-fail-explicit/spec.md": "905fbb8dc87fa8138ec2f7c22ac38efc9c8f12ce",
-      "openspec/changes/remove-select-checks-and-finish-fallbacks/tasks.md": "9d89d682c047d17402f0e381aa563b2bcb34772f",
-      "template/scripts/finish_task.py": "7c532a9fa9dff8a29a3f8c8281cc6d31b1dbc1c5",
+      "openspec/changes/remove-select-checks-and-finish-fallbacks/design.md": "bcf4804702cf28f9124c9115d0ba87b844d98ce9",
+      "openspec/changes/remove-select-checks-and-finish-fallbacks/proposal.md": "dca09832b0b586160669dc4d29763ba7ba0335d1",
+      "openspec/changes/remove-select-checks-and-finish-fallbacks/specs/gate-fail-explicit/spec.md": "a59ae67327eb2ec7628a0819d0b616142e5a9965",
+      "openspec/changes/remove-select-checks-and-finish-fallbacks/tasks.md": "64892872fc7f192f4d82f5bad0d62c861c8c72d9",
+      "template/scripts/finish_task.py": "3902878b42b2223f7a4a00b1f20e81c781182bed",
       "template/scripts/select_checks.py": "58197c35c08b935a90bbdb787273b3cbd772f01e",
-      "tests/test_finish_explicit_fallbacks.py": "06b3b8df96b9a0afc9cdb5a12bea56de015a6c6b"
+      "tests/test_finish_explicit_fallbacks.py": "60a6da967c944992c06ee63ba48aa4f1e51c6834"
     },
     "base": "4f8b6c93c2d0c487df09630de374a7bd45489d30",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/finish_task.py --changed-file template/scripts/select_checks.py --changed-file tests/test_finish_explicit_fallbacks.py",
-    "duration_seconds": 245.544,
-    "outcome": "failure",
-    "exit_code": 1,
+    "duration_seconds": 231.873,
+    "outcome": "success",
+    "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
   }
 }
