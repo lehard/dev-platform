@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md"
+  ],
+  "change": "lifecycle-workers-load-tolerant-tests",
+  "imported_at": "2026-10-27T02:18:15+00:00",
+  "package_revision": "297782ae9d77a7d5c6b8c0e85793b0499ba7f5ff2beb6f31b51ae67105c03cee",
+  "prepared_against": "ba38c81490d6d705fbd3b644cabfeda7d7c8aea1",
+  "private_lineage_handle": "pln_e8c2d9bc3033ab382298263b6077145c",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "45032f6494e531a0995d24ec14d2dda3aafb3a72b91277728d4284d41440d162",
+    "updated_at": "2026-10-27T02:13:28Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-812/T2"
+}

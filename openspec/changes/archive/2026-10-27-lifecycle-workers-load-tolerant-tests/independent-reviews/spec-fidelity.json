@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "814adf116885f66741a9459c57a7e0b58de36807",
+    "base_ref": "origin/main",
+    "candidate_head": "782b73750d2189cc9ae7ac33ec669abe8106dd92",
+    "diff_sha256": "61f84a6be9f0a3d7a0b87d29852ad2dc1c4bdf22e0836fea1d372d82e0cd9586"
+  },
+  "completed_at": "2026-10-27T02:40:08+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_lifecycle_workers.py, assert_processes_gone (diff lines 141-155): `os.kill(pid, 0)` loops until ProcessLookupError, then `os.kill(pid, 9)` and `case.fail(...)` at the deadline.",
+      "id": "zombie-child-false-survivor",
+      "severity": "advisory",
+      "summary": "The gone-check uses os.kill(pid, 0), which still succeeds for a killed but unreaped zombie. The children are orphaned when the leader exits, so they depend on init or a subreaper to reap them. Where PID 1 doesn't reap (some containers), a correctly killed child could be reported as outliving its process group. The spec scenario only requires that the test checks the processes are gone."
+    },
+    {
+      "evidence": "tests/test_lifecycle_workers.py diff lines 212-213: `while not os.path.exists(pid_file): time.sleep(0.01)` in FAKE_LLM sleeper mode, with no deadline.",
+      "id": "fake-writer-unbounded-pid-wait",
+      "severity": "advisory",
+      "summary": "The fake writer's wait for the child's pid file has no deadline. The leader script in the group-kill test has the same unbounded wait, but run_in_session's timeout bounds it. The spec says a genuine hang SHALL fail within the bounded deadline with a diagnostic. If the background child never writes its pid, the sleeper-mode script spins until some outer timeout fires, and the failure carries no diagnostic naming the missing pid file."
+    }
+  ],
+  "launched_at": "2026-10-27T02:39:53+00:00",
+  "output_sha256": "221422636f143f91f29070525347742a2966b94430d9ec4b8e1f20f11cfb2541",
+  "perspective": "spec-fidelity",
+  "request_id": "474530a6-6bb3-4238-aaef-173ff9b493f5",
+  "reviewer": {
+    "context_id": "777109f1-9ee5-448f-acc8-49bec7ff6950",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9f6e7fd5-e9e2-451d-9e98-195749c16277",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15878
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15045
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14227
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14398
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1275
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9779d79dc281a94d1aedcb2d3000a29aacceb623e53fba9b6bd4ccee8e20849f"
+}

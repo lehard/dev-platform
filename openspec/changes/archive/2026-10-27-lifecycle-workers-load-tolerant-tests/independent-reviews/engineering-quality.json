@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "814adf116885f66741a9459c57a7e0b58de36807",
+    "base_ref": "origin/main",
+    "candidate_head": "782b73750d2189cc9ae7ac33ec669abe8106dd92",
+    "diff_sha256": "61f84a6be9f0a3d7a0b87d29852ad2dc1c4bdf22e0836fea1d372d82e0cd9586"
+  },
+  "completed_at": "2026-10-27T02:40:18+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_lifecycle_workers.py: assert_processes_gone loops on os.kill(pid, 0) until ProcessLookupError. The children are orphaned once their parent exits, so reaping depends on the host init. Checking /proc/<pid>/stat for state 'Z' would avoid this.",
+      "id": "zombie-child-false-survivor",
+      "severity": "advisory",
+      "summary": "assert_processes_gone uses os.kill(pid, 0) to detect exit. A killed but unreaped (zombie) process still passes that probe. If the host has no init that reaps orphans (a container running as PID 1 without a reaper), the test would fail with 'outlived its process group' even though the group kill worked."
+    },
+    {
+      "evidence": "tests/test_lifecycle_workers.py: LATE_CHILD near the top of the file and `late = (...)` in the FAKE_LLM 'sleeper' mode contain identical code. FAKE_LLM runs as a separate script, so it cannot import the constant directly, but the copies can drift apart.",
+      "id": "duplicated-late-child-script",
+      "severity": "advisory",
+      "summary": "The pid-recording, 600 s sleeping child script is written out twice: as LATE_CHILD at module level, and as a separate `late` string inside FAKE_LLM."
+    }
+  ],
+  "launched_at": "2026-10-27T02:40:08+00:00",
+  "output_sha256": "dee4962e6b84f8d84f15b14018da8d720b2e20fd69a4bee7b91e170854d6e6f5",
+  "perspective": "engineering-quality",
+  "request_id": "474530a6-6bb3-4238-aaef-173ff9b493f5",
+  "reviewer": {
+    "context_id": "f4d0e833-3895-422f-8d86-d65a92eef6e5",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bed230fb-09b4-48d9-9980-886f060eac4b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13292
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16653
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9053
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9203
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 916
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9779d79dc281a94d1aedcb2d3000a29aacceb623e53fba9b6bd4ccee8e20849f"
+}
