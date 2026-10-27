@@ -237,7 +237,7 @@ PLATFORM_CONFIG_FILE = ".dev-platform.toml"
 # project's rendered configuration carries; rollout never adds keys to an
 # existing project (Copier ``_skip_if_exists``), so a key joins the required set
 # only once every project has it. Defaults exist only for OPTIONAL keys, and
-# only here. See docs/engineering/platform-config.md.
+# only here. Documented in the platform's docs/project-owned-config.md.
 PLATFORM_CONFIG_REQUIRED: dict[str, type] = {
     "schema_version": int,
     "platform_version": str,
@@ -292,7 +292,7 @@ def _require_config_value(path: Path, table: dict[str, Any], key: str, label: st
         where = f" under [{section}]" if section else ""
         raise PlatformConfigError(
             f"{path} is missing required key {label}; add `{name} = {_TOML_EXAMPLE[expected]}`{where} "
-            "(see docs/engineering/platform-config.md)"
+            "with this project's value"
         )
     value = table[key]
     # bool is an int subclass: an int key must not accept true/false.
@@ -307,7 +307,7 @@ def validate_platform_config(config: dict[str, Any], path: Path) -> dict[str, An
     for section, fields in PLATFORM_CONFIG_REQUIRED_TABLES.items():
         table = config.get(section)
         if not isinstance(table, dict):
-            raise PlatformConfigError(f"{path} is missing required table [{section}] (see docs/engineering/platform-config.md)")
+            raise PlatformConfigError(f"{path} is missing required table [{section}]; add the [{section}] table with its required keys")
         for key, expected in fields.items():
             _require_config_value(path, table, key, f"{section}.{key}", expected)
     for section, defaults in PLATFORM_CONFIG_OPTIONAL_DEFAULTS.items():

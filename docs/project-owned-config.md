@@ -6,7 +6,64 @@ Managed Copier upgrades preserve the file rather than patching it wholesale. Thi
 
 The platform may still migrate explicitly platform-owned fields through versioned bootstrap/migration code. Today `scripts/platform_bootstrap.py` synchronizes `platform_version` from the stable `.copier-answers.yml` `_commit` while preserving all project-owned values and surrounding tables. Development Backlog, fleet, rollout and other operator-only bindings are supplied through separately controlled operator configuration when an operator action needs them; bootstrap does not infer or add them from project metadata. `scripts/platform_doctor.py` and managed rollout both fail closed if stable-version records disagree.
 
-This boundary means future additions to `.dev-platform.toml` must be backward-compatible in platform scripts: new optional settings need safe defaults, and mandatory schema migrations belong in bootstrap/migration code rather than relying on Copier to overwrite an adopted project's config.
+This boundary means future additions to `.dev-platform.toml` must be backward-compatible in platform scripts: a new setting is optional, with its default defined once in the configuration schema below, until every managed project carries it; mandatory schema migrations belong in bootstrap/migration code rather than relying on Copier to overwrite an adopted project's config.
+
+## Configuration schema
+
+Platform scripts read `.dev-platform.toml` through `read_platform_config` /
+`read_project_config` in `template/scripts/_platform_common.py`. The file is
+validated once, at read time, against one schema defined there
+(`PLATFORM_CONFIG_REQUIRED`, `PLATFORM_CONFIG_REQUIRED_TABLES`,
+`PLATFORM_CONFIG_OPTIONAL_DEFAULTS`). Scripts then read keys directly and never
+substitute their own defaults.
+
+- A missing `.dev-platform.toml` is an error naming the file.
+- A missing required key is an error naming the file, the key and the line to
+  add, for example ``add `main_branch = "<value>"` ``.
+- A required key with the wrong type (for example `protected_main = "yes"`) is
+  an error naming the key and the expected type.
+
+### Required keys
+
+Top level:
+
+| Key | Type |
+| --- | --- |
+| `schema_version` | integer |
+| `platform_version`, `platform_ci_ref`, `project_name`, `project_slug` | non-empty string |
+| `main_branch`, `workflow_profile`, `harness_mode` | non-empty string |
+| `publish_mode`, `pr_merge_mode`, `scm_provider`, `agent_tools` | non-empty string |
+| `protected_main` | boolean |
+
+`[capabilities]`: `openspec`, `github_sync`, `feature_branches`, `worktrees`,
+`agent_board`, `platform_git_lifecycle` (booleans).
+
+`[paths]`: `worktrees`, `agent_board`, `main_merge_lock`, `pending_worktrees`,
+`friction_log`, `friction_state`, `friction_reports`, `checks` (non-empty
+strings).
+
+### Optional keys with a schema default
+
+| Key | Default |
+| --- | --- |
+| `paths.pending_completed_worktree_cleanup` | `.claude/pending-completed-worktree-cleanup.json` |
+
+Optional tables such as `[operator]`, `[development_backlog]`,
+`[private_lineage]`, `[model_routing]` and `[tools.*]` are read by their own
+features and are not part of this schema.
+
+### Upgrading an existing project
+
+The template renders every key above, but `.dev-platform.toml` is
+project-owned after creation: Copier lists it in `_skip_if_exists`, and the
+guarded rollout recopy changes only `platform_version`. A project rendered
+before a key existed keeps its old file. If an upgraded project stops with
+"missing required key", add the named line to `.dev-platform.toml` using the
+value from `template/.dev-platform.toml.jinja` (for `[paths]`, the template's
+`.claude/...` path) and commit it with the upgrade.
+
+A key joins the required set only when every managed project already carries
+it; otherwise it stays optional here with its documented default.
 
 ## Shared-workspace permission contract
 

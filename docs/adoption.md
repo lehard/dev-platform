@@ -25,7 +25,7 @@ The result JSON, adoption PR and workflow summary report the derived plan and th
 
 ### Copier parameters
 
-The adoption planner derives these automatically; they matter when rendering with Copier by hand (see `copier.yml`). Values are recorded in `.dev-platform.toml`.
+The adoption planner derives these automatically; they matter when rendering with Copier by hand (see `copier.yml`). Values are recorded in `.dev-platform.toml`, whose required keys and documented optional defaults are listed in [the platform configuration schema](project-owned-config.md#configuration-schema).
 
 | Parameter | Values (default) | Meaning |
 | --- | --- | --- |
