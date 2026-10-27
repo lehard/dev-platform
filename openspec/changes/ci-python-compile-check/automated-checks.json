@@ -1,0 +1,120 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.797,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.341,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.146,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.138,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 997.601,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/check_ci_python.py",
+        "tests/test_check_ci_python.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_84d8c8f7a264ae587174b0b8e8822dab",
+    "change": "ci-python-compile-check",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/ci-python-compile-check",
+    "branch": "agent/br-837-t2-ci-python-compile-check",
+    "head": "d438196199394a854d8a3da4e9ead80c77fe8dba",
+    "task_content": {
+      "version": 1,
+      "digest": "4a86dca525d4bec37d731978de35fbfd1d3867b5f8a7ecb5a6e8b032a45a642e",
+      "paths": {
+        "AGENTS.md": "14d0772faeb2dee64b39f0a318285b797c2c45bc",
+        "dev-platform/checks.toml": "818ed8568e785a3a2c22379bae94331bf9033f33",
+        "docs/engineering/agent-workflow.md": "229aca8281b1b9103ba03f8eef608200b1a48d7b",
+        "openspec/changes/ci-python-compile-check/.managed-task.json": "154efca937f975bc63bd1a5152fbb30da5b32314",
+        "openspec/changes/ci-python-compile-check/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+        "openspec/changes/ci-python-compile-check/design.md": "894deeda4b106087c3b1290a4dab704b4c96383d",
+        "openspec/changes/ci-python-compile-check/proposal.md": "dfa2eccbb8d85ddb39eed96d650a963f5cd61e1f",
+        "openspec/changes/ci-python-compile-check/specs/platform-ci/spec.md": "48dc7ac954fba4d6856196ea560ac43617d528b4",
+        "openspec/changes/ci-python-compile-check/tasks.md": "38d8fedf574bb04bc8b3497eacc3378297972762",
+        "scripts/check_ci_python.py": "b83875f834f492214a0da5e02c77677ffed39d6c",
+        "tests/test_check_ci_python.py": "746883b7553dd69fab133ddd89a6e680fd226c9d"
+      },
+      "base": "fc0b2f72e69d511f909ae76792be4a3f81f3e2ac"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "50f3b2e12d7d54bf05ac007c3cded69b04c7885c95cdddb367992a2d2e1abc64",
+    "paths": {
+      "AGENTS.md": "14d0772faeb2dee64b39f0a318285b797c2c45bc",
+      "dev-platform/checks.toml": "818ed8568e785a3a2c22379bae94331bf9033f33",
+      "docs/engineering/agent-workflow.md": "229aca8281b1b9103ba03f8eef608200b1a48d7b",
+      "openspec/changes/ci-python-compile-check/.managed-task.json": "154efca937f975bc63bd1a5152fbb30da5b32314",
+      "openspec/changes/ci-python-compile-check/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/ci-python-compile-check/design.md": "894deeda4b106087c3b1290a4dab704b4c96383d",
+      "openspec/changes/ci-python-compile-check/proposal.md": "dfa2eccbb8d85ddb39eed96d650a963f5cd61e1f",
+      "openspec/changes/ci-python-compile-check/specs/platform-ci/spec.md": "48dc7ac954fba4d6856196ea560ac43617d528b4",
+      "openspec/changes/ci-python-compile-check/tasks.md": "38d8fedf574bb04bc8b3497eacc3378297972762",
+      "scripts/check_ci_python.py": "b83875f834f492214a0da5e02c77677ffed39d6c",
+      "tests/test_check_ci_python.py": "746883b7553dd69fab133ddd89a6e680fd226c9d"
+    },
+    "base": "fc0b2f72e69d511f909ae76792be4a3f81f3e2ac",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/check_ci_python.py --changed-file tests/test_check_ci_python.py",
+    "duration_seconds": 5.136,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
