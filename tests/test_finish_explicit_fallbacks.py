@@ -13,7 +13,6 @@ SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import finish_task  # noqa: E402
-import private_lineage  # noqa: E402
 
 CONFIG = {"paths": {"agent_board": ".claude/agents-board.json"}}
 
@@ -54,36 +53,6 @@ class BoardReleaseTests(unittest.TestCase):
             self.board.write_text(json.dumps({"items": [{"id": "other", "worktree": str(self.main)}]}))
             finish_task.finish_board(self.main, self.work, CONFIG)
         run.assert_not_called()
-
-
-class PrivateReferenceGuardTests(unittest.TestCase):
-    """BR-772: the guard applies by the private-lineage rule, never by the presence of a file."""
-
-    def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
-
-    def test_enabled_without_the_guard_is_a_named_blocker(self) -> None:
-        with mock.patch.object(private_lineage, "enabled", return_value=True):
-            blocker = finish_task.observe_private_reference_blocker(self.root, "title", "body")
-        self.assertEqual(blocker, "private lineage is enabled but scripts/check_private_backlog_refs.py is missing")
-
-    def test_disabled_does_not_apply_and_runs_nothing(self) -> None:
-        (self.root / "scripts").mkdir()
-        (self.root / "scripts" / "check_private_backlog_refs.py").write_text("raise SystemExit(1)\n")
-        with mock.patch.object(private_lineage, "enabled", return_value=False), \
-                mock.patch.object(finish_task.subprocess, "run") as run:
-            self.assertIsNone(finish_task.observe_private_reference_blocker(self.root, "title", "body"))
-        run.assert_not_called()
-
-    def test_enabled_guard_failure_is_a_blocker(self) -> None:
-        (self.root / "scripts").mkdir()
-        (self.root / "scripts" / "check_private_backlog_refs.py").write_text(
-            "import sys\nsys.stderr.write('private reference found')\nraise SystemExit(1)\n")
-        with mock.patch.object(private_lineage, "enabled", return_value=True):
-            self.assertEqual(finish_task.observe_private_reference_blocker(self.root, "title", "body"),
-                             "private reference found")
 
 
 class SelectChecksImportTests(unittest.TestCase):

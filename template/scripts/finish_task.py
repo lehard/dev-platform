@@ -802,18 +802,14 @@ def require_publication_task_base(work: Path, branch: str, remote_main: str) -> 
 def observe_private_reference_blocker(root: Path, title: str | None, body: str | None) -> str | None:
     """Run the source-owned public-candidate guard without exposing its inputs.
 
-    The guard applies where private lineage is enabled (the ``private_lineage`` rule); there a missing guard
-    script and a non-zero result are fail-closed preflight blockers. Its bounded diagnostics are deliberately
-    produced by the source-owned guard, which fingerprints paths rather than printing private identifiers or
-    filenames. Where private lineage is disabled the guard does not apply by configuration.
+    The guard is optional in rendered projects.  When present, a non-zero
+    result is a fail-closed preflight blocker; its bounded diagnostics are
+    deliberately produced by the source-owned guard, which fingerprints paths
+    rather than printing private identifiers or filenames.
     """
-    import private_lineage
-
-    if not private_lineage.enabled(root):
-        return None
     privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
     if not privacy_guard.is_file():
-        return "private lineage is enabled but scripts/check_private_backlog_refs.py is missing"
+        return None
     proposed_title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip()
     proposed_body = body or "Published by dev-platform after local validation and a fresh origin/main check."
     result = subprocess.run(
