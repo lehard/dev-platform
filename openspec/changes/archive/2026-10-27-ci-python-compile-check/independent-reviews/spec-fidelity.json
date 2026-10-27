@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5aabcc9abd042ea3461b0fa89e4541c0b48e5388",
+    "base_ref": "origin/main",
+    "candidate_head": "9391964bfff51a14184723f8fcf5c545840970df",
+    "diff_sha256": "f5e2ce08473c262c5981e2557efeb7919a2fd485e751d08c44f0b711b80e79d2"
+  },
+  "completed_at": "2026-10-27T15:47:29+00:00",
+  "findings": [
+    {
+      "evidence": "The spec says: \"When the CI version cannot be read... the step SHALL refuse explicitly naming both versions\". The docs (docs/engineering/agent-workflow.md) say \"an unreadable CI version ... [is] refused naming both versions\". scripts/check_ci_python.py:274 returns \"ci-python refused (local {local}, CI version unreadable): ...\", and test_unreadable_ci_version_is_refused_naming_the_local_version asserts exactly that text. No CI version exists to name in this case, so the contract wording is imprecise and the docs overstate it.",
+      "id": "unreadable-ci-version-names-one-version",
+      "severity": "advisory",
+      "summary": "The spec requires a refusal for an unreadable CI version to name both versions. The refusal can only name the local version. The docs repeat the claim."
+    },
+    {
+      "evidence": "design.md prints \"the full set runs on the CI version\"; scripts/check_ci_python.py:276 prints \"the full check set runs on the CI version\". The spec does not fix this text, so there is no behavioural impact.",
+      "id": "match-message-wording-differs-from-design",
+      "severity": "advisory",
+      "summary": "The match message differs slightly from the wording in the design."
+    }
+  ],
+  "launched_at": "2026-10-27T15:47:08+00:00",
+  "output_sha256": "e5dac83f39f892b229ba2ec9df78f932e8bf9e583f65fd6f1c2acfef97150690",
+  "perspective": "spec-fidelity",
+  "request_id": "8a55a05a-5ef9-4dab-862a-f046a5bf455a",
+  "reviewer": {
+    "context_id": "f0bc9ab3-16ab-45ac-8771-ac7e07256ff1",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c993c279-ac7e-4c66-9517-a1ec2032c66b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20888
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14967
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20088
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20197
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1130
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "50f3b2e12d7d54bf05ac007c3cded69b04c7885c95cdddb367992a2d2e1abc64"
+}

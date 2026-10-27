@@ -1,11 +1,12 @@
 [settings]
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
+  "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
   "python3 -m ruff check scripts template/scripts tests",
   "python3 scripts/generate_platform_manifest.py --check",
   "python3 scripts/run_test_groups.py --all",
 ]
-full_evidence_types = ["syntax", "syntax", "configuration", "test"]
+full_evidence_types = ["syntax", "syntax", "syntax", "configuration", "test"]
 full_required_evidence_types = ["test"]
 # Early feedback before the full set: run only test modules that directly
 # reference changed Python paths (see run_test_groups.py --changed-file).
@@ -65,8 +66,8 @@ evidence_types = ["configuration", "configuration", "configuration", "configurat
 
 [checks.python]
 patterns = ["**/*.py"]
-commands = ["python3 -m compileall -q template/scripts scripts", "python3 -m ruff check scripts template/scripts tests", "python3 scripts/run_test_groups.py --all"]
-evidence_types = ["syntax", "syntax", "test"]
+commands = ["python3 -m compileall -q template/scripts scripts", "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests", "python3 -m ruff check scripts template/scripts tests", "python3 scripts/run_test_groups.py --all"]
+evidence_types = ["syntax", "syntax", "syntax", "test"]
 required_evidence_types = ["test"]
 
 # Canonical mandatory test groups. `mode = "parallel"` groups run concurrently
@@ -182,6 +183,7 @@ targets = [
   "test_rollout_supersession",
   "test_rollout_validation_ownership",
   "test_select_checks",
+  "test_check_ci_python",
   "test_affected_precheck",
   "test_machine_pool",
   "test_shared_workspace",

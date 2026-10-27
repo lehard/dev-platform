@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "base_head": "5aabcc9abd042ea3461b0fa89e4541c0b48e5388",
+    "base_ref": "origin/main",
+    "candidate_head": "9391964bfff51a14184723f8fcf5c545840970df",
+    "diff_sha256": "f5e2ce08473c262c5981e2557efeb7919a2fd485e751d08c44f0b711b80e79d2"
+  },
+  "change": "openspec/changes/ci-python-compile-check",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/ci-python-compile-check/automated-checks.json",
+    "openspec/changes/ci-python-compile-check/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/ci-python-compile-check/design.md",
+        "openspec/changes/ci-python-compile-check/proposal.md",
+        "openspec/changes/ci-python-compile-check/specs/platform-ci/spec.md",
+        "openspec/changes/ci-python-compile-check/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/ci-python-compile-check/proposal.md",
+        "openspec/changes/ci-python-compile-check/design.md",
+        "openspec/changes/ci-python-compile-check/tasks.md",
+        "openspec/changes/ci-python-compile-check/specs/platform-ci/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T15:47:05+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/ci-python-compile-check/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "8a55a05a-5ef9-4dab-862a-f046a5bf455a",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "fc0b2f72e69d511f909ae76792be4a3f81f3e2ac",
+    "digest": "50f3b2e12d7d54bf05ac007c3cded69b04c7885c95cdddb367992a2d2e1abc64",
+    "paths": {
+      "AGENTS.md": "14d0772faeb2dee64b39f0a318285b797c2c45bc",
+      "dev-platform/checks.toml": "818ed8568e785a3a2c22379bae94331bf9033f33",
+      "docs/engineering/agent-workflow.md": "229aca8281b1b9103ba03f8eef608200b1a48d7b",
+      "openspec/changes/ci-python-compile-check/.managed-task.json": "154efca937f975bc63bd1a5152fbb30da5b32314",
+      "openspec/changes/ci-python-compile-check/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/ci-python-compile-check/design.md": "894deeda4b106087c3b1290a4dab704b4c96383d",
+      "openspec/changes/ci-python-compile-check/proposal.md": "dfa2eccbb8d85ddb39eed96d650a963f5cd61e1f",
+      "openspec/changes/ci-python-compile-check/specs/platform-ci/spec.md": "48dc7ac954fba4d6856196ea560ac43617d528b4",
+      "openspec/changes/ci-python-compile-check/tasks.md": "38d8fedf574bb04bc8b3497eacc3378297972762",
+      "scripts/check_ci_python.py": "b83875f834f492214a0da5e02c77677ffed39d6c",
+      "tests/test_check_ci_python.py": "746883b7553dd69fab133ddd89a6e680fd226c9d"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

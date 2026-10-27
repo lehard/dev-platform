@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5aabcc9abd042ea3461b0fa89e4541c0b48e5388",
+    "base_ref": "origin/main",
+    "candidate_head": "9391964bfff51a14184723f8fcf5c545840970df",
+    "diff_sha256": "f5e2ce08473c262c5981e2557efeb7919a2fd485e751d08c44f0b711b80e79d2"
+  },
+  "completed_at": "2026-10-27T15:47:43+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/check_ci_python.py:262-263: `version = str(options.get(\"python-version\", \"\"))` followed by `VERSION.fullmatch(version)`. design.md says the value must be \"a string or number matching ^3\\.\\d+$\". Numbers are not tested; the tests only use quoted strings. The current ci.yml quotes \"3.11\", so there is no live impact today. A fix would be to refuse non-string values or read the raw text.",
+      "id": "unquoted-yaml-version-misread",
+      "severity": "advisory",
+      "summary": "An unquoted YAML `python-version: 3.10` is parsed as the float 3.1. `str()` turns it into \"3.1\", which passes the `^3\\.\\d+$` check, so the script would look for `python3.1` or compare against the wrong minor version. The design says a number is accepted, but this case is not handled or tested."
+    }
+  ],
+  "launched_at": "2026-10-27T15:47:29+00:00",
+  "output_sha256": "d5fe62035fc3dec0de2d2a336f455c436e0d304b30631c2e9e5314229e0a59a4",
+  "perspective": "engineering-quality",
+  "request_id": "8a55a05a-5ef9-4dab-862a-f046a5bf455a",
+  "reviewer": {
+    "context_id": "7883991b-ec3f-4267-a6f8-e1c647084149",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3bf68603-c385-4603-afac-d072e1f4a50d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18397
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39306
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13736
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13894
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 861
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "50f3b2e12d7d54bf05ac007c3cded69b04c7885c95cdddb367992a2d2e1abc64"
+}
