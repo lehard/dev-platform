@@ -1,0 +1,112 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 2.913,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.8,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.593,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1752.942,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/publication_state.py",
+        "template/scripts/worktree_cleanup.py",
+        "tests/test_publication_state.py",
+        "tests/test_worktree_hygiene.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0acbe318dc4523cd4deb49d081405e9f",
+    "change": "abandoned-worktree-cleanup",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/abandoned-worktree-cleanup",
+    "branch": "agent/br-771-t4-abandoned-worktree-cleanup",
+    "head": "7eec3c1e7e520546ff518b8ebdc3911834326baf",
+    "task_content": {
+      "version": 1,
+      "digest": "b872443fd0b9a2f398536b02c6234030695b12fa1fa4b9c28d16ddc46a06ebd7",
+      "paths": {
+        "openspec/changes/abandoned-worktree-cleanup/.managed-task.json": "9312c70b6906296a1da8e72005570e2131dd04b9",
+        "openspec/changes/abandoned-worktree-cleanup/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+        "openspec/changes/abandoned-worktree-cleanup/design.md": "ce45a1c41866b367da32216a037145e95599b35c",
+        "openspec/changes/abandoned-worktree-cleanup/proposal.md": "83e2a3aa782727f1ead4668d4827dd695def7bd1",
+        "openspec/changes/abandoned-worktree-cleanup/specs/worktree-coordination/spec.md": "f39fc7121870276bab829c6c13355a26b9d3508d",
+        "openspec/changes/abandoned-worktree-cleanup/tasks.md": "6a25da123b6557c376832d8643847ff15b9bb766",
+        "template/dev-platform/platform-manifest.json": "f72674c3a62c767d11d1c7d2292e3f224de7a1f4",
+        "template/scripts/publication_state.py": "ce12a44ca4cdb9651267d360f822ee8cb0550041",
+        "template/scripts/worktree_cleanup.py": "8c53c93f0f84d2888be9b9429919d16b1d078d56",
+        "tests/test_publication_state.py": "9c3da46434238b01f43bcb717c4e6b0d7f50e3ce",
+        "tests/test_worktree_hygiene.py": "2ec770549fc44b191bc66b2333039cc8148ca548"
+      },
+      "base": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "8f645f48a79d199e29c3d80c6b2918225f97bbada0569d95d23a4370f0122c2f",
+    "paths": {
+      "openspec/changes/abandoned-worktree-cleanup/.managed-task.json": "9312c70b6906296a1da8e72005570e2131dd04b9",
+      "openspec/changes/abandoned-worktree-cleanup/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/abandoned-worktree-cleanup/design.md": "ce45a1c41866b367da32216a037145e95599b35c",
+      "openspec/changes/abandoned-worktree-cleanup/proposal.md": "83e2a3aa782727f1ead4668d4827dd695def7bd1",
+      "openspec/changes/abandoned-worktree-cleanup/specs/worktree-coordination/spec.md": "f39fc7121870276bab829c6c13355a26b9d3508d",
+      "openspec/changes/abandoned-worktree-cleanup/tasks.md": "6a25da123b6557c376832d8643847ff15b9bb766",
+      "template/scripts/publication_state.py": "ce12a44ca4cdb9651267d360f822ee8cb0550041",
+      "template/scripts/worktree_cleanup.py": "8c53c93f0f84d2888be9b9429919d16b1d078d56",
+      "tests/test_publication_state.py": "9c3da46434238b01f43bcb717c4e6b0d7f50e3ce",
+      "tests/test_worktree_hygiene.py": "2ec770549fc44b191bc66b2333039cc8148ca548"
+    },
+    "base": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/publication_state.py --changed-file template/scripts/worktree_cleanup.py --changed-file tests/test_publication_state.py --changed-file tests/test_worktree_hygiene.py",
+    "duration_seconds": 265.236,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
