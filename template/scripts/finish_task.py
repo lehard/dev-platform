@@ -75,30 +75,36 @@ def current_branch(root: Path) -> str:
 
 
 def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
+    """The board claim of ``worktree``; an unreadable or malformed board stops finish naming it.
+
+    Legitimate absence (nothing substituted): no board file means no claim was ever recorded on this machine,
+    and no item for the worktree means its claim was already released by an earlier, resumed finish.
+    """
     rel = config.get("paths", {}).get("agent_board", ".claude/agents-board.json")
     path = main / rel
     if not path.exists():
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-    for item in data.get("items", []):
-        try:
-            if Path(item.get("worktree", "")).resolve() == worktree.resolve():
-                return item.get("id")
-        except OSError:
-            continue
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"cannot release the board claim: agent board {path} is unreadable: {exc}") from exc
+    items = data.get("items") if isinstance(data, dict) else None
+    if not isinstance(items, list):
+        raise SystemExit(f"cannot release the board claim: agent board {path} has no item list")
+    target = worktree.resolve()
+    for item in items:
+        if isinstance(item, dict) and isinstance(item.get("worktree"), str) and Path(item["worktree"]).resolve() == target:
+            return item.get("id")
     return None
 
 
-def finish_board(main: Path, worktree: Path, config: dict, *, required: bool = False) -> None:
-    """Release the board claim; best-effort unless the caller requires it."""
+def finish_board(main: Path, worktree: Path, config: dict) -> None:
+    """Release the board claim of ``worktree``; a failed release stops finish with the rerun command."""
     board_id = find_board_id(main, worktree, config)
     if board_id:
         result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "finish", "--id", board_id, "--quiet"],
                                 cwd=main, check=False, stdin=subprocess.DEVNULL)
-        if required and result.returncode != 0:
+        if result.returncode != 0:
             raise SystemExit(f"PR was published, but releasing board claim {board_id} failed; "
                              "rerun scripts/agent_board.py finish --id " + board_id)
 
@@ -858,7 +864,7 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     result = publish_pr(work, "origin", str(config.get("main_branch", "main")), title, body,
                         pr_merge_mode(config), config=config, developer_handoff=True)
     if result == 0:
-        finish_board(integration, work, config, required=True)
+        finish_board(integration, work, config)
     return result
 
 

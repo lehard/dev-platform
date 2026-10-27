@@ -29,12 +29,7 @@ from _platform_common import (
 )
 from managed_task import ManagedTaskError, require_managed_checkout_identity
 from agent_board import HardScopeOverlap, enforce_scope_gate
-
-try:
-    from managed_project_status import block_for_scope_conflict
-except (ImportError, ModuleNotFoundError):  # Compatibility while an older rendered project is being upgraded.
-    def block_for_scope_conflict(root: Path, reason: str):
-        return None
+from managed_project_status import block_for_scope_conflict
 
 
 def load_config(root: Path) -> dict[str, Any]:
