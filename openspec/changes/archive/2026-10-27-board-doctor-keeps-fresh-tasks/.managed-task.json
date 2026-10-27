@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/worktree-coordination/spec.md",
+    "tasks.md"
+  ],
+  "change": "board-doctor-keeps-fresh-tasks",
+  "imported_at": "2026-10-27T10:21:10+00:00",
+  "package_revision": "04fe3f7f241be30109b470334024e205713d3db50296efbf8a333b5a9f75241c",
+  "prepared_against": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+  "private_lineage_handle": "pln_ba9aa20e3bb0a2800b66af1fe6c6126c",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "d8106b4c559d50cda7ff1d64e04b2fa1218ce864c688c95109f0696c3eaaefbd",
+    "updated_at": "2026-10-27T10:10:08Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-778/T1"
+}
