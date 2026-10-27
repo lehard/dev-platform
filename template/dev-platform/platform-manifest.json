@@ -70,7 +70,7 @@
     "scripts/affected_test_groups.py": "e4ae3bff616d0b83a9771c842d4db0422f5918b9579b8c3a3f8dd42c6766b196",
     "scripts/agent_board.py": "592b5c2c119cf9973d65a39bec302f1e58b58fdfa6dd4413f2b8935e8c022e24",
     "scripts/agent_doctor.py": "9126de064e12cc8605e3fe37a4b75f41189f03198dc429ef6d9fd79941dad75d",
-    "scripts/agent_friction.py": "2ba26b1b2dea53b9362eed85675e0247252e70879317810c30665302593a292e",
+    "scripts/agent_friction.py": "ef36ea78794113382126887c39075014a787e63f2dd55ba5368b737a0b301cb8",
     "scripts/browser_verification.py": "24dd49549b7bd9976ec548c78fa8ea6b2930d48eac6750bda9e52c9156c20b92",
     "scripts/candidate_lifecycle.py": "a2953e7e7b0a678eaf0395d344253bc53ea529fe3c8f78b623e0183b0e62bf92",
     "scripts/capability_evals.py": "d5526d3570f8381142b7536fd548151045c87b2c6450261a3b2d0d123afbd988",

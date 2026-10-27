@@ -1405,10 +1405,7 @@ def project_questions(root: Path, changed: list[str] | None) -> dict:
 
 def changed_paths(root: Path) -> list[str] | None:
     """Files this task changed relative to the integration branch; ``None`` when unknowable."""
-    try:
-        main = read_platform_config(root)["main_branch"]
-    except Exception:
-        main = "main"
+    main = read_platform_config(root)["main_branch"]
     names: set[str] = set()
     readable = False
     for command in (["git", "diff", "--name-only", f"origin/{main}...HEAD"], ["git", "diff", "--name-only", "HEAD"]):
