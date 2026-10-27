@@ -216,6 +216,26 @@ def recover_contribution_merge(checkout: Path, manifest: dict, pr: dict, candida
     return updated
 
 
+def _reoffer_on_moved_target(root: Path, repo: str, candidate: dict, checkout: Path, moved_head: str, *,
+                             adapter, claim_current) -> dict:
+    """Re-base the integration job onto a requirement branch head that moved after it was offered.
+
+    The contribution is never merged onto a head its job was not bound to: the same job for the
+    same candidate head is re-offered bound to ``moved_head``. A moved head that no longer contains
+    the recorded contribution base means the branch was rewritten under the contribution.
+    """
+    identity, number = candidate["task_identity"], candidate["number"]
+    try:
+        workers.harness_git(checkout, "merge-base", "--is-ancestor", identity["contribution_base"], moved_head)
+    except workers.WorkerError as exc:
+        raise ContributionError(f"requirement branch head {moved_head} no longer contains contribution base "
+                                f"{identity['contribution_base']} ({exc})") from exc
+    if not claim_current():
+        return {"state": "discarded"}
+    adapter.publish_job(root, repo, number, "contribution-integration", candidate["head"],
+                        task_identity=identity, target_head=moved_head)
+    return {"state": "target-moved", "number": number, "target_head": moved_head}
+
 def merge_reviewed_contribution(root: Path, repo: str, candidate: dict, *, adapter=None,
                                 source_repo: str | None = None, runner=subprocess.run, expected_target_head: str | None = None,
                                 claim_current=lambda: True) -> dict:
@@ -253,7 +273,8 @@ def merge_reviewed_contribution(root: Path, repo: str, candidate: dict, *, adapt
                 return {"state": "discarded"}
             target_head = workers.harness_git(checkout, "rev-parse", "HEAD").strip()
             if expected_target_head is not None and target_head != expected_target_head:
-                return {"state": "discarded"}
+                return _reoffer_on_moved_target(root, repo, candidate, checkout, target_head,
+                                                adapter=adapter, claim_current=claim_current)
             workers.harness_git(checkout, "merge-base", "--is-ancestor", identity["contribution_base"], target_head)
             if not set(manifest["dependencies"][identity["change"]]) <= {c["change"] for c in manifest["children"]}:
                 raise ContributionError("contribution dependencies are not integrated")
@@ -263,7 +284,10 @@ def merge_reviewed_contribution(root: Path, repo: str, candidate: dict, *, adapt
                                             adapter.IntegrationRepairNeeded("contribution conflicts: " + ", ".join(conflicts)))
                 return {"state": "integration-repair-pending", "number": number}
             if workers.harness_git(checkout, "ls-remote", "origin", f"refs/heads/{target}").split()[0] != target_head:
-                return {"state": "discarded"}
+                workers.harness_git(checkout, "fetch", "origin", target)
+                moved = workers.harness_git(checkout, "rev-parse", "FETCH_HEAD").strip()
+                return _reoffer_on_moved_target(root, repo, candidate, checkout, moved,
+                                                adapter=adapter, claim_current=claim_current)
             if not claim_current():
                 return {"state": "discarded"}
             adapter._transition(root, repo, number, "contribution-integration-pending", candidate["head"],
