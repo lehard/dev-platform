@@ -6,4 +6,4 @@
 ## 2. Verification
 - [x] 2.1 Tests: reconciliation passes when only `origin/main` has the archive; refuses when `origin/main` lacks it or lacks `verification.md`; foreign lineage fails closed.
 - [x] 2.2 Regression test: post-merge finish of a queue-merged task completes with no board claim.
-- [ ] 2.3 Regenerate the platform manifest; run full validation and semantic OpenSpec verification.
+- [x] 2.3 Regenerate the platform manifest; run full validation and semantic OpenSpec verification.
