@@ -5,4 +5,4 @@
 
 ## 2. Verification
 
-- [ ] 2.1 Tests: intent and change with different names advance through a declaring bundle; an undeclared change-named bundle fails naming both names; ambiguous declarations fail. Selected checks and semantic verification.
+- [x] 2.1 Tests: intent and change with different names advance through a declaring bundle; an undeclared change-named bundle fails naming both names; ambiguous declarations fail. Selected checks and semantic verification.
