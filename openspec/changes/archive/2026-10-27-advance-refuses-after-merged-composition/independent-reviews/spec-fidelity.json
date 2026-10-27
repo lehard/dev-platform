@@ -3,40 +3,49 @@
   "candidate": {
     "base_head": "1ddff8e3987a1d33024ea1fa36e0e31c950b2f33",
     "base_ref": "origin/main",
-    "candidate_head": "75b0e1380c3d8a92ec1cb317d2f653d419fa0e2d",
-    "diff_sha256": "6d3e4094e8ba30a6f64219877d7f2b76efbd38ca9e04a14ca25b97a8fe61a906"
+    "candidate_head": "5a546405cb261ca3778278b70d692c9ed6c260e7",
+    "diff_sha256": "03086091ab92a497d3f37ae78e7e6dee7b20c40df3e2da04bcefa03c9b468de2"
   },
-  "completed_at": "2026-10-27T03:12:00+00:00",
+  "completed_at": "2026-10-27T04:13:13+00:00",
   "findings": [
     {
-      "evidence": "design.md: 'The check runs first in `_advance_contributions`'. In template/scripts/execute_requirement.py, `_require_no_merged_composition` is called at about line 735, after the `requirement_intake.materialize_handoff(...)` loop (lines 727-732). The spec only requires that the integration branch is not created, fetched or pushed, so the spec is met. The design wording is inaccurate, and the earlier side effects on child identities are not documented.",
-      "id": "design-check-order-not-first",
+      "evidence": "template/scripts/execute_requirement.py:726-735: the `materialize_handoff` loop (727-732) and `read_platform_config` run before `_require_no_merged_composition` at 735. design.md line 8 says 'The check runs first'. The spec only requires the refusal before the integration branch is touched, so the requirement holds, but design and code differ.",
+      "id": "check-runs-after-materialization",
       "severity": "advisory",
-      "summary": "design.md says the merged-composition check runs first in `_advance_contributions`, but the code runs it after the handoff-materialization loop. That loop can create or link child Issues for a merged Requirement."
+      "summary": "Design says the refusal check runs first in `_advance_contributions`, but it runs after handoff materialization, so a refused advance can still create linked child Issues."
     },
     {
-      "evidence": "design.md: '`gh pr list --state all --head <branch> --base main` ... any merged PR of the branch refuses'. The code (execute_requirement.py ~line 701) uses `\"--state\", \"merged\"`. Behavior still satisfies the spec. The 100-row bound now applies only to merged PRs, and a result of exactly 100 rows is treated as exceeding the bound.",
-      "id": "design-pr-state-mismatch",
+      "evidence": "design.md line 8: '`gh pr list --state all --head <branch> --base main` inventory ... any merged PR of the branch refuses'. The code at execute_requirement.py:176 passes `--state merged`. The behavior matches the spec, but the 100-item bound now applies to merged PRs only, and the design text is stale.",
+      "id": "design-state-all-vs-merged",
       "severity": "advisory",
-      "summary": "design.md describes the inventory as `gh pr list --state all`, 'the same inventory the single-child path uses', but the code queries `--state merged`."
+      "summary": "Design describes the inventory as `--state all` and refuses on any merged PR. The code lists only `--state merged`."
+    },
+    {
+      "evidence": "execute_requirement.py:190-191 builds `work-next --repo {repository} --kinds ... --pr {first} --run`. design.md line 9 names `work-next --kinds retrospective,terminal-reconciliation,cleanup --pr N`. Minor documentation drift; the spec requires only that the coordinator's post-merge jobs and the status command are named.",
+      "id": "refusal-command-differs-from-design",
+      "severity": "advisory",
+      "summary": "The suggested post-merge command includes `--repo` and `--run`, which design.md and the spec text do not mention."
     }
   ],
-  "launched_at": "2026-10-27T03:11:43+00:00",
-  "output_sha256": "cf0a5ecde25e5053b78e014a27cee39a0f2fb5605e55e8a7b7d4b21a0b7b7eb8",
+  "launched_at": "2026-10-27T04:12:58+00:00",
+  "output_sha256": "cfe0d47b51f2078aab08422540f7ae11183869c312ec7880bc80c95ccd6b587e",
   "perspective": "spec-fidelity",
-  "request_id": "9cae4a22-9c72-465a-8275-790a5403167d",
+  "request_id": "2debf5aa-a7b6-44b6-af15-51bb4e6b2bdd",
   "reviewer": {
-    "context_id": "48c8d176-7216-4331-a1db-a4054e24bba6",
+    "context_id": "ddcecb61-4742-4e47-8130-f44cab48d614",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-37cccfbb-7425-4ecb-a314-63bcba891164",
+    "launch_id": "platform-launch-bb97b5a4-1443-4b9b-941c-b493db305aa4",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -45,22 +54,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20605
+        "value": 28728
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36935
+        "value": 43331
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16317
+        "value": 12536
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16476
+        "value": 12851
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,11 +84,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1115
+        "value": 1423
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0afd76ead8c662792a0f06a0acc46dced3f48cf4fb7f9fac2b3d83cdbaebb250"
+  "task_content_digest": "6d769874ad3337b4d3a9ffeafb4a8418abcf6c3ae04bd82b68067201263397aa"
 }

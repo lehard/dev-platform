@@ -2,13 +2,17 @@
   "candidate": {
     "base_head": "1ddff8e3987a1d33024ea1fa36e0e31c950b2f33",
     "base_ref": "origin/main",
-    "candidate_head": "75b0e1380c3d8a92ec1cb317d2f653d419fa0e2d",
-    "diff_sha256": "6d3e4094e8ba30a6f64219877d7f2b76efbd38ca9e04a14ca25b97a8fe61a906"
+    "candidate_head": "5a546405cb261ca3778278b70d692c9ed6c260e7",
+    "diff_sha256": "03086091ab92a497d3f37ae78e7e6dee7b20c40df3e2da04bcefa03c9b468de2"
   },
-  "change": "openspec/changes/advance-refuses-after-merged-composition",
+  "change": "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition",
   "excluded_lifecycle_paths": [
-    "openspec/changes/advance-refuses-after-merged-composition/automated-checks.json",
-    "openspec/changes/advance-refuses-after-merged-composition/verification.md",
+    "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/automated-checks.json",
+    "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/independent-review-request.json",
+    "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/verification.md",
+    "openspec/specs/agent-workflow/spec.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -19,32 +23,32 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/advance-refuses-after-merged-composition/design.md",
-        "openspec/changes/advance-refuses-after-merged-composition/proposal.md",
-        "openspec/changes/advance-refuses-after-merged-composition/specs/agent-workflow/spec.md",
-        "openspec/changes/advance-refuses-after-merged-composition/tasks.md"
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/design.md",
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/proposal.md",
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/specs/agent-workflow/spec.md",
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/advance-refuses-after-merged-composition/proposal.md",
-        "openspec/changes/advance-refuses-after-merged-composition/design.md",
-        "openspec/changes/advance-refuses-after-merged-composition/tasks.md",
-        "openspec/changes/advance-refuses-after-merged-composition/specs/agent-workflow/spec.md"
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/proposal.md",
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/design.md",
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/tasks.md",
+        "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/specs/agent-workflow/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-10-27T03:11:41+00:00",
+  "prepared_at": "2026-10-27T04:12:51+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/advance-refuses-after-merged-composition/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-10-27-advance-refuses-after-merged-composition/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "9cae4a22-9c72-465a-8275-790a5403167d",
+  "request_id": "2debf5aa-a7b6-44b6-af15-51bb4e6b2bdd",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,8 +60,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "814adf116885f66741a9459c57a7e0b58de36807",
-    "digest": "0afd76ead8c662792a0f06a0acc46dced3f48cf4fb7f9fac2b3d83cdbaebb250",
+    "base": "1ddff8e3987a1d33024ea1fa36e0e31c950b2f33",
+    "digest": "6d769874ad3337b4d3a9ffeafb4a8418abcf6c3ae04bd82b68067201263397aa",
     "paths": {
       "docs/engineering/hosted-lifecycle-workers.md": "2c7b4f483f2a511231d89531d47a67e47433ac41",
       "openspec/changes/advance-refuses-after-merged-composition/.managed-task.json": "12187bc70c2cf060a4733292d52e1f51c89528f0",
@@ -68,7 +72,7 @@
       "openspec/changes/advance-refuses-after-merged-composition/tasks.md": "f2522489a78471d54aac1b52346adcb925c0b13d",
       "template/scripts/execute_requirement.py": "9f4a5e48a9d3562d6e2fc026aa077ae090332f68",
       "tests/test_requirement_contribution_composition.py": "5682ab899cef846dbe201645655d5ee521721e27",
-      "tests/test_requirement_flow_e2e.py": "5c90f678069f7783595fbe170cc6f26d387296a7"
+      "tests/test_requirement_flow_e2e.py": "62f21d2d52b9c0c5f02d636763808b1c050a9e2a"
     },
     "scope": "independent-review-v1",
     "version": 1

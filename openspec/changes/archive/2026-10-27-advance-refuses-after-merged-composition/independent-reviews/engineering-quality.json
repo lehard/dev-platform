@@ -3,40 +3,37 @@
   "candidate": {
     "base_head": "1ddff8e3987a1d33024ea1fa36e0e31c950b2f33",
     "base_ref": "origin/main",
-    "candidate_head": "75b0e1380c3d8a92ec1cb317d2f653d419fa0e2d",
-    "diff_sha256": "6d3e4094e8ba30a6f64219877d7f2b76efbd38ca9e04a14ca25b97a8fe61a906"
+    "candidate_head": "5a546405cb261ca3778278b70d692c9ed6c260e7",
+    "diff_sha256": "03086091ab92a497d3f37ae78e7e6dee7b20c40df3e2da04bcefa03c9b468de2"
   },
-  "completed_at": "2026-10-27T03:12:11+00:00",
+  "completed_at": "2026-10-27T04:13:25+00:00",
   "findings": [
     {
-      "evidence": "design.md: \"using the same `gh pr list --state all --head <branch> --base main` inventory\"; template/scripts/execute_requirement.py:176 uses \"--state\", \"merged\". The behavior is sound, but the design artifact has drifted from the code.",
-      "id": "design-state-all-mismatch",
+      "evidence": "design.md Decisions: \"using the same `gh pr list --state all --head <branch> --base main` inventory\"; template/scripts/execute_requirement.py:176 uses `\"--state\", \"merged\"`. The behavior is correct, but the archived design misdescribes it, and the 100-row bound now applies to merged PRs only.",
+      "id": "design-state-filter-mismatch",
       "severity": "advisory",
-      "summary": "design.md says the check uses the `--state all` inventory, but the code queries `--state merged`."
-    },
-    {
-      "evidence": "docs/engineering/hosted-lifecycle-workers.md placement table and pilot paragraph. The claim cannot be checked from the candidate. The unrelated docs edit also sits beside the pilot paragraph that still says \"finalize was not enabled\" for the evaluated period.",
-      "id": "hosted-finalize-doc-unverifiable-setting",
-      "severity": "advisory",
-      "summary": "The docs now state that `DEV_PLATFORM_HOSTED_KINDS=review,finalize` has been in effect since 2026-10-22. This is repository settings state that the diff does not show."
+      "summary": "design.md says the check uses the same `--state all` inventory as the single-child path, but the code queries `--state merged`."
     }
   ],
-  "launched_at": "2026-10-27T03:12:00+00:00",
-  "output_sha256": "106413b12f62c3608b54d0e65c3ccfea1154fad2321e37f9d3496b3990d0b80b",
+  "launched_at": "2026-10-27T04:13:13+00:00",
+  "output_sha256": "ed2c2092dd1557923d9b89177e7eb5bcc8145ff17c82a857b9b793b465f980fc",
   "perspective": "engineering-quality",
-  "request_id": "9cae4a22-9c72-465a-8275-790a5403167d",
+  "request_id": "2debf5aa-a7b6-44b6-af15-51bb4e6b2bdd",
   "reviewer": {
-    "context_id": "87eff2ca-52cc-4d0f-b036-b5c636dbcf1d",
+    "context_id": "c557da3a-e7f8-40f7-80d0-e0c3bc380cbb",
     "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-29cd53e0-2bfa-4e82-9c96-43eece90ed19",
+    "launch_id": "platform-launch-7c07de9c-88f7-4281-acce-5a5da811c0f2",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -45,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17223
+        "value": 22500
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58224
+        "value": 47173
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9846
+        "value": 9575
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10016
+        "value": 10176
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1000
+        "value": 866
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0afd76ead8c662792a0f06a0acc46dced3f48cf4fb7f9fac2b3d83cdbaebb250"
+  "task_content_digest": "6d769874ad3337b4d3a9ffeafb4a8418abcf6c3ae04bd82b68067201263397aa"
 }
