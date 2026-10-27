@@ -168,7 +168,7 @@ The coordinator stack (`publication_queue`, `lifecycle_workers`, `pr_review_gate
 
 ### Requirement: Hosted lifecycle workers run trusted code with class-scoped tokens
 
-A GitHub-hosted workflow SHALL execute lifecycle workers using the same `work-next` claim, result and trust contract as any other placement. It SHALL run only code from the protected default branch on every trigger, SHALL NOT check out or execute pull-request-controlled content in any step of a job that holds a GitHub token, and SHALL obtain the PR head only through the worker harness into a disposable credential-free checkout. A job that holds a GitHub App token SHALL request a token limited to the current repository and to the permissions of its job-kind class (pull-request comments, plus contents write only for the harness push of review evidence or the finalization commit to the candidate branch), SHALL NOT request workflow, administration, actions or identity-token scopes, and SHALL NOT issue a merge request.
+A GitHub-hosted workflow SHALL execute lifecycle workers using the same `work-next` claim, result and trust contract as any other placement. It SHALL run only code from the protected default branch on every trigger, SHALL NOT check out or execute pull-request-controlled content in any step of a job that holds a GitHub token, and SHALL obtain the PR head only through the worker harness into a disposable credential-free checkout. A job that holds a GitHub App token SHALL request a token limited to the current repository and to the permissions of its job-kind class (pull-request comments, plus contents write only for the harness push of review evidence, the finalization commit or the integration-merge commit to the candidate branch), SHALL NOT request workflow, administration, actions or identity-token scopes, and SHALL NOT issue a merge request.
 
 #### Scenario: Allowed triggers
 
@@ -194,7 +194,7 @@ A GitHub-hosted workflow SHALL execute lifecycle workers using the same `work-ne
 
 ### Requirement: Hosted execution requires explicit configuration and a passing evidence gate
 
-Hosted execution SHALL run only for job kinds named by an explicit repository setting, which is required configuration: when the workflow runs and the setting is unset or empty, the run SHALL fail explicitly naming the setting and SHALL run nothing. The hosted worker SHALL be off only because no automatic trigger exists, never because a setting is empty. An unknown kind SHALL fail the run naming it, and a kind without a hosted executor in this version (`repair`, `integration-repair`, `retrospective`, `terminal-reconciliation`, `cleanup`) SHALL be refused naming it and the basis (writer containment contract, or machine-local state and backlog access), staying on the local operator node. Before a class job runs any worker, a repository-owned hosted preflight SHALL prove the class and requested kinds, the presence of the provider secret (by presence flag only), that the Claude runtime passes the existing bounded readiness probe in the scratch environment a job would use, that a child process started through the credential-free environment sees no GitHub, App, askpass, SSH-agent or credential-helper credential, and that the token is an installation token scoped to exactly the current repository. The preflight SHALL stop at the first failed check with a non-zero exit and a diagnostic naming the missing or contradictory input or fixed category, SHALL print no credential value, and SHALL NOT substitute another strategy, provider, token or placement.
+Hosted execution SHALL run only for job kinds named by an explicit repository setting, which is required configuration: when the workflow runs and the setting is unset or empty, the run SHALL fail explicitly naming the setting and SHALL run nothing. The hosted worker SHALL be off only because no automatic trigger exists, never because a setting is empty. An unknown kind SHALL fail the run naming it, and a kind without a hosted executor in this version (`repair`, `integration-repair`, `retrospective`, `terminal-reconciliation`, `cleanup`) SHALL be refused naming it and the basis (writer containment contract, or machine-local state and backlog access), staying on the local operator node. The LLM-free `integration-merge` kind SHALL have a hosted executor in its own class that needs no provider secret, no LLM runtime and no `--llm-command`. Before a class job runs any worker, a repository-owned hosted preflight SHALL prove the class and requested kinds, the presence of the provider secret (by presence flag only), that the Claude runtime passes the existing bounded readiness probe in the scratch environment a job would use, that a child process started through the credential-free environment sees no GitHub, App, askpass, SSH-agent or credential-helper credential, and that the token is an installation token scoped to exactly the current repository. The preflight SHALL stop at the first failed check with a non-zero exit and a diagnostic naming the missing or contradictory input or fixed category, SHALL print no credential value, and SHALL NOT substitute another strategy, provider, token or placement.
 
 #### Scenario: Required setting missing
 
@@ -211,6 +211,12 @@ Hosted execution SHALL run only for job kinds named by an explicit repository se
 - **WHEN** the setting names `repair`, `integration-repair`, `retrospective`, `terminal-reconciliation` or `cleanup`
 - **THEN** the run is refused naming the kind and its basis
 - **AND** no worker starts and the kind remains on the local operator node
+
+#### Scenario: LLM-free integration merge enabled
+
+- **WHEN** the setting names `integration-merge`
+- **THEN** the plan has an integration class job for it that installs no LLM runtime and receives no provider secret
+- **AND** its worker runs `work-next --kinds integration-merge --run` without `--llm-command`
 
 #### Scenario: Provider runtime or secret missing
 

@@ -1,0 +1,132 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.299,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.105,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.135,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 906.973,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/hosted_workers.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_hosted_workers.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_d18b0c4778c0d4a9824acd8e7be39cb4",
+    "change": "llm-free-hosted-integration-merge",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/llm-free-hosted-integration-merge",
+    "branch": "agent/br-768-t2-llm-free-hosted-integration-merge",
+    "head": "1cd95fee46a7f8a34ba6ac75994be2a3b7c25b51",
+    "task_content": {
+      "version": 1,
+      "digest": "ada02cdb1157ab131ea2166ac1e8c77148da93aee32c6a0bba6bc2eb207afac0",
+      "paths": {
+        "docs/engineering/hosted-lifecycle-workers.md": "1a6dbf54f239690a05b28db8f83b4fb645ad7034",
+        "openspec/changes/llm-free-hosted-integration-merge/.managed-task.json": "6dd98e0dff3fa6a65b17b0c33c7e6d407a83d94e",
+        "openspec/changes/llm-free-hosted-integration-merge/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+        "openspec/changes/llm-free-hosted-integration-merge/automated-checks.json": "921f5608463a78fc73c7328ccafed1550cc93386",
+        "openspec/changes/llm-free-hosted-integration-merge/design.md": "937c71135baa2e4968c5eb25f10b26b6272ae8f6",
+        "openspec/changes/llm-free-hosted-integration-merge/proposal.md": "511f5c32cf536b0f171f0b9e7d71e81c05de1e4b",
+        "openspec/changes/llm-free-hosted-integration-merge/specs/lifecycle-workers/spec.md": "c654d6e46ea92275c168310b574091a44a77aa53",
+        "openspec/changes/llm-free-hosted-integration-merge/specs/publication-queue/spec.md": "78f720a17e82a211a97e87add45d2f5298802460",
+        "openspec/changes/llm-free-hosted-integration-merge/tasks.md": "510c09960115990dadec6abea86e7c9111848386",
+        "template/dev-platform/platform-manifest.json": "e0b55e2ae367080b1e72d2f60b7ffbd42d234db4",
+        "template/scripts/candidate_lifecycle.py": "bd7d31214be6898fcef6367656932abee8ff937f",
+        "template/scripts/hosted_workers.py": "467e6ddf2fc220f3e9f13ce8c53b5cafb43af097",
+        "template/scripts/integration_contour.py": "5da9b24b6ad3f9ce85aa356f03c546e49c4d5c19",
+        "template/scripts/lifecycle_workers.py": "41786faa13810a1e9e499994788593efea62999d",
+        "template/scripts/publication_queue.py": "f3147bb955e504b0dab36e3e72aaf0f2d82a4bbf",
+        "tests/test_autonomous_integration_contour.py": "2125c085aefc6bc88e84fdecab85d5d20b8d25aa",
+        "tests/test_hosted_workers.py": "716c5e61437e6ba13820ff76ca7d6042cc4f9089",
+        "tests/test_lifecycle_workers.py": "e9c35f20640bde8d30a79fe505aa24bf1d6a5aad",
+        "tests/test_publication_queue.py": "2558cb439e4acbd051766b67db7b23698bcc88d0"
+      },
+      "base": "a9736731ff58faf03d8744420ea1348dad6845a4"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "48456a1915bfb07c3812cf4d5c2b3cabb7e3714953cdae4492be1b55ff1808a3",
+    "paths": {
+      "docs/engineering/hosted-lifecycle-workers.md": "1a6dbf54f239690a05b28db8f83b4fb645ad7034",
+      "openspec/changes/llm-free-hosted-integration-merge/.managed-task.json": "6dd98e0dff3fa6a65b17b0c33c7e6d407a83d94e",
+      "openspec/changes/llm-free-hosted-integration-merge/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/llm-free-hosted-integration-merge/design.md": "937c71135baa2e4968c5eb25f10b26b6272ae8f6",
+      "openspec/changes/llm-free-hosted-integration-merge/proposal.md": "511f5c32cf536b0f171f0b9e7d71e81c05de1e4b",
+      "openspec/changes/llm-free-hosted-integration-merge/specs/lifecycle-workers/spec.md": "c654d6e46ea92275c168310b574091a44a77aa53",
+      "openspec/changes/llm-free-hosted-integration-merge/specs/publication-queue/spec.md": "78f720a17e82a211a97e87add45d2f5298802460",
+      "openspec/changes/llm-free-hosted-integration-merge/tasks.md": "510c09960115990dadec6abea86e7c9111848386",
+      "template/scripts/candidate_lifecycle.py": "bd7d31214be6898fcef6367656932abee8ff937f",
+      "template/scripts/hosted_workers.py": "467e6ddf2fc220f3e9f13ce8c53b5cafb43af097",
+      "template/scripts/integration_contour.py": "5da9b24b6ad3f9ce85aa356f03c546e49c4d5c19",
+      "template/scripts/lifecycle_workers.py": "41786faa13810a1e9e499994788593efea62999d",
+      "template/scripts/publication_queue.py": "f3147bb955e504b0dab36e3e72aaf0f2d82a4bbf",
+      "tests/test_autonomous_integration_contour.py": "2125c085aefc6bc88e84fdecab85d5d20b8d25aa",
+      "tests/test_hosted_workers.py": "716c5e61437e6ba13820ff76ca7d6042cc4f9089",
+      "tests/test_lifecycle_workers.py": "e9c35f20640bde8d30a79fe505aa24bf1d6a5aad",
+      "tests/test_publication_queue.py": "2558cb439e4acbd051766b67db7b23698bcc88d0"
+    },
+    "base": "a9736731ff58faf03d8744420ea1348dad6845a4",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/hosted_workers.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_hosted_workers.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 156.351,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

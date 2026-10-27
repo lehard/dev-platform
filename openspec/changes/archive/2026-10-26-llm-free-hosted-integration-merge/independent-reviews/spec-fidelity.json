@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a9736731ff58faf03d8744420ea1348dad6845a4",
+    "base_ref": "origin/main",
+    "candidate_head": "158b4710ad5ea9a0c9d2d4b0b1523f3db5461167",
+    "diff_sha256": "b91a16e8426934d6d4c22b3e6a48e6dcbf8a1c854c93c53e48c5a26ab5699427"
+  },
+  "completed_at": "2026-10-26T23:39:48+00:00",
+  "findings": [
+    {
+      "evidence": "specs/lifecycle-workers/spec.md lines 20-22: \"contents write solely for the harness evidence push to the candidate branch\". The requirement text at line 5 lists review evidence, the finalization commit and the integration-merge commit.",
+      "id": "class-token-scenario-wording-stale",
+      "severity": "advisory",
+      "summary": "The modified requirement now permits contents write for the integration-merge commit. The retained scenario \"Class token rights\" still says contents write is solely for the harness \"evidence push\", so the scenario is narrower than the requirement text."
+    },
+    {
+      "evidence": ".github/workflows/lifecycle-workers.yml line 111: \"# Both hosted classes comment on the PR and push an evidence commit to the candidate branch.\" The diff to template/scripts/hosted_workers.py adds the third class, \"integrate\".",
+      "id": "workflow-comment-two-classes-stale",
+      "severity": "advisory",
+      "summary": "The workflow comment still says \"Both hosted classes\" comment and push an evidence commit, but the plan table now has three classes (review, finalize, integrate). The workflow file is outside the diff and behaves correctly, because the integrate class gets no Claude CLI install and no provider token."
+    }
+  ],
+  "launched_at": "2026-10-26T23:39:22+00:00",
+  "output_sha256": "e9b5293468d5e30b7950bf23541204bd8d287984344eba2af870ba322657ee95",
+  "perspective": "spec-fidelity",
+  "request_id": "0036de03-6539-4dbb-abf6-4b27380b0593",
+  "reviewer": {
+    "context_id": "4e7dcc8e-566e-428f-b846-1e589762068a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-78038e69-11d0-4e70-bea0-9877cb8ad9e9",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45889
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 186815
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24875
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25010
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3069
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "48456a1915bfb07c3812cf4d5c2b3cabb7e3714953cdae4492be1b55ff1808a3"
+}

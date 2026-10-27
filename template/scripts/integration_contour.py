@@ -175,6 +175,10 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
         if merge.returncode and not merging:
             return {"status": "failed", "reason": "merge of main failed: " + (merge.stderr or merge.stdout).strip()[-300:]}
     conflicted = [p for p in workers._git(checkout, "diff", "--name-only", "--diff-filter=U").split() if p]
+    if job["kind"] == workers.MERGE_ONLY_KIND and (conflicted or brief.get("red_gate") == "required-checks"):
+        # An integration merge never starts a writer: the next attempt is a writer integration repair.
+        needs = ("conflicts in: " + ", ".join(conflicted[:8])) if conflicted else "the required checks are red"
+        return {"status": "failed", "reason": f"integration merge needs a writer integration repair: {needs}"}
     if conflicted or brief.get("red_gate") == "required-checks":
         command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command or [])
         if not command:
@@ -258,13 +262,21 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
                                    workdir: str, worker: str, adapter=queue, runner=None,
                                    provider: str | None = None, claim_current=None, push_env=None, home_files=(), env=None,
                                    conflicts: list[str] | None = None, launch=None) -> dict:
-    """Execute and advance one claimed integration-repair job, without the developer."""
+    """Execute and advance one claimed integration-repair or integration-merge job, without the developer.
+
+    An integration merge names no provider and is never given a writer command or launch.
+    """
     import subprocess as sp
 
-    if job["kind"] != "integration-repair":
+    if job["kind"] not in {"integration-repair", workers.MERGE_ONLY_KIND}:
         raise workers.WorkerError(f"no integration-repair executor for {job['kind']}")
     number, identity = job["number"], job["task_identity"]
-    workers.require_job_provider(job, provider)
+    if job["kind"] == workers.MERGE_ONLY_KIND:
+        if llm_command or launch is not None or provider is not None:
+            raise workers.WorkerError(f"PR #{number} integration-merge job runs no writer; got a writer command, "
+                                      "launch or provider")
+    else:
+        workers.require_job_provider(job, provider)
     if claim_current is None:
         def claim_current():
             comments = adapter._comments(root, repo, number)
@@ -295,8 +307,10 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
             adapter._block(root, repo, number, f"integration repair exhausted after {spent} attempts: {reason}"[:500],
                            head=job["head"])
             return {"status": "blocked-escalation", "reason": reason}
+        # The next attempt is always a writer integration repair, so a merge-only round does not carry over.
+        red = {key: value for key, value in (observed.get("red_gate") or {}).items() if key != "merge_only"} or None
         adapter._transition(root, repo, number, "integration-repair-pending", job["head"], task_identity=identity,
-                            red_gate=observed.get("red_gate"), set_attempts={"integration-repair": spent + 1})
+                            red_gate=red, set_attempts={"integration-repair": spent + 1})
         adapter.publish_job(root, repo, number, "integration-repair", job["head"], task_identity=identity,
                             attempt=spent + 1)
         return {"status": "failed", "reason": reason}

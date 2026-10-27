@@ -594,11 +594,13 @@ class WorkerTests(unittest.TestCase):
 class DerivedMergeEnvironmentTests(unittest.TestCase):
     """BR-768: a coordinator environment failure is a queue failure, never integration repair."""
 
-    def _prepare_generated(self, failure: Exception):
+    def _prepare_generated(self, failure: Exception, conflicts: list[str] = ()):
         from subprocess import CompletedProcess
         from _platform_common import GeneratedFile
 
         def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-tree":
+                return CompletedProcess(args, 1 if conflicts else 0, "tree\n" + "".join(c + "\n" for c in conflicts), "")
             if args[0] == "merge-base":
                 return CompletedProcess(args, 0 if args[2] == BASE else 1, "", "")
             if args[0] == "diff":
@@ -634,7 +636,15 @@ class DerivedMergeEnvironmentTests(unittest.TestCase):
 
         exc, gh = self._prepare_generated(final.RederivationFailed("regeneration of manifest.json failed"))
         self.assertIsInstance(exc, queue.IntegrationRepairNeeded)
+        self.assertTrue(exc.merge_only)  # the trial merge is clean: an LLM-free integration merge (BR-768/T2)
         gh.assert_not_called()
+
+    def test_derived_merge_failure_with_a_conflicting_trial_merge_needs_a_writer(self) -> None:
+        import post_review_finalization as final
+
+        exc, _ = self._prepare_generated(final.RederivationFailed("conflicts outside derived paths"), conflicts=["src.py"])
+        self.assertIsInstance(exc, queue.IntegrationRepairNeeded)
+        self.assertFalse(exc.merge_only)
 
     def test_integrate_releases_ownership_and_records_nothing(self) -> None:
         labels: list[tuple[str, bool]] = []

@@ -35,7 +35,7 @@ CANARY = "ghs_CANARY_SECRET_TOKEN_VALUE_0123456789"
 PROVIDER_CANARY = "sk-ant-oat01-CANARY-PROVIDER-SECRET"
 ENV = {
     "PATH": os.environ.get("PATH", ""),
-    "DEV_PLATFORM_HOSTED_KINDS": "review,finalize",
+    "DEV_PLATFORM_HOSTED_KINDS": "review,finalize,integration-merge",
     "PREFLIGHT_APP_CLIENT_ID_SET": "true", "PREFLIGHT_APP_PRIVATE_KEY_SET": "true", "PREFLIGHT_PROVIDER_SECRET_SET": "true",
     "GITHUB_REPOSITORY": "owner/repo", "GITHUB_RUN_ID": "123", "GITHUB_RUN_ATTEMPT": "2",
     "GH_TOKEN": CANARY, "CLAUDE_CODE_OAUTH_TOKEN": PROVIDER_CANARY,
@@ -89,6 +89,13 @@ class PlanTests(unittest.TestCase):
         self.assertEqual(hosted.plan("review,finalize"), {"include": [
             {"class": "review", "kinds": "review"}, {"class": "finalize", "kinds": "finalize"}]})
         self.assertEqual(hosted.plan(" finalize , finalize "), {"include": [{"class": "finalize", "kinds": "finalize"}]})
+
+    def test_llm_free_integration_merge_has_its_own_class_without_a_provider(self):
+        self.assertEqual(hosted.plan("integration-merge"), {"include": [{"class": "integrate", "kinds": "integration-merge"}]})
+        spec = hosted.CLASSES["integrate"]
+        self.assertEqual((spec["needs_provider"], spec["tools"]), (False, ()))
+        self.assertNotIn("integration-merge", hosted.UNHOSTED)
+        self.assertIn("integration-repair", hosted.UNHOSTED)
 
     def test_missing_setting_is_an_error_naming_it(self):
         for raw in (None, "", " , "):
@@ -261,6 +268,8 @@ class OutcomeTests(unittest.TestCase):
             ({"status": "claimed", "job": self.JOB, "execution": {"status": "reused"}}, 0, "job-reused", False),
             ({"status": "claimed", "job": self.JOB, "execution": {"status": "finalized"}}, 0, "job-finalized", False),
             ({"status": "claimed", "job": self.JOB, "execution": {"status": "discarded"}}, 0, "job-discarded", False),
+            ({"status": "claimed", "job": self.JOB, "execution": {"status": "integrated"}}, 0, "job-integrated", False),
+            ({"status": "claimed", "job": self.JOB, "execution": {"status": "failed"}}, 0, "job-failed", True),
             ({"status": "claimed", "job": self.JOB, "execution": {"status": "blocked-retryable"}}, 0, "job-blocked-retryable", True),
             ({"status": "claimed", "job": self.JOB, "execution": {"status": "blocked-escalation"}}, 0, "job-blocked-escalation", True),
             ({"status": "claimed", "job": self.JOB, "execution": {"status": "weird"}}, 0, "job-unknown", True),
@@ -493,12 +502,14 @@ class WorkflowStructureTests(unittest.TestCase):
         self.assertNotIn("repair", run)
 
     def test_classes_in_the_table_have_a_workflow_branch(self):
-        self.assertEqual(set(hosted.CLASSES), {"review", "finalize"})
+        self.assertEqual(set(hosted.CLASSES), {"review", "finalize", "integrate"})
         for name, spec in hosted.CLASSES.items():
             self.assertTrue(set(spec["kinds"]) <= hosted.HOSTED_KINDS)
             self.assertEqual(spec["permissions"], {"contents": "write", "pull-requests": "write"})
         self.assertTrue(re.search(r"matrix\.class == 'review'", self.text))
         self.assertTrue(re.search(r"matrix\.class == 'finalize'", self.text))
+        # The LLM-free class installs nothing and never receives the provider secret.
+        self.assertFalse(re.search(r"matrix\.class == 'integrate'", self.text))
 
 
 if __name__ == "__main__":

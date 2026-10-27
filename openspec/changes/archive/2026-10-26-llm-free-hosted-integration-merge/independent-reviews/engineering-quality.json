@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a9736731ff58faf03d8744420ea1348dad6845a4",
+    "base_ref": "origin/main",
+    "candidate_head": "158b4710ad5ea9a0c9d2d4b0b1523f3db5461167",
+    "diff_sha256": "b91a16e8426934d6d4c22b3e6a48e6dcbf8a1c854c93c53e48c5a26ab5699427"
+  },
+  "completed_at": "2026-10-26T23:40:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/integration_contour.py:310-313 returns {\"status\": \"failed\"}. tests/test_hosted_workers.py adds the case `{\"execution\": {\"status\": \"failed\"}} -> (\"job-failed\", True)`. design.md says this is \"the lifecycle's next step, recorded and visible\". Operators will see red hosted runs for an expected path, which makes real hosted failures harder to spot.",
+      "id": "expected-fallthrough-fails-hosted-run",
+      "severity": "advisory",
+      "summary": "A conflict or red required check at execution time is the designed fall-through to integration-repair. It still returns status `failed`, which the hosted outcome classifier treats as a failed run. The hosted run goes red and spends an attempt of the bounded integration-repair budget on a case the design calls a normal next step."
+    }
+  ],
+  "launched_at": "2026-10-26T23:39:48+00:00",
+  "output_sha256": "a4fc5412a4f4ba81514c3dd87bba15827a548c4847d5a62b365d88c1e323cc6e",
+  "perspective": "engineering-quality",
+  "request_id": "0036de03-6539-4dbb-abf6-4b27380b0593",
+  "reviewer": {
+    "context_id": "de98dde0-36ee-448b-8649-71395f1e3a4a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e1ef3878-dfae-4bb4-9095-d2afb8bcb7d3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33665
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 87469
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16888
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17122
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1657
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "48456a1915bfb07c3812cf4d5c2b3cabb7e3714953cdae4492be1b55ff1808a3"
+}
