@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ba38c81490d6d705fbd3b644cabfeda7d7c8aea1",
+    "base_ref": "origin/main",
+    "candidate_head": "fd01baf6ee8ef41c5e9af4425d0f59ddd96e2dc3",
+    "diff_sha256": "9623020e11291786ec4459be0aeddcf374cc7df17c2384c02931ab3c960d8b10"
+  },
+  "completed_at": "2026-10-27T02:08:27+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_worktree_hygiene.py:442-462 patches `worktree_cleanup.cleanup` with literal dicts. The real `--all` refusal (template/scripts/worktree_cleanup.py:584-590) carries `error` (singular) and no `errors` key. Exit 1 there depends only on `status == 'refused'`, which the mocked payload doesn't reproduce (it uses `errors: []`). The real target-level `failed` status is covered separately at test line 397.",
+      "id": "exit-code-test-mocks-cleanup",
+      "severity": "advisory",
+      "summary": "The new exit-code test mocks `cleanup()` with hand-built payloads, so it doesn't check that the real `_cleanup_all` and `_cleanup_target` outputs trigger `cleanup_failed`."
+    }
+  ],
+  "launched_at": "2026-10-27T02:08:05+00:00",
+  "output_sha256": "f8f1b83e8e1bcf9b8cefdbcf905becaf582bc3bb54af1a185d686e2153618e4e",
+  "perspective": "engineering-quality",
+  "request_id": "0c54ac2d-5994-45da-b83d-ed65b5bd7f1a",
+  "reviewer": {
+    "context_id": "52b1e05b-d71c-4432-bfb1-a063e181e97b",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-23d22459-b767-407f-b27a-f7190823492e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19637
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 97758
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20772
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21002
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1506
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "94019b6bc1a6af00d1134a64a863fd56d0908566a1f0b3289ec940e0a6a6b11c"
+}
