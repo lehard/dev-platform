@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+    "base_ref": "origin/main",
+    "candidate_head": "4493af40bf2c92114e3fc6c9aafe531602f6bce5",
+    "diff_sha256": "8f7649c65a077186a402f5662e5a1977f0fce3f5044a58ac53001cd3676a5373"
+  },
+  "completed_at": "2026-10-27T14:31:12+00:00",
+  "findings": [
+    {
+      "evidence": "spec.md says \"no open pull request exists for the branch\". `_pr_candidates` in template/scripts/publication_state.py:322-324 runs `gh pr list --head <branch> --base main --limit 100`, and `find_exact_head_pr` also skips any candidate whose baseRefName differs from main (line 349). `_abandoned_refusal` relies only on this lookup for `pr-open`. The 100-item limit is also not treated as possible truncation.",
+      "id": "open-pr-other-base-undetected",
+      "severity": "advisory",
+      "summary": "The spec says no open pull request may exist for the branch. The lookup only sees PRs into main, so an open PR from the same branch into another base would not block removal."
+    },
+    {
+      "evidence": "design.md, Board claim: \"that entry is released through `agent_board.py finish --id`\". `_cleanup_abandoned` in worktree_cleanup.py opens `locked_json(machine_path(\"agent_board\", root))` and calls `items.remove(claim)`. This is a second removal path for board entries, and the design was not updated to match.",
+      "id": "board-release-bypasses-agent-board-finish",
+      "severity": "advisory",
+      "summary": "design.md says the board claim is released through `agent_board.py finish --id`. The implementation edits the board JSON directly instead."
+    },
+    {
+      "evidence": "`_cleanup_abandoned` runs `git worktree remove`, then `git branch -D`, then the board release. A `branch -D` failure or `board-claim-changed` returns `failed` after `result[\"removed\"]` already holds the worktree path. The board claim is re-checked only after the destructive steps, not before them.",
+      "id": "partial-removal-on-late-failure",
+      "severity": "advisory",
+      "summary": "The spec says a refusal removes nothing. After the worktree is removed, a failed branch delete or a changed board claim returns `failed` with the worktree already gone, so the result is a partial removal. The artifacts do not describe this."
+    }
+  ],
+  "launched_at": "2026-10-27T14:30:49+00:00",
+  "output_sha256": "5abf02d96692e22546d20ee7f10bdef542a52290efb0088df427fef35d1cd29a",
+  "perspective": "spec-fidelity",
+  "request_id": "a846821a-a9e3-44a6-b489-e5f0c7083bb4",
+  "reviewer": {
+    "context_id": "01bb69d9-ccbd-41aa-be7a-db0a006cf108",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b0b43de5-787d-4d2d-b9e6-fc8a7fae16d5",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29196
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 66866
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22579
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22747
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2065
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8f645f48a79d199e29c3d80c6b2918225f97bbada0569d95d23a4370f0122c2f"
+}

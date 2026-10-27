@@ -297,6 +297,7 @@ class ExactHeadPrLookup:
     exact_open: dict[str, Any] | None = None
     exact_merged: dict[str, Any] | None = None
     stale_open: dict[str, Any] | None = None  # open PR for this branch/base, different head
+    exact_closed: dict[str, Any] | None = None  # exact head closed without merge
     detail: str = ""
 
 
@@ -341,6 +342,7 @@ def find_exact_head_pr(root: Path, env: dict[str, str], branch: str, base_branch
     exact_open: dict[str, Any] | None = None
     exact_merged: dict[str, Any] | None = None
     stale_open: dict[str, Any] | None = None
+    exact_closed: dict[str, Any] | None = None
     for candidate in candidates:
         # Validate filter fields in the payload as well; command-line filters
         # are an optimisation, never identity proof.
@@ -365,6 +367,10 @@ def find_exact_head_pr(root: Path, env: dict[str, str], branch: str, base_branch
             if exact_merged is not None:
                 return ExactHeadPrLookup(available=False, detail="multiple exact merged PR candidates were returned")
             exact_merged = pr
+        elif head == local_head and state == "CLOSED":
+            if exact_closed is not None:
+                return ExactHeadPrLookup(available=False, detail="multiple exact closed PR candidates were returned")
+            exact_closed = pr
         elif state == "OPEN" and stale_open is None:
             stale_open = pr
     if exact_open is not None and exact_merged is not None:
@@ -372,7 +378,8 @@ def find_exact_head_pr(root: Path, env: dict[str, str], branch: str, base_branch
             available=False,
             detail="both open and merged PRs match the same branch/base/head identity",
         )
-    return ExactHeadPrLookup(available=True, exact_open=exact_open, exact_merged=exact_merged, stale_open=stale_open)
+    return ExactHeadPrLookup(available=True, exact_open=exact_open, exact_merged=exact_merged, stale_open=stale_open,
+                             exact_closed=exact_closed)
 
 
 def find_exact_local_branch_pr(root: Path, env: dict[str, str], branch: str, base_branch: str) -> ExactHeadPrLookup:
