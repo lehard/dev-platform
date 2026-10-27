@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agent-workflow/spec.md",
+    "tasks.md"
+  ],
+  "change": "terminal-reconcile-fresh-main",
+  "imported_at": "2026-10-27T10:42:37+00:00",
+  "package_revision": "06487ac2ead0e7f4e5f89e82727e26eeea3d76d287f2e6b870c11731693f739b",
+  "prepared_against": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+  "private_lineage_handle": "pln_814f930d295ea2a32c4572ecc6e652cd",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "48f9a6348c8f319ad2b41177b5a0dced391ca984176dc545c5cd0fceb6a59932",
+    "updated_at": "2026-10-27T10:29:13Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-771/T3"
+}

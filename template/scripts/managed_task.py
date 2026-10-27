@@ -107,6 +107,17 @@ class CanonicalProvenance:
 
 
 @dataclass(frozen=True)
+class CommittedLineage:
+    """The OpenSpec lineage of one managed task as committed in a tree, not a checkout."""
+
+    source_issue: str
+    change: str
+    path: str  # repository-relative directory in the commit
+    lifecycle: str  # ``active`` or ``archived``
+    verified: bool  # the directory commits ``verification.md``
+
+
+@dataclass(frozen=True)
 class ManagedTaskIdentity:
     """The task-local identity allowed to drive managed side effects."""
 
@@ -1860,6 +1871,60 @@ def resolve_canonical_provenance(
     if len(matching) != 1:
         locations = ", ".join(str(item.path) for item in matching)
         raise ManagedTaskError(f"managed source {expected_source} has ambiguous canonical OpenSpec lineage: {locations}")
+    return matching[0]
+
+
+def resolve_committed_lineage(root: Path, commit: str, *, source_issue: str, change: str) -> CommittedLineage | None:
+    """Resolve ``change``'s canonical lineage from ``commit``'s tree, never from the checkout.
+
+    Locations and matching follow ``resolve_canonical_provenance``: a lineage of
+    another source or more than one match fails closed, no lineage is ``None``.
+    Only canonical provenance files are read from the commit; private lineage is
+    authorized against ``root``'s configuration.
+    """
+    repository, number = issue_ref(source_issue)
+    expected_source = f"{repository}#{number}"
+    if not CHANGE_RE.fullmatch(change):
+        raise ManagedTaskError("managed task has an invalid canonical OpenSpec change name")
+    changes = PurePosixPath("openspec", "changes")
+    archive = changes / "archive"
+    files = set(run(["git", "ls-tree", "-r", "--name-only", commit, "--", str(changes)], root).stdout.splitlines())
+    locations: list[tuple[PurePosixPath, str]] = []
+    for name in sorted(files):
+        path = PurePosixPath(name)
+        if path.name != PROVENANCE:
+            continue
+        directory = path.parent
+        if directory == changes / change:
+            locations.append((directory, "active"))
+        # Current OpenSpec archives directly to a dated change directory,
+        # while older repository history may use a dated parent/change layout.
+        elif ((directory.parent == archive and directory.name.endswith(f"-{change}"))
+              or (directory.parent.parent == archive and directory.name == change)):
+            locations.append((directory, "archived"))
+    candidates: list[CommittedLineage] = []
+    with tempfile.TemporaryDirectory(prefix="committed-lineage-") as temporary:
+        for directory, lifecycle in locations:
+            local = Path(temporary, *directory.parts)
+            local.mkdir(parents=True)
+            payload = run(["git", "show", f"{commit}:{directory / PROVENANCE}"], root).stdout
+            (local / PROVENANCE).write_text(payload, encoding="utf-8")
+            provenance = _provenance_for(local, lifecycle, root, expected_source)
+            candidates.append(CommittedLineage(
+                provenance.source_issue, provenance.change, str(directory), lifecycle,
+                str(directory / "verification.md") in files,
+            ))
+    matching = [item for item in candidates if item.source_issue.lower() == expected_source.lower()]
+    if not matching:
+        if candidates:
+            actual = ", ".join(sorted({item.source_issue for item in candidates}))
+            raise ManagedTaskError(
+                f"committed OpenSpec change {change!r} at {commit} belongs to {actual}, not managed source {expected_source}"
+            )
+        return None
+    if len(matching) != 1:
+        found = ", ".join(item.path for item in matching)
+        raise ManagedTaskError(f"managed source {expected_source} has ambiguous committed OpenSpec lineage at {commit}: {found}")
     return matching[0]
 
 

@@ -45,7 +45,11 @@ def _close_issue(root: Path, reference: str) -> None:
 
 
 def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] | None = None) -> dict[str, Any]:
-    """Use main's archived lineage plus terminal child/Project state as delivery proof."""
+    """Use archived lineage on freshly fetched origin main plus terminal child/Project state as delivery proof.
+
+    The lineage is read from the fetched commit, so an integration main that was not
+    fast-forwarded never hides a merged archive and is never advanced here.
+    """
     root = root.resolve()
     lifecycle_mode(read_platform_config(root))
     if subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True).stdout.strip() != "main":
@@ -64,6 +68,7 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     if not children or len(children) != len(set(children)):
         raise RequirementTerminalError("Requirement needs a nonempty, unambiguous child set")
     requirement_retrospective.require_checkpoint(root, requirement=requirement, parent=parent)
+    commit = managed_task.target_main(root)
     for child in children:
         issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(child))
         if requirement_intake.CHILD_LABEL not in managed_task.issue_labels(issue) or parent_for_child(root, child) != requirement:
@@ -72,9 +77,9 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
         if observed is None or observed.current_status != "Done":
             raise RequirementTerminalError(f"{child} has no terminal Project state")
         package = managed_task.discover_task(root, child)
-        canonical = managed_task.resolve_canonical_provenance(root, source_issue=child, change=package.change)
-        if canonical is None or canonical.lifecycle != "archived" or not (canonical.path / "verification.md").is_file():
-            raise RequirementTerminalError(f"{child} has no archived verified contract on main")
+        lineage = managed_task.resolve_committed_lineage(root, commit, source_issue=child, change=package.change)
+        if lineage is None or lineage.lifecycle != "archived" or not lineage.verified:
+            raise RequirementTerminalError(f"{child} has no archived verified contract on origin main {commit}")
         if str(issue.get("state", "")).upper() != "CLOSED":
             if merged_children is None or child not in merged_children:
                 raise RequirementTerminalError(f"{child} is not closed after delivery")

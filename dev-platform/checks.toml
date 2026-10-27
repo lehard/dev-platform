@@ -123,6 +123,7 @@ mode = "parallel"
 [test_groups.fast-f]
 targets = [
   "test_project_terminal_reconciliation",
+  "test_requirement_terminal_fresh_main",
   "test_managed_execution_intake",
   "test_platform_bootstrap",
   "test_platform_common",

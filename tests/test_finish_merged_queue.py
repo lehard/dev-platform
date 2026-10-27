@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import contextlib
+import json
 import sys
+import tempfile
 import types
 import unittest
 from pathlib import Path
@@ -22,19 +25,20 @@ class QueueMergedFinishTests(unittest.TestCase):
     """A queue-merged PR head includes the coordinator's merge of main, so its
     content no longer matches the pre-merge evidence; finish must reconcile it."""
 
-    def run_finish(self, queued: dict) -> tuple[int | None, mock.Mock, mock.Mock]:
+    def run_finish(self, queued: dict, *, work: Path = Path("/nonexistent/work"), config: dict | None = None,
+                   extra: list | None = None) -> tuple[int | None, mock.Mock, mock.Mock]:
+        """Drive finish for a queue state; ``extra`` replaces the reconciliation mock with patches of its own."""
         import finish_task
         import pr_review_gate
         import publication_queue
 
-        work = Path("/nonexistent/work")
         evidence = mock.Mock(side_effect=SystemExit("evidence identity mismatch"))
         reconcile = mock.Mock()
         patches = [
             mock.patch.object(sys, "argv", ["finish_task.py"]),
             mock.patch.object(finish_task, "current_worktree_root", return_value=work),
             mock.patch.object(finish_task, "main_root", return_value=work),
-            mock.patch.object(finish_task, "read_platform_config", return_value={"main_branch": "main"}),
+            mock.patch.object(finish_task, "read_platform_config", return_value=config or {"main_branch": "main"}),
             mock.patch.object(finish_task, "lifecycle_mode", return_value="coordinator"),
             mock.patch.object(finish_task, "scm_provider", return_value="github"),
             mock.patch.object(finish_task, "harness_mode", return_value="platform"),
@@ -57,7 +61,7 @@ class QueueMergedFinishTests(unittest.TestCase):
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
             mock.patch.object(finish_task, "fetch_main"),
             mock.patch.object(finish_task, "task_pr_is_already_merged", return_value=True),
-            mock.patch.object(finish_task, "reconcile_confirmed_remote_pr_merge", reconcile),
+            *(extra if extra is not None else [mock.patch.object(finish_task, "reconcile_confirmed_remote_pr_merge", reconcile)]),
         ]
         for patch in patches:
             patch.start()
@@ -75,6 +79,47 @@ class QueueMergedFinishTests(unittest.TestCase):
         self.assertEqual(code, 0)
         evidence.assert_not_called()
         reconcile.assert_called_once()
+
+    def test_post_merge_finish_completes_without_a_board_claim(self) -> None:
+        # Regression: the developer claim is released at handoff, so post-merge finish
+        # must reconcile a queue-merged task without `agent_board start` or any claim.
+        import agent_board
+        import finish_task
+
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp).resolve()
+            (work / ".dev-platform.toml").write_text(
+                'main_branch = "main"\n[capabilities]\nagent_board = true\n[paths]\nagent_board = ".claude/agents-board.json"\n',
+                encoding="utf-8")
+            board = work / ".claude" / "agents-board.json"
+            board.parent.mkdir()
+            other = {"id": "other", "worktree": str(work / "sibling"), "branch": "agent/sibling", "task": "Sibling"}
+            board.write_text(json.dumps({"items": [other]}), encoding="utf-8")
+            before = board.read_bytes()
+            config = {"main_branch": "main", "capabilities": {"agent_board": True},
+                      "paths": {"agent_board": ".claude/agents-board.json"}}
+            with mock.patch.object(agent_board, "board_path", return_value=board):
+                # The same board would stop the scope gate: there is no claim for this worktree.
+                with self.assertRaisesRegex(SystemExit, "no claim for worktree"):
+                    finish_task.enforce_scope_gate(work, work, "agent/task")
+                identity = types.SimpleNamespace(source_issue="acme/backlog#8", process_evidence=())
+                spawned = mock.Mock()
+                parent = mock.Mock()
+                extra = [
+                    mock.patch.object(finish_task, "delivery_identity", return_value=identity),
+                    mock.patch.object(finish_task, "serialized_integration", side_effect=lambda *_a, **_k: contextlib.nullcontext()),
+                    mock.patch.object(finish_task, "sync_after_remote_pr_merge"),
+                    mock.patch.object(finish_task, "assert_integration_identity_cross_check"),
+                    mock.patch.object(finish_task, "reconcile_managed_project", return_value=None),
+                    mock.patch.object(finish_task, "reconcile_linked_parent", parent),
+                    mock.patch.object(finish_task.subprocess, "run", spawned),
+                ]
+                code, evidence, _ = self.run_finish({"state": "merged", "number": 7}, work=work, config=config, extra=extra)
+            self.assertEqual(code, 0)
+            evidence.assert_not_called()
+            parent.assert_called_once_with(work, identity)
+            spawned.assert_not_called()  # no `agent_board.py finish` for a claim that does not exist
+            self.assertEqual(board.read_bytes(), before)
 
     def test_unmerged_candidate_still_gates_on_evidence(self) -> None:
         code, evidence, reconcile = self.run_finish({"state": "absent", "number": 7})

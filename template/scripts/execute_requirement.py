@@ -420,9 +420,10 @@ def _ready_receipt(
 
 
 def _done_child_is_delivered(integration: Path, child: str, change: str) -> None:
-    canonical = managed_task.resolve_canonical_provenance(integration, source_issue=child, change=change)
-    if canonical is None or canonical.lifecycle != "archived":
-        raise RequirementExecutionError(f"{child} is marked Done but has no archived contract on main")
+    commit = managed_task.target_main(integration)
+    lineage = managed_task.resolve_committed_lineage(integration, commit, source_issue=child, change=change)
+    if lineage is None or lineage.lifecycle != "archived":
+        raise RequirementExecutionError(f"{child} is marked Done but has no archived contract on origin main {commit}")
     issue = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(child))
     if str(issue.get("state", "")).upper() != "CLOSED":
         raise RequirementExecutionError(f"{child} is marked Done but its source Issue is not closed")
