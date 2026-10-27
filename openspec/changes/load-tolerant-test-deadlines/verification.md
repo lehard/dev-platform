@@ -19,6 +19,14 @@ Each speed assertion was removed or replaced by an event-based proof or the shar
 
 All tasks in `tasks.md` are complete.
 
+## Repair round 1 (b2b2c518) semantic verification
+
+Review finding `process-group-test-fixed-startup-window` (material) and advisory `lock-order-proof-not-load-robust` were repaired by the sandboxed repair writer; re-review recorded no material finding.
+
+- `test_timeout_kills_the_whole_reviewer_process_group`: the grandchild publishes its pid atomically (`.tmp` + `mv`). The launcher starts with a 2 s timeout and relaunches with a doubled timeout only while the grandchild has not started, within the bounded deadline. Each launch still asserts `LaunchTimeout`, and the property under test (the recorded grandchild is gone after the group kill) is checked once. The relaunch establishes a precondition, it does not retry the assertion, so a surviving descendant still fails; this matches the delta's "no retry hides a failure". A grandchild that never starts within the deadline still fails explicitly.
+- `test_already_merged_reconciliation_waits_for_existing_integration_lock`: the holder keeps the lock until a `go` file appears (written by a 0.5 s timer in the test) and writes the release marker just before releasing. A step that does not wait for the lock observes no release marker unless the test thread itself stalls past 0.5 s, which can only produce a false pass, never a false failure (accepted advisory `lock-order-proof-timer-dependent`).
+- Remaining advisories accepted as they stand: `review-kill-test-retry-loop` (precondition relaunch, see above) and `streaming-test-keeps-elapsed-lower-bound` (the `>1.5 s` bound only widens under load).
+
 ## Load proof
 
 24 `yes > /dev/null` burners on 8 cores (load average 8.7 rising to 48), the eight affected tests run ten times in a row: 10/10 runs `8 passed`, 16–18 s each.
@@ -32,6 +40,10 @@ A genuine hang still fails within the bounded deadline with a diagnostic; no ret
 - BR-768/T2 files, not touched: `test_lifecycle_workers.py::test_run_in_session_kills_the_whole_group_after_the_leader_exits` (asserts `< 1.4 s` and races a 1.5 s child sleep; high risk) and `test_writer_background_process_dies_with_it_and_tmpdir_is_dedicated` (1.5 s background sleep must outlast the group kill; medium).
 - Pre-existing fallbacks in `tests/_concurrent_lifecycle.py`, not changed: an invalid `DEV_PLATFORM_TEST_PROCESS_TIMEOUT` silently falls back to the default, and a drain timeout after kill reports empty retained output.
 
+## Load proof after repair
+
+Same 24 burners on 8 cores (load up to 72): the eight affected tests ran ten times on 6ffe7578, 10/10 `8 passed`.
+
 ## Selected checks
 
-`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on head 759120b0 passed: affected precheck, compileall, ruff, `generate_platform_manifest.py --check`, `run_test_groups.py --all`.
+`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on the original head 759120b0 passed; refreshed below for the repaired head: affected precheck, compileall, ruff, `generate_platform_manifest.py --check`, `run_test_groups.py --all`.
