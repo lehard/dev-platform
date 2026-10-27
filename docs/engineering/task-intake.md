@@ -147,6 +147,13 @@ reconciliation checks the target again before marking the parent Done.
    The back-reference is an exact standalone `Requirement: owner/repo#N`
    line. Authored prose such as `Parent Requirement:` does not replace it;
    materialization repairs and verifies the canonical line on retry.
+   The handoff id (intent id, or `direct`) is the only bundle key: keep the
+   bundle under `.claude/pre-authoring/requirement-N/bundles/<handoff id>/`,
+   or, when it is named after its change, declare `"handoff": "<handoff id>"`
+   in its `manifest.json`. A bundle is never paired with a handoff by name
+   similarity; an ambiguous, contradictory or unreadable bundle stops
+   `advance`, and a non-terminal linked child that maps to no handoff fails
+   naming its change and the unmapped handoffs.
 6. Run `python3 scripts/execute_requirement.py advance --requirement owner/repo#N`
    from integration `main`. The source-owned supervisor reuses unique already
    linked children even if a historical handoff digest was refreshed, creates

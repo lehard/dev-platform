@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "77ad1f77e48cf33c573542ca1754a9ad06fefcfc",
+    "base_ref": "origin/main",
+    "candidate_head": "f5237662ac63202ede7886925acb03c15f55f233",
+    "diff_sha256": "c76ae3e99d4df3a701a713e0a3c5cda8e3b92577366a3bd98e5b50e32b08e804"
+  },
+  "completed_at": "2026-10-27T08:08:54+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py, _handoff_bundle: the loop over directory.glob(\"*/manifest.json\") raises RequirementExecutionError for any unreadable manifest before checking whether that bundle is a candidate. The test sets I4 against a corrupt `second-change` manifest and expects an \"unreadable\" error for the unrelated handoff.",
+      "id": "resolver-fails-on-unrelated-sibling-manifest",
+      "severity": "advisory",
+      "summary": "_handoff_bundle parses every sibling bundle manifest on each lookup and raises if any one is unreadable or not an object. A broken bundle belonging to another handoff therefore blocks resolution and materialization for every handoff in the Requirement."
+    },
+    {
+      "evidence": "template/scripts/execute_requirement.py: `except (OSError, json.JSONDecodeError)` around `manifest_path.read_text(encoding=\"utf-8\")`. UnicodeDecodeError is a ValueError but not a JSONDecodeError.",
+      "id": "resolver-uncaught-decode-error",
+      "severity": "advisory",
+      "summary": "The resolver catches only OSError and json.JSONDecodeError. A manifest with invalid UTF-8 raises UnicodeDecodeError, which escapes as a raw traceback instead of the named RequirementExecutionError that the change promises for unreadable bundles."
+    }
+  ],
+  "launched_at": "2026-10-27T08:08:41+00:00",
+  "output_sha256": "9eb731bcadd4fbe66f8cebbc08a7e2331b601425987498bc5100044323e6111e",
+  "perspective": "engineering-quality",
+  "request_id": "bd5a8161-47b9-479b-9122-6e061292696b",
+  "reviewer": {
+    "context_id": "1c132a88-45c9-4363-95bd-5c8f95d47da8",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-27d6152f-eafd-4bc9-811c-306e6e46ac47",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20821
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 62600
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12380
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12525
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1459
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7059963fcda45e9ccc5b01b3f7ab5e5e6baaa285d796f1265914ae8a8f20732d"
+}

@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "base_head": "77ad1f77e48cf33c573542ca1754a9ad06fefcfc",
+    "base_ref": "origin/main",
+    "candidate_head": "f5237662ac63202ede7886925acb03c15f55f233",
+    "diff_sha256": "c76ae3e99d4df3a701a713e0a3c5cda8e3b92577366a3bd98e5b50e32b08e804"
+  },
+  "change": "openspec/changes/handoff-bundle-one-key",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/handoff-bundle-one-key/automated-checks.json",
+    "openspec/changes/handoff-bundle-one-key/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/handoff-bundle-one-key/design.md",
+        "openspec/changes/handoff-bundle-one-key/proposal.md",
+        "openspec/changes/handoff-bundle-one-key/specs/agent-workflow/spec.md",
+        "openspec/changes/handoff-bundle-one-key/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/handoff-bundle-one-key/proposal.md",
+        "openspec/changes/handoff-bundle-one-key/design.md",
+        "openspec/changes/handoff-bundle-one-key/tasks.md",
+        "openspec/changes/handoff-bundle-one-key/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T08:08:26+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/handoff-bundle-one-key/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "bd5a8161-47b9-479b-9122-6e061292696b",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d72fffe13e15dbaa9f31ffc39e106c216ca664f3",
+    "digest": "7059963fcda45e9ccc5b01b3f7ab5e5e6baaa285d796f1265914ae8a8f20732d",
+    "paths": {
+      "docs/engineering/task-intake.md": "f6322ed42a7d319d068b5267dab326901516faaa",
+      "openspec/changes/handoff-bundle-one-key/.managed-task.json": "b33daddcce3327d57894e2713fc6014ceab6986f",
+      "openspec/changes/handoff-bundle-one-key/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/handoff-bundle-one-key/design.md": "01cb5c6b4837b14e12f192efcee55b82e7e1529c",
+      "openspec/changes/handoff-bundle-one-key/proposal.md": "e9e21f85b1424415ba9c17652395fac0554a0a23",
+      "openspec/changes/handoff-bundle-one-key/specs/agent-workflow/spec.md": "be83abf73eaf1b13d869903bea47b6ba7b447956",
+      "openspec/changes/handoff-bundle-one-key/tasks.md": "014a0d186fbb3d07ca49b4c9a5e94b164944069d",
+      "template/docs/engineering/task-intake.md.jinja": "814b04008032a2f78ae8dc2fb8a5566d7e35a9e4",
+      "template/scripts/execute_requirement.py": "e607e388f4263eab5cb9ae4404bf70d80417fdac",
+      "tests/test_requirement_execution.py": "2ce80cfe1915e0f00958d9fe73948bb49c96be1e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -37,6 +37,19 @@ def _write_handoffs(root: Path, intents: dict[str, list[str]]) -> dict[str, str]
     return digests
 
 
+def _write_bundle(root: Path, directory: str, change: str, handoff: str | None = None) -> Path:
+    """A real authored bundle under bundles/<directory>, optionally declaring its handoff."""
+    bundle = root / "requirement-7" / "bundles" / directory
+    (bundle / "specs").mkdir(parents=True)
+    manifest = {"title": change, "change": change, "artifacts": ["proposal.md"]}
+    if handoff is not None:
+        manifest["handoff"] = handoff
+    (bundle / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+    (bundle / "issue.md").write_text("issue\n", encoding="utf-8")
+    (bundle / "proposal.md").write_text("proposal\n", encoding="utf-8")
+    return bundle
+
+
 REQUIREMENT = "acme/backlog#7"
 PARENT_BODY = "## Outcome\n\nShip it\n\n## Target repository\n\n`acme/project`\n"
 
@@ -246,7 +259,7 @@ class RequirementExecutionTests(unittest.TestCase):
             stale_marker = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{'0' * 64} -->"}
             bundle = SimpleNamespace(change="retry-implementation", artifacts=("a",), contents=("c",))
             with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
-                 mock.patch.object(execution, "_bundle", return_value=root / "bundle"), \
+                 mock.patch.object(execution, "_handoff_bundle", return_value=root / "bundle"), \
                  mock.patch.object(execution.managed_task, "load_authoring_bundle", return_value=bundle), \
                  mock.patch.object(execution.managed_task, "discover_task",
                                    return_value=SimpleNamespace(artifacts=("a",), contents=("c",))):
@@ -255,12 +268,76 @@ class RequirementExecutionTests(unittest.TestCase):
             self.assertEqual(list(rekeyed), ["retry-implementation"])
             # A refreshed bundle that changes the child's contract stops explicitly.
             with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
-                 mock.patch.object(execution, "_bundle", return_value=root / "bundle"), \
+                 mock.patch.object(execution, "_handoff_bundle", return_value=root / "bundle"), \
                  mock.patch.object(execution.managed_task, "load_authoring_bundle", return_value=bundle), \
                  mock.patch.object(execution.managed_task, "discover_task",
                                    return_value=SimpleNamespace(artifacts=("a",), contents=("changed",))):
                 with self.assertRaisesRegex(execution.RequirementExecutionError, "changes the contract"):
                     execution._rekey_by_linked_child(root, REQUIREMENT, handoffs, {"retry-implementation": "acme/backlog#8"}, root)
+
+    def test_refreshed_intent_maps_to_a_differently_named_change_through_its_declaring_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_handoffs(root, {"I1": []})
+            _write_bundle(root, "object-client-contract", "object-client-contract", handoff="I1")
+            handoffs = {"I1": str(root / "requirement-7" / "handoff" / "I1.json")}
+            stale_marker = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{'0' * 64} -->"}
+            package = SimpleNamespace(artifacts=("proposal.md",), contents={"proposal.md": "proposal\n"})
+            with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
+                 mock.patch.object(execution.managed_task, "discover_task", return_value=package):
+                rekeyed = execution._rekey_by_linked_child(
+                    root, REQUIREMENT, handoffs, {"object-client-contract": "acme/backlog#8"}, root)
+            self.assertEqual(list(rekeyed), ["object-client-contract"])
+
+    def test_undeclared_change_named_bundle_fails_naming_handoff_child_and_change(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_handoffs(root, {"I1": []})
+            _write_bundle(root, "object-client-contract", "object-client-contract")
+            handoffs = {"I1": str(root / "requirement-7" / "handoff" / "I1.json")}
+            parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
+            child = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{'0' * 64} -->"}
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), \
+                 mock.patch.object(execution, "_git", return_value="main"), \
+                 mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+                 mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[parent, child]), \
+                 mock.patch.object(execution.orchestrate_pre_authoring, "status",
+                                   return_value={"current_stage": "complete", "handoffs": handoffs}), \
+                 mock.patch.object(execution.requirement_board, "claim_started"), \
+                 mock.patch.object(execution, "_linked_children_by_change",
+                                   return_value={"object-client-contract": "acme/backlog#8"}), \
+                 mock.patch.object(execution.managed_project_status, "observe",
+                                   return_value=SimpleNamespace(current_status="In progress")):
+                with self.assertRaises(execution.RequirementExecutionError) as caught:
+                    execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            message = str(caught.exception)
+            for expected in ("acme/backlog#8", "object-client-contract", "unmapped handoffs: I1", '"handoff": "<handoff id>"'):
+                self.assertIn(expected, message)
+
+    def test_ambiguous_or_contradictory_bundles_stop_naming_them(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first = _write_bundle(root, "first-change", "first-change", handoff="I1")
+            second = _write_bundle(root, "second-change", "second-change", handoff="I1")
+            with self.assertRaises(execution.RequirementExecutionError) as caught:
+                execution._handoff_bundle(root, REQUIREMENT, "I1")
+            self.assertIn(str(first), str(caught.exception))
+            self.assertIn(str(second), str(caught.exception))
+            _write_bundle(root, "I2", "other-change", handoff="I3")
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "named after handoff I2 but declares handoff I3"):
+                execution._handoff_bundle(root, REQUIREMENT, "I2")
+            (second / "manifest.json").write_text("{", encoding="utf-8")
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "unreadable"):
+                execution._handoff_bundle(root, REQUIREMENT, "I4")
+
+    def test_a_broken_bundle_of_a_refreshed_handoff_is_not_treated_as_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            bundle = _write_bundle(root, "I1", "retry-implementation")
+            (bundle / "issue.md").write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "of handoff I1 is invalid"):
+                execution._bundle_reused_child(root, root, REQUIREMENT, "I1", {"retry-implementation": "acme/backlog#8"})
+            self.assertIsNone(execution._bundle_reused_child(root, root, REQUIREMENT, "I9", {}))
 
     def test_recovery_accepts_a_refreshed_handoff_reused_through_its_bundle(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -269,7 +346,7 @@ class RequirementExecutionTests(unittest.TestCase):
             stale_marker = {"body": f"<!-- requirement-handoff:v1:{REQUIREMENT}:{'0' * 64} -->"}
             bundle = SimpleNamespace(change="retry-implementation", artifacts=("a",), contents=("c",))
             with mock.patch.object(execution.requirement_intake, "fetch_issue", side_effect=[stale_marker]), \
-                 mock.patch.object(execution, "_bundle", return_value=root / "bundle"), \
+                 mock.patch.object(execution, "_handoff_bundle", return_value=root / "bundle"), \
                  mock.patch.object(execution.managed_task, "load_authoring_bundle", return_value=bundle), \
                  mock.patch.object(execution.managed_task, "discover_task",
                                    return_value=SimpleNamespace(artifacts=("a",), contents=("c",))):

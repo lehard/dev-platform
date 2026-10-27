@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "77ad1f77e48cf33c573542ca1754a9ad06fefcfc",
+    "base_ref": "origin/main",
+    "candidate_head": "f5237662ac63202ede7886925acb03c15f55f233",
+    "diff_sha256": "c76ae3e99d4df3a701a713e0a3c5cda8e3b92577366a3bd98e5b50e32b08e804"
+  },
+  "completed_at": "2026-10-27T08:08:41+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py `_handoff_bundle`: the loop over `directory.glob(\"*/manifest.json\")` raises on any unreadable manifest before checking whether it is relevant. The new test confirms this: after `second/manifest.json` is broken, a lookup for handoff `I4`, which has no bundle, raises 'unreadable'.",
+      "id": "unrelated-bundle-manifest-blocks-resolution",
+      "severity": "advisory",
+      "summary": "The resolver reads every `bundles/*/manifest.json` for any handoff lookup. One unreadable, non-object or non-string-`handoff` manifest in an unrelated bundle therefore stops resolution for every handoff. The spec only says a handoff's own ambiguous or malformed bundle stops."
+    },
+    {
+      "evidence": "template/scripts/execute_requirement.py, advance hunk at about line 582: `if unmapped: raise ...` is followed by the unchanged `raise RequirementExecutionError(f\"historical linked child {historical_child} is not terminal\")`.",
+      "id": "historical-child-fallback-omits-naming",
+      "severity": "advisory",
+      "summary": "The spec says a non-terminal linked child that maps to no current handoff SHALL fail naming the child, its change and the unmapped handoffs. The implementation adds that detail only when `unmapped` is non-empty. Otherwise it keeps the old generic 'historical linked child \u2026 is not terminal' error without the change name or the naming rule."
+    }
+  ],
+  "launched_at": "2026-10-27T08:08:31+00:00",
+  "output_sha256": "d09098f4f84e87999df81d2edac1c17b1a7759fc4ed7f96b7bd0cfdc2625736c",
+  "perspective": "spec-fidelity",
+  "request_id": "bd5a8161-47b9-479b-9122-6e061292696b",
+  "reviewer": {
+    "context_id": "53c6bd8f-ce30-49b3-8862-dfd1d82d79d8",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-167f7359-3f7a-4f8b-88b3-49817ea72803",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23454
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11706
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9133
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9259
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1249
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7059963fcda45e9ccc5b01b3f7ab5e5e6baaa285d796f1265914ae8a8f20732d"
+}
