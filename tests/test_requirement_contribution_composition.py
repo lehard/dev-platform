@@ -1119,7 +1119,8 @@ class SupervisorTests(unittest.TestCase):
             ordered.append((change, path))
         boundary = {"branch": "requirement/BR-7", "head": "a" * 40,
                     "manifest": {"children": children}}
-        with mock.patch.object(contributions, "in_flight_children", return_value={} if in_flight is None else in_flight), mock.patch.object(contributions, "ensure_integration_branch", return_value=boundary), mock.patch.object(
+        with mock.patch.object(execution, "_require_no_merged_composition"), \
+                mock.patch.object(contributions, "in_flight_children", return_value={} if in_flight is None else in_flight), mock.patch.object(contributions, "ensure_integration_branch", return_value=boundary), mock.patch.object(
             execution, "_git"
         ), mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), mock.patch.object(
             execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=root / "child"), "head", False)
@@ -1129,6 +1130,44 @@ class SupervisorTests(unittest.TestCase):
             result = execution._advance_contributions(root, REQUIREMENT, ordered,
                 {c: f"acme/backlog#{8 + i}" for i, c in enumerate(graph)}, root, False)
         return result, start
+
+    def test_merged_composition_refuses_before_the_integration_branch_is_touched(self):
+        adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[{"number": 556}]))
+        with mock.patch.object(contributions, "ensure_integration_branch") as ensure:
+            with self.assertRaisesRegex(execution.RequirementExecutionError,
+                                        r"composition PR #556 of requirement/BR-7 is already merged.*"
+                                        r"--kinds retrospective,terminal-reconciliation,cleanup --pr 556 --run.*"
+                                        r"publication_queue.py status --pr 556"):
+                execution._require_no_merged_composition(Path("/unused"), REQUIREMENT, "acme/project", adapter=adapter)
+        ensure.assert_not_called()
+        self.assertEqual(adapter._gh.call_args.args[1:9],
+                         ("pr", "list", "--state", "merged", "--head", "requirement/BR-7", "--base", "main"))
+
+    def test_open_or_absent_composition_lets_advance_proceed(self):
+        adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[]))
+        self.assertIsNone(execution._require_no_merged_composition(Path("/unused"), REQUIREMENT, "acme/project", adapter=adapter))
+
+    def test_unreadable_composition_inventory_refuses(self):
+        for gh in (mock.Mock(side_effect=RuntimeError("gh exit 1")), mock.Mock(return_value={"bad": 1}),
+                   mock.Mock(return_value=[{"number": n} for n in range(100)])):
+            with self.subTest(gh=gh), self.assertRaisesRegex(execution.RequirementExecutionError, "inventory of requirement/BR-7"):
+                execution._require_no_merged_composition(Path("/unused"), REQUIREMENT, "acme/project",
+                                                         adapter=SimpleNamespace(QueueError=RuntimeError, _gh=gh))
+
+    def test_advance_contributions_runs_the_check_before_the_branch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "first.json"
+            path.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
+            with mock.patch.object(execution, "_require_no_merged_composition",
+                                   side_effect=execution.RequirementExecutionError("already merged")) as check, \
+                    mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
+                    mock.patch.object(contributions, "ensure_integration_branch") as ensure:
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "already merged"):
+                    execution._advance_contributions(root, REQUIREMENT, [("first", path)], {"first": "acme/backlog#8"},
+                                                     root, False)
+            check.assert_called_once_with(root, REQUIREMENT, "acme/project")
+            ensure.assert_not_called()
 
     def test_resume_never_reclaims_coordinator_owned_children(self):
         with tempfile.TemporaryDirectory() as tmp:

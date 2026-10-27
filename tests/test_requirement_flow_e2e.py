@@ -71,6 +71,7 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
                     "manifest": {"children": []},
                 }), \
                 mock.patch.object(requirement_contributions, "in_flight_children", return_value={}), \
+                mock.patch.object(execution, "_require_no_merged_composition"), \
                 mock.patch.object(requirement_composition, "publish_composition", return_value={"status": "draft-published"}), \
                 mock.patch.object(requirement_terminal, "reconcile_parent", return_value={"status": "done"}) as terminal, \
                 mock.patch.object(execution.subprocess, "run") as run:

@@ -37,7 +37,7 @@ Run 38221555792 on `main` passed the inputs and runtime preflight, including the
 
 ## What the preflight proves before a worker starts
 
-`python3 scripts/lifecycle_workers.py hosted-preflight --mode ci --class <review|finalize> --phase inputs|runtime|all` stops at the first failed check, exits non-zero, prints no credential value and substitutes nothing:
+`python3 scripts/lifecycle_workers.py hosted-preflight --mode ci --class <review|finalize|integrate> --phase inputs|runtime|all` stops at the first failed check, exits non-zero, prints no credential value and substitutes nothing:
 
 - the class and the enabled kinds, the worker identity (`gha-<run_id>-<run_attempt>-<class>`, equal in the workflow and in the preflight);
 - presence flags only for the App variable/key and the provider secret;
@@ -60,7 +60,7 @@ After its own lease-protected evidence push a worker waits up to 60 seconds for 
 
 ## Pilot record (2026-10-19 to 2026-10-22)
 
-The automatic triggers have been on `main` since 2026-10-13 and `DEV_PLATFORM_HOSTED_KINDS` is `review`. The record below comes from the claim/result comments on real pull requests and from the job summaries of every non-cancelled run of the workflow created from 2026-10-19 to 2026-10-22 06:40 UTC (306 runs). No synthetic job was created. `finalize` was not enabled, so everything below is about `review`.
+The automatic triggers have been on `main` since 2026-10-13. `DEV_PLATFORM_HOSTED_KINDS` was `review` during the period below and has been `review,finalize` since 2026-10-22. The record below comes from the claim/result comments on real pull requests and from the job summaries of every non-cancelled run of the workflow created from 2026-10-19 to 2026-10-22 06:40 UTC (306 runs). No synthetic job was created. `finalize` was not enabled, so everything below is about `review`.
 
 ### Real PRs reviewed after the developer session ended
 
@@ -105,7 +105,7 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 | Kind | Placement | Basis |
 | --- | --- | --- |
 | `review` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review`) for task and contribution PRs | The preflight passed and real PRs were reviewed after the session ended, with the constraints above. A Requirement composition review of a private Requirement stays on the local operator node (BR-433): the hosted worker has no Development Backlog and does not claim it. |
-| `finalize` | **Not enabled; not evaluated** | It runs candidate code beside a contents-write token. It is evaluated only if the owner enables it. Until then the local worker finalizes, as it did for every PR above. |
+| `finalize` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review,finalize` since 2026-10-22) | It runs candidate code beside a contents-write token. It was not part of the evaluated period above; the local worker finalized every PR in that record. |
 | `integration-merge` | **Hosted class `integrate` once the owner adds it to `DEV_PLATFORM_HOSTED_KINDS`** | The queue offers it when integration failed on the `integration` gate with a clean trial merge (typically a failed derived merge). The harness merges current main without any writer, provider secret or `--llm-command`; a conflict or red required check at execution fails it by name and the next attempt is a writer `integration-repair` (BR-768). |
 | `repair`, `integration-repair` | **Local operator node (BR-433), run by an operator** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). The queue escalates each repair round with a "Repair needed" attention comment; no writer starts automatically (BR-768). |
 | `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
