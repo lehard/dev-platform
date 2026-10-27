@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the diff against the advance-refuses-after-merged-composition agent-workflow delta, proposal, design and tasks; targeted unit tests run during the change; repository-owned selected checks recorded by the lifecycle
 Automated-Checks-Evidence: automated-checks.json
+Requirement-Integration-Exception: BR-771 is delivered as independent sequential single-child slices (no shared composition); this re-handoff of the archived T2 change only fixes a Python 3.11-only test-fixture syntax limit found by required CI on the integrated head.
 
 ## Owner decisions
 
