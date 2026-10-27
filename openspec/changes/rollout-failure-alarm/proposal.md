@@ -7,7 +7,7 @@ A failed managed rollout is silent. `publish-version.yml` dispatches `Roll Out P
 - the `rollout-alert` label is added only at the third consecutive failure;
 - the tracker itself turns every error into a warning (`except Exception: return 0` plus `continue-on-error`), as the accepted spec scenario "The tracking layer itself fails" requires.
 
-The owner asked (lehard/development-backlog#832) that a failed project update after a release raises an explicit alarm, and that the alarm path fails loudly when it cannot be delivered. Since 2026-10-27 managed rollout is not auto-dispatched (`DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED=false`); rollout runs by manual dispatch, so the alarm covers both the release-dispatched and the manually dispatched path.
+The owner asked (BR-832) that a failed project update after a release raises an explicit alarm, and that the alarm path fails loudly when it cannot be delivered. Since 2026-10-27 managed rollout is not auto-dispatched (`DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED=false`); rollout runs by manual dispatch, so the alarm covers both the release-dispatched and the manually dispatched path.
 
 ## What Changes
 

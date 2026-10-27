@@ -4,7 +4,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 ## Owner and coordinator decisions
 
-- Owner request (lehard/development-backlog#832, 2026-10-27): a failed project update after a release raises an explicit alarm; the alarm path fails loudly.
+- Owner request (BR-832, 2026-10-27): a failed project update after a release raises an explicit alarm; the alarm path fails loudly.
 - Coordinator decisions (2026-10-27): remove error swallowing from the streak tracker in the same MODIFIED delta, replacing the accepted "tracking failure is only a warning" behavior; cover both the release-dispatched and the manual dispatch path (managed rollout auto-dispatch is currently disabled); no demonstration run before merge, unit and structural tests are sufficient for the handoff.
 
 ## Implementation
