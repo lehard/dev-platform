@@ -2,13 +2,17 @@
   "candidate": {
     "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
     "base_ref": "origin/main",
-    "candidate_head": "0439ae92d9d24864990cd3cc62eef1d049619d66",
-    "diff_sha256": "dafb0c0f6d78ad94cb1610bee6f5a030c8e1a86b4aa78d264266fe42ad509122"
+    "candidate_head": "d94062c105cf2a54aeeb2ef25997e7a1b47b97cf",
+    "diff_sha256": "284346d30bb2ed9f1f779e35c8a2fb1ad1738bd26022c76d11242f0f59f906d5"
   },
-  "change": "openspec/changes/platform-config-schema-validation",
+  "change": "openspec/changes/archive/2026-10-27-platform-config-schema-validation",
   "excluded_lifecycle_paths": [
-    "openspec/changes/platform-config-schema-validation/automated-checks.json",
-    "openspec/changes/platform-config-schema-validation/verification.md",
+    "openspec/changes/archive/2026-10-27-platform-config-schema-validation/automated-checks.json",
+    "openspec/changes/archive/2026-10-27-platform-config-schema-validation/independent-review-request.json",
+    "openspec/changes/archive/2026-10-27-platform-config-schema-validation/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-27-platform-config-schema-validation/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-27-platform-config-schema-validation/verification.md",
+    "openspec/specs/platform-config/spec.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -19,32 +23,32 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/platform-config-schema-validation/design.md",
-        "openspec/changes/platform-config-schema-validation/proposal.md",
-        "openspec/changes/platform-config-schema-validation/specs/platform-config/spec.md",
-        "openspec/changes/platform-config-schema-validation/tasks.md"
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/design.md",
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/proposal.md",
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/specs/platform-config/spec.md",
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/platform-config-schema-validation/proposal.md",
-        "openspec/changes/platform-config-schema-validation/design.md",
-        "openspec/changes/platform-config-schema-validation/tasks.md",
-        "openspec/changes/platform-config-schema-validation/specs/platform-config/spec.md"
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/proposal.md",
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/design.md",
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/tasks.md",
+        "openspec/changes/archive/2026-10-27-platform-config-schema-validation/specs/platform-config/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-10-27T19:13:58+00:00",
+  "prepared_at": "2026-10-27T20:38:33+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/platform-config-schema-validation/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-10-27-platform-config-schema-validation/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "616e029e-a068-45e7-be8e-0f78b899d1b6",
+  "request_id": "be20706e-3af4-4bfa-afac-dd49ec7a543c",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,14 +61,16 @@
   "schema_version": 1,
   "task_content": {
     "base": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
-    "digest": "ed348ed9b816a4ecce94483b59158908a8f55ec6e05ca59c7dac8225a77da40a",
+    "digest": "15eb0f49954ab57260dcc86a470d5ae374b2a7a20fc913103be52d2001ac68bb",
     "paths": {
+      ".github/workflows/ci.yml": "4d67606f7fb3b1c430566a135fc8b017133f77a5",
+      "dev-platform/source-contract.toml": "d1dd09a97cbb750fe57be2e7cc48a9112b7c6c67",
       "docs/adoption.md": "5c78d1a24ea36788e7b778baa209e6a8e83fd620",
       "docs/project-owned-config.md": "945cae920f5e4de92a6d51d06448393a7021acb7",
       "openspec/changes/platform-config-schema-validation/.managed-task.json": "d3d4e53ff2c2889754cb2324fd201fbe9b00d8d6",
       "openspec/changes/platform-config-schema-validation/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
       "openspec/changes/platform-config-schema-validation/design.md": "35e08ada01c3d088c8b92759db2dceeb5c5bae09",
-      "openspec/changes/platform-config-schema-validation/proposal.md": "cf770a1b9d8e21fe09f33922a0a35a66836fbb32",
+      "openspec/changes/platform-config-schema-validation/proposal.md": "73406c04833e48eea90fa8f270e3ddec082cc044",
       "openspec/changes/platform-config-schema-validation/specs/platform-config/spec.md": "9226a80cfff3592cdc5b9bdeb2c41477e3339a80",
       "openspec/changes/platform-config-schema-validation/tasks.md": "b35874b66a8c4d027f2ba7db133d1855c811115f",
       "scripts/rollout_project.py": "286750d5a408623480feaf1b1854472a831a08fa",
@@ -127,7 +133,7 @@
       "tests/test_openspec_lifecycle.py": "ea4ad3d2d0ec34516cd4d23437e5cad3a1fdf0f6",
       "tests/test_operator_config.py": "f9f27cf2871b4fd8a2eae73ce446cab8386baf84",
       "tests/test_platform_bootstrap.py": "33c6ce0a0bf234d1076e4cc7335e888b10b5b905",
-      "tests/test_platform_common.py": "2e79cfaa84a5c2ad17ec24e7fcf50faa200d7541",
+      "tests/test_platform_common.py": "33d1caad4bf90d4c32c851ad0051f0f09fba74a4",
       "tests/test_platform_divergence.py": "1fa32ae46c4f48001fe7ca961892b3ea37eee4c8",
       "tests/test_platform_doctor_workflow_mode.py": "e3ffe8f8a556ba99b32aa5966a416e121ee134c2",
       "tests/test_portable_finish_check_reuse.py": "53348d4fe2a641a7d9ac1f5478d73775f814f603",
