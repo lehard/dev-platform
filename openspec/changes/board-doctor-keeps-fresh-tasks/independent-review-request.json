@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
     "base_ref": "origin/main",
-    "candidate_head": "a4fd3839c98a270fa37887af5369fb3fee50c019",
-    "diff_sha256": "4057da5535e9e1a0c2cfc68206c238903d96ecaf230d9f6da2996cb881f7ad85"
+    "candidate_head": "c86866c3e850cfa2ffc05a4e18165a33e77a0663",
+    "diff_sha256": "89bb32cf865e94b1c8753b577769f243e302b84567602f3653e628a9cdfcbca4"
   },
   "change": "openspec/changes/board-doctor-keeps-fresh-tasks",
   "excluded_lifecycle_paths": [
     "openspec/changes/board-doctor-keeps-fresh-tasks/automated-checks.json",
+    "openspec/changes/board-doctor-keeps-fresh-tasks/independent-review-request.json",
+    "openspec/changes/board-doctor-keeps-fresh-tasks/independent-reviews/engineering-quality.json",
+    "openspec/changes/board-doctor-keeps-fresh-tasks/independent-reviews/spec-fidelity.json",
     "openspec/changes/board-doctor-keeps-fresh-tasks/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -35,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-27T11:08:23+00:00",
+  "prepared_at": "2026-10-27T12:36:33+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/board-doctor-keeps-fresh-tasks/independent-reviews",
     "required_perspectives": [
@@ -44,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "94bc183f-32b4-431d-9b6e-96da491a139f",
+  "request_id": "395dac62-11de-4257-a1cd-23f17897f068",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,16 +60,16 @@
   "schema_version": 1,
   "task_content": {
     "base": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
-    "digest": "78ebb8afe1fd4deaaa93f895198735d95a1b729654943e6cc10bdecd3e809f6d",
+    "digest": "f0d8dee4c8d9cfa113c5121e7a5b897c16cfb3c64a1a8b25580e44cb352e1f2d",
     "paths": {
       "openspec/changes/board-doctor-keeps-fresh-tasks/.managed-task.json": "e00813c9499a016adceb91785e77bd937395ba74",
       "openspec/changes/board-doctor-keeps-fresh-tasks/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
-      "openspec/changes/board-doctor-keeps-fresh-tasks/design.md": "8ff1a9e76f9b396cc0499b00540e1fee1f31b8df",
-      "openspec/changes/board-doctor-keeps-fresh-tasks/proposal.md": "66e6e680acab907e1e7f87168d4e278a5ef10ada",
-      "openspec/changes/board-doctor-keeps-fresh-tasks/specs/worktree-coordination/spec.md": "eda98fcf3d669fdbcfcec2bedca57552ec5fd4cb",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/design.md": "a0a4b3fc1296ab06564235bae5f9e0ae59d03691",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/proposal.md": "81cf170cfd36c6d0444843a093260d705ef5b5eb",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/specs/worktree-coordination/spec.md": "4784d7d9becb8fe9a4b50f607e6fd5bd8da7c2c3",
       "openspec/changes/board-doctor-keeps-fresh-tasks/tasks.md": "10fff02c698242f4e17c13281a7f722a11b128e1",
-      "template/scripts/agent_board.py": "8598ab0cd322968c932e2b50c92965b0a09306a8",
-      "tests/test_worktree_hygiene.py": "ff9ec1c9d4354d593c7d1746920b42eb828672ed"
+      "template/scripts/agent_board.py": "538b188f0943ae6aa9f722e80b1d1e580525e0c8",
+      "tests/test_worktree_hygiene.py": "fb64cb00db9167ad838d9420faafc563786e5b38"
     },
     "scope": "independent-review-v1",
     "version": 1

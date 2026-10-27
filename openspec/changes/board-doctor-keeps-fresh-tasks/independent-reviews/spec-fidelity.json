@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
     "base_ref": "origin/main",
-    "candidate_head": "a4fd3839c98a270fa37887af5369fb3fee50c019",
-    "diff_sha256": "4057da5535e9e1a0c2cfc68206c238903d96ecaf230d9f6da2996cb881f7ad85"
+    "candidate_head": "c86866c3e850cfa2ffc05a4e18165a33e77a0663",
+    "diff_sha256": "89bb32cf865e94b1c8753b577769f243e302b84567602f3653e628a9cdfcbca4"
   },
-  "completed_at": "2026-10-27T11:08:45+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/agent_board.py `_ancestor_merge_problem` computes `own = base..refs/heads/<branch>` and compares it with `--first-parent base..main`. If the branch is fast-forwarded to main (reconcile does this), `own` contains the second-parent commits of every `--no-ff` merge that landed on main after registration. Those commits are not on main's first-parent line, so `any(commit not in first_parent ...)` is true and the result is `merged-branch`. The design (case 5) and the spec scenario both assume every commit since registration lies on the first-parent line in this case. The test `test_unproven_merges_are_kept_with_named_reasons` only advances main with linear commits, so it does not cover this. The fresh-task data-loss bug is therefore still reachable on repositories that merge PRs with merge commits.",
-      "id": "ff-over-merge-commits-misclassified-merged",
-      "severity": "material",
-      "summary": "A commitless fresh task fast-forwarded to a newer main is classified `merged-branch` and removed whenever main advanced through a merge commit after registration. This contradicts the spec rule that a fast-forwarded commitless task must not be classified merged."
-    }
-  ],
-  "launched_at": "2026-10-27T11:08:29+00:00",
-  "output_sha256": "ac6321e9955e7884198b4895b1b96409721f9a1aaf4624899b0656ef9bb27940",
+  "completed_at": "2026-10-27T12:36:54+00:00",
+  "findings": [],
+  "launched_at": "2026-10-27T12:36:43+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "94bc183f-32b4-431d-9b6e-96da491a139f",
+  "request_id": "395dac62-11de-4257-a1cd-23f17897f068",
   "reviewer": {
-    "context_id": "a6f0952c-812f-42f5-b06b-6a7a36b6a6c4",
+    "context_id": "f1db00a6-87d3-49c5-a32c-d5802eadfde1",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f096b682-7954-4f06-8ce0-ef1d96caccad",
+    "launch_id": "platform-launch-473f532d-c084-4794-9704-2b4ab5336a31",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23561
+        "value": 25804
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11766
+        "value": 36794
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15793
+        "value": 10203
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15887
+        "value": 10344
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1233
+        "value": 895
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "78ebb8afe1fd4deaaa93f895198735d95a1b729654943e6cc10bdecd3e809f6d"
+  "task_content_digest": "f0d8dee4c8d9cfa113c5121e7a5b897c16cfb3c64a1a8b25580e44cb352e1f2d"
 }
