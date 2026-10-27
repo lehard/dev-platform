@@ -65,7 +65,7 @@
     "docs/engineering/model-routing.md": "2ab002beee383c6b76eac230da39334050a772c7a20bb0c0d5ffdabd75363100",
     "docs/engineering/openspec-workflow.md": "c05f9d60471d71407dc6d05ddfd6af88609f2aef425fbab679ed8273ec9421a9",
     "requirements/deepseek-harness.txt": "d7b68735ed008502444b0c9947e6c88e24e3c022d6578bcdf3e1f94f5a00ce0d",
-    "scripts/_platform_common.py": "f985ee9f01b9f5de0dff5528a9099d1f8305886ffd4d2528dce4130d2fa1caf8",
+    "scripts/_platform_common.py": "2eba00dccc2a0b2a2ed30671bcbf9f90ed989a02751318a59b766b685421d6df",
     "scripts/add_intents.py": "89bee5980a5ad09f912d267da8b30f35cf5001d9f750f83e70e3583410e5b2c8",
     "scripts/affected_test_groups.py": "e4ae3bff616d0b83a9771c842d4db0422f5918b9579b8c3a3f8dd42c6766b196",
     "scripts/agent_board.py": "592b5c2c119cf9973d65a39bec302f1e58b58fdfa6dd4413f2b8935e8c022e24",

@@ -6,6 +6,7 @@ import re
 import shutil
 import shlex
 import subprocess
+import sys
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -230,6 +231,21 @@ def main_root() -> Path:
 
 class PlatformConfigError(RuntimeError):
     """The committed platform contract is missing a required key or declares an unsupported combination."""
+
+
+def _report_platform_config_error(exc_type, exc, tb, _default=sys.excepthook) -> None:
+    """Print an uncaught configuration error as one actionable line instead of a traceback.
+
+    Every platform entry point imports this module, so one hook covers them all; the
+    interpreter still exits non-zero. Any other exception keeps the default report.
+    """
+    if issubclass(exc_type, PlatformConfigError):
+        print(f"platform configuration error: {exc}", file=sys.stderr)
+        return
+    _default(exc_type, exc, tb)
+
+
+sys.excepthook = _report_platform_config_error
 
 
 PLATFORM_CONFIG_FILE = ".dev-platform.toml"

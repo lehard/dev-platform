@@ -153,6 +153,18 @@ class PlatformConfigSchemaTests(unittest.TestCase):
             self.assertLessEqual(set(fields), sections[section], section)
         self.assertLessEqual(set(_platform_common.PLATFORM_CONFIG_OPTIONAL_DEFAULTS["paths"]), sections["paths"])
 
+    def test_entry_point_reports_a_configuration_error_in_one_line(self) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        write_platform_config(self.root, omit=("main_branch",))
+        result = subprocess.run(
+            [sys.executable, str(SCRIPTS / "select_checks.py")], cwd=self.root, capture_output=True, text=True, check=False
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+        self.assertIn("platform configuration error:", result.stderr)
+        self.assertIn("missing required key main_branch", result.stderr)
+
     def test_fixture_text_is_complete(self) -> None:
         import tomllib
 
