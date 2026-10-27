@@ -15,6 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from _platform_modules import load_platform_module  # noqa: E402
+from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
@@ -561,9 +562,10 @@ class GuardedDelegationTests(unittest.TestCase):
         default disposition be restored by the guard before we return."""
 
         def _run() -> None:
-            for _ in range(500):
-                if marker.exists():
-                    break
+            # Signal once the child is live; at the bounded deadline signal anyway so a
+            # child that never became live fails the test's readiness assertions.
+            deadline = time.monotonic() + process_deadline_seconds()
+            while not marker.exists() and time.monotonic() < deadline:
                 time.sleep(0.01)
             os.kill(os.getpid(), signum)
 
@@ -727,10 +729,9 @@ class GuardedDelegationTests(unittest.TestCase):
 
         thread = threading.Thread(target=launch_first)
         thread.start()
-        for _ in range(100):
-            if started.exists():
-                break
-            threading.Event().wait(0.01)
+        deadline = time.monotonic() + process_deadline_seconds()
+        while not started.exists() and thread.is_alive() and time.monotonic() < deadline:
+            time.sleep(0.01)
         self.assertTrue(started.exists(), "first writer never reached its assigned worktree")
         with self.assertRaisesRegex(guard.WriterOwnershipError, "refusing a second write-capable launch"):
             guard.run_observed_delegation(
@@ -741,7 +742,7 @@ class GuardedDelegationTests(unittest.TestCase):
             )
         self.assertFalse(release.exists())
         release.write_text("release", encoding="utf-8")
-        thread.join(timeout=5)
+        thread.join(timeout=process_deadline_seconds())
         self.assertFalse(thread.is_alive())
         self.assertEqual(len(completed), 1)
 

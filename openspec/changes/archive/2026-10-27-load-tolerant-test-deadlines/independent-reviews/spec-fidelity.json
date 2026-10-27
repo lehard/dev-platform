@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a9736731ff58faf03d8744420ea1348dad6845a4",
+    "base_ref": "origin/main",
+    "candidate_head": "b2b2c5182bc34a998279eaa4701257845214711e",
+    "diff_sha256": "4f695a614843f761b65ce73fa6d1b1821be0ee9100958c2f4a14b9489106cae9"
+  },
+  "completed_at": "2026-10-26T23:38:17+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_pr_reconciliation_concurrency.py: threading.Timer(.5, ...) writes the go file, then the holder writes the releasing marker. If the reconciliation step ran without waiting but was delayed past ~0.5 s on a loaded host, `released.exists()` could be True and the test would pass. The spec scenario and design say the proof is the release marker, and design.md says 'Without waiting for the lock the marker is absent'. That holds only on a fast host.",
+      "id": "lock-order-proof-timer-dependent",
+      "severity": "advisory",
+      "summary": "Lock-wait ordering proof still depends on a 0.5 s wall-clock timer, so a non-waiting step that runs late could pass."
+    },
+    {
+      "evidence": "tests/test_independent_review.py: `while True: ... runner.subprocess_launcher(..., launch_timeout); if pid_file.exists() or ...: break; launch_timeout *= 2`. The loop reruns the product launcher until the grandchild has started. design.md describes a single launch followed by a wait. The retry only repeats the setup and each attempt still asserts LaunchTimeout, so it does not obviously hide a defect. It is still an unspecified retry. The grandchild-start wait is also bounded by a launcher timeout rather than by readiness.",
+      "id": "review-kill-test-retry-loop",
+      "severity": "advisory",
+      "summary": "The process-group kill test retries the launch with a doubled timeout, which sits uneasily with the 'no retry SHALL hide a failure' requirement."
+    },
+    {
+      "evidence": "tests/test_git_lifecycle.py: `self.assertGreater(ended - first_at, 1.5, ...)` remains. The proposal calls it the 'load-monotonic' check. It is a minimum elapsed-time assertion and goes beyond the spec's wording of 'not by a minimum or maximum elapsed time'.",
+      "id": "streaming-test-keeps-elapsed-lower-bound",
+      "severity": "advisory",
+      "summary": "The streaming test still asserts an elapsed-time lower bound, while the spec says order of events should be proven by markers and not by minimum or maximum elapsed time."
+    }
+  ],
+  "launched_at": "2026-10-26T23:37:57+00:00",
+  "output_sha256": "854ad6da0d637ca3db1fc09dc15aa6d5a3c9c28ce9adc0925e6714c5f8232166",
+  "perspective": "spec-fidelity",
+  "request_id": "5f7885a3-506e-4a7e-be86-ebd2d4c5b007",
+  "reviewer": {
+    "context_id": "3bed7402-cb7c-4bc2-97b5-cf403366fcb9",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-19896250-bc82-4138-9588-875e03ebd370",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19874
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37203
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19750
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19942
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1701
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "11ee8839e252e9861d6e3599ab6c720fd8cdaa3667f50e94d63d94507521612f"
+}

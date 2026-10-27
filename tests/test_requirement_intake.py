@@ -28,6 +28,7 @@ TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
 # here can leave template/scripts shadowed behind it depending on discovery
 # order.
 sys.path.insert(0, str(TEMPLATE_SCRIPTS))
+from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 import managed_project_status  # noqa: E402
 import managed_task  # noqa: E402
@@ -1436,7 +1437,7 @@ class StableIdentityRegressionTests(unittest.TestCase):
         def fetch(root, repository, number):
             if threading.current_thread().name.startswith("recovery") and not recovery_freshness.is_set():
                 recovery_freshness.set()
-                if not release_recovery.wait(5):
+                if not release_recovery.wait(process_deadline_seconds()):
                     raise AssertionError("recovery release was not signaled")
             if threading.current_thread().name.startswith("link"):
                 link_fetched.set()
@@ -1448,9 +1449,9 @@ class StableIdentityRegressionTests(unittest.TestCase):
               ThreadPoolExecutor(max_workers=1, thread_name_prefix="link") as link_pool):
             recovery = recovery_pool.submit(ri.reconcile_requirement_identity, self.root, self.parent, initial)
             try:
-                self.assertTrue(recovery_freshness.wait(5))
+                self.assertTrue(recovery_freshness.wait(process_deadline_seconds()))
                 link = link_pool.submit(self.link, 10)
-                self.assertTrue(link_attempted_lock.wait(5))
+                self.assertTrue(link_attempted_lock.wait(process_deadline_seconds()))
                 self.assertFalse(link_fetched.is_set(), "link must wait before reading/writing Issues")
             finally:
                 release_recovery.set()

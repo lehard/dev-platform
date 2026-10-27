@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/platform-ci/spec.md"
+  ],
+  "change": "load-tolerant-test-deadlines",
+  "imported_at": "2026-10-26T22:52:59+00:00",
+  "package_revision": "9feb204bcb02481452873b4f59bf283689d82f42af739abf86283e70595bc847",
+  "prepared_against": "a9736731ff58faf03d8744420ea1348dad6845a4",
+  "private_lineage_handle": "pln_18f34f8ef374256a8ff18cb863b37692",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "ae59e401b71bd952659a9f8ee182e702412d478f0b372df412974bdbb62eed41",
+    "updated_at": "2026-10-26T22:48:31Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-812/T1"
+}

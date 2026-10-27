@@ -10,6 +10,7 @@ import textwrap
 import unittest
 from pathlib import Path
 from _platform_modules import load_platform_module  # noqa: E402
+from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
@@ -217,7 +218,7 @@ class DeepSeekHarnessHandleTests(unittest.TestCase):
                 capability_override=available_capability(),
                 worker_command=(sys.executable, "-c", worker),
             )
-            result = handle.wait(timeout_seconds=5)
+            result = handle.wait(timeout_seconds=process_deadline_seconds())
         self.assertEqual(result["terminal"]["status"], "completed")
         self.assertEqual(result["result"]["text"], "bounded result")
 
@@ -234,7 +235,7 @@ class DeepSeekHarnessHandleTests(unittest.TestCase):
                 prompt="fail",
                 capability_override=available_capability(),
                 worker_command=(sys.executable, "-c", worker),
-            ).wait(timeout_seconds=5)
+            ).wait(timeout_seconds=process_deadline_seconds())
         self.assertEqual(result["terminal"]["status"], "failed")
         self.assertEqual(result["terminal"]["reason"], "invalid-worker-output")
         self.assertIn("runtime failed", result["diagnostic"])
