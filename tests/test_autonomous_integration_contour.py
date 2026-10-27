@@ -26,6 +26,8 @@ gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
 contour = load_platform_module("integration_contour", SCRIPTS / "integration_contour.py")
 friction = load_platform_module("agent_friction", SCRIPTS / "agent_friction.py")
 retrospective = load_platform_module("requirement_retrospective", SCRIPTS / "requirement_retrospective.py")
+composition_module = load_platform_module("requirement_composition", SCRIPTS / "requirement_composition.py")
+contributions_module = load_platform_module("requirement_contributions", SCRIPTS / "requirement_contributions.py")
 
 from test_pr_review_gate import IDENTITY, PROVIDER, ROUTE, QueueFixture, git  # noqa: E402
 from test_post_review_finalization import Remote, RemoteFixture  # noqa: E402
@@ -177,6 +179,185 @@ class IntegrationScenarioTests(unittest.TestCase):
             merged = multi.candidate(8)
             self.assertEqual(merged["state"], "merged")
             self.assertEqual(workers.build_job(merged)["kind"], "retrospective")
+
+
+MANIFEST_GENERATOR = """\
+import json, pathlib, sys
+tree = pathlib.Path(sys.argv[1])
+names = sorted(path.stem for path in (tree / "entries").glob("*.txt"))
+target = tree / "template/dev-platform/platform-manifest.json"
+target.parent.mkdir(parents=True, exist_ok=True)
+target.write_text(json.dumps({"entries": names}, indent=2) + "\\n")
+"""
+
+
+class ComposeGeneratedManifestConflictTests(unittest.TestCase):
+    """A Requirement composition conflicting with main only in the declared platform manifest merges unattended."""
+
+    MANIFEST = "template/dev-platform/platform-manifest.json"
+    BRANCH = "requirement/BR-7"
+    NUMBER = 11
+
+    def setUp(self):
+        from test_requirement_contribution_composition import Repository
+
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        tmp = Path(self.tmp.name)
+        manifest_path = self.MANIFEST
+
+        class ManifestRepository(Repository):
+            # Main declares the platform manifest generated from the start; each child archives a delta
+            # spec and the first child also adds a manifest entry, as finalized children leave them.
+            def commit(self, message):
+                root = self.root
+                if message == "base":
+                    (root / "dev-platform/checks.toml").write_text(
+                        f'[settings]\nfull_commands = ["python3 gen.py --check"]\n'
+                        f'[[generated_files]]\npath = "{manifest_path}"\n'
+                        'regenerate = ["python3", "gen.py", "{tree}"]\ncheck = ["python3", "gen.py", "--check"]\n')
+                    (root / "gen.py").write_text(MANIFEST_GENERATOR)
+                    (root / "entries").mkdir()
+                    (root / "entries/base.txt").write_text("base\n")
+                    subprocess.run(["python3", "gen.py", str(root)], cwd=root, check=True)
+                if message in {"first", "second"}:
+                    delta = root / "openspec/changes" / message / "specs" / f"cap-{message}/spec.md"
+                    delta.parent.mkdir(parents=True)
+                    delta.write_text(f"## ADDED Requirements\n\n### Requirement: {message}\n")
+                if message == "first":
+                    (root / "entries/first.txt").write_text("first\n")
+                    subprocess.run(["python3", "gen.py", str(root)], cwd=root, check=True)
+                return super().commit(message)
+
+        source = tmp / "source"
+        source.mkdir()
+        fixture = ManifestRepository(source)
+        first, second = fixture.child("first", 8), fixture.child("second", 9)
+        fixture.integrate(first), fixture.integrate(second)
+        for name in fixture.manifest["expected_changes"]:
+            archived = source / "openspec/changes/archive" / f"2026-10-27-{name}"
+            archived.parent.mkdir(parents=True, exist_ok=True)
+            (source / "openspec/changes" / name).rename(archived)
+            spec = source / "openspec/specs" / f"cap-{name}/spec.md"
+            spec.parent.mkdir(parents=True)
+            spec.write_text(f"### Requirement: {name}\n")
+        self.head = fixture.commit("archive children")
+        self.composition = composition_module.composition_identity(source, fixture.manifest)
+        self.base = fixture.base
+        # Main moves on after admission: a neighbouring manifest entry, nothing else in common.
+        git(source, "switch", "-q", "main")
+        (source / "entries/main.txt").write_text("main\n")
+        subprocess.run(["python3", "gen.py", str(source)], cwd=source, check=True)
+        self.main = fixture.commit("main adds an entry")
+        self.remote = tmp / "remote.git"
+        git(tmp, "clone", "-q", "--bare", str(source), str(self.remote))
+        # The queue's trusted default-branch checkout: declaration and generator come from main.
+        self.trusted = tmp / "trusted"
+        git(tmp, "clone", "-q", str(self.remote), str(self.trusted))
+        self.comments, self.merged, self.gh_calls = [], False, []
+        self.task_paths = set(git(source, "diff", "--name-only", f"{self.base}...{self.head}").splitlines())
+
+    def remote_head(self):
+        return git(self.remote, "rev-parse", f"refs/heads/{self.BRANCH}")
+
+    def pr(self, _root, _repo, number):
+        return {"number": number, "state": "closed" if self.merged else "open", "merged": self.merged,
+                "head": {"sha": self.remote_head(), "ref": self.BRANCH}, "base": {"ref": "main"}, "labels": []}
+
+    def gh(self, _root, *args, data=None, **kwargs):
+        self.gh_calls.append(args)
+        path = next(arg for arg in args if arg.startswith("repos/"))
+        if path.endswith("/comments"):
+            self.comments.append({"id": len(self.comments) + 1, "author_association": "OWNER", "body": data["body"]})
+        elif "/compare/" in path:
+            return {"files": [{"filename": name} for name in sorted(self.task_paths)]}
+        elif not path.endswith("/labels"):
+            raise AssertionError(f"unexpected GitHub call: {args}")
+        return {}
+
+    def run_commands(self, original):
+        def run(command, **kwargs):
+            if command[:2] != ["gh", "api"]:
+                return original(command, **kwargs)
+            self.gh_calls.append(tuple(command))
+            if command[2:4] == ["-X", "PUT"] and command[4] == f"repos/o/r/pulls/{self.NUMBER}/merge":
+                self.assertIn(f"sha={self.remote_head()}", command)
+                self.merged = True
+            return subprocess.CompletedProcess(command, 0, "", "")
+        return run
+
+    def test_composition_conflicting_only_in_the_platform_manifest_merges_without_an_operator(self):
+        trusted = self.trusted
+        self.assertEqual(queue.merge_conflicts(trusted, self.head, self.main), [self.MANIFEST])
+        final = sys.modules["post_review_finalization"]
+        real_prepare = final.prepare_derived_specs
+
+        replayed = []
+
+        def replay(checkout, archive_dir):
+            # Deterministic stand-in for `openspec archive`: main never touched these capabilities.
+            name = archive_dir.rsplit("/", 1)[-1].split("-", 3)[-1]
+            replayed.append(name)
+            git(checkout, "checkout", "HEAD", "--", f"openspec/specs/cap-{name}/spec.md")
+
+        def prepare_locally(*args, **kwargs):
+            return real_prepare(*args, source_repo=self.remote.as_uri(), replay=replay, validate=lambda checkout: None,
+                                **kwargs)
+
+        admission = {"head": self.head, "base": self.base, "branch": self.BRANCH, "comment_id": 0}
+        with ExitStack() as stack:
+            enter = stack.enter_context
+            enter(mock.patch.object(queue, "_pr", side_effect=self.pr))
+            enter(mock.patch.object(queue, "_comments", side_effect=lambda *a: list(self.comments)))
+            enter(mock.patch.object(queue, "_gh", side_effect=self.gh))
+            enter(mock.patch.object(queue, "_repo", return_value="o/r"))
+            enter(mock.patch.object(queue, "trusted_apps", return_value=frozenset()))
+            enter(mock.patch.object(queue, "trusted_writers", return_value=frozenset()))
+            enter(mock.patch.object(queue, "_project_lifecycle_label"))
+            enter(mock.patch.object(queue, "_queued", return_value=[(1, self.NUMBER, admission)]))
+            # Each boundary below has its own coverage; this scenario proves the integration path between them.
+            enter(mock.patch.object(queue, "_require_finalized"))
+            composition_gates = enter(mock.patch.object(queue, "require_composition_finalized"))
+            refreshed = enter(mock.patch.object(queue, "refresh_composition_checks"))
+            enter(mock.patch.object(queue, "required_check_state_for_ref",
+                                    return_value=SimpleNamespace(kind="passed", detail="validate")))
+            derived = enter(mock.patch.object(final, "prepare_derived_specs", side_effect=prepare_locally))
+            enter(mock.patch.object(queue.subprocess, "run", side_effect=self.run_commands(subprocess.run)))
+            queue._transition(trusted, "o/r", self.NUMBER, "ready", self.head, task_identity=self.composition,
+                              inherit_identity=False)
+            result = queue.worker(trusted)
+            candidate = queue._derive(trusted, self.pr(trusted, "o/r", self.NUMBER), self.comments)
+
+        merged = self.remote_head()
+        self.assertEqual(result, {"state": "merged", "number": self.NUMBER, "head": merged})
+        self.assertEqual(candidate["state"], "merged")
+        derived.assert_called_once()
+        self.assertEqual(replayed, ["first", "second"])  # the composition derivation, in manifest child order
+        refreshed.assert_called_once_with(trusted, "o/r", self.NUMBER, merged)
+        composition_gates.assert_any_call(trusted, "o/r", self.NUMBER, merged)
+        # One coordinator merge of the admitted head and main, fast-forwarded onto the branch.
+        self.assertEqual(git(self.remote, "rev-list", "--parents", "-n", "1", merged).split()[1:], [self.head, self.main])
+        self.assertEqual(json.loads(git(self.remote, "show", f"{merged}:{self.MANIFEST}")),
+                         {"entries": ["base", "first", "main"]})
+        self.assertEqual(git(self.remote, "diff", "--name-only", self.head, merged).splitlines(),
+                         ["entries/main.txt", self.MANIFEST])
+        # The composition's reviewed content is unchanged by the derived merge.
+        with tempfile.TemporaryDirectory() as checkout:
+            git(Path(checkout), "clone", "-q", str(self.remote), "after")
+            after = Path(checkout) / "after"
+            git(after, "checkout", "-q", merged)
+            manifest = contributions_module.read_manifest(after, self.composition["requirement"])
+            self.assertTrue(final.equivalent_proofs(after, self.composition["task_content"],
+                                                    composition_module.composition_identity(after, manifest)["task_content"]))
+        # No writer, no repair or integration-merge job, no operator escalation, no GitHub branch update.
+        self.assertEqual(candidate["next_job"]["kind"], "retrospective")
+        self.assertEqual(candidate.get("attempts", {}).get("integration-repair", 0), 0)
+        self.assertFalse(any(str(row["body"]).startswith(queue.ATTENTION_PREFIX) for row in self.comments))
+        self.assertFalse(any("update-branch" in " ".join(call) for call in self.gh_calls))
+        updates = [json.loads(row["body"][len(queue.PREFIX):]) for row in self.comments
+                   if row["body"].startswith(queue.PREFIX)]
+        self.assertEqual([(u["kind"], u["previous"], u["head"], u["base"]) for u in updates if u["kind"] == "update"],
+                         [("update", self.head, merged, self.main)])
 
 
 class IntegrationRepairBoundTests(unittest.TestCase):
