@@ -1,0 +1,74 @@
+{
+  "candidate": {
+    "base_head": "ba38c81490d6d705fbd3b644cabfeda7d7c8aea1",
+    "base_ref": "origin/main",
+    "candidate_head": "fd01baf6ee8ef41c5e9af4425d0f59ddd96e2dc3",
+    "diff_sha256": "9623020e11291786ec4459be0aeddcf374cc7df17c2384c02931ab3c960d8b10"
+  },
+  "change": "openspec/changes/worktree-cleanup-truthful-failure",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/worktree-cleanup-truthful-failure/automated-checks.json",
+    "openspec/changes/worktree-cleanup-truthful-failure/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/design.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/proposal.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/specs/worktree-coordination/spec.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/worktree-cleanup-truthful-failure/proposal.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/design.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/tasks.md",
+        "openspec/changes/worktree-cleanup-truthful-failure/specs/worktree-coordination/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T02:07:13+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/worktree-cleanup-truthful-failure/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "0c54ac2d-5994-45da-b83d-ed65b5bd7f1a",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6c77b68081adb0d77b10305365d93ef342455c4b",
+    "digest": "94019b6bc1a6af00d1134a64a863fd56d0908566a1f0b3289ec940e0a6a6b11c",
+    "paths": {
+      "openspec/changes/worktree-cleanup-truthful-failure/.managed-task.json": "b0f6616ec00ef610c21f1355be26a0c2a4dcced7",
+      "openspec/changes/worktree-cleanup-truthful-failure/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/worktree-cleanup-truthful-failure/design.md": "94a0d1436577d6b94d489a3f8391279fb7ff6640",
+      "openspec/changes/worktree-cleanup-truthful-failure/proposal.md": "a45544de9f721e5e6f0a66ccc5fe15568ca00850",
+      "openspec/changes/worktree-cleanup-truthful-failure/specs/worktree-coordination/spec.md": "27dfad311898ecc92d1912d7af771a1091fae54f",
+      "openspec/changes/worktree-cleanup-truthful-failure/tasks.md": "d09a07906d1edf231e1b4ac7821204af31fd7b7b",
+      "template/scripts/worktree_cleanup.py": "27be6d12133eeb69a7a75312d45e2cff04fffcdf",
+      "tests/test_worktree_hygiene.py": "4aef2269c5087fad4e246995bd015cd1497f5d07"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

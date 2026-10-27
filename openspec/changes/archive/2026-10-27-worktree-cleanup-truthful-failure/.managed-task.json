@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/worktree-coordination/spec.md",
+    "tasks.md"
+  ],
+  "change": "worktree-cleanup-truthful-failure",
+  "imported_at": "2026-10-27T01:43:57+00:00",
+  "package_revision": "69420013ab23fdd361a790250f050b6fb41becf5bbfe6936b8c6d2d3c9d9c06b",
+  "prepared_against": "6c77b68081adb0d77b10305365d93ef342455c4b",
+  "private_lineage_handle": "pln_8edc1a2cda0001f33e235957ddd4c88a",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "477510a4df823e27876a619231cc7567bdea1e994ede66cc1dfb9c400ca9d9ff",
+    "updated_at": "2026-10-27T01:39:28Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-771/T1"
+}

@@ -394,6 +394,7 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
             blocked = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
         self.assertTrue(worktree.exists())
         self.assertIn({"path": str(worktree.resolve()), "error": "active-process"}, blocked["errors"])
+        self.assertEqual(blocked["status"], "failed")  # recorded errors never read as success (BR-771)
 
         with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=set()):
             recovered = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target)
@@ -437,6 +438,29 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
             repeated = worktree_cleanup.cleanup(self.root, older_than_days=7, target=first_target)
         self.assertEqual(repeated["status"], "already-cleaned")
         self.assertTrue(replacement.exists())
+
+    def test_cleanup_command_exits_non_zero_on_any_error_or_refusal(self) -> None:
+        cases = [
+            (["cleanup", "--worktree", "/w", "--branch", "agent/x", "--head", "a" * 40],
+             {"status": "failed", "scope": "target", "errors": [{"path": "/w", "error": "active-process"}]}, 1),
+            (["cleanup", "--all", "--apply"], {"status": "completed-with-errors", "scope": "all", "removed": ["/a"],
+                                               "errors": [{"path": "/b", "error": "dirty"}]}, 1),
+            (["cleanup", "--all"], {"status": "refused", "scope": "all", "errors": []}, 1),
+            (["cleanup", "--worktree", "/w", "--branch", "agent/x", "--head", "a" * 40],
+             {"status": "refused", "scope": "target", "errors": [{"path": "/w", "error": "not-deferred"}]}, 1),
+            (["cleanup", "--worktree", "/w", "--branch", "agent/x", "--head", "a" * 40],
+             {"status": "completed", "scope": "target", "removed": ["/w"], "errors": []}, 0),
+            (["cleanup", "--worktree", "/w", "--branch", "agent/x", "--head", "a" * 40],
+             {"status": "already-cleaned", "scope": "target", "removed": [], "errors": []}, 0),
+            (["cleanup", "--all", "--apply"], {"status": "completed", "scope": "all", "removed": ["/a"], "errors": []}, 0),
+        ]
+        for argv, payload, code in cases:
+            with self.subTest(status=payload["status"], scope=payload["scope"]), \
+                    mock.patch.object(worktree_cleanup, "main_root", return_value=self.root), \
+                    mock.patch.object(worktree_cleanup, "cleanup", return_value=payload), \
+                    mock.patch.object(sys, "argv", ["worktree_cleanup.py", *argv]), \
+                    mock.patch("sys.stdout", new=StringIO()):
+                self.assertEqual(worktree_cleanup.main(), code)
 
     def test_live_target_that_was_never_deferred_is_refused_not_already_cleaned(self) -> None:
         worktree = self._merged_task("never-deferred")
