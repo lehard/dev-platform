@@ -1,0 +1,72 @@
+{
+  "candidate": {
+    "base_head": "addc5ad7867aa061345eca206fb054672b9493e8",
+    "base_ref": "origin/main",
+    "candidate_head": "0f36b035c7070183f9e9b89ea415893341f2f635",
+    "diff_sha256": "3e3f49f058ca806d63d231a1bd786655bf9557f965a1b2e404e9408abbdb9d36"
+  },
+  "change": "openspec/changes/compose-generated-conflict-e2e",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/compose-generated-conflict-e2e/automated-checks.json",
+    "openspec/changes/compose-generated-conflict-e2e/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/compose-generated-conflict-e2e/design.md",
+        "openspec/changes/compose-generated-conflict-e2e/proposal.md",
+        "openspec/changes/compose-generated-conflict-e2e/specs/publication-queue/spec.md",
+        "openspec/changes/compose-generated-conflict-e2e/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/compose-generated-conflict-e2e/proposal.md",
+        "openspec/changes/compose-generated-conflict-e2e/design.md",
+        "openspec/changes/compose-generated-conflict-e2e/tasks.md",
+        "openspec/changes/compose-generated-conflict-e2e/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T09:50:51+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/compose-generated-conflict-e2e/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "66b3c6e4-0ee2-48e1-960e-facee62ae2ed",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "addc5ad7867aa061345eca206fb054672b9493e8",
+    "digest": "cc54103638dc4cad6c35ffaf2c1aa5b440b193b7976ace572e16605e670759f3",
+    "paths": {
+      "openspec/changes/compose-generated-conflict-e2e/.managed-task.json": "93314502b697ba1a4cffe971ae83e852850e1638",
+      "openspec/changes/compose-generated-conflict-e2e/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/compose-generated-conflict-e2e/design.md": "ef2a217a75230812447da27014b96859a03cb98b",
+      "openspec/changes/compose-generated-conflict-e2e/proposal.md": "abbeebda6effe9751a30fcab134548a3189bb6f7",
+      "openspec/changes/compose-generated-conflict-e2e/specs/publication-queue/spec.md": "f743e223d232a8098a7a4aa65d77e03204bc796f",
+      "openspec/changes/compose-generated-conflict-e2e/tasks.md": "799fd741df9dedc8621cccd6fc9c83bdd870f0f2",
+      "tests/test_autonomous_integration_contour.py": "42735264b99688cfd5c61e889f4849fec0fed26e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

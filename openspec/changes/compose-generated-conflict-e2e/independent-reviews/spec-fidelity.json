@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "addc5ad7867aa061345eca206fb054672b9493e8",
+    "base_ref": "origin/main",
+    "candidate_head": "0f36b035c7070183f9e9b89ea415893341f2f635",
+    "diff_sha256": "3e3f49f058ca806d63d231a1bd786655bf9557f965a1b2e404e9408abbdb9d36"
+  },
+  "completed_at": "2026-10-27T09:51:11+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_autonomous_integration_contour.py:321-322 asserts next_job kind == 'retrospective' and attempts['integration-repair'] == 0. It never checks that no integration-merge job was published or attempted. The test does check the final state is merged, so the gap is small.",
+      "id": "no-integration-merge-job-not-asserted",
+      "severity": "advisory",
+      "summary": "The new scenario says no integration-repair or integration-merge job is published. The test checks this only indirectly, so the integration-merge half of the claim is not directly verified."
+    }
+  ],
+  "launched_at": "2026-10-27T09:50:55+00:00",
+  "output_sha256": "93da82a364224f74e76e9beb9fa095256d43c1a0787fa1abf51999bf4d088301",
+  "perspective": "spec-fidelity",
+  "request_id": "66b3c6e4-0ee2-48e1-960e-facee62ae2ed",
+  "reviewer": {
+    "context_id": "600111d8-531c-40b1-9b48-cc81e10118b2",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0fa78e1f-251e-4c9b-b9d3-3dfbecffb034",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24567
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35840
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15167
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15263
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1021
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "cc54103638dc4cad6c35ffaf2c1aa5b440b193b7976ace572e16605e670759f3"
+}

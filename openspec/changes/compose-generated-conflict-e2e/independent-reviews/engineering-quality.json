@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "addc5ad7867aa061345eca206fb054672b9493e8",
+    "base_ref": "origin/main",
+    "candidate_head": "0f36b035c7070183f9e9b89ea415893341f2f635",
+    "diff_sha256": "3e3f49f058ca806d63d231a1bd786655bf9557f965a1b2e404e9408abbdb9d36"
+  },
+  "completed_at": "2026-10-27T09:51:20+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_autonomous_integration_contour.py replay(): `git(checkout, \"checkout\", \"HEAD\", \"--\", f\"openspec/specs/cap-{name}/spec.md\")`. The design documents this as intentional, with CLI replay covered by RederivationTests.",
+      "id": "replay-stand-in-is-noop",
+      "severity": "advisory",
+      "summary": "The archived-delta replay stand-in only restores the already-committed spec file, so the test cannot detect a regression in how the composition branch replays deltas or in what it does with the results. It asserts only the call order."
+    },
+    {
+      "evidence": "tests/test_autonomous_integration_contour.py: `if message == \"base\":`, `if message in {\"first\", \"second\"}:`, `if message == \"first\":` inside ManifestRepository.commit.",
+      "id": "fixture-commit-override-by-message",
+      "severity": "advisory",
+      "summary": "ManifestRepository overrides `commit()` and branches on literal message strings (\"base\", \"first\", \"second\"). This couples the test to the internal commit-message conventions of the other test module's Repository helper, so a change there would silently break or neutralise the fixture."
+    }
+  ],
+  "launched_at": "2026-10-27T09:51:11+00:00",
+  "output_sha256": "7b67ed5a138c938020e4064fd7148e20d938b52e58db1a7902e01bc45c578fbd",
+  "perspective": "engineering-quality",
+  "request_id": "66b3c6e4-0ee2-48e1-960e-facee62ae2ed",
+  "reviewer": {
+    "context_id": "091074de-702a-4b79-8d95-a74b4bba1f90",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ed09b96d-d84b-4601-be56-3f6f832bee58",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17251
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38077
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9095
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9185
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 800
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "cc54103638dc4cad6c35ffaf2c1aa5b440b193b7976ace572e16605e670759f3"
+}
