@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "b568964d2db831bd432479125e33b93bf2cb34f0",
+    "base_ref": "origin/main",
+    "candidate_head": "e5ad4a05f8c3173e81f9dde574f3ae61d050b239",
+    "diff_sha256": "c87f9a98360d02ec50d99872e35d9e3a3f08420ba4ff073b30fbc61c1350a04d"
+  },
+  "completed_at": "2026-10-27T00:56:54+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py:101-110 raises \"PR was published, but releasing board claim ... failed\". The caller at finish_task.py:1193 runs after integrate_and_publish_direct, so the wording is wrong there. The spec scenario only requires naming the claim and the rerun command, so the message could be made neutral.",
+      "id": "release-failure-message-says-pr",
+      "severity": "advisory",
+      "summary": "The shared board-release failure message always says \"PR was published\", but finish_board is now also called on the direct-publication path, where no PR exists."
+    },
+    {
+      "evidence": "tests/test_finish_explicit_fallbacks.py:49-53 uses assertIn/assertNotIn on the file contents. This does not exercise the spec scenario \"Scope-conflict helper missing -> import fails naming the module\". A formatting change could break the test while behavior stays correct, and a reintroduced stub under another form would pass it.",
+      "id": "select-checks-import-test-is-textual",
+      "severity": "advisory",
+      "summary": "The select_checks regression test only inspects the source text. It never imports the module or checks that a missing helper makes the import fail."
+    }
+  ],
+  "launched_at": "2026-10-27T00:56:42+00:00",
+  "output_sha256": "4cb0328e025da02f79fd790b89461d2e71f038200f769ca82d95f29eff8d375c",
+  "perspective": "engineering-quality",
+  "request_id": "10389877-71f2-46b8-a6c2-b25ae3237ef4",
+  "reviewer": {
+    "context_id": "ad38eba5-73d2-4c6c-a68e-3bcb0d60c626",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8b2e5148-6c4d-43c6-b95e-aa51c0e9910e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16537
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54551
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10752
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10865
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1055
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f367aeb8b952e1e1cc076346b538b8afc4c7842ce89e90322c1268004d6ec638"
+}
