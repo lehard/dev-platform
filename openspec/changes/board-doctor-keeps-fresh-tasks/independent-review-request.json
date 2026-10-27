@@ -1,0 +1,74 @@
+{
+  "candidate": {
+    "base_head": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+    "base_ref": "origin/main",
+    "candidate_head": "a4fd3839c98a270fa37887af5369fb3fee50c019",
+    "diff_sha256": "4057da5535e9e1a0c2cfc68206c238903d96ecaf230d9f6da2996cb881f7ad85"
+  },
+  "change": "openspec/changes/board-doctor-keeps-fresh-tasks",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/board-doctor-keeps-fresh-tasks/automated-checks.json",
+    "openspec/changes/board-doctor-keeps-fresh-tasks/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/design.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/proposal.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/specs/worktree-coordination/spec.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/board-doctor-keeps-fresh-tasks/proposal.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/design.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/tasks.md",
+        "openspec/changes/board-doctor-keeps-fresh-tasks/specs/worktree-coordination/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T11:08:23+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/board-doctor-keeps-fresh-tasks/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "94bc183f-32b4-431d-9b6e-96da491a139f",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+    "digest": "78ebb8afe1fd4deaaa93f895198735d95a1b729654943e6cc10bdecd3e809f6d",
+    "paths": {
+      "openspec/changes/board-doctor-keeps-fresh-tasks/.managed-task.json": "e00813c9499a016adceb91785e77bd937395ba74",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/design.md": "8ff1a9e76f9b396cc0499b00540e1fee1f31b8df",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/proposal.md": "66e6e680acab907e1e7f87168d4e278a5ef10ada",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/specs/worktree-coordination/spec.md": "eda98fcf3d669fdbcfcec2bedca57552ec5fd4cb",
+      "openspec/changes/board-doctor-keeps-fresh-tasks/tasks.md": "10fff02c698242f4e17c13281a7f722a11b128e1",
+      "template/scripts/agent_board.py": "8598ab0cd322968c932e2b50c92965b0a09306a8",
+      "tests/test_worktree_hygiene.py": "ff9ec1c9d4354d593c7d1746920b42eb828672ed"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+    "base_ref": "origin/main",
+    "candidate_head": "a4fd3839c98a270fa37887af5369fb3fee50c019",
+    "diff_sha256": "4057da5535e9e1a0c2cfc68206c238903d96ecaf230d9f6da2996cb881f7ad85"
+  },
+  "completed_at": "2026-10-27T11:09:23+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_board.py `_ancestor_merge_problem` returns unproven-merge-no-own-commits / unproven-merge-no-base. These problems are non-terminal, so `_safe_to_remove` is false and `doctor --fix` never removes them. The design accepts this trade-off, but the entries stay until someone removes them by other means, so board noise grows.",
+      "id": "ff-merged-entries-accumulate-without-pr-proof",
+      "severity": "advisory",
+      "summary": "A task merged by fast-forward whose merge can't be proven (gh unavailable, or legacy entries with no base_head) is now kept forever as an unproven-merge-* diagnostic. Nothing in this change lets an operator clear such entries."
+    }
+  ],
+  "launched_at": "2026-10-27T11:08:45+00:00",
+  "output_sha256": "8df31b27346036e1cec4d6da054ab87e5b85c04eccb6a975265591b75cad948b",
+  "perspective": "engineering-quality",
+  "request_id": "94bc183f-32b4-431d-9b6e-96da491a139f",
+  "reviewer": {
+    "context_id": "d1199e90-2710-4f2b-90f5-817f6b57c173",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-64bdd7fb-20a3-4b95-b0de-d0b610cddd48",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23193
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 90719
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37721
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37876
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1858
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "78ebb8afe1fd4deaaa93f895198735d95a1b729654943e6cc10bdecd3e809f6d"
+}
