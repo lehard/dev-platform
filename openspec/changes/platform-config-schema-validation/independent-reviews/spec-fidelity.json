@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_ref": "origin/main",
+    "candidate_head": "0439ae92d9d24864990cd3cc62eef1d049619d66",
+    "diff_sha256": "dafb0c0f6d78ad94cb1610bee6f5a030c8e1a86b4aa78d264266fe42ad509122"
+  },
+  "completed_at": "2026-10-27T19:14:18+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py `_config_type_error` formats `expected.__name__`, so `protected_main = \"yes\"` yields \"protected_main must be a bool, found 'yes'; fix the protected_main line\". The key and file are named and the meaning is clear. Literal wording differs from the spec scenario (\"boolean\").",
+      "id": "wrong-type-diagnostic-says-bool-not-boolean",
+      "severity": "advisory",
+      "summary": "The wrong-type diagnostic names the Python type (`bool`/`int`) rather than the TOML type the spec scenario describes (\"expected boolean type\")."
+    }
+  ],
+  "launched_at": "2026-10-27T19:14:02+00:00",
+  "output_sha256": "83fe809e9e7be3023fc639ef37551e9c93f1788faf05850f8c4fc85fb3c2a6e6",
+  "perspective": "spec-fidelity",
+  "request_id": "616e029e-a068-45e7-be8e-0f78b899d1b6",
+  "reviewer": {
+    "context_id": "877d4a5f-e7c3-457a-a6ec-692ea004065c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c247582c-0d08-4510-83be-b7603a497d79",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27277
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 120707
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15500
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15680
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2118
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ed348ed9b816a4ecce94483b59158908a8f55ec6e05ca59c7dac8225a77da40a"
+}

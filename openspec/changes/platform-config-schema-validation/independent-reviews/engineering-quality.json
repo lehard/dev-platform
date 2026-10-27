@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_ref": "origin/main",
+    "candidate_head": "0439ae92d9d24864990cd3cc62eef1d049619d66",
+    "diff_sha256": "dafb0c0f6d78ad94cb1610bee6f5a030c8e1a86b4aa78d264266fe42ad509122"
+  },
+  "completed_at": "2026-10-27T19:14:45+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff, template/scripts/agent_friction.py hunk @@ -1411: `main = read_platform_config(root)[\"main_branch\"]` sits inside `try: ... except Exception: main = \"main\"`. A missing file or key is therefore silently replaced by \"main\". The spec says scripts SHALL NOT supply per-call-site defaults for required keys.",
+      "id": "friction-changed-paths-main-fallback",
+      "severity": "advisory",
+      "summary": "agent_friction.changed_paths still swallows every configuration failure and substitutes a default main branch. The change removed this same pattern from non_task_names, so the fallback is now inconsistent."
+    },
+    {
+      "evidence": "candidate.diff, template/scripts/capability_manager.py: `config = _load_toml(root / \".dev-platform.toml\")` followed by `raw = config[\"agent_tools\"]`. The reader is not used and the one-line diagnostic hook does not apply to a KeyError.",
+      "id": "capability-manager-unvalidated-raw-read",
+      "severity": "advisory",
+      "summary": "capability_manager.configured_providers still loads .dev-platform.toml through its own raw loader. It now indexes `config[\"agent_tools\"]` directly, so a missing key raises a bare KeyError instead of the named PlatformConfigError. The other raw loaders (dev.py, platform_bootstrap, shared_workspace, requirement_integration) were routed through the validated reader."
+    },
+    {
+      "evidence": "candidate.diff, template/scripts/shared_workspace.py hunk @@ -104: the old `if not config_path.is_file(): return False` is replaced by `return _configured(integration)[\"workflow_profile\"] == \"multi-agent\"`, inside the unchanged `except (OSError, SharedWorkspaceError)`. PlatformConfigError subclasses RuntimeError.",
+      "id": "shared-workspace-applicable-config-error-uncaught",
+      "severity": "advisory",
+      "summary": "shared_workspace_applicable now calls the validating reader. Its except clause covers only (OSError, SharedWorkspaceError), so a missing or invalid config now propagates PlatformConfigError out of what was a boolean predicate. Previously it returned False for a missing file. The new behavior may be intended, but it is not called out in the design."
+    }
+  ],
+  "launched_at": "2026-10-27T19:14:18+00:00",
+  "output_sha256": "9bcd6f0e51056232b3e68d0dd4a3defef52c22a5bc92d2457898edddd6f56233",
+  "perspective": "engineering-quality",
+  "request_id": "616e029e-a068-45e7-be8e-0f78b899d1b6",
+  "reviewer": {
+    "context_id": "0c00309c-9d44-49d3-b80e-3b70f0dc1a90",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-33bdda0f-e0ba-48e2-9d4e-9c275c6c7248",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41231
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 75951
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26733
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27093
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2531
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ed348ed9b816a4ecce94483b59158908a8f55ec6e05ca59c7dac8225a77da40a"
+}
