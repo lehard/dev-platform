@@ -7,7 +7,7 @@
 - `agent_board.py start` records the branch head at registration (`base_head`) in the board entry.
 - When a registered branch is an ancestor of `main`, the doctor treats it as merged only with proof:
   - the branch still points at its recorded `base_head`: the task has no own commits; it is active and gets no merge problem;
-  - the branch moved from `base_head` and at least one commit in `base_head..branch` is outside main's first-parent line (the task's own commits were merged through a merge commit): `merged-branch`, as today;
+  - the branch moved on from `base_head` (which stays its ancestor) and its tip is not on main's first-parent line since `base_head` (the tip entered main as a merge parent): `merged-branch`, as today;
   - otherwise an exact merged GitHub PR for the branch: `merged-pr`, as today;
   - otherwise the entry gets a named `unproven-merge-*` problem, is classified degraded and is never removed.
 - `doctor` text and JSON output name the reason for each `unproven-merge-*` problem.

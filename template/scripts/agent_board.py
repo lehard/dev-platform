@@ -39,7 +39,8 @@ UNPROVEN_MERGE_REASONS = {
     "unproven-merge-no-base": "branch is an ancestor of main but the entry records no registration base and no exact merged PR proves the merge",
     "unproven-merge-base-unknown": "branch is an ancestor of main but the recorded registration base is not a commit in this repository",
     "unproven-merge-no-own-commits": (
-        "branch moved from its registration base only along main's first-parent line and no exact merged PR proves the merge"
+        "branch moved from its registration base but its tip lies on main's first-parent line (or off its base) "
+        "and no exact merged PR proves the merge"
     ),
 }
 
@@ -425,6 +426,20 @@ def _branch_head(root: Path, branch: str) -> str:
     return head
 
 
+def _is_ancestor(root: Path, older: str, newer: str) -> bool:
+    """Whether commit ``older`` is an ancestor of ``newer``: exit 0 true, exit 1 false, any other exit raises."""
+    command = ["merge-base", "--is-ancestor", older, newer]
+    result = run_git(command, cwd=root, check=False)
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    raise SystemExit(
+        f"Agent board check blocked: git {' '.join(command)} exited {result.returncode}: "
+        + (result.stderr or result.stdout).strip()[:300]
+    )
+
+
 def _rev_list(root: Path, *args: str) -> list[str]:
     return run_git(["rev-list", *args], cwd=root).stdout.split()
 
@@ -435,8 +450,10 @@ def _ancestor_merge_problem(item: dict, root: Path, branch: str, main_branch: st
     Ancestry alone cannot tell a task created from the main tip without
     commits from a task whose own commits were merged, so the registration
     base decides: a branch still at its base has no own commits and is not
-    merged.  A moved branch is merged only with proof: an own commit outside
-    main's first-parent line, or the exact merged PR.  Anything else is an
+    merged.  A branch that moved on from its base is merged only with proof:
+    its tip lies off main's first-parent line (it entered main as a merge
+    parent), or the exact merged PR.  A fast-forward to a newer main leaves
+    the tip on that line and is never guessed merged.  Anything else is an
     unproven merge that the doctor reports and never removes.
     """
     base = str(item.get("base_head", ""))
@@ -444,12 +461,13 @@ def _ancestor_merge_problem(item: dict, root: Path, branch: str, main_branch: st
         return "merged-pr" if _exact_task_pr_is_merged(root, branch, main_branch) else "unproven-merge-no-base"
     if not _is_commit(root, base):
         return "unproven-merge-base-unknown"
-    if _branch_head(root, branch) == base:
+    head = _branch_head(root, branch)
+    if head == base:
         return None
-    own = _rev_list(root, f"{base}..refs/heads/{branch}")
-    first_parent = set(_rev_list(root, "--first-parent", f"{base}..refs/heads/{main_branch}"))
-    if any(commit not in first_parent for commit in own):
-        return "merged-branch"
+    if _is_ancestor(root, base, head):
+        first_parent = set(_rev_list(root, "--first-parent", f"{base}..refs/heads/{main_branch}"))
+        if head not in first_parent:
+            return "merged-branch"
     return "merged-pr" if _exact_task_pr_is_merged(root, branch, main_branch) else "unproven-merge-no-own-commits"
 
 

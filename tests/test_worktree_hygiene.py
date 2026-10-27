@@ -650,6 +650,20 @@ class AgentBoardDoctorTests(WorktreeHarnessCase):
             self.assertEqual(entries[item_id]["reasons"], {problem: agent_board.UNPROVEN_MERGE_REASONS[problem]})
         self.assertEqual(sorted(self.board_ids(board)), ["legacy-id", "moved-id", "unknown-id"])
 
+    def test_commitless_task_fast_forwarded_over_a_merge_commit_survives_doctor_fix(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        fresh = self.fresh_worktree("fresh")
+        self.start(board, fresh)
+        other = self.add_worktree("other")
+        git(self.root, "merge", "--no-ff", "-m", "merge other", "agent/other")
+        git(fresh, "merge", "--ff-only", "main")
+        code, report = self.doctor_fix(board)
+        self.assertEqual(code, 1)
+        entries = {entry["id"]: entry for entry in report["entries"]}
+        self.assertEqual(entries["fresh-id"]["problems"], ["unproven-merge-no-own-commits"])
+        self.assertIn("fresh-id", self.board_ids(board))
+        self.assertTrue(fresh.exists() and other.exists())
+
     def test_exact_merged_pr_proves_a_fast_forwarded_branch(self) -> None:
         board = self.root / ".claude" / "agents-board.json"
         task = self.fresh_worktree("task")
