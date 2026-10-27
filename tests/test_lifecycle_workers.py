@@ -15,6 +15,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 from _platform_modules import load_platform_module  # noqa: E402
+from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 
 def setUpModule() -> None:
@@ -46,6 +47,28 @@ def handoff_comment(head=HEAD, state="review-pending", route=None):
         route=route)
     return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
 
+
+
+# A background child records its pid atomically, then sleeps far longer than any test before its late write.
+LATE_CHILD = ("import os,sys,time; open(sys.argv[2]+'.tmp','w').write(str(os.getpid())); "
+              "os.replace(sys.argv[2]+'.tmp',sys.argv[2]); time.sleep(600); open(sys.argv[1],'w').write('x')")
+
+
+def assert_processes_gone(case: unittest.TestCase, pid_files: list[Path]) -> None:
+    """Each recorded child must disappear within the bounded test deadline; a survivor is killed and named."""
+    for pid_file in pid_files:
+        case.assertTrue(pid_file.exists(), f"background child never recorded its pid in {pid_file}")
+        pid = int(pid_file.read_text(encoding="utf-8"))
+        deadline = time.monotonic() + process_deadline_seconds()
+        while True:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                break
+            if time.monotonic() >= deadline:
+                os.kill(pid, 9)
+                case.fail(f"background child {pid} outlived its process group")
+            time.sleep(0.05)
 
 class ClaimTests(unittest.TestCase):
     def test_race_exactly_one_wins(self):
@@ -594,18 +617,21 @@ class EnvironmentTests(unittest.TestCase):
     def test_run_in_session_kills_the_whole_group_after_the_leader_exits(self):
         with tempfile.TemporaryDirectory() as tmp:
             marker, held = Path(tmp) / "late", Path(tmp) / "held"
-            sleeper = "import sys,time; time.sleep(1.5); open(sys.argv[1],'w').write('x')"
-            # one background child with closed pipes, one that keeps stdout open: neither outlives the leader
-            leader = ("import subprocess,sys; s=sys.argv[1]; "
-                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[2]],stdin=subprocess.DEVNULL,"
+            pids = [Path(tmp) / "late.pid", Path(tmp) / "held.pid"]
+            # one background child with closed pipes, one that keeps stdout open: neither outlives the leader,
+            # which exits only once both children are live
+            leader = ("import os,subprocess,sys,time; s=sys.argv[1]; "
+                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[2],sys.argv[4]],stdin=subprocess.DEVNULL,"
                       "stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL); "
-                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[3]]); print('led')")
-            started = time.monotonic()
-            done = workers.run_in_session([sys.executable, "-c", leader, sleeper, str(marker), str(held)],
-                                          capture_output=True, text=True, stdin=subprocess.DEVNULL)
+                      "subprocess.Popen([sys.executable,'-c',s,sys.argv[3],sys.argv[5]]); "
+                      "[time.sleep(.01) for _ in iter(lambda: not all(map(os.path.exists, sys.argv[4:6])), False)]; "
+                      "print('led')")
+            # the stdout holder sleeps 600 s: had it kept run_in_session waiting, the bounded timeout would raise
+            done = workers.run_in_session([sys.executable, "-c", leader, LATE_CHILD, str(marker), str(held), *map(str, pids)],
+                                          capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                                          timeout=process_deadline_seconds())
             self.assertEqual((done.returncode, done.stdout), (0, "led\n"))
-            self.assertLess(time.monotonic() - started, 1.4)  # the pipe holder did not keep it waiting
-            time.sleep(2.5)
+            assert_processes_gone(self, pids)
             self.assertFalse(marker.exists())
             self.assertFalse(held.exists())
 
@@ -929,7 +955,7 @@ class PublishJobRouteTests(unittest.TestCase):
 
 
 FAKE_LLM = r"""
-import os, subprocess, sys
+import os, subprocess, sys, time
 mode = os.environ.get("FAKE_MODE", "commit")
 if mode == "fail":
     sys.stdout.write("OUT-" + "o" * 5000 + "-TAIL")
@@ -968,8 +994,13 @@ elif mode == "gitlink":
 elif mode == "sleeper":  # leaves a same-group background process that would tamper later
     open(os.environ["PROMPT_SEEN"], "w").write(os.environ["TMPDIR"])
     open("src/a.py", "w").write("fixed")
-    subprocess.Popen([sys.executable, "-c", "import sys,time; time.sleep(1.5); open(sys.argv[1],'w').write('x')",
-                      os.environ["HOOK_MARK"]], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    late = ("import os,sys,time; open(sys.argv[2]+'.tmp','w').write(str(os.getpid())); "
+            "os.replace(sys.argv[2]+'.tmp',sys.argv[2]); time.sleep(600); open(sys.argv[1],'w').write('x')")
+    pid_file = os.environ["HOOK_MARK"] + ".pid"
+    subprocess.Popen([sys.executable, "-c", late, os.environ["HOOK_MARK"], pid_file],
+                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    while not os.path.exists(pid_file):  # exit only once the background child is live
+        time.sleep(0.01)
 elif mode == "many-outside":
     for index in range(1500):
         os.makedirs("docs", exist_ok=True)
@@ -1232,7 +1263,7 @@ class ExecuteJobTests(unittest.TestCase):
         self.assertEqual(tmp, self.work.resolve() / "llm-tmp")
         for clone in ("writer-stage", "harness", "llm-checkout"):
             self.assertNotIn(tmp, (self.work.resolve() / clone).parents)
-        time.sleep(2.5)
+        assert_processes_gone(self, [Path(str(self.mark) + ".pid")])
         self.assertFalse(self.mark.exists())
 
     def test_many_refused_paths_name_the_first_with_a_count_and_the_posted_outcome_is_bounded(self):

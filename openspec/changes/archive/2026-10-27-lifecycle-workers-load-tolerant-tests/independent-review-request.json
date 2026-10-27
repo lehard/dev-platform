@@ -1,0 +1,72 @@
+{
+  "candidate": {
+    "base_head": "814adf116885f66741a9459c57a7e0b58de36807",
+    "base_ref": "origin/main",
+    "candidate_head": "782b73750d2189cc9ae7ac33ec669abe8106dd92",
+    "diff_sha256": "61f84a6be9f0a3d7a0b87d29852ad2dc1c4bdf22e0836fea1d372d82e0cd9586"
+  },
+  "change": "openspec/changes/lifecycle-workers-load-tolerant-tests",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/lifecycle-workers-load-tolerant-tests/automated-checks.json",
+    "openspec/changes/lifecycle-workers-load-tolerant-tests/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/design.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/proposal.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/specs/platform-ci/spec.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/proposal.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/design.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/tasks.md",
+        "openspec/changes/lifecycle-workers-load-tolerant-tests/specs/platform-ci/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T02:39:50+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/lifecycle-workers-load-tolerant-tests/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "474530a6-6bb3-4238-aaef-173ff9b493f5",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ba38c81490d6d705fbd3b644cabfeda7d7c8aea1",
+    "digest": "9779d79dc281a94d1aedcb2d3000a29aacceb623e53fba9b6bd4ccee8e20849f",
+    "paths": {
+      "openspec/changes/lifecycle-workers-load-tolerant-tests/.managed-task.json": "cbf82cb4394b9ed80e2e473adaf24e73a6efd833",
+      "openspec/changes/lifecycle-workers-load-tolerant-tests/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/lifecycle-workers-load-tolerant-tests/design.md": "7aef16d9dc1daed0000d7326b012ff75f75e0ac1",
+      "openspec/changes/lifecycle-workers-load-tolerant-tests/proposal.md": "d30b2938bebc92f4f56704799b39efedaa221260",
+      "openspec/changes/lifecycle-workers-load-tolerant-tests/specs/platform-ci/spec.md": "22ef14d971c74f50dbf2dbe647602d1fbaa21fce",
+      "openspec/changes/lifecycle-workers-load-tolerant-tests/tasks.md": "09085fef91d32beefbe99c989650b43d0c2d178b",
+      "tests/test_lifecycle_workers.py": "206d4857ef83c3eb01e2736fa798644e691dc259"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

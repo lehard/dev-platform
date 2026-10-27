@@ -381,6 +381,11 @@ A platform test SHALL NOT pass or fail on how fast the host schedules processes.
 - **WHEN** a test asserts that a step waited for a lock held by a helper
 - **THEN** the proof is that the helper's release marker exists when the serialized step runs, not an elapsed-time bound
 
+#### Scenario: Killed process group is observed
+
+- **WHEN** a test asserts that a process-group kill reached background children
+- **THEN** each child recorded its pid before the kill and the test checks those processes are gone within the bounded deadline, instead of racing a short child sleep or bounding the elapsed time
+
 #### Scenario: Genuine hang
 
 - **WHEN** a helper never reaches the event the test waits for
