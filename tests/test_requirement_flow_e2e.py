@@ -7,6 +7,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from contextlib import ExitStack
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -48,6 +49,19 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
     def _run_with_linked(self, linked: dict[str, str], ready: list[tuple[Path, object] | None], *, publish: bool = False):
         source_config = {"platform_version": "source", "harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github",
                          "paths": {"worktrees": ".claude/worktrees"}}
+        # The collaborators that only need replacing go on an ExitStack: Python 3.11 allows at most 20
+        # statically nested blocks, and every context manager of one with statement is one of them.
+        with ExitStack() as stubs:
+            for target, name in ((execution.requirement_target_lifecycle, "require_local_target_support"),
+                                 (execution.requirement_board, "reconcile_nonterminal"),
+                                 (execution.requirement_integration, "compose_candidate"),
+                                 (execution.requirement_retrospective, "require_checkpoint"),
+                                 (execution, "_require_no_merged_composition")):
+                stubs.enter_context(mock.patch.object(target, name))
+            stubs.enter_context(mock.patch.object(requirement_contributions, "in_flight_children", return_value={}))
+            return self._advance_with(linked, ready, publish, source_config)
+
+    def _advance_with(self, linked, ready, publish, source_config):
         with mock.patch.object(_platform_common, "read_platform_config", return_value=source_config), \
                 mock.patch.object(execution, "_contribution_publication_supported", return_value=publish), \
                 mock.patch.object(execution, "current_worktree_root", return_value=self.root), \
@@ -55,23 +69,17 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
                     "labels": [{"name": "type:requirement"}],
                     "body": "## Outcome\n\nChange billing\n\n## Target repository\n\n`acme/billing`\n",
                 }), \
-                mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
                 mock.patch.object(execution, "_linked_children_by_change", return_value=linked), \
                 mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), \
                 mock.patch.object(execution, "_ready_receipt", side_effect=ready), \
-                mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), \
                 mock.patch.object(execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=self.root / "child"), "head", False)), \
                 mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}) as assemble, \
-                mock.patch.object(execution.requirement_integration, "compose_candidate"), \
                 mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "merged-and-reconciled"}), \
-                mock.patch.object(execution.requirement_retrospective, "require_checkpoint"), \
                 mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/billing"), \
                 mock.patch.object(requirement_contributions, "ensure_integration_branch", return_value={
                     "branch": "requirement/BR-7", "head": "a" * 40,
                     "manifest": {"children": []},
                 }), \
-                mock.patch.object(requirement_contributions, "in_flight_children", return_value={}), \
-                mock.patch.object(execution, "_require_no_merged_composition"), \
                 mock.patch.object(requirement_composition, "publish_composition", return_value={"status": "draft-published"}), \
                 mock.patch.object(requirement_terminal, "reconcile_parent", return_value={"status": "done"}) as terminal, \
                 mock.patch.object(execution.subprocess, "run") as run:
