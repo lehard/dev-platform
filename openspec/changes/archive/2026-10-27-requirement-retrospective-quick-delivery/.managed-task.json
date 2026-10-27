@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/agent-workflow/spec.md"
+  ],
+  "change": "requirement-retrospective-quick-delivery",
+  "imported_at": "2026-10-27T01:14:05+00:00",
+  "package_revision": "9d79f447cdbed80640d851da01743bb9669c8172a32be2ebbe2f4332845f334e",
+  "prepared_against": "b568964d2db831bd432479125e33b93bf2cb34f0",
+  "private_lineage_handle": "pln_bf3f7041c921e1688435e50d30ebe513",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "7dbc21a02b46d7df1bf46ed33adb80c3829d7c2530dab0500282b52961069a25",
+    "updated_at": "2026-10-27T01:09:21Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-779/T1"
+}

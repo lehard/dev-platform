@@ -46,6 +46,57 @@ class RequirementRetrospectiveTests(unittest.TestCase):
             self.assertEqual(receipt["event_ids"], ["early", "cross"])
             self.assertEqual(receipt["children"], ["acme/backlog#8", "acme/backlog#9"])
 
+    def _quick(self, root: Path, states: dict[str, str], quick_prs: list[str]) -> dict:
+        def run(command, cwd, env=None):
+            ref = f"{command[command.index('--repo') + 1]}#{command[3]}"
+            return mock.Mock(stdout=states[ref] + "\n")
+
+        with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent(())), \
+                mock.patch.object(retrospective.agent_friction, "read_events", return_value=[]), \
+                mock.patch.object(retrospective, "github_cli_env", return_value={}), \
+                mock.patch.object(retrospective.requirement_intake, "run", side_effect=run):
+            return retrospective.checkpoint(root, requirement=REQUIREMENT, result="none", event_ids=[],
+                                            review_note="Reviewed intake and the quick PRs.", quick_prs=quick_prs)
+
+    def test_requirement_without_children_records_its_merged_quick_prs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            result = self._quick(root, {"acme/project#11": "MERGED", "acme/project#10": "MERGED"},
+                                 ["acme/project#11", "acme/project#10"])
+            self.assertEqual(result["status"], "recorded")
+            with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent(())), \
+                    mock.patch.object(retrospective.agent_friction, "read_events", return_value=[]):
+                receipt = retrospective.require_checkpoint(root, requirement=REQUIREMENT)
+            self.assertEqual(receipt["children"], [])
+            self.assertEqual(receipt["quick_prs"], ["acme/project#10", "acme/project#11"])
+
+    def test_requirement_without_children_or_quick_prs_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "--quick-pr owner/repo#N"):
+                self._quick(root, {}, [])
+            self.assertFalse((root / ".claude/requirement-retrospective/requirement-7.json").exists())
+
+    def test_unmerged_quick_pr_stops_and_records_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "quick PR acme/project#12 is OPEN, not merged"):
+                self._quick(root, {"acme/project#12": "OPEN"}, ["acme/project#12"])
+            self.assertFalse((root / ".claude/requirement-retrospective/requirement-7.json").exists())
+
+    def test_childless_receipt_without_quick_prs_is_not_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._quick(root, {"acme/project#10": "MERGED"}, ["acme/project#10"])
+            path = root / ".claude/requirement-retrospective/requirement-7.json"
+            receipt = json.loads(path.read_text())
+            del receipt["quick_prs"]
+            path.write_text(json.dumps(receipt))
+            with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent(())), \
+                    mock.patch.object(retrospective.agent_friction, "read_events", return_value=[]):
+                with self.assertRaisesRegex(retrospective.RequirementRetrospectiveError, "no linked managed children"):
+                    retrospective.require_checkpoint(root, requirement=REQUIREMENT)
+
     def test_clean_result_is_short_and_stales_when_parent_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

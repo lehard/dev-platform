@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c77b68081adb0d77b10305365d93ef342455c4b",
+    "base_ref": "origin/main",
+    "candidate_head": "338e4af4810e139a1722c45d1d78d4f779f00e5a",
+    "diff_sha256": "ccef48c91562693556f48b33588068dba4a73462590cdbb4db81f78d4e402383"
+  },
+  "completed_at": "2026-10-27T01:36:41+00:00",
+  "findings": [
+    {
+      "evidence": "design.md line 4 says: \"validated on read (non-empty, unique `owner/repo#N` strings when the child set is empty)\". template/scripts/requirement_retrospective.py (the added block in `require_checkpoint`) checks only `isinstance(ref, str) and ref` plus uniqueness. A hand-edited receipt with `quick_prs: [\"x\"]` and no children would pass. The design text also says validation applies only when the child set is empty, but the code applies it to every receipt. Either the code or the design text should be aligned.",
+      "id": "quick-pr-format-not-validated-on-read",
+      "severity": "advisory",
+      "summary": "design.md says `quick_prs` is validated on read as non-empty, unique `owner/repo#N` strings. `require_checkpoint` only checks for non-empty, unique strings, so the format is never checked on read."
+    }
+  ],
+  "launched_at": "2026-10-27T01:36:30+00:00",
+  "output_sha256": "0e09d4f1e8b66d3baa21eb2142d8768f3ee916ea669619d8edf8f1b4c7fe1aea",
+  "perspective": "spec-fidelity",
+  "request_id": "6b2cae7f-ab13-4892-bee7-23b840a6108e",
+  "reviewer": {
+    "context_id": "aaf44657-ed85-44aa-9ee8-df389d3e3dd1",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-178eef08-4999-4953-91b8-597f0dde0240",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19543
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15016
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10134
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10304
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 856
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7b75fce7706e02c08bb8221ccf1fd42062d9b2a89134d4aff4df29fc09a33989"
+}
