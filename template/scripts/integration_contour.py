@@ -106,9 +106,54 @@ def default_friction_sink(root: Path):
 
 def integration_brief(candidate: dict, conflicts: list[str]) -> dict:
     red = candidate.get("red_gate") or {}
+    evidence = red.get("evidence")
     return {"state": candidate.get("state"), "head": candidate.get("head"),
             "attempts": candidate.get("attempts"), "red_gate": red.get("name"),
-            "evidence": str(red.get("evidence"))[:800], "conflicts": conflicts[:20]}
+            "evidence": str(evidence.get("detail") if isinstance(evidence, dict) else evidence)[:800],
+            "conflicts": conflicts[:20]}
+
+
+# The sandboxed writer cannot read GitHub, so a red required check reaches it only as a log excerpt.
+FAILED_LOG_LINES = 80
+FAILED_LOG_CHARS = 6000
+ACTIONS_JOB_LINK = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/actions/runs/(\d+)/job/(\d+)")
+
+
+def read_failed_log(repo: str, run: str, job: str) -> str:
+    """The failed-step log of one Actions job, read with the operator's ``gh``; an unreadable log raises."""
+    done = subprocess.run(["gh", "run", "view", run, "--job", job, "--log-failed", "-R", repo],
+                          capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
+    if done.returncode:
+        raise workers.WorkerError(f"integration-repair brief refused: the failed log of Actions job {job} is "
+                                  "unreadable: " + (done.stderr or done.stdout).strip()[-300:])
+    return done.stdout
+
+
+def failed_check_evidence(red: dict, read_log: Callable[[str, str, str], str] = read_failed_log) -> list[dict]:
+    """Each failed required check of a ``required-checks`` red gate with a bounded excerpt of its failed log.
+
+    Refuses, naming the cause, when the red gate records no failed check, a check has no Actions job
+    link, or its failed log is empty: a writer never starts without the evidence it has to fix.
+    """
+    evidence = red.get("evidence")
+    checks = evidence.get("failed_checks") if isinstance(evidence, dict) else None
+    if not isinstance(checks, list) or not checks:
+        raise workers.WorkerError("integration-repair brief refused: the required-checks red gate records no failed "
+                                  "check identity; a developer fix re-admission is the supported path")
+    briefed = []
+    for check in checks:
+        name = check.get("name") if isinstance(check, dict) else None
+        link = str(check.get("link") or "") if isinstance(check, dict) else ""
+        match = ACTIONS_JOB_LINK.fullmatch(link)
+        if not name or match is None:
+            raise workers.WorkerError(f"integration-repair brief refused: failed check {name or check!r} has no "
+                                      f"GitHub Actions job link to read its log from: {link or 'none'}")
+        lines = read_log(*match.groups()).strip().splitlines()
+        if not lines:
+            raise workers.WorkerError(f"integration-repair brief refused: the failed log of check {name} is empty")
+        briefed.append({"name": name, "workflow": check.get("workflow"), "state": check.get("state"), "link": link,
+                        "log_excerpt": "\n".join(lines[-FAILED_LOG_LINES:])[-FAILED_LOG_CHARS:]})
+    return briefed
 
 
 def validate_integration_result(repo: Path, head: str, result: str, main_sha: str, allowed_paths) -> list[str]:
@@ -184,7 +229,8 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
         if not command:
             raise workers.WorkerError("integration repair needs a configured writer command")
         prompt = ("Repair this candidate's integration with current main. Resolve every merge conflict keeping "
-                  "both sides' intent, fix the failing integration check if one is named, and leave the result "
+                  "both sides' intent, fix the failing integration check if one is named (its failed log is in "
+                  "failed_checks[].log_excerpt), and leave the result "
                   "in the working tree (do not rely on commits; only file content is taken). Do not edit workflow or lifecycle evidence files. Brief: "
                   + json.dumps({**brief, "conflicts": conflicted or brief.get("conflicts", [])}, sort_keys=True))
         done = (launch or workers.run_llm)([*command, prompt], checkout, tmp=workers.writer_tmp(root), env=env, runner=runner,
@@ -261,10 +307,13 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
                                    branch: str, allowed_paths, llm_command, current_head, post_result,
                                    workdir: str, worker: str, adapter=queue, runner=None,
                                    provider: str | None = None, claim_current=None, push_env=None, home_files=(), env=None,
-                                   conflicts: list[str] | None = None, launch=None) -> dict:
+                                   conflicts: list[str] | None = None, launch=None,
+                                   read_log: Callable[[str, str, str], str] = read_failed_log) -> dict:
     """Execute and advance one claimed integration-repair or integration-merge job, without the developer.
 
-    An integration merge names no provider and is never given a writer command or launch.
+    An integration merge names no provider and is never given a writer command or launch. A writer
+    repair of a red required check is briefed with each failed check's log excerpt; without that
+    evidence the run raises before any writer starts and spends no repair attempt.
     """
     import subprocess as sp
 
@@ -315,9 +364,12 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
                             attempt=spent + 1)
         return {"status": "failed", "reason": reason}
 
+    brief = integration_brief(observed, conflicts or [])
+    if job["kind"] == "integration-repair" and (observed.get("red_gate") or {}).get("name") == "required-checks":
+        brief["failed_checks"] = failed_check_evidence(observed["red_gate"], read_log)
     try:
         outcome = execute_integration_repair(
-            job, integration_brief(observed, conflicts or []), source_repo=source_repo, branch=branch,
+            job, brief, source_repo=source_repo, branch=branch,
             allowed_paths=allowed_paths, llm_command=llm_command, current_head=current_head, workdir=workdir,
             runner=runner, env=env, push_env=push_env, home_files=home_files, before_push=before_push,
             claim_current=claim_current, launch=launch)

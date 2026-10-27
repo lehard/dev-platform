@@ -243,7 +243,8 @@ class AdmissionTests(unittest.TestCase):
 class LocalStatusTests(unittest.TestCase):
     """finish observes its own PR through local_status before (re-)admission."""
 
-    def observe(self, local_head: str, observed: dict, events: list[dict] | None = None) -> dict | None:
+    def observe(self, local_head: str, observed: dict, events: list[dict] | None = None, *,
+                lineage: dict | None = None, descends: bool = True) -> dict | None:
         import subprocess
         import _platform_common
 
@@ -253,6 +254,9 @@ class LocalStatusTests(unittest.TestCase):
              patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_events", return_value=events if events is not None else [admission(1, 20)]), \
              patch.object(queue, "run_git", return_value=git), \
+             patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_latest", return_value=lineage), \
+             patch.object(queue, "_is_ancestor", return_value=descends) as self.descends, \
              patch.object(queue, "status", return_value=observed):
             return queue.local_status(ROOT_PATH, "agent/1")
 
@@ -265,6 +269,22 @@ class LocalStatusTests(unittest.TestCase):
         # finish, so no update marker exists and finish could never re-admit it.
         observed = self.observe(NEW_HEAD, self.awaiting(NEW_HEAD))
         self.assertEqual((observed["state"], observed["head"]), ("readmission", NEW_HEAD))
+
+    def test_unpushed_fix_on_an_integration_repair_wait_is_observed_for_admission(self) -> None:
+        # Regression: a developer fix of a red integrated check could not be handed off until the
+        # integration-repair rounds ran out; it now re-admits over the unclaimed job.
+        fix = "d" * 40
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        waiting = {"state": "integration-repair-pending", "head": NEW_HEAD}
+        observed = self.observe(fix, plain, [admission(1, 20), update], lineage=waiting)
+        self.descends.assert_called_once_with(ROOT_PATH, NEW_HEAD, fix)
+        self.assertEqual((observed["state"], observed["proven_head"], observed["head"]), ("readmission", NEW_HEAD, fix))
+        for lineage, descends in ((waiting, False), ({**waiting, "state": "repairing"}, True),
+                                  ({**waiting, "head": HEAD}, True), (None, True)):
+            with self.subTest(lineage=lineage, descends=descends), \
+                 self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+                self.observe(fix, plain, [admission(1, 20), update], lineage=lineage, descends=descends)
 
     def test_unproven_local_head_still_raises(self) -> None:
         other = "d" * 40

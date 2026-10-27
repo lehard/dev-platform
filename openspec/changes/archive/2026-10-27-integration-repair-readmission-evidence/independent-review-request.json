@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "53b6e45ae036962cf6ba4764e8bdb64f0dda876a",
+    "base_ref": "origin/main",
+    "candidate_head": "6925120ba499f2b8f89690f6bdaa276c07710794",
+    "diff_sha256": "2f89f6ed2389de0317f8f524e0240d9fa31efb2d5050beaec32c6fa5e7bac3b6"
+  },
+  "change": "openspec/changes/integration-repair-readmission-evidence",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/integration-repair-readmission-evidence/automated-checks.json",
+    "openspec/changes/integration-repair-readmission-evidence/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/integration-repair-readmission-evidence/design.md",
+        "openspec/changes/integration-repair-readmission-evidence/proposal.md",
+        "openspec/changes/integration-repair-readmission-evidence/specs/publication-queue/spec.md",
+        "openspec/changes/integration-repair-readmission-evidence/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/integration-repair-readmission-evidence/proposal.md",
+        "openspec/changes/integration-repair-readmission-evidence/design.md",
+        "openspec/changes/integration-repair-readmission-evidence/tasks.md",
+        "openspec/changes/integration-repair-readmission-evidence/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T14:50:13+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/integration-repair-readmission-evidence/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "22768680-e7bd-4400-9413-06a7cec08531",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+    "digest": "6a56c555a128c47a97f56640250427660aa96ce8fa6368b39f4a0460a47d5334",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "5603921fc8e1f9e0532fdf898275731ea221219d",
+      "openspec/changes/integration-repair-readmission-evidence/.managed-task.json": "ee79241b2c15cc6d79ea94e44b2076d8343ffd63",
+      "openspec/changes/integration-repair-readmission-evidence/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/integration-repair-readmission-evidence/design.md": "2f5d1a718e376d141007df58cd766ed874b17234",
+      "openspec/changes/integration-repair-readmission-evidence/proposal.md": "b306fb06160283b5d30fc82d2aec476992612305",
+      "openspec/changes/integration-repair-readmission-evidence/specs/publication-queue/spec.md": "be95fe83e5a3e06b69bbf442a6df62892b179d0f",
+      "openspec/changes/integration-repair-readmission-evidence/tasks.md": "8329f7e8f2c6773661d501b2d691ea6ae03a407f",
+      "template/scripts/integration_contour.py": "0ea0f14ca98d5612324f0286d4c0c1e0308cda90",
+      "template/scripts/pr_review_gate.py": "1ad19bceb928ce10772e21a035dc5809c71aaa78",
+      "template/scripts/publication_queue.py": "2f45bba721c64b8ea1e6c1545619600fb9224cb8",
+      "tests/test_autonomous_integration_contour.py": "e164ab50264c395ae082b02bc7386ea66ec1e087",
+      "tests/test_pr_review_gate.py": "74ffa48d9376d4419d262bb92d9c850f81b7c36c",
+      "tests/test_publication_queue.py": "15be79241d0af04c5f33a200ad0f7d3180707c5a"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

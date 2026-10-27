@@ -765,6 +765,42 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             # The new head carries no review-pending record on a lost lineage; nothing was recorded for it.
             self.assertNotEqual(fixture.candidate()["state"], "review-pending")
 
+    def integration_repair_pending(self, fixture, stack):
+        """A required check failed on the integrated head: the queue offered an integration-repair job."""
+        self.admitted(fixture, stack)
+        red = {"name": "required-checks", "identity": HEAD,
+               "evidence": {"detail": "required check failed on the integrated candidate: validate",
+                            "failed_checks": [{"name": "validate", "workflow": "Platform CI", "state": "FAILURE",
+                                               "link": "https://github.com/o/r/actions/runs/1/job/2"}]}}
+        queue._transition(ROOT, "o/r", 7, "integration-repair-pending", HEAD, task_identity=IDENTITY,
+                          red_gate=red, set_attempts={"integration-repair": 1})
+        queue.publish_job(ROOT, "o/r", 7, "integration-repair", HEAD, task_identity=IDENTITY, attempt=1)
+        self.assertEqual(workers.build_job(fixture.candidate())["kind"], "integration-repair")
+
+    def test_developer_fix_supersedes_the_unclaimed_integration_repair_job(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.integration_repair_pending(fixture, stack)
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "integration-repair-pending")  # the job offered now is the new review
+
+    def test_developer_fix_of_integration_repair_refuses_a_live_claim_and_an_unrelated_head(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.integration_repair_pending(fixture, stack)
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "writer", "2099-01-01T00:00:00Z", provider=PROVIDER)})
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "integration-repair job is claimed by writer"):
+                self.readmit(fixture)
+            self.assertEqual(len(fixture.comments), count)
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.integration_repair_pending(fixture, stack)
+            self.descends.return_value = False
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "does not descend from the admitted head"):
+                self.readmit(fixture)
+            self.assertEqual(len(fixture.comments), count)
+
     def test_new_developer_head_supersedes_a_repair_pending_admission(self):
         with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
             self.admitted_repair_pending(fixture, stack)
@@ -1137,6 +1173,15 @@ class ArchivedSemanticReadmissionTests(unittest.TestCase):
             with self.assertRaisesRegex(workers.WorkerError, "no admitted PR awaiting a semantic-verification"):
                 gate._archived_handoff_change(self.root, self.change)
 
+    def test_integration_repair_wait_reopens_the_archived_handoff(self):
+        self.reverify()
+        observed = self.awaiting()
+        observed["lineage"] = {**observed["lineage"], "state": "integration-repair-pending",
+                               "red_gate": {"name": "required-checks"}}
+        with self.patched(observed):
+            self.assertTrue(gate.managed_candidate(self.root))
+            self.assertEqual(gate._archived_handoff_change(self.root, self.change), "example")
+
     def test_readmission_of_another_task_is_refused(self):
         self.reverify()
         with self.patched(self.awaiting(change="other")), \
@@ -1170,6 +1215,8 @@ class ArchivedSemanticReadmissionTests(unittest.TestCase):
         self.assertIsNone(run(None, semantic))
         self.assertIsNone(run(observed, {"state": "blocked-retryable", "red_gate": {"name": "review"}}))
         self.assertIsNone(run(observed, {"state": "review-pending", "red_gate": {"name": "semantic-verification"}}))
+        waiting = {"state": "integration-repair-pending", "red_gate": {"name": "required-checks"}}
+        self.assertEqual(run(observed, waiting)["lineage"], waiting)
         self.assertIsNone(run(observed, None))
 
 

@@ -29,13 +29,15 @@ def managed_candidate(root: Path) -> bool:
 
 
 def archived_readmission(root: Path, provenance) -> dict | None:
-    """The queue's semantic-verification re-admission of this archived managed task, or ``None``.
+    """The queue's developer re-admission of this archived managed task, or ``None``.
 
     A coordinator finalize archives the change; content changed afterwards (an
     integration repair, a reconcile) stops the next finalize on the
     ``semantic-verification`` red gate, which only a fresh developer handoff
-    answers. Only this task's own admitted PR in exactly that state reopens the
-    handoff; no other archived change does.
+    answers. A required check that fails on the integrated head leaves the archived
+    task in ``integration-repair-pending``, which a developer fix also answers. Only
+    this task's own admitted PR in one of those states reopens the handoff; no other
+    archived change does.
     """
     import lifecycle_workers as workers
     import publication_queue as queue
@@ -196,7 +198,8 @@ def _archived_handoff_change(root: Path, change: Path) -> str:
     observed = archived_readmission(root, provenance)
     if observed is None:
         raise workers.WorkerError(
-            f"archived change {provenance.change} has no admitted PR awaiting a semantic-verification re-admission")
+            f"archived change {provenance.change} has no admitted PR awaiting a semantic-verification "
+            "or integration-repair re-admission")
     receipt = (change / "verification.md").resolve().relative_to(root.resolve()).as_posix()
     proven = workers._git(root, "ls-tree", observed["proven_head"], "--", receipt).strip()
     current = workers._git(root, "ls-tree", "HEAD", "--", receipt).strip()
