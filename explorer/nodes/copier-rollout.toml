@@ -11,6 +11,7 @@ sources = [
   "docs/managed-rollout.md#Automatic release rollout",
   "docs/managed-rollout.md#Registry",
   "docs/managed-rollout.md#Downstream adoption at task start",
+  "docs/managed-rollout.md#Failed-run alarm",
   "docs/managed-rollout.md#Repeated-failure alerting",
   "docs/managed-rollout.md#Failure handling",
   "docs/release-policy.md#Managed rollout",
@@ -63,6 +64,12 @@ consumer = "команда проекта"
 [[outputs]]
 title = "Диагностика блокировки"
 text = "Если проект заблокирован, остаются аннотация `::error::`, сводка и артефакт `rollout-diagnostic.json`; ветка проекта по умолчанию не меняется."
+role = "gate"
+consumer = "оператор"
+
+[[outputs]]
+title = "Тревога о сбое запуска"
+text = "Если в запуске раскатки упал `plan` или job проекта, job `alarm` открывает или дополняет Issue `Managed rollout failed: vX.Y.Z` с меткой `rollout-alert`: стадия или проект, упавший шаг, текст ошибки и ссылка на запуск."
 role = "gate"
 consumer = "оператор"
 
@@ -129,6 +136,13 @@ tag = "замена"
 role = "mechanism"
 when = "Для проекта уже открыт валидный PR более новой версии, а более старые PR оставлены ботом платформы."
 outcome = "подходящие старые PR от бота закрываются только после появления нового; ветка удаляется после подтверждённого закрытия, а её сбой даёт предупреждение, а не ошибку"
+
+[[path]]
+title = "Запуск раскатки упал"
+tag = "оповещение"
+role = "gate"
+when = "В запуске после выпуска или в ручном запуске упал `plan` или job хотя бы одного проекта."
+outcome = "job `alarm` открывает одну Issue на выпуск с меткой `rollout-alert` или дополняет открытую; если тревогу не удаётся записать, job `alarm` падает с ошибкой"
 
 [[path]]
 title = "Повторные сбои проекта"
