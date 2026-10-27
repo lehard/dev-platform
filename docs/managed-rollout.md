@@ -298,19 +298,29 @@ Inputs:
 
 A `candidate` or `excluded` repository is rejected by ordinary rollout even when manually specified; use **Adopt Project** for first-time onboarding/reclassification.
 
+## Failed-run alarm
+
+Every **Roll Out Platform** run ends with an `alarm` job (`needs: [plan, rollout]`, `if: always()`). It covers a run dispatched by the release workflow and a manual dispatch, for all managed projects or one `repository`. It runs `scripts/rollout_alarm.py` from the workflow's own ref with the default `GITHUB_TOKEN` (`actions: read`, `checks: read`, `issues: write`).
+
+The script reads the current run attempt's jobs. A failed, cancelled, timed-out or unfinished `plan` job or per-project job opens one issue per release, `Managed rollout failed: <tag>`, labeled `rollout-alert`, or comments on the open one. The issue lists each failed stage (`plan`) or target repository with its failed step and the error text from the job's failure annotations (for example `repository '...' not found`), plus the run link, attempt, event, triggering actor and requested scope. A failed job without a failure annotation is listed as such, with its log link. Per-project jobs skipped because `plan` failed are not listed separately.
+
+A fully successful run raises no alarm. If an alarm for that release is open, the run adds a success note for its scope and leaves the issue open: a one-repository retry does not prove that every listed target was delivered. Close the issue once every listed target has its rollout PR or is up to date.
+
+If the alarm cannot be delivered (the run's jobs cannot be read, or the label, issue or comment cannot be written), the `alarm` job fails with an `::error::` naming what failed. It never retries, repairs, pushes or merges anything.
+
 ## Repeated-failure alerting
 
 A single blocked rollout attempt is surfaced per-run: an `::error::` annotation, a step-summary blocker, and a `rollout-diagnostic.json` artifact (see `rollout-diagnostic-<project>-<version>`). None of that persists across runs, so a project that keeps failing the same way on every release looked, from the platform's point of view, identical to a project that failed once — that gap let `example-org/example-service` fail 8 consecutive releases before anyone noticed.
 
 `scripts/rollout_failure_streak.py` closes that gap by keeping a durable, cross-run streak count per managed project:
 
-- on every terminal blocked attempt, it opens or updates a `rollout-failure-streak`-labeled issue on `lehard/dev-platform` (one per actively-failing project), incrementing `consecutive_failures` and recording the latest diagnostic category/reason;
+- on every failed rollout preparation, it opens or updates a `rollout-failure-streak`-labeled issue on `lehard/dev-platform` (one per actively-failing project), incrementing `consecutive_failures` and recording the latest diagnostic category/reason;
 - once `consecutive_failures` reaches **3**, it adds a `rollout-alert` label and emits a distinct `::warning::` annotation naming the project, the streak length, and the tracking issue;
 - the next time that project's rollout preparation succeeds, the tracking issue is closed with a resolution note (it is not deleted, so it remains a searchable history);
 - **Reconcile Stale Managed Rollouts** also observes each managed project's default branch on its daily schedule or during confirmed `apply` mode and closes an open alert when its coherent Copier and `.dev-platform.toml` version records prove recovery at or beyond the issue's last failed release. The scheduled run only plans stale-PR supersession; it never applies it. Unreadable, inconsistent, or stale evidence leaves the alert open and emits a bounded diagnostic.
 - an unreadable or missing prior state escalates rather than silently resetting to zero — ambiguity is never treated as "clean."
 
-This runs with the workflow's own default `GITHUB_TOKEN` (`issues: write`), not the cross-repository App token, because it only writes to `lehard/dev-platform` itself. It is strictly additive and best-effort: a failure inside the tracker is surfaced as a warning but never changes the rollout attempt's own pass/fail result, and never pushes, retries, or merges anything.
+This runs with the workflow's own default `GITHUB_TOKEN` (`issues: write`), not the cross-repository App token, because it only writes to `lehard/dev-platform` itself. Failures before preparation (for example a missing App installation for one target) are not counted in the streak; the failed-run alarm reports them. A failure inside the tracker fails its step with an `::error::` naming what failed: a missing `rollout-diagnostic.json` after failed preparation, a GitHub error, or a missing `ROLLOUT_PROJECT_TOKEN` in reconciliation. It is never downgraded to a warning, and the tracker never pushes, retries, or merges anything. Reconciliation evidence that does not prove recovery is not a failure: the alert stays open.
 
 ## Failure handling
 
