@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "6c77b68081adb0d77b10305365d93ef342455c4b",
+    "base_ref": "origin/main",
+    "candidate_head": "338e4af4810e139a1722c45d1d78d4f779f00e5a",
+    "diff_sha256": "ccef48c91562693556f48b33588068dba4a73462590cdbb4db81f78d4e402383"
+  },
+  "change": "openspec/changes/requirement-retrospective-quick-delivery",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/requirement-retrospective-quick-delivery/automated-checks.json",
+    "openspec/changes/requirement-retrospective-quick-delivery/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/design.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/proposal.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/specs/agent-workflow/spec.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/requirement-retrospective-quick-delivery/proposal.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/design.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/tasks.md",
+        "openspec/changes/requirement-retrospective-quick-delivery/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T01:36:27+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/requirement-retrospective-quick-delivery/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "6b2cae7f-ab13-4892-bee7-23b840a6108e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6c77b68081adb0d77b10305365d93ef342455c4b",
+    "digest": "7b75fce7706e02c08bb8221ccf1fd42062d9b2a89134d4aff4df29fc09a33989",
+    "paths": {
+      "docs/engineering/task-intake.md": "751683e73706a72e5fd19a12bf9da6ae25c958d3",
+      "openspec/changes/requirement-retrospective-quick-delivery/.managed-task.json": "44e885872072580f538fe10e00060340046b93b6",
+      "openspec/changes/requirement-retrospective-quick-delivery/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/requirement-retrospective-quick-delivery/design.md": "70d671bfa76636ea326f3bc5c2455003dcb29e41",
+      "openspec/changes/requirement-retrospective-quick-delivery/proposal.md": "f2953f425aa3ce58932271a9cd90a601a2ac9f02",
+      "openspec/changes/requirement-retrospective-quick-delivery/specs/agent-workflow/spec.md": "38e7c367ec5832f99ae517a24a8ee35cbc210653",
+      "openspec/changes/requirement-retrospective-quick-delivery/tasks.md": "10ba35591a9155b4b4260731a8979e1c9b9328bc",
+      "template/scripts/requirement_retrospective.py": "9d46f265f3fe9ac2a34145bd438fe58c31e77356",
+      "tests/test_requirement_retrospective.py": "5d502e260e283a2caec34bc3ddba127b81350a00"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

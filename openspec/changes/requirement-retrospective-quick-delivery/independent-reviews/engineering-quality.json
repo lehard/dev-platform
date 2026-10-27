@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6c77b68081adb0d77b10305365d93ef342455c4b",
+    "base_ref": "origin/main",
+    "candidate_head": "338e4af4810e139a1722c45d1d78d4f779f00e5a",
+    "diff_sha256": "ccef48c91562693556f48b33588068dba4a73462590cdbb4db81f78d4e402383"
+  },
+  "completed_at": "2026-10-27T01:36:55+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_retrospective.py `_merged_quick_prs` runs `gh pr view ... --json state` and compares the result to \"MERGED\". Any merged PR in any repository passes. There is no check of the target repository, of a `Requirement #N` reference in the PR, or of the merge commit. The receipt stores only the `owner/repo#N` strings. The retrospective's claim that the receipt \"says what was reviewed\" (design.md) therefore rests on operator assertion. This is acceptable if intended, but it should be stated in design.md.",
+      "id": "quick-pr-not-bound-to-requirement",
+      "severity": "advisory",
+      "summary": "Quick PRs are only checked for MERGED state. Nothing ties them to the Requirement, and the receipt records no merge commit or head."
+    }
+  ],
+  "launched_at": "2026-10-27T01:36:41+00:00",
+  "output_sha256": "65f7a8a4ddfb7f53f110d01a7632d5832d8223776a0f461040f184ae15ddf00e",
+  "perspective": "engineering-quality",
+  "request_id": "6b2cae7f-ab13-4892-bee7-23b840a6108e",
+  "reviewer": {
+    "context_id": "97481d89-2c17-42f0-a24a-68e33a3af9e5",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4b85ee88-2408-4f8a-bfcd-a628b0defcca",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21742
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 86497
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13055
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13266
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1115
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7b75fce7706e02c08bb8221ccf1fd42062d9b2a89134d4aff4df29fc09a33989"
+}
