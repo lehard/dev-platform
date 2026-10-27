@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 import _platform_common  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 select_checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
@@ -339,11 +340,7 @@ class SelectChecksTests(unittest.TestCase):
 
 
 
-SOURCE_CONTRACT = (
-    'platform_version = "source"\nmain_branch = "main"\nworkflow_profile = "standard"\n'
-    'harness_mode = "platform"\npublish_mode = "pr"\nscm_provider = "github"\n'
-    '[capabilities]\nagent_board = false\n'
-)
+SOURCE_CONTRACT = platform_config_text(platform_version="source", workflow_profile="standard", capabilities={"agent_board": False})
 
 
 class ProvenBaseContractTests(unittest.TestCase):
@@ -488,7 +485,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         self.git(self.task, "config", "user.email", "disjoint@example.invalid")
         self.git(self.task, "config", "user.name", "Behind Disjoint")
         self.git(self.task, "checkout", "-q", "-b", "main")
-        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT + '[paths]\nchecks = "dev-platform/checks.toml"\n', encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT, encoding="utf-8")
         checks = self.task / "dev-platform/checks.toml"
         checks.parent.mkdir()
         checks.write_text('[settings]\nfull_commands = ["printf ran > validation-ran.txt"]\n', encoding="utf-8")
@@ -637,9 +634,8 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         # With evidence a coordinator candidate takes the handoff branch; without it every head takes the fresh-base branch.
         for arguments in (("--evidence", "evidence.json"), ()):
             with self.subTest(arguments=arguments):
-                code, output = self.select(*arguments, candidate=False)
-                self.assertNotEqual(code, 0, output)
-                self.assertIn("main_branch must be a non-empty string", output)
+                with self.assertRaisesRegex(_platform_common.PlatformConfigError, "missing required key main_branch"):
+                    self.select(*arguments, candidate=False)
                 self.assertFalse((self.task / "validation-ran.txt").exists())
 
     def test_required_scope_gate_without_a_board_stops_validation_before_any_command(self) -> None:
@@ -696,10 +692,9 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         (self.task / ".dev-platform.toml").write_text(
             SOURCE_CONTRACT.replace("agent_board = false", 'agent_board = "no"'), encoding="utf-8")
 
-        code, output = self.select("--evidence", "evidence.json", candidate=False)
+        with self.assertRaisesRegex(_platform_common.PlatformConfigError, "capabilities.agent_board must be a bool"):
+            self.select("--evidence", "evidence.json", candidate=False)
 
-        self.assertNotEqual(code, 0, output)
-        self.assertIn("agent_board must be true or false", output)
         self.assertFalse((self.task / "validation-ran.txt").exists())
 
 

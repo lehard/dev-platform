@@ -11,6 +11,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -28,6 +29,7 @@ class FrictionReviewTests(unittest.TestCase):
         self.state = self.root / ".claude" / "agent-friction-state.json"
         self.reports = self.root / ".claude" / "reports" / "process-improvement"
         self.log.parent.mkdir(parents=True)
+        write_platform_config(self.root)
         agent_friction.main_root = lambda: self.root
         agent_friction.log_path = lambda: self.log
         agent_friction.state_path = lambda: self.state

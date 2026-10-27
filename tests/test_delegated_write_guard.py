@@ -15,6 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -314,13 +315,7 @@ class GuardedDelegationTests(unittest.TestCase):
         scripts_dir.mkdir()
         for name in ("_platform_common.py", "shared_workspace.py", "agent_friction.py"):
             (scripts_dir / name).write_bytes((SCRIPT_ROOT / name).read_bytes())
-        (self.integration / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nharness_mode = "platform"\n\n[paths]\n'
-            'friction_log = ".claude/agent-friction.jsonl"\n'
-            'friction_state = ".claude/agent-friction-state.json"\n'
-            'friction_reports = ".claude/reports/process-improvement"\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.integration)
         git("add", "scripts", ".dev-platform.toml", cwd=self.integration)
         git("commit", "-m", "fixture: friction scaffolding", cwd=self.integration)
 

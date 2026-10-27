@@ -17,6 +17,7 @@ sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import finish_task  # noqa: E402
 import project_publish  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds, wait_for_readiness  # noqa: E402
 
 
@@ -50,6 +51,7 @@ class StructuredRequiredCheckStateTests(unittest.TestCase):
         git("config", "user.name", "Test", cwd=self.root)
         git("config", "user.email", "test@example.invalid", cwd=self.root)
         (self.root / "file.txt").write_text("base\n", encoding="utf-8")
+        write_platform_config(self.root)
         git("add", ".", cwd=self.root)
         git("commit", "-m", "base", cwd=self.root)
         git("switch", "-c", "agent/checks", cwd=self.root)
@@ -125,7 +127,7 @@ class ReconciliationLockTests(unittest.TestCase):
             git("config", "user.name", "Test", cwd=integration)
             git("config", "user.email", "test@example.invalid", cwd=integration)
             (integration / "file.txt").write_text("merged remote state\n", encoding="utf-8")
-            (integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
+            write_platform_config(integration)
             git("add", ".", cwd=integration)
             git("commit", "-m", "merged", cwd=integration)
             git("remote", "add", "origin", str(remote), cwd=integration)

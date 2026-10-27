@@ -8,9 +8,11 @@ import stat
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +35,7 @@ def configure(root: Path) -> None:
 
 
 def validation_configuration(case: unittest.TestCase, root: Path) -> None:
-    (root / '.dev-platform.toml').write_text('[paths]\nworktrees = ".claude/worktrees"\n')
+    write_platform_config(root)
     storage = root / '.claude' / 'worktrees'
     storage.mkdir(parents=True)
     storage.chmod(0o2775)
@@ -408,7 +410,7 @@ with managed_task.exact_target_context(Path(sys.argv[2]), sys.argv[3]) as worktr
         managed_task.cleanup_validation_context(self.root, directory, creating_process=True)
 
     def test_storage_rejects_foreign_ancestor_before_creating_anything(self) -> None:
-        (self.root / '.dev-platform.toml').write_text('[paths]\nworktrees = "foreign-parent/worktrees"\n')
+        write_platform_config(self.root, paths={'worktrees': 'foreign-parent/worktrees'})
         parent = self.root / 'foreign-parent'
         parent.mkdir()
         for leaf_exists in (False, True):

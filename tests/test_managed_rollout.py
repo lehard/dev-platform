@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import managed_projects  # noqa: E402
 import rollout_project  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 
 class ManagedProjectRegistryTests(unittest.TestCase):
@@ -77,7 +78,10 @@ class RolloutProjectTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / ".dev-platform.toml").write_text(
-                'project_name = "example-project"\n\n[development_backlog]\nrepository = "example-org/development-backlog"\n',
+                platform_config_text(
+                    project_name="example-project",
+                    extra='[development_backlog]\nrepository = "example-org/development-backlog"',
+                ),
                 encoding="utf-8",
             )
             (root / "AGENTS.md").write_text(
@@ -99,7 +103,7 @@ class RolloutProjectTests(unittest.TestCase):
     def test_candidate_guidance_is_not_migrated(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / ".dev-platform.toml").write_text("platform_version = '1.0.0'\n", encoding="utf-8")
+            (root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
             agents = root / "AGENTS.md"
             agents.write_text("# Candidate local rules\n", encoding="utf-8")
             self.assertFalse(rollout_project.reconcile_task_intake_reference(root))
@@ -161,7 +165,7 @@ class RolloutProjectTests(unittest.TestCase):
     def test_platform_version_metadata_must_match_copier_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / ".dev-platform.toml").write_text('platform_version = "1.2.1"\n', encoding="utf-8")
+            (root / ".dev-platform.toml").write_text(platform_config_text(platform_version="1.2.1"), encoding="utf-8")
             rollout_project.require_version_coherence(root, "v1.2.1")
             with self.assertRaises(ValueError):
                 rollout_project.require_version_coherence(root, "v1.2.2")

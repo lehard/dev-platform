@@ -15,6 +15,8 @@ MODULE_PATH = SCRIPT_ROOT / "platform_bootstrap.py"
 # template/scripts on sys.path, which made this test order-dependent.
 if str(SCRIPT_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPT_ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 SPEC = importlib.util.spec_from_file_location("template_platform_bootstrap", MODULE_PATH)
 assert SPEC and SPEC.loader
 platform_bootstrap = importlib.util.module_from_spec(SPEC)
@@ -48,7 +50,7 @@ class PlatformBootstrapTests(unittest.TestCase):
     def test_bootstrap_adds_only_selected_generic_operator_configuration(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / ".dev-platform.toml").write_text('schema_version = 2\nplatform_version = "1.0.0"\n', encoding="utf-8")
+            write_platform_config(root)
             (root / ".copier-answers.yml").write_text("operator_integration: true\n", encoding="utf-8")
             platform_bootstrap.sync_operator_integration(root)
             self.assertIn('config_env = "DEV_PLATFORM_OPERATOR_CONFIG"', (root / ".dev-platform.toml").read_text(encoding="utf-8"))
@@ -57,7 +59,7 @@ class PlatformBootstrapTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             config = root / ".dev-platform.toml"
-            original = '[operator]\nenabled = true\nconfig_path = "operator.toml"\n'
+            original = platform_config_text(extra='[operator]\nenabled = true\nconfig_path = "operator.toml"')
             config.write_text(original, encoding="utf-8")
             (root / ".copier-answers.yml").write_text("operator_integration: true\n", encoding="utf-8")
             platform_bootstrap.sync_operator_integration(root)
@@ -67,7 +69,7 @@ class PlatformBootstrapTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             config = root / ".dev-platform.toml"
-            original = "[operator]\nenabled = false\n"
+            original = platform_config_text(extra="[operator]\nenabled = false")
             config.write_text(original, encoding="utf-8")
             (root / ".copier-answers.yml").write_text("operator_integration: true\n", encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, "conflicts"):

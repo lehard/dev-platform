@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 import sys
+import tomllib
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'template/scripts'))
+from _platform_config import platform_config_text  # noqa: E402
 import managed_work_identity as identity
 import managed_task
 import requirement_integration as ri
@@ -180,8 +182,9 @@ class IdentityPublicationTests(unittest.TestCase):
         import _platform_common
         manifest = {'requirement': 'acme/backlog#7', 'children': [{}, {}]}
         head = 'a' * 40
+        (self.root / '.dev-platform.toml').write_text(platform_config_text(platform_version='source'))
         with mock.patch.object(_platform_common, 'main_root', return_value=self.root), \
-             mock.patch.object(_platform_common, 'read_platform_config', return_value={'platform_version': 'source', 'harness_mode': 'platform', 'publish_mode': 'pr', 'scm_provider': 'github'}), \
+             mock.patch.object(_platform_common, 'read_platform_config', return_value=tomllib.loads(platform_config_text(platform_version='source'))), \
              mock.patch.object(ri, '_validate_candidate_checkout', return_value=('agent/shared', head)), \
              mock.patch.object(ri, '_reconcile_exact_merged', return_value=None), \
              mock.patch.object(ri, 'compose_candidate', return_value={'head': head, 'resumed': True}), \
@@ -254,7 +257,7 @@ class IdentityPublicationTests(unittest.TestCase):
         git(self.root, 'commit', '-m', 'synthetic baseline')
         branch = identity.task_branch('change', 'BR-7/T1')
         with mock.patch.object(start_worktree, 'preflight'), \
-             mock.patch.object(start_worktree, 'read_platform_config', return_value={'workflow_profile': 'multi-agent', 'main_branch': 'main'}), \
+             mock.patch.object(start_worktree, 'read_platform_config', return_value=tomllib.loads(platform_config_text())), \
              mock.patch.object(start_worktree, 'machine_path', return_value=self.root / '.claude/worktrees'):
             created = start_worktree.create_worktree(self.root, 'change', 'Synthetic task', sync=False, branch_name=branch)
         self.assertEqual(created.worktree.name, 'change')
@@ -396,6 +399,7 @@ class IdentityPublicationTests(unittest.TestCase):
         git(self.root, 'config', 'user.email', 'test@example.invalid')
         git(self.root, 'config', 'user.name', 'Test')
         (self.root / 'base').write_text('base')
+        (self.root / '.dev-platform.toml').write_text(platform_config_text())
         (self.root / '.gitignore').write_text('.managed-task-state.json\n.claude/\n')
         git(self.root, 'add', '.')
         git(self.root, 'commit', '-m', 'base')

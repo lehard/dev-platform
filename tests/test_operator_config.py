@@ -12,6 +12,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))  # _platform_common imports shared_workspace as a sibling module
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import write_platform_config  # noqa: E402
 MODULE_PATH = ROOT / "template" / "scripts" / "_platform_common.py"
 SPEC = importlib.util.spec_from_file_location("operator_config_common", MODULE_PATH)
 assert SPEC and SPEC.loader
@@ -29,10 +31,7 @@ class OperatorConfigTests(unittest.TestCase):
             root = Path(tmp)
             operator = root / "operator.toml"
             operator.write_text('[promotion]\nrepo = "example/dev-platform"\n', encoding="utf-8")
-            (root / ".dev-platform.toml").write_text(
-                '[operator]\nenabled = true\nconfig_path = "operator.toml"\n\n[paths]\nchecks = "dev-platform/checks.toml"\n',
-                encoding="utf-8",
-            )
+            write_platform_config(root, extra='[operator]\nenabled = true\nconfig_path = "operator.toml"')
             # This fixture exercises the explicit project-local path. It must
             # not inherit an operator's live environment binding from the
             # process that runs the platform suite.
@@ -43,7 +42,7 @@ class OperatorConfigTests(unittest.TestCase):
     def test_portable_project_does_not_require_operator_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            (root / ".dev-platform.toml").write_text('project_slug = "portable"\n', encoding="utf-8")
+            write_platform_config(root, project_slug="portable")
             with mock.patch.dict(os.environ, {}, clear=True):
                 self.assertEqual(platform_common.read_platform_config(root)["project_slug"], "portable")
 
@@ -52,7 +51,7 @@ class OperatorConfigTests(unittest.TestCase):
             root = Path(tmp)
             external = root / "operator.toml"
             external.write_text('[development_backlog]\nrepository = "example/backlog"\n', encoding="utf-8")
-            (root / ".dev-platform.toml").write_text('project_slug = "portable"\n', encoding="utf-8")
+            write_platform_config(root, project_slug="portable")
             with mock.patch.dict(os.environ, {"DEV_PLATFORM_OPERATOR_CONFIG": str(external)}, clear=True):
                 config = platform_common.read_platform_config(root)
                 self.assertNotIn("development_backlog", config)
@@ -62,7 +61,7 @@ class OperatorConfigTests(unittest.TestCase):
             root = Path(tmp)
             external = root / "operator.toml"
             external.write_text('[promotion]\nrepo = "example/dev-platform"\n', encoding="utf-8")
-            (root / ".dev-platform.toml").write_text('[operator]\nenabled = true\n', encoding="utf-8")
+            write_platform_config(root, extra='[operator]\nenabled = true')
             with mock.patch.dict(os.environ, {"DEV_PLATFORM_OPERATOR_CONFIG": str(external)}, clear=True):
                 self.assertEqual(platform_common.read_platform_config(root)["promotion"]["repo"], "example/dev-platform")
 
@@ -80,7 +79,7 @@ class OperatorConfigTests(unittest.TestCase):
             with self.subTest(operator=operator), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)
                 (root / "operator.toml").write_text(operator, encoding="utf-8")
-                (root / ".dev-platform.toml").write_text(project, encoding="utf-8")
+                write_platform_config(root, extra=project)
                 with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(RuntimeError, message):
                     platform_common.read_platform_config(root)
 
@@ -88,13 +87,10 @@ class OperatorConfigTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "operator.toml").write_text('[development_backlog]\nproject_label = "project:self"\n', encoding="utf-8")
-            (root / ".dev-platform.toml").write_text(
-                '[operator]\nenabled = true\nconfig_path = "operator.toml"\n\n[development_backlog]\nproject_label = "project:self"\n',
-                encoding="utf-8",
-            )
+            write_platform_config(root, extra='[operator]\nenabled = true\nconfig_path = "operator.toml"\n\n[development_backlog]\nproject_label = "project:self"')
             with mock.patch.dict(os.environ, {}, clear=True):
                 self.assertEqual(platform_common.read_platform_config(root)["development_backlog"], {"project_label": "project:self"})
-            (root / ".dev-platform.toml").write_text('[operator]\nenabled = true\nconfig_path = "operator.toml"\n', encoding="utf-8")
+            write_platform_config(root, extra='[operator]\nenabled = true\nconfig_path = "operator.toml"')
             with mock.patch.dict(os.environ, {}, clear=True), self.assertRaisesRegex(RuntimeError, "has absent"):
                 platform_common.read_platform_config(root)
 
@@ -108,9 +104,9 @@ class OperatorConfigTests(unittest.TestCase):
                 f'[rollout]\nregistry_path = "{registry}"\n',
                 encoding="utf-8",
             )
-            (root / ".dev-platform.toml").write_text('[operator]\nenabled = true\nconfig_path = "operator.toml"\n', encoding="utf-8")
+            write_platform_config(root, extra='[operator]\nenabled = true\nconfig_path = "operator.toml"')
             self.assertEqual(managed_projects.configured_registry(root=root), registry)
-            (root / ".dev-platform.toml").write_text('[operator]\nenabled = false\nconfig_path = "operator.toml"\n', encoding="utf-8")
+            write_platform_config(root, extra='[operator]\nenabled = false\nconfig_path = "operator.toml"')
             with self.assertRaisesRegex(ValueError, "explicitly enable"):
                 managed_projects.configured_registry(root=root)
 
@@ -121,7 +117,7 @@ class OperatorConfigTests(unittest.TestCase):
                 '[rollout]\nregistry_path = "/secure/registry.json"\n\n[development_backlog]\nproject_label = "project:x"\n',
                 encoding="utf-8",
             )
-            (root / ".dev-platform.toml").write_text('[operator]\nenabled = true\nconfig_path = "operator.toml"\n', encoding="utf-8")
+            write_platform_config(root, extra='[operator]\nenabled = true\nconfig_path = "operator.toml"')
             with self.assertRaisesRegex(ValueError, "must not contain \\[development_backlog\\]"):
                 managed_projects.configured_operator_toml(root=root)
 

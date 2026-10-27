@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import tomllib
 import os
 import subprocess
 import sys
@@ -14,12 +15,13 @@ sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
 import rollout_preflight  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 from publication_state import RequiredCheckState  # noqa: E402
 
 
 BOT = "dev-platform-bot-lehard[bot]"
-CONFIG = {"main_branch": "main", "tools": {"rollout": {"bot_login": BOT}}}
-CONFIG_NO_BOT = {"main_branch": "main"}
+CONFIG_NO_BOT = tomllib.loads(platform_config_text())
+CONFIG = {**CONFIG_NO_BOT, "tools": {"rollout": {"bot_login": BOT}}}
 ROOT_PATH = Path("/tmp/integration")
 ENV: dict[str, str] = {}
 
@@ -216,7 +218,7 @@ class ReconcilePendingRolloutTests(unittest.TestCase):
         merge.assert_not_called()
 
 
-PROJECT_CONFIG = {"main_branch": "main", "harness_mode": "project", "tools": {"rollout": {"bot_login": BOT}}}
+PROJECT_CONFIG = {**CONFIG, "harness_mode": "project"}
 
 
 class HarnessModeGateTests(unittest.TestCase):

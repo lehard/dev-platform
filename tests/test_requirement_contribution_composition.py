@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "template" / "scripts"))
 if str(ROOT / "tests") not in sys.path:
     sys.path.insert(0, str(ROOT / "tests"))
 from _platform_modules import isolate_machine_pool_environment  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 import requirement_contributions as contributions
 import requirement_composition as composition
 import execute_requirement as execution
@@ -47,7 +48,7 @@ def setUpModule() -> None:
         unittest.addModuleCleanup(patcher.stop)
 
 
-PROJECT_CONTRACT = 'platform_version = "1.0.0"\nmain_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n'
+PROJECT_CONTRACT = platform_config_text()
 
 
 class Repository:
@@ -227,6 +228,7 @@ class ContributionTests(unittest.TestCase):
         import os
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as outside:
             root, operator = Path(tmp), Path(outside)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
             (operator / "home" / ".cache" / "uv").mkdir(parents=True)
             (operator / "home" / ".cache" / "uv" / "marker").write_text("cache")
             (operator / "bin").mkdir()
@@ -264,6 +266,7 @@ class ContributionTests(unittest.TestCase):
         import os
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
             observed = []
             def command(*args, **kwargs):
                 env = kwargs["env"]
@@ -301,6 +304,7 @@ class ContributionTests(unittest.TestCase):
         import io
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
             trusted = self.platform_layout(root, "from pathlib import Path\n"
                                            "def configured_registry(*, root):\n    return Path(root) / 'op dir' / 'registry.toml'\n")
             secret = str(trusted / "op dir" / "registry.toml")
@@ -944,7 +948,7 @@ class CompositionTests(unittest.TestCase):
         trusted = root / "trusted"; (trusted / "scripts").mkdir(parents=True)
         (trusted / "scripts/check_private_backlog_refs.py").write_text(
             (Path(__file__).resolve().parents[1] / "scripts/check_private_backlog_refs.py").read_text())
-        (trusted / ".dev-platform.toml").write_text('[development_backlog]\nrepository = "acme/private-backlog"\n')
+        (trusted / ".dev-platform.toml").write_text(platform_config_text(extra='[development_backlog]\nrepository = "acme/private-backlog"'))
         def perspective(path, request, name, **kwargs):
             return reviewer._report(request, name, {
                 "runtime": "test-runtime", "context_id": name, "fresh_context": True, "write_access": False,
@@ -1209,6 +1213,7 @@ class CompositionTests(unittest.TestCase):
 
 class SupervisorTests(unittest.TestCase):
     def advance(self, root, graph, children, in_flight=None):
+        (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
         ordered = []
         for change, deps in graph.items():
             path = root / (change + ".json")
@@ -1254,6 +1259,7 @@ class SupervisorTests(unittest.TestCase):
     def test_advance_contributions_runs_the_check_before_the_branch(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
             path = root / "first.json"
             path.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
             with mock.patch.object(execution, "_require_no_merged_composition",
@@ -1269,6 +1275,7 @@ class SupervisorTests(unittest.TestCase):
     def test_resume_never_reclaims_coordinator_owned_children(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
             for state in ("review-pending", "reviewing", "repair-pending", "repairing", "finalize-pending",
                           "blocked-retryable", "integration-repair-pending", "contribution-integration-pending",
                           "contribution-integrated"):
@@ -1292,6 +1299,7 @@ class SupervisorTests(unittest.TestCase):
     def test_closed_unmerged_contribution_releases_its_change(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
             identity = {"kind": "contribution", "change": "first", "requirement": REQUIREMENT,
                         "target_branch": "requirement/BR-7"}
             latest = {8: {"state": "repair-pending", "head": "b" * 40, "task_identity": identity},

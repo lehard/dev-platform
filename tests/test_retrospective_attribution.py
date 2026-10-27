@@ -13,6 +13,9 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_ROOT))
+sys.path.insert(0, str(ROOT / "tests"))
+
+from _platform_config import write_platform_config  # noqa: E402
 
 import agent_friction as friction
 import requirement_retrospective as retrospective
@@ -37,6 +40,7 @@ class Fixture(unittest.TestCase):
         self.log = self.root / ".claude" / "agent-friction.jsonl"
         self.state = self.root / ".claude" / "agent-friction-state.json"
         self.log.parent.mkdir(parents=True)
+        write_platform_config(self.root)
         self.patches = [
             mock.patch.object(friction, "log_path", lambda: self.log),
             mock.patch.object(friction, "state_path", lambda: self.state),

@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 import requirement_metrics as metrics  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 REQUIREMENT = "acme/backlog#7"
 CHILD = "acme/backlog#8"
@@ -198,8 +199,7 @@ class RequirementMetricsTestCase(unittest.TestCase):
         self.root.mkdir()
         self.projects.mkdir()
         (self.root / ".dev-platform.toml").write_text(
-            '[paths]\nfriction_log = ".claude/agent-friction.jsonl"\nworktrees = ".claude/worktrees"\n\n'
-            '[development_backlog]\nrepository = "acme/backlog"\nproject_label = "project:demo"\n',
+            platform_config_text(extra='[development_backlog]\nrepository = "acme/backlog"\nproject_label = "project:demo"'),
             encoding="utf-8",
         )
         self.write_archive()

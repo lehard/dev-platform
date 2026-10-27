@@ -7,9 +7,11 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +19,10 @@ SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
+
+
+def platform_config(**overrides) -> dict:
+    return tomllib.loads(platform_config_text(**overrides))
 
 
 class OpenSpecLifecycleTests(unittest.TestCase):
@@ -29,7 +35,11 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         for name in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV):
             os.environ.pop(name, None)
 
-    def make_change(self, root: Path, name: str, tasks: str, verification: str | None = None) -> Path:
+    def make_change(
+        self, root: Path, name: str, tasks: str, verification: str | None = None, *, config: bool = True,
+    ) -> Path:
+        if config and not (root / ".dev-platform.toml").exists():
+            write_platform_config(root)
         change = root / "openspec" / "changes" / name
         change.mkdir(parents=True)
         (change / "tasks.md").write_text(tasks, encoding="utf-8")
@@ -42,7 +52,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.make_change(root, "work", "- [x] done\n")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness"), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
                     mock.patch.object(lifecycle, "require_committed_package"), \
@@ -65,7 +75,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             if decision is not None:
                 (change / "automated-checks.json").write_text("{}\n", encoding="utf-8")
             out = io.StringIO()
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer", "harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer")), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness"), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
                     mock.patch.object(lifecycle, "require_committed_package"), \
@@ -114,9 +124,9 @@ class OpenSpecLifecycleTests(unittest.TestCase):
     def test_explicit_candidate_stage_needs_no_checkout_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            managed = self.make_change(root, "managed", "- [x] one\n")
+            managed = self.make_change(root, "managed", "- [x] one\n", config=False)
             (managed / ".managed-task.json").write_text("{}\n", encoding="utf-8")
-            self.make_change(root, "unmanaged", "- [x] one\n")
+            self.make_change(root, "unmanaged", "- [x] one\n", config=False)
             self.assertFalse((root / ".dev-platform.toml").exists())
             self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
             shutil.rmtree(root / "openspec" / "changes" / "unmanaged")
@@ -230,9 +240,9 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             (change / ".managed-task.json").write_text(
                 '{"source_issue":"example-org/development-backlog#7","change":"managed"}\n', encoding="utf-8"
             )
-            (root / ".dev-platform.toml").write_text("[independent_review]\nenabled = false\n", encoding="utf-8")
+            (root / ".dev-platform.toml").write_text(platform_config_text(extra="[independent_review]\nenabled = false"), encoding="utf-8")
             compat.require_review_evidence(root, change)
-            (root / ".dev-platform.toml").write_text("[independent_review]\nenabled = true\n", encoding="utf-8")
+            (root / ".dev-platform.toml").write_text(platform_config_text(extra="[independent_review]\nenabled = true"), encoding="utf-8")
             with self.assertRaisesRegex(SystemExit, "scripts/independent_review.py is missing"):
                 compat.require_review_evidence(root, change)
 
@@ -533,7 +543,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             stale = change / "automated-checks.json"
             stale.write_text('{"outcome":"stale"}\n', encoding="utf-8")
             with (
-                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
+                mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer")),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_checked") as run_checked,
             ):
@@ -555,7 +565,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 "OpenSpec-Verify: PASS\nVerification-Method: equivalent-review\nAutomated-Checks-Evidence: automated-checks.json\n",
             )
             with (
-                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer"}),
+                mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer")),
                 mock.patch.object(lifecycle, "harness_mode", return_value="platform"),
                 mock.patch.object(lifecycle, "run_git", return_value=mock.Mock(returncode=0)),
                 mock.patch.object(lifecycle, "require_committed_package"),
@@ -698,11 +708,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         shutil.copytree(SCRIPTS, root / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
         (root / "dev-platform").mkdir()
         shutil.copy(ROOT / "template" / "dev-platform" / "checks.toml", root / "dev-platform" / "checks.toml")
-        (root / ".dev-platform.toml").write_text(
-            'schema_version = 2\nplatform_version = "customer"\nproject_name = "p"\nproject_slug = "p"\n'
-            'main_branch = "main"\nharness_mode = "platform"\n[capabilities]\nagent_board = false\n',
-            encoding="utf-8",
-        )
+        write_platform_config(root, platform_version="customer", project_name="p", project_slug="p", capabilities={"agent_board": False})
         bin_dir = root / "bin"
         bin_dir.mkdir()
         openspec = bin_dir / "openspec"
@@ -827,6 +833,7 @@ class ArchivePurposeAndRecoveryTests(unittest.TestCase):
         self.git("init", "-q", "-b", "main")
         self.git("config", "user.email", "t@example.com")
         self.git("config", "user.name", "t")
+        write_platform_config(self.root, platform_version="customer", harness_mode="project")
         (self.root / "openspec").mkdir(exist_ok=True)
         (self.root / "openspec" / "config.yaml").write_text("schema: spec-driven\n", encoding="utf-8")
 
@@ -859,7 +866,7 @@ class ArchivePurposeAndRecoveryTests(unittest.TestCase):
         return {str(p.relative_to(base)): p.read_bytes() for p in sorted(base.rglob("*")) if p.is_file()}
 
     def archive(self, executable: str) -> int:
-        with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer", "harness_mode": "project"}), \
+        with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer", harness_mode="project")), \
                 mock.patch.object(lifecycle, "ensure_review_evidence"), \
                 mock.patch.object(lifecycle, "require_independent_review_receipt"), \
                 mock.patch.object(lifecycle, "require_review_evidence"), \
@@ -922,7 +929,7 @@ class ArchivePurposeAndRecoveryTests(unittest.TestCase):
         (change / "automated-checks.json").write_text("{}\n", encoding="utf-8")
         (change / "independent-review-request.json").write_text("{}\n", encoding="utf-8")
         with mock.patch.object(lifecycle, "ensure_review_evidence") as review, \
-                mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "customer", "harness_mode": "project"}), \
+                mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer", harness_mode="project")), \
                 mock.patch.object(lifecycle, "require_independent_review_receipt"), \
                 self.assertRaises(SystemExit) as raised:
             lifecycle.archive_change(self.root, "add-foo")

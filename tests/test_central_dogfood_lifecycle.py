@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,8 +32,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         git(self.root, "config", "user.name", "Central lifecycle test")
         (self.root / ".gitignore").write_text(".claude/\n", encoding="utf-8")
         (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\npublish_mode = "pr"\npr_merge_mode = "auto"\n'
-            'source_required_paths = ["scripts/dogfood_task.py"]\n[paths]\nworktrees = ".claude/worktrees"\nchecks = "dev-platform/checks.toml"\n',
+            'source_required_paths = ["scripts/dogfood_task.py"]\n' + platform_config_text(),
             encoding="utf-8",
         )
         (self.root / "dev-platform").mkdir()

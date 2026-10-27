@@ -10,6 +10,8 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import write_platform_config  # noqa: E402
 SCRIPTS = ROOT / "template" / "scripts"
 
 
@@ -88,9 +90,7 @@ class QueueMergedFinishTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             work = Path(tmp).resolve()
-            (work / ".dev-platform.toml").write_text(
-                'main_branch = "main"\n[capabilities]\nagent_board = true\n[paths]\nagent_board = ".claude/agents-board.json"\n',
-                encoding="utf-8")
+            write_platform_config(work)
             board = work / ".claude" / "agents-board.json"
             board.parent.mkdir()
             other = {"id": "other", "worktree": str(work / "sibling"), "branch": "agent/sibling", "task": "Sibling"}

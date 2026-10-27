@@ -18,8 +18,10 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import _platform_common  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 import agent_board  # noqa: E402
 import finish_task  # noqa: E402
 import managed_task  # noqa: E402
@@ -36,10 +38,7 @@ def configure(path: Path) -> None:
     git(path, "config", "user.email", "test@example.invalid")
 
 
-CONTRACT = ('platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "multi-agent"\n'
-            'harness_mode = "platform"\n\n[capabilities]\nagent_board = true\n\n'
-            '[paths]\nworktrees = ".claude/worktrees"\nagent_board = ".claude/agents-board.json"\n'
-            'checks = "dev-platform/checks.toml"\n')
+CONTRACT = platform_config_text(platform_version="1.0.0", workflow_profile="multi-agent")
 
 
 GENERATED = ('[settings]\nfull_commands = ["true"]\n\n[[generated_files]]\npath = "gen.json"\n'

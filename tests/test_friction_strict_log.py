@@ -9,6 +9,7 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +37,7 @@ class StrictFrictionTests(unittest.TestCase):
         self.log = self.root / ".claude" / "agent-friction.jsonl"
         self.state = self.root / ".claude" / "agent-friction-state.json"
         self.log.parent.mkdir(parents=True)
+        write_platform_config(self.root)
         for name, value in {
             "main_root": lambda: self.root,
             "log_path": lambda: self.log,
