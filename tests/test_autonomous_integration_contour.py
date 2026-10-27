@@ -32,6 +32,8 @@ contributions_module = load_platform_module("requirement_contributions", SCRIPTS
 from test_pr_review_gate import IDENTITY, PROVIDER, ROUTE, QueueFixture, git  # noqa: E402
 from test_post_review_finalization import Remote, RemoteFixture  # noqa: E402
 
+FAILED_LINK = "https://github.com/o/r/actions/runs/1/job/2"
+
 # Unattributed friction is read only inside agent_friction.AMBIGUOUS_WINDOW_DAYS
 # of now, so window fixtures are relative to the run time, not fixed dates.
 _NOW = datetime.now(timezone.utc).replace(microsecond=0)
@@ -94,7 +96,11 @@ class Multi:
                 mock.patch.object(queue, "_prepare", side_effect=prepare or (lambda r, repo, n, a, pr: (self.heads[n], BASE))), \
                 mock.patch.object(queue, "_main", return_value=BASE), \
                 mock.patch.object(queue, "required_check_state_for_ref",
-                                  return_value=SimpleNamespace(kind=checks, detail="validate")), \
+                                  return_value=SimpleNamespace(kind=checks, detail="validate", checks=(
+                                      {"name": "validate", "workflow": "Platform CI", "link": FAILED_LINK,
+                                       "state": "FAILURE" if checks == "failed" else "SUCCESS"},
+                                      {"name": "lint", "workflow": "Platform CI", "state": "SUCCESS",
+                                       "link": "https://github.com/o/r/actions/runs/1/job/3"}))), \
                 mock.patch.object(queue.subprocess, "run", side_effect=merge):
             return queue.worker(ROOT)
 
@@ -438,6 +444,10 @@ class IntegrationRepairBoundTests(unittest.TestCase):
             candidate = multi.candidate(7)
             self.assertEqual(candidate["state"], "integration-repair-pending")
             self.assertEqual(candidate["red_gate"]["name"], "required-checks")
+            # The writer brief reads the log of exactly the failed check through its recorded identity.
+            self.assertEqual(candidate["red_gate"]["evidence"]["failed_checks"],
+                             [{"name": "validate", "workflow": "Platform CI", "state": "FAILURE", "link": FAILED_LINK}])
+            self.assertIn("validate", candidate["red_gate"]["evidence"]["detail"])
 
     def test_bound_blocks_the_candidate_after_two_attempts_and_the_next_one_still_merges(self):
         def conflict_on_7(root, repo, number, admission, pr):
@@ -567,6 +577,85 @@ class IntegrationRepairTests(RepairFixture):
             self.assertEqual(outcome["status"], "blocked-escalation")
             self.assertEqual(self.repo.head("agent/example"), before)
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
+
+    def offer_red_check(self, fixture, failed_checks):
+        queue._transition(self.repo.root, "o/r", 7, "integration-repair-pending", fixture.head, task_identity=self.identity,
+                          inherit_identity=False, set_attempts={"integration-repair": 1},
+                          red_gate={"name": "required-checks", "identity": fixture.head,
+                                    "evidence": {"detail": "required check failed on the integrated candidate: validate",
+                                                 **({"failed_checks": failed_checks} if failed_checks is not None else {})}})
+        queue.publish_job(self.repo.root, "o/r", 7, "integration-repair", fixture.head,
+                          task_identity=self.identity, attempt=1)
+
+    def test_red_check_writer_brief_carries_the_failed_log_excerpt(self):
+        prompts, reads = [], []
+
+        def read_log(repo, run, job):
+            reads.append((repo, run, job))
+            return "\n".join(f"line {n}" for n in range(200)) + "\nSyntaxError: too many statically nested blocks\n"
+
+        def resolve(checkout: Path) -> None:
+            (checkout / "src.py").write_text("value = 12\n")
+
+        def runner(command, **kwargs):
+            if command[0] == "git":
+                return subprocess.run(command, **kwargs)
+            prompts.append(command[-1])
+            resolve(Path(kwargs["cwd"]))
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with RemoteFixture(self.repo) as fixture:
+            self.offer_red_check(fixture, [{"name": "validate", "workflow": "Platform CI", "state": "FAILURE",
+                                            "link": FAILED_LINK}])
+            candidate = fixture.candidate()
+            job = workers.build_job(candidate)
+            with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
+                outcome = contour.run_claimed_integration_repair(
+                    self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(), branch="agent/example",
+                    allowed_paths=[], llm_command=["writer"], current_head=self.repo.head, post_result=self.post(fixture),
+                    workdir=workdir, runner=runner, claim_current=lambda: True, worker="w", provider=PROVIDER,
+                    read_log=read_log)
+        self.assertEqual(outcome["status"], "integrated")
+        self.assertEqual(reads, [("o/r", "1", "2")])
+        brief = json.loads(prompts[0][prompts[0].index("Brief: ") + len("Brief: "):])
+        [check] = brief["failed_checks"]
+        self.assertEqual((check["name"], check["link"]), ("validate", FAILED_LINK))
+        self.assertTrue(check["log_excerpt"].endswith("SyntaxError: too many statically nested blocks"))
+        self.assertEqual(len(check["log_excerpt"].splitlines()), contour.FAILED_LOG_LINES)
+        self.assertEqual(brief["evidence"], "required check failed on the integrated candidate: validate")
+
+    def test_red_check_brief_without_evidence_is_refused_before_any_writer_starts(self):
+        def no_writer(command, **kwargs):
+            if command[0] != "git":
+                raise AssertionError(f"a writer started without failed-check evidence: {command}")
+            return subprocess.run(command, **kwargs)
+
+        cases = ((None, lambda *a: "log", "records no failed check identity"),
+                 ([{"name": "validate", "state": "FAILURE"}], lambda *a: "log", "has no GitHub Actions job link"),
+                 ([{"name": "validate", "link": FAILED_LINK}], lambda *a: "  \n", "failed log of check validate is empty"))
+        for failed_checks, read_log, refusal in cases:
+            with self.subTest(refusal=refusal), RemoteFixture(self.repo) as fixture:
+                self.offer_red_check(fixture, failed_checks)
+                candidate = fixture.candidate()
+                job = workers.build_job(candidate)
+                before = (self.repo.head("agent/example"), len(self.results))
+                with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir, \
+                        self.assertRaisesRegex(workers.WorkerError, "integration-repair brief refused: .*" + refusal):
+                    contour.run_claimed_integration_repair(
+                        self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
+                        branch="agent/example", allowed_paths=[], llm_command=["writer"], current_head=self.repo.head,
+                        post_result=self.post(fixture), workdir=workdir, runner=no_writer, claim_current=lambda: True,
+                        worker="w", provider=PROVIDER, read_log=read_log)
+                # Nothing pushed, no result posted and no repair attempt spent: the job stays offered as it was.
+                self.assertEqual((self.repo.head("agent/example"), len(self.results)), before)
+                self.assertEqual(workers.build_job(fixture.candidate()), job)
+
+    def test_unreadable_failed_log_names_the_job_and_gh_output(self):
+        failed = subprocess.CompletedProcess([], 1, "", "HTTP 404: Not Found")
+        with mock.patch.object(contour.subprocess, "run", return_value=failed) as run, \
+                self.assertRaisesRegex(workers.WorkerError, "Actions job 2 is unreadable: HTTP 404"):
+            contour.read_failed_log("o/r", "1", "2")
+        self.assertEqual(run.call_args.args[0], ["gh", "run", "view", "1", "--job", "2", "--log-failed", "-R", "o/r"])
 
     def offer_merge(self, fixture, *, attempt=1):
         queue._transition(self.repo.root, "o/r", 7, "integration-repair-pending", fixture.head, task_identity=self.identity,

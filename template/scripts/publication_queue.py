@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from _platform_common import GitCommandError, current_worktree_root, gate_message, read_platform_config, run_git
-from publication_state import required_check_state_for_ref
+from publication_state import FAILED_CHECK_STATES, required_check_state_for_ref
 from candidate_lifecycle import CLAIM_STATES, MalformedMarkerError, POST_MERGE_FLAG, PREFIX as V2_PREFIX, STATES, latest_record, build_handoff_record, derive_candidate, label_projection, marker_body, render_status
 
 PREFIX = "dev-platform-publication-queue:v1 "
@@ -39,13 +39,16 @@ class IntegrationRepairNeeded(QueueError):
     ``gate`` names the red gate: a real merge conflict is ``integration``; failing required
     checks on the actual merged candidate are ``required-checks``. ``merge_only`` marks an
     ``integration`` failure whose trial merge with main is clean: it is offered as an LLM-free
-    ``integration-merge`` job, not a writer repair.
+    ``integration-merge`` job, not a writer repair. ``failed_checks`` identifies each failed
+    required check (name, workflow, state, link) of a ``required-checks`` failure.
     """
 
-    def __init__(self, message: str, *, gate: str = "integration", merge_only: bool = False):
+    def __init__(self, message: str, *, gate: str = "integration", merge_only: bool = False,
+                 failed_checks: list[dict[str, Any]] | None = None):
         super().__init__(message)
         self.gate = gate
         self.merge_only = merge_only
+        self.failed_checks = failed_checks
 
 
 class TransientQueueError(QueueError):
@@ -1100,8 +1103,10 @@ def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
 
 # Candidate states a fresh developer handoff for a new head may supersede: they wait on a human,
 # a retry or an unclaimed head-bound job (which can never run once the head moved), not on an
-# in-flight job. Every other state keeps the admitted head.
-READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-retryable", "blocked-escalation"})
+# in-flight job. Every other state keeps the admitted head. A developer fix of a red integrated
+# check supersedes the unclaimed integration-repair job of the integrated head.
+READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-retryable", "blocked-escalation",
+                                "integration-repair-pending"})
 _SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
 
 
@@ -1590,24 +1595,35 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
             # finish's re-admission; admission's supersession proves it descends from the proven head.
             if observed.get("owner") == "developer re-admission" and observed.get("head") == local_head:
                 return {**observed, "state": "readmission"}
+            # A developer fix on top of the integrated head of a candidate waiting for integration
+            # repair: finish pushes it and admission supersedes the integration-repair job.
+            proven = _proven_head(events, admission)
+            lineage = _latest(root, data["number"], _comments(root, repo, data["number"]))
+            if (lineage is not None and lineage.get("state") == "integration-repair-pending"
+                    and lineage.get("head") == proven and _is_ancestor(root, proven, local_head)):
+                return {**observed, "state": "readmission", "number": data["number"],
+                        "proven_head": proven, "head": local_head}
             raise QueueError("local task head is not the admitted or proven coordinator head")
     return status(root, data["number"])
 
 
 def semantic_readmission(root: Path, branch: str) -> dict[str, Any] | None:
-    """This branch's admitted PR when it awaits a fresh semantic-verification handoff of the local head.
+    """This branch's admitted PR when it awaits a fresh developer handoff of the local head.
 
-    Only a candidate whose proven head stopped ``blocked-retryable`` on the
-    ``semantic-verification`` red gate, and whose PR head is exactly the local
-    head awaiting developer re-admission, qualifies; anything else is ``None``.
+    A candidate qualifies when its proven head stopped ``blocked-retryable`` on the
+    ``semantic-verification`` red gate, or waits in ``integration-repair-pending``, and the local
+    head awaits developer re-admission over it; anything else is ``None``.
     """
     observed = local_status(root, branch)
     if observed is None or observed.get("state") != "readmission":
         return None
     number = observed["number"]
     lineage = _latest(root, number, _comments(root, _repo(root), number), observed["proven_head"])
-    if (lineage is None or lineage.get("state") != "blocked-retryable"
-            or (lineage.get("red_gate") or {}).get("name") != "semantic-verification"):
+    if lineage is None:
+        return None
+    semantic = (lineage.get("state") == "blocked-retryable"
+                and (lineage.get("red_gate") or {}).get("name") == "semantic-verification")
+    if not semantic and lineage.get("state") != "integration-repair-pending":
         return None
     return {**observed, "lineage": lineage}
 
@@ -2234,8 +2250,11 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
                 _raise_if_owned_elsewhere(root, repo, number, head)
             if state.kind == "failed":
                 # A failing integration check is repaired within a bound, not an immediate block.
+                failed = [{key: check.get(key) for key in ("name", "workflow", "state", "link")}
+                          for check in state.checks
+                          if str(check.get("state", "")).strip().upper() in FAILED_CHECK_STATES]
                 raise IntegrationRepairNeeded("required check failed on the integrated candidate: " + state.detail,
-                                              gate="required-checks")
+                                              gate="required-checks", failed_checks=failed)
             if state.kind == "not_registered":
                 return _released(_block(root, repo, number, "required check is not registered for the PR head", head=head))
             if state.kind == "unknown":
@@ -2376,7 +2395,10 @@ def _integration_repair(root: Path, repo: str, number: int, admission: dict[str,
                       f"integration repair exhausted after {spent} attempts: {exc}"[:500], head=head_now)
     fallback = current.get("task_identity") or lineage.get("task_identity") or {
         "branch": admission.get("branch"), "head": head_now}
-    red_gate = {"name": exc.gate, "identity": head_now, "evidence": str(exc)[:500],
+    # The integration-repair writer brief reads each failed check's log through its recorded identity.
+    evidence: Any = ({"detail": str(exc)[:500], "failed_checks": exc.failed_checks}
+                     if exc.failed_checks is not None else str(exc)[:500])
+    red_gate = {"name": exc.gate, "identity": head_now, "evidence": evidence,
                 **({"merge_only": True} if exc.merge_only else {})}
     try:
         _transition(root, repo, number, "integration-repair-pending", head_now, task_identity=fallback,

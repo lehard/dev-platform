@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "53b6e45ae036962cf6ba4764e8bdb64f0dda876a",
+    "base_ref": "origin/main",
+    "candidate_head": "6925120ba499f2b8f89690f6bdaa276c07710794",
+    "diff_sha256": "2f89f6ed2389de0317f8f524e0240d9fa31efb2d5050beaec32c6fa5e7bac3b6"
+  },
+  "completed_at": "2026-10-27T14:51:09+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py:567 `detail = str(red_gate.get(\"evidence\", \"\"))[:300]`. The candidate diff changes evidence to `{\"detail\": ..., \"failed_checks\": [...]}` at about line 2395. friction_reason() at line 529 already json-dumps dicts. `integration-repair-pending` has a spec at line 497, so the current impact is small and only the fallback path is affected.",
+      "id": "friction-detail-dict-repr",
+      "severity": "advisory",
+      "summary": "The required-checks red gate evidence is now a dict. emit_friction still builds the fallback observation from str(evidence), so any friction path without a _FRICTION_STATES spec would record a Python dict repr instead of the readable detail."
+    }
+  ],
+  "launched_at": "2026-10-27T14:50:48+00:00",
+  "output_sha256": "928678cf33accfaf8126b4b6aea2e5bfb85a5f1bdb1d2e67cc18ed93b8bf2375",
+  "perspective": "engineering-quality",
+  "request_id": "22768680-e7bd-4400-9413-06a7cec08531",
+  "reviewer": {
+    "context_id": "7c797c17-c5e9-4cb3-99c4-e39e90bb107c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b22c5a7b-bed7-4f9b-b821-5c50b84bcf54",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38332
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 241066
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20532
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20876
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2296
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6a56c555a128c47a97f56640250427660aa96ce8fa6368b39f4a0460a47d5334"
+}
