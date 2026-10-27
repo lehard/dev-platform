@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+    "base_ref": "origin/main",
+    "candidate_head": "c86866c3e850cfa2ffc05a4e18165a33e77a0663",
+    "diff_sha256": "89bb32cf865e94b1c8753b577769f243e302b84567602f3653e628a9cdfcbca4"
+  },
+  "completed_at": "2026-10-27T12:37:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_board.py `_ancestor_merge_problem`: with no base it returns `merged-pr` only if `_exact_task_pr_is_merged` holds, otherwise `unproven-merge-no-base`. `unproven-merge-*` problems are non-terminal, so `_safe_to_remove` returns false. proposal.md Impact says such entries are 'kept until their task finishes normally', which assumes the owner session is still alive. Abandoned legacy merged entries can stay on the board indefinitely.",
+      "id": "legacy-entries-no-local-cleanup-path",
+      "severity": "advisory",
+      "summary": "Board entries registered before this change have no `base_head`. If their branch is an ancestor of main and `gh` or the exact-PR lookup is unavailable, they are now permanently `unproven-merge-no-base`. `doctor --fix` never removes them and there is no documented manual or override path. Previously these entries were auto-removed as `merged-branch`."
+    }
+  ],
+  "launched_at": "2026-10-27T12:36:54+00:00",
+  "output_sha256": "8f76e7b8f03669ec0e6e36a155019c8c43ecba090055e914b2f2651d5d4da6a4",
+  "perspective": "engineering-quality",
+  "request_id": "395dac62-11de-4257-a1cd-23f17897f068",
+  "reviewer": {
+    "context_id": "f4049681-d423-4988-a655-7417227f64b5",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9ac3fd70-fe16-4e47-b443-0fdc4f19a14c",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18352
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16729
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10896
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11027
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1101
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f0d8dee4c8d9cfa113c5121e7a5b897c16cfb3c64a1a8b25580e44cb352e1f2d"
+}
