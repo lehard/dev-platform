@@ -369,7 +369,7 @@ The envelope SHALL include at least: schema version, terminal status, target pro
 
 The platform SHALL maintain a durable, cross-run record of consecutive terminal `blocked` managed-rollout attempts per project, independent of any single ephemeral workflow run. When that count reaches a fixed threshold, the platform SHALL escalate beyond the existing per-attempt annotation into a distinct, labeled, human-discoverable alert. The record SHALL reset the next time that project's rollout preparation succeeds. Before either the tracking label or the alert label is referenced, the platform SHALL idempotently ensure both exist on the tracker repository, using only the least-privilege permission already granted to the rollout job.
 
-This tracking layer SHALL be strictly additive: a failure inside it, including a failure to bootstrap its own labels, SHALL NOT change rollout's own pass/fail result for the current attempt, SHALL NOT retry, push, merge, or affect PR-creation, and SHALL NOT modify any existing safety guard, recovery eligibility, or credential scope.
+This tracking layer SHALL NOT retry, push, merge, or affect PR-creation, and SHALL NOT modify any existing safety guard, recovery eligibility, or credential scope. A failure inside it, including a failure to bootstrap its own labels or a missing required input, SHALL fail the tracking step explicitly with a message naming what failed; it SHALL NOT be converted into a warning. The failure record is written exactly when rollout preparation itself failed; failures before preparation are covered by the release-level rollout alarm.
 
 #### Scenario: First failure against a project opens a tracking record
 - **GIVEN** a project has no open rollout-failure tracking record
@@ -425,10 +425,16 @@ This tracking layer SHALL be strictly additive: a failure inside it, including a
 
 #### Scenario: The tracking layer itself fails
 - **GIVEN** a rollout attempt has already reached a terminal status
-- **WHEN** creating, reading, or updating the durable tracking record fails for any reason, including label bootstrap
-- **THEN** that failure is surfaced as a visible warning in the run's own output
-- **AND** it SHALL NOT change the rollout attempt's already-determined success or failure result
+- **WHEN** creating, reading, or updating the durable tracking record fails for any reason, including label bootstrap or a missing required token
+- **THEN** the tracking step fails with a non-zero exit and a message naming the failed operation
+- **AND** the failure is not downgraded to a warning or hidden by `continue-on-error`
 - **AND** it SHALL NOT retry, push, merge, or otherwise act beyond the tracking record itself
+
+#### Scenario: Preparation diagnostic is missing when recording a failure
+- **GIVEN** rollout preparation failed for a project
+- **WHEN** the failure record is written and the preparation diagnostic file is missing or unreadable
+- **THEN** the tracking step fails naming the missing diagnostic
+- **AND** no `unknown` category or reason is substituted
 
 ### Requirement: Older managed rollout pull requests are superseded deterministically
 
@@ -1049,3 +1055,43 @@ Reconciliation SHALL run periodically without requiring a later automated rollou
 
 - **WHEN** reconciliation repeats after an issue was closed
 - **THEN** it makes no further mutation or duplicate alert record
+
+### Requirement: Failed managed rollout runs raise a release-level alarm
+
+Every `Roll Out Platform` run, whether dispatched by the release workflow or manually for all managed projects or one repository, SHALL end with an always-running alarm job that runs reviewed workflow-ref code and inspects the current run attempt's own jobs. When the plan job or any per-project job did not succeed (failed, cancelled, timed out or never finished), the platform SHALL open one durable alert per release tag in the platform repository, or add to the open one, naming the release tag, each failed stage or target repository, its failed step and its error text, together with the run link and dispatch context. A fully successful run SHALL raise no alarm. The alarm SHALL NOT retry, repair, push or merge anything. When the alarm cannot be delivered, the alarm job SHALL fail with a message naming what failed.
+
+#### Scenario: Plan stage fails
+- **GIVEN** a rollout run whose plan job fails, for example because the operator registry checkout reports the repository not found
+- **WHEN** the alarm job runs
+- **THEN** an open alert labeled `rollout-alert` for the requested release tag names stage `plan`, its failed step and the error text
+- **AND** the release tag is named even when plan failed before resolving it, using the same rule as plan (`version` input or `v<VERSION>`)
+
+#### Scenario: One target fails while others succeed
+- **GIVEN** a rollout run in which some per-project jobs succeed and one fails or is cancelled
+- **WHEN** the alarm job runs
+- **THEN** the alert names only the failed target repositories with their failed step and error
+- **AND** the run is reported as a failure, not as success
+
+#### Scenario: Release-dispatched and manually dispatched runs are both covered
+- **WHEN** a rollout run started by the release workflow, or a manual dispatch for all projects or for one `repository`, has a failed job
+- **THEN** the alert is raised and records the event, the triggering actor and the requested scope
+
+#### Scenario: A later failing run for the same release
+- **GIVEN** an alert for release `vX.Y.Z` is already open
+- **WHEN** another rollout run for `vX.Y.Z` fails
+- **THEN** the failure is added to the same alert and no second alert is opened for that tag
+
+#### Scenario: Successful run
+- **WHEN** every job of a rollout run succeeds
+- **THEN** no alert is created
+- **AND** if an alert for that release is open, it receives a note that this run succeeded for its scope and stays open
+
+#### Scenario: Failed job without an error annotation
+- **WHEN** a failed job has no failure-level annotation
+- **THEN** the alert states that no error annotation was recorded and links the job log
+- **AND** no error text is invented
+
+#### Scenario: The alarm cannot be delivered
+- **WHEN** reading the run's jobs, bootstrapping the label, or creating or commenting on the alert fails
+- **THEN** the alarm job exits non-zero naming the failed operation
+- **AND** it is not hidden by `continue-on-error`
