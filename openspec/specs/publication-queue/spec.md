@@ -448,6 +448,12 @@ When preparing a candidate on current main, the coordinator SHALL treat files th
 - **THEN** it pushes a coordinator merge with a regenerated manifest and records the update
 - **AND** required checks run on that head, and after merge `generate_platform_manifest.py --check` passes on main
 
+#### Scenario: Requirement composition conflicts with main only in the generated manifest
+- **GIVEN** a ready Requirement composition candidate with archived children whose merge with main conflicts only in the declared platform manifest
+- **WHEN** the coordinator runs the queue and the required checks pass on the coordinator merge
+- **THEN** it pushes a fast-forward coordinator merge with a regenerated manifest, keeps the composition task-content identity, and merges the candidate in the same run
+- **AND** it publishes no integration-repair or integration-merge job and no operator merge is needed
+
 #### Scenario: Conflict in an ordinary file
 - **GIVEN** a ready candidate whose merge with main conflicts in a file that is neither generated nor archive-derived
 - **WHEN** the coordinator prepares the candidate
