@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_ref": "origin/main",
+    "candidate_head": "0f9dc4bd98118b200876733287548c53333988b2",
+    "diff_sha256": "ac70e29e350047df971cf258b11a8bb31fda2249f0be46bcea3e5c7aa0f10a8f"
+  },
+  "completed_at": "2026-10-27T22:39:33+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/rollout_alarm.py `open_alarm` does a list-then-create with no lock. When it finds more than one match it raises `AlarmError(\"more than one open alarm for ...\")`. Manual dispatches for different scopes can run at the same time, and the workflow has no concurrency group on the `alarm` job. The alarm job then fails permanently for that tag until someone closes one of the duplicates by hand. Also, `--limit 100` on `issue list` is not paginated.",
+      "id": "alarm-duplicate-open-issue-wedge",
+      "severity": "advisory",
+      "summary": "Concurrent or racing alarm jobs for the same release tag can create two open `Managed rollout failed: <tag>` issues. After that, every later alarm run for that tag fails."
+    }
+  ],
+  "launched_at": "2026-10-27T22:39:12+00:00",
+  "output_sha256": "3bb808f7bb7f385ba521aa1229ec4c324da8197ffb53be9bc145a3957ee94b38",
+  "perspective": "engineering-quality",
+  "request_id": "0ccf708f-a1de-4133-8885-f26f346f006b",
+  "reviewer": {
+    "context_id": "3aa63471-29c1-4b8b-b3be-9120dd115801",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-755e5bee-aae6-4c13-89f8-34cf6dcd67b1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35057
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51762
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20911
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21162
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2171
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f80c051b7acd8bf61da03c33f3ce08660e6de6f5675961b4519263b95f4205f9"
+}

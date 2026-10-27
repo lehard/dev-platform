@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_ref": "origin/main",
+    "candidate_head": "0f9dc4bd98118b200876733287548c53333988b2",
+    "diff_sha256": "ac70e29e350047df971cf258b11a8bb31fda2249f0be46bcea3e5c7aa0f10a8f"
+  },
+  "completed_at": "2026-10-27T22:39:12+00:00",
+  "findings": [
+    {
+      "evidence": "design.md:16 says `skipped`: fine only when `plan` failed (the matrix never expanded) or the job had no work. scripts/rollout_alarm.py failed_jobs() (candidate.diff ~L583-587) does `if conclusion == \"skipped\" and not plan_succeeded: continue`, so every other skipped job is added to `failed`. tests/test_rollout_alarm.py test_skipped_target_after_successful_plan_is_a_failure locks this in. The accepted spec only requires that a job which did not succeed (failed, cancelled, timed out or never finished) raises the alarm. Skipped is not named, so the spec and design do not agree on it. In the current rollout.yml, `rollout` has no `if:` condition, so this is unlikely to cause a false alarm today.",
+      "id": "skipped-job-classification-diverges-from-design",
+      "severity": "advisory",
+      "summary": "design.md says a skipped job is fine when plan failed or when the job had no work. The code only accepts skipped jobs when plan did not succeed. A per-project job skipped after a successful plan is always reported as a failure, and the \"had no work\" exemption is not implemented."
+    }
+  ],
+  "launched_at": "2026-10-27T22:38:46+00:00",
+  "output_sha256": "3579ea6539446849f2182c6bd9800bb1efd83e4d7c45242b536c37747d86b23b",
+  "perspective": "spec-fidelity",
+  "request_id": "0ccf708f-a1de-4133-8885-f26f346f006b",
+  "reviewer": {
+    "context_id": "98a57b2a-e744-4110-b3aa-e26517d3c86d",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7f421168-1b21-4a54-bf6d-ee3e83ad3653",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56330
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 156997
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24665
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24881
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2807
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "f80c051b7acd8bf61da03c33f3ce08660e6de6f5675961b4519263b95f4205f9"
+}

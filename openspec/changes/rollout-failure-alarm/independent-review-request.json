@@ -1,0 +1,82 @@
+{
+  "candidate": {
+    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_ref": "origin/main",
+    "candidate_head": "0f9dc4bd98118b200876733287548c53333988b2",
+    "diff_sha256": "ac70e29e350047df971cf258b11a8bb31fda2249f0be46bcea3e5c7aa0f10a8f"
+  },
+  "change": "openspec/changes/rollout-failure-alarm",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/rollout-failure-alarm/automated-checks.json",
+    "openspec/changes/rollout-failure-alarm/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/rollout-failure-alarm/design.md",
+        "openspec/changes/rollout-failure-alarm/proposal.md",
+        "openspec/changes/rollout-failure-alarm/specs/platform-rollout/spec.md",
+        "openspec/changes/rollout-failure-alarm/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/rollout-failure-alarm/proposal.md",
+        "openspec/changes/rollout-failure-alarm/design.md",
+        "openspec/changes/rollout-failure-alarm/tasks.md",
+        "openspec/changes/rollout-failure-alarm/specs/platform-rollout/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T22:38:44+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/rollout-failure-alarm/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "0ccf708f-a1de-4133-8885-f26f346f006b",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "digest": "f80c051b7acd8bf61da03c33f3ce08660e6de6f5675961b4519263b95f4205f9",
+    "paths": {
+      ".github/workflows/reconcile-stale-rollouts.yml": "636f6b79847d3c1103f68b990da6395f02395ef1",
+      ".github/workflows/rollout.yml": "20bf6412169c6ee5dd6c3a188c66ffd46322219f",
+      "dev-platform/checks.toml": "9296a757939a1593f8e7d153322a71723759ed91",
+      "docs/managed-rollout.md": "a1a8aa6025918afb3828b6e6db4096379966dd19",
+      "explorer/editorial-review.json": "77ff01edba5dfd3fb926348fd2d9108708cb0d9c",
+      "explorer/nodes/copier-rollout.toml": "9a5fd75db6970d6c152b3e63267c5506a2d195d9",
+      "openspec/changes/rollout-failure-alarm/.managed-task.json": "86d12a5f4ed5ec2cc632305f8786cabed1d68ee3",
+      "openspec/changes/rollout-failure-alarm/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+      "openspec/changes/rollout-failure-alarm/design.md": "c51522449cd8e6a60f7092e36fd925e1fc84b386",
+      "openspec/changes/rollout-failure-alarm/proposal.md": "905f88d875d19918ffffaa3459a114aafe3916ac",
+      "openspec/changes/rollout-failure-alarm/specs/platform-rollout/spec.md": "524da1fc4fbd1b1072131aec07bce4849209250b",
+      "openspec/changes/rollout-failure-alarm/tasks.md": "f67c89fd2ed4cf0382ad210213cc8916c9a3d8c3",
+      "scripts/rollout_alarm.py": "6b7085c2d3c9107824479561fb3bf42d4d7c0bc7",
+      "scripts/rollout_failure_streak.py": "ced72f8c0845e07e038ff37a03a63113898fbbd0",
+      "tests/test_rollout_alarm.py": "fcd48d9edfd8b5ab54c0a98bc5328e542281b73b",
+      "tests/test_rollout_failure_streak.py": "ef7fa27796f203019c81e7f1e9e93ff73e098693",
+      "tests/test_rollout_failure_streak_workflow.py": "cca187bcdec35b5fe22ec162d11440b5c8d73809"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
