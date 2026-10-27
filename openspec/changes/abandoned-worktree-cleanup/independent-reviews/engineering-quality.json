@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+    "base_ref": "origin/main",
+    "candidate_head": "4493af40bf2c92114e3fc6c9aafe531602f6bce5",
+    "diff_sha256": "8f7649c65a077186a402f5662e5a1977f0fce3f5044a58ac53001cd3676a5373"
+  },
+  "completed_at": "2026-10-27T14:31:35+00:00",
+  "findings": [
+    {
+      "evidence": "design.md: 'that entry is released through `agent_board.py finish --id`'. worktree_cleanup.py `_cleanup_abandoned`: `with locked_json(machine_path(\"agent_board\", root)) as data: ... items.remove(claim)`.",
+      "id": "board-release-bypasses-agent-board-finish",
+      "severity": "advisory",
+      "summary": "design.md says the claim is released through `agent_board.py finish --id`. The code instead edits the board JSON directly with `locked_json` and `items.remove(claim)`. This duplicates board mutation logic outside agent_board and diverges from the written design, so any side effects `finish` has would be skipped."
+    },
+    {
+      "evidence": "publication_state.py: `gh pr list --state all --head <branch> --base <base_branch> --limit 100`. `_abandoned_refusal` relies only on `lookup.exact_open`/`stale_open`/`exact_closed`.",
+      "id": "open-pr-check-limited-to-main-base",
+      "severity": "advisory",
+      "summary": "The spec says no open PR may exist 'for the branch'. The proof comes from `find_exact_head_pr`, which lists PRs filtered by `--base main` and `--limit 100`. An open PR for the same branch into another base is never seen. A truncated list beyond 100 entries is not flagged as unavailable. In either case the abandoned proof could be accepted while the branch still has live work."
+    }
+  ],
+  "launched_at": "2026-10-27T14:31:12+00:00",
+  "output_sha256": "9bc7a9c951d6e601fc5fa43164f8f02f5da9eb4496a15aaea7b96439fb01ce33",
+  "perspective": "engineering-quality",
+  "request_id": "a846821a-a9e3-44a6-b489-e5f0c7083bb4",
+  "reviewer": {
+    "context_id": "9106375b-fa37-41e2-91b3-fc9974a71b3a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-05c578c8-74d8-4027-a45e-84a8cf0abeac",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23786
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41428
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22305
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22554
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1578
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8f645f48a79d199e29c3d80c6b2918225f97bbada0569d95d23a4370f0122c2f"
+}

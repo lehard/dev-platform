@@ -1,0 +1,76 @@
+{
+  "candidate": {
+    "base_head": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+    "base_ref": "origin/main",
+    "candidate_head": "4493af40bf2c92114e3fc6c9aafe531602f6bce5",
+    "diff_sha256": "8f7649c65a077186a402f5662e5a1977f0fce3f5044a58ac53001cd3676a5373"
+  },
+  "change": "openspec/changes/abandoned-worktree-cleanup",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/abandoned-worktree-cleanup/automated-checks.json",
+    "openspec/changes/abandoned-worktree-cleanup/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/abandoned-worktree-cleanup/design.md",
+        "openspec/changes/abandoned-worktree-cleanup/proposal.md",
+        "openspec/changes/abandoned-worktree-cleanup/specs/worktree-coordination/spec.md",
+        "openspec/changes/abandoned-worktree-cleanup/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/abandoned-worktree-cleanup/proposal.md",
+        "openspec/changes/abandoned-worktree-cleanup/design.md",
+        "openspec/changes/abandoned-worktree-cleanup/tasks.md",
+        "openspec/changes/abandoned-worktree-cleanup/specs/worktree-coordination/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T14:30:46+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/abandoned-worktree-cleanup/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "a846821a-a9e3-44a6-b489-e5f0c7083bb4",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+    "digest": "8f645f48a79d199e29c3d80c6b2918225f97bbada0569d95d23a4370f0122c2f",
+    "paths": {
+      "openspec/changes/abandoned-worktree-cleanup/.managed-task.json": "9312c70b6906296a1da8e72005570e2131dd04b9",
+      "openspec/changes/abandoned-worktree-cleanup/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/abandoned-worktree-cleanup/design.md": "ce45a1c41866b367da32216a037145e95599b35c",
+      "openspec/changes/abandoned-worktree-cleanup/proposal.md": "83e2a3aa782727f1ead4668d4827dd695def7bd1",
+      "openspec/changes/abandoned-worktree-cleanup/specs/worktree-coordination/spec.md": "f39fc7121870276bab829c6c13355a26b9d3508d",
+      "openspec/changes/abandoned-worktree-cleanup/tasks.md": "6a25da123b6557c376832d8643847ff15b9bb766",
+      "template/scripts/publication_state.py": "ce12a44ca4cdb9651267d360f822ee8cb0550041",
+      "template/scripts/worktree_cleanup.py": "8c53c93f0f84d2888be9b9429919d16b1d078d56",
+      "tests/test_publication_state.py": "9c3da46434238b01f43bcb717c4e6b0d7f50e3ce",
+      "tests/test_worktree_hygiene.py": "2ec770549fc44b191bc66b2333039cc8148ca548"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
