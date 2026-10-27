@@ -1,0 +1,72 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "fc0b2f72e69d511f909ae76792be4a3f81f3e2ac",
+    "base_ref": "origin/main",
+    "candidate_head": "61caf541a1abd049fa71714fe83b4c97b35aaa03",
+    "diff_sha256": "e7c8218f6ce891448d638ab99f8b8179ee1bc209405075b524e6c7e1b5dabd7f"
+  },
+  "completed_at": "2026-10-27T15:32:10+00:00",
+  "findings": [],
+  "launched_at": "2026-10-27T15:31:43+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "perspective": "spec-fidelity",
+  "request_id": "9e418e03-dabe-4ede-90bc-81094a3a2d26",
+  "reviewer": {
+    "context_id": "96ae1249-186d-42a0-a5bc-30c4a3a2f65f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4ab13358-20a9-4c3b-b536-8aa56a82d52d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25685
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 87596
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26985
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27111
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1524
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "63ce2297d5bfd43dc3a3bc8b59f755b18e34e008dbb709fa9f597c7a9237baac"
+}
