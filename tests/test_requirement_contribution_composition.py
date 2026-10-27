@@ -481,6 +481,103 @@ class ContributionTests(unittest.TestCase):
             prove.assert_called_once_with(fixture.root, REQUIREMENT, "requirement-integration", value["requirement"])
             self.assertNotIn("acme/backlog", json.dumps(value))
 
+    def _moved_target_fixture(self, root):
+        """A reviewed contribution bound to the boundary head, an unmerged PR and a bare remote."""
+        seed = root / "seed"; seed.mkdir()
+        fixture = Repository(seed)
+        candidate = fixture.child("first", 8)
+        remote = root / "remote.git"
+        git(root, "clone", "--bare", str(seed), str(remote))
+        git(remote, "update-ref", "refs/pull/8/head", candidate["head"])
+        pr = {"number": 8, "merged": False, "head": {"sha": candidate["head"], "ref": "agent/first"},
+              "base": {"ref": "requirement/BR-7"}}
+        adapter = SimpleNamespace(_pr=mock.Mock(return_value=pr), _gh=mock.Mock(), _transition=mock.Mock(),
+                                  candidate_status=mock.Mock(return_value=candidate), publish_job=mock.Mock(),
+                                  merge_conflicts=mock.Mock(return_value=[]), _integration_repair=mock.Mock())
+        return fixture, candidate, remote, pr, adapter
+
+    def _advance_remote(self, fixture, remote, name, *, base=None):
+        """Move requirement/BR-7 on the remote: on top of the boundary, or rewritten from ``base``."""
+        git(fixture.root, "switch", "-C", f"move-{name}", base or "requirement/BR-7")
+        if base is not None:
+            # A distinct first commit, so the rewritten manifest commit can never equal the boundary.
+            (fixture.root / "rewrite.txt").write_text(f"{name}\n")
+            fixture.commit("rewrite")
+            contributions.write_manifest(fixture.root, fixture.manifest)
+        (fixture.root / f"{name}.txt").write_text(f"{name}\n")
+        head = fixture.commit(name)
+        git(fixture.root, "push", "--force", str(remote), f"{head}:refs/heads/requirement/BR-7")
+        return head
+
+    def test_moved_target_reoffers_the_job_on_the_new_head(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            moved = self._advance_remote(fixture, remote, "other")
+            outcome = contributions.merge_reviewed_contribution(
+                fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                expected_target_head=fixture.boundary)
+            self.assertEqual(outcome, {"state": "target-moved", "number": 8, "target_head": moved})
+            adapter.publish_job.assert_called_once_with(
+                fixture.root, "acme/project", 8, "contribution-integration", candidate["head"],
+                task_identity=candidate["task_identity"], target_head=moved)
+            adapter._gh.assert_not_called()
+            adapter._transition.assert_not_called()
+            self.assertEqual(git(remote, "rev-parse", "requirement/BR-7"), moved)
+
+    def test_target_moving_during_the_run_reoffers_on_the_observed_head(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            moved = []
+            def conflicts(*_args):
+                moved.append(self._advance_remote(fixture, remote, "racing"))
+                return []
+            adapter.merge_conflicts.side_effect = conflicts
+            outcome = contributions.merge_reviewed_contribution(
+                fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                expected_target_head=fixture.boundary)
+            self.assertEqual(outcome["state"], "target-moved")
+            self.assertEqual(adapter.publish_job.call_args.kwargs["target_head"], moved[0])
+            adapter._gh.assert_not_called()
+
+    def test_moved_target_without_the_contribution_base_fails_without_reoffer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            rewritten = self._advance_remote(fixture, remote, "rewritten", base=fixture.base)
+            with self.assertRaisesRegex(contributions.ContributionError, f"{rewritten} no longer contains contribution base"):
+                contributions.merge_reviewed_contribution(
+                    fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                    expected_target_head=fixture.boundary)
+            adapter.publish_job.assert_not_called()
+            adapter._gh.assert_not_called()
+
+    def test_moved_target_with_a_lost_claim_publishes_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            self._advance_remote(fixture, remote, "other")
+            outcome = contributions.merge_reviewed_contribution(
+                fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                expected_target_head=fixture.boundary, claim_current=mock.Mock(side_effect=[True, False]))
+            self.assertEqual(outcome, {"state": "discarded"})
+            adapter.publish_job.assert_not_called()
+
+    def test_matching_target_head_merges_without_reoffer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, pr, adapter = self._moved_target_fixture(Path(tmp))
+            def protected_merge(*_args, **_kwargs):
+                git(fixture.root, "switch", "requirement/BR-7")
+                git(fixture.root, "merge", "--no-ff", candidate["head"], "-m", "GitHub merge")
+                merge = git(fixture.root, "rev-parse", "HEAD")
+                git(fixture.root, "push", str(remote), "requirement/BR-7")
+                pr.update({"merged": True, "merge_commit_sha": merge})
+                return {"merged": True}
+            adapter._gh.side_effect = protected_merge
+            outcome = contributions.merge_reviewed_contribution(
+                fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                expected_target_head=fixture.boundary)
+            self.assertEqual(outcome["state"], "contribution-integrated")
+            adapter.publish_job.assert_not_called()
+            adapter._gh.assert_called_once()
+
     def test_lost_claim_refuses_merge_before_network_or_checkout(self):
         candidate = {"number": 1, "head": "a" * 40, "task_identity": {}, "gates": {}}
         with mock.patch.object(contributions, "require_gates"), mock.patch.object(workers, "prepare_checkout") as checkout:
