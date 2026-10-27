@@ -17,7 +17,7 @@ from _platform_common import ensure_shared_path, fetch_main, resolve_shared_grou
 
 
 def _lock_path(config: dict) -> str:
-    return str(config.get("paths", {}).get("main_merge_lock", ".claude/main-merge.lock")).replace("\\", "/")
+    return config["paths"]["main_merge_lock"].replace("\\", "/")
 
 
 # Lock paths this process already holds. ``flock`` on a second descriptor for the

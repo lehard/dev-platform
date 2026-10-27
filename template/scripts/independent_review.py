@@ -705,7 +705,7 @@ def main() -> int:
             print(json.dumps(readiness, indent=2, sort_keys=True))
             return 0 if readiness["ready"] else 2
         change = resolve_change(root, args.change)
-        base = getattr(args, "base", None) or f"origin/{read_platform_config(root).get('main_branch', 'main')}"
+        base = getattr(args, "base", None) or f"origin/{read_platform_config(root)['main_branch']}"
         if args.command == "prepare":
             request = prepare_request(root, change, base)
             print(f"Prepared independent review request {request['request_id']} for {args.change}.")

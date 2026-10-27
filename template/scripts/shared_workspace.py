@@ -17,7 +17,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import tomllib
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -34,16 +33,18 @@ DIRECTORY_MODE = stat.S_IRWXG | stat.S_ISGID
 FILE_MODE = stat.S_IRGRP | stat.S_IWGRP
 GIT_TREES = ("objects", "refs", "logs", "worktrees")
 GIT_FILES = ("config", "FETCH_HEAD", "HEAD", "index", "ORIG_HEAD", "packed-refs", "shallow")
-LIFECYCLE_PATH_DEFAULTS = {
-    "worktrees": ".claude/worktrees",
-    "agent_board": ".claude/agents-board.json",
-    "main_merge_lock": ".claude/main-merge.lock",
-    "pending_worktrees": ".claude/pending-worktrees.md",
-    "pending_completed_worktree_cleanup": ".claude/pending-completed-worktree-cleanup.json",
-    "friction_log": ".claude/agent-friction.jsonl",
-    "friction_state": ".claude/agent-friction-state.json",
-    "friction_reports": ".claude/reports/process-improvement",
-}
+# Lifecycle path keys of the platform configuration schema (_platform_common);
+# their values always come from the validated project configuration.
+LIFECYCLE_PATH_KEYS = (
+    "worktrees",
+    "agent_board",
+    "main_merge_lock",
+    "pending_worktrees",
+    "pending_completed_worktree_cleanup",
+    "friction_log",
+    "friction_state",
+    "friction_reports",
+)
 RECURSIVE_LIFECYCLE_PATHS = {"friction_reports", "model_routing"}
 
 # Stable, rarely-changing shared-repository configuration. Bootstrap/adoption
@@ -51,7 +52,6 @@ RECURSIVE_LIFECYCLE_PATHS = {"friction_reports", "model_routing"}
 # it so that independent tasks never contend on ``.git/config.lock``.
 SHARED_REPOSITORY_KEY = "core.sharedRepository"
 SHARED_REPOSITORY_VALUE = "group"
-MAIN_MERGE_LOCK_DEFAULT = ".claude/main-merge.lock"
 # A registered path can disappear between discovery and inspection when Git runs
 # ephemeral maintenance (lock files, temporary packs). Re-scan a bounded number
 # of times before giving up rather than reporting a false persistent failure.
@@ -104,12 +104,7 @@ def shared_workspace_applicable(root: Path | None = None, environ: dict[str, str
             return True
         # A multi-agent platform checkout is shared by contract even when the
         # integration root itself is the historical path that lost setgid.
-        config_path = integration / ".dev-platform.toml"
-        if not config_path.is_file():
-            return False
-        with config_path.open("rb") as handle:
-            configured = tomllib.load(handle)
-        return str(configured.get("workflow_profile", "")) == "multi-agent"
+        return _configured(integration)["workflow_profile"] == "multi-agent"
     except (OSError, SharedWorkspaceError):
         # A non-Git disposable fixture/check-out has no established shared
         # root to audit. The normal start path will report its own Git error.
@@ -220,36 +215,20 @@ def _registered_claude_path(integration: Path, relative: str) -> Path:
     return candidate
 
 
-def _configured_paths_table(integration: Path) -> dict[str, object]:
-    config_path = integration / ".dev-platform.toml"
-    if not config_path.is_file():
-        return {}
-    try:
-        with config_path.open("rb") as handle:
-            loaded = tomllib.load(handle)
-    except (OSError, tomllib.TOMLDecodeError):
-        # Configuration validation supplies the actionable diagnostic. Callers
-        # here remain safely bounded to their defaults.
-        return {}
-    paths = loaded.get("paths", {})
-    return paths if isinstance(paths, dict) else {}
+def _configured(integration: Path) -> dict[str, object]:
+    """The validated project configuration; a missing file or key is an explicit error."""
+    # Imported here: _platform_common imports this module at load time, so a module-level import would be circular.
+    from _platform_common import read_project_config
 
-
-def _configured_relative_path(integration: Path, key: str, default: str) -> str:
-    value = _configured_paths_table(integration).get(key, default)
-    if not isinstance(value, str) or not value:
-        return default
-    return value
+    return read_project_config(integration)
 
 
 def _lifecycle_paths(integration: Path) -> list[tuple[str, Path]]:
     """Return the reviewed lifecycle allowlist, never all ``.claude`` children."""
-    configured = _configured_paths_table(integration)
+    configured = _configured(integration)["paths"]
     result: list[tuple[str, Path]] = []
-    for key, default in LIFECYCLE_PATH_DEFAULTS.items():
-        value = configured.get(key, default)
-        if not isinstance(value, str) or not value:
-            value = default
+    for key in LIFECYCLE_PATH_KEYS:
+        value = configured[key]
         path = _registered_claude_path(integration, value)
         result.append((key, path))
         # ``locked_json`` and friction logging create these sidecar locks.
@@ -612,7 +591,7 @@ def _default_integration_serializer(integration: Path) -> ContextManager[object]
     """Reuse the existing serialized integration boundary for a rare repair."""
     from integration_state import serialized_integration
 
-    relative = _configured_relative_path(integration, "main_merge_lock", MAIN_MERGE_LOCK_DEFAULT)
+    relative = _configured(integration)["paths"]["main_merge_lock"]
     return serialized_integration(
         integration, {"paths": {"main_merge_lock": relative}}, _REPAIR_LOCK_TIMEOUT_SECONDS
     )
@@ -755,7 +734,7 @@ def publish_process_report(root: Path, name: str, text: str) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*\.md", name) or ".." in name:
         raise SharedWorkspaceError("report name must be a simple .md basename without '..'")
     integration = _safe_root(integration_root(root))
-    relative = _configured_relative_path(integration, "friction_reports", LIFECYCLE_PATH_DEFAULTS["friction_reports"])
+    relative = _configured(integration)["paths"]["friction_reports"]
     directory = _registered_claude_path(integration, relative)
     group = resolve_shared_group(integration) if posix_available() else None
     current = integration

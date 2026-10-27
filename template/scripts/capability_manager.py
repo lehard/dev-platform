@@ -208,7 +208,7 @@ def write_selection(root: Path, enabled: list[str]) -> None:
 
 def configured_providers(root: Path) -> list[str]:
     config = _load_toml(root / ".dev-platform.toml")
-    raw = config.get("agent_tools", "claude,codex")
+    raw = config["agent_tools"]
     if not isinstance(raw, str):
         raise CapabilityError("agent_tools must be a comma-separated string")
     return sorted({value.strip() for value in raw.split(",") if value.strip()})

@@ -49,7 +49,7 @@ class TestGroupError(RuntimeError):
 def load_check_config(root: Path) -> dict[str, Any]:
     import tomllib
 
-    relative = read_platform_config(root).get("paths", {}).get("checks", "dev-platform/checks.toml")
+    relative = read_platform_config(root)["paths"]["checks"]
     path = root / relative
     if not path.exists():
         raise TestGroupError(f"Check configuration not found: {path}")

@@ -36,7 +36,7 @@ def load_config(root: Path) -> dict[str, Any]:
     import tomllib
 
     platform = read_platform_config(root)
-    rel = platform.get("paths", {}).get("checks", "dev-platform/checks.toml")
+    rel = platform["paths"]["checks"]
     path = root / rel
     if not path.exists():
         raise SystemExit(f"Check configuration not found: {path}")
@@ -653,7 +653,7 @@ def main() -> int:
         if args.mode == "protected-full"
         else select(config, paths, declare_behavior_change=args.declare_behavior_change)
     )
-    harness = str(read_platform_config(root).get("harness_mode", "platform"))
+    harness = read_platform_config(root)["harness_mode"]
     status = validate_platform_selection(checks, harness)
 
     payload = {"files": paths, "checks": checks, "selection": status, "mode": args.mode}

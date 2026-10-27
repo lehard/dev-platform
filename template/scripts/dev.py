@@ -24,9 +24,8 @@ def run(command: list[str], root: Path, *, env: dict[str, str] | None = None) ->
 
 
 def load_config(root: Path) -> dict:
-    import tomllib
-    with (root / ".dev-platform.toml").open("rb") as fh:
-        return tomllib.load(fh)
+    from _platform_common import read_project_config
+    return read_project_config(root)
 
 
 def openspec_profile() -> dict[str, object]:
@@ -58,7 +57,7 @@ def refresh_openspec(root: Path) -> None:
     executable = shutil.which("openspec")
     if not executable:
         raise RuntimeError("OpenSpec CLI is not installed; install the version required by .dev-platform.toml")
-    tools = str(load_config(root).get("agent_tools", "claude,codex"))
+    tools = load_config(root)["agent_tools"]
     with tempfile.TemporaryDirectory(prefix="dev-platform-openspec-") as tmp:
         config_dir = Path(tmp) / "openspec"
         config_dir.mkdir(parents=True)
@@ -70,7 +69,7 @@ def refresh_openspec(root: Path) -> None:
 
 def maybe_sync_main(root: Path) -> None:
     branch = subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True, check=True).stdout.strip()
-    main_branch = str(load_config(root).get("main_branch", "main"))
+    main_branch = load_config(root)["main_branch"]
     if branch != main_branch:
         print(f"Skipping integration sync: current branch is {branch!r}, not {main_branch!r}.")
         return

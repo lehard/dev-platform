@@ -80,7 +80,7 @@ def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
     Legitimate absence (nothing substituted): no board file means no claim was ever recorded on this machine,
     and no item for the worktree means its claim was already released by an earlier, resumed finish.
     """
-    rel = config.get("paths", {}).get("agent_board", ".claude/agents-board.json")
+    rel = config["paths"]["agent_board"]
     path = main / rel
     if not path.exists():
         return None
@@ -321,7 +321,7 @@ def print_independent_review(state: dict) -> None:
 
 def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) -> int:
     """Read publication state plus freshly observed task/main freshness; never publish or merge."""
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     mode = publish_mode(config)
     branch = current_branch(work)
     checkout_identity = None
@@ -861,7 +861,7 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     privacy = observe_private_reference_blocker(work, title, body)
     if privacy:
         raise SystemExit(privacy)
-    result = publish_pr(work, "origin", str(config.get("main_branch", "main")), title, body,
+    result = publish_pr(work, "origin", config["main_branch"], title, body,
                         pr_merge_mode(config), config=config, developer_handoff=True)
     if result == 0:
         finish_board(integration, work, config)
@@ -936,7 +936,7 @@ def main() -> int:
     if work != integration:
         preflight(work)
     mode = publish_mode(config)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     branch = current_branch(work)
     try:
         require_managed_checkout_identity(work)

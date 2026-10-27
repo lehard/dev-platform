@@ -104,7 +104,7 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
     if harness_mode(config) != "platform":
         raise RuntimeError("harness_mode=project: use the repository-owned task/worktree entrypoint described by its AGENTS.md.")
     prof = profile(config)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     doctor = subprocess.run(["python3", str(root / "scripts" / "agent_doctor.py")], cwd=root, stdin=subprocess.DEVNULL)
     if doctor.returncode != 0:
         raise RuntimeError("agent doctor failed; task start was not attempted")
@@ -148,7 +148,7 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
 def cleanup_started_task(root: Path, started: StartedTask) -> None:
     """Remove only the branch/worktree created by this invocation after intake fails."""
     root = root.resolve()
-    main_branch = str(read_platform_config(root).get("main_branch", "main"))
+    main_branch = read_platform_config(root)["main_branch"]
     if started.profile == "standard":
         run_git(["switch", main_branch], cwd=root)
         run_git(["branch", "-D", started.branch], cwd=root)
