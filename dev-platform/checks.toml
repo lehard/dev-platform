@@ -98,6 +98,7 @@ targets = [
   "test_managed_rollout",
   "test_managed_project_status",
   "test_browser_verification",
+  "test_finish_explicit_fallbacks",
 ]
 mode = "parallel"
 
