@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "fc0b2f72e69d511f909ae76792be4a3f81f3e2ac",
+    "base_ref": "origin/main",
+    "candidate_head": "61caf541a1abd049fa71714fe83b4c97b35aaa03",
+    "diff_sha256": "e7c8218f6ce891448d638ab99f8b8179ee1bc209405075b524e6c7e1b5dabd7f"
+  },
+  "completed_at": "2026-10-27T15:32:45+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_contributions.py returns {\"state\": \"target-moved\"}. lifecycle_workers.py:1377 posts it verbatim through result_body. publication_queue.py:1986-1989 WORKER_PROGRESS_STATES lists \"contribution-integrated\" and \"discarded\" but not \"target-moved\", and publication_queue.py:2521 returns exit code 2 for any state outside that set. I did not trace whether the contribution-integration job outcome reaches that exit code. If it does, a successful re-offer would exit non-zero. The tests only cover the return value of merge_reviewed_contribution.",
+      "id": "target-moved-state-unregistered",
+      "severity": "advisory",
+      "summary": "The new `target-moved` outcome is not in the shared worker outcome vocabulary. A hand-run worker or CI command could treat it as a failure."
+    }
+  ],
+  "launched_at": "2026-10-27T15:32:10+00:00",
+  "output_sha256": "c3ca7d85a646f8896e07512672ea3622e16cf0f27e80dc0507a8a12e3b473a5b",
+  "perspective": "engineering-quality",
+  "request_id": "9e418e03-dabe-4ede-90bc-81094a3a2d26",
+  "reviewer": {
+    "context_id": "99837a8c-3003-44c0-a9dd-864c1e41ac5c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-efa969d5-1ad3-4597-94d6-76d4229ca6bb",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19211
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 103216
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34022
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34168
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1812
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "63ce2297d5bfd43dc3a3bc8b59f755b18e34e008dbb709fa9f597c7a9237baac"
+}

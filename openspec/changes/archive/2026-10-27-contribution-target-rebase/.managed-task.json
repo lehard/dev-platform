@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "contribution-target-rebase",
+  "imported_at": "2026-10-27T14:59:25+00:00",
+  "package_revision": "0e166ab8b798c115894af1a854d540a68e6252b6d317c8b4e952f5674240a7ce",
+  "prepared_against": "53b6e45ae036962cf6ba4764e8bdb64f0dda876a",
+  "private_lineage_handle": "pln_87bca9aae0abbfbfb66d87097deedb9d",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "b5b79ba78fc04ffac010b2dc37e25176304263ebdc85da1e1c9927b9b9d90544",
+    "updated_at": "2026-10-27T14:50:12Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-771/T5"
+}
