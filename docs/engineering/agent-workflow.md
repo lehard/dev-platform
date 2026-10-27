@@ -271,12 +271,13 @@ At minimum:
 
 ```bash
 python3 -m compileall -q template/scripts scripts
+python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests
 python3 scripts/managed_projects.py --registry <operator-registry-path> validate
 python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check
 ```
 
-When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
+`check_ci_python.py` reads the Python version that the `validate` job of `.github/workflows/ci.yml` pins. When the local `python3` has another minor version, it compiles the sources with `python<major.minor>` of the CI version and fails on a compile error; an unreadable CI version or a missing or misreporting interpreter of that version is refused naming both versions. It catches compile-time errors only (for example the Python 3.11 limit on statically nested blocks), not runtime behaviour differences; required CI stays the merge gate. When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
 
 For a bounded local change, prefer `python3 scripts/select_checks.py --base origin/main --execute` over the full command list above: a semantic-preserving `AGENTS.md`/`docs/**`/OpenSpec-prose/`template/AGENTS.md.jinja` change gets bounded structure/link/anchor/render checks instead of the full suite, while any change under `scripts/**`, `template/scripts/**` or `tests/**` (or any other Python file), an unknown or ambiguous path, and a control-plane (selector/CI/lifecycle) path still run the full set above; `dev-platform/checks.toml` currently maps no executable surface to a narrower test group. This never replaces the protected-full result required for a PR.
 

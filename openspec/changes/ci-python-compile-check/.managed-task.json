@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-ci/spec.md",
+    "tasks.md"
+  ],
+  "change": "ci-python-compile-check",
+  "imported_at": "2026-10-27T15:19:35+00:00",
+  "package_revision": "1f4c815278534c1ebbc50004245f9d252512a6fabe1d6afd041cf7720eccc495",
+  "prepared_against": "fc0b2f72e69d511f909ae76792be4a3f81f3e2ac",
+  "private_lineage_handle": "pln_84d8c8f7a264ae587174b0b8e8822dab",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "c7b04d54b0e0f905cce1a6f2c4a4bed71177b49ee648b1ec72b32842ba9befae",
+    "updated_at": "2026-10-27T15:11:02Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-837/T2"
+}

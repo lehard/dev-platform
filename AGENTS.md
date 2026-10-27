@@ -74,6 +74,7 @@ Minimum validation before finishing:
 
 ```bash
 python3 -m compileall -q template/scripts scripts
+python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests
 python3 scripts/managed_projects.py validate
 python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check
