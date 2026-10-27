@@ -12,4 +12,4 @@
 
 - [x] 3.1 Update `docs/managed-rollout.md` (alarm, both dispatch paths, failure semantics).
 - [x] 3.2 Tests: alarm for plan failure (auto-dispatched and manual), partial per-project failure, cancelled job, success without and with an open alarm issue, missing annotation, delivery failure; streak commands propagate failures; workflow structure for the `alarm` job and streak steps.
-- [ ] 3.3 Run full validation and semantic OpenSpec verification.
+- [x] 3.3 Run full validation and semantic OpenSpec verification.
