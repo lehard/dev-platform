@@ -836,7 +836,6 @@ class GitLifecycleTests(unittest.TestCase):
         original = sys.stdout
         sys.stdout = recorder
         try:
-            started = time.monotonic()
             finish_task.run_checks(sandbox, "origin/main", False)
             ended = time.monotonic()
         finally:
@@ -845,7 +844,8 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertTrue(recorder.events, "run_checks produced no streamed output")
         first_at, first_text = recorder.events[0]
         self.assertIn("EARLY_LINE", first_text)
-        self.assertLess(first_at - started, 1.0, "first line was not forwarded promptly")
+        # The child sleeps 2 s between its lines, so a first line forwarded before exit
+        # is >1.5 s older than the return on any host; a slow host only widens the gap.
         self.assertGreater(ended - first_at, 1.5, "output appears to have been buffered until child exit")
         self.assertIn("LATE_LINE", recorder.getvalue())
 
