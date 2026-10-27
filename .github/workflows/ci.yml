@@ -20,6 +20,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install the source contract
+        # Platform scripts and the unit-test runner read .dev-platform.toml, which the
+        # central checkout keeps untracked; a missing file is an explicit error.
+        run: |
+          test ! -e .dev-platform.toml
+          cp dev-platform/source-contract.toml .dev-platform.toml
+
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"

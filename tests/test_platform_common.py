@@ -133,7 +133,8 @@ class PlatformConfigSchemaTests(unittest.TestCase):
         import re
         import tomllib
 
-        source = ROOT / ".dev-platform.toml"
+        # The committed public source contract is what CI and hosted workers install.
+        source = ROOT / "dev-platform" / "source-contract.toml"
         _platform_common.validate_platform_config(tomllib.loads(source.read_text(encoding="utf-8")), source)
         # The template renders every required key, so a fresh project always validates.
         template = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
