@@ -1,0 +1,138 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.117,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.376,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.126,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.206,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 983.056,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/reconcile-stale-rollouts.yml",
+        ".github/workflows/rollout.yml",
+        "dev-platform/checks.toml",
+        "scripts/rollout_alarm.py",
+        "scripts/rollout_failure_streak.py",
+        "tests/test_rollout_alarm.py",
+        "tests/test_rollout_failure_streak.py",
+        "tests/test_rollout_failure_streak_workflow.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_4fbdee96408bc169db0ab48c813f5ba4",
+    "change": "rollout-failure-alarm",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/rollout-failure-alarm",
+    "branch": "agent/br-832-t1-rollout-failure-alarm",
+    "head": "dfe12fd29969d4fcd77f4dcd18ef6b7bc4e20c07",
+    "task_content": {
+      "version": 1,
+      "digest": "468e1c35406b8c525cdee6f7605ea51b9144996478f77bf3679d2d8a7c7e7b55",
+      "paths": {
+        ".github/workflows/reconcile-stale-rollouts.yml": "636f6b79847d3c1103f68b990da6395f02395ef1",
+        ".github/workflows/rollout.yml": "20bf6412169c6ee5dd6c3a188c66ffd46322219f",
+        "dev-platform/checks.toml": "9296a757939a1593f8e7d153322a71723759ed91",
+        "docs/managed-rollout.md": "a1a8aa6025918afb3828b6e6db4096379966dd19",
+        "explorer/editorial-review.json": "77ff01edba5dfd3fb926348fd2d9108708cb0d9c",
+        "explorer/nodes/copier-rollout.toml": "9a5fd75db6970d6c152b3e63267c5506a2d195d9",
+        "openspec/changes/rollout-failure-alarm/.managed-task.json": "86d12a5f4ed5ec2cc632305f8786cabed1d68ee3",
+        "openspec/changes/rollout-failure-alarm/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+        "openspec/changes/rollout-failure-alarm/design.md": "c51522449cd8e6a60f7092e36fd925e1fc84b386",
+        "openspec/changes/rollout-failure-alarm/proposal.md": "905f88d875d19918ffffaa3459a114aafe3916ac",
+        "openspec/changes/rollout-failure-alarm/specs/platform-rollout/spec.md": "524da1fc4fbd1b1072131aec07bce4849209250b",
+        "openspec/changes/rollout-failure-alarm/tasks.md": "f67c89fd2ed4cf0382ad210213cc8916c9a3d8c3",
+        "openspec/changes/rollout-failure-alarm/verification.md": "3c5828b7f3e87aaa46e26b0f184e4255c032359d",
+        "scripts/rollout_alarm.py": "6b7085c2d3c9107824479561fb3bf42d4d7c0bc7",
+        "scripts/rollout_failure_streak.py": "ced72f8c0845e07e038ff37a03a63113898fbbd0",
+        "tests/test_rollout_alarm.py": "fcd48d9edfd8b5ab54c0a98bc5328e542281b73b",
+        "tests/test_rollout_failure_streak.py": "ef7fa27796f203019c81e7f1e9e93ff73e098693",
+        "tests/test_rollout_failure_streak_workflow.py": "cca187bcdec35b5fe22ec162d11440b5c8d73809"
+      },
+      "base": "3e433dff4199cc53cdde7ba5e5bd7341a4116385"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f80c051b7acd8bf61da03c33f3ce08660e6de6f5675961b4519263b95f4205f9",
+    "paths": {
+      ".github/workflows/reconcile-stale-rollouts.yml": "636f6b79847d3c1103f68b990da6395f02395ef1",
+      ".github/workflows/rollout.yml": "20bf6412169c6ee5dd6c3a188c66ffd46322219f",
+      "dev-platform/checks.toml": "9296a757939a1593f8e7d153322a71723759ed91",
+      "docs/managed-rollout.md": "a1a8aa6025918afb3828b6e6db4096379966dd19",
+      "explorer/editorial-review.json": "77ff01edba5dfd3fb926348fd2d9108708cb0d9c",
+      "explorer/nodes/copier-rollout.toml": "9a5fd75db6970d6c152b3e63267c5506a2d195d9",
+      "openspec/changes/rollout-failure-alarm/.managed-task.json": "86d12a5f4ed5ec2cc632305f8786cabed1d68ee3",
+      "openspec/changes/rollout-failure-alarm/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+      "openspec/changes/rollout-failure-alarm/design.md": "c51522449cd8e6a60f7092e36fd925e1fc84b386",
+      "openspec/changes/rollout-failure-alarm/proposal.md": "905f88d875d19918ffffaa3459a114aafe3916ac",
+      "openspec/changes/rollout-failure-alarm/specs/platform-rollout/spec.md": "524da1fc4fbd1b1072131aec07bce4849209250b",
+      "openspec/changes/rollout-failure-alarm/tasks.md": "f67c89fd2ed4cf0382ad210213cc8916c9a3d8c3",
+      "scripts/rollout_alarm.py": "6b7085c2d3c9107824479561fb3bf42d4d7c0bc7",
+      "scripts/rollout_failure_streak.py": "ced72f8c0845e07e038ff37a03a63113898fbbd0",
+      "tests/test_rollout_alarm.py": "fcd48d9edfd8b5ab54c0a98bc5328e542281b73b",
+      "tests/test_rollout_failure_streak.py": "ef7fa27796f203019c81e7f1e9e93ff73e098693",
+      "tests/test_rollout_failure_streak_workflow.py": "cca187bcdec35b5fe22ec162d11440b5c8d73809"
+    },
+    "base": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/rollout_alarm.py --changed-file scripts/rollout_failure_streak.py --changed-file tests/test_rollout_alarm.py --changed-file tests/test_rollout_failure_streak.py --changed-file tests/test_rollout_failure_streak_workflow.py",
+    "duration_seconds": 2.93,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
