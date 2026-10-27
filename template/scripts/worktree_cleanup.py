@@ -652,7 +652,7 @@ def _cleanup_target(root: Path, target: DeferredCleanupTarget) -> dict[str, obje
         errors = [{"path": target.path, "error": "not-deferred: no finish deferral records this worktree; use cleanup --all once scan reports it eligible"}]
         return {"status": "refused", "scope": "target", "target": target.as_entry(), "matched": False, "removed": [], "errors": errors}
     return {
-        "status": "completed" if errors else ("already-cleaned" if not matched else "completed"),
+        "status": "failed" if errors else ("already-cleaned" if not matched else "completed"),
         "scope": "target",
         "target": target.as_entry(),
         "matched": matched,
@@ -724,7 +724,12 @@ def main() -> int:
         report = write_pending_report(root, decisions)
         payload = {"status": "scan", **summary(decisions), "pending_report": str(report), "decisions": [asdict(item) for item in decisions]}
     print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
-    return 1 if payload.get("scope") == "target" and payload["status"] == "refused" else 0
+    return 1 if cleanup_failed(payload) else 0
+
+
+def cleanup_failed(payload: dict[str, object]) -> bool:
+    """A cleanup that recorded an error or was refused never exits as a success (BR-771)."""
+    return bool(payload.get("errors")) or payload.get("status") in {"refused", "failed"}
 
 
 if __name__ == "__main__":

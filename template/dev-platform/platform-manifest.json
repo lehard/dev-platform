@@ -144,7 +144,7 @@
     "scripts/start_worktree.py": "985f9a09154933e9a10c88c58b5a64a7d291dd2f53928bb3a58b5227be05eb35",
     "scripts/task_content_identity.py": "2d48ad088af93182f84fdc508f0d3c0d27e89d80274dc939aff0bb4c753509bc",
     "scripts/task_reconciliation.py": "ed52eb82b8ad6182055e69417033d3c0dc91aed53c723854b98bfe5b5f440eca",
-    "scripts/worktree_cleanup.py": "a0edcce9f8cb5d9601721bca657a6e0e40497ca4b2098c1231d0175137a8eb81"
+    "scripts/worktree_cleanup.py": "43c73eff22cb967d8051a4e341ec682220587b31fb9d6d4039ab6eec585f74bd"
   },
   "project_harness_owned": [
     "docs/engineering/openspec-workflow.md",
