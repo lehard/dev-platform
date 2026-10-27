@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "c95e000c96652482ac8f7da98fac9bfee557e07c",
+    "base_ref": "origin/main",
+    "candidate_head": "d7ad8d889141bcc040e98e7a1f0d6287c2444182",
+    "diff_sha256": "b5ea930fd58f544cf43aa329d949c77253f55928fbf45475c057c26d823d4e41"
+  },
+  "change": "openspec/changes/terminal-reconcile-fresh-main",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/terminal-reconcile-fresh-main/automated-checks.json",
+    "openspec/changes/terminal-reconcile-fresh-main/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/terminal-reconcile-fresh-main/design.md",
+        "openspec/changes/terminal-reconcile-fresh-main/proposal.md",
+        "openspec/changes/terminal-reconcile-fresh-main/specs/agent-workflow/spec.md",
+        "openspec/changes/terminal-reconcile-fresh-main/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/terminal-reconcile-fresh-main/proposal.md",
+        "openspec/changes/terminal-reconcile-fresh-main/design.md",
+        "openspec/changes/terminal-reconcile-fresh-main/tasks.md",
+        "openspec/changes/terminal-reconcile-fresh-main/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-27T13:07:57+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/terminal-reconcile-fresh-main/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "93fc81bf-350b-404d-947f-677cdc26f7c3",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "13ccdc3d274d8864d2f335c60c947c430f21ca20",
+    "digest": "433ca14f2bda6c7f1351e2704880be007614c739f9a726f8b814f9eef2092767",
+    "paths": {
+      "dev-platform/checks.toml": "1697ea94579facbc948319d2c584942795858593",
+      "openspec/changes/terminal-reconcile-fresh-main/.managed-task.json": "af1f2f872c08e5b67db27be2b0f32d511ef460e5",
+      "openspec/changes/terminal-reconcile-fresh-main/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/terminal-reconcile-fresh-main/design.md": "b62e0a2927243b9ab9e918c0d737b063d4d36cef",
+      "openspec/changes/terminal-reconcile-fresh-main/proposal.md": "3bef1b1f6a534c464aa5ce2c138579d63ebc6713",
+      "openspec/changes/terminal-reconcile-fresh-main/specs/agent-workflow/spec.md": "dee6b53bd698845d683b328616bde29f73d857fa",
+      "openspec/changes/terminal-reconcile-fresh-main/tasks.md": "89c0f6052c420c256a0bec0d6c031bb86bd69210",
+      "template/scripts/execute_requirement.py": "124bf2945e96bb7dfc4fddfab964886ed2a37d8f",
+      "template/scripts/managed_task.py": "164ba601fd499bc5366e68302f0b8ec41ebc6fd6",
+      "template/scripts/requirement_terminal.py": "3e0549a3ff54645d09787238bd4d12a5bedb11b7",
+      "tests/test_finish_merged_queue.py": "7422314999141a6504b7ff8bdb167e295e06fb7b",
+      "tests/test_requirement_terminal_fresh_main.py": "6a9a6590c9fcdd5a62a01274fff73ec8b1cec0c7",
+      "tests/test_shared_writer_guard.py": "b7f7cf3c69c8def58eabf4aee12ff1cfdd08a876"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

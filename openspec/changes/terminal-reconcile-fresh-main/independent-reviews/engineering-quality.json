@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c95e000c96652482ac8f7da98fac9bfee557e07c",
+    "base_ref": "origin/main",
+    "candidate_head": "d7ad8d889141bcc040e98e7a1f0d6287c2444182",
+    "diff_sha256": "b5ea930fd58f544cf43aa329d949c77253f55928fbf45475c057c26d823d4e41"
+  },
+  "completed_at": "2026-10-27T13:08:23+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/managed_task.py: `payload = run([\"git\", \"show\", f\"{commit}:{directory / PROVENANCE}\"], root).stdout; (local / PROVENANCE).write_text(payload, encoding=\"utf-8\")`. The JSON provenance is probably unaffected. The new writer-baseline entry in tests/test_shared_writer_guard.py exists only because of this copy, so parsing the blob directly would avoid both the copy and the entry.",
+      "id": "git-show-text-roundtrip",
+      "severity": "advisory",
+      "summary": "resolve_committed_lineage decodes provenance via run(...).stdout as text and rewrites it with write_text, so it depends on the run() helper's text decoding and newline handling. It does not copy the exact git blob bytes."
+    },
+    {
+      "evidence": "execute_requirement.py `_done_child_is_delivered` calls managed_task.target_main(integration) on every call. resolve_committed_lineage runs `git ls-tree -r --name-only <commit> -- openspec/changes`, which lists every archived file. design.md accepts this as 'a handful of children'. It could be a problem for large archives or long-running recovery loops.",
+      "id": "per-call-fetch-and-full-tree-listing",
+      "severity": "advisory",
+      "summary": "_done_child_is_delivered runs `git fetch --prune` and a recursive `ls-tree -r` over openspec/changes for each child it checks. Cost grows with the archive size and the number of children."
+    }
+  ],
+  "launched_at": "2026-10-27T13:08:11+00:00",
+  "output_sha256": "baf9bd0f5abf474680e2e05eb690fd389780422ffe3775a6ca2de783f75f2d64",
+  "perspective": "engineering-quality",
+  "request_id": "93fc81bf-350b-404d-947f-677cdc26f7c3",
+  "reviewer": {
+    "context_id": "07bcaf23-1c59-4351-9d10-26bb9a36b1e3",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-baa2485d-e58a-4d26-afb0-8486ef0b2b42",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24344
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 70364
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12012
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12227
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1268
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "433ca14f2bda6c7f1351e2704880be007614c739f9a726f8b814f9eef2092767"
+}
