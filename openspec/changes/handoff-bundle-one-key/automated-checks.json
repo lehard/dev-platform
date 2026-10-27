@@ -1,0 +1,110 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.198,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.12,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.18,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1207.49,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "tests/test_requirement_execution.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_a2ff807b9a5af8a5277b546a6c1572da",
+    "change": "handoff-bundle-one-key",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/handoff-bundle-one-key",
+    "branch": "agent/br-811-t1-handoff-bundle-one-key",
+    "head": "7be12de147542676d0c943dab3e33eac90631931",
+    "task_content": {
+      "version": 1,
+      "digest": "e5379fa947c0ee5ada62e632dc25bbe27c8721b905dab26726d9a7e4fe3f3160",
+      "paths": {
+        "docs/engineering/task-intake.md": "f6322ed42a7d319d068b5267dab326901516faaa",
+        "openspec/changes/handoff-bundle-one-key/.managed-task.json": "b33daddcce3327d57894e2713fc6014ceab6986f",
+        "openspec/changes/handoff-bundle-one-key/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+        "openspec/changes/handoff-bundle-one-key/design.md": "01cb5c6b4837b14e12f192efcee55b82e7e1529c",
+        "openspec/changes/handoff-bundle-one-key/proposal.md": "e9e21f85b1424415ba9c17652395fac0554a0a23",
+        "openspec/changes/handoff-bundle-one-key/specs/agent-workflow/spec.md": "be83abf73eaf1b13d869903bea47b6ba7b447956",
+        "openspec/changes/handoff-bundle-one-key/tasks.md": "014a0d186fbb3d07ca49b4c9a5e94b164944069d",
+        "template/dev-platform/platform-manifest.json": "3ee29da5d54ac187c46504dfdc46531f26580c08",
+        "template/docs/engineering/task-intake.md.jinja": "814b04008032a2f78ae8dc2fb8a5566d7e35a9e4",
+        "template/scripts/execute_requirement.py": "e607e388f4263eab5cb9ae4404bf70d80417fdac",
+        "tests/test_requirement_execution.py": "2ce80cfe1915e0f00958d9fe73948bb49c96be1e"
+      },
+      "base": "d72fffe13e15dbaa9f31ffc39e106c216ca664f3"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "7059963fcda45e9ccc5b01b3f7ab5e5e6baaa285d796f1265914ae8a8f20732d",
+    "paths": {
+      "docs/engineering/task-intake.md": "f6322ed42a7d319d068b5267dab326901516faaa",
+      "openspec/changes/handoff-bundle-one-key/.managed-task.json": "b33daddcce3327d57894e2713fc6014ceab6986f",
+      "openspec/changes/handoff-bundle-one-key/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
+      "openspec/changes/handoff-bundle-one-key/design.md": "01cb5c6b4837b14e12f192efcee55b82e7e1529c",
+      "openspec/changes/handoff-bundle-one-key/proposal.md": "e9e21f85b1424415ba9c17652395fac0554a0a23",
+      "openspec/changes/handoff-bundle-one-key/specs/agent-workflow/spec.md": "be83abf73eaf1b13d869903bea47b6ba7b447956",
+      "openspec/changes/handoff-bundle-one-key/tasks.md": "014a0d186fbb3d07ca49b4c9a5e94b164944069d",
+      "template/docs/engineering/task-intake.md.jinja": "814b04008032a2f78ae8dc2fb8a5566d7e35a9e4",
+      "template/scripts/execute_requirement.py": "e607e388f4263eab5cb9ae4404bf70d80417fdac",
+      "tests/test_requirement_execution.py": "2ce80cfe1915e0f00958d9fe73948bb49c96be1e"
+    },
+    "base": "d72fffe13e15dbaa9f31ffc39e106c216ca664f3",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/execute_requirement.py --changed-file tests/test_requirement_execution.py",
+    "duration_seconds": 142.662,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
