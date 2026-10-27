@@ -5,4 +5,4 @@
 
 ## 2. Verification
 - [x] 2.1 Regression tests: a fresh registered task at the main tip survives `doctor --fix`; a merged and abandoned task is removed; legacy, unknown-base and fast-forward-without-proof entries are kept with named reasons; existing tests updated to register `base_head`.
-- [ ] 2.2 Run full validation and semantic OpenSpec verification.
+- [x] 2.2 Run full validation and semantic OpenSpec verification.
