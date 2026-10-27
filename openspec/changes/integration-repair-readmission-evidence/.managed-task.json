@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/publication-queue/spec.md",
+    "tasks.md"
+  ],
+  "change": "integration-repair-readmission-evidence",
+  "imported_at": "2026-10-27T13:47:35+00:00",
+  "package_revision": "26c63efbeb9326f4e5edb362c02d634fbb4e4f520ead9c3c5fac405d176988cc",
+  "prepared_against": "791b793b0a6a52e2a57d9f74703dae4d1cd3b570",
+  "private_lineage_handle": "pln_fc027ab5815994826085c43d779b883c",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "47618284ab2e57a47e0987b6156c452ee5e4417fc1ab9d970aa7b15d26504840",
+    "updated_at": "2026-10-27T13:40:25Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-837/T1"
+}
