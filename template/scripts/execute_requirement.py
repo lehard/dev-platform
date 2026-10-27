@@ -196,10 +196,13 @@ def _bundle_reused_child(
     Same rule as materialization: an existing child is reused only while its
     contract equals the authored bundle; a changed contract stops explicitly.
     """
+    path = _handoff_bundle(base_dir, requirement, intent)
+    if path is None:
+        return None  # this handoff has no authored bundle yet
     try:
-        bundle = managed_task.load_authoring_bundle(str(_bundle(base_dir, requirement, intent)))
-    except Exception:
-        return None
+        bundle = managed_task.load_authoring_bundle(str(path))
+    except managed_task.ManagedTaskError as exc:
+        raise RequirementExecutionError(f"authored bundle {path} of handoff {intent} is invalid: {exc}") from exc
     child = linked_by_change.get(bundle.change)
     if child is None:
         return None
@@ -247,11 +250,51 @@ def _rekey_by_linked_child(
     return rekeyed
 
 
-def _bundle(base_dir: Path, requirement: str, change: str) -> Path:
-    number = requirement.rsplit("#", 1)[1]
-    path = base_dir / f"requirement-{number}" / "bundles" / change
-    if not (path / "manifest.json").is_file():
-        raise RequirementExecutionError(f"authored bundle is unavailable for {change}: {path}")
+BUNDLE_KEY_RULE = (
+    'name the bundle directory bundles/<handoff id> or declare "handoff": "<handoff id>" in its manifest.json'
+)
+
+
+def _handoff_bundle(base_dir: Path, requirement: str, handoff: str) -> Path | None:
+    """The one authored bundle of ``handoff``: ``bundles/<handoff>`` or the bundle declaring it.
+
+    The handoff id is the only key: a bundle named after its change is never
+    paired with a handoff by name, it declares ``"handoff"`` in its manifest.
+    No bundle is ``None``; an unreadable, contradictory or ambiguous one stops.
+    """
+    directory = base_dir / f"requirement-{requirement.rsplit('#', 1)[1]}" / "bundles"
+    if not directory.is_dir():
+        return None
+    named = directory / handoff
+    candidates: set[Path] = set()
+    for manifest_path in sorted(directory.glob("*/manifest.json")):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RequirementExecutionError(f"authored bundle manifest {manifest_path} is unreadable: {exc}") from exc
+        if not isinstance(manifest, dict):
+            raise RequirementExecutionError(f"authored bundle manifest {manifest_path} is not a JSON object")
+        declared = manifest.get("handoff")
+        if declared is not None and not isinstance(declared, str):
+            raise RequirementExecutionError(f"authored bundle {manifest_path.parent} declares a non-string handoff")
+        if manifest_path.parent == named:
+            if declared is not None and declared != handoff:
+                raise RequirementExecutionError(
+                    f"authored bundle {named} is named after handoff {handoff} but declares handoff {declared}")
+            candidates.add(named)
+        elif declared == handoff:
+            candidates.add(manifest_path.parent)
+    if len(candidates) > 1:
+        raise RequirementExecutionError(
+            f"handoff {handoff} has several authored bundles: {', '.join(str(path) for path in sorted(candidates))}; "
+            f"keep exactly one ({BUNDLE_KEY_RULE})")
+    return next(iter(candidates), None)
+
+
+def _bundle(base_dir: Path, requirement: str, handoff: str) -> Path:
+    path = _handoff_bundle(base_dir, requirement, handoff)
+    if path is None:
+        raise RequirementExecutionError(f"authored bundle is unavailable for handoff {handoff}: {BUNDLE_KEY_RULE}")
     return path
 
 
@@ -539,6 +582,11 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             continue
         observation = managed_project_status.observe(integration, source_issue=historical_child)
         if observation is None or observation.current_status != "Done":
+            unmapped = sorted(change for change in current_changes if change not in linked_by_change)
+            if unmapped:
+                raise RequirementExecutionError(
+                    f"linked child {historical_child} (change {historical_change}) is not terminal and maps to "
+                    f"no current handoff; unmapped handoffs: {', '.join(unmapped)}. To bind them, {BUNDLE_KEY_RULE}")
             raise RequirementExecutionError(f"historical linked child {historical_child} is not terminal")
         _done_child_is_delivered(integration, historical_child, historical_change)
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
