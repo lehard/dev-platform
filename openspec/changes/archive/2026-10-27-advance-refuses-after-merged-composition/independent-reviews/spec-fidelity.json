@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "1ddff8e3987a1d33024ea1fa36e0e31c950b2f33",
+    "base_ref": "origin/main",
+    "candidate_head": "5a546405cb261ca3778278b70d692c9ed6c260e7",
+    "diff_sha256": "03086091ab92a497d3f37ae78e7e6dee7b20c40df3e2da04bcefa03c9b468de2"
+  },
+  "completed_at": "2026-10-27T04:13:13+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py:726-735: the `materialize_handoff` loop (727-732) and `read_platform_config` run before `_require_no_merged_composition` at 735. design.md line 8 says 'The check runs first'. The spec only requires the refusal before the integration branch is touched, so the requirement holds, but design and code differ.",
+      "id": "check-runs-after-materialization",
+      "severity": "advisory",
+      "summary": "Design says the refusal check runs first in `_advance_contributions`, but it runs after handoff materialization, so a refused advance can still create linked child Issues."
+    },
+    {
+      "evidence": "design.md line 8: '`gh pr list --state all --head <branch> --base main` inventory ... any merged PR of the branch refuses'. The code at execute_requirement.py:176 passes `--state merged`. The behavior matches the spec, but the 100-item bound now applies to merged PRs only, and the design text is stale.",
+      "id": "design-state-all-vs-merged",
+      "severity": "advisory",
+      "summary": "Design describes the inventory as `--state all` and refuses on any merged PR. The code lists only `--state merged`."
+    },
+    {
+      "evidence": "execute_requirement.py:190-191 builds `work-next --repo {repository} --kinds ... --pr {first} --run`. design.md line 9 names `work-next --kinds retrospective,terminal-reconciliation,cleanup --pr N`. Minor documentation drift; the spec requires only that the coordinator's post-merge jobs and the status command are named.",
+      "id": "refusal-command-differs-from-design",
+      "severity": "advisory",
+      "summary": "The suggested post-merge command includes `--repo` and `--run`, which design.md and the spec text do not mention."
+    }
+  ],
+  "launched_at": "2026-10-27T04:12:58+00:00",
+  "output_sha256": "cfe0d47b51f2078aab08422540f7ae11183869c312ec7880bc80c95ccd6b587e",
+  "perspective": "spec-fidelity",
+  "request_id": "2debf5aa-a7b6-44b6-af15-51bb4e6b2bdd",
+  "reviewer": {
+    "context_id": "ddcecb61-4742-4e47-8130-f44cab48d614",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bb97b5a4-1443-4b9b-941c-b493db305aa4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28728
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43331
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12536
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12851
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1423
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6d769874ad3337b4d3a9ffeafb4a8418abcf6c3ae04bd82b68067201263397aa"
+}

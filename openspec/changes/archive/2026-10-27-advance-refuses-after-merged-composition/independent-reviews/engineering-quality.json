@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "1ddff8e3987a1d33024ea1fa36e0e31c950b2f33",
+    "base_ref": "origin/main",
+    "candidate_head": "5a546405cb261ca3778278b70d692c9ed6c260e7",
+    "diff_sha256": "03086091ab92a497d3f37ae78e7e6dee7b20c40df3e2da04bcefa03c9b468de2"
+  },
+  "completed_at": "2026-10-27T04:13:25+00:00",
+  "findings": [
+    {
+      "evidence": "design.md Decisions: \"using the same `gh pr list --state all --head <branch> --base main` inventory\"; template/scripts/execute_requirement.py:176 uses `\"--state\", \"merged\"`. The behavior is correct, but the archived design misdescribes it, and the 100-row bound now applies to merged PRs only.",
+      "id": "design-state-filter-mismatch",
+      "severity": "advisory",
+      "summary": "design.md says the check uses the same `--state all` inventory as the single-child path, but the code queries `--state merged`."
+    }
+  ],
+  "launched_at": "2026-10-27T04:13:13+00:00",
+  "output_sha256": "ed2c2092dd1557923d9b89177e7eb5bcc8145ff17c82a857b9b793b465f980fc",
+  "perspective": "engineering-quality",
+  "request_id": "2debf5aa-a7b6-44b6-af15-51bb4e6b2bdd",
+  "reviewer": {
+    "context_id": "c557da3a-e7f8-40f7-80d0-e0c3bc380cbb",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7c07de9c-88f7-4281-acce-5a5da811c0f2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22500
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47173
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9575
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10176
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 866
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6d769874ad3337b4d3a9ffeafb4a8418abcf6c3ae04bd82b68067201263397aa"
+}

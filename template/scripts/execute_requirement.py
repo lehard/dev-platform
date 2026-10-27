@@ -688,6 +688,35 @@ def _handoff_dependencies(ordered: list[tuple[str, Path]]) -> dict[str, list[str
             for change, envelope in envelopes.items()}
 
 
+def _require_no_merged_composition(integration: Path, requirement: str, repository: str, *, adapter=None) -> None:
+    """Stop before any integration-branch work once the Requirement's composition PR is merged (BR-771).
+
+    After the merge the queue deletes ``requirement/BR-N``; recreating it on the new main breaks the
+    post-merge jobs, which check out the composition head. Those jobs own terminal delivery from here.
+    """
+    if adapter is None:
+        import publication_queue as adapter
+    branch = f"requirement/BR-{requirement.rsplit('#', 1)[1]}"
+    try:
+        rows = adapter._gh(integration, "pr", "list", "--state", "merged", "--head", branch,
+                           "--base", "main", "--limit", "100", "--json", "number")
+    except adapter.QueueError as exc:
+        raise RequirementExecutionError(f"composition PR inventory of {branch} is unavailable: {exc}") from exc
+    if not isinstance(rows, list) or len(rows) >= 100 or not all(isinstance(row, dict) and isinstance(row.get("number"), int)
+                                                                 for row in rows):
+        raise RequirementExecutionError(f"composition PR inventory of {branch} is unavailable or exceeds its bound")
+    if rows:
+        numbers = sorted(row["number"] for row in rows)
+        shown = ", ".join(f"#{number}" for number in numbers)
+        first = numbers[-1]
+        raise RequirementExecutionError(
+            f"composition PR {shown} of {branch} is already merged; advance would recreate {branch} on the new main "
+            "and break the post-merge jobs. Leave retrospective, terminal-reconciliation and cleanup to the coordinator "
+            f"(or run: python3 scripts/lifecycle_workers.py work-next --repo {repository} "
+            f"--kinds retrospective,terminal-reconciliation,cleanup --pr {first} --run) and observe with: "
+            f"python3 scripts/publication_queue.py status --pr {first}")
+
+
 def _advance_contributions(integration: Path, requirement: str, ordered: list[tuple[str, Path]],
                            linked: dict[str, str], base_dir: Path, confirm_distinct: bool) -> dict:
     from requirement_contributions import ensure_integration_branch, in_flight_children
@@ -703,6 +732,7 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
                 confirm_distinct=confirm_distinct)["child"]
     config = read_platform_config(integration)
     repository = str(config.get("repository") or managed_task.origin_repository(integration))
+    _require_no_merged_composition(integration, requirement, repository)
     graph = _handoff_dependencies(ordered)
     boundary = ensure_integration_branch(integration, requirement=requirement, repository=repository,
                                          expected_changes=[c for c, _ in ordered], dependencies=graph)
