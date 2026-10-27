@@ -547,15 +547,119 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
 
 
 class AgentBoardDoctorTests(WorktreeHarnessCase):
+    def fresh_worktree(self, slug: str) -> Path:
+        path = self.managed / slug
+        git(self.root, "worktree", "add", "-b", f"agent/{slug}", str(path), "main")
+        git(path, "config", "user.name", "Test")
+        git(path, "config", "user.email", "test@example.invalid")
+        return path
+
+    def commit_on_main(self, name: str) -> None:
+        (self.root / f"{name}.txt").write_text(f"{name}\n", encoding="utf-8")
+        git(self.root, "add", f"{name}.txt")
+        git(self.root, "commit", "-m", name)
+
+    def start(self, board: Path, worktree: Path) -> None:
+        args = Namespace(task=worktree.name, scope="", branch=f"agent/{worktree.name}", worktree=str(worktree), id=f"{worktree.name}-id")
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(
+            agent_board, "board_path", return_value=board
+        ), redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+            self.assertEqual(agent_board.cmd_start(args), 0)
+
+    def doctor_fix(self, board: Path, *, exact_pr_merged: bool = False) -> tuple[int, dict]:
+        output = StringIO()
+        with mock.patch.object(agent_board, "main_root", return_value=self.root), mock.patch.object(
+            agent_board, "board_path", return_value=board
+        ), mock.patch.object(agent_board, "_exact_task_pr_is_merged", return_value=exact_pr_merged), redirect_stdout(output):
+            code = agent_board.cmd_doctor(Namespace(fix=True, stale_hours=72, format="json"))
+        return code, json.loads(output.getvalue())
+
+    def board_ids(self, board: Path) -> list[str]:
+        return [item["id"] for item in json.loads(board.read_text(encoding="utf-8"))["items"]]
+
     def test_status_detects_merged_branch_and_stale_heartbeat(self) -> None:
+        base = git(self.root, "rev-parse", "main").stdout.strip()
         path = self.add_worktree("board")
-        git(self.root, "merge", "--ff-only", "agent/board")
+        git(self.root, "merge", "--no-ff", "-m", "merge board", "agent/board")
         stale = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
-        item = {"branch": "agent/board", "worktree": str(path), "heartbeat": stale}
+        item = {"branch": "agent/board", "worktree": str(path), "heartbeat": stale, "base_head": base}
         problems = agent_board._status(item, self.root, main_branch="main", stale_hours=72)
         self.assertIn("merged-branch", problems)
         self.assertIn("stale-heartbeat", problems)
         self.assertTrue(agent_board._safe_to_remove(item, problems))
+
+    def test_registration_records_the_branch_head_as_its_base(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        fresh = self.fresh_worktree("fresh")
+        self.start(board, fresh)
+        item = json.loads(board.read_text(encoding="utf-8"))["items"][0]
+        self.assertEqual(item["base_head"], git(self.root, "rev-parse", "main").stdout.strip())
+
+    def test_fresh_registered_task_without_commits_survives_doctor_fix(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        fresh = self.fresh_worktree("fresh")
+        self.start(board, fresh)
+        # main moves on after registration: the commitless branch stays an ancestor of main.
+        self.commit_on_main("later")
+        item = json.loads(board.read_text(encoding="utf-8"))["items"][0]
+        self.assertEqual(agent_board._status(item, self.root, main_branch="main", stale_hours=72), [])
+        self.assertEqual(self.doctor_fix(board), (0, {"status": "ok", "entries": []}))
+        self.assertEqual(self.board_ids(board), ["fresh-id"])
+        self.assertTrue(fresh.exists())
+
+    def test_merged_and_abandoned_task_is_removed_by_doctor_fix(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        done = self.fresh_worktree("done")
+        self.start(board, done)
+        (done / "done.txt").write_text("done\n", encoding="utf-8")
+        git(done, "add", "done.txt")
+        git(done, "commit", "-m", "done")
+        git(self.root, "merge", "--no-ff", "-m", "merge done", "agent/done")
+        self.assertEqual(self.doctor_fix(board), (0, {"status": "ok", "entries": []}))
+        self.assertEqual(self.board_ids(board), [])
+
+    def test_unproven_merges_are_kept_with_named_reasons(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        moved = self.fresh_worktree("moved")
+        self.start(board, moved)
+        self.commit_on_main("later")
+        git(moved, "merge", "--ff-only", "main")
+        unknown = self.fresh_worktree("unknown")
+        self.start(board, unknown)
+        legacy = self.fresh_worktree("legacy")
+        self.start(board, legacy)
+        data = json.loads(board.read_text(encoding="utf-8"))
+        for item in data["items"]:
+            if item["id"] == "unknown-id":
+                item["base_head"] = "0" * 40
+            if item["id"] == "legacy-id":
+                del item["base_head"]
+        board.write_text(json.dumps(data), encoding="utf-8")
+
+        code, report = self.doctor_fix(board)
+        self.assertEqual(code, 1)
+        entries = {entry["id"]: entry for entry in report["entries"]}
+        expected = {
+            "moved-id": "unproven-merge-no-own-commits",
+            "unknown-id": "unproven-merge-base-unknown",
+            "legacy-id": "unproven-merge-no-base",
+        }
+        for item_id, problem in expected.items():
+            self.assertEqual(entries[item_id]["eligibility"], "degraded")
+            self.assertEqual(entries[item_id]["problems"], [problem])
+            self.assertEqual(entries[item_id]["reasons"], {problem: agent_board.UNPROVEN_MERGE_REASONS[problem]})
+        self.assertEqual(sorted(self.board_ids(board)), ["legacy-id", "moved-id", "unknown-id"])
+
+    def test_exact_merged_pr_proves_a_fast_forwarded_branch(self) -> None:
+        board = self.root / ".claude" / "agents-board.json"
+        task = self.fresh_worktree("task")
+        self.start(board, task)
+        (task / "task.txt").write_text("task\n", encoding="utf-8")
+        git(task, "add", "task.txt")
+        git(task, "commit", "-m", "task")
+        git(self.root, "merge", "--ff-only", "agent/task")
+        self.assertEqual(self.doctor_fix(board, exact_pr_merged=True), (0, {"status": "ok", "entries": []}))
+        self.assertEqual(self.board_ids(board), [])
 
     def test_status_detects_branch_path_mismatch(self) -> None:
         path = self.add_worktree("actual")
@@ -781,11 +885,13 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
         self.assertEqual(diagnostic["entries"], [{"id": "first-id", "eligibility": "degraded", "problems": ["branch-path-mismatch", "branch-missing"]}])
 
     def test_terminal_dirty_sibling_is_diagnostic_only_and_untouched(self) -> None:
+        base = git(self.root, "rev-parse", "main").stdout.strip()
         first = self.add_worktree("first")
         second = self.add_worktree("second")
-        git(self.root, "merge", "--ff-only", "agent/first")
+        git(self.root, "merge", "--no-ff", "-m", "merge first", "agent/first")
         (first / "keep-sibling-state.txt").write_text("do not alter\n", encoding="utf-8")
         terminal = self.board_item("first-id", "first task", first, scope="shared.py")
+        terminal["base_head"] = base
         original = dict(terminal)
         board = self.register_board(terminal, self.board_item("second-id", "second task", second))
 

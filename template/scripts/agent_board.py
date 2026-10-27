@@ -35,6 +35,13 @@ MAX_OVERLAP_DIAGNOSTICS = 5
 MAX_ADMISSION_DIAGNOSTICS = 5
 MAX_ACKNOWLEDGED_PATHS = 20
 TERMINAL_BOARD_PROBLEMS = frozenset({"merged-branch", "merged-pr"})
+UNPROVEN_MERGE_REASONS = {
+    "unproven-merge-no-base": "branch is an ancestor of main but the entry records no registration base and no exact merged PR proves the merge",
+    "unproven-merge-base-unknown": "branch is an ancestor of main but the recorded registration base is not a commit in this repository",
+    "unproven-merge-no-own-commits": (
+        "branch moved from its registration base only along main's first-parent line and no exact merged PR proves the merge"
+    ),
+}
 
 
 class HardScopeOverlap(RuntimeError):
@@ -396,6 +403,56 @@ def _exact_task_pr_is_merged(root: Path, branch: str, main_branch: str) -> bool:
     return lookup.available and lookup.exact_merged is not None
 
 
+def _is_commit(root: Path, sha: str) -> bool:
+    """Whether ``sha`` names a commit: exit 0 true, exit 1 false, any other exit raises."""
+    command = ["rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"]
+    result = run_git(command, cwd=root, check=False)
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    raise SystemExit(
+        f"Agent board check blocked: git {' '.join(command)} exited {result.returncode}: "
+        + (result.stderr or result.stdout).strip()[:300]
+    )
+
+
+def _branch_head(root: Path, branch: str) -> str:
+    """The current head of a registered local branch; an unresolvable branch is an error, never a guess."""
+    head = ref_sha(root, f"refs/heads/{branch}")
+    if head is None:
+        raise SystemExit(f"Agent board check blocked: cannot resolve refs/heads/{branch}.")
+    return head
+
+
+def _rev_list(root: Path, *args: str) -> list[str]:
+    return run_git(["rev-list", *args], cwd=root).stdout.split()
+
+
+def _ancestor_merge_problem(item: dict, root: Path, branch: str, main_branch: str) -> str | None:
+    """Classify a registered branch that is an ancestor of ``main_branch``.
+
+    Ancestry alone cannot tell a task created from the main tip without
+    commits from a task whose own commits were merged, so the registration
+    base decides: a branch still at its base has no own commits and is not
+    merged.  A moved branch is merged only with proof: an own commit outside
+    main's first-parent line, or the exact merged PR.  Anything else is an
+    unproven merge that the doctor reports and never removes.
+    """
+    base = str(item.get("base_head", ""))
+    if not base:
+        return "merged-pr" if _exact_task_pr_is_merged(root, branch, main_branch) else "unproven-merge-no-base"
+    if not _is_commit(root, base):
+        return "unproven-merge-base-unknown"
+    if _branch_head(root, branch) == base:
+        return None
+    own = _rev_list(root, f"{base}..refs/heads/{branch}")
+    first_parent = set(_rev_list(root, "--first-parent", f"{base}..refs/heads/{main_branch}"))
+    if any(commit not in first_parent for commit in own):
+        return "merged-branch"
+    return "merged-pr" if _exact_task_pr_is_merged(root, branch, main_branch) else "unproven-merge-no-own-commits"
+
+
 def _status(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> list[str]:
     problems: list[str] = []
     raw_worktree = item.get("worktree", "")
@@ -411,7 +468,9 @@ def _status(item: dict, root: Path, *, main_branch: str, stale_hours: int) -> li
         problems.append("branch-missing")
     elif branch != main_branch:
         if _merged_into(root, branch, main_branch):
-            problems.append("merged-branch")
+            merge_problem = _ancestor_merge_problem(item, root, branch, main_branch)
+            if merge_problem:
+                problems.append(merge_problem)
         elif _exact_task_pr_is_merged(root, branch, main_branch):
             # A squash merge leaves this branch outside main's ancestry, but
             # the exact GitHub PR is authoritative for scope ownership.
@@ -477,6 +536,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 "scope": args.scope or "",
                 "branch": branch,
                 "worktree": str(worktree),
+                "base_head": _branch_head(root, branch),
                 "pid": os.getpid(),
                 "started_at": utc_now(),
                 "heartbeat": utc_now(),
@@ -645,10 +705,13 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         else:
             print("agent-board: ok")
         return 0
-    entries = [
-        {"id": str(item.get("id", "unknown")), "eligibility": eligibility, "problems": problems}
-        for item, eligibility, problems in bad
-    ]
+    entries = []
+    for item, eligibility, problems in bad:
+        entry = {"id": str(item.get("id", "unknown")), "eligibility": eligibility, "problems": problems}
+        reasons = {problem: UNPROVEN_MERGE_REASONS[problem] for problem in problems if problem in UNPROVEN_MERGE_REASONS}
+        if reasons:
+            entry["reasons"] = reasons
+        entries.append(entry)
     if output_format == "json":
         print(json.dumps({"status": "diagnostic", "entries": entries}, ensure_ascii=False, sort_keys=True))
     else:
@@ -657,6 +720,8 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 f"{entry['id']}: {entry['eligibility']} diagnostic "
                 f"({', '.join(entry['problems'])}); contributes no blocking scope claim"
             )
+            for problem, reason in entry.get("reasons", {}).items():
+                print(f"  {problem}: {reason}; kept on the board, not removed")
     return 1
 
 
