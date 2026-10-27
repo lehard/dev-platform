@@ -546,6 +546,109 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
         self.assertFalse(worktree.exists())
 
 
+class AbandonedWorktreeCleanupTests(WorktreeHarnessCase):
+    """An abandoned candidate (exact PR closed without merge) is removed only with that proof."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.path = self.add_worktree("abandoned")
+        self.head = git(self.root, "rev-parse", "agent/abandoned").stdout.strip()
+        self.board = self.root / ".claude" / "agents-board.json"
+        self.claim = {"id": "abandoned-id", "task": "abandoned", "branch": "agent/abandoned", "worktree": str(self.path)}
+        other = {"id": "other-id", "task": "other", "branch": "agent/other", "worktree": str(self.managed / "other")}
+        self.board.write_text(json.dumps({"items": [self.claim, other]}), encoding="utf-8")
+
+    def closed(self, **extra) -> object:
+        pr = {"number": 41, "state": "CLOSED", "headRefOid": self.head}
+        return publication_state.ExactHeadPrLookup(available=True, exact_closed=pr, **extra)
+
+    def run_cleanup(self, lookup: object, *, head: str | None = None, cwds: set | None = set(), env: dict | None = {}):
+        target = worktree_cleanup.DeferredCleanupTarget(path=str(self.path), branch="agent/abandoned", head=head or self.head)
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value=cwds), \
+                mock.patch.object(worktree_cleanup, "github_cli_env", return_value=env), \
+                mock.patch.object(worktree_cleanup.publication_state, "find_exact_head_pr", return_value=lookup) as find:
+            result = worktree_cleanup.cleanup(self.root, older_than_days=7, target=target, abandoned=True)
+        return result, find
+
+    def assert_untouched(self, result: dict, reason: str) -> None:
+        self.assertEqual(result["status"], "refused")
+        self.assertIn(reason, result["errors"][0]["error"])
+        self.assertEqual(result["removed"], [])
+        self.assertTrue(self.path.exists())
+        self.assertEqual(git(self.root, "rev-parse", "agent/abandoned").stdout.strip(), self.head)
+        self.assertIn("abandoned-id", [item["id"] for item in json.loads(self.board.read_text(encoding="utf-8"))["items"]])
+
+    def test_closed_exact_pr_removes_worktree_branch_and_exact_claim(self) -> None:
+        result, find = self.run_cleanup(self.closed())
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual((result["pr"], result["removed"], result["released_claim"]), ("41", [str(self.path.resolve())], "abandoned-id"))
+        find.assert_called_once_with(self.root, {}, "agent/abandoned", "main", self.head)
+        self.assertFalse(self.path.exists())
+        self.assertNotEqual(subprocess.run(["git", "rev-parse", "--verify", "refs/heads/agent/abandoned"], cwd=self.root,
+                                           capture_output=True).returncode, 0)
+        self.assertEqual([item["id"] for item in json.loads(self.board.read_text(encoding="utf-8"))["items"]], ["other-id"])
+        self.assertFalse(worktree_cleanup.cleanup_failed(result))
+
+    def test_open_merged_or_missing_closed_pr_refuses(self) -> None:
+        pr = {"number": 42, "state": "OPEN", "headRefOid": self.head}
+        cases = [
+            (self.closed(exact_open=pr), "pr-open"),
+            (self.closed(stale_open={**pr, "headRefOid": "b" * 40}), "pr-open"),
+            (self.closed(exact_merged={**pr, "state": "MERGED"}), "pr-merged"),
+            (publication_state.ExactHeadPrLookup(available=True), "no-closed-pr"),
+            (publication_state.ExactHeadPrLookup(available=False, detail="GitHub PR candidate list is unavailable"),
+             "abandonment-proof-unavailable"),
+        ]
+        for lookup, reason in cases:
+            with self.subTest(reason=reason):
+                result, _ = self.run_cleanup(lookup)
+                self.assert_untouched(result, reason)
+                self.assertTrue(worktree_cleanup.cleanup_failed(result))
+
+    def test_github_authentication_is_required(self) -> None:
+        result, find = self.run_cleanup(self.closed(), env=None)
+        self.assert_untouched(result, "GitHub authentication is required")
+        find.assert_not_called()
+
+    def test_unsafe_local_state_refuses_before_github(self) -> None:
+        (self.path / "scratch.txt").write_text("unsaved\n", encoding="utf-8")
+        result, find = self.run_cleanup(self.closed())
+        self.assert_untouched(result, "dirty")
+        find.assert_not_called()
+        (self.path / "scratch.txt").unlink()
+        for kwargs, reason in (({"cwds": {self.path.resolve() / "sub"}}, "active-process"),
+                               ({"cwds": None}, "process-check-unavailable"),
+                               ({"head": "c" * 40}, "identity-mismatch")):
+            with self.subTest(reason=reason):
+                result, find = self.run_cleanup(self.closed(), **kwargs)
+                self.assert_untouched(result, reason)
+                find.assert_not_called()
+
+    def test_head_already_in_main_is_ordinary_cleanup(self) -> None:
+        git(self.root, "merge", "--ff-only", "agent/abandoned")
+        result, find = self.run_cleanup(self.closed())
+        self.assert_untouched(result, "merged-into-main")
+        find.assert_not_called()
+
+    def test_board_claim_with_another_branch_refuses(self) -> None:
+        self.board.write_text(json.dumps({"items": [{**self.claim, "branch": "agent/elsewhere"}]}), encoding="utf-8")
+        result, find = self.run_cleanup(self.closed())
+        self.assertEqual(result["status"], "refused")
+        self.assertIn("board-identity-mismatch", result["errors"][0]["error"])
+        self.assertTrue(self.path.exists())
+        find.assert_not_called()
+
+    def test_abandoned_requires_one_exact_target(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "--abandoned requires one exact"):
+            worktree_cleanup.cleanup(self.root, older_than_days=7, all=True, abandoned=True)
+        for argv in (["cleanup", "--abandoned"], ["cleanup", "--abandoned", "--all"]):
+            with self.subTest(argv=argv), mock.patch.object(worktree_cleanup, "main_root", return_value=self.root), \
+                    mock.patch.object(sys, "argv", ["worktree_cleanup.py", *argv]), \
+                    mock.patch("sys.stderr", new=StringIO()), self.assertRaises(SystemExit) as raised:
+                worktree_cleanup.main()
+            self.assertEqual(raised.exception.code, 2)
+
+
 class AgentBoardDoctorTests(WorktreeHarnessCase):
     def fresh_worktree(self, slug: str) -> Path:
         path = self.managed / slug

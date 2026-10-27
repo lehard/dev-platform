@@ -10,7 +10,10 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Sequence
 
-from _platform_common import atomic_write_text, github_cli_env, machine_path, main_root, read_platform_config, run_git, scm_provider
+from _platform_common import (
+    atomic_write_text, github_cli_env, locked_json, machine_path, main_root, read_platform_config, require_main_branch,
+    run_git, scm_provider,
+)
 import publication_state
 
 
@@ -661,6 +664,109 @@ def _cleanup_target(root: Path, target: DeferredCleanupTarget) -> dict[str, obje
     }
 
 
+def _board_claims(board: Path, path: Path) -> list[dict]:
+    """Board entries that name ``path``; an unreadable board stops cleanup naming it."""
+    if not board.exists():
+        return []
+    try:
+        payload = json.loads(board.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit(f"Refusing abandoned cleanup because agent board {board} is unreadable: {exc}") from exc
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        raise SystemExit(f"Refusing abandoned cleanup because agent board {board} has no item list")
+    return [item for item in items if isinstance(item, dict) and item.get("worktree")
+            and Path(str(item["worktree"])).expanduser().resolve() == path]
+
+
+def _abandoned_refusal(root: Path, config: dict, target: DeferredCleanupTarget) -> tuple[str | None, dict | None, dict | None]:
+    """Why ``target`` is not a provably abandoned candidate, or ``None`` with its closed PR and board claim.
+
+    Abandonment is proven only by GitHub: the exact head's PR into main was closed
+    without merge and the branch has no merged or open PR. Local safety matches
+    targeted cleanup: registered exact identity, managed directory, unlocked,
+    clean and not in use.
+    """
+    main_branch = require_main_branch(config)
+    path = Path(target.path)
+    if path == root.resolve():
+        return "integration-copy", None, None
+    if not _path_within(path, machine_path("worktrees", root)):
+        return "outside-managed-directory", None, None
+    match = next((item for item in _list_worktrees(root) if item.path == path), None)
+    if match is None:
+        return "not-registered", None, None
+    if match.branch != target.branch or match.head != target.head:
+        return "identity-mismatch", None, None
+    if match.locked or match.prunable:
+        return ("locked" if match.locked else "prunable-metadata"), None, None
+    active_cwds = _active_cwds()
+    if active_cwds is None:
+        return "process-check-unavailable", None, None
+    if any(_path_within(cwd, path) for cwd in active_cwds):
+        return "active-process", None, None
+    status = _worktree_status(match)
+    if status.returncode != 0:
+        return "status-check-failed", None, None
+    if status.stdout.strip():
+        return "dirty", None, None
+    branch_head = run_git(["rev-parse", "--verify", f"refs/heads/{target.branch}"], cwd=root, check=False)
+    if branch_head.returncode != 0 or branch_head.stdout.strip() != target.head:
+        return "branch-identity-mismatch", None, None
+    merged = run_git(["merge-base", "--is-ancestor", target.head, f"refs/heads/{main_branch}"], cwd=root, check=False)
+    if merged.returncode == 0:
+        return "merged-into-main: use ordinary cleanup", None, None
+    if merged.returncode != 1:
+        return "merge-check-failed", None, None
+    claims = _board_claims(machine_path("agent_board", root), path)
+    if len(claims) > 1 or any(str(item.get("branch", "")) != target.branch for item in claims):
+        return "board-identity-mismatch", None, None
+    if scm_provider(config) != "github":
+        return "abandonment-proof-unavailable: GitHub is the only supported provider", None, None
+    env = github_cli_env(root)
+    if env is None:
+        return "abandonment-proof-unavailable: GitHub authentication is required", None, None
+    lookup = publication_state.find_exact_head_pr(root, env, target.branch, main_branch, target.head)
+    if not lookup.available:
+        return f"abandonment-proof-unavailable: {lookup.detail}", None, None
+    if lookup.exact_merged is not None:
+        return "pr-merged: use ordinary cleanup", None, None
+    if lookup.exact_open is not None or lookup.stale_open is not None:
+        return "pr-open", None, None
+    if lookup.exact_closed is None:
+        return "no-closed-pr: no PR into main closed without merge has exactly this head", None, None
+    return None, lookup.exact_closed, (claims[0] if claims else None)
+
+
+def _cleanup_abandoned(root: Path, target: DeferredCleanupTarget) -> dict[str, object]:
+    """Remove one proven abandoned candidate: its worktree, local branch and exact board claim."""
+    config = read_platform_config(root)
+    target = _normalized_target(target)
+    result: dict[str, object] = {"scope": "abandoned", "target": target.as_entry(), "removed": [], "released_claim": None}
+    reason, pr, claim = _abandoned_refusal(root, config, target)
+    if reason is not None:
+        return {**result, "status": "refused", "errors": [{"path": target.path, "error": reason}]}
+    result["pr"] = publication_state.stable_pr_ref(pr)
+    removed = run_git(["worktree", "remove", target.path], cwd=root, check=False)
+    if removed.returncode != 0:
+        detail = (removed.stderr.strip() or removed.stdout.strip() or "worktree remove failed")[-500:]
+        return {**result, "status": "failed", "errors": [{"path": target.path, "error": detail}]}
+    result["removed"] = [target.path]
+    deleted = run_git(["branch", "-D", target.branch], cwd=root, check=False)
+    if deleted.returncode != 0:
+        detail = (deleted.stderr.strip() or deleted.stdout.strip() or "branch cleanup failed")[-500:]
+        return {**result, "status": "failed", "errors": [{"path": target.path, "error": detail}]}
+    if claim is not None:
+        with locked_json(machine_path("agent_board", root)) as data:
+            items = data.setdefault("items", [])
+            # Re-read under the lock: release only the exact entry that was proven.
+            if claim not in items:
+                return {**result, "status": "failed", "errors": [{"path": target.path, "error": "board-claim-changed"}]}
+            items.remove(claim)
+        result["released_claim"] = claim.get("id")
+    return {**result, "status": "completed", "errors": []}
+
+
 def cleanup(
     root: Path,
     older_than_days: int,
@@ -668,7 +774,12 @@ def cleanup(
     target: DeferredCleanupTarget | None = None,
     all: bool = False,
     apply: bool = False,
+    abandoned: bool = False,
 ) -> dict[str, object]:
+    if abandoned:
+        if target is None or all or apply:
+            raise SystemExit("--abandoned requires one exact --worktree/--branch/--head target, without --all or --apply.")
+        return _cleanup_abandoned(root, target)
     if target is not None and all:
         raise SystemExit("Choose either one exact deferred target or --all, not both.")
     if target is not None and apply:
@@ -697,6 +808,8 @@ def main() -> int:
     cleanup_command.add_argument("--head", help="Exact Git head identity from finish recovery output.")
     cleanup_command.add_argument("--all", action="store_true", help="Preview all global cleanup candidates.")
     cleanup_command.add_argument("--apply", action="store_true", help="Apply a previously reviewed --all cleanup plan.")
+    cleanup_command.add_argument("--abandoned", action="store_true",
+                                 help="Remove one exact target whose exact PR into main was closed without merge.")
     args = parser.parse_args()
     root = main_root()
     if args.command == "cleanup-validation":
@@ -715,10 +828,12 @@ def main() -> int:
             parser.error("choose either --all or one exact --worktree/--branch/--head target")
         if args.apply and not args.all:
             parser.error("--apply requires --all")
+        if args.abandoned and (args.all or not all(target_values)):
+            parser.error("--abandoned requires one exact --worktree/--branch/--head target and no --all")
         if not args.all and not all(target_values):
             parser.error("cleanup requires one exact --worktree/--branch/--head target or --all")
         target = DeferredCleanupTarget(*target_values) if all(target_values) else None
-        payload = cleanup(root, args.older_than_days, target=target, all=args.all, apply=args.apply)
+        payload = cleanup(root, args.older_than_days, target=target, all=args.all, apply=args.apply, abandoned=args.abandoned)
     else:
         decisions = scan(root, args.older_than_days)
         report = write_pending_report(root, decisions)

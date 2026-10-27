@@ -112,7 +112,7 @@ class FindExactHeadPrTests(PublicationStateTestCase):
         self.assertIsNone(lookup.exact_merged)
         self.assertIsNone(lookup.stale_open)
 
-    def test_closed_unmerged_pr_with_same_head_is_not_a_match(self) -> None:
+    def test_closed_unmerged_pr_with_same_head_is_only_reported_as_exact_closed(self) -> None:
         env = self.fake_gh(
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
             f'  if [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"CLOSED","headRefOid":"{self.head}"}}\'; exit 0; fi\n'
@@ -124,6 +124,21 @@ class FindExactHeadPrTests(PublicationStateTestCase):
         self.assertIsNone(lookup.exact_open)
         self.assertIsNone(lookup.exact_merged)
         self.assertIsNone(lookup.stale_open)
+        self.assertEqual(lookup.exact_closed["state"], "CLOSED")
+
+    def test_multiple_exact_closed_prs_are_unavailable(self) -> None:
+        closed = (f'{{"number":%d,"url":"https://example.invalid/pr/%d","state":"CLOSED","headRefOid":"{self.head}",'
+                  '"baseRefName":"main","headRefName":"agent/task"}')
+        env = self.fake_gh(
+            'DIRECT_LIST_FIXTURE=1\n'
+            'if [ "$1" = "pr" ] && [ "$2" = "list" ]; then\n'
+            f"  printf '[{closed % (5, 5)},{closed % (6, 6)}]'; exit 0;\n"
+            'fi\n'
+            'exit 1'
+        )
+        lookup = publication_state.find_exact_head_pr(self.root, env, "agent/task", "main", self.head)
+        self.assertFalse(lookup.available)
+        self.assertIn("multiple exact closed", lookup.detail)
 
     def test_merged_pr_with_exact_head_is_identified(self) -> None:
         env = self.fake_gh(
