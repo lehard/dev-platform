@@ -46,4 +46,4 @@ Same 24 burners on 8 cores (load up to 72): the eight affected tests ran ten tim
 
 ## Selected checks
 
-`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on the original head 759120b0 passed; refreshed below for the repaired head: affected precheck, compileall, ruff, `generate_platform_manifest.py --check`, `run_test_groups.py --all`.
+`python3 scripts/select_checks.py --base origin/main --execute --evidence ...` on the original head 759120b0 passed; refreshed for the repaired head 6233bc81 (merge of origin/main 4f8b6c93): affected precheck, compileall, ruff, manifest check and `run_test_groups.py --all` passed: affected precheck, compileall, ruff, `generate_platform_manifest.py --check`, `run_test_groups.py --all`.
