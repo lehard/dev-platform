@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/gate-fail-explicit/spec.md",
+    "tasks.md"
+  ],
+  "change": "gates-without-hidden-fallbacks",
+  "imported_at": "2026-10-28T13:59:24+00:00",
+  "package_revision": "f978e4d68ec5df974b14226e03c2b33610d954674879d69d69d4b8c33020cd6a",
+  "prepared_against": "cc00da1bbcc21eb37fb42ff75dec97d34c595484",
+  "private_lineage_handle": "pln_90832c855444b097282be1c19cac6b97",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "805b6780a088844eca54f7de539372d235f908862f04adafbbdb8e45ab7fb362",
+    "updated_at": "2026-10-28T13:50:51Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-772/T3"
+}

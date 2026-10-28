@@ -38,6 +38,7 @@ class IdentityPublicationTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
+        (self.root / '.dev-platform.toml').write_text(platform_config_text())
 
     def canonical(self, bodies, **kwargs):
         with mock.patch.object(managed_task, 'fetch_issue', side_effect=lambda root, repo, num: bodies[f'{repo}#{num}']):
@@ -206,6 +207,7 @@ class IdentityPublicationTests(unittest.TestCase):
             self.assertEqual(run.call_count, 1)
         (self.root / 'scripts').mkdir()
         (self.root / 'scripts/check_private_backlog_refs.py').write_text('')
+        (self.root / '.dev-platform.toml').write_text(platform_config_text(extra='[private_lineage]\nenabled = true'))
         observed = SimpleNamespace(returncode=0, stderr='', stdout=json.dumps({'headRefOid': 'a' * 40, 'title': 'User', 'body': 'acme/backlog#8'}))
         with mock.patch.object(publish.subprocess, 'run', side_effect=[observed, subprocess.CalledProcessError(1, 'guard')]) as run:
             with self.assertRaises(subprocess.CalledProcessError):

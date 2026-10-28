@@ -272,14 +272,15 @@ def current_head(root: Path) -> str | None:
 
 
 def current_task_content(root: Path) -> dict | None:
-    """Best-effort managed-task proof; quick tasks retain exact-head semantics."""
-    try:
-        from managed_task import read_task_state
-        from task_content_identity import content_identity
-        state = read_task_state(root)
-        return content_identity(root, str(state["change"])) if state else None
-    except Exception:
-        return None
+    """Managed-task content proof; ``None`` for a quick task, which keeps exact-head semantics.
+
+    A task state or content proof that cannot be read is an error, not a stale checkpoint.
+    """
+    from managed_task import read_task_state
+    from task_content_identity import content_identity
+
+    state = read_task_state(root)
+    return content_identity(root, str(state["change"])) if state else None
 
 
 def non_task_names(root: Path | None = None) -> frozenset[str]:

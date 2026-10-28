@@ -172,10 +172,23 @@ def _safe_presentation(root: Path, title: str, body: str, identity: str,
                        children: list[str] | None) -> tuple[str, str]:
     import managed_work_identity
     title, body = managed_work_identity.presentation(title, body, identity, children)
-    guard = root / "scripts" / "check_private_backlog_refs.py"
-    if guard.is_file():
+    guard = _private_reference_guard(root)
+    if guard is not None:
         subprocess.run(["python3", str(guard), "--root", str(root), "--text", title, "--text", body], cwd=root, check=True, stdin=subprocess.DEVNULL)
     return title, body
+
+
+def _private_reference_guard(root: Path) -> Path | None:
+    """The private-reference guard where private lineage is enabled; ``None`` (reported) where it does not apply."""
+    import private_lineage
+
+    try:
+        guard = private_lineage.guard_script(root)
+    except private_lineage.PrivateLineageError as exc:
+        raise SystemExit("private-reference publication guard blocked: " + str(exc)) from exc
+    if guard is None:
+        print(private_lineage.GUARD_NOT_APPLICABLE, flush=True)
+    return guard
 
 
 def _repair_pr_identity(root: Path, env: dict[str, str], pr: PrRef, expected_head: str,
@@ -595,8 +608,8 @@ def publish_pr(
                     provenance=managed_task.read_provenance(delivery.path))
         except (managed_work_identity.IdentityError, RequirementIntegrationError, ManagedTaskError) as exc:
             raise SystemExit("BR publication identity blocked: " + str(exc)) from exc
-    privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
-    if privacy_guard.is_file():
+    privacy_guard = _private_reference_guard(root)
+    if privacy_guard is not None:
         proposed_title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip()
         proposed_body = body or "Published by dev-platform after local validation and a fresh origin/main check."
         subprocess.run(

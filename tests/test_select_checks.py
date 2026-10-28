@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(1, str(ROOT / "scripts"))
 import _platform_common  # noqa: E402
 from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
@@ -341,6 +342,71 @@ class SelectChecksTests(unittest.TestCase):
 
 
 SOURCE_CONTRACT = platform_config_text(platform_version="source", workflow_profile="standard", capabilities={"agent_board": False})
+
+
+class ChangedFileBaseTests(unittest.TestCase):
+    """The changed-file base is explicit or task-derived; no previous-commit fallback, git failures stop."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.git("init", "-q", "-b", "main")
+        self.git("config", "user.email", "test@example.com")
+        self.git("config", "user.name", "Test")
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
+        (self.root / "a.txt").write_text("a\n", encoding="utf-8")
+        self.git("add", "a.txt")
+        self.git("commit", "-q", "-m", "base")
+        self.git("update-ref", "refs/remotes/origin/main", "HEAD")
+
+    def git(self, *args: str) -> str:
+        return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True, text=True).stdout.strip()
+
+    def commit_on_task_branch(self) -> None:
+        self.git("switch", "-q", "-c", "agent/task")
+        (self.root / "b.txt").write_text("b\n", encoding="utf-8")
+        self.git("add", "b.txt")
+        self.git("commit", "-q", "-m", "task")
+
+    def test_task_branch_without_base_uses_origin_main(self) -> None:
+        self.commit_on_task_branch()
+        base = _platform_common.resolve_changed_file_base(self.root, None, [])
+        self.assertEqual(base, "origin/main")
+        self.assertEqual(select_checks.changed_files(self.root, base, []), ["b.txt"])
+
+    def test_explicit_base_and_changed_files_are_used_as_given(self) -> None:
+        self.assertEqual(_platform_common.resolve_changed_file_base(self.root, "origin/main", []), "origin/main")
+        self.assertIsNone(_platform_common.resolve_changed_file_base(self.root, None, ["x.py"]))
+        self.assertEqual(select_checks.changed_files(self.root, None, ["x.py", "x.py"]), ["x.py"])
+
+    def test_main_branch_without_base_fails_naming_the_options(self) -> None:
+        with self.assertRaises(SystemExit) as raised:
+            _platform_common.resolve_changed_file_base(self.root, None, [])
+        self.assertIn("the main branch main", str(raised.exception))
+        self.assertIn("--base <ref> or --changed-file <path>", str(raised.exception))
+
+    def test_detached_head_without_base_fails(self) -> None:
+        self.git("switch", "-q", "--detach", "HEAD")
+        with self.assertRaises(SystemExit) as raised:
+            _platform_common.resolve_changed_file_base(self.root, None, [])
+        self.assertIn("a detached HEAD", str(raised.exception))
+
+    def test_failing_git_diff_is_an_error(self) -> None:
+        self.commit_on_task_branch()
+        with self.assertRaises(SystemExit) as raised:
+            select_checks.changed_files(self.root, "origin/missing", [])
+        self.assertIn("git diff --name-only origin/missing...HEAD failed", str(raised.exception))
+
+    def test_central_wrapper_resolves_the_base_before_the_selector(self) -> None:
+        wrapper = load_platform_module("central_select_checks", ROOT / "scripts" / "select_checks.py")
+        with mock.patch.object(wrapper, "ROOT", self.root), mock.patch.object(wrapper, "run_template") as selector:
+            with self.assertRaises(SystemExit) as raised, mock.patch.object(sys, "argv", ["select_checks.py", "--execute"]):
+                wrapper.main()
+        self.assertIn("--base <ref> or --changed-file <path>", str(raised.exception))
+        selector.assert_not_called()
+        self.assertIsNone(wrapper.drift_base(["--execute", "--protected-full"]))
+        self.assertEqual(wrapper.drift_base(["--execute", "--base", "origin/main"]), "origin/main")
 
 
 class ProvenBaseContractTests(unittest.TestCase):

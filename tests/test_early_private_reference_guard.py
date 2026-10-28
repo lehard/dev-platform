@@ -5,6 +5,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 
@@ -17,6 +19,8 @@ sys.path.insert(0, str(SCRIPTS))
 
 private_lineage = load_platform_module("private_lineage", SCRIPTS / "private_lineage.py")
 lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
+finish_task = load_platform_module("finish_task", SCRIPTS / "finish_task.py")
+project_publish = load_platform_module("project_publish", SCRIPTS / "project_publish.py")
 integration = load_platform_module("requirement_integration", SCRIPTS / "requirement_integration.py")
 
 REPOSITORY = "example/internal-tasks"
@@ -102,6 +106,38 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
             with self.assertRaisesRegex(integration.RequirementIntegrationError, "before full validation") as ctx:
                 integration._require_early_privacy(root)
             self.assertNotIn("216", str(ctx.exception))
+
+
+class GuardByConfigurationTests(unittest.TestCase):
+    """Finish and publish run the guard where private lineage is enabled and say so elsewhere."""
+
+    def test_enabled_without_guard_blocks_finish_and_publish(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_candidate(root, guard=False)
+            blocker = finish_task.observe_private_reference_blocker(root, "title", "body")
+            self.assertEqual(blocker, "private lineage is enabled but scripts/check_private_backlog_refs.py is missing")
+            with self.assertRaisesRegex(SystemExit, "check_private_backlog_refs.py is missing"):
+                project_publish._private_reference_guard(root)
+
+    def test_disabled_reports_not_applicable_and_runs_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_candidate(root, enabled=False, guard=True)
+            output = StringIO()
+            with redirect_stdout(output), mock.patch.object(finish_task.subprocess, "run") as run:
+                self.assertIsNone(finish_task.observe_private_reference_blocker(root, "title", "body"))
+                self.assertIsNone(project_publish._private_reference_guard(root))
+            run.assert_not_called()
+            self.assertEqual(output.getvalue().count(private_lineage.GUARD_NOT_APPLICABLE), 2)
+
+    def test_enabled_with_guard_blocks_a_private_reference_in_the_title(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_candidate(root)
+            blocker = finish_task.observe_private_reference_blocker(root, "fix " + PRIVATE_REF, "body")
+            self.assertIsNotNone(blocker)
+            self.assertNotIn("216", blocker)
 
 
 if __name__ == "__main__":

@@ -1055,6 +1055,31 @@ def harness_mode(config: dict[str, Any]) -> str:
     return config["harness_mode"]
 
 
+def resolve_changed_file_base(root: Path, base: str | None, explicit: list[str]) -> str | None:
+    """Return the git base that changed-file selection compares with.
+
+    Explicit changed files need no base (``None``). An explicit ``base`` is used
+    as given. Otherwise a task branch is compared with ``origin/<main_branch>``;
+    the main branch or a detached HEAD has no task base and fails naming the
+    options. There is no previous-commit fallback.
+    """
+    if explicit:
+        return None
+    if base:
+        return base
+    main_branch = require_main_branch(read_platform_config(root))
+    branch = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root).stdout.strip()
+    if branch in ("HEAD", main_branch):
+        where = "a detached HEAD" if branch == "HEAD" else f"the main branch {main_branch}"
+        raise SystemExit(
+            f"Changed files cannot be selected on {where} without a base: "
+            "pass --base <ref> or --changed-file <path>."
+        )
+    derived = f"origin/{main_branch}"
+    print(f"Changed-file base: {derived} (task branch {branch})", file=sys.stderr, flush=True)
+    return derived
+
+
 def require_main_branch(config: dict[str, Any], exception_type: type[BaseException] = PlatformConfigError) -> str:
     """Return ``main_branch`` from the committed contract; a missing or non-string value is an error.
 
