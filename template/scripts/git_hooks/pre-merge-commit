@@ -1,7 +1,12 @@
 #!/bin/sh
 # Managed by dev-platform scripts/agent_doctor.py.
-# Platform-owned multi-agent workflow keeps task branches linear and integrates
-# them with fast-forward only through scripts/finish_task.py.
+# Platform-owned multi-agent workflow integrates task branches with fast-forward
+# only through scripts/finish_task.py. Inside a task worktree the only admitted
+# merge commit is the one scripts/reconcile_task.py (finish_task.py --reconcile)
+# makes when it merges authoritative main into its own task branch: reconcile
+# records a one-shot intent in this worktree's own git directory naming the
+# branch and the commit of origin/<main_branch>, and this hook admits the merge
+# only when the intent, the branch, the merged ref and that commit all match.
 
 if [ "$DEV_PLATFORM_ALLOW_MERGE_COMMIT" = "1" ]; then
     exit 0
@@ -14,8 +19,31 @@ if [ "$git_dir" = "$common_dir" ]; then
     echo "pre-merge-commit: merge commits in the integration copy are blocked." >&2
     echo "Publish through scripts/finish_task.py (fast-forward integration)." >&2
 else
+    intent="$git_dir/dev-platform-reconcile-merge"
+    if [ -f "$intent" ]; then
+        reason=""
+        top=$(git rev-parse --show-toplevel 2>/dev/null)
+        main_branch=$(sed -n 's/^main_branch = "\(.*\)"$/\1/p' "$top/.dev-platform.toml" 2>/dev/null)
+        intent_branch=$(sed -n 's/^branch //p' "$intent")
+        intent_target=$(sed -n 's/^target //p' "$intent")
+        branch=$(git symbolic-ref --short -q HEAD)
+        if [ -z "$main_branch" ]; then
+            reason="main_branch is not readable from $top/.dev-platform.toml"
+        elif [ -z "$intent_branch" ] || [ "$intent_branch" != "$branch" ]; then
+            reason="the reconcile intent names branch '$intent_branch', not the current branch '$branch'"
+        elif [ "$GIT_REFLOG_ACTION" != "merge origin/$main_branch" ]; then
+            reason="this merge is '$GIT_REFLOG_ACTION', not the reconcile merge of origin/$main_branch"
+        elif [ -z "$intent_target" ] || [ "$(git rev-parse -q --verify "origin/$main_branch^{commit}")" != "$intent_target" ]; then
+            reason="origin/$main_branch no longer points to the commit the reconcile intent recorded"
+        fi
+        if [ -z "$reason" ]; then
+            rm -f "$intent"
+            exit 0
+        fi
+        echo "pre-merge-commit: reconcile intent does not admit this merge: $reason." >&2
+    fi
     echo "pre-merge-commit: merge commits in task worktrees are blocked." >&2
-    echo "Rebase onto the integration branch so task history remains linear." >&2
+    echo "Bring the task up to date with main through scripts/reconcile_task.py." >&2
 fi
 
 echo "Override only after an explicit user decision: DEV_PLATFORM_ALLOW_MERGE_COMMIT=1 git merge ..." >&2

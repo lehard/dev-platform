@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+    "base_ref": "origin/main",
+    "candidate_head": "352e7dcb9a741dda01540b71a656a3bf41e12c9f",
+    "diff_sha256": "cdb5c8f56f76ee910e52fb408278da957d63680092b0c1651b8c4bb07dd48af2"
+  },
+  "completed_at": "2026-10-28T23:08:00+00:00",
+  "findings": [
+    {
+      "evidence": "design.md line 8: \"with `main_branch` read from the intent's own `ref` field written by reconcile\". task_reconciliation.py writes `f\"branch {branch}\\ntarget {target}\\n\"` with no ref field. The hook uses `sed -n 's/^main_branch = \"\\(.*\\)\"$/\\1/p' \"$top/.dev-platform.toml\"`. That file is task-editable, and the hook fails closed if it is unreadable.",
+      "id": "design-intent-ref-field-contradicts-implementation",
+      "severity": "advisory",
+      "summary": "design.md says the hook reads `main_branch` from the intent's own `ref` field written by reconcile. The candidate does something different. The intent holds only `branch` and `target`, and the hook reads `main_branch` from `$top/.dev-platform.toml`. Design and code disagree on where the merged ref is bound."
+    },
+    {
+      "evidence": "tests/test_blocking_gates.py: `self.env[\"DEV_PLATFORM_RECONCILE_MERGE\"] = \"1\"` in test_reconcile_intent_admits_no_other_merge and in test_reconcile_intent_does_not_admit_a_merge_commit_in_the_integration_copy. The design chose a per-worktree intent file (variant B) instead.",
+      "id": "tests-use-stale-variant-a-env-flag",
+      "severity": "advisory",
+      "summary": "Two new hook tests set `DEV_PLATFORM_RECONCILE_MERGE=1`, the environment variable of the rejected variant A. The hook never reads it. The \"no intent, reconcile flag set\" subtest and the integration-copy test therefore do not exercise any real admission path. They are leftovers that suggest coverage they don't provide."
+    }
+  ],
+  "launched_at": "2026-10-28T23:07:50+00:00",
+  "output_sha256": "47f8258803f367fbdbc49a1f80cf9023e7840151c2a7e445f17c871134edc61c",
+  "perspective": "spec-fidelity",
+  "request_id": "1b5f783e-6cd3-4078-9529-68d4338e05ff",
+  "reviewer": {
+    "context_id": "85ae715b-cdd1-473e-91b8-33301114de33",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4470477a-e5fb-4744-9edc-57af8f3043e1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31155
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11773
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9092
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9254
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1162
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "cb0bfe11ccc45ba7046c909d0334f360890f94b02d252e0fd06cec0350e367b1"
+}

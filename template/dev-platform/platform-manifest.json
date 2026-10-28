@@ -1,6 +1,6 @@
 {
   "files": {
-    "dev-platform/blocking-gates.toml": "16452d623c3a06e83e5831e29a146adc977fbf802774a4bf29e10ac6ef398098",
+    "dev-platform/blocking-gates.toml": "c81c3d66a05add493a714d88b248f1d5b9392cb2b617425defc351bbd71e366d",
     "dev-platform/capabilities/add-intents.md": "695a386e17d8600a0e7deebe8c36af67890bd2106067b23d0aa31a061db16c45",
     "dev-platform/capabilities/add-intents.toml": "ec581591ec86dd72e11a958ceca5696c026b3a3c8fc772644270ca17e45abc77",
     "dev-platform/capabilities/architecture-health-review.md": "b2d06c8898086ca262ca24654270d9c3ec9d6dd73eefde555f54064ff802aae0",
@@ -85,7 +85,7 @@
     "scripts/execute_requirement.py": "1cad980fbc847ad1748ee5b5d94f22040717b7bd52355c556d11bae240f552ff",
     "scripts/finish_task.py": "fb9bd32786fc3d8710ae8ba08fd6ee1bd5ad3160998fb5c96658c0329be27e41",
     "scripts/git_hooks/pre-commit": "b2719741841aa0fa5f3f73b57a10f7527158680f99c0e5fa4ff0b156babacbd2",
-    "scripts/git_hooks/pre-merge-commit": "3cfe2a1be6558931c10e655a2b949e60defc105c761f2ad235d6c5062856010f",
+    "scripts/git_hooks/pre-merge-commit": "ed8eb55f1d71ecaa1a0f9a7ba8a763e9371e7f28cd650b272a7a9be802feca2e",
     "scripts/gitlab_delivery.py": "3745dbb1d3e0bb96f8f0f727054825209c7afde7b83b492e11ae73a6b112b713",
     "scripts/harness_replay.py": "84978a5fb7cce629f8bf8f5a5362da74e62d04f39778c7d914fbb04b07281766",
     "scripts/hosted_workers.py": "f474a73e090f6b2ec13ddb314ec5a4782db266878c668ba327f71037d19fcd5e",
@@ -143,7 +143,7 @@
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "743275929d8b084f7ee9f58d021e1b90b60b9e1b87f456749b38f42f40839adf",
     "scripts/task_content_identity.py": "2d48ad088af93182f84fdc508f0d3c0d27e89d80274dc939aff0bb4c753509bc",
-    "scripts/task_reconciliation.py": "40bd7300b25c7ed2b2efc1347d364b91147a3b283c74d5cc917291c317aec3cd",
+    "scripts/task_reconciliation.py": "3d4752d3b602b663832ad4baa81265b05bf5ffca1bf7ed6539181122076d54fb",
     "scripts/worktree_cleanup.py": "1dbbc761be8a330a913ce8d08fe01e496ee7220cbd6c219814365c0bdbdeba99"
   },
   "project_harness_owned": [

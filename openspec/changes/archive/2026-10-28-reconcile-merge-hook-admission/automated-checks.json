@@ -1,0 +1,137 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.83,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.647,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.09,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.15,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1018.361,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/git_hooks/pre-merge-commit",
+        "template/scripts/task_reconciliation.py",
+        "tests/reconcile_merge_hook_smoke.py",
+        "tests/test_blocking_gates.py",
+        "tests/test_task_reconciliation.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_c0de09dbfc3fc2deee499a8ec0f358e1",
+    "change": "reconcile-merge-hook-admission",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/reconcile-merge-hook-admission",
+    "branch": "agent/br-519-t1-reconcile-merge-hook-admission",
+    "head": "e9cf1c2f559816dce6ab03b0ca0060e179e0500f",
+    "task_content": {
+      "version": 1,
+      "digest": "a997eb59e11f7914e5ec2310c187714d45a4772ae43625193128eb69bc5f264e",
+      "paths": {
+        "openspec/changes/reconcile-merge-hook-admission/.managed-task.json": "bccd6a0f578b9381664278ab0e068ef182f94518",
+        "openspec/changes/reconcile-merge-hook-admission/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/reconcile-merge-hook-admission/design.md": "4c1c270f3125d7c09fdb0322e0af7524157502f5",
+        "openspec/changes/reconcile-merge-hook-admission/proposal.md": "cd4b5998bc7d7554a688f157be35b514103f2e56",
+        "openspec/changes/reconcile-merge-hook-admission/specs/platform-lifecycle/spec.md": "5f76969ab9df5bde6574bfa8148255e294685eae",
+        "openspec/changes/reconcile-merge-hook-admission/tasks.md": "e73ef6536a7ceb19158ba090051628ab09d55599",
+        "openspec/changes/reconcile-merge-hook-admission/verification.md": "dd0ecf425d00e908ecc8b4f96b0ba45a16736ed7",
+        "template/dev-platform/blocking-gates.toml": "04f514e3661a861d68be41936c61758058d835c9",
+        "template/dev-platform/platform-manifest.json": "fcb6bd82efd4d97bddd087dadea5bc1b3310287a",
+        "template/docs/engineering/agent-workflow.md.jinja": "851fd530637bfa177984a67cf3e85a638d8de589",
+        "template/scripts/git_hooks/pre-merge-commit": "f99a5f801f0057e5b4e0f6112f5b42a18ff850a0",
+        "template/scripts/task_reconciliation.py": "a582aa8bda20f225329fda8c9aac6d851d7d9316",
+        "tests/reconcile_merge_hook_smoke.py": "993c9a9af3343beae6ffec2f125cb35576d791f4",
+        "tests/test_blocking_gates.py": "0e82a36b8b38c567e26226e8282ff734d6f37fba",
+        "tests/test_task_reconciliation.py": "611082997706dd9e769a0527265906ee10e67d69"
+      },
+      "base": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "cb0bfe11ccc45ba7046c909d0334f360890f94b02d252e0fd06cec0350e367b1",
+    "paths": {
+      "openspec/changes/reconcile-merge-hook-admission/.managed-task.json": "bccd6a0f578b9381664278ab0e068ef182f94518",
+      "openspec/changes/reconcile-merge-hook-admission/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/reconcile-merge-hook-admission/design.md": "4c1c270f3125d7c09fdb0322e0af7524157502f5",
+      "openspec/changes/reconcile-merge-hook-admission/proposal.md": "cd4b5998bc7d7554a688f157be35b514103f2e56",
+      "openspec/changes/reconcile-merge-hook-admission/specs/platform-lifecycle/spec.md": "5f76969ab9df5bde6574bfa8148255e294685eae",
+      "openspec/changes/reconcile-merge-hook-admission/tasks.md": "e73ef6536a7ceb19158ba090051628ab09d55599",
+      "template/dev-platform/blocking-gates.toml": "04f514e3661a861d68be41936c61758058d835c9",
+      "template/docs/engineering/agent-workflow.md.jinja": "851fd530637bfa177984a67cf3e85a638d8de589",
+      "template/scripts/git_hooks/pre-merge-commit": "f99a5f801f0057e5b4e0f6112f5b42a18ff850a0",
+      "template/scripts/task_reconciliation.py": "a582aa8bda20f225329fda8c9aac6d851d7d9316",
+      "tests/reconcile_merge_hook_smoke.py": "993c9a9af3343beae6ffec2f125cb35576d791f4",
+      "tests/test_blocking_gates.py": "0e82a36b8b38c567e26226e8282ff734d6f37fba",
+      "tests/test_task_reconciliation.py": "611082997706dd9e769a0527265906ee10e67d69"
+    },
+    "base": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/task_reconciliation.py --changed-file tests/reconcile_merge_hook_smoke.py --changed-file tests/test_blocking_gates.py --changed-file tests/test_task_reconciliation.py",
+    "duration_seconds": 159.262,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+    "base": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e",
+    "overlapping": [
+      "template/dev-platform/platform-manifest.json"
+    ],
+    "generated_conflicts": []
+  }
+}
