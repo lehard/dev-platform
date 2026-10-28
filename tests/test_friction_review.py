@@ -579,6 +579,19 @@ class FrictionReviewTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "task-owned content changed"):
             agent_friction.require_checkpoint("test-branch")
 
+    def test_unreadable_task_state_is_an_error_not_a_stale_checkpoint(self) -> None:
+        import managed_task
+
+        with mock.patch.object(managed_task, "read_task_state", side_effect=managed_task.ManagedTaskError("state unreadable")):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "state unreadable"):
+                self.original_current_task_content(Path(self.tmp.name))
+
+    def test_quick_task_has_no_content_proof(self) -> None:
+        import managed_task
+
+        with mock.patch.object(managed_task, "read_task_state", return_value=None):
+            self.assertIsNone(self.original_current_task_content(Path(self.tmp.name)))
+
     def test_checkpoint_referencing_already_recorded_event_creates_no_duplicate(self) -> None:
         self.write_events(1)
         before = len(agent_friction.read_events(None))

@@ -1,0 +1,91 @@
+{
+  "candidate": {
+    "base_head": "cc00da1bbcc21eb37fb42ff75dec97d34c595484",
+    "base_ref": "origin/main",
+    "candidate_head": "5e4882a3208e9e7ad431c3830497495a0d7c6fc5",
+    "diff_sha256": "fbb9a1e5e4ba499df7f8b3a18ce55d88299850a24fb377abeaf007bb327734d0"
+  },
+  "change": "openspec/changes/gates-without-hidden-fallbacks",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/gates-without-hidden-fallbacks/automated-checks.json",
+    "openspec/changes/gates-without-hidden-fallbacks/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/gates-without-hidden-fallbacks/design.md",
+        "openspec/changes/gates-without-hidden-fallbacks/proposal.md",
+        "openspec/changes/gates-without-hidden-fallbacks/specs/completion-lifecycle/spec.md",
+        "openspec/changes/gates-without-hidden-fallbacks/specs/gate-fail-explicit/spec.md",
+        "openspec/changes/gates-without-hidden-fallbacks/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/gates-without-hidden-fallbacks/proposal.md",
+        "openspec/changes/gates-without-hidden-fallbacks/design.md",
+        "openspec/changes/gates-without-hidden-fallbacks/tasks.md",
+        "openspec/changes/gates-without-hidden-fallbacks/specs/completion-lifecycle/spec.md",
+        "openspec/changes/gates-without-hidden-fallbacks/specs/gate-fail-explicit/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-28T16:55:12+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/gates-without-hidden-fallbacks/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "901a744a-aec2-4014-af13-0be0ee489509",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "cc00da1bbcc21eb37fb42ff75dec97d34c595484",
+    "digest": "d66ce27c7b3857348e0c949e74cc1f90e8ee96bf7f7a41223209d204422b3500",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "7f26ea2201eff0dfbf750cde5ddd86e7f15aae48",
+      "docs/engineering/openspec-workflow.md": "3641895f2b9f09352a17761aec5c309923cc037e",
+      "openspec/changes/gates-without-hidden-fallbacks/.managed-task.json": "56c4757738f6dbe4baacd514c42cde3daac3fa2d",
+      "openspec/changes/gates-without-hidden-fallbacks/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+      "openspec/changes/gates-without-hidden-fallbacks/design.md": "25b45116f06ae82709f19e999c23206f7cdd75fe",
+      "openspec/changes/gates-without-hidden-fallbacks/proposal.md": "07012b92cb183a4b590a4e7527449344300365ec",
+      "openspec/changes/gates-without-hidden-fallbacks/specs/completion-lifecycle/spec.md": "d984568ba9ffb55994bc02601734fa166b19f926",
+      "openspec/changes/gates-without-hidden-fallbacks/specs/gate-fail-explicit/spec.md": "c7a23277cb7729ad07ff9b13f4ae71ca81a0dbc3",
+      "openspec/changes/gates-without-hidden-fallbacks/tasks.md": "5f91abba1137312cafedeee76d605a4395579b38",
+      "scripts/select_checks.py": "b0e5b5d8347a22b145bfe33612002357ea3cbde0",
+      "template/scripts/_platform_common.py": "769da5827bb529eca91fdefa1bf19f15d537aba5",
+      "template/scripts/agent_friction.py": "fcc24c96e73c7193f1813538b3d84fa390308e7c",
+      "template/scripts/finish_task.py": "19d0b6cbdbc40524eface5dcd716409279e052cd",
+      "template/scripts/private_lineage.py": "61151b2743387c77e08d85df5daaa5bd58347201",
+      "template/scripts/project_publish.py": "a88b37e7ee56967a852afb2a2014f34ab541fd59",
+      "template/scripts/select_checks.py": "2ae08f9ae6b1700971181cbe6a03418f145f1c55",
+      "tests/test_br_publication_identity.py": "6ddabc44e2aab536cfe396b51604b1488b2c7df8",
+      "tests/test_build_explorer_editorial.py": "6bb5ca6ea499023fb0897ce42c353d6b6106458d",
+      "tests/test_early_private_reference_guard.py": "7a1de161581059da1e7e66573fa5f58fac4427e0",
+      "tests/test_friction_review.py": "a4f3427a3376bf8077dddd09a71c43fbd73defa1",
+      "tests/test_git_lifecycle.py": "5c74af9973ce2be6cd72c3197ce8836db0ce7d5b",
+      "tests/test_managed_status_lifecycle.py": "4cf644b75bce6c0239a605121de96cdebdeb3c38",
+      "tests/test_select_checks.py": "7b7880633b21054bb09763161b7c1eae0f99cd87"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

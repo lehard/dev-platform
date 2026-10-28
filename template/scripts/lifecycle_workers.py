@@ -59,6 +59,8 @@ WRITER_OUTPUT_TAIL = 4000
 POSTED_OUTCOME_LIMIT = 300
 # A claim released by a failed run is counted per job; this many releases stop offering the job.
 MAX_RELEASES = 3
+# The red-gate cause a job escalates with once its claim was released after MAX_RELEASES failed runs.
+CLAIM_RELEASE_CAUSE = "claim released after failed runs"
 RELEASED = "released"
 
 
@@ -615,6 +617,16 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
 
 
 SOURCE_CONTRACT = Path("dev-platform") / "source-contract.toml"
+
+
+def checkout_harness(harness: Path, head: str) -> None:
+    """Detach a harness-owned clone at ``head`` and install its platform contract before any config read.
+
+    ``prepare_harness`` clones without a checkout, so the contract can only be installed once the
+    head is checked out; it is excluded locally and never becomes candidate content.
+    """
+    _git(harness, "checkout", "--detach", head)
+    install_source_contract(harness)
 
 
 def install_source_contract(checkout: Path, contract_from: Path | None = None) -> None:
@@ -1433,7 +1445,7 @@ def main(argv: list[str] | None = None) -> int:
 
                     publication_queue._transition(
                         Path.cwd(), repo, job["number"], "blocked-escalation", job["head"], task_identity=job["task_identity"],
-                        red_gate={"name": job["kind"], "evidence": {"cause": "claim released after failed runs",
+                        red_gate={"name": job["kind"], "evidence": {"cause": CLAIM_RELEASE_CAUSE,
                                                                 "releases": releases, "last": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]}})
                 raise
             result = {**result, "execution": outcome}

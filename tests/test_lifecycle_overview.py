@@ -294,6 +294,8 @@ class EligibilityAgreementTests(unittest.TestCase):
                                    gates={"review": {"result": "failed", "identity": IDENTITY, "evidence": {"x": 1}}}), {"resume"}),
             "finding-level": (record("blocked-escalation", red={"name": "repair", "identity": IDENTITY,
                                                                  "evidence": {"status": "exhausted"}}), set()),
+            "operational-review": (record("blocked-escalation", red={"name": "review", "identity": IDENTITY, "evidence": {
+                "cause": "claim released after failed runs", "releases": 3, "last": "PlatformConfigError: missing"}}), {"resume"}),
             "ready": (record("ready"), set()),
         }
         for name, (rec, expected) in cases.items():

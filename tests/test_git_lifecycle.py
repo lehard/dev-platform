@@ -698,7 +698,7 @@ class GitLifecycleTests(unittest.TestCase):
         write_platform_config(
             self.repo, workflow_profile="standard", protected_main=False, publish_mode="direct",
             capabilities={"agent_board": False},
-            extra='[development_backlog]\nrepository = "example/internal-tasks"',
+            extra='[development_backlog]\nrepository = "example/internal-tasks"\n\n[private_lineage]\nenabled = true',
         )
         (self.repo / "dev-platform").mkdir(exist_ok=True)
         (self.repo / "dev-platform" / "checks.toml").write_text(
@@ -735,7 +735,7 @@ class GitLifecycleTests(unittest.TestCase):
         write_platform_config(
             self.repo, workflow_profile="standard", protected_main=False, publish_mode="direct",
             capabilities={"agent_board": False},
-            extra='[development_backlog]\nrepository = "example/internal-tasks"',
+            extra='[development_backlog]\nrepository = "example/internal-tasks"\n\n[private_lineage]\nenabled = true',
         )
         (self.repo / "dev-platform").mkdir(exist_ok=True)
         (self.repo / "dev-platform" / "checks.toml").write_text(
