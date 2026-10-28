@@ -14,6 +14,7 @@ SCRIPT_SOURCE = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_SOURCE))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from _platform_config import write_platform_config  # noqa: E402
 from _concurrent_lifecycle import communicate_within_deadline, wait_for_readiness  # noqa: E402
 
 
@@ -55,10 +56,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
         install_scripts(seed)
         (seed / "README.md").write_text("seed\n", encoding="utf-8")
         (seed / ".gitignore").write_text(".claude/\n__pycache__/\n*.py[cod]\n", encoding="utf-8")
-        (seed / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n[capabilities]\nagent_board = false\n',
-            encoding="utf-8",
-        )
+        write_platform_config(seed, workflow_profile="standard", capabilities={"agent_board": False})
         git("add", ".", cwd=seed)
         git("commit", "-m", "seed", cwd=seed)
         git("remote", "add", "origin", str(self.remote), cwd=seed)
@@ -153,9 +151,8 @@ class PublicationRecoveryCliTests(unittest.TestCase):
 
     def test_status_is_read_only_and_reports_not_applicable_for_project_harness(self) -> None:
         self.make_feature("agent/status-project")
-        (self.repo / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "light"\nharness_mode = "project"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n',
-            encoding="utf-8",
+        write_platform_config(
+            self.repo, workflow_profile="light", harness_mode="project", protected_main=False, pr_merge_mode="manual", capabilities={"agent_board": False}
         )
         result = run("python3", "scripts/finish_task.py", "--status", cwd=self.repo)
         self.assertEqual(result.returncode, 0)
@@ -238,10 +235,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
     # -- Manual PR mode is unaffected by the reconciler --
 
     def test_manual_pr_mode_publishes_without_attempting_any_merge(self) -> None:
-        (self.repo / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "manual"\n[capabilities]\nagent_board = false\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.repo, workflow_profile="standard", pr_merge_mode="manual", capabilities={"agent_board": False})
         git("add", ".dev-platform.toml", cwd=self.repo)
         git("commit", "-m", "manual mode", cwd=self.repo)
         git("push", cwd=self.repo)
@@ -267,9 +261,8 @@ class PublicationRecoveryCliTests(unittest.TestCase):
 
     def test_harness_mode_project_still_rejects_normal_finish(self) -> None:
         self.make_feature("agent/project-harness")
-        (self.repo / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "light"\nharness_mode = "project"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n',
-            encoding="utf-8",
+        write_platform_config(
+            self.repo, workflow_profile="light", harness_mode="project", protected_main=False, pr_merge_mode="manual", capabilities={"agent_board": False}
         )
         result = run("python3", "scripts/finish_task.py", cwd=self.repo, check=False)
         self.assertNotEqual(result.returncode, 0)

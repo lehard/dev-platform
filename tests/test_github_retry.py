@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -10,6 +11,9 @@ from unittest import mock
 SCRIPTS = Path(__file__).resolve().parents[1] / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 from _platform_modules import load_platform_module  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _platform_config import write_platform_config  # noqa: E402
 
 common = load_platform_module("_platform_common", SCRIPTS / "_platform_common.py")
 managed = load_platform_module("managed_task", SCRIPTS / "managed_task.py")
@@ -60,8 +64,9 @@ class GithubRetryTests(unittest.TestCase):
             calls.append(command)
             return responses[command[2]].pop(0) if responses[command[2]] else checks
 
-        with mock.patch.object(common.subprocess, "run", side_effect=fake), mock.patch("time.sleep"):
-            state = publication_state.required_check_state_for_ref(Path("/tmp"), {}, "7", head)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(common.subprocess, "run", side_effect=fake), mock.patch("time.sleep"):
+            write_platform_config(Path(tmp))
+            state = publication_state.required_check_state_for_ref(Path(tmp), {}, "7", head)
         # The reset view is retried once; the failed checks payload (whose check name
         # contains "timeout") is classified from stderr only and not retried. The head is
         # re-read after the checks.

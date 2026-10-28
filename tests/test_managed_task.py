@@ -5,6 +5,7 @@ import json
 import shutil
 import sys
 import tempfile
+import tomllib
 import unittest
 from contextlib import contextmanager, redirect_stdout
 from dataclasses import replace
@@ -12,17 +13,23 @@ from pathlib import Path
 from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "template" / "scripts" / "managed_task.py"
 sys.path.insert(0, str(SOURCE.parent))
 managed_task = load_platform_module("managed_task", SOURCE)
+from _platform_common import PlatformConfigError  # noqa: E402
 
 START_SOURCE = ROOT / "template" / "scripts" / "start_managed_task.py"
 start_managed_task = load_platform_module("start_managed_task", START_SOURCE)
 task_start = sys.modules["start_task"]
 import rollout_preflight  # noqa: E402
+
+
+def platform_config(**overrides) -> dict:
+    return tomllib.loads(platform_config_text(**overrides))
 
 
 def package_body(
@@ -78,10 +85,11 @@ def authoring_bundle(root: Path, *, change: str = "author-managed-task", title: 
     return managed_task.load_authoring_bundle(str(root))
 
 
-def authoring_config(root: Path) -> None:
-    (root / ".dev-platform.toml").write_text(
-        "main_branch = \"main\"\n\n[development_backlog]\nrepository = \"example-org/development-backlog\"\nproject_label = \"project:dev-platform\"\ndefault_priority = \"P2\"\n",
-        encoding="utf-8",
+def authoring_config(root: Path, **overrides: str) -> None:
+    write_platform_config(
+        root,
+        **overrides,
+        extra="[development_backlog]\nrepository = \"example-org/development-backlog\"\nproject_label = \"project:dev-platform\"\ndefault_priority = \"P2\"",
     )
 
 
@@ -145,6 +153,7 @@ class ManagedPackageTests(unittest.TestCase):
         commands: list[list[str]] = []
         with (
             patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task.private_lineage, "read_platform_config", return_value=platform_config()),
             patch.object(managed_task, "process_evidence_issue", return_value=issue),
             patch.object(managed_task, "run_json", return_value=[]),
             patch.object(managed_task, "run", side_effect=lambda command, *_args, **_kwargs: commands.append(command)),
@@ -164,6 +173,7 @@ class ManagedPackageTests(unittest.TestCase):
         commands: list[list[str]] = []
         with (
             patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task.private_lineage, "read_platform_config", return_value=platform_config()),
             patch.object(
                 managed_task,
                 "process_evidence_issue",
@@ -187,6 +197,7 @@ class ManagedPackageTests(unittest.TestCase):
         commands: list[list[str]] = []
         with (
             patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task.private_lineage, "read_platform_config", return_value=platform_config()),
             patch.object(
                 managed_task,
                 "run_json",
@@ -207,6 +218,7 @@ class ManagedPackageTests(unittest.TestCase):
         commands: list[list[str]] = []
         with (
             patch.object(managed_task, "github_cli_env", return_value={}),
+            patch.object(managed_task.private_lineage, "read_platform_config", return_value=platform_config()),
             patch.object(
                 managed_task,
                 "run_json",
@@ -340,6 +352,7 @@ class ManagedPackageTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            write_platform_config(root, workflow_profile="standard")
             calls: list[list[str]] = []
 
             def fake_json(command: list[str], cwd: Path, env=None):
@@ -381,6 +394,7 @@ class ManagedPackageTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            write_platform_config(root, workflow_profile="standard")
             (root / ".managed-task-state.json").write_text(
                 json.dumps({"source_issue": "example-org/development-backlog#2", "change": "other-task"}), encoding="utf-8"
             )
@@ -407,6 +421,7 @@ class ManagedPackageTests(unittest.TestCase):
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            write_platform_config(root, workflow_profile="standard")
             (root / ".managed-task-state.json").write_text(
                 json.dumps({"source_issue": "example-org/development-backlog#2", "change": "other-task"}), encoding="utf-8"
             )
@@ -539,20 +554,21 @@ class ManagedPackageTests(unittest.TestCase):
             stdout = "main\n"
 
         with (
-            patch.object(managed_task, "read_platform_config", return_value={"workflow_profile": "standard", "harness_mode": "platform", "main_branch": "main"}),
+            patch.object(managed_task, "read_platform_config", return_value=platform_config(workflow_profile="standard")),
             patch.object(managed_task, "main_root", return_value=root),
             patch.object(managed_task, "run_git", return_value=Result()),
         ):
             self.assertTrue(managed_task.direct_materialization_is_forbidden(root))
-        with patch.object(managed_task, "read_platform_config", return_value={"workflow_profile": "light", "harness_mode": "platform"}):
+        with patch.object(managed_task, "read_platform_config", return_value=platform_config(workflow_profile="light")):
             self.assertFalse(managed_task.direct_materialization_is_forbidden(root))
 
     def test_managed_start_materializes_only_after_task_start(self) -> None:
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "integration"
-            task_root = Path(tmp) / "task"
             root.mkdir()
+            write_platform_config(root, workflow_profile="standard")
+            task_root = Path(tmp) / "task"
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
 
@@ -588,7 +604,7 @@ class ManagedPackageTests(unittest.TestCase):
             canonical_change(task_root, package)
             with (
                 patch.object(start_managed_task, "discover_task", return_value=package),
-                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
+                patch.object(start_managed_task, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
                 patch.object(start_managed_task, "refresh_context", return_value=None),
@@ -618,7 +634,7 @@ class ManagedPackageTests(unittest.TestCase):
             allocator = MagicMock(return_value=allocated)
             with (
                 patch.object(start_managed_task, "discover_task", return_value=package),
-                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
+                patch.object(start_managed_task, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
                 patch.object(start_managed_task, "_registered_worktree_branches", return_value={task_root.resolve(): "agent/resumed"}),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
@@ -650,8 +666,9 @@ class ManagedPackageTests(unittest.TestCase):
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "integration"
-            task_root = Path(tmp) / "task"
             root.mkdir()
+            write_platform_config(root, workflow_profile="standard")
+            task_root = Path(tmp) / "task"
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
 
@@ -712,7 +729,7 @@ class ManagedPackageTests(unittest.TestCase):
             run = {"decision": "RUN", "claims": ["template/scripts/shared.py"]}
             with (
                 patch.object(start_managed_task, "discover_task", return_value=package),
-                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "multi-agent"}),
+                patch.object(start_managed_task, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(start_managed_task, "machine_path", return_value=task_root.parent),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
                 patch.object(start_managed_task, "refresh_context", return_value=None),
@@ -735,6 +752,7 @@ class ManagedPackageTests(unittest.TestCase):
         root = Path("/tmp/integration")
         started = start_managed_task.StartedTask(profile="standard", branch="agent/add-managed-backlog-intake", task_root=root)
         with (
+            patch.object(start_managed_task, "read_platform_config", return_value=platform_config(workflow_profile="standard")),
             patch.object(start_managed_task, "discover_task", return_value=package),
             patch.object(start_managed_task, "start_task", return_value=started),
             patch.object(start_managed_task, "import_task", side_effect=managed_task.ManagedTaskError("validation failed")),
@@ -770,8 +788,9 @@ class ManagedPackageTests(unittest.TestCase):
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "integration"
-            task_root = Path(tmp) / "task"
             root.mkdir()
+            write_platform_config(root, workflow_profile="standard")
+            task_root = Path(tmp) / "task"
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/fresh-managed-task", task_root=task_root)
 
@@ -805,6 +824,7 @@ class ManagedPackageTests(unittest.TestCase):
         root = Path("/tmp/integration")
         started = start_managed_task.StartedTask(profile="standard", branch="agent/managed", task_root=root)
         with (
+            patch.object(start_managed_task, "read_platform_config", return_value=platform_config(workflow_profile="standard")),
             patch.object(start_managed_task, "discover_task", return_value=package),
             patch.object(start_managed_task, "start_task", return_value=started),
             patch.object(start_managed_task, "import_task", return_value=(package, "b" * 40, False)),
@@ -830,7 +850,7 @@ class ManagedPackageTests(unittest.TestCase):
             (root / "README.md").write_text("test\n", encoding="utf-8")
             subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)
-            (root / ".dev-platform.toml").write_text('workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8")
+            write_platform_config(root, workflow_profile="standard")
             scripts = root / "scripts"
             scripts.mkdir()
             for name in ("agent_doctor.py", "project_sync.py"):
@@ -853,7 +873,7 @@ class ManagedPackageTests(unittest.TestCase):
         (root / "README.md").write_text("test\n", encoding="utf-8")
         subprocess.run(["git", "add", "README.md"], cwd=root, check=True)
         subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)
-        (root / ".dev-platform.toml").write_text('workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8")
+        write_platform_config(root, workflow_profile="standard")
         scripts = root / "scripts"
         scripts.mkdir()
         for name in ("agent_doctor.py", "project_sync.py"):
@@ -949,6 +969,9 @@ class ManagedPackageTests(unittest.TestCase):
     def test_authoring_config_fails_closed_until_a_project_is_upgraded(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            with self.assertRaisesRegex(PlatformConfigError, "is missing"):
+                managed_task.authoring_config(root)
+            write_platform_config(root)
             with self.assertRaisesRegex(managed_task.ManagedTaskError, "not configured"):
                 managed_task.authoring_config(root)
             authoring_config(root)
@@ -1318,10 +1341,11 @@ class ManagedPackageTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "integration"
-            task_root = Path(tmp) / "task"
             root.mkdir()
+            task_root = Path(tmp) / "task"
             task_root.mkdir()
-            authoring_config(root)
+            write_platform_config(task_root, workflow_profile="standard")
+            authoring_config(root, workflow_profile="standard")
             bundle_root = root / "bundle"
             bundle = authoring_bundle(bundle_root)
             pre_receipt = {
@@ -1370,7 +1394,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(managed_task, "run_json", side_effect=create_change),
                 patch.object(managed_task, "openspec_status", return_value=schema),
                 patch.object(managed_task, "validate_change"),
-                patch.object(start_managed_task, "read_platform_config", return_value={"workflow_profile": "standard"}),
+                patch.object(start_managed_task, "read_platform_config", return_value=platform_config(workflow_profile="standard")),
                 patch.object(start_managed_task, "start_task", return_value=started),
                 patch.object(start_managed_task, "refresh_context", return_value=None),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
@@ -1418,6 +1442,7 @@ class ManagedPackageTests(unittest.TestCase):
         self.assertNotEqual(current_hash, recorded["body_sha256"])
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            write_platform_config(root, workflow_profile="standard")
             with (
                 patch.object(managed_task, "issue_bodies", return_value=[package_body(source_issue_evidence=recorded)]),
                 patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
@@ -1457,6 +1482,7 @@ class ManagedPackageTests(unittest.TestCase):
         current_issue = {"updated_at": "2026-06-01T00:00:00Z", "title": "changed", "body": "changed body"}
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            write_platform_config(root, workflow_profile="standard")
             with (
                 patch.object(managed_task, "issue_bodies", return_value=[package_body(source_issue_evidence=recorded)]),
                 patch.object(managed_task, "origin_repository", return_value="lehard/dev-platform"),
@@ -1485,6 +1511,7 @@ class ManagedPackageTests(unittest.TestCase):
         }
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            write_platform_config(root, workflow_profile="standard")
             canonical_change(root, package)
             with (
                 patch.object(managed_task, "issue_bodies", return_value=[package_body(source_issue_evidence=recorded)]),
@@ -1502,8 +1529,9 @@ class ManagedPackageTests(unittest.TestCase):
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "integration"
-            task_root = Path(tmp) / "task"
             root.mkdir()
+            write_platform_config(root, workflow_profile="standard")
+            task_root = Path(tmp) / "task"
             task_root.mkdir()
             started = start_managed_task.StartedTask(profile="multi-agent", branch="agent/add-managed-backlog-intake", task_root=task_root, board_id="board-1")
 

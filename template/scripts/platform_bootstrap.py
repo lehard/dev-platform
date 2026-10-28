@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from _platform_common import SharedWorkspaceError, configure_shared_repository, posix_available, preflight
+from _platform_common import SharedWorkspaceError, configure_shared_repository, posix_available, preflight, read_project_config
 
 SEMVER_TAG_RE = re.compile(r"^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PLATFORM_VERSION_RE = re.compile(r'^platform_version\s*=\s*"[^"]*"\s*$', re.MULTILINE)
@@ -79,9 +79,7 @@ def run(command: list[str], root: Path, check: bool = True, *, env: dict[str, st
 
 
 def load_config(root: Path) -> dict:
-    import tomllib
-    with (root / ".dev-platform.toml").open("rb") as fh:
-        return tomllib.load(fh)
+    return read_project_config(root)
 
 
 def copier_commit(root: Path) -> str | None:
@@ -175,8 +173,8 @@ def main() -> int:
     ensure_project_context_map(root)
     sync_engineering_capabilities(root)
     config = load_config(root)
-    main_branch = str(config.get("main_branch", "main"))
-    tools = str(config.get("agent_tools", "claude,codex"))
+    main_branch = config["main_branch"]
+    tools = config["agent_tools"]
     was_git_repo = (root / ".git").exists()
     safe_fresh_adoption = os.environ.get("DEV_PLATFORM_SAFE_FRESH_ADOPTION") == "1"
     if not was_git_repo:

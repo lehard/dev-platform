@@ -9,6 +9,7 @@ from io import StringIO
 from pathlib import Path
 from unittest import mock
 
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -36,6 +37,7 @@ class StrictFrictionTests(unittest.TestCase):
         self.log = self.root / ".claude" / "agent-friction.jsonl"
         self.state = self.root / ".claude" / "agent-friction-state.json"
         self.log.parent.mkdir(parents=True)
+        write_platform_config(self.root)
         for name, value in {
             "main_root": lambda: self.root,
             "log_path": lambda: self.log,
@@ -190,6 +192,21 @@ class StrictFrictionTests(unittest.TestCase):
                 agent_friction.read_state()
             self.assertIn(position, str(ctx.exception))
             self.assertIn(str(self.log), str(ctx.exception))
+
+
+class ChangedPathsConfigurationTests(unittest.TestCase):
+    """Review guidance must not assume ``main`` when the platform configuration is unusable."""
+
+    def test_missing_or_incomplete_configuration_is_an_explicit_error(self) -> None:
+        # The exact class the reader raises, from the _platform_common instance agent_friction imported.
+        config_error = agent_friction.read_platform_config.__globals__["PlatformConfigError"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with self.assertRaisesRegex(config_error, r"\.dev-platform\.toml is missing"):
+                agent_friction.changed_paths(root)
+            write_platform_config(root, omit=("main_branch",))
+            with self.assertRaisesRegex(config_error, "missing required key main_branch"):
+                agent_friction.changed_paths(root)
 
 
 if __name__ == "__main__":

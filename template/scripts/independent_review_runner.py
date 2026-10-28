@@ -740,7 +740,7 @@ def run_review(
     root = root.resolve()
     if not change.is_dir():
         raise review.IndependentReviewError(f"OpenSpec change not found: {change}")
-    base_ref = base_ref or f"origin/{read_platform_config(root).get('main_branch', 'main')}"
+    base_ref = base_ref or f"origin/{read_platform_config(root)['main_branch']}"
     dirty = dirty_candidate_paths(root, change, base_ref)
     if dirty:
         raise review.IndependentReviewError(

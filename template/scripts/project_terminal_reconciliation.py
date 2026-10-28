@@ -15,7 +15,7 @@ def reconcile_if_exact_merged(root: Path, branch: str, source_issue: str | None 
     env = github_cli_env(root)
     if env is None:
         raise ManagedProjectStatusError("GitHub authentication is unavailable for terminal reconciliation")
-    pr, expected_head = exact_pr(root, branch, str(config.get("main_branch", "main")), env)
+    pr, expected_head = exact_pr(root, branch, config["main_branch"], env)
     if pr is None or not exact_state(root, pr, expected_head, env):
         return False
     source = discover_source_issue(root) if source_issue is None else None

@@ -147,7 +147,7 @@ def observe_pending_rollout(root: Path, config: dict[str, Any], env: dict[str, s
     read-only path -- and the whole managed-start import graph -- stays
     independent of a project-owned `project_publish.py` / `finish_task.py`.
     """
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     # Unlike an observed candidate PR with ambiguous ownership, being unable to
     # reach GitHub at all is not evidence of a pending rollout -- fail open with
     # a note rather than blocking every task start whenever `gh` is briefly
@@ -216,7 +216,7 @@ def _merge_rollout_pr(root: Path, env: dict[str, str], pr: RolloutPR, remote: st
 
 
 def _synchronize_local_main(root: Path, config: dict[str, Any]) -> tuple[bool, str]:
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     try:
         with serialized_integration(root, config, timeout_seconds=MAIN_LOCK_TIMEOUT_SECONDS):
             sync_after_remote_pr_merge(root, root, config, main_branch)
@@ -270,7 +270,7 @@ def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str,
 
     print(
         f"Preflight: merging pending Dev Platform rollout PR #{observed.pr.number} ({observed.pr.version}) and "
-        f"synchronizing local {config.get('main_branch', 'main')} before starting new work. "
+        f"synchronizing local {config['main_branch']} before starting new work. "
         f"A session that prohibits rollout declines this merge with {DEFER_ROLLOUT_FLAG} ({DEFER_ROLLOUT_ENV}=1) before start.",
         flush=True,
     )

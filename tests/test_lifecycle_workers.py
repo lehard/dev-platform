@@ -15,6 +15,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 
@@ -1045,6 +1046,7 @@ class SandboxedWriterOptionTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(platform_config_text())
             argv, launch = workers.sandboxed_claude_writer(root)
             self.assertEqual(argv[:2], ["claude", "-p"])
             self.assertEqual(argv[argv.index("--model") + 1], model_routing.DEFAULT_MODELS["claude"]["standard"])
@@ -1103,7 +1105,7 @@ class ExecuteJobTests(unittest.TestCase):
         (seed / "src/a.py").write_text("1")
         (seed / "src/gone.py").write_text("old")
         (seed / ".gitignore").write_text("__pycache__/\n*.pyc\n")
-        (seed / ".dev-platform.toml").write_text('platform_version = "1.0.0"\n')  # committed project contract
+        (seed / ".dev-platform.toml").write_text(platform_config_text())  # committed project contract
         git(seed, "add", "-A"); git(seed, "commit", "-qm", "base")
         self.head = git(seed, "rev-parse", "HEAD")
         subprocess.run(["git", "clone", "-q", "--bare", str(seed), str(self.src)], check=True)

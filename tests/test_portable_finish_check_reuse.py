@@ -26,6 +26,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
@@ -35,19 +36,7 @@ CHANGE = "feature"
 ARCHIVE = f"2026-10-21-{CHANGE}"
 REUSE_PREFIX = "DEV_PLATFORM_CHECK_REUSE: "
 
-PLATFORM_CONFIG = """\
-platform_version = "test"
-main_branch = "main"
-workflow_profile = "standard"
-harness_mode = "platform"
-protected_main = true
-publish_mode = "pr"
-pr_merge_mode = "auto"
-scm_provider = "github"
-
-[paths]
-checks = "dev-platform/checks.toml"
-"""
+PLATFORM_CONFIG = platform_config_text(platform_version="test", workflow_profile="standard")
 
 
 def git(cwd: Path, *args: str) -> str:

@@ -9,6 +9,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_common import TaskFreshnessError  # noqa: E402
 from task_content_identity import (  # noqa: E402
     REVIEW_SCOPE,
@@ -35,6 +37,7 @@ class TaskContentIdentityTests(unittest.TestCase):
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
         (self.root / "dev-platform").mkdir()
         (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
+        write_platform_config(self.root)
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "base")
         git(self.root, "branch", "origin/main")
@@ -109,6 +112,7 @@ class ReviewContentIdentityBaseTests(unittest.TestCase):
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
         (self.root / "dev-platform").mkdir()
         (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
+        write_platform_config(self.root)
         self.commit("base")
         git(self.root, "branch", "origin/main")
         git(self.root, "switch", "-c", "agent/dependent")
@@ -304,6 +308,7 @@ class GeneratedFileExclusionTests(unittest.TestCase):
         git(self.root, "config", "user.name", "Test")
         git(self.root, "config", "user.email", "test@example.invalid")
         (self.root / "dev-platform").mkdir()
+        write_platform_config(self.root)
         self.write_checks(SETTINGS + DECLARATION)
         (self.root / "gen.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
         (self.root / "feature.txt").write_text("a\nb\nc\nd\ne\nf\ng\n", encoding="utf-8")

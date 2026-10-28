@@ -5,6 +5,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import tomllib
 import types
 import unittest
 from contextlib import ExitStack
@@ -15,12 +16,18 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import finish_task  # noqa: E402
 import managed_project_status  # noqa: E402
 import project_publish  # noqa: E402
 import requirement_integration  # noqa: E402
 import requirement_terminal  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
+
+
+def platform_config() -> dict:
+    return tomllib.loads(platform_config_text())
 
 
 class ManagedStatusLifecycleTests(unittest.TestCase):
@@ -327,7 +334,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
 
     def test_resume_derives_active_state_but_never_infers_done(self) -> None:
         root = Path("/tmp/managed-resume")
-        config = {"main_branch": "main"}
+        config = platform_config()
         results = [
             (SimpleNamespace(available=True, exact_open=None, exact_merged=None), "In progress"),
             (SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None), "In review"),
@@ -365,7 +372,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
 
     def run_status(self, *, as_json: bool, drift, checkout_identity=None):
         root = Path("/tmp/managed-drift-status")
-        config = {}
+        config = platform_config()
         drift_patch = (
             mock.patch.object(finish_task, "observe_source_issue_drift", side_effect=drift)
             if isinstance(drift, Exception)
@@ -417,7 +424,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
 
     def test_status_json_surfaces_checkout_mismatch_without_blocking(self) -> None:
         root = Path("/tmp/managed-drift-status")
-        config = {}
+        config = platform_config()
         with (
             mock.patch.object(finish_task, "current_branch", return_value="agent/managed"),
             mock.patch.object(finish_task, "require_managed_checkout_identity", side_effect=finish_task.ManagedTaskError("expected task checkout")),
@@ -451,7 +458,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
             mock.patch("builtins.print") as printed,
         ):
-            self.assertEqual(0, finish_task.run_status(root, root, {}, as_json=True))
+            self.assertEqual(0, finish_task.run_status(root, root, platform_config(), as_json=True))
         payload = json.loads(printed.call_args.args[0])
         self.assertEqual(payload["status"], "terminal_pending")
         self.assertTrue(payload["remote_merged"])
@@ -479,7 +486,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
                 stack.enter_context(context)
             stack.enter_context(mock.patch.object(finish_task, "_read_deferred_cleanup", return_value=[]))
             printed = stack.enter_context(mock.patch("builtins.print"))
-            finish_task.run_status(root, root, {}, as_json=True)
+            finish_task.run_status(root, root, platform_config(), as_json=True)
             self.assertEqual(json.loads(printed.call_args.args[0])["status"], "terminal_pending")
         record = {"path": str(root.resolve()), "branch": "agent/managed", "head": "a" * 40}
         with ExitStack() as stack:
@@ -487,7 +494,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
                 stack.enter_context(context)
             stack.enter_context(mock.patch.object(finish_task, "_read_deferred_cleanup", return_value=[record]))
             printed = stack.enter_context(mock.patch("builtins.print"))
-            finish_task.run_status(root, root, {}, as_json=True)
+            finish_task.run_status(root, root, platform_config(), as_json=True)
             payload = json.loads(printed.call_args.args[0])
         self.assertEqual(payload["status"], "complete")
         self.assertEqual(payload["terminal_obligations"][0]["state"], "warning")

@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template/scripts"
 sys.path.insert(0, str(SCRIPTS))
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
@@ -365,7 +366,7 @@ class GateTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(finish, "observe_private_reference_blocker", return_value=None))
             publish = stack.enter_context(mock.patch.object(publication, "publish_pr", return_value=0))
             release = stack.enter_context(mock.patch.object(finish, "finish_board"))
-            config = {"pr_merge_mode": "auto"}
+            config = {"pr_merge_mode": "auto", "main_branch": "main"}
             self.assertEqual(finish.finish_developer_handoff(ROOT, ROOT, config, "agent/example", None, None), 0)
             self.assertTrue(publish.call_args.kwargs["developer_handoff"])
             release.assert_called_once()
@@ -1288,8 +1289,7 @@ class EndToEndTests(unittest.TestCase):
         git(self.root, "init", "-qb", "main")
         git(self.root, "config", "user.name", "Fixture")
         git(self.root, "config", "user.email", "fixture@localhost")
-        (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n[independent_review]\nenabled = true\nprovider = "codex"\n')
+        write_platform_config(self.root, extra='[independent_review]\nenabled = true\nprovider = "codex"')
         (self.root / "dev-platform").mkdir()
         (self.root / "dev-platform/checks.toml").write_text("# no generated files\n")
         (self.root / "src.py").write_text("value = 0\n")

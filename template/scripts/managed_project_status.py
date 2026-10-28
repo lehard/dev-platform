@@ -174,7 +174,7 @@ def discover_source_issue(root: Path, config: dict[str, Any] | None = None) -> S
         return parse_source_issue(_provenance_source(active[0], root))
 
     cfg = config or read_platform_config(root)
-    main_branch = str(cfg.get("main_branch", "main"))
+    main_branch = cfg["main_branch"]
     changed = run_git(
         [
             "diff",
@@ -532,7 +532,7 @@ def derive_resume_status(root: Path) -> str:
     import publication_state
 
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
     head = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
     env = github_cli_env(root)

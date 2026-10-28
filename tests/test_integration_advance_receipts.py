@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 import subprocess
 import sys
 import tempfile
@@ -12,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
@@ -78,7 +80,7 @@ class ReceiptSchemaTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, mock.patch.object(integration_state, "fcntl", None):
             entered = []
             with self.assertRaisesRegex(SystemExit, "requires POSIX fcntl.flock"):
-                with integration_state.serialized_integration(Path(directory), {}, 0):
+                with integration_state.serialized_integration(Path(directory), tomllib.loads(platform_config_text()), 0):
                     entered.append(True)
             self.assertEqual(entered, [])
             self.assertEqual(list(Path(directory).iterdir()), [])  # no lock file was created either
@@ -110,7 +112,7 @@ class IntegrationRepoMixin:
         git(self.integration, "commit", "-qm", "base")
         # Head-move verification reads the integration root's platform contract and never assumes a default one.
         # It is excluded from Git so snapshots and task worktrees see exactly the state they did before.
-        (self.integration / ".dev-platform.toml").write_text(routing_fixtures.CONTRACT, encoding="utf-8")
+        (self.integration / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         with (self.integration / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
             handle.write("/.dev-platform.toml\n")
         routing_fixtures.route_ready(self.integration)
@@ -366,7 +368,7 @@ class ClaudeRoutingFixture(IntegrationRepoMixin):
         (change / ".managed-task.json").write_text(
             json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8"
         )
-        (self.task / ".dev-platform.toml").write_text(routing_fixtures.CONTRACT, encoding="utf-8")
+        (self.task / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         with patch.object(routing, "main_root", return_value=self.integration), patch.object(
             routing, "determine_claude_tier", return_value=DETECTION_ONLY
         ):

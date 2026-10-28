@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
@@ -14,11 +15,13 @@ from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_ROOT = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_ROOT))
+PLATFORM_CONFIG = tomllib.loads(platform_config_text())
 
 
 def load(name: str):
@@ -45,10 +48,7 @@ class WorktreeHarnessCase(unittest.TestCase):
         git(self.root, "config", "user.name", "Test")
         git(self.root, "config", "user.email", "test@example.invalid")
         (self.root / ".gitignore").write_text(".claude/\n", encoding="utf-8")
-        (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "multi-agent"\nharness_mode = "platform"\n\n[capabilities]\nagent_board = true\n\n[paths]\nworktrees = ".claude/worktrees"\nagent_board = ".claude/agents-board.json"\npending_worktrees = ".claude/pending-worktrees.md"\nchecks = "dev-platform/checks.toml"\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.root)
         (self.root / "dev-platform").mkdir()
         (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
@@ -90,7 +90,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         decision = worktree_cleanup.classify(
             self.root,
             worktree,
-            config={},
+            config=PLATFORM_CONFIG,
             managed_root=self.managed,
             main_branch="main",
             active_board=set(),
@@ -109,7 +109,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         board_decision = worktree_cleanup.classify(
             self.root,
             worktree,
-            config={},
+            config=PLATFORM_CONFIG,
             managed_root=self.managed,
             main_branch="main",
             active_board={path.resolve()},
@@ -121,7 +121,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         process_decision = worktree_cleanup.classify(
             self.root,
             worktree,
-            config={},
+            config=PLATFORM_CONFIG,
             managed_root=self.managed,
             main_branch="main",
             active_board=set(),
@@ -137,7 +137,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         dirty_decision = worktree_cleanup.classify(
             self.root,
             self.listed(dirty),
-            config={},
+            config=PLATFORM_CONFIG,
             managed_root=self.managed,
             main_branch="main",
             active_board=set(),
@@ -151,7 +151,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         unmerged_decision = worktree_cleanup.classify(
             self.root,
             self.listed(unmerged),
-            config={},
+            config=PLATFORM_CONFIG,
             managed_root=self.managed,
             main_branch="main",
             active_board=set(),
@@ -183,7 +183,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
             decision = worktree_cleanup.classify(
                 self.root,
                 worktree,
-                config={},
+                config=PLATFORM_CONFIG,
                 managed_root=self.managed,
                 main_branch="main",
                 active_board=set(),
@@ -208,7 +208,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         worktree = self.listed(path)
         activity = worktree_cleanup._activity_timestamp(self.root, worktree)
         return worktree_cleanup.classify(
-            self.root, worktree, config={}, managed_root=self.managed, main_branch="main",
+            self.root, worktree, config=PLATFORM_CONFIG, managed_root=self.managed, main_branch="main",
             active_board=set(), active_cwds=set(), older_than_days=7, now=activity + 8 * 86400,
         )
 
@@ -264,7 +264,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
             decision = worktree_cleanup.classify(
                 self.root,
                 worktree,
-                config={},
+                config=PLATFORM_CONFIG,
                 managed_root=self.managed,
                 main_branch="main",
                 active_board=set(),
@@ -288,7 +288,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
             decision = worktree_cleanup.classify(
                 self.root,
                 worktree,
-                config={},
+                config=PLATFORM_CONFIG,
                 managed_root=self.managed,
                 main_branch="main",
                 active_board=set(),
@@ -310,7 +310,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
             decision = worktree_cleanup.classify(
                 self.root,
                 worktree,
-                config={},
+                config=PLATFORM_CONFIG,
                 managed_root=self.managed,
                 main_branch="main",
                 active_board=set(),
@@ -335,7 +335,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
             decision = worktree_cleanup.classify(
                 self.root,
                 worktree,
-                config={},
+                config=PLATFORM_CONFIG,
                 managed_root=self.managed,
                 main_branch="main",
                 active_board=set(),
@@ -356,7 +356,7 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
         decision = worktree_cleanup.classify(
             self.root,
             worktree,
-            config={},
+            config=PLATFORM_CONFIG,
             managed_root=self.managed,
             main_branch="main",
             active_board=set(),
@@ -1383,12 +1383,8 @@ class AgentBoardAcknowledgmentTests(WorktreeHarnessCase):
 class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
     """The scope gate is required exactly when [capabilities] agent_board is true; every unmet precondition stops it."""
 
-    def configure(self, capabilities: str | None, *, main_branch: bool = True) -> None:
-        text = ('main_branch = "main"\n' if main_branch else "") + 'workflow_profile = "multi-agent"\n'
-        if capabilities is not None:
-            text += "\n[capabilities]\n" + capabilities
-        text += '\n[paths]\nagent_board = ".claude/agents-board.json"\nchecks = "dev-platform/checks.toml"\n'
-        (self.root / ".dev-platform.toml").write_text(text, encoding="utf-8")
+    def configure(self, capabilities: dict | None = None, *, main_branch: bool = True) -> None:
+        write_platform_config(self.root, capabilities=capabilities, omit=() if main_branch else ("main_branch",))
 
     def board(self, content: str) -> Path:
         board = self.root / ".claude" / "agents-board.json"
@@ -1404,7 +1400,7 @@ class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
                 "worktree": str(worktree), "heartbeat": datetime.now(timezone.utc).isoformat()}
 
     def test_corrupt_board_stops_the_gate_instead_of_reporting_no_conflicts(self) -> None:
-        self.configure("agent_board = true\n")
+        self.configure()
         worktree = self.add_worktree("only")
         self.board("{not json")
         with self.assertRaisesRegex(SystemExit, "unreadable or invalid JSON"):
@@ -1413,20 +1409,20 @@ class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
             agent_board.enforce_scope_gate(self.root, worktree, "agent/only")
 
     def test_missing_board_file_stops_the_gate(self) -> None:
-        self.configure("agent_board = true\n")
+        self.configure()
         worktree = self.add_worktree("only")
         with self.assertRaisesRegex(SystemExit, "does not exist"):
             self.conflicts(worktree)
 
     def test_unconfigured_board_path_stops_the_gate(self) -> None:
-        self.configure("agent_board = true\n")
+        self.configure()
         worktree = self.add_worktree("only")
         with mock.patch.object(agent_board, "board_path", side_effect=KeyError("Missing paths.agent_board in .dev-platform.toml")):
             with self.assertRaisesRegex(SystemExit, "paths.agent_board"):
                 self.conflicts(worktree)
 
     def test_board_without_an_item_list_stops_the_gate(self) -> None:
-        self.configure("agent_board = true\n")
+        self.configure()
         worktree = self.add_worktree("only")
         for content in ('{"version": 1}', '{"items": {"a": 1}}', "[]"):
             with self.subTest(content=content):
@@ -1435,7 +1431,7 @@ class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
                     self.conflicts(worktree)
 
     def test_missing_claim_for_the_current_worktree_stops_the_gate(self) -> None:
-        self.configure("agent_board = true\n")
+        self.configure()
         worktree = self.add_worktree("only")
         other = self.add_worktree("other")
         self.board(json.dumps({"version": 1, "items": [self.claim(other)]}))
@@ -1443,45 +1439,53 @@ class ScopeGateFailsExplicitlyTests(WorktreeHarnessCase):
             self.conflicts(worktree)
 
     def test_a_claimed_worktree_with_a_valid_board_still_passes(self) -> None:
-        self.configure("agent_board = true\n")
+        self.configure()
         worktree = self.add_worktree("only")
         self.board(json.dumps({"version": 1, "items": [self.claim(worktree)]}))
         self.assertEqual(self.conflicts(worktree), [])
         agent_board.enforce_scope_gate(self.root, worktree, "agent/only")
 
     def test_capability_off_is_a_documented_non_gate_and_the_portable_path_runs(self) -> None:
-        self.configure("agent_board = false\n")
+        self.configure({"agent_board": False})
         worktree = self.add_worktree("only")
         self.assertFalse((self.root / ".claude" / "agents-board.json").exists())
         self.assertEqual(self.conflicts(worktree), [])
         agent_board.enforce_scope_gate(self.root, worktree, "agent/only")  # Does not raise.
 
     def test_missing_or_non_boolean_capability_is_an_error(self) -> None:
-        worktree = self.add_worktree("only")
-        for capabilities, pattern in (
-            (None, r"\[capabilities\] is missing"),
-            ("openspec = true\n", "agent_board must be true or false"),
-            ('agent_board = "true"\n', "agent_board must be true or false"),
-            ("agent_board = 1\n", "agent_board must be true or false"),
+        # The gate decision itself (a validated file always carries the key); the file-level
+        # rejection of a missing key is the platform configuration schema's, tested separately.
+        for config, pattern in (
+            ({}, r"\[capabilities\] is missing"),
+            ({"capabilities": {"openspec": True}}, "agent_board must be true or false"),
+            ({"capabilities": {"agent_board": "true"}}, "agent_board must be true or false"),
+            ({"capabilities": {"agent_board": 1}}, "agent_board must be true or false"),
         ):
-            with self.subTest(capabilities=capabilities):
-                self.configure(capabilities)
-                with self.assertRaisesRegex(SystemExit, pattern):
-                    self.conflicts(worktree)
+            with self.subTest(config=config), self.assertRaisesRegex(SystemExit, pattern):
+                agent_board.scope_gate_required(config)
+
+    def test_configuration_without_the_agent_board_capability_is_rejected_when_read(self) -> None:
+        worktree = self.add_worktree("only")
+        text = platform_config_text().replace("agent_board = true\n", "", 1)
+        (self.root / ".dev-platform.toml").write_text(text, encoding="utf-8")
+        with self.assertRaisesRegex(agent_board.PlatformConfigError, "missing required key capabilities.agent_board"):
+            self.conflicts(worktree)
 
     def test_missing_main_branch_is_an_error_not_an_assumed_main(self) -> None:
-        self.configure("agent_board = true\n", main_branch=False)
+        self.configure(main_branch=False)
         worktree = self.add_worktree("only")
         self.board(json.dumps({"version": 1, "items": [self.claim(worktree)]}))
-        with self.assertRaisesRegex(SystemExit, r"\[recoverable\] scope-gate-unavailable: main_branch must be a non-empty string"):
+        with self.assertRaisesRegex(agent_board.PlatformConfigError, "missing required key main_branch"):
             self.conflicts(worktree)
 
     def test_every_board_command_reads_main_branch_through_the_classified_helper(self) -> None:
-        self.configure("agent_board = true\n", main_branch=False)
-        config = agent_board.read_platform_config(self.root)
+        self.configure(main_branch=False)
+        with self.assertRaisesRegex(agent_board.PlatformConfigError, "missing required key main_branch"):
+            agent_board.read_platform_config(self.root)
+        config = tomllib.loads(platform_config_text(omit=("main_branch",)))
         with self.assertRaisesRegex(SystemExit, r"\[recoverable\] scope-gate-unavailable: main_branch"):
             agent_board._main_branch(config)
-        self.configure("agent_board = true\n")
+        self.configure()
         self.assertEqual(agent_board._main_branch(agent_board.read_platform_config(self.root)), "main")
 
     def test_merged_into_is_three_valued_and_a_git_failure_raises(self) -> None:

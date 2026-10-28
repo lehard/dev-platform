@@ -959,7 +959,7 @@ def validate_change(root: Path, change: str) -> None:
 
 
 def target_main(root: Path) -> str:
-    branch = str(read_platform_config(root).get("main_branch", "main"))
+    branch = read_platform_config(root)["main_branch"]
     run(["git", "fetch", "--prune", "origin", branch], root)
     return run(["git", "rev-parse", f"refs/remotes/origin/{branch}"], root).stdout.strip().lower()
 
@@ -2316,7 +2316,7 @@ def direct_materialization_is_forbidden(root: Path) -> bool:
         branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
     except (GitCommandError, OSError):
         return False
-    return root.resolve() == integration.resolve() and branch == str(config.get("main_branch", "main"))
+    return root.resolve() == integration.resolve() and branch == config["main_branch"]
 
 
 def _allocate_work_identity(root: Path, package: Package) -> Package:

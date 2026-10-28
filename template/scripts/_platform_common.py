@@ -6,6 +6,7 @@ import re
 import shutil
 import shlex
 import subprocess
+import sys
 import tempfile
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -228,28 +229,129 @@ def main_root() -> Path:
     return common_path.parent
 
 
-def read_platform_config(root: Path | None = None) -> dict[str, Any]:
-    root = root or current_worktree_root()
-    path = root / ".dev-platform.toml"
-    if not path.exists():
-        return {
-            "main_branch": "main",
-            "workflow_profile": "standard",
-            "harness_mode": "platform",
-            "protected_main": True,
-            "publish_mode": "pr",
-            "pr_merge_mode": "auto",
-            "scm_provider": "github",
-            "paths": {
-                "worktrees": ".claude/worktrees",
-                "agent_board": ".claude/agents-board.json",
-                "friction_log": ".claude/agent-friction.jsonl",
-                "checks": "dev-platform/checks.toml",
-            },
-        }
+class PlatformConfigError(RuntimeError):
+    """The committed platform contract is missing a required key or declares an unsupported combination."""
+
+
+def _report_platform_config_error(exc_type, exc, tb, _default=sys.excepthook) -> None:
+    """Print an uncaught configuration error as one actionable line instead of a traceback.
+
+    Every platform entry point imports this module, so one hook covers them all; the
+    interpreter still exits non-zero. Any other exception keeps the default report.
+    """
+    if issubclass(exc_type, PlatformConfigError):
+        print(f"platform configuration error: {exc}", file=sys.stderr)
+        return
+    _default(exc_type, exc, tb)
+
+
+sys.excepthook = _report_platform_config_error
+
+
+PLATFORM_CONFIG_FILE = ".dev-platform.toml"
+# The one platform configuration schema. Required keys are those every managed
+# project's rendered configuration carries; rollout never adds keys to an
+# existing project (Copier ``_skip_if_exists``), so a key joins the required set
+# only once every project has it. Defaults exist only for OPTIONAL keys, and
+# only here. Documented in the platform's docs/project-owned-config.md.
+PLATFORM_CONFIG_REQUIRED: dict[str, type] = {
+    "schema_version": int,
+    "platform_version": str,
+    "platform_ci_ref": str,
+    "project_name": str,
+    "project_slug": str,
+    "main_branch": str,
+    "workflow_profile": str,
+    "harness_mode": str,
+    "protected_main": bool,
+    "publish_mode": str,
+    "pr_merge_mode": str,
+    "scm_provider": str,
+    "agent_tools": str,
+}
+PLATFORM_CONFIG_REQUIRED_TABLES: dict[str, dict[str, type]] = {
+    "capabilities": {
+        "openspec": bool,
+        "github_sync": bool,
+        "feature_branches": bool,
+        "worktrees": bool,
+        "agent_board": bool,
+        "platform_git_lifecycle": bool,
+    },
+    "paths": {
+        "worktrees": str,
+        "agent_board": str,
+        "main_merge_lock": str,
+        "pending_worktrees": str,
+        "friction_log": str,
+        "friction_state": str,
+        "friction_reports": str,
+        "checks": str,
+    },
+}
+PLATFORM_CONFIG_OPTIONAL_DEFAULTS: dict[str, dict[str, str]] = {
+    "paths": {"pending_completed_worktree_cleanup": ".claude/pending-completed-worktree-cleanup.json"},
+}
+_TOML_EXAMPLE = {str: '"<value>"', bool: "true", int: "2"}
+
+
+def _config_type_error(path: Path, key: str, expected: type, value: Any) -> PlatformConfigError:
+    return PlatformConfigError(
+        f"{path}: {key} must be a {'non-empty string' if expected is str else expected.__name__}, "
+        f"found {value!r}; fix the {key.rsplit('.', 1)[-1]} line"
+    )
+
+
+def _require_config_value(path: Path, table: dict[str, Any], key: str, label: str, expected: type) -> None:
+    section, _, name = label.rpartition(".")
+    if key not in table:
+        where = f" under [{section}]" if section else ""
+        raise PlatformConfigError(
+            f"{path} is missing required key {label}; add `{name} = {_TOML_EXAMPLE[expected]}`{where} "
+            "with this project's value"
+        )
+    value = table[key]
+    # bool is an int subclass: an int key must not accept true/false.
+    if not isinstance(value, expected) or (expected is int and isinstance(value, bool)) or (expected is str and not value):
+        raise _config_type_error(path, label, expected, value)
+
+
+def validate_platform_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
+    """Validate a project configuration against the schema and fill documented optional defaults."""
+    for key, expected in PLATFORM_CONFIG_REQUIRED.items():
+        _require_config_value(path, config, key, key, expected)
+    for section, fields in PLATFORM_CONFIG_REQUIRED_TABLES.items():
+        table = config.get(section)
+        if not isinstance(table, dict):
+            raise PlatformConfigError(f"{path} is missing required table [{section}]; add the [{section}] table with its required keys")
+        for key, expected in fields.items():
+            _require_config_value(path, table, key, f"{section}.{key}", expected)
+    for section, defaults in PLATFORM_CONFIG_OPTIONAL_DEFAULTS.items():
+        table = config[section]
+        for key, default in defaults.items():
+            if key not in table:
+                table[key] = default
+            elif not isinstance(table[key], str) or not table[key]:
+                raise _config_type_error(path, f"{section}.{key}", str, table[key])
+    return config
+
+
+def read_project_config(root: Path | None = None) -> dict[str, Any]:
+    """Read and validate only the committed project config, without operator overrides."""
     import tomllib
+    root = root or current_worktree_root()
+    path = root / PLATFORM_CONFIG_FILE
+    if not path.is_file():
+        raise PlatformConfigError(f"{path} is missing; every platform checkout requires its committed platform configuration")
     with path.open("rb") as fh:
         config = tomllib.load(fh)
+    return validate_platform_config(config, path)
+
+
+def read_platform_config(root: Path | None = None) -> dict[str, Any]:
+    root = root or current_worktree_root()
+    config = read_project_config(root)
+    import tomllib
 
     # Operator-owned state is loaded only after an explicit project opt-in. It
     # augments the portable project contract so existing operator-only helpers
@@ -310,17 +412,6 @@ def _reject_operator_backlog_identity(project: Any, operator: Any, operator_path
             )
 
 
-def read_project_config(root: Path | None = None) -> dict[str, Any]:
-    """Read only the committed project config, without operator overrides; {} when absent."""
-    import tomllib
-    root = root or current_worktree_root()
-    path = root / ".dev-platform.toml"
-    if not path.exists():
-        return {}
-    with path.open("rb") as fh:
-        return tomllib.load(fh)
-
-
 def read_operator_config(root: Path | None = None, *, required: bool = False) -> dict[str, Any]:
     """Read explicit external operator state without merging it into project config."""
     root = root or current_worktree_root()
@@ -356,10 +447,9 @@ def read_operator_config(root: Path | None = None, *, required: bool = False) ->
 def machine_path(key: str, root: Path | None = None) -> Path:
     root = root or main_root()
     config = read_platform_config(current_worktree_root())
-    relative = config.get("paths", {}).get(key)
-    if not relative:
-        raise KeyError(f"Missing paths.{key} in .dev-platform.toml")
-    return (root / relative).resolve()
+    if key not in config["paths"]:
+        raise PlatformConfigError(f"paths.{key} is not a platform configuration path in .dev-platform.toml")
+    return (root / config["paths"][key]).resolve()
 
 
 def utc_now() -> str:
@@ -958,15 +1048,11 @@ def require_origin(root: Path, remote: str = "origin") -> None:
 
 
 def profile(config: dict[str, Any]) -> str:
-    return str(config.get("workflow_profile", "standard"))
+    return config["workflow_profile"]
 
 
 def harness_mode(config: dict[str, Any]) -> str:
-    return str(config.get("harness_mode", "platform"))
-
-
-class PlatformConfigError(RuntimeError):
-    """The committed platform contract is missing a required key or declares an unsupported combination."""
+    return config["harness_mode"]
 
 
 def require_main_branch(config: dict[str, Any], exception_type: type[BaseException] = PlatformConfigError) -> str:
@@ -1004,23 +1090,20 @@ def lifecycle_mode(config: dict[str, Any]) -> str:
 
 
 def protected_main(config: dict[str, Any]) -> bool:
-    # Legacy configs predate this key. Keep their old behavior until an explicit
-    # reviewed rollout records the repository's protection contract.
-    return bool(config.get("protected_main", False))
+    return config["protected_main"]
 
 
 def publish_mode(config: dict[str, Any]) -> str:
-    return str(config.get("publish_mode", "pr"))
+    return config["publish_mode"]
 
 
 def pr_merge_mode(config: dict[str, Any]) -> str:
-    # Legacy PR projects were manual. New generated projects explicitly record auto.
-    return str(config.get("pr_merge_mode", "manual"))
+    return config["pr_merge_mode"]
 
 
 def scm_provider(config: dict[str, Any]) -> str:
     """Return the configured delivery adapter without coupling lifecycle code to it."""
-    return str(config.get("scm_provider", "github")).lower()
+    return config["scm_provider"].lower()
 
 
 def _gh_auth_ok(root: Path, env: dict[str, str]) -> bool:

@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from _platform_config import write_platform_config
 from _platform_modules import load_platform_module
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,10 +25,10 @@ PRIVATE_REF = "https://github.com/example/internal-tasks/issues/" + "216"
 
 def make_candidate(root: Path, *, enabled: bool = True, guard: bool = True) -> None:
     subprocess.run(["git", "init", "-q", str(root)], check=True)
-    config = f'platform_version = "customer"\n[development_backlog]\nrepository = "{REPOSITORY}"\n'
+    extra = f'[development_backlog]\nrepository = "{REPOSITORY}"'
     if enabled:
-        config += "[private_lineage]\nenabled = true\n"
-    (root / ".dev-platform.toml").write_text(config, encoding="utf-8")
+        extra += "\n\n[private_lineage]\nenabled = true"
+    write_platform_config(root, platform_version="customer", extra=extra)
     if guard:
         (root / "scripts").mkdir()
         shutil.copy(ROOT / "scripts" / "check_private_backlog_refs.py", root / "scripts")

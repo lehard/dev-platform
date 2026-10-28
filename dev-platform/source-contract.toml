@@ -17,6 +17,7 @@ protected_main = true
 publish_mode = "pr"
 pr_merge_mode = "auto"
 scm_provider = "github"
+agent_tools = "claude,codex"
 
 [capabilities]
 openspec = true

@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = ROOT / "template" / "scripts" / "delegation_containment.py"
@@ -241,7 +242,7 @@ class DelegationContainmentTests(unittest.TestCase):
         self.assertNotIn("big-clean-file.bin", snap.paths)
 
     def _with_main_branch_config(self) -> None:
-        (self.integration / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
+        write_platform_config(self.integration)
 
     def test_verify_remote_fast_forward_accepts_a_matching_fast_forward(self) -> None:
         self._with_main_branch_config()
@@ -305,7 +306,7 @@ class DelegationContainmentTests(unittest.TestCase):
                 delegation_containment.verify_remote_fast_forward(self.integration, head, head)
 
     def test_verify_remote_fast_forward_requires_main_branch_in_platform_config(self) -> None:
-        (self.integration / ".dev-platform.toml").write_text('workflow_profile = "standard"\n', encoding="utf-8")
+        write_platform_config(self.integration, omit=("main_branch",))
         head = git("rev-parse", "HEAD", cwd=self.integration).stdout.strip()
         git("update-ref", "refs/remotes/origin/main", head, cwd=self.integration)
         with self.assertRaisesRegex(delegation_containment.ContainmentError, "main_branch"):
@@ -352,7 +353,7 @@ class DelegationContainmentTests(unittest.TestCase):
     def test_historical_verifier_requires_main_branch_and_a_parseable_window(self) -> None:
         before_head, after_head = self._advance()
         window = {"not_before": "2000-01-01T00:00:00+00:00", "not_after": "2100-01-01T00:00:00+00:00"}
-        (self.integration / ".dev-platform.toml").write_text('workflow_profile = "standard"\n', encoding="utf-8")
+        write_platform_config(self.integration, omit=("main_branch",))
         with self.assertRaisesRegex(delegation_containment.ContainmentError, "main_branch"):
             delegation_containment.verify_historical_external_advance(self.integration, before_head, after_head, **window)
         self._with_main_branch_config()
@@ -471,13 +472,7 @@ class DelegationContainmentTests(unittest.TestCase):
         target.mkdir()
         for name in ("_platform_common.py", "shared_workspace.py", "agent_friction.py"):
             (target / name).write_bytes((ROOT / "template" / "scripts" / name).read_bytes())
-        (self.integration / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nharness_mode = "platform"\n\n[paths]\n'
-            'friction_log = ".claude/agent-friction.jsonl"\n'
-            'friction_state = ".claude/agent-friction-state.json"\n'
-            'friction_reports = ".claude/reports/process-improvement"\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.integration)
         before = delegation_containment.snapshot(self.integration)
         (self.integration / "escaped.txt").write_text("oops\n", encoding="utf-8")
         after = delegation_containment.snapshot(self.integration)

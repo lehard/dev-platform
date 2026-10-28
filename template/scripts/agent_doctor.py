@@ -256,7 +256,7 @@ def report_publication_status(root: Path, integration: Path, config: dict, gh_en
     automatic delivery is configured, which is reported as a warning too since
     the operator still has a safe, resumable `finish`/`finish --status` path.
     """
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
     if not branch or branch == main_branch:
         return 0
@@ -323,7 +323,7 @@ def main() -> int:
         report("fail", str(exc))
         return 1
     config = read_platform_config(root)
-    branch = str(config.get("main_branch", "main"))
+    branch = config["main_branch"]
     prof = profile(config)
     mode = publish_mode(config)
     provider = scm_provider(config)

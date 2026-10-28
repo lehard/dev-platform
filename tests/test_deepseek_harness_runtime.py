@@ -10,6 +10,7 @@ import textwrap
 import unittest
 from pathlib import Path
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,18 +20,16 @@ dsh = load_platform_module("deepseek_harness_runtime_under_test", TEMPLATE_SCRIP
 
 
 def write_config(root: Path, *, enabled: bool = False, version: str = dsh.PINNED_SDK_VERSION) -> None:
-    (root / ".dev-platform.toml").write_text(
-        textwrap.dedent(
+    write_platform_config(
+        root,
+        extra=textwrap.dedent(
             f"""\
-            schema_version = 2
-
             [experimental_runtime.deepseek_harness]
             enabled = {str(enabled).lower()}
             sdk_version = "{version}"
             profile = "observation"
             """
         ),
-        encoding="utf-8",
     )
 
 

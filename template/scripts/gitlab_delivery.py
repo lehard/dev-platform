@@ -92,7 +92,7 @@ def _pipeline_state(root: Path, iid: object, head: str) -> str:
 
 def publish(root: Path, *, title: str | None, body: str | None) -> int:
     config = read_platform_config(root)
-    target = str(config.get("main_branch", "main"))
+    target = config["main_branch"]
     branch = _branch(root)
     if branch == target:
         raise SystemExit("GitLab merge-request publication requires a feature branch.")
@@ -132,7 +132,7 @@ def publish(root: Path, *, title: str | None, body: str | None) -> int:
 
 def status(root: Path) -> int:
     config = read_platform_config(root)
-    target = str(config.get("main_branch", "main"))
+    target = config["main_branch"]
     branch = _branch(root)
     mr = _find_mr(root, branch, target)
     print(json.dumps({"provider": "gitlab", "branch": branch, "target": target, "merge_request": mr}, sort_keys=True))

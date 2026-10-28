@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 common = load_platform_module("_platform_common", SCRIPTS / "_platform_common.py")
@@ -74,9 +75,14 @@ IMPORT_DRIVER = BLOCKER + textwrap.dedent(
 
 
 def contract(version: str, **extra: str) -> str:
-    lines = [f'platform_version = "{version}"', 'harness_mode = "platform"']
-    lines += [f'{key} = "{value}"' for key, value in extra.items()]
-    return "\n".join(lines) + "\n[capabilities]\nagent_board = false\n"
+    return platform_config_text(platform_version=version, capabilities={"agent_board": False}, **extra)
+
+
+def source_config(**overrides: str) -> dict:
+    return {
+        "platform_version": "source", "harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github",
+        **overrides,
+    }
 
 
 class SelectorTests(unittest.TestCase):
@@ -88,16 +94,13 @@ class SelectorTests(unittest.TestCase):
         self.assertEqual("portable", common.lifecycle_mode(config))
 
     def test_supported_source_is_coordinator(self) -> None:
-        self.assertEqual("coordinator", common.lifecycle_mode({
-            "platform_version": "source", "harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github",
-        }))
-        self.assertEqual("coordinator", common.lifecycle_mode({"platform_version": "source"}))
+        self.assertEqual("coordinator", common.lifecycle_mode(source_config()))
 
     def test_unsupported_source_combinations_raise_named_error(self) -> None:
         for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
             with self.subTest(key=key):
                 with self.assertRaisesRegex(common.PlatformConfigError, f"{key}.*{value}"):
-                    common.lifecycle_mode({"platform_version": "source", key: value})
+                    common.lifecycle_mode(source_config(**{key: value}))
 
     def test_missing_or_invalid_platform_version_raises(self) -> None:
         for config in ({}, {"platform_version": ""}, {"platform_version": 3}):
@@ -124,8 +127,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
         for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
             with self.subTest(key=key):
                 project = {"harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github", key: value}
-                root = self.make_checkout('platform_version = "source"\n' + "".join(
-                    f'{name} = "{setting}"\n' for name, setting in project.items()))
+                root = self.make_checkout(contract("source", **project))
                 self.add_operator_overlay(root, contract("1.0.0", publish_mode="pr", scm_provider="github"))
                 with self.assertRaisesRegex(common.PlatformConfigError, f"{key}.*{value}"):
                     execution._contribution_publication_supported(root)
@@ -140,12 +142,10 @@ class DownstreamCheckoutTests(unittest.TestCase):
         self.assertEqual("example/dev-platform", config["promotion"]["repo"])
 
     def test_operator_cannot_supply_missing_platform_version(self) -> None:
-        root = self.make_checkout('harness_mode = "platform"\n')
+        root = self.make_checkout(platform_config_text(omit=("platform_version",)))
         self.add_operator_overlay(root, contract("source"))
-        config = common.read_platform_config(root)
-        self.assertNotIn("platform_version", config)
         with self.assertRaisesRegex(common.PlatformConfigError, "platform_version"):
-            common.lifecycle_mode(config)
+            common.read_platform_config(root)
 
     def make_checkout(self, toml: str) -> Path:
         tmp = tempfile.mkdtemp()
@@ -199,7 +199,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
 
     def test_finalize_rejects_invalid_contract_before_review_or_mutation(self) -> None:
         lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
-        configs = [{}, *({"platform_version": "source", key: value}
+        configs = [{}, *(source_config(**{key: value})
                         for key, value in (("scm_provider", "gitlab"),
                                            ("publish_mode", "direct"), ("harness_mode", "project")))]
         for config in configs:
@@ -345,7 +345,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
 class RequirementLifecycleSelectionTests(unittest.TestCase):
     def test_publication_rejects_invalid_contract_before_merged_reconciliation(self) -> None:
         integration = load_platform_module("requirement_integration", SCRIPTS / "requirement_integration.py")
-        for config in ({}, *({"platform_version": "source", key: value} for key, value in (
+        for config in ({}, *(source_config(**{key: value}) for key, value in (
                 ("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")))):
             with self.subTest(config=config), \
                     mock.patch.object(common, "read_platform_config", return_value=config), \
@@ -360,7 +360,7 @@ class RequirementLifecycleSelectionTests(unittest.TestCase):
 
     def test_terminal_rejects_invalid_contract_before_delivery_work(self) -> None:
         terminal = load_platform_module("requirement_terminal", SCRIPTS / "requirement_terminal.py")
-        for config in ({}, *({"platform_version": "source", key: value} for key, value in (
+        for config in ({}, *(source_config(**{key: value}) for key, value in (
                 ("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")))):
             with self.subTest(config=config), \
                     mock.patch.object(terminal, "read_platform_config", return_value=config), \
@@ -383,7 +383,7 @@ class RequirementLifecycleSelectionTests(unittest.TestCase):
             (receipts / "first.json").write_text("{}", encoding="utf-8")
             for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
                 with self.subTest(key=key), \
-                        mock.patch.object(common, "read_platform_config", return_value={"platform_version": "source", key: value}), \
+                        mock.patch.object(common, "read_platform_config", return_value=source_config(**{key: value})), \
                         mock.patch.object(execution.requirement_intake, "fetch_issue") as fetch, \
                         mock.patch.object(execution, "current_worktree_root", return_value=root), \
                         mock.patch.object(execution, "_git", return_value="main"):
@@ -398,14 +398,14 @@ class RequirementLifecycleSelectionTests(unittest.TestCase):
     def test_unsupported_source_combination_raises(self) -> None:
         for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
             with self.subTest(key=key):
-                config = {"platform_version": "source", key: value}
+                config = source_config(**{key: value})
                 with mock.patch.object(common, "read_platform_config", return_value=config):
                     with self.assertRaisesRegex(common.PlatformConfigError, key):
                         execution._contribution_publication_supported(Path("/unused"))
 
     def test_supported_source_delegates_to_publication_queue(self) -> None:
         queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
-        with mock.patch.object(common, "read_platform_config", return_value={"platform_version": "source"}), \
+        with mock.patch.object(common, "read_platform_config", return_value=source_config()), \
                 mock.patch.object(queue, "enabled", return_value=True) as enabled:
             self.assertTrue(execution._contribution_publication_supported(Path("/unused")))
         enabled.assert_called_once()
@@ -453,7 +453,7 @@ class PublicationSelectionTests(unittest.TestCase):
         publication = load_platform_module("project_publish", SCRIPTS / "project_publish.py")
         finish = load_platform_module("finish_task", SCRIPTS / "finish_task.py")
         for key, value in (("scm_provider", "gitlab"), ("publish_mode", "direct"), ("harness_mode", "project")):
-            config = {"platform_version": "source", key: value}
+            config = source_config(**{key: value})
             with self.subTest(key=key), mock.patch.object(publication, "require_delivery_provenance") as delivery:
                 with self.assertRaisesRegex(common.PlatformConfigError, key):
                     publication.publish_pr(Path("/unused"), "origin", "main", None, None, "manual", config=config)

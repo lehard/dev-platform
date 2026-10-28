@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "template" / "scripts"))
 import execute_requirement  # noqa: E402
 import managed_task  # noqa: E402
 import requirement_terminal  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 REQUIREMENT = "acme/backlog#7"
 CHILD = "acme/backlog#8"
@@ -52,7 +53,7 @@ class FreshMainTerminalTests(unittest.TestCase):
         git("init", "-q", "-b", "main", str(self.integration), cwd=base)
         git("config", "user.email", "test@example.com", cwd=self.integration)
         git("config", "user.name", "Terminal Test", cwd=self.integration)
-        (self.integration / ".dev-platform.toml").write_text('platform_version = "1.0.0"\nmain_branch = "main"\n', encoding="utf-8")
+        (self.integration / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         git("add", ".", cwd=self.integration)
         git("commit", "-q", "-m", "seed", cwd=self.integration)
         git("remote", "add", "origin", str(remote), cwd=self.integration)

@@ -554,7 +554,7 @@ def _candidate_context(root: Path) -> bool:
     config = read_platform_config(root)
     if config.get("platform_version") != "source":
         return False
-    main = str(config.get("main_branch", "main"))
+    main = config["main_branch"]
     ref = os.environ.get("GITHUB_REF", "")
     if ref:
         return ref.startswith("refs/pull/") or (ref.startswith("refs/heads/") and ref != f"refs/heads/{main}")
