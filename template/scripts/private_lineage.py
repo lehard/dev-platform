@@ -28,17 +28,35 @@ def enabled(root: Path) -> bool:
     return isinstance(value, dict) and value.get("enabled") is True
 
 
+GUARD_SCRIPT = "scripts/check_private_backlog_refs.py"
+GUARD_NOT_APPLICABLE = "private-reference guard: not applicable by configuration (private_lineage not enabled)"
+
+
+def guard_script(root: Path) -> Path | None:
+    """Return the private-reference guard where private lineage is enabled, else ``None``.
+
+    The guard is mandatory where private lineage is enabled: a missing script
+    raises naming it. ``None`` means the guard does not apply by configuration;
+    callers report ``GUARD_NOT_APPLICABLE``.
+    """
+    if not enabled(root):
+        return None
+    guard = root / GUARD_SCRIPT
+    if not guard.is_file():
+        raise PrivateLineageError(f"private lineage is enabled but {GUARD_SCRIPT} is missing")
+    return guard
+
+
 def require_clean_candidate(root: Path) -> None:
     """Run the existing private-reference guard over the current candidate.
 
     Enforced only where private lineage is enabled; a missing guard or a
     non-zero result stops explicitly. The guard's own diagnostics are opaque.
     """
-    if not enabled(root):
+    guard = guard_script(root)
+    if guard is None:
+        print(GUARD_NOT_APPLICABLE, flush=True)
         return
-    guard = root / "scripts" / "check_private_backlog_refs.py"
-    if not guard.is_file():
-        raise PrivateLineageError("private lineage is enabled but scripts/check_private_backlog_refs.py is missing")
     result = subprocess.run(["python3", str(guard), "--root", str(root)], cwd=root, capture_output=True,
                             text=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:

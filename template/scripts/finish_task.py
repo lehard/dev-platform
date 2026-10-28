@@ -802,13 +802,20 @@ def require_publication_task_base(work: Path, branch: str, remote_main: str) -> 
 def observe_private_reference_blocker(root: Path, title: str | None, body: str | None) -> str | None:
     """Run the source-owned public-candidate guard without exposing its inputs.
 
-    The guard is optional in rendered projects.  When present, a non-zero
-    result is a fail-closed preflight blocker; its bounded diagnostics are
+    The guard is mandatory where private lineage is enabled: a missing guard or
+    a non-zero result is a fail-closed blocker; its bounded diagnostics are
     deliberately produced by the source-owned guard, which fingerprints paths
-    rather than printing private identifiers or filenames.
+    rather than printing private identifiers or filenames. Elsewhere it does
+    not apply by configuration and the run says so.
     """
-    privacy_guard = root / "scripts" / "check_private_backlog_refs.py"
-    if not privacy_guard.is_file():
+    import private_lineage
+
+    try:
+        privacy_guard = private_lineage.guard_script(root)
+    except private_lineage.PrivateLineageError as exc:
+        return str(exc)
+    if privacy_guard is None:
+        print(private_lineage.GUARD_NOT_APPLICABLE, flush=True)
         return None
     proposed_title = title or run_git(["log", "-1", "--pretty=%s"], cwd=root).stdout.strip()
     proposed_body = body or "Published by dev-platform after local validation and a fresh origin/main check."
@@ -1083,9 +1090,9 @@ def main() -> int:
     validate_or_reuse(work, remote_main, args.no_checks, selected_mode, delivery if delivery is not None and not queue_merged else None,
                       quick_task=delivery is None and not queue_merged)
 
-    # The source repository has a public distribution boundary and a private
-    # Backlog. Check the exact candidate immediately before publication. The
-    # generic rendered lifecycle has no such source-owned guard.
+    # A checkout with private lineage enabled has a public distribution
+    # boundary and a private Backlog. Check the exact candidate immediately
+    # before publication.
     privacy_detail = observe_private_reference_blocker(work, args.title, args.body)
     if privacy_detail is not None:
         raise SystemExit("private-reference publication recheck blocked: " + privacy_detail)

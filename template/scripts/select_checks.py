@@ -24,6 +24,7 @@ from _platform_common import (
     require_handoff_task_base,
     require_main_branch,
     require_proven_task_base,
+    resolve_changed_file_base,
     run_git,
     validation_subprocess_env,
 )
@@ -51,23 +52,18 @@ def match_any(path: str, patterns: list[str]) -> bool:
 def changed_files(root: Path, base: str | None, explicit: list[str]) -> list[str]:
     if explicit:
         return sorted(set(explicit))
+    if base is None:
+        raise SystemExit("changed-file selection needs a base or explicit changed files")
 
     result: set[str] = set()
-    if base:
-        diff = run_git(["diff", "--name-only", f"{base}...HEAD"], cwd=root, check=False)
-        if diff.returncode == 0:
-            result.update(line for line in diff.stdout.splitlines() if line.strip())
-
-    for args in (["diff", "--name-only"], ["diff", "--cached", "--name-only"]):
+    for args in (["diff", "--name-only", f"{base}...HEAD"], ["diff", "--name-only"], ["diff", "--cached", "--name-only"]):
         diff = run_git(args, cwd=root, check=False)
-        if diff.returncode == 0:
-            result.update(line for line in diff.stdout.splitlines() if line.strip())
-
-    if not result and not base:
-        diff = run_git(["diff", "--name-only", "HEAD~1..HEAD"], cwd=root, check=False)
-        if diff.returncode == 0:
-            result.update(line for line in diff.stdout.splitlines() if line.strip())
-
+        if diff.returncode:
+            raise SystemExit(
+                f"Changed files cannot be computed: git {' '.join(args)} failed: "
+                + (diff.stderr.strip() or f"exit {diff.returncode}")
+            )
+        result.update(line for line in diff.stdout.splitlines() if line.strip())
     return sorted(result)
 
 
@@ -647,7 +643,8 @@ def main() -> int:
     root = current_worktree_root()
     proven_description = require_proven_base_contract(root, args) if args.proven_base is not None else None
     config = load_config(root)
-    paths = [] if args.mode == "protected-full" else changed_files(root, args.base, args.changed_file)
+    paths = ([] if args.mode == "protected-full"
+             else changed_files(root, resolve_changed_file_base(root, args.base, args.changed_file), args.changed_file))
     checks = (
         full_checks(config)
         if args.mode == "protected-full"

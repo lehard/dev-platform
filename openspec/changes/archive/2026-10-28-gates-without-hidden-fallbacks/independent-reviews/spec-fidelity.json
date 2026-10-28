@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "cc00da1bbcc21eb37fb42ff75dec97d34c595484",
+    "base_ref": "origin/main",
+    "candidate_head": "5e4882a3208e9e7ad431c3830497495a0d7c6fc5",
+    "diff_sha256": "fbb9a1e5e4ba499df7f8b3a18ce55d88299850a24fb377abeaf007bb327734d0"
+  },
+  "completed_at": "2026-10-28T16:55:33+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/select_checks.py `drift_base` calls `resolve_changed_file_base`. That function returns None when explicit files are given. `drift_base` then raises SystemExit(\"Explorer editorial drift report needs --base <ref> together with --execute and --changed-file\"). The raise happens before the selector runs. So `scripts/select_checks.py --execute --changed-file X` is rejected, although `template/scripts/select_checks.py` accepts it. The test only asserts the error message for this case.",
+      "id": "wrapper-rejects-explicit-changed-file",
+      "severity": "advisory",
+      "summary": "The central wrapper does not apply the same base rule as the selector when `--changed-file` is given. The spec says it SHALL resolve the base by the same rule, and `--changed-file` is a valid source of the changed-file set."
+    }
+  ],
+  "launched_at": "2026-10-28T16:55:15+00:00",
+  "output_sha256": "aa734ce31af3c5f738cc1e89fd77fe1de70c45abdc054a7be22b430e3d0e830d",
+  "perspective": "spec-fidelity",
+  "request_id": "901a744a-aec2-4014-af13-0be0ee489509",
+  "reviewer": {
+    "context_id": "2429f888-4424-4f28-9167-b8311fae9ae0",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-84452591-db4c-41bc-a0aa-6d4f873b3ecb",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36492
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11852
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16745
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16943
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1197
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d66ce27c7b3857348e0c949e74cc1f90e8ee96bf7f7a41223209d204422b3500"
+}
