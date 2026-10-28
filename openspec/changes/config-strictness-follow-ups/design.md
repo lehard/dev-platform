@@ -7,7 +7,7 @@
 
 ## Decisions
 
-- **Retry setting.** Unset keeps the documented default 4 (documented optional setting). A value that is not an integer or is below 1 raises `PlatformConfigError` naming the variable and the value; there is no clamp.
+- **Retry setting (owner decision 2026-10-28: keep).** Unset keeps the documented default 4 (documented optional setting). A value that is not an integer or is below 1 raises `PlatformConfigError` naming the variable and the value; there is no clamp.
 - **Hook installation.** Keep the one-line report (decision of the previous slice); install it only when `sys.excepthook is sys.__excepthook__`, so a host or test runner hook is never replaced. Entry points still get the one-line report.
 - **capability_manager.** Use `read_project_config` (schema-validated, no operator merge); its `PlatformConfigError` names the key.
 - **Probe fixture.** Copy the repository's real `dev-platform/source-contract.toml` into the synthetic integration repository.
