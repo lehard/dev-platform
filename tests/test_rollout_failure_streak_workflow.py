@@ -21,11 +21,15 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
         top_level_permissions = text.split("jobs:", 1)[0]
         self.assertIn("issues: write", top_level_permissions)
 
-    def test_failure_streak_step_is_best_effort_and_scoped_like_diagnostics(self) -> None:
+    def test_failure_streak_step_runs_on_failed_preparation_and_fails_loudly(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         block = step_block(text, "Record rollout failure streak")
-        self.assertIn("if: steps.pending.outputs.found != 'true' && failure()", block)
-        self.assertIn("continue-on-error: true", block)
+        self.assertIn("if: failure() && steps.prepare.outcome == 'failure'", block)
+        self.assertNotIn("continue-on-error", block)
+        self.assertIn("set -euo pipefail", block)
+        self.assertIn("rollout-diagnostic.json is missing", block)
+        self.assertNotIn("echo unknown", block)
+        self.assertNotIn("2>/dev/null", block)
         self.assertIn("record-failure", block)
         self.assertIn("github.token", block)
 
@@ -33,7 +37,8 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         block = step_block(text, "Record rollout recovery")
         self.assertIn("if: steps.pending.outputs.found != 'true' && steps.prepare.outcome == 'success'", block)
-        self.assertIn("continue-on-error: true", block)
+        self.assertNotIn("continue-on-error", block)
+        self.assertIn("set -euo pipefail", block)
         self.assertIn("record-success", block)
 
     def test_failure_streak_steps_cannot_influence_push_or_pr_conditions(self) -> None:
@@ -48,6 +53,14 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
             self.assertNotIn("git -C target push", block)
             self.assertNotIn("gh pr create", block)
 
+    def test_recovery_record_runs_after_push_and_pr_so_a_tracker_failure_cannot_skip_them(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        recovery = text.index("- name: Record rollout recovery")
+        for step in ("Push rollout branch", "Open reviewed rollout PR", "Supersede older validated rollout PRs",
+                     "Reconcile rollout PRs already adopted by downstream base"):
+            with self.subTest(step=step):
+                self.assertLess(text.index(f"- name: {step}"), recovery)
+
     def test_failure_streak_uses_default_token_not_cross_repo_app(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         for name in ("Record rollout failure streak", "Record rollout recovery"):
@@ -61,6 +74,7 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
         text = workflow.read_text(encoding="utf-8")
         block = step_block(text, "Reconcile recovered rollout alert")
         self.assertIn("if: github.event_name == 'schedule' || inputs.mode == 'apply'", block)
+        self.assertNotIn("continue-on-error", block)
         self.assertIn("cron: '23 4 * * *'", text)
         self.assertIn("rollout_failure_streak.py reconcile", block)
         self.assertIn("${{ github.token }}", block)
@@ -69,13 +83,12 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
 
 
 class RolloutFailureStreakScriptTests(unittest.TestCase):
-    def test_script_entry_points_never_raise_on_generic_failure(self) -> None:
+    def test_script_entry_points_do_not_swallow_failures(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")
         self.assertIn("def cmd_record_failure", text)
         self.assertIn("def cmd_record_success", text)
         self.assertIn("def cmd_reconcile", text)
-        self.assertIn("except Exception as exc:  # noqa: BLE001", text)
-        self.assertEqual(text.count("except Exception as exc:  # noqa: BLE001"), 3)
+        self.assertNotIn("except Exception", text)
 
     def test_unreadable_prior_state_never_silently_resets(self) -> None:
         text = SCRIPT.read_text(encoding="utf-8")

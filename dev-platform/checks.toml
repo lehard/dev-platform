@@ -164,6 +164,7 @@ targets = [
   "test_rollout_diagnostics",
   "test_rollout_failure_streak",
   "test_rollout_failure_streak_workflow",
+  "test_rollout_alarm",
   "test_run_test_groups",
   "test_root_guidance_contract",
   "test_platform_module_identity",

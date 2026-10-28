@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c6f9cb40a69167d01f0a21cba64307f355e933ee",
+    "base_ref": "origin/main",
+    "candidate_head": "148380fc41873f75b70b2bfe60ec0e98d0c72b89",
+    "diff_sha256": "f6af15137669de26dd120205f2f0bb9766771f264377ac352076fa17b83fe9f6"
+  },
+  "completed_at": "2026-10-28T20:33:43+00:00",
+  "findings": [
+    {
+      "evidence": "design.md, 'Reading the run': `skipped`: fine only when `plan` failed ... or the job had no work. scripts/rollout_alarm.py `failed_jobs` skips only `conclusion == \"skipped\" and not plan_succeeded`. The spec and tests treat a skipped target after a successful plan as a failure (`test_skipped_target_after_successful_plan_is_a_failure`). An empty matrix already fails plan (managed_projects.py:182-183), so behavior matches the spec. Only the design wording is stale.",
+      "id": "design-skipped-no-work-not-implemented",
+      "severity": "advisory",
+      "summary": "design.md says a skipped job is fine when plan failed or the job had no work. `failed_jobs` in scripts/rollout_alarm.py implements only the plan-failed exemption."
+    }
+  ],
+  "launched_at": "2026-10-28T20:33:17+00:00",
+  "output_sha256": "832daff4f312672eed041d966eb2049d3168a062147289a4caff9aec7e43558a",
+  "perspective": "spec-fidelity",
+  "request_id": "c90cd259-c2e9-4551-a49e-4615ca91ed4a",
+  "reviewer": {
+    "context_id": "df5d3579-9906-45b4-a7a0-ab482ecab022",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0529676b-c27b-4d3e-b7c1-32604374531a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53957
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 157026
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25303
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25500
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2158
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "dc0b6195352f3e01d835e75a74cf000210f44d436331dc5556890d4410cc9d38"
+}

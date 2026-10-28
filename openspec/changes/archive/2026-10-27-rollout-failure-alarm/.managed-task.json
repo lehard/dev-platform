@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-rollout/spec.md",
+    "tasks.md"
+  ],
+  "change": "rollout-failure-alarm",
+  "imported_at": "2026-10-27T22:07:25+00:00",
+  "package_revision": "476b987357b94cc60855ffdb795589828954cc633b97ccc9e2b53a81f43849f8",
+  "prepared_against": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+  "private_lineage_handle": "pln_4fbdee96408bc169db0ab48c813f5ba4",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "d83f7a45eaaab66592177cc761b1368c189aa1009e7dea372c48253e1c1b1682",
+    "updated_at": "2026-10-27T22:00:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-832/T1"
+}
