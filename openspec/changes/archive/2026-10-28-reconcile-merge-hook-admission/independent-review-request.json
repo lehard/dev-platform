@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+    "base_ref": "origin/main",
+    "candidate_head": "352e7dcb9a741dda01540b71a656a3bf41e12c9f",
+    "diff_sha256": "cdb5c8f56f76ee910e52fb408278da957d63680092b0c1651b8c4bb07dd48af2"
+  },
+  "change": "openspec/changes/reconcile-merge-hook-admission",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/reconcile-merge-hook-admission/automated-checks.json",
+    "openspec/changes/reconcile-merge-hook-admission/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/reconcile-merge-hook-admission/design.md",
+        "openspec/changes/reconcile-merge-hook-admission/proposal.md",
+        "openspec/changes/reconcile-merge-hook-admission/specs/platform-lifecycle/spec.md",
+        "openspec/changes/reconcile-merge-hook-admission/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/reconcile-merge-hook-admission/proposal.md",
+        "openspec/changes/reconcile-merge-hook-admission/design.md",
+        "openspec/changes/reconcile-merge-hook-admission/tasks.md",
+        "openspec/changes/reconcile-merge-hook-admission/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-28T23:07:47+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/reconcile-merge-hook-admission/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "1b5f783e-6cd3-4078-9529-68d4338e05ff",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e",
+    "digest": "cb0bfe11ccc45ba7046c909d0334f360890f94b02d252e0fd06cec0350e367b1",
+    "paths": {
+      "openspec/changes/reconcile-merge-hook-admission/.managed-task.json": "bccd6a0f578b9381664278ab0e068ef182f94518",
+      "openspec/changes/reconcile-merge-hook-admission/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/reconcile-merge-hook-admission/design.md": "4c1c270f3125d7c09fdb0322e0af7524157502f5",
+      "openspec/changes/reconcile-merge-hook-admission/proposal.md": "cd4b5998bc7d7554a688f157be35b514103f2e56",
+      "openspec/changes/reconcile-merge-hook-admission/specs/platform-lifecycle/spec.md": "5f76969ab9df5bde6574bfa8148255e294685eae",
+      "openspec/changes/reconcile-merge-hook-admission/tasks.md": "e73ef6536a7ceb19158ba090051628ab09d55599",
+      "template/dev-platform/blocking-gates.toml": "04f514e3661a861d68be41936c61758058d835c9",
+      "template/docs/engineering/agent-workflow.md.jinja": "851fd530637bfa177984a67cf3e85a638d8de589",
+      "template/scripts/git_hooks/pre-merge-commit": "f99a5f801f0057e5b4e0f6112f5b42a18ff850a0",
+      "template/scripts/task_reconciliation.py": "a582aa8bda20f225329fda8c9aac6d851d7d9316",
+      "tests/reconcile_merge_hook_smoke.py": "993c9a9af3343beae6ffec2f125cb35576d791f4",
+      "tests/test_blocking_gates.py": "0e82a36b8b38c567e26226e8282ff734d6f37fba",
+      "tests/test_task_reconciliation.py": "611082997706dd9e769a0527265906ee10e67d69"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

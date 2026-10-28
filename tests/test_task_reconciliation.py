@@ -249,6 +249,49 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(git("merge-base", "--is-ancestor", task_head, "HEAD", cwd=self.task).returncode, 0)
         self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
 
+    def test_installed_merge_hook_admits_only_the_reconcile_merge_in_a_task_worktree(self) -> None:
+        hook = self.task / ".git" / "hooks" / "pre-merge-commit"
+        hook.parent.mkdir(parents=True, exist_ok=True)
+        hook.write_bytes((SCRIPTS / "git_hooks" / "pre-merge-commit").read_bytes())
+        hook.chmod(0o755)
+        git("config", "core.hooksPath", str(hook.parent), cwd=self.task)
+        worktree = self.base / "task-worktree"
+        git("worktree", "add", "-b", "agent/worktree-task", str(worktree), cwd=self.task)
+        (worktree / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=worktree); git("commit", "-m", "task work", cwd=worktree)
+        task_head = git("rev-parse", "HEAD", cwd=worktree).stdout.strip()
+        self.advance_main()
+
+        with mock.patch.object(task_reconciliation, "task_kind", return_value=task_reconciliation.TASK_KIND_QUICK):
+            result = task_reconciliation.reconcile(worktree)
+
+        self.assertEqual(result.state, "ahead")
+        self.assertEqual(git("merge-base", "--is-ancestor", task_head, "HEAD", cwd=worktree).returncode, 0)
+        self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=worktree).returncode, 0)
+        git_dir = Path(git("rev-parse", "--path-format=absolute", "--git-dir", cwd=worktree).stdout.strip())
+        self.assertFalse((git_dir / task_reconciliation.RECONCILE_MERGE_INTENT).exists(), "the reconcile intent outlived its merge")
+
+        other = self.base / "other"
+        (other / "later.txt").write_text("later\n", encoding="utf-8")
+        git("add", "later.txt", cwd=other); git("commit", "-m", "advance main again", cwd=other); git("push", cwd=other)
+        git("fetch", "origin", cwd=worktree)
+        before = git("rev-parse", "HEAD", cwd=worktree).stdout
+        ad_hoc = git("merge", "--no-edit", "origin/main", cwd=worktree, check=False)
+        self.assertNotEqual(ad_hoc.returncode, 0)
+        self.assertIn("merge commits in task worktrees are blocked", ad_hoc.stderr)
+        self.assertEqual(before, git("rev-parse", "HEAD", cwd=worktree).stdout)
+
+    def test_conflicting_reconcile_leaves_no_intent(self) -> None:
+        (self.task / "shared.txt").write_text("task side\n", encoding="utf-8")
+        git("add", "shared.txt", cwd=self.task); git("commit", "-m", "task edits shared", cwd=self.task)
+        self.advance_main("shared.txt", "main side\n")
+
+        with self.assertRaisesRegex(SystemExit, "merge conflicts.*shared.txt"):
+            self.reconcile()
+        git_dir = Path(git("rev-parse", "--path-format=absolute", "--git-dir", cwd=self.task).stdout.strip())
+        self.assertFalse((git_dir / task_reconciliation.RECONCILE_MERGE_INTENT).exists())
+        git("merge", "--abort", cwd=self.task)
+
     def test_quick_task_reconcile_cli_named_by_blockers_works(self) -> None:
         write_platform_config(self.task, workflow_profile="standard", platform_version="1.9.3")
         git("add", ".dev-platform.toml", cwd=self.task); git("commit", "-m", "pin platform version", cwd=self.task)
