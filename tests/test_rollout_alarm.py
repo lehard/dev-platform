@@ -15,7 +15,7 @@ import rollout_alarm as ra  # noqa: E402
 import rollout_failure_streak as rfs  # noqa: E402
 
 WORKFLOW = ROOT / ".github" / "workflows" / "rollout.yml"
-REPO = "lehard/dev-platform"
+REPO = "example-org/dev-platform"
 
 
 def job(job_id: int, name: str, conclusion: str | None, failed_step: str | None = None) -> dict:
@@ -75,8 +75,8 @@ PLAN_FAILED = [
 ]
 PLAN_ANNOTATIONS = {122074285072: [
     {"annotation_level": "failure", "message": "The process '/usr/bin/git' failed with exit code 128"},
-    {"annotation_level": "failure", "message": "repository 'https://github.com/lehard/dev-platform-operator/' not found"},
-    {"annotation_level": "failure", "message": "repository 'https://github.com/lehard/dev-platform-operator/' not found"},
+    {"annotation_level": "failure", "message": "repository 'https://github.com/example-org/dev-platform-operator/' not found"},
+    {"annotation_level": "failure", "message": "repository 'https://github.com/example-org/dev-platform-operator/' not found"},
     {"annotation_level": "notice", "message": "ubuntu-latest label migration"},
 ]}
 
@@ -104,7 +104,7 @@ class RolloutAlarmTests(unittest.TestCase):
         self.assertEqual(create[create.index("--label") + 1], rfs.ALERT_LABEL)
         body = create[create.index("--body") + 1]
         self.assertIn("| `plan` | Checkout operator registry |", body)
-        self.assertIn("repository 'https://github.com/lehard/dev-platform-operator/' not found", body)
+        self.assertIn("repository 'https://github.com/example-org/dev-platform-operator/' not found", body)
         self.assertEqual(body.count("dev-platform-operator/' not found"), 1)
         self.assertNotIn("ubuntu-latest", body)
         self.assertNotIn("matrix.repository", body)
@@ -116,19 +116,19 @@ class RolloutAlarmTests(unittest.TestCase):
     def test_plan_failure_before_version_resolution_names_release_from_version_file(self) -> None:
         gh = FakeGh(PLAN_FAILED, PLAN_ANNOTATIONS)
         self.assertEqual(self.run_report(gh, requested_version="", actor="lehard",
-                                         requested_repository="lehard/terrazzo_mvp"), 0)
+                                         requested_repository="example-org/terrazzo_mvp"), 0)
         create = gh.writes[0]
         self.assertIn("Managed rollout failed: v2.0.0", create)
         body = create[create.index("--body") + 1]
         self.assertIn("triggered by `lehard`", body)
-        self.assertIn("`lehard/terrazzo_mvp`", body)
+        self.assertIn("`example-org/terrazzo_mvp`", body)
 
     def test_partial_failure_lists_only_failed_targets(self) -> None:
         jobs = [
             job(1, "plan", "success"),
-            job(2, "lehard/terrazzo_mvp -> v2.0.0", "success"),
+            job(2, "example-org/terrazzo_mvp -> v2.0.0", "success"),
             job(3, "kamenkadmitry/ai_assist_content -> v2.0.0", "failure", "Create write-capable target token"),
-            job(4, "lehard/Jara_Fin -> v2.0.0", "cancelled"),
+            job(4, "example-org/Jara_Fin -> v2.0.0", "cancelled"),
             job(5, "alarm", None),
         ]
         annotations = {3: [{"annotation_level": "failure", "message": "Failed to create token: Not Found"}]}
@@ -136,19 +136,19 @@ class RolloutAlarmTests(unittest.TestCase):
         self.assertEqual(self.run_report(gh, planned_version="v2.0.0"), 0)
         body = gh.writes[0][gh.writes[0].index("--body") + 1]
         self.assertIn("| `kamenkadmitry/ai_assist_content` | Create write-capable target token | Failed to create token: Not Found |", body)
-        self.assertIn("`lehard/Jara_Fin` | no failed step recorded (job cancelled)", body)
-        self.assertIn("no error annotation was recorded; see the job log https://github.com/lehard/dev-platform/actions/runs/1/job/4", body)
+        self.assertIn("`example-org/Jara_Fin` | no failed step recorded (job cancelled)", body)
+        self.assertIn("no error annotation was recorded; see the job log https://github.com/example-org/dev-platform/actions/runs/1/job/4", body)
         self.assertNotIn("terrazzo_mvp", body)
 
     def test_skipped_target_after_successful_plan_is_a_failure(self) -> None:
-        jobs = [job(1, "plan", "success"), job(2, "lehard/terrazzo_mvp -> v2.0.0", "skipped"), job(5, "alarm", None)]
+        jobs = [job(1, "plan", "success"), job(2, "example-org/terrazzo_mvp -> v2.0.0", "skipped"), job(5, "alarm", None)]
         gh = FakeGh(jobs, {})
         self.assertEqual(self.run_report(gh, planned_version="v2.0.0"), 0)
         self.assertEqual(gh.writes[0][:2], ["issue", "create"])
 
     def test_later_failing_run_comments_on_the_open_alarm(self) -> None:
         gh = FakeGh(PLAN_FAILED, PLAN_ANNOTATIONS, open_issues=[
-            {"number": 77, "title": "Managed rollout repeatedly failing: lehard/x"},
+            {"number": 77, "title": "Managed rollout repeatedly failing: example-org/x"},
             {"number": 900, "title": "Managed rollout failed: v2.0.0"},
         ])
         self.assertEqual(self.run_report(gh), 0)
@@ -156,7 +156,7 @@ class RolloutAlarmTests(unittest.TestCase):
         self.assertEqual(gh.writes[0][:3], ["issue", "comment", "900"])
 
     def test_successful_run_raises_no_alarm(self) -> None:
-        jobs = [job(1, "plan", "success"), job(2, "lehard/terrazzo_mvp -> v2.0.0", "success"), job(5, "alarm", None)]
+        jobs = [job(1, "plan", "success"), job(2, "example-org/terrazzo_mvp -> v2.0.0", "success"), job(5, "alarm", None)]
         gh = FakeGh(jobs, {})
         self.assertEqual(self.run_report(gh, planned_version="v2.0.0"), 0)
         self.assertEqual(gh.writes, [])
@@ -164,12 +164,12 @@ class RolloutAlarmTests(unittest.TestCase):
         self.assertFalse(self.summary.exists())
 
     def test_successful_run_notes_but_keeps_open_alarm(self) -> None:
-        jobs = [job(1, "plan", "success"), job(2, "lehard/terrazzo_mvp -> v2.0.0", "success"), job(5, "alarm", None)]
+        jobs = [job(1, "plan", "success"), job(2, "example-org/terrazzo_mvp -> v2.0.0", "success"), job(5, "alarm", None)]
         gh = FakeGh(jobs, {}, open_issues=[{"number": 900, "title": "Managed rollout failed: v2.0.0"}])
-        self.assertEqual(self.run_report(gh, planned_version="v2.0.0", requested_repository="lehard/terrazzo_mvp"), 0)
+        self.assertEqual(self.run_report(gh, planned_version="v2.0.0", requested_repository="example-org/terrazzo_mvp"), 0)
         self.assertEqual(len(gh.writes), 1)
         self.assertEqual(gh.writes[0][:3], ["issue", "comment", "900"])
-        self.assertIn("`lehard/terrazzo_mvp`", gh.writes[0][-1])
+        self.assertIn("`example-org/terrazzo_mvp`", gh.writes[0][-1])
         self.assertNotIn("close", [part for write in gh.writes for part in write])
 
     def test_delivery_failure_fails_the_alarm(self) -> None:
@@ -178,7 +178,7 @@ class RolloutAlarmTests(unittest.TestCase):
             self.run_report(gh)
 
     def test_unreadable_run_fails_the_alarm(self) -> None:
-        gh = FakeGh(PLAN_FAILED, PLAN_ANNOTATIONS, fail_on="api --paginate repos/lehard/dev-platform/actions")
+        gh = FakeGh(PLAN_FAILED, PLAN_ANNOTATIONS, fail_on="api --paginate repos/example-org/dev-platform/actions")
         with self.assertRaisesRegex(ra.AlarmError, "gh api --paginate failed"):
             self.run_report(gh)
 
