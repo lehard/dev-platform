@@ -1,36 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "d94062c105cf2a54aeeb2ef25997e7a1b47b97cf",
-    "diff_sha256": "284346d30bb2ed9f1f779e35c8a2fb1ad1738bd26022c76d11242f0f59f906d5"
+    "candidate_head": "bcb849006ca28900a0683a926fd36a7195ebddbf",
+    "diff_sha256": "95c232eb82bab781a548d814b2f7e8d21848c1f57d12f86cbb8e2fed164fc6a0"
   },
-  "completed_at": "2026-10-27T20:39:02+00:00",
+  "completed_at": "2026-10-28T11:04:13+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_friction.py (~line 1406-1411 post-change): `try: main = read_platform_config(root)[\"main_branch\"] except Exception: main = \"main\"`. The spec says platform scripts SHALL NOT supply per-call-site defaults for required keys. A missing or invalid .dev-platform.toml is silently replaced by built-in 'main' instead of failing with the file/key diagnostic.",
-      "id": "friction-changed-paths-main-fallback",
-      "severity": "material",
-      "summary": "agent_friction.changed_paths still substitutes a per-call-site default 'main' for the required main_branch key. It swallows any config error to do so."
-    },
-    {
-      "evidence": "template/scripts/capability_manager.py:208-212 uses `_load_toml(root / \".dev-platform.toml\")` and then `config[\"agent_tools\"]`. The spec requires configuration to be validated once at read time against the schema. Here a missing key raises a bare KeyError with no file/key/line-to-add diagnostic, and an absent file is not reported through the schema path.",
-      "id": "capability-manager-unvalidated-agent-tools",
+      "evidence": "The spec scenario 'Required key has the wrong type' expects a failure naming `protected_main` and the expected boolean type. `_config_type_error` in template/scripts/_platform_common.py builds its message with `expected.__name__` for non-str types, so `protected_main = \"yes\"` yields \"protected_main must be a bool, found 'yes'; fix the protected_main line\". The key is named, but the type reads `bool`, and a TOML user may not recognise that as `true`/`false`. The message is also less actionable than the missing-key message, which includes a `_TOML_EXAMPLE` value.",
+      "id": "wrong-type-diagnostic-says-bool",
       "severity": "advisory",
-      "summary": "capability_manager.configured_providers reads agent_tools straight from the raw TOML. This bypasses the single read-time schema validation."
+      "summary": "The wrong-type diagnostic names the Python type `bool`, not the boolean type the spec scenario describes. It also gives no TOML example of the expected value."
     }
   ],
-  "launched_at": "2026-10-27T20:38:42+00:00",
-  "output_sha256": "c5f66723538d3b68b36eaab8de01ed5d9b4cf0cb68b1e24760a668cfe49c4585",
+  "launched_at": "2026-10-28T11:03:55+00:00",
+  "output_sha256": "ec4d7fa2e279b9391690ca36ae242cd655ef2c95e3b6c0123ae977d2615e2af1",
   "perspective": "spec-fidelity",
-  "request_id": "be20706e-3af4-4bfa-afac-dd49ec7a543c",
+  "request_id": "c5035731-73ee-431c-844b-de4e772e2842",
   "reviewer": {
-    "context_id": "0e524766-efc0-4e33-a6de-9697b59cd63e",
+    "context_id": "f1d587a4-7e30-42b3-9943-c849aa5a6b94",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a5e0c937-d918-4044-9b11-cfcac37be6d2",
+    "launch_id": "platform-launch-b0442f8a-192c-4bbb-b0fd-a3ee3f6a4db2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30963
+        "value": 30001
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 71003
+        "value": 126561
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18885
+        "value": 17863
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19227
+        "value": 18042
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1634
+        "value": 1996
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "15eb0f49954ab57260dcc86a470d5ae374b2a7a20fc913103be52d2001ac68bb"
+  "task_content_digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1"
 }

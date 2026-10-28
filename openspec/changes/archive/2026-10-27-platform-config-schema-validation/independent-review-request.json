@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "d94062c105cf2a54aeeb2ef25997e7a1b47b97cf",
-    "diff_sha256": "284346d30bb2ed9f1f779e35c8a2fb1ad1738bd26022c76d11242f0f59f906d5"
+    "candidate_head": "bcb849006ca28900a0683a926fd36a7195ebddbf",
+    "diff_sha256": "95c232eb82bab781a548d814b2f7e8d21848c1f57d12f86cbb8e2fed164fc6a0"
   },
   "change": "openspec/changes/archive/2026-10-27-platform-config-schema-validation",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-27T20:38:33+00:00",
+  "prepared_at": "2026-10-28T11:03:45+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-27-platform-config-schema-validation/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "be20706e-3af4-4bfa-afac-dd49ec7a543c",
+  "request_id": "c5035731-73ee-431c-844b-de4e772e2842",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,8 +60,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
-    "digest": "15eb0f49954ab57260dcc86a470d5ae374b2a7a20fc913103be52d2001ac68bb",
+    "base": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
+    "digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1",
     "paths": {
       ".github/workflows/ci.yml": "4d67606f7fb3b1c430566a135fc8b017133f77a5",
       "dev-platform/source-contract.toml": "d1dd09a97cbb750fe57be2e7cc48a9112b7c6c67",
@@ -76,7 +76,7 @@
       "scripts/rollout_project.py": "286750d5a408623480feaf1b1854472a831a08fa",
       "template/scripts/_platform_common.py": "50bef5b069c1c139a0c67d2d8f9704aefc61aaed",
       "template/scripts/agent_doctor.py": "90e0ec8ae38a4eedae29cab7cb2c624742771602",
-      "template/scripts/agent_friction.py": "8a4c1dd81d9518cafbb85af3df9e8775916e998a",
+      "template/scripts/agent_friction.py": "3bceed2409d4b833daea0169122f38966be6d9cd",
       "template/scripts/capability_manager.py": "e0b7845b75e3956f254aa35dfadba828552cd5d9",
       "template/scripts/dev.py": "1a465c540994d274508e09719820082947861cab",
       "template/scripts/finish_task.py": "4f0bf2461d2bb3106e6084eb609324878dd6f66b",
@@ -116,7 +116,7 @@
       "tests/test_early_private_reference_guard.py": "8b0dce7630cc2039db4b60e0442c1a20c6c84370",
       "tests/test_finish_merged_queue.py": "a30561f2c04ae9c97a27be1e75d0b89847b5f19e",
       "tests/test_friction_review.py": "c62aa966f77182f5bb9363881dde2a22ce869a2e",
-      "tests/test_friction_strict_log.py": "cf55ad50ddf3905413dc6632abe138e94fb22b00",
+      "tests/test_friction_strict_log.py": "f0563ea6ebb3b1735246ee337e64bd5a376b0077",
       "tests/test_git_lifecycle.py": "e9049e4943482b1f9936f8a20323af66ab48e442",
       "tests/test_github_retry.py": "3475f9b0f978a334d6324e88ba972bec0b19348a",
       "tests/test_independent_review.py": "3687c2aad9734e45e4cb3f3d2c9b43a3bf42258c",
