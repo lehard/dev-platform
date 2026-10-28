@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "bcb849006ca28900a0683a926fd36a7195ebddbf",
-    "diff_sha256": "95c232eb82bab781a548d814b2f7e8d21848c1f57d12f86cbb8e2fed164fc6a0"
+    "candidate_head": "93d374c0efb62e21fa9cd9141dde982ef4d3c188",
+    "diff_sha256": "c70f4f107df8825d136fc77899fc45dada2557d8a0c04da687aedf53d97ace9f"
   },
   "change": "openspec/changes/archive/2026-10-27-platform-config-schema-validation",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-28T11:03:45+00:00",
+  "prepared_at": "2026-10-28T13:28:04+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-27-platform-config-schema-validation/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "c5035731-73ee-431c-844b-de4e772e2842",
+  "request_id": "e55c9b3f-9fc6-4b87-bb60-d6e9f87f2b53",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
-    "digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1",
+    "digest": "e07a748712871ebad89c7d49349a4dbb5dd27593781d033cdc175e04b53baf5a",
     "paths": {
       ".github/workflows/ci.yml": "4d67606f7fb3b1c430566a135fc8b017133f77a5",
       "dev-platform/source-contract.toml": "d1dd09a97cbb750fe57be2e7cc48a9112b7c6c67",
@@ -107,6 +107,7 @@
       "tests/_platform_config.py": "be73bb498934e8d83bed38f0a83c30b4de6b9835",
       "tests/managed_start_transaction_cases.py": "883d4397d44317f27b32d0a441bae5d16f265827",
       "tests/managed_task_exact_state_cases.py": "a64a64dbd11692302f873b636e6fd09c87863041",
+      "tests/public_distribution_snapshot_smoke.py": "38493f46695528e699a69ebfd774b0204be057db",
       "tests/test_br_publication_identity.py": "3a34c99bd54822a9c350811af0071dc89c909000",
       "tests/test_central_dogfood_lifecycle.py": "57a2b5b2d778aa912e7494ae2f4588c4fe221bb4",
       "tests/test_deepseek_harness_runtime.py": "10fa93fa24b9d811e5c5c41b5c25829fe451385c",

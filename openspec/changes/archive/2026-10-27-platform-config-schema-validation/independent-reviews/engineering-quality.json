@@ -3,46 +3,40 @@
   "candidate": {
     "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "bcb849006ca28900a0683a926fd36a7195ebddbf",
-    "diff_sha256": "95c232eb82bab781a548d814b2f7e8d21848c1f57d12f86cbb8e2fed164fc6a0"
+    "candidate_head": "93d374c0efb62e21fa9cd9141dde982ef4d3c188",
+    "diff_sha256": "c70f4f107df8825d136fc77899fc45dada2557d8a0c04da687aedf53d97ace9f"
   },
-  "completed_at": "2026-10-28T11:04:52+00:00",
+  "completed_at": "2026-10-28T13:29:13+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/shared_workspace.py:107-111 (candidate diff lines ~1262-1263). The comment there says a disposable fixture or checkout with no established root returns False. For a setgid-less integration root without a valid `.dev-platform.toml`, the function now raises instead. It is called from the managed-intake admission at line ~557. An unrelated, unchecked exception type may also surface from a predicate that is expected to answer yes or no.",
-      "id": "shared-workspace-applicable-config-error-escapes",
+      "evidence": "template/scripts/_platform_common.py `sys.excepthook = _report_platform_config_error` runs at import time. Any library or test that imports the module gets the hook, and a chained hook installed earlier is only reached through `_default`, which is captured at import. Because the error is printed as one line, the origin of an unexpected config failure (which call site raised it) is lost. Only uncaught errors are affected. Consider installing the hook from entry points, or keeping the traceback available behind an env flag.",
+      "id": "excepthook-global-side-effect",
       "severity": "advisory",
-      "summary": "shared_workspace_applicable now lets configuration errors escape its fail-soft path. Before the change a missing config file returned False and a malformed TOML file was tolerated. Now `_configured(integration)` calls `read_project_config`, which raises PlatformConfigError (a RuntimeError) or TOMLDecodeError (a ValueError). The `except (OSError, SharedWorkspaceError)` clause catches neither."
+      "summary": "Importing _platform_common replaces sys.excepthook for the whole process, and the hook hides the traceback for every PlatformConfigError."
     },
     {
-      "evidence": "template/scripts/capability_manager.py (diff lines 647-653): `config = _load_toml(root / \".dev-platform.toml\"); raw = config[\"agent_tools\"]`. This contradicts design.md's 'validate once at read time' and 'one-line diagnostics at every entry point'.",
-      "id": "capability-manager-bare-keyerror",
+      "evidence": "template/scripts/shared_workspace.py:107-111: `_configured(integration)[\"workflow_profile\"]` replaced a `config_path.is_file()` check that returned False. The handler still catches only `(OSError, SharedWorkspaceError)`. A checkout where `integration_root` resolves but the config is missing or incomplete (the disposable-fixture case the comment mentions) now raises PlatformConfigError, a RuntimeError, from a predicate. This matches the 'missing file is an error' intent but is an unannounced behaviour change in a boolean probe.",
+      "id": "shared-workspace-applicable-raises-on-config",
       "severity": "advisory",
-      "summary": "`configured_providers` reads `config[\"agent_tools\"]` from a raw `_load_toml` result with no schema validation. A missing key raises a bare KeyError with a traceback, not the named one-line PlatformConfigError that the change promises for every entry point. The other raw loaders in the change (`dev.py`, `platform_bootstrap.py`, `shared_workspace.py`, `requirement_integration.py`) were moved onto the validated reader, but this one was not."
+      "summary": "shared_workspace_applicable no longer treats a missing or invalid config as 'not applicable'. It now raises, because its except clause doesn't cover PlatformConfigError or TOMLDecodeError."
     },
     {
-      "evidence": "template/scripts/_platform_common.py (diff lines 349-361): `def _report_platform_config_error(exc_type, exc, tb, _default=sys.excepthook)` followed by a module-level `sys.excepthook = _report_platform_config_error`.",
-      "id": "global-excepthook-import-side-effect",
+      "evidence": "template/scripts/capability_manager.py `configured_providers`: `config = _load_toml(root / \".dev-platform.toml\")` then `config[\"agent_tools\"]`. The default was removed but the loader was not routed through read_project_config, unlike dev.py and platform_bootstrap.py. The rest of the schema is enforced at read time; this path isn't.",
+      "id": "capability-manager-raw-agent-tools",
       "severity": "advisory",
-      "summary": "Importing `_platform_common` replaces `sys.excepthook` for the whole process. The replacement captures the previous hook as a default argument at import time. Any importer, such as a test runner, a library host or a long-lived process, gets its traceback behavior changed. A later reload of the module would also chain the hook onto itself. Suppressing the traceback for PlatformConfigError also hides the origin of an unexpected failure from callers that never catch it."
-    },
-    {
-      "evidence": "template/scripts/_platform_common.py (diff lines 490-499): `if key not in config[\"paths\"]: raise PlatformConfigError(...)` replaces `raise KeyError(f\"Missing paths.{key} in .dev-platform.toml\")`. The current callers I found all pass schema keys (`worktrees`, `agent_board`), so there is no live break.",
-      "id": "machine-path-error-type-change",
-      "severity": "advisory",
-      "summary": "`machine_path` previously raised KeyError for a missing `paths.<key>`. It now raises PlatformConfigError for any key outside the validated paths table. Callers that catch KeyError would silently stop handling this case. The new message also says the key is 'not a platform configuration path', which wrongly suggests a configuration defect when the cause is an invalid key argument from a caller."
+      "summary": "capability_manager still reads .dev-platform.toml through its own raw loader. A missing agent_tools key now surfaces as a bare KeyError, not the named schema diagnostic."
     }
   ],
-  "launched_at": "2026-10-28T11:04:13+00:00",
-  "output_sha256": "5b225184f4a45324a84f8d0759703694537610b1bda7a555737006f0b32fd83f",
+  "launched_at": "2026-10-28T13:28:18+00:00",
+  "output_sha256": "4bac9a9e9b879e14572064999bf786a63d81b6830d04debe2ab1a299242f92ae",
   "perspective": "engineering-quality",
-  "request_id": "c5035731-73ee-431c-844b-de4e772e2842",
+  "request_id": "e55c9b3f-9fc6-4b87-bb60-d6e9f87f2b53",
   "reviewer": {
-    "context_id": "66ce2230-1cfa-435c-9f23-3ef958bb3f22",
+    "context_id": "d823b2ce-d2af-4c70-8c32-67b547f57f9b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fecd6487-95df-48c0-808b-157c91209829",
+    "launch_id": "platform-launch-db39e198-d1b5-4635-8142-68f5d49ce20a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +51,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45343
+        "value": 43397
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 135372
+        "value": 125578
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38289
+        "value": 54765
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38651
+        "value": 55277
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -82,16 +76,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2936
+        "value": 2147
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1"
+  "task_content_digest": "e07a748712871ebad89c7d49349a4dbb5dd27593781d033cdc175e04b53baf5a"
 }

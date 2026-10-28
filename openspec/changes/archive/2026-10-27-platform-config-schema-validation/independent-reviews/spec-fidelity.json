@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "bcb849006ca28900a0683a926fd36a7195ebddbf",
-    "diff_sha256": "95c232eb82bab781a548d814b2f7e8d21848c1f57d12f86cbb8e2fed164fc6a0"
+    "candidate_head": "93d374c0efb62e21fa9cd9141dde982ef4d3c188",
+    "diff_sha256": "c70f4f107df8825d136fc77899fc45dada2557d8a0c04da687aedf53d97ace9f"
   },
-  "completed_at": "2026-10-28T11:04:13+00:00",
-  "findings": [
-    {
-      "evidence": "The spec scenario 'Required key has the wrong type' expects a failure naming `protected_main` and the expected boolean type. `_config_type_error` in template/scripts/_platform_common.py builds its message with `expected.__name__` for non-str types, so `protected_main = \"yes\"` yields \"protected_main must be a bool, found 'yes'; fix the protected_main line\". The key is named, but the type reads `bool`, and a TOML user may not recognise that as `true`/`false`. The message is also less actionable than the missing-key message, which includes a `_TOML_EXAMPLE` value.",
-      "id": "wrong-type-diagnostic-says-bool",
-      "severity": "advisory",
-      "summary": "The wrong-type diagnostic names the Python type `bool`, not the boolean type the spec scenario describes. It also gives no TOML example of the expected value."
-    }
-  ],
-  "launched_at": "2026-10-28T11:03:55+00:00",
-  "output_sha256": "ec4d7fa2e279b9391690ca36ae242cd655ef2c95e3b6c0123ae977d2615e2af1",
+  "completed_at": "2026-10-28T13:28:18+00:00",
+  "findings": [],
+  "launched_at": "2026-10-28T13:28:08+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "c5035731-73ee-431c-844b-de4e772e2842",
+  "request_id": "e55c9b3f-9fc6-4b87-bb60-d6e9f87f2b53",
   "reviewer": {
-    "context_id": "f1d587a4-7e30-42b3-9943-c849aa5a6b94",
+    "context_id": "90b271d5-057b-432b-b5c0-8d8a8b15ceb7",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b0442f8a-192c-4bbb-b0fd-a3ee3f6a4db2",
+    "launch_id": "platform-launch-af49d1de-2271-491e-a9a6-9b1dba54a2a4",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30001
+        "value": 21563
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 126561
+        "value": 61458
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17863
+        "value": 8833
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18042
+        "value": 8977
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1996
+        "value": 988
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1"
+  "task_content_digest": "e07a748712871ebad89c7d49349a4dbb5dd27593781d033cdc175e04b53baf5a"
 }
