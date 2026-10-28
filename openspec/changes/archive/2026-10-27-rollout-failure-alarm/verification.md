@@ -37,3 +37,9 @@ All tasks in `tasks.md` are complete; 3.3 is this receipt together with the sele
 - Nothing under `template/` changed; the platform manifest check passes.
 - Limitations: the alarm is exercised with a fake `gh` and YAML structure assertions, not by a live GitHub Actions run; the coordinator deferred a demonstration run until after merge. `GITHUB_TRIGGERING_ACTOR` and the check-run annotations endpoint with `checks: read` were confirmed against GitHub documentation and the real run's API responses, not in a workflow run.
 - Left unchanged and reported: `rollout_diagnostic.py ... || true` in the preparation step (the spec requires that step to keep its original exit code), and the streak CLI's `--tracker-repo` default (the workflows always pass it).
+
+## Re-verification after integration repair (2026-10-28)
+
+- Changed task content since the archived receipt: the integration-repair worker replaced real repository names in `tests/test_rollout_alarm.py` fixtures with `example-org/...` placeholders (assertions and covered scenarios unchanged), the coordinator refreshed the independent review records, and current `main` was merged by reconcile. No change to `scripts/`, `.github/`, `docs/managed-rollout.md`, the Explorer node or the `platform-rollout` delta of this change.
+- Re-checked against the delta: every scenario listed under Completeness maps to the same tests; the four rollout test modules pass again (52 tests); the full repository run is re-recorded in `automated-checks.json` on the reconciled head.
+- Routing outcome: the balanced-parent retained outcome, missing at the first handoff, is now recorded after archive under the rule merged in #768.
