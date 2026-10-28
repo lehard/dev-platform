@@ -9,31 +9,31 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.248,
+      "duration_seconds": 0.168,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
-      "duration_seconds": 0.577,
+      "duration_seconds": 0.506,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.148,
+      "duration_seconds": 0.158,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/generate_platform_manifest.py --check",
-      "duration_seconds": 0.184,
+      "duration_seconds": 0.235,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 1208.936,
+      "duration_seconds": 1786.863,
       "outcome": "success",
       "exit_code": 0
     }
@@ -77,6 +77,7 @@
         "tests/_platform_config.py",
         "tests/managed_start_transaction_cases.py",
         "tests/managed_task_exact_state_cases.py",
+        "tests/public_distribution_snapshot_smoke.py",
         "tests/test_br_publication_identity.py",
         "tests/test_central_dogfood_lifecycle.py",
         "tests/test_deepseek_harness_runtime.py",
@@ -157,10 +158,10 @@
     "change": "platform-config-schema-validation",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/platform-config-schema-validation",
     "branch": "agent/br-772-t2-platform-config-schema-validation",
-    "head": "0d74ccb987c2f9a55666e758f9fb8e564c9f5b65",
+    "head": "aa5654b3412060148c75ec87748191685fbcbc3b",
     "task_content": {
       "version": 1,
-      "digest": "1b39b8e5d03b3f9f704f2249d471324102a4d7fe04d79a8a8e870d6a75b94b6a",
+      "digest": "0863c9439674075c3e2fe814486b10fc3398b83dc32d350342358baf35a94bdc",
       "paths": {
         ".github/workflows/ci.yml": "4d67606f7fb3b1c430566a135fc8b017133f77a5",
         "dev-platform/source-contract.toml": "d1dd09a97cbb750fe57be2e7cc48a9112b7c6c67",
@@ -168,7 +169,7 @@
         "docs/project-owned-config.md": "945cae920f5e4de92a6d51d06448393a7021acb7",
         "openspec/changes/platform-config-schema-validation/.managed-task.json": "d3d4e53ff2c2889754cb2324fd201fbe9b00d8d6",
         "openspec/changes/platform-config-schema-validation/.openspec.yaml": "97e364202474a828fd9baef8bf966b8da30415ad",
-        "openspec/changes/platform-config-schema-validation/automated-checks.json": "88476bd0cffa80c667555dc1c8f1923bc79429d5",
+        "openspec/changes/platform-config-schema-validation/automated-checks.json": "cbb2b25c6bdd04902a4e34fd798f0fe63c589a7b",
         "openspec/changes/platform-config-schema-validation/design.md": "35e08ada01c3d088c8b92759db2dceeb5c5bae09",
         "openspec/changes/platform-config-schema-validation/independent-review-request.json": "e92183efe0417f6dff4e0b6c8b718f80de2e156f",
         "openspec/changes/platform-config-schema-validation/independent-reviews/engineering-quality.json": "cfd151f12c334a92b80089c7f9ca4df6acd81e4f",
@@ -176,7 +177,7 @@
         "openspec/changes/platform-config-schema-validation/proposal.md": "73406c04833e48eea90fa8f270e3ddec082cc044",
         "openspec/changes/platform-config-schema-validation/specs/platform-config/spec.md": "9226a80cfff3592cdc5b9bdeb2c41477e3339a80",
         "openspec/changes/platform-config-schema-validation/tasks.md": "b35874b66a8c4d027f2ba7db133d1855c811115f",
-        "openspec/changes/platform-config-schema-validation/verification.md": "07119465f5b2fe86dd4464f9d14d7eea7feae4ca",
+        "openspec/changes/platform-config-schema-validation/verification.md": "82c0f1089a891b86fc088307aeac567fd0c96065",
         "openspec/specs/platform-config/spec.md": "02071d9fcbbda803e7bdfcfba4071bfe500be837",
         "scripts/rollout_project.py": "286750d5a408623480feaf1b1854472a831a08fa",
         "template/dev-platform/platform-manifest.json": "d7000aed94926f65d0b2cc073b16fa9e9906e527",
@@ -213,6 +214,7 @@
         "tests/_platform_config.py": "be73bb498934e8d83bed38f0a83c30b4de6b9835",
         "tests/managed_start_transaction_cases.py": "883d4397d44317f27b32d0a441bae5d16f265827",
         "tests/managed_task_exact_state_cases.py": "a64a64dbd11692302f873b636e6fd09c87863041",
+        "tests/public_distribution_snapshot_smoke.py": "38493f46695528e699a69ebfd774b0204be057db",
         "tests/test_br_publication_identity.py": "3a34c99bd54822a9c350811af0071dc89c909000",
         "tests/test_central_dogfood_lifecycle.py": "57a2b5b2d778aa912e7494ae2f4588c4fe221bb4",
         "tests/test_deepseek_harness_runtime.py": "10fa93fa24b9d811e5c5c41b5c25829fe451385c",
@@ -273,7 +275,7 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1",
+    "digest": "e07a748712871ebad89c7d49349a4dbb5dd27593781d033cdc175e04b53baf5a",
     "paths": {
       ".github/workflows/ci.yml": "4d67606f7fb3b1c430566a135fc8b017133f77a5",
       "dev-platform/source-contract.toml": "d1dd09a97cbb750fe57be2e7cc48a9112b7c6c67",
@@ -319,6 +321,7 @@
       "tests/_platform_config.py": "be73bb498934e8d83bed38f0a83c30b4de6b9835",
       "tests/managed_start_transaction_cases.py": "883d4397d44317f27b32d0a441bae5d16f265827",
       "tests/managed_task_exact_state_cases.py": "a64a64dbd11692302f873b636e6fd09c87863041",
+      "tests/public_distribution_snapshot_smoke.py": "38493f46695528e699a69ebfd774b0204be057db",
       "tests/test_br_publication_identity.py": "3a34c99bd54822a9c350811af0071dc89c909000",
       "tests/test_central_dogfood_lifecycle.py": "57a2b5b2d778aa912e7494ae2f4588c4fe221bb4",
       "tests/test_deepseek_harness_runtime.py": "10fa93fa24b9d811e5c5c41b5c25829fe451385c",
@@ -378,8 +381,8 @@
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
-    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/rollout_project.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_doctor.py --changed-file template/scripts/agent_friction.py --changed-file template/scripts/capability_manager.py --changed-file template/scripts/dev.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/gitlab_delivery.py --changed-file template/scripts/independent_review.py --changed-file template/scripts/independent_review_runner.py --changed-file template/scripts/integration_state.py --changed-file template/scripts/managed_project_status.py --changed-file template/scripts/managed_task.py --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/parallel_lifecycle_acceptance.py --changed-file template/scripts/platform_bootstrap.py --changed-file template/scripts/platform_doctor.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/project_sync.py --changed-file template/scripts/project_terminal_reconciliation.py --changed-file template/scripts/requirement_integration.py --changed-file template/scripts/requirement_metrics.py --changed-file template/scripts/rollout_preflight.py --changed-file template/scripts/run_test_groups.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file template/scripts/start_managed_task.py --changed-file template/scripts/start_task.py --changed-file template/scripts/start_worktree.py --changed-file template/scripts/task_reconciliation.py --changed-file template/scripts/worktree_cleanup.py --changed-file tests/_platform_config.py --changed-file tests/managed_start_transaction_cases.py --changed-file tests/managed_task_exact_state_cases.py --changed-file tests/test_br_publication_identity.py --changed-file tests/test_central_dogfood_lifecycle.py --changed-file tests/test_deepseek_harness_runtime.py --changed-file tests/test_delegated_write_guard.py --changed-file tests/test_delegation_containment.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_early_private_reference_guard.py --changed-file tests/test_finish_merged_queue.py --changed-file tests/test_friction_review.py --changed-file tests/test_friction_strict_log.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_github_retry.py --changed-file tests/test_independent_review.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_managed_checkout_identity.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_managed_project_status.py --changed-file tests/test_managed_rollout.py --changed-file tests/test_managed_status_lifecycle.py --changed-file tests/test_managed_task.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_model_routing.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_operator_config.py --changed-file tests/test_platform_bootstrap.py --changed-file tests/test_platform_common.py --changed-file tests/test_platform_divergence.py --changed-file tests/test_platform_doctor_workflow_mode.py --changed-file tests/test_portable_finish_check_reuse.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_pr_reconciliation_concurrency.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_publication_state.py --changed-file tests/test_requirement_contribution_composition.py --changed-file tests/test_requirement_intake.py --changed-file tests/test_requirement_integration.py --changed-file tests/test_requirement_metrics.py --changed-file tests/test_requirement_retrospective.py --changed-file tests/test_requirement_terminal_fresh_main.py --changed-file tests/test_retrospective_attribution.py --changed-file tests/test_rollout_preflight.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_workspace.py --changed-file tests/test_standard_profile_lifecycle_compatibility.py --changed-file tests/test_task_base_matrix.py --changed-file tests/test_task_content_identity.py --changed-file tests/test_task_freshness.py --changed-file tests/test_task_reconciliation.py --changed-file tests/test_template_contract.py --changed-file tests/test_worktree_hygiene.py",
-    "duration_seconds": 1077.495,
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/rollout_project.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_doctor.py --changed-file template/scripts/agent_friction.py --changed-file template/scripts/capability_manager.py --changed-file template/scripts/dev.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/gitlab_delivery.py --changed-file template/scripts/independent_review.py --changed-file template/scripts/independent_review_runner.py --changed-file template/scripts/integration_state.py --changed-file template/scripts/managed_project_status.py --changed-file template/scripts/managed_task.py --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/parallel_lifecycle_acceptance.py --changed-file template/scripts/platform_bootstrap.py --changed-file template/scripts/platform_doctor.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/project_sync.py --changed-file template/scripts/project_terminal_reconciliation.py --changed-file template/scripts/requirement_integration.py --changed-file template/scripts/requirement_metrics.py --changed-file template/scripts/rollout_preflight.py --changed-file template/scripts/run_test_groups.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file template/scripts/start_managed_task.py --changed-file template/scripts/start_task.py --changed-file template/scripts/start_worktree.py --changed-file template/scripts/task_reconciliation.py --changed-file template/scripts/worktree_cleanup.py --changed-file tests/_platform_config.py --changed-file tests/managed_start_transaction_cases.py --changed-file tests/managed_task_exact_state_cases.py --changed-file tests/public_distribution_snapshot_smoke.py --changed-file tests/test_br_publication_identity.py --changed-file tests/test_central_dogfood_lifecycle.py --changed-file tests/test_deepseek_harness_runtime.py --changed-file tests/test_delegated_write_guard.py --changed-file tests/test_delegation_containment.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_early_private_reference_guard.py --changed-file tests/test_finish_merged_queue.py --changed-file tests/test_friction_review.py --changed-file tests/test_friction_strict_log.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_github_retry.py --changed-file tests/test_independent_review.py --changed-file tests/test_integration_advance_receipts.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_managed_checkout_identity.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_managed_project_status.py --changed-file tests/test_managed_rollout.py --changed-file tests/test_managed_status_lifecycle.py --changed-file tests/test_managed_task.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_model_routing.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_operator_config.py --changed-file tests/test_platform_bootstrap.py --changed-file tests/test_platform_common.py --changed-file tests/test_platform_divergence.py --changed-file tests/test_platform_doctor_workflow_mode.py --changed-file tests/test_portable_finish_check_reuse.py --changed-file tests/test_post_review_finalization.py --changed-file tests/test_pr_reconciliation_concurrency.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_queue.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_publication_state.py --changed-file tests/test_requirement_contribution_composition.py --changed-file tests/test_requirement_intake.py --changed-file tests/test_requirement_integration.py --changed-file tests/test_requirement_metrics.py --changed-file tests/test_requirement_retrospective.py --changed-file tests/test_requirement_terminal_fresh_main.py --changed-file tests/test_retrospective_attribution.py --changed-file tests/test_rollout_preflight.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_workspace.py --changed-file tests/test_standard_profile_lifecycle_compatibility.py --changed-file tests/test_task_base_matrix.py --changed-file tests/test_task_content_identity.py --changed-file tests/test_task_freshness.py --changed-file tests/test_task_reconciliation.py --changed-file tests/test_template_contract.py --changed-file tests/test_worktree_hygiene.py",
+    "duration_seconds": 2315.86,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
