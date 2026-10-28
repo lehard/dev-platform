@@ -310,7 +310,7 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
     def before_push(harness, head):
         if not claim_current():
             return
-        workers._git(harness, "checkout", "--detach", head)
+        workers.checkout_harness(harness, head)
         fresh = review_gate.refresh_identity(harness, identity)
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh))
 

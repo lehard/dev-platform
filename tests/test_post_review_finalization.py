@@ -633,6 +633,42 @@ def commit_source_contract(root: Path, tmp: Path) -> Path:
     return ran
 
 
+class UncommittedContractFinalizeTests(CandidateCase):
+    """Like the source repository: only dev-platform/source-contract.toml is committed, .dev-platform.toml is installed."""
+
+    def prepare_main(self, root: Path) -> None:
+        contract = (root / ".dev-platform.toml").read_text()
+        git(root, "rm", "-q", "--cached", ".dev-platform.toml")
+        (root / "dev-platform/source-contract.toml").write_text(contract)
+        with (root / ".git/info/exclude").open("a") as handle:
+            handle.write("\n.dev-platform.toml\n")
+        git(root, "add", "-A")
+        git(root, "commit", "-qm", "commit only the public source contract")
+        git(root, "push", "-q", "origin", "HEAD:main")
+
+    def test_finalize_harness_reads_the_installed_contract_and_pushes_no_contract(self):
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            outcome, _ = self.finalize(fixture)
+            self.assertEqual(outcome["status"], "finalized", outcome)
+            tree = git(self.repo.remote, "ls-tree", "-r", "--name-only", self.repo.head())
+            self.assertNotIn(".dev-platform.toml", tree.splitlines())
+            self.assertIn("dev-platform/source-contract.toml", tree.splitlines())
+
+    def test_harness_checkout_without_any_contract_fails_explicitly(self):
+        bare_source = Path(self.tmp.name) / "no-contract"
+        bare_source.mkdir()
+        git(bare_source, "init", "-qb", "main")
+        (bare_source / "README.md").write_text("no platform contract\n")
+        git(bare_source, "add", "-A")
+        git(bare_source, *workers.HARNESS_IDENTITY, "commit", "-qm", "no contract")
+        head = git(bare_source, "rev-parse", "HEAD")
+        with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir:
+            harness = workers.prepare_harness(bare_source.as_uri(), bare_source, Path(workdir), head)
+            with self.assertRaisesRegex(workers.WorkerError, "has neither .dev-platform.toml nor dev-platform/source-contract.toml"):
+                workers.checkout_harness(harness, head)
+
+
 class MainMovesCase(CandidateCase):
     """A coordinator source contract on main, and main moving after review."""
 
