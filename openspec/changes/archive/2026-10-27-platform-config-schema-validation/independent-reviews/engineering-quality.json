@@ -1,36 +1,48 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "d94062c105cf2a54aeeb2ef25997e7a1b47b97cf",
-    "diff_sha256": "284346d30bb2ed9f1f779e35c8a2fb1ad1738bd26022c76d11242f0f59f906d5"
+    "candidate_head": "bcb849006ca28900a0683a926fd36a7195ebddbf",
+    "diff_sha256": "95c232eb82bab781a548d814b2f7e8d21848c1f57d12f86cbb8e2fed164fc6a0"
   },
-  "completed_at": "2026-10-27T20:39:40+00:00",
+  "completed_at": "2026-10-28T11:04:52+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/_platform_common.py (diff lines 349-361): `sys.excepthook = _report_platform_config_error` runs at module import. `_default=sys.excepthook` is captured once at import, so a hook installed later by another tool is bypassed or wrapped inconsistently. The hook only helps scripts that import the module before failing. An explicit `main()` wrapper would be more predictable.",
-      "id": "global-excepthook-import-side-effect",
+      "evidence": "template/scripts/shared_workspace.py:107-111 (candidate diff lines ~1262-1263). The comment there says a disposable fixture or checkout with no established root returns False. For a setgid-less integration root without a valid `.dev-platform.toml`, the function now raises instead. It is called from the managed-intake admission at line ~557. An unrelated, unchecked exception type may also surface from a predicate that is expected to answer yes or no.",
+      "id": "shared-workspace-applicable-config-error-escapes",
       "severity": "advisory",
-      "summary": "Importing `_platform_common` replaces the process-wide `sys.excepthook`. This is an implicit global side effect, and it also affects non-entry-point importers such as tests and embedding tools."
+      "summary": "shared_workspace_applicable now lets configuration errors escape its fail-soft path. Before the change a missing config file returned False and a malformed TOML file was tolerated. Now `_configured(integration)` calls `read_project_config`, which raises PlatformConfigError (a RuntimeError) or TOMLDecodeError (a ValueError). The `except (OSError, SharedWorkspaceError)` clause catches neither."
     },
     {
-      "evidence": "template/scripts/requirement_integration.py (diff lines 1060-1084): the old code defaulted `main_branch` and `paths.worktrees` when the file was absent. The new code calls `read_project_config`, which requires all 13 top-level keys and 14 table entries. Only `main_branch` and `paths.worktrees` are used here. scripts/sandboxed_writer_probes.py:94 still writes a minimal `main_branch = \"main\"` source-contract, so any consumer of that fixture that reaches this reader would now fail.",
-      "id": "strict-schema-on-topology-reader",
+      "evidence": "template/scripts/capability_manager.py (diff lines 647-653): `config = _load_toml(root / \".dev-platform.toml\"); raw = config[\"agent_tools\"]`. This contradicts design.md's 'validate once at read time' and 'one-line diagnostics at every entry point'.",
+      "id": "capability-manager-bare-keyerror",
       "severity": "advisory",
-      "summary": "`_project_topology` used to tolerate a missing or partial `.dev-platform.toml`. It now needs the full schema, so a checkout holding an older or minimal contract fails with a wrapped `RequirementIntegrationError`."
+      "summary": "`configured_providers` reads `config[\"agent_tools\"]` from a raw `_load_toml` result with no schema validation. A missing key raises a bare KeyError with a traceback, not the named one-line PlatformConfigError that the change promises for every entry point. The other raw loaders in the change (`dev.py`, `platform_bootstrap.py`, `shared_workspace.py`, `requirement_integration.py`) were moved onto the validated reader, but this one was not."
+    },
+    {
+      "evidence": "template/scripts/_platform_common.py (diff lines 349-361): `def _report_platform_config_error(exc_type, exc, tb, _default=sys.excepthook)` followed by a module-level `sys.excepthook = _report_platform_config_error`.",
+      "id": "global-excepthook-import-side-effect",
+      "severity": "advisory",
+      "summary": "Importing `_platform_common` replaces `sys.excepthook` for the whole process. The replacement captures the previous hook as a default argument at import time. Any importer, such as a test runner, a library host or a long-lived process, gets its traceback behavior changed. A later reload of the module would also chain the hook onto itself. Suppressing the traceback for PlatformConfigError also hides the origin of an unexpected failure from callers that never catch it."
+    },
+    {
+      "evidence": "template/scripts/_platform_common.py (diff lines 490-499): `if key not in config[\"paths\"]: raise PlatformConfigError(...)` replaces `raise KeyError(f\"Missing paths.{key} in .dev-platform.toml\")`. The current callers I found all pass schema keys (`worktrees`, `agent_board`), so there is no live break.",
+      "id": "machine-path-error-type-change",
+      "severity": "advisory",
+      "summary": "`machine_path` previously raised KeyError for a missing `paths.<key>`. It now raises PlatformConfigError for any key outside the validated paths table. Callers that catch KeyError would silently stop handling this case. The new message also says the key is 'not a platform configuration path', which wrongly suggests a configuration defect when the cause is an invalid key argument from a caller."
     }
   ],
-  "launched_at": "2026-10-27T20:39:02+00:00",
-  "output_sha256": "303cee0e31b7e1eb04949c514a4a05c0542bcae819ca373454adba807212d24b",
+  "launched_at": "2026-10-28T11:04:13+00:00",
+  "output_sha256": "5b225184f4a45324a84f8d0759703694537610b1bda7a555737006f0b32fd83f",
   "perspective": "engineering-quality",
-  "request_id": "be20706e-3af4-4bfa-afac-dd49ec7a543c",
+  "request_id": "c5035731-73ee-431c-844b-de4e772e2842",
   "reviewer": {
-    "context_id": "ddd20c97-e723-4aae-9fe1-02dc76593b02",
+    "context_id": "66ce2230-1cfa-435c-9f23-3ef958bb3f22",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b6144e5d-c55a-4e83-ad40-d0110a4bc072",
+    "launch_id": "platform-launch-fecd6487-95df-48c0-808b-157c91209829",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +57,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36545
+        "value": 45343
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 155841
+        "value": 135372
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37637
+        "value": 38289
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38016
+        "value": 38651
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1896
+        "value": 2936
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "15eb0f49954ab57260dcc86a470d5ae374b2a7a20fc913103be52d2001ac68bb"
+  "task_content_digest": "4887d1d6833b88fefaa37b6a1b9138f6cfa7af012847a42e33bab4daa927a7f1"
 }
