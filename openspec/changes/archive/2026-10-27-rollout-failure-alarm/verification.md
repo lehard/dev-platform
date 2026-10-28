@@ -49,3 +49,9 @@ All tasks in `tasks.md` are complete; 3.3 is this receipt together with the sele
 - Review finding `tracker-failure-blocks-rollout-pr` (material): with `continue-on-error` removed, a failing `Record rollout recovery` step ran before `Push rollout branch` and `Open reviewed rollout PR` and skipped them, against the delta's "SHALL NOT affect PR-creation".
 - Fix without a fallback: `Record rollout recovery` now runs after the push, PR, supersession and adopted-PR reconciliation steps; a tracker failure still fails the job explicitly, but only after the PR exists. `docs/managed-rollout.md` states the order.
 - Evidence: `test_recovery_record_runs_after_push_and_pr_so_a_tracker_failure_cannot_skip_them` fails on the previous step order and passes now; the four rollout test modules pass (53 tests); the full repository run is re-recorded in `automated-checks.json`.
+
+## Re-verification after reconcile with main (2026-10-28)
+
+- The review worker failed three times on the candidate checkout's configuration (`agent_tools` required by the platform-configuration schema change merged after this branch's base); reconcile merged current `main` (`cc00da1b`).
+- Changed task content since the previous receipt: none of this change's own files (`scripts/rollout_alarm.py`, `scripts/rollout_failure_streak.py`, both rollout workflows, the rollout tests, `docs/managed-rollout.md`) differ from the proven head; only the merged `main` and the refreshed `automated-checks.json`.
+- Re-checked against the delta: the scenario-to-test mapping above is unchanged; the four rollout test modules pass (53 tests); the public distribution snapshot smoke and the full repository run passed on the reconciled head.
