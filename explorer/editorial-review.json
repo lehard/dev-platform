@@ -43,7 +43,7 @@
     "docs/managed-rollout.md#Failed-run alarm": "02a5ded2f2b5d479f31aefce0a3d910ed8325a5f8edad7cb212d2e5ebc106f98",
     "docs/managed-rollout.md#Failure handling": "1d9cbbe8de447a780ca2ae4612c144c34ecafe86d71303f7c6ecb333c3ddb0ac",
     "docs/managed-rollout.md#Registry": "ecc444e60edd50db77a930966a5f7636d0ae5dc70215bb4b1f3446f0e5995551",
-    "docs/managed-rollout.md#Repeated-failure alerting": "e527251ee3af873f6878f618f52cb29da067055ff94e9887c4385b10fdd69050",
+    "docs/managed-rollout.md#Repeated-failure alerting": "8ee4838ccdad8957d043ffab5ed5e05a19e3b1c34fe06992c12fc58543030b68",
     "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f"
   },
   "executor-routing": {
