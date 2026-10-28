@@ -521,6 +521,24 @@ def _repair_status(red_gate: dict) -> str:
     return str(evidence.get("status") if isinstance(evidence, dict) else evidence).split(":")[0]
 
 
+def operational_escalation(red_gate: dict) -> bool:
+    """Whether a review or repair red gate escalated for an operational reason rather than a finding.
+
+    Operational means a repair outcome of ``OPERATIONAL_REPAIR_OUTCOMES`` or a job whose claim was
+    released after its failed runs (``CLAIM_RELEASE_CAUSE``) with no review findings in the evidence.
+    A rejected review, a proposed rejection, exhausted rounds or material findings stay finding-level.
+    Shared by ``reoffer_plan``, queue supersession and the lifecycle overview so they never disagree.
+    """
+    from lifecycle_workers import CLAIM_RELEASE_CAUSE
+
+    name, evidence = red_gate.get("name"), red_gate.get("evidence")
+    if name == "repair" and _repair_status(red_gate) in OPERATIONAL_REPAIR_OUTCOMES:
+        return True
+    return (name in {"review", "repair"} and isinstance(evidence, dict)
+            and evidence.get("cause") == CLAIM_RELEASE_CAUSE
+            and not any(isinstance(report, dict) and "findings" in report for report in evidence.values()))
+
+
 class ReofferRefused(ValueError):
     """The supported re-offer contract refuses this candidate; the message names what a human can do."""
 
@@ -547,12 +565,13 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
     elif state == "blocked-retryable" and retry_kind:
         kind = retry_kind
     elif state == "blocked-escalation" and red.get("name") in {"repair", "review"} and action == "resume":
-        if red["name"] == "review" or _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES:
+        if not operational_escalation(red):
             reason_ = "review" if red["name"] == "review" else _repair_status(red)
             raise ReofferRefused(
                 f"PR #{number} is escalated for a finding-level reason ({reason_}); resume does not decide it: "
                 "push a fix, record a disposition for the finding, or close the PR")
-        kind = "repair"
+        # An operational review escalation (its worker kept failing) re-opens the review itself.
+        kind = red["name"]
     elif state == "blocked-escalation" and red.get("name") == "finalize" and action == "resume":
         # Finalize escalations are not all operational (failed selected checks, missing or unbound
         # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize

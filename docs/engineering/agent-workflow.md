@@ -403,7 +403,8 @@ and `status` reports "new head awaits developer re-admission" with the proven an
 Re-admission is refused while a job holds a live claim or the candidate is in any other state, for another task, when
 a finding-level escalation (rejected review, proposed rejection, exhausted repair rounds) or a candidate carrying
 material review findings (for example `repair-pending`) would be superseded by unchanged task content (operational
-states such as an unavailable reviewer need no content change), or when the new head does not descend from the admitted head (a fast-forward or a merge of
+states such as an unavailable reviewer, or a review or repair escalated only because its claim was released after
+failed worker runs with no findings, need no content change), or when the new head does not descend from the admitted head (a fast-forward or a merge of
 main keeps coordinator updates and harness pushes; a rewrite would silently drop them), so never close and republish
 the branch as a new PR. When the coordinator finalize already archived the change and later content changes stopped
 the next finalize `blocked-retryable` on the `semantic-verification` red gate, or a required check failed on the

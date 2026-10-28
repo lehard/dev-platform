@@ -59,6 +59,8 @@ WRITER_OUTPUT_TAIL = 4000
 POSTED_OUTCOME_LIMIT = 300
 # A claim released by a failed run is counted per job; this many releases stop offering the job.
 MAX_RELEASES = 3
+# The red-gate cause a job escalates with once its claim was released after MAX_RELEASES failed runs.
+CLAIM_RELEASE_CAUSE = "claim released after failed runs"
 RELEASED = "released"
 
 
@@ -1443,7 +1445,7 @@ def main(argv: list[str] | None = None) -> int:
 
                     publication_queue._transition(
                         Path.cwd(), repo, job["number"], "blocked-escalation", job["head"], task_identity=job["task_identity"],
-                        red_gate={"name": job["kind"], "evidence": {"cause": "claim released after failed runs",
+                        red_gate={"name": job["kind"], "evidence": {"cause": CLAIM_RELEASE_CAUSE,
                                                                 "releases": releases, "last": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]}})
                 raise
             result = {**result, "execution": outcome}
