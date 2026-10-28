@@ -7,4 +7,4 @@
 ## 2. Verification
 
 - [x] 2.1 Regression tests: reconcile with the installed hook passes (and fails without the fix, #420); merge without intent, another ref, another worktree, stale intent and integration copy are rejected; no intent remains.
-- [ ] 2.2 Run full validation, the public distribution snapshot smoke and semantic OpenSpec verification; record the downstream verification limits.
+- [x] 2.2 Run full validation, the public distribution snapshot smoke and semantic OpenSpec verification; record the downstream verification limits.
