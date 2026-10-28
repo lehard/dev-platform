@@ -43,3 +43,9 @@ All tasks in `tasks.md` are complete; 3.3 is this receipt together with the sele
 - Changed task content since the archived receipt: the integration-repair worker replaced real repository names in `tests/test_rollout_alarm.py` fixtures with `example-org/...` placeholders (assertions and covered scenarios unchanged), the coordinator refreshed the independent review records, and current `main` was merged by reconcile. No change to `scripts/`, `.github/`, `docs/managed-rollout.md`, the Explorer node or the `platform-rollout` delta of this change.
 - Re-checked against the delta: every scenario listed under Completeness maps to the same tests; the four rollout test modules pass again (52 tests); the full repository run is re-recorded in `automated-checks.json` on the reconciled head.
 - Routing outcome: the balanced-parent retained outcome, missing at the first handoff, is now recorded after archive under the rule merged in #768.
+
+## Repair: tracker failure must not skip the rollout PR (2026-10-28)
+
+- Review finding `tracker-failure-blocks-rollout-pr` (material): with `continue-on-error` removed, a failing `Record rollout recovery` step ran before `Push rollout branch` and `Open reviewed rollout PR` and skipped them, against the delta's "SHALL NOT affect PR-creation".
+- Fix without a fallback: `Record rollout recovery` now runs after the push, PR, supersession and adopted-PR reconciliation steps; a tracker failure still fails the job explicitly, but only after the PR exists. `docs/managed-rollout.md` states the order.
+- Evidence: `test_recovery_record_runs_after_push_and_pr_so_a_tracker_failure_cannot_skip_them` fails on the previous step order and passes now; the four rollout test modules pass (53 tests); the full repository run is re-recorded in `automated-checks.json`.

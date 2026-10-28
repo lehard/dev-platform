@@ -53,6 +53,14 @@ class RolloutFailureStreakWorkflowTests(unittest.TestCase):
             self.assertNotIn("git -C target push", block)
             self.assertNotIn("gh pr create", block)
 
+    def test_recovery_record_runs_after_push_and_pr_so_a_tracker_failure_cannot_skip_them(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        recovery = text.index("- name: Record rollout recovery")
+        for step in ("Push rollout branch", "Open reviewed rollout PR", "Supersede older validated rollout PRs",
+                     "Reconcile rollout PRs already adopted by downstream base"):
+            with self.subTest(step=step):
+                self.assertLess(text.index(f"- name: {step}"), recovery)
+
     def test_failure_streak_uses_default_token_not_cross_repo_app(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         for name in ("Record rollout failure streak", "Record rollout recovery"):

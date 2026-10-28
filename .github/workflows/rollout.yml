@@ -359,21 +359,6 @@ jobs:
             --last-updated "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --summary-output "$GITHUB_STEP_SUMMARY"
 
-      - name: Record rollout recovery
-        if: steps.pending.outputs.found != 'true' && steps.prepare.outcome == 'success'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REPOSITORY: ${{ matrix.repository }}
-          VERSION: ${{ needs.plan.outputs.version }}
-          TRACKER_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          python3 platform/scripts/rollout_failure_streak.py record-success \
-            --repository "$REPOSITORY" \
-            --version "$VERSION" \
-            --tracker-repo "$TRACKER_REPO"
-
       - name: Push rollout branch
         if: steps.pending.outputs.found != 'true' && steps.prepare.outputs.status == 'updated'
         run: git -C target push origin HEAD
@@ -439,6 +424,21 @@ jobs:
             --registry operator/managed-projects.json \
             --apply \
             --output rollout-supersession.json
+
+      - name: Record rollout recovery
+        if: steps.pending.outputs.found != 'true' && steps.prepare.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ matrix.repository }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TRACKER_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 platform/scripts/rollout_failure_streak.py record-success \
+            --repository "$REPOSITORY" \
+            --version "$VERSION" \
+            --tracker-repo "$TRACKER_REPO"
 
       - name: Upload rollout supersession report
         if: always()
