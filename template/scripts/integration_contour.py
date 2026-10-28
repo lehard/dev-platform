@@ -343,7 +343,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     def before_push(harness, head):
         if not claim_current():
             return
-        workers._git(harness, "checkout", "--detach", head)
+        workers.checkout_harness(harness, head)
         fresh = (review_gate.refresh_identity(harness, identity)
                  if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh, provider=provider))
@@ -385,7 +385,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     adapter._comment(root, repo, number, {"kind": "update", "previous": job["head"], "head": head,
                                           "base": outcome["main"], "worker_job": workers.job_id(job)})
     harness = Path(workdir).resolve() / "harness"
-    workers._git(harness, "checkout", "--detach", head)
+    workers.checkout_harness(harness, head)
     fresh = (review_gate.refresh_identity(harness, identity)
              if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
     state = advance_after_repair(root, repo, observed, head, fresh, harness, adapter=adapter)

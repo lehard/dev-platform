@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "cc00da1bbcc21eb37fb42ff75dec97d34c595484",
+    "base_ref": "origin/main",
+    "candidate_head": "5e4882a3208e9e7ad431c3830497495a0d7c6fc5",
+    "diff_sha256": "fbb9a1e5e4ba499df7f8b3a18ce55d88299850a24fb377abeaf007bb327734d0"
+  },
+  "completed_at": "2026-10-28T16:56:00+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/select_checks.py:288-290: resolve_changed_file_base returns None for explicit files, so drift_base raises SystemExit 'needs --base ... --changed-file'. The new test asserts this: `drift_base(['--execute','--changed-file','a.py'])` raises. The spec says the wrapper resolves the base 'by the same rule' and does not say it rejects explicit changed files. The failure also produces no check output, where the old behaviour ran the selector and then returned exit 2.",
+      "id": "wrapper-rejects-explicit-changed-files",
+      "severity": "advisory",
+      "summary": "The central wrapper's drift_base() now aborts the whole run with SystemExit when `--execute --changed-file X` is given without `--base`. This happens before the selector runs. The selector itself accepts that combination, so a valid invocation now fails and no checks run."
+    },
+    {
+      "evidence": "template/scripts/agent_friction.py:274-377 (diff) removes the try/except. It is called unguarded at agent_friction.py:1612 (checkpoint recording) and :1678 (_require_checkpoint), where every other failure is raised as SystemExit with a message. The new test only checks that ManagedTaskError propagates.",
+      "id": "friction-unreadable-state-raw-traceback",
+      "severity": "advisory",
+      "summary": "Removing the catch in current_task_content lets ManagedTaskError and other exceptions escape from require_checkpoint and from checkpoint recording as raw tracebacks. They are not SystemExit with an actionable message. The error is now visible, but the completion-gate callers get no bounded diagnostic."
+    },
+    {
+      "evidence": "scripts/select_checks.py:288 calls resolve_changed_file_base, and template/scripts/select_checks.py:647 calls it again. Each call prints to stderr at _platform_common.py:346. The docs and spec mention this failure only for the 'before any check runs' case.",
+      "id": "base-note-printed-twice-and-on-dry-run",
+      "severity": "advisory",
+      "summary": "resolve_changed_file_base is called once by the wrapper and again by the template selector. On a task branch without --base, the 'Changed-file base' line is therefore printed twice. The selector also resolves the base for non-execute runs, so a plain dry run on main now fails."
+    }
+  ],
+  "launched_at": "2026-10-28T16:55:33+00:00",
+  "output_sha256": "fec2d1db9243b26e969f12468ec8069c46e3cc64afb6ffd26ac55ecbcd478e91",
+  "perspective": "engineering-quality",
+  "request_id": "901a744a-aec2-4014-af13-0be0ee489509",
+  "reviewer": {
+    "context_id": "52cfae06-8703-4c7f-86dd-edf4436ea213",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-56835dc4-69b2-4d07-9030-476ea1419d85",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35921
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 125818
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26514
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26879
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2391
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d66ce27c7b3857348e0c949e74cc1f90e8ee96bf7f7a41223209d204422b3500"
+}

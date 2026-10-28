@@ -1149,11 +1149,12 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
     admitted head are never discarded by a history rewrite. A finding-level escalation (a
     rejected review, a proposed rejection, exhausted repair rounds) or a record carrying
     material review findings is superseded only by changed task content, so an
-    unchanged-content commit cannot re-roll the review; operational states need no change.
+    unchanged-content commit cannot re-roll the review; operational states, including an
+    ``operational_escalation`` of review or repair, need no change.
     Anything else is a named refusal.
     """
     from lifecycle_workers import CLAIM_PREFIX, build_job, winning_claim
-    from pr_review_gate import OPERATIONAL_REPAIR_OUTCOMES, _repair_status
+    from pr_review_gate import _repair_status, operational_escalation
 
     def refuse(cause: str) -> QueueError:
         return QueueError(f"PR has an earlier or ambiguous admission at {proven[:12]}; "
@@ -1174,9 +1175,8 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
         raise refuse("the handoff does not name the same task as the admitted candidate")
     red = lineage.get("red_gate") or {}
     review = (lineage.get("gates") or {}).get("review") or {}
-    finding_level = lineage["state"] == "blocked-escalation" and (
-        red.get("name") == "review"
-        or (red.get("name") == "repair" and _repair_status(red) not in OPERATIONAL_REPAIR_OUTCOMES))
+    finding_level = (lineage["state"] == "blocked-escalation" and red.get("name") in {"review", "repair"}
+                     and not operational_escalation(red))
     if finding_level or _material_findings(red.get("evidence")) or (
             review.get("result") == "failed" and _material_findings(review.get("evidence"))):
         # Findings are answered by changed content; an unchanged-content head would re-roll the review.
