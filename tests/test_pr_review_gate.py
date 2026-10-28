@@ -526,7 +526,7 @@ class ProviderSwitchTests(unittest.TestCase):
             def push(*args, **kwargs):
                 fixture.head = new_head
                 return {"status": "pushed", "pushed_head": new_head}
-            with mock.patch.object(workers, "execute_job", side_effect=push), mock.patch.object(workers, "_git"), \
+            with mock.patch.object(workers, "execute_job", side_effect=push), mock.patch.object(workers, "checkout_harness"), \
                     mock.patch.object(gate, "refresh_identity", return_value=IDENTITY):
                 gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
                                  allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: new_head,
@@ -580,6 +580,26 @@ class ProviderSwitchTests(unittest.TestCase):
                 queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
                                   red_gate={"name": "repair", "evidence": evidence})
                 with self.assertRaisesRegex(queue.QueueError, "push a fix, record a disposition"):
+                    self.switch(action="resume")
+
+    def test_resume_reopens_a_review_escalated_after_failed_worker_runs(self):
+        released = {"cause": workers.CLAIM_RELEASE_CAUSE, "releases": 3, "last": "PlatformConfigError: .dev-platform.toml is missing"}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["claude"])
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "review", "evidence": released})
+            self.assertTrue(gate.operational_escalation(fixture.candidate()["red_gate"]))
+            self.switch(action="resume", providers=["claude"], reason="worker config fixed")
+            resumed = fixture.candidate()
+            self.assertEqual((resumed["state"], resumed.get("red_gate")), ("review-pending", None))
+            job = workers.build_job(resumed)
+            self.assertEqual((job["kind"], job["head"], job["reoffer"]["action"]), ("review", HEAD, "resume"))
+            # Findings in the evidence, or a rejected review, keep the escalation finding-level.
+            for evidence in ({**released, **self.MATERIAL}, self.MATERIAL):
+                queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                                  red_gate={"name": "review", "evidence": evidence})
+                self.assertFalse(gate.operational_escalation(fixture.candidate()["red_gate"]))
+                with self.assertRaisesRegex(queue.QueueError, "finding-level reason \\(review\\)"):
                     self.switch(action="resume")
 
     def test_filtering_worker_reviews_on_the_ready_subset_in_job_order(self):
@@ -954,6 +974,19 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             fixture.head = self.NEW_HEAD
             queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})  # same content
             self.assertEqual((fixture.candidate()["state"], fixture.candidate()["head"]), ("review-pending", self.NEW_HEAD))
+
+    def test_operational_review_escalation_is_superseded_without_changed_content(self):
+        released = {"cause": workers.CLAIM_RELEASE_CAUSE, "releases": 3, "last": "PlatformConfigError: missing"}
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.admitted(fixture, stack)
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "review", "identity": IDENTITY, "evidence": released})
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": IDENTITY, "gates": {}})  # same content
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], candidate["head"]), ("review-pending", self.NEW_HEAD))
+            admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            self.assertEqual((admission["supersedes"]["head"], admission["supersedes"]["state"]), (HEAD, "blocked-escalation"))
 
     def test_status_names_a_pushed_head_awaiting_readmission(self):
         from types import SimpleNamespace

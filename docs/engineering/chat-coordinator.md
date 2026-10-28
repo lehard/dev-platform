@@ -93,6 +93,10 @@ pre-merge retrospective stopped with a result (for example on ambiguous friction
 attribution) is re-offered with `resume` once the operator records the decision
 (`agent_friction.py attribute`): the job moves to its next bounded attempt at
 the exact head, and `resume` refuses once the attempts are exhausted.
+A review or repair escalated only because its worker kept failing (the claim was
+released after failed runs, the evidence holds no findings) is operational: `resume`
+re-offers the same review or repair round, and a developer re-handoff supersedes it
+without changed task content.
 
 Rules:
 

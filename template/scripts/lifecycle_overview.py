@@ -144,7 +144,7 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
     """Pure assessment of one derived candidate: stage, chain, executor, findings and permitted actions."""
     from candidate_lifecycle import POST_MERGE_FLAG
     from lifecycle_workers import build_job, job_completed, latest_claim, winning_claim
-    from pr_review_gate import OPERATIONAL_REPAIR_OUTCOMES, _repair_status, permitted_actions
+    from pr_review_gate import _repair_status, operational_escalation, permitted_actions
     from publication_queue import retry_job_kind
 
     number, head, state = candidate["number"], candidate["head"], candidate["state"]
@@ -174,12 +174,14 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
         find("unknown-source", reason, url)
     elif state == "blocked-escalation":
         status = _repair_status(red) if red.get("name") == "repair" else None
-        operational = red.get("name") == "finalize" or (red.get("name") == "repair" and status in OPERATIONAL_REPAIR_OUTCOMES)
+        operational = red.get("name") == "finalize" or operational_escalation(red)
         if red.get("name") in {"repair", "review"} and not operational:
             find("escalated-finding", reason or f"{red.get('name')} escalated for a finding-level reason ({status or 'review'})",
                  f"{url} ({red.get('name')} gate evidence in the latest lifecycle record)")
         elif operational:
-            find("escalated-operational", reason or f"{red.get('name')} escalated for an operational reason ({status or 'finalize'})",
+            cause = (red.get("evidence") or {}).get("cause") if isinstance(red.get("evidence"), dict) else None
+            label = "finalize" if red.get("name") == "finalize" else cause if status in {None, "None"} else status
+            find("escalated-operational", reason or f"{red.get('name')} escalated for an operational reason ({label})",
                  f"{url} ({red.get('name')} gate evidence in the latest lifecycle record)")
         else:
             find("escalated-other", reason or "blocked by the coordinator", url)
