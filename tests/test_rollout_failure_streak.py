@@ -190,7 +190,7 @@ class LabelBootstrapTests(unittest.TestCase):
         self.assertLess(calls.index(f"label:{rfs.TRACKING_LABEL}"), calls.index("issue"))
         find_issue.assert_called_once()
 
-    def test_missing_label_failure_does_not_crash_tracking_or_change_outcome(self) -> None:
+    def test_missing_label_failure_fails_tracking_explicitly(self) -> None:
         def fake_run_gh(args: list[str]) -> "rfs.subprocess.CompletedProcess[str]":
             if args[:2] == ["label", "create"]:
                 raise rfs.TrackerError("gh label create failed: HTTP 403")
@@ -202,8 +202,19 @@ class LabelBootstrapTests(unittest.TestCase):
                 reason="unsupported gh flag", last_updated="2026-08-11T00:00:00Z",
                 threshold=3, tracker_repo="lehard/dev-platform", summary_output=None,
             )
-            # Must return 0 (tracking is best-effort) and must not raise.
-            self.assertEqual(rfs.cmd_record_failure(args), 0)
+            with self.assertRaisesRegex(rfs.TrackerError, "HTTP 403"):
+                rfs.cmd_record_failure(args)
+
+    def test_cli_exits_non_zero_naming_the_tracker_failure(self) -> None:
+        argv = ["rollout_failure_streak.py", "record-success", "--repository", "example-org/example-project",
+                "--version", "v1.4.21", "--tracker-repo", "lehard/dev-platform"]
+        with patch.object(sys, "argv", argv), \
+             patch.object(rfs, "run_gh", side_effect=rfs.TrackerError("gh label create failed: HTTP 403")), \
+             patch("sys.stderr") as stderr:
+            self.assertEqual(rfs.main(), 1)
+        written = "".join(call.args[0] for call in stderr.write.call_args_list)
+        self.assertIn("rollout_failure_streak record-success failed", written)
+        self.assertIn("HTTP 403", written)
 
     def test_record_success_also_bootstraps_tracking_label_before_lookup(self) -> None:
         with patch.object(rfs, "run_gh") as run_gh, patch.object(rfs, "find_tracking_issue", return_value=None) as find_issue:
@@ -265,9 +276,25 @@ class RecoveryReconciliationTests(unittest.TestCase):
         run_gh.assert_not_called()
 
     def test_repeated_run_after_closure_is_a_noop(self) -> None:
-        with patch.object(rfs, "find_tracking_issue", return_value=None), patch.object(rfs, "run_gh") as run_gh:
+        with patch.dict("os.environ", {"ROLLOUT_PROJECT_TOKEN": "target-read"}), \
+             patch.object(rfs, "find_tracking_issue", return_value=None), patch.object(rfs, "run_gh") as run_gh:
             self.assertEqual(rfs.cmd_reconcile(self.args()), 0)
         run_gh.assert_not_called()
+
+    def test_missing_project_token_fails_reconciliation(self) -> None:
+        with patch.dict("os.environ", {}, clear=True), \
+             patch.object(rfs, "find_tracking_issue", return_value=self.issue) as find_issue, \
+             patch.object(rfs, "run_gh") as run_gh:
+            with self.assertRaisesRegex(rfs.TrackerError, "ROLLOUT_PROJECT_TOKEN is not set"):
+                rfs.cmd_reconcile(self.args())
+        find_issue.assert_not_called()
+        run_gh.assert_not_called()
+
+    def test_tracker_read_failure_propagates_from_reconciliation(self) -> None:
+        with patch.dict("os.environ", {"ROLLOUT_PROJECT_TOKEN": "target-read"}), \
+             patch.object(rfs, "find_tracking_issue", side_effect=rfs.TrackerError("could not list tracking issues: HTTP 502")):
+            with self.assertRaisesRegex(rfs.TrackerError, "HTTP 502"):
+                rfs.cmd_reconcile(self.args())
 
 
 if __name__ == "__main__":

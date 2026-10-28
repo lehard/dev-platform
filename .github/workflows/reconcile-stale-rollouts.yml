@@ -154,7 +154,6 @@ jobs:
           python3 scripts/rollout_supersession.py reconcile "${args[@]}"
       - name: Reconcile recovered rollout alert
         if: github.event_name == 'schedule' || inputs.mode == 'apply'
-        continue-on-error: true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c6f9cb40a69167d01f0a21cba64307f355e933ee",
+    "base_ref": "origin/main",
+    "candidate_head": "148380fc41873f75b70b2bfe60ec0e98d0c72b89",
+    "diff_sha256": "f6af15137669de26dd120205f2f0bb9766771f264377ac352076fa17b83fe9f6"
+  },
+  "completed_at": "2026-10-28T20:34:15+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/rollout_alarm.py open_alarm(): `gh issue list --label rollout-alert --state open --json number,title --limit 100`, then filters on `title == alarm_title(tag)`. A search by title or a higher limit would make the lookup independent of how many other `rollout-alert` issues exist.",
+      "id": "alarm-dedup-list-limit",
+      "severity": "advisory",
+      "summary": "The open-alarm lookup lists issues by the shared `rollout-alert` label with `--limit 100` and matches by exact title. The streak tracker also applies `rollout-alert`, so many open streak or alert issues could push the release alarm out of the window. That would open a duplicate alarm for the same tag instead of commenting on the existing one."
+    }
+  ],
+  "launched_at": "2026-10-28T20:33:43+00:00",
+  "output_sha256": "60b27c3aa08b73eda31aa5ccd1561a318a9b3350854ce822a70ab6124ce020bb",
+  "perspective": "engineering-quality",
+  "request_id": "c90cd259-c2e9-4551-a49e-4615ca91ed4a",
+  "reviewer": {
+    "context_id": "dbc5d614-1196-478e-9ec2-a66e2f3083b0",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d8d775a9-a529-4ab8-bbac-6c104b04fee8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38640
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 94050
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30590
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30859
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1814
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "dc0b6195352f3e01d835e75a74cf000210f44d436331dc5556890d4410cc9d38"
+}

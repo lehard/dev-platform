@@ -185,7 +185,7 @@ def project_platform_version(repository: str, branch: str, token: str) -> str:
     return version
 
 
-def observe_recovery(prior_body: str, *, repository: str, branch: str, project_token: str | None) -> tuple[bool, str]:
+def observe_recovery(prior_body: str, *, repository: str, branch: str, project_token: str) -> tuple[bool, str]:
     """Return recovery proof without changing either repository.
 
     The issue state identifies the failed version; the project's default branch
@@ -202,8 +202,6 @@ def observe_recovery(prior_body: str, *, repository: str, branch: str, project_t
         failed_version = parse_version(failed)
     except ValueError:
         return False, "tracking state has an invalid last failed release"
-    if not project_token:
-        return False, "downstream read token is unavailable"
     try:
         current = project_platform_version(repository, branch, project_token)
     except ValueError as exc:
@@ -215,7 +213,7 @@ def observe_recovery(prior_body: str, *, repository: str, branch: str, project_t
 
 LABEL_METADATA = {
     TRACKING_LABEL: ("ededed", "Automated tracking issue for repeated managed rollout failures against one project."),
-    ALERT_LABEL: ("d73a4a", "Managed rollout has failed repeatedly against the same project and needs human attention."),
+    ALERT_LABEL: ("d73a4a", "Managed rollout failed and needs human attention."),
 }
 
 
@@ -232,110 +230,101 @@ def ensure_label(repo: str, name: str) -> None:
 
 
 def cmd_record_failure(args: argparse.Namespace) -> int:
-    try:
-        ensure_label(args.tracker_repo, TRACKING_LABEL)
-        ensure_label(args.tracker_repo, ALERT_LABEL)
-        existing = find_tracking_issue(args.repository, args.tracker_repo)
-        state, alert, unreadable = next_state_on_failure(
-            existing.get("body") if existing else None,
-            repository=args.repository,
-            version=args.version,
-            category=args.category,
-            reason=args.reason,
-            last_updated=args.last_updated,
-            threshold=args.threshold,
+    ensure_label(args.tracker_repo, TRACKING_LABEL)
+    ensure_label(args.tracker_repo, ALERT_LABEL)
+    existing = find_tracking_issue(args.repository, args.tracker_repo)
+    state, alert, unreadable = next_state_on_failure(
+        existing.get("body") if existing else None,
+        repository=args.repository,
+        version=args.version,
+        category=args.category,
+        reason=args.reason,
+        last_updated=args.last_updated,
+        threshold=args.threshold,
+    )
+    body = render_body(state)
+    if existing is None:
+        created = run_gh([
+            "issue", "create",
+            "--repo", args.tracker_repo,
+            "--title", issue_title(args.repository),
+            "--body", body,
+            "--label", TRACKING_LABEL,
+        ])
+        issue_url = created.stdout.strip()
+        number = issue_url.rstrip("/").rsplit("/", 1)[-1]
+    else:
+        number = str(existing["number"])
+        issue_url = f"{args.tracker_repo}#{number}"
+        run_gh(["issue", "edit", number, "--repo", args.tracker_repo, "--body", body])
+        comment = (
+            f"Rollout against `{args.repository}` failed again at `{args.version}` "
+            f"(consecutive failures: {state['consecutive_failures']}).\n\n"
+            f"- category: `{args.category}`\n- reason: {args.reason}"
         )
-        body = render_body(state)
-        if existing is None:
-            created = run_gh([
-                "issue", "create",
-                "--repo", args.tracker_repo,
-                "--title", issue_title(args.repository),
-                "--body", body,
-                "--label", TRACKING_LABEL,
-            ])
-            issue_url = created.stdout.strip()
-            number = issue_url.rstrip("/").rsplit("/", 1)[-1]
-        else:
-            number = str(existing["number"])
-            issue_url = f"{args.tracker_repo}#{number}"
-            run_gh(["issue", "edit", number, "--repo", args.tracker_repo, "--body", body])
-            comment = (
-                f"Rollout against `{args.repository}` failed again at `{args.version}` "
-                f"(consecutive failures: {state['consecutive_failures']}).\n\n"
-                f"- category: `{args.category}`\n- reason: {args.reason}"
-            )
-            run_gh(["issue", "comment", number, "--repo", args.tracker_repo, "--body", comment])
-        if unreadable:
-            print(
-                f"::warning::rollout_failure_streak: prior tracking state for {args.repository} was "
-                "unreadable; escalating instead of resetting the streak.",
-                file=sys.stderr,
-            )
-        if alert:
-            run_gh(["issue", "edit", number, "--repo", args.tracker_repo, "--add-label", ALERT_LABEL])
-            message = (
-                f"{args.repository} has failed {state['consecutive_failures']} consecutive managed rollout "
-                f"attempts (since {state['first_failed_release']}). See {issue_url}."
-            )
-            print(f"::warning title=Repeated managed rollout failure::{message}")
-            if args.summary_output:
-                with open(args.summary_output, "a", encoding="utf-8") as fh:
-                    fh.write(f"\n#### Repeated managed rollout failure\n\n{message}\n")
-        return 0
-    except Exception as exc:  # noqa: BLE001 - tracking must never fail the rollout job
-        print(f"::warning::rollout_failure_streak: could not update failure tracker: {exc}", file=sys.stderr)
-        return 0
+        run_gh(["issue", "comment", number, "--repo", args.tracker_repo, "--body", comment])
+    if unreadable:
+        print(
+            f"::warning::rollout_failure_streak: prior tracking state for {args.repository} was "
+            "unreadable; escalating instead of resetting the streak.",
+            file=sys.stderr,
+        )
+    if alert:
+        run_gh(["issue", "edit", number, "--repo", args.tracker_repo, "--add-label", ALERT_LABEL])
+        message = (
+            f"{args.repository} has failed {state['consecutive_failures']} consecutive managed rollout "
+            f"attempts (since {state['first_failed_release']}). See {issue_url}."
+        )
+        print(f"::warning title=Repeated managed rollout failure::{message}")
+        if args.summary_output:
+            with open(args.summary_output, "a", encoding="utf-8") as fh:
+                fh.write(f"\n#### Repeated managed rollout failure\n\n{message}\n")
+    return 0
 
 
 def cmd_record_success(args: argparse.Namespace) -> int:
-    try:
-        ensure_label(args.tracker_repo, TRACKING_LABEL)
-        existing = find_tracking_issue(args.repository, args.tracker_repo)
-        if existing is None:
-            return 0
-        number = str(existing["number"])
-        prior = parse_state(existing.get("body") or "")
-        streak = prior.get("consecutive_failures") if prior else "unknown"
-        comment = (
-            f"Resolved: `{args.repository}` rollout preparation succeeded at `{args.version}` "
-            f"after {streak} consecutive failure(s)."
-        )
-        run_gh(["issue", "comment", number, "--repo", args.tracker_repo, "--body", comment])
-        run_gh(["issue", "close", number, "--repo", args.tracker_repo])
+    ensure_label(args.tracker_repo, TRACKING_LABEL)
+    existing = find_tracking_issue(args.repository, args.tracker_repo)
+    if existing is None:
         return 0
-    except Exception as exc:  # noqa: BLE001 - tracking must never fail the rollout job
-        print(f"::warning::rollout_failure_streak: could not close failure tracker: {exc}", file=sys.stderr)
-        return 0
+    number = str(existing["number"])
+    prior = parse_state(existing.get("body") or "")
+    streak = prior.get("consecutive_failures") if prior else "unknown"
+    comment = (
+        f"Resolved: `{args.repository}` rollout preparation succeeded at `{args.version}` "
+        f"after {streak} consecutive failure(s)."
+    )
+    run_gh(["issue", "comment", number, "--repo", args.tracker_repo, "--body", comment])
+    run_gh(["issue", "close", number, "--repo", args.tracker_repo])
+    return 0
 
 
 def cmd_reconcile(args: argparse.Namespace) -> int:
     """Close a durable alert only after independently observing recovery."""
-    try:
-        existing = find_tracking_issue(args.repository, args.tracker_repo)
-        if existing is None:
-            print(f"rollout_failure_streak: no open alert for {args.repository}")
-            return 0
-        recovered, detail = observe_recovery(
-            existing.get("body") or "",
-            repository=args.repository,
-            branch=args.default_branch,
-            project_token=os.environ.get("ROLLOUT_PROJECT_TOKEN"),
-        )
-        if not recovered:
-            print(f"::warning::rollout_failure_streak: alert remains open for {args.repository}: {detail}", file=sys.stderr)
-            return 0
-        number = str(existing["number"])
-        run_gh([
-            "issue", "comment", number, "--repo", args.tracker_repo,
-            "--body", f"Resolved by maintenance reconciliation: `{args.repository}` {detail}.",
-        ])
-        run_gh(["issue", "close", number, "--repo", args.tracker_repo])
-        print(f"rollout_failure_streak: closed alert for {args.repository}: {detail}")
+    project_token = os.environ.get("ROLLOUT_PROJECT_TOKEN", "")
+    if not project_token:
+        raise TrackerError("ROLLOUT_PROJECT_TOKEN is not set; cannot read the downstream default branch")
+    existing = find_tracking_issue(args.repository, args.tracker_repo)
+    if existing is None:
+        print(f"rollout_failure_streak: no open alert for {args.repository}")
         return 0
-    except Exception as exc:  # noqa: BLE001 - reconciliation must not block operator maintenance
-        print(f"::warning::rollout_failure_streak: could not reconcile failure tracker: {exc}", file=sys.stderr)
+    recovered, detail = observe_recovery(
+        existing.get("body") or "",
+        repository=args.repository,
+        branch=args.default_branch,
+        project_token=project_token,
+    )
+    if not recovered:
+        print(f"::warning::rollout_failure_streak: alert remains open for {args.repository}: {detail}", file=sys.stderr)
         return 0
+    number = str(existing["number"])
+    run_gh([
+        "issue", "comment", number, "--repo", args.tracker_repo,
+        "--body", f"Resolved by maintenance reconciliation: `{args.repository}` {detail}.",
+    ])
+    run_gh(["issue", "close", number, "--repo", args.tracker_repo])
+    print(f"rollout_failure_streak: closed alert for {args.repository}: {detail}")
+    return 0
 
 
 def main() -> int:
@@ -367,7 +356,11 @@ def main() -> int:
     p.set_defaults(func=cmd_reconcile)
 
     args = parser.parse_args()
-    return args.func(args)
+    try:
+        return args.func(args)
+    except (TrackerError, OSError) as exc:
+        print(f"::error title=Rollout failure tracker failed::rollout_failure_streak {args.command} failed: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

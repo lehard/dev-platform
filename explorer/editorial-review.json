@@ -40,9 +40,10 @@
   "copier-rollout": {
     "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
     "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
+    "docs/managed-rollout.md#Failed-run alarm": "02a5ded2f2b5d479f31aefce0a3d910ed8325a5f8edad7cb212d2e5ebc106f98",
     "docs/managed-rollout.md#Failure handling": "1d9cbbe8de447a780ca2ae4612c144c34ecafe86d71303f7c6ecb333c3ddb0ac",
     "docs/managed-rollout.md#Registry": "ecc444e60edd50db77a930966a5f7636d0ae5dc70215bb4b1f3446f0e5995551",
-    "docs/managed-rollout.md#Repeated-failure alerting": "5f0a7bc2becaeac956c7ae871dd0880539b6ddbfe2a9bf43aa60031e8ed816a0",
+    "docs/managed-rollout.md#Repeated-failure alerting": "8ee4838ccdad8957d043ffab5ed5e05a19e3b1c34fe06992c12fc58543030b68",
     "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f"
   },
   "executor-routing": {
