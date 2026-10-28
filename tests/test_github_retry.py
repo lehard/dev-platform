@@ -121,9 +121,15 @@ class GithubRetryTests(unittest.TestCase):
             self.assertTrue(common.is_transient_github_failure(detail), detail)
 
     def test_attempt_configuration(self):
-        for value, expected in (("2", 2), ("0", 1), ("invalid", 4)):
-            with mock.patch.dict(os.environ, {common.GITHUB_RETRY_ATTEMPTS_ENV: value}):
-                self.assertEqual(common.github_retry_attempts(), expected)
+        with mock.patch.dict(os.environ, {common.GITHUB_RETRY_ATTEMPTS_ENV: "2"}):
+            self.assertEqual(common.github_retry_attempts(), 2)
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop(common.GITHUB_RETRY_ATTEMPTS_ENV, None)
+            self.assertEqual(common.github_retry_attempts(), 4)
+        for value in ("0", "-1", "invalid", ""):
+            with self.subTest(value=value), mock.patch.dict(os.environ, {common.GITHUB_RETRY_ATTEMPTS_ENV: value}):
+                with self.assertRaisesRegex(common.PlatformConfigError, f"{common.GITHUB_RETRY_ATTEMPTS_ENV} must be an integer of at least 1, got {value!r}"):
+                    common.github_retry_attempts()
 
     def test_managed_and_queue_reads_use_retry(self):
         for invoke in (

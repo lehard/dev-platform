@@ -245,7 +245,10 @@ def _report_platform_config_error(exc_type, exc, tb, _default=sys.excepthook) ->
     _default(exc_type, exc, tb)
 
 
-sys.excepthook = _report_platform_config_error
+# Only over the interpreter default: importing this module never replaces a hook
+# that a host (a test runner, an embedding tool) installed.
+if sys.excepthook is sys.__excepthook__:
+    sys.excepthook = _report_platform_config_error
 
 
 PLATFORM_CONFIG_FILE = ".dev-platform.toml"
@@ -1259,10 +1262,18 @@ def _github_diagnostic(result: subprocess.CompletedProcess[str]) -> str:
 
 
 def github_retry_attempts() -> int:
-    try:
-        return max(1, int(os.environ.get(GITHUB_RETRY_ATTEMPTS_ENV, GITHUB_RETRY_ATTEMPTS)))
-    except ValueError:
+    """Attempts for GitHub reads: the documented default 4 when unset; an invalid value is an error."""
+    raw = os.environ.get(GITHUB_RETRY_ATTEMPTS_ENV)
+    if raw is None:
         return GITHUB_RETRY_ATTEMPTS
+    problem = f"{GITHUB_RETRY_ATTEMPTS_ENV} must be an integer of at least 1, got {raw!r}"
+    try:
+        attempts = int(raw)
+    except ValueError as exc:
+        raise PlatformConfigError(problem) from exc
+    if attempts < 1:
+        raise PlatformConfigError(problem)
+    return attempts
 
 
 def run_github_with_retry(

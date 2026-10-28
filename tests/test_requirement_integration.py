@@ -781,6 +781,23 @@ class RequirementIntegrationTests(unittest.TestCase):
         self.assertIn("Bootstrap", reason)
 
 
+class ProjectTopologyTests(unittest.TestCase):
+    """The integration topology reads the schema-validated configuration and names a missing key."""
+
+    def test_topology_reads_main_branch_and_worktree_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            (root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
+            self.assertEqual(integration._project_topology(root), ("main", root / ".claude" / "worktrees"))
+
+    def test_missing_required_key_is_named(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(platform_config_text(omit=("paths.worktrees",)), encoding="utf-8")
+            with self.assertRaisesRegex(integration.RequirementIntegrationError, "missing required key paths.worktrees"):
+                integration._project_topology(root)
+
+
 class ProjectCheckRuntimeTests(unittest.TestCase):
     """The `project-check` environment purpose: declared runtime, operator grant, refusals, isolation."""
 

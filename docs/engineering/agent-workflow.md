@@ -218,14 +218,15 @@ recorded handoffs for child ordering and terminal reconciliation without fresh
 pre-authoring. Missing materialization and child contract conflicts still stop.
 
 Lifecycle GitHub reads retry classified transient transport/server failures
-with at most `DEV_PLATFORM_GITHUB_RETRY_ATTEMPTS` attempts (default 4), waiting
+with at most `DEV_PLATFORM_GITHUB_RETRY_ATTEMPTS` attempts (default 4 when unset; a
+value that is not an integer of at least 1 is an error naming it), waiting
 1, 2, 4 seconds between the default attempts; further delays cap at 8 seconds.
 Non-transient failures return immediately, and mutations are never retried
 automatically.
 
 ## Central source dogfood lifecycle
 
-For ordinary work in this central repository, use the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow. A managed task is imported first, then its sole untracked package is transferred into the isolated task worktree:
+For ordinary work in this central repository, use the committed source contract `dev-platform/source-contract.toml` (installed as the untracked local `.dev-platform.toml`, which also carries operator-only sections) and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow. A managed task is imported first, then its sole untracked package is transferred into the isolated task worktree:
 
 ```bash
 python3 scripts/start_managed_task.py owner/repo#N

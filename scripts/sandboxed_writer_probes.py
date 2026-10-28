@@ -91,7 +91,8 @@ def build_repositories(work: Path) -> tuple[Path, Path, Path, str]:
     git(integration, "init", "-b", "main")
     (integration / "README.md").write_text("synthetic integration repository\n")
     (integration / "dev-platform").mkdir()
-    (integration / "dev-platform" / "source-contract.toml").write_text('main_branch = "main"\n')
+    # The repository's real contract: the checkout installs it as a schema-validated .dev-platform.toml.
+    shutil.copyfile(REPO / "dev-platform" / "source-contract.toml", integration / "dev-platform" / "source-contract.toml")
     git(integration, "add", "-A")
     git(integration, "commit", "-m", "initial")
     git(integration, "worktree", "add", "-b", "probe-wt", str(linked))
