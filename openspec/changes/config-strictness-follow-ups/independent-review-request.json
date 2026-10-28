@@ -1,0 +1,85 @@
+{
+  "candidate": {
+    "base_head": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e",
+    "base_ref": "origin/main",
+    "candidate_head": "e5539dba93c5d6783c8c1ac4fe2f40a6835dcf26",
+    "diff_sha256": "abb476784ddd9c1c538803bc4056651caf5da0cbc2819907d2aeb4da957a3011"
+  },
+  "change": "openspec/changes/config-strictness-follow-ups",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/config-strictness-follow-ups/automated-checks.json",
+    "openspec/changes/config-strictness-follow-ups/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/config-strictness-follow-ups/design.md",
+        "openspec/changes/config-strictness-follow-ups/proposal.md",
+        "openspec/changes/config-strictness-follow-ups/specs/platform-config/spec.md",
+        "openspec/changes/config-strictness-follow-ups/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/config-strictness-follow-ups/proposal.md",
+        "openspec/changes/config-strictness-follow-ups/design.md",
+        "openspec/changes/config-strictness-follow-ups/tasks.md",
+        "openspec/changes/config-strictness-follow-ups/specs/platform-config/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-28T21:28:26+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/config-strictness-follow-ups/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "98eca692-e00d-4434-8d8d-c3324bf667c1",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c6f9cb40a69167d01f0a21cba64307f355e933ee",
+    "digest": "19da6264b4ecabe43f72f0a30ae40afa64d94db8ff117e385aee3c950db86095",
+    "paths": {
+      "AGENTS.md": "8ff40fa5b4ef035d13eb5f7a21c64a51b2b07edf",
+      "docs/engineering/agent-workflow.md": "00ea58017414b783ff10201de559a7418b3364b0",
+      "openspec/changes/config-strictness-follow-ups/.managed-task.json": "7ca3e91b9c59d2af9160cdba3e13b89b1193113c",
+      "openspec/changes/config-strictness-follow-ups/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+      "openspec/changes/config-strictness-follow-ups/design.md": "1f6c3d35c0671734902d3a3aeb0c1a88b8cc7913",
+      "openspec/changes/config-strictness-follow-ups/proposal.md": "627fc49525afc70ee79da4a015ba1a77c07986e2",
+      "openspec/changes/config-strictness-follow-ups/specs/platform-config/spec.md": "017bd38b8d272bb777377a02d9ed39924e24b728",
+      "openspec/changes/config-strictness-follow-ups/tasks.md": "82644e2ccb5bfdf2bcb77f64263c36a049e5f24b",
+      "scripts/sandboxed_writer_probes.py": "f1271068b3288e902738529b5ab450002530bdda",
+      "template/scripts/_platform_common.py": "8a8f3de69af44994f48ff6ecdbd3f44b184a130f",
+      "template/scripts/capability_manager.py": "9a5cc1e8bf14fd432b6755fdb9af44a45b2e150e",
+      "tests/test_browser_verification.py": "f4712100d00b24e4b0adb5caba84a08a2b92594c",
+      "tests/test_capability_manager.py": "8b436174f2aef5ce1da6912f1c15690a336da8d1",
+      "tests/test_fresh_worktree_readiness.py": "1830be504efbdc0bdd2537b35267442381b32b5e",
+      "tests/test_github_retry.py": "323b557994c44de744690ac14eab493869c82abd",
+      "tests/test_platform_common.py": "811525936516ef151f390e5e8a7a2a17e781e183",
+      "tests/test_requirement_authoring.py": "090e36d24b14c7f72b86c8c780d79178ebe9b0bf",
+      "tests/test_requirement_integration.py": "1f58920637437256d01ef1d11ae1b6dc68aaee6d",
+      "tests/test_sandboxed_writer_probes.py": "f88c926a166bb482b80c9ed0e44810e95a44fbce"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
