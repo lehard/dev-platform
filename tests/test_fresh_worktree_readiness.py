@@ -59,7 +59,7 @@ class FreshWorktreeReadinessTests(unittest.TestCase):
             shutil.copy2(ROOT / "dev-platform" / "capabilities" / f"{CAPABILITY}{suffix}", capabilities / f"{CAPABILITY}{suffix}")
         (self.root / "dev-platform" / "capabilities.toml").write_text(f'version = 1\nenabled = ["{CAPABILITY}"]\n')
         (self.root / ".dev-platform.toml").write_text(platform_config_text())
-        (self.root / ".gitignore").write_text(".claude/\n.codex/\n")
+        (self.root / ".gitignore").write_text(".claude/\n.codex/\n__pycache__/\n")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "synthetic baseline")
 
