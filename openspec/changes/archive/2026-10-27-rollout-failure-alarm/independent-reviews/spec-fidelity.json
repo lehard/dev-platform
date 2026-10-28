@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
     "base_ref": "origin/main",
-    "candidate_head": "0f9dc4bd98118b200876733287548c53333988b2",
-    "diff_sha256": "ac70e29e350047df971cf258b11a8bb31fda2249f0be46bcea3e5c7aa0f10a8f"
+    "candidate_head": "94131f0650f251e40bbea0728aa4380a27f350b9",
+    "diff_sha256": "b15436f8cf4bfcef54df10fb7b2299983665bf2e1ec9ec81a77d38a01d00a22a"
   },
-  "completed_at": "2026-10-27T22:39:12+00:00",
+  "completed_at": "2026-10-28T07:31:52+00:00",
   "findings": [
     {
-      "evidence": "design.md:16 says `skipped`: fine only when `plan` failed (the matrix never expanded) or the job had no work. scripts/rollout_alarm.py failed_jobs() (candidate.diff ~L583-587) does `if conclusion == \"skipped\" and not plan_succeeded: continue`, so every other skipped job is added to `failed`. tests/test_rollout_alarm.py test_skipped_target_after_successful_plan_is_a_failure locks this in. The accepted spec only requires that a job which did not succeed (failed, cancelled, timed out or never finished) raises the alarm. Skipped is not named, so the spec and design do not agree on it. In the current rollout.yml, `rollout` has no `if:` condition, so this is unlikely to cause a false alarm today.",
-      "id": "skipped-job-classification-diverges-from-design",
+      "evidence": "scripts/rollout_alarm.py run_gh: `raise AlarmError(f\"gh {' '.join(args[:2])} failed: ...\")`. tests/test_rollout_alarm.py test_unreadable_run_fails_the_alarm asserts only the text \"gh api --paginate failed\".",
+      "id": "alarm-delivery-error-names-weak-operation",
       "severity": "advisory",
-      "summary": "design.md says a skipped job is fine when plan failed or when the job had no work. The code only accepts skipped jobs when plan did not succeed. A per-project job skipped after a successful plan is always reported as a failure, and the \"had no work\" exemption is not implemented."
+      "summary": "The spec requires the alarm job to exit non-zero 'naming the failed operation'. `run_gh` builds its message from only the first two gh args, so most failures read as `gh api --paginate failed: ...`, `gh issue create failed: ...` or `gh issue comment failed: ...`. Reading jobs and reading annotations both produce the same `gh api --paginate failed` text, and the endpoint is not named. This is weaker than the spec but still identifies the gh subcommand."
     }
   ],
-  "launched_at": "2026-10-27T22:38:46+00:00",
-  "output_sha256": "3579ea6539446849f2182c6bd9800bb1efd83e4d7c45242b536c37747d86b23b",
+  "launched_at": "2026-10-28T07:31:25+00:00",
+  "output_sha256": "94f08d92dea4e99126e7f2a015bbec944de59db2416ece7d1290abfce1bd80c9",
   "perspective": "spec-fidelity",
-  "request_id": "0ccf708f-a1de-4133-8885-f26f346f006b",
+  "request_id": "df89b939-91fa-4b44-b5e3-672b38e3a71e",
   "reviewer": {
-    "context_id": "98a57b2a-e744-4110-b3aa-e26517d3c86d",
+    "context_id": "78bc6b1f-d5b0-4d36-9270-14e29df7ffd8",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-7f421168-1b21-4a54-bf6d-ee3e83ad3653",
+    "launch_id": "platform-launch-0127ab43-e248-466c-9ba9-e0ed7a891d92",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 56330
+        "value": 45945
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 156997
+        "value": 50628
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24665
+        "value": 26224
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24881
+        "value": 26391
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2807
+        "value": 2078
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f80c051b7acd8bf61da03c33f3ce08660e6de6f5675961b4519263b95f4205f9"
+  "task_content_digest": "09e88dd1d9b4cf13f8e1180f45c06c718729c592fbec8b0635cca7a2229bbba1"
 }
