@@ -143,7 +143,7 @@
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "743275929d8b084f7ee9f58d021e1b90b60b9e1b87f456749b38f42f40839adf",
     "scripts/task_content_identity.py": "2d48ad088af93182f84fdc508f0d3c0d27e89d80274dc939aff0bb4c753509bc",
-    "scripts/task_reconciliation.py": "4a245c950dd5438d1e827f2d8d5a71e3a7bd23681de386adb856632bcf64e61e",
+    "scripts/task_reconciliation.py": "3d4752d3b602b663832ad4baa81265b05bf5ffca1bf7ed6539181122076d54fb",
     "scripts/worktree_cleanup.py": "1dbbc761be8a330a913ce8d08fe01e496ee7220cbd6c219814365c0bdbdeba99"
   },
   "project_harness_owned": [

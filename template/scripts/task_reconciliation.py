@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _platform_common import (
+    atomic_write_text,
     RECONCILE_COMMAND,
     TASK_BASE_BEHIND_MERGEABLE,
     TaskFreshnessError,
@@ -305,7 +306,7 @@ def reconcile(root: Path | None = None) -> Freshness:
 
     intent = Path(run_git(["rev-parse", "--path-format=absolute", "--git-dir"], cwd=root).stdout.strip()) / RECONCILE_MERGE_INTENT
     target = run_git(["rev-parse", f"origin/{main_branch}^{{commit}}"], cwd=root).stdout.strip()
-    intent.write_text(f"branch {branch}\ntarget {target}\n", encoding="utf-8")
+    atomic_write_text(intent, f"branch {branch}\ntarget {target}\n")
     try:
         result = run_git(["merge", "--no-edit", f"origin/{main_branch}"], cwd=root, check=False)
     finally:
