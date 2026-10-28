@@ -16,6 +16,7 @@ against synthetic fixtures.
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -30,8 +31,9 @@ import public_distribution  # noqa: E402
 # Bounded verification run from inside the extracted snapshot: proves the
 # packaged tree can compile, discover, and pass its own required test/spec
 # gates with no dependency on the original checkout's untracked/local state.
-# The extracted tree has no .dev-platform.toml and fresh history, so lifecycle
-# hygiene cannot infer its stage: the caller passes the CI event's stage.
+# The extracted tree has fresh history and no .dev-platform.toml; like CI, the
+# smoke installs the committed source contract before running the gates, and
+# lifecycle hygiene cannot infer its stage: the caller passes the CI event's stage.
 # The public snapshot deliberately excludes `.managed-task.json` provenance, so
 # inside it the candidate exemption for a completed managed change cannot be
 # evaluated. Candidate-stage hygiene is therefore enforced only on the real
@@ -62,6 +64,7 @@ REQUIRED_TOP_LEVEL_PATHS = (
     "template",
     "scripts",
     ".github/workflows",
+    "dev-platform/source-contract.toml",
 )
 
 
@@ -70,6 +73,19 @@ def run(command: tuple[str, ...], cwd: Path) -> None:
     result = subprocess.run(command, cwd=cwd)
     if result.returncode != 0:
         raise SystemExit(f"snapshot smoke command failed (exit {result.returncode}): {' '.join(command)}")
+
+
+def install_source_contract(extracted: Path) -> None:
+    """Install the committed source contract as `.dev-platform.toml`, as CI does.
+
+    The snapshot excludes the central checkout's own `.dev-platform.toml`, and
+    platform scripts read the configuration strictly, so the gates run against
+    the published contract exactly as a fresh clone's CI would.
+    """
+    installed = extracted / ".dev-platform.toml"
+    if installed.exists():
+        raise SystemExit(f"extracted snapshot unexpectedly contains {installed.name}")
+    shutil.copyfile(extracted / "dev-platform" / "source-contract.toml", installed)
 
 
 def establish_fresh_history(extracted: Path) -> None:
@@ -140,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
                 + ", ".join(missing_referenced)
             )
 
+        install_source_contract(extracted)
         for command in commands:
             run(command, extracted)
 
