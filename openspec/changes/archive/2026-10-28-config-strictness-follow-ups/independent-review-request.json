@@ -1,0 +1,89 @@
+{
+  "candidate": {
+    "base_head": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e",
+    "base_ref": "origin/main",
+    "candidate_head": "217a2b02df21f6e971ffe6e107dd202ca47a362b",
+    "diff_sha256": "307687c5b99e21ae9172c1554b15c763f5b3355ffd3dfc9a8d25b4f0cbd64518"
+  },
+  "change": "openspec/changes/archive/2026-10-28-config-strictness-follow-ups",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/automated-checks.json",
+    "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/independent-review-request.json",
+    "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/verification.md",
+    "openspec/specs/platform-config/spec.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/design.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/proposal.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/specs/platform-config/spec.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/proposal.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/design.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/tasks.md",
+        "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/specs/platform-config/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-28T21:39:29+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-28-config-strictness-follow-ups/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b16a803d-6dd7-491d-956a-c5cd3f86e855",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e",
+    "digest": "c04d741c83b1d75ce0a10a60b40ba4a6d2baa2283113440d9715bb2ee32e2680",
+    "paths": {
+      "AGENTS.md": "8ff40fa5b4ef035d13eb5f7a21c64a51b2b07edf",
+      "docs/engineering/agent-workflow.md": "00ea58017414b783ff10201de559a7418b3364b0",
+      "openspec/changes/config-strictness-follow-ups/.managed-task.json": "7ca3e91b9c59d2af9160cdba3e13b89b1193113c",
+      "openspec/changes/config-strictness-follow-ups/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+      "openspec/changes/config-strictness-follow-ups/design.md": "1f6c3d35c0671734902d3a3aeb0c1a88b8cc7913",
+      "openspec/changes/config-strictness-follow-ups/proposal.md": "627fc49525afc70ee79da4a015ba1a77c07986e2",
+      "openspec/changes/config-strictness-follow-ups/specs/platform-config/spec.md": "017bd38b8d272bb777377a02d9ed39924e24b728",
+      "openspec/changes/config-strictness-follow-ups/tasks.md": "82644e2ccb5bfdf2bcb77f64263c36a049e5f24b",
+      "scripts/sandboxed_writer_probes.py": "f1271068b3288e902738529b5ab450002530bdda",
+      "template/scripts/_platform_common.py": "8a8f3de69af44994f48ff6ecdbd3f44b184a130f",
+      "template/scripts/capability_manager.py": "9a5cc1e8bf14fd432b6755fdb9af44a45b2e150e",
+      "tests/test_browser_verification.py": "f4712100d00b24e4b0adb5caba84a08a2b92594c",
+      "tests/test_capability_manager.py": "8b436174f2aef5ce1da6912f1c15690a336da8d1",
+      "tests/test_fresh_worktree_readiness.py": "e3230ef3cd97c7a472b037d51889934ff3701139",
+      "tests/test_github_retry.py": "323b557994c44de744690ac14eab493869c82abd",
+      "tests/test_platform_common.py": "811525936516ef151f390e5e8a7a2a17e781e183",
+      "tests/test_requirement_authoring.py": "090e36d24b14c7f72b86c8c780d79178ebe9b0bf",
+      "tests/test_requirement_integration.py": "1f58920637437256d01ef1d11ae1b6dc68aaee6d",
+      "tests/test_sandboxed_writer_probes.py": "f88c926a166bb482b80c9ed0e44810e95a44fbce"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

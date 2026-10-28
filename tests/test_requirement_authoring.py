@@ -11,6 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 
@@ -174,7 +175,7 @@ class RequirementAuthoringStandardTests(unittest.TestCase):
             (root / "dev-platform" / "evals").mkdir()
             (root / "scripts").mkdir()
             (root / "scripts" / "capability_manager.py").write_text("# isolated adapter fixture\n", encoding="utf-8")
-            (root / ".dev-platform.toml").write_text('agent_tools = "claude,codex"\n', encoding="utf-8")
+            (root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
             shutil.copyfile(ROOT / "dev-platform" / "capabilities.toml", root / "dev-platform" / "capabilities.toml")
             for relative in MIRRORED:
                 shutil.copyfile(ROOT / relative, root / relative)

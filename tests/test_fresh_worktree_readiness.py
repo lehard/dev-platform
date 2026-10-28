@@ -16,6 +16,9 @@ sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 
 import start_worktree  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import platform_config_text  # noqa: E402
+
 
 def _load(name: str, path: Path):
     spec = importlib.util.spec_from_file_location(name, path)
@@ -47,13 +50,16 @@ class FreshWorktreeReadinessTests(unittest.TestCase):
         (scripts / "agent_board.py").write_text('import sys\nif sys.argv[1] == "start": print("synthetic-board")\n')
         shutil.copy2(TEMPLATE_SCRIPTS / "capability_manager.py", scripts / "capability_manager.py")
         shutil.copy2(TEMPLATE_SCRIPTS / "capability_evals.py", scripts / "capability_evals.py")
+        # capability_manager reads the validated platform configuration through these modules.
+        for name in ("_platform_common.py", "shared_workspace.py"):
+            shutil.copy2(TEMPLATE_SCRIPTS / name, scripts / name)
         capabilities = self.root / "dev-platform" / "capabilities"
         capabilities.mkdir(parents=True)
         for suffix in (".toml", ".md"):
             shutil.copy2(ROOT / "dev-platform" / "capabilities" / f"{CAPABILITY}{suffix}", capabilities / f"{CAPABILITY}{suffix}")
         (self.root / "dev-platform" / "capabilities.toml").write_text(f'version = 1\nenabled = ["{CAPABILITY}"]\n')
-        (self.root / ".dev-platform.toml").write_text('agent_tools = "claude,codex"\n')
-        (self.root / ".gitignore").write_text(".claude/\n.codex/\n")
+        (self.root / ".dev-platform.toml").write_text(platform_config_text())
+        (self.root / ".gitignore").write_text(".claude/\n.codex/\n__pycache__/\n")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "synthetic baseline")
 

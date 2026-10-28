@@ -166,6 +166,18 @@ class PlatformConfigSchemaTests(unittest.TestCase):
         self.assertIn("platform configuration error:", result.stderr)
         self.assertIn("missing required key main_branch", result.stderr)
 
+    def test_import_keeps_a_host_installed_exception_hook(self) -> None:
+        code = (
+            "import sys\n"
+            "def host_hook(*args):\n    pass\n"
+            "sys.excepthook = host_hook\n"
+            f"sys.path.insert(0, {str(SCRIPTS)!r})\n"
+            "import _platform_common\n"
+            "print(sys.excepthook is host_hook)\n"
+        )
+        result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True)
+        self.assertEqual(result.stdout.strip(), "True")
+
     def test_fixture_text_is_complete(self) -> None:
         import tomllib
 
