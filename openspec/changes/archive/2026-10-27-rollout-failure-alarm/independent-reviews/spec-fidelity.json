@@ -1,30 +1,23 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "94131f0650f251e40bbea0728aa4380a27f350b9",
-    "diff_sha256": "b15436f8cf4bfcef54df10fb7b2299983665bf2e1ec9ec81a77d38a01d00a22a"
+    "candidate_head": "e7af417fe98843c916aab1f53a38a6f9b95ba4e4",
+    "diff_sha256": "eece919059235fa75929b43722eea25a57110a686b9f315f2d215b7c39beb518"
   },
-  "completed_at": "2026-10-28T07:31:52+00:00",
-  "findings": [
-    {
-      "evidence": "scripts/rollout_alarm.py run_gh: `raise AlarmError(f\"gh {' '.join(args[:2])} failed: ...\")`. tests/test_rollout_alarm.py test_unreadable_run_fails_the_alarm asserts only the text \"gh api --paginate failed\".",
-      "id": "alarm-delivery-error-names-weak-operation",
-      "severity": "advisory",
-      "summary": "The spec requires the alarm job to exit non-zero 'naming the failed operation'. `run_gh` builds its message from only the first two gh args, so most failures read as `gh api --paginate failed: ...`, `gh issue create failed: ...` or `gh issue comment failed: ...`. Reading jobs and reading annotations both produce the same `gh api --paginate failed` text, and the endpoint is not named. This is weaker than the spec but still identifies the gh subcommand."
-    }
-  ],
-  "launched_at": "2026-10-28T07:31:25+00:00",
-  "output_sha256": "94f08d92dea4e99126e7f2a015bbec944de59db2416ece7d1290abfce1bd80c9",
+  "completed_at": "2026-10-28T11:27:49+00:00",
+  "findings": [],
+  "launched_at": "2026-10-28T11:27:22+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "df89b939-91fa-4b44-b5e3-672b38e3a71e",
+  "request_id": "6aa8c4fd-516a-4a45-ac50-9027e9664758",
   "reviewer": {
-    "context_id": "78bc6b1f-d5b0-4d36-9270-14e29df7ffd8",
+    "context_id": "05fa36ec-6fb2-468c-ac44-d86daaec63cf",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0127ab43-e248-466c-9ba9-e0ed7a891d92",
+    "launch_id": "platform-launch-3a3752d9-d35a-4faa-902f-e1a2548dd5e7",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45945
+        "value": 49158
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50628
+        "value": 53953
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26224
+        "value": 25865
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26391
+        "value": 26063
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,16 +57,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2078
+        "value": 2171
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "09e88dd1d9b4cf13f8e1180f45c06c718729c592fbec8b0635cca7a2229bbba1"
+  "task_content_digest": "cfbcc87e9e07cf5da5879e28a3b32bd073d16d1ef68817e9251750ab69be3fcc"
 }

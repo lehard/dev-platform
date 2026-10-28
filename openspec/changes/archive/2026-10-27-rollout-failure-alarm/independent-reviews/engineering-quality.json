@@ -1,23 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "94131f0650f251e40bbea0728aa4380a27f350b9",
-    "diff_sha256": "b15436f8cf4bfcef54df10fb7b2299983665bf2e1ec9ec81a77d38a01d00a22a"
+    "candidate_head": "e7af417fe98843c916aab1f53a38a6f9b95ba4e4",
+    "diff_sha256": "eece919059235fa75929b43722eea25a57110a686b9f315f2d215b7c39beb518"
   },
-  "completed_at": "2026-10-28T07:32:19+00:00",
-  "findings": [],
-  "launched_at": "2026-10-28T07:31:52+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-28T11:28:10+00:00",
+  "findings": [
+    {
+      "evidence": "In .github/workflows/rollout.yml, 'Record rollout recovery' (line ~362) runs before 'Push rollout branch' (~377) and 'Open reviewed rollout PR' (~382). Neither of those later steps has `if: always()` or `!cancelled()`, so they only run if the earlier step succeeded. The diff drops `continue-on-error: true` from the recovery step and adds `set -euo pipefail`, so any record-success failure (label create, issue list, comment or close) now skips the push and PR even though preparation succeeded. The spec text keeps 'SHALL NOT ... affect PR-creation', and the proposal does not call out this side effect. The workflow test only checks that the push/PR `if:` conditions do not mention the streak. It does not catch the implicit step-order dependency. The recovery step should either run after PR creation or be isolated so its failure still surfaces without blocking delivery.",
+      "id": "tracker-failure-blocks-rollout-pr",
+      "severity": "material",
+      "summary": "Removing continue-on-error from the 'Record rollout recovery' step lets a tracker error (for example a transient GitHub API failure) stop the rollout PR from being pushed or opened. This breaks the requirement that the tracking layer not affect PR creation."
+    }
+  ],
+  "launched_at": "2026-10-28T11:27:49+00:00",
+  "output_sha256": "1ac556f50fad16ff3a218ff58a0d523bf377ec13e84ab35b45dc2cc9142f2fb2",
   "perspective": "engineering-quality",
-  "request_id": "df89b939-91fa-4b44-b5e3-672b38e3a71e",
+  "request_id": "6aa8c4fd-516a-4a45-ac50-9027e9664758",
   "reviewer": {
-    "context_id": "53833434-41d0-4cad-ae89-8b1c3ef401f2",
+    "context_id": "6c075299-9efa-4f31-9b57-44dc317367e0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-325a0bb2-ad27-4027-98e2-93c9fbcbeff9",
+    "launch_id": "platform-launch-36b53764-497a-409b-b0bd-5f9f2ae4a024",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36645
+        "value": 44313
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 92378
+        "value": 146952
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25459
+        "value": 19687
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25780
+        "value": 20061
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1499
+        "value": 2129
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "09e88dd1d9b4cf13f8e1180f45c06c718729c592fbec8b0635cca7a2229bbba1"
+  "task_content_digest": "cfbcc87e9e07cf5da5879e28a3b32bd073d16d1ef68817e9251750ab69be3fcc"
 }

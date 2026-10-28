@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
     "base_ref": "origin/main",
-    "candidate_head": "94131f0650f251e40bbea0728aa4380a27f350b9",
-    "diff_sha256": "b15436f8cf4bfcef54df10fb7b2299983665bf2e1ec9ec81a77d38a01d00a22a"
+    "candidate_head": "e7af417fe98843c916aab1f53a38a6f9b95ba4e4",
+    "diff_sha256": "eece919059235fa75929b43722eea25a57110a686b9f315f2d215b7c39beb518"
   },
   "change": "openspec/changes/archive/2026-10-27-rollout-failure-alarm",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-28T07:31:21+00:00",
+  "prepared_at": "2026-10-28T11:27:19+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-27-rollout-failure-alarm/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "df89b939-91fa-4b44-b5e3-672b38e3a71e",
+  "request_id": "6aa8c4fd-516a-4a45-ac50-9027e9664758",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,12 +59,12 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "3e433dff4199cc53cdde7ba5e5bd7341a4116385",
-    "digest": "09e88dd1d9b4cf13f8e1180f45c06c718729c592fbec8b0635cca7a2229bbba1",
+    "base": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
+    "digest": "cfbcc87e9e07cf5da5879e28a3b32bd073d16d1ef68817e9251750ab69be3fcc",
     "paths": {
       ".github/workflows/reconcile-stale-rollouts.yml": "636f6b79847d3c1103f68b990da6395f02395ef1",
       ".github/workflows/rollout.yml": "20bf6412169c6ee5dd6c3a188c66ffd46322219f",
-      "dev-platform/checks.toml": "9296a757939a1593f8e7d153322a71723759ed91",
+      "dev-platform/checks.toml": "1ca38e365dc0cfaf039ee02d029eacf806039258",
       "docs/managed-rollout.md": "a1a8aa6025918afb3828b6e6db4096379966dd19",
       "explorer/editorial-review.json": "77ff01edba5dfd3fb926348fd2d9108708cb0d9c",
       "explorer/nodes/copier-rollout.toml": "9a5fd75db6970d6c152b3e63267c5506a2d195d9",
