@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import tomllib
@@ -1902,6 +1903,18 @@ class PublishedManagedTaskVerificationTests(unittest.TestCase):
             with self.assertRaisesRegex(managed_task.ManagedTaskError, "conflicting target/priority"):
                 managed_task.repair_authoring_labels(self.root, self.config, partial, "P2")
         mutate.assert_not_called()
+
+
+
+class ManagedTaskHelpTests(unittest.TestCase):
+    def test_top_level_help_names_every_command(self) -> None:
+        for wrapper in (SOURCE, ROOT / "scripts" / "managed_task.py"):
+            with self.subTest(wrapper=wrapper.relative_to(ROOT).as_posix()):
+                completed = subprocess.run(
+                    [sys.executable, str(wrapper), "--help"], text=True, capture_output=True, check=True
+                )
+                for command in ("create --bundle", "supersede --bundle", "dispose-process-evidence --reference"):
+                    self.assertIn(command, " ".join(completed.stdout.split()))
 
 
 if __name__ == "__main__":

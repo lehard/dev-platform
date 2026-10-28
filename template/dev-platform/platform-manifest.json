@@ -98,7 +98,7 @@
     "scripts/local_workspace.py": "bb2818358b7a9a0437306858747e72b2dcee43010f16e48b3a5c8bed043c8989",
     "scripts/machine_pool.py": "9467ee8704f79ed971009f2b7dd91ecd58e1cc120d433d07eacee5967aa1f91a",
     "scripts/managed_project_status.py": "378309650c5638396ba3f0ee2c136fa9c51e39a6d0251e0c795038523afe2872",
-    "scripts/managed_task.py": "95aac8041a141373c478dfaeff83f3ba2484aa5ee4795acde098c59a64face24",
+    "scripts/managed_task.py": "652f41e31bd24fba9ad511a433aecd704efed4047ac4bd715028f0da8dd5a31d",
     "scripts/managed_work_identity.py": "7dd16aaa2f5fda3c5ee48a7de86c713d4f82b3294d12b9ac9fcdf9a3bc480e28",
     "scripts/merge_to_main.py": "f2cc4d03923da2fc86402fbb4bc8558d14789a8c694db37606c6cb677e44cb1f",
     "scripts/model_routing.py": "a3ba1815abd23e6c1c1fd4fdd960b58bbf063efb98c2bc01cb539bf1d0adab7f",
