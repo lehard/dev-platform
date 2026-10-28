@@ -2427,7 +2427,14 @@ def import_task(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Import, author or supersede one managed OpenSpec task without starting implementation.")
+    parser = argparse.ArgumentParser(
+        description="Import, author or supersede one managed OpenSpec task without starting implementation.",
+        epilog="commands (each has its own --help): "
+        "create --bundle <directory> authors and publishes a managed task; "
+        "supersede --bundle <directory> owner/repo#N supersedes a published package; "
+        "dispose-process-evidence --reference owner/repo#N --reason <text> records a process-evidence disposition. "
+        "Without a command the positional issue is imported.",
+    )
     creating = sys.argv[1:2] == ["create"]
     superseding = sys.argv[1:2] == ["supersede"]
     disposing = sys.argv[1:2] == ["dispose-process-evidence"]

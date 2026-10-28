@@ -7,6 +7,8 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | [DEC-0001](0001-teamai-substitution.md) | TeamAI substitution after the v0.25.0 pilot | External agent infrastructure | Current |
 | [DEC-0002](0002-public-br-identity.md) | Public BR identity with private technical lineage | Managed identity and public privacy | Current |
 | [DEC-0003](0003-sandboxed-claude-writer.md) | Sandboxed Claude writer under sandbox-runtime | Delegated Claude writers (macOS) | Current |
+| [DEC-0005](0005-managed-rollout-on-demand.md) | Managed rollout on demand, not on every release | Releases and downstream updates | Current |
+| [DEC-0006](0006-claude-lifecycle-provider.md) | Claude as the provider for review, repair and finalize | Central lifecycle jobs | Current |
 
 ## Record contract
 
