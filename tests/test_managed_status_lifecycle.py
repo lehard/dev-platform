@@ -38,6 +38,11 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                                     return_value=("BR-7", ["BR-7/T1", "BR-7/T2"]))
         patcher.start()
         self.addCleanup(patcher.stop)
+        # Skeletal roots carry no platform configuration; the private-reference guard
+        # decision is covered in test_early_private_reference_guard.
+        guard = mock.patch.object(project_publish, "_private_reference_guard", return_value=None)
+        guard.start()
+        self.addCleanup(guard.stop)
 
     def test_shared_manifest_is_exact_committed_candidate_identity(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

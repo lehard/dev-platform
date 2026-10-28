@@ -570,18 +570,18 @@ class SelectChecksDriftHookTests(unittest.TestCase):
         finally:
             sys.path.remove(str(ROOT / "scripts"))
 
-    def surface(self, argv: list[str], result: subprocess.CompletedProcess | None = None) -> tuple[int, str, str, mock.Mock]:
+    def surface(self, base: str, result: subprocess.CompletedProcess | None = None) -> tuple[int, str, str, mock.Mock]:
         import contextlib
         import io
 
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.object(self.hook.subprocess, "run", return_value=result) as run, contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            code = self.hook.surface_explorer_drift(argv)
+            code = self.hook.surface_explorer_drift(base)
         return code, out.getvalue(), err.getvalue(), run
 
     def test_drift_is_computed_by_the_command_from_the_base_and_printed(self) -> None:
         done = subprocess.CompletedProcess([], 0, stdout="warning: start: README.md#Intro changed\n", stderr="")
-        code, out, _, run = self.surface(["--base", "origin/main", "--execute"], done)
+        code, out, _, run = self.surface("origin/main", done)
         self.assertEqual(code, 0)
         command = run.call_args.args[0]
         self.assertEqual(command[-3:], ["drift", "--base", "origin/main"])
@@ -589,24 +589,21 @@ class SelectChecksDriftHookTests(unittest.TestCase):
         self.assertIn("warning: start: README.md#Intro changed", out)
 
     def test_no_drift_prints_nothing_and_succeeds(self) -> None:
-        code, out, err, _ = self.surface(["--base", "origin/main"], subprocess.CompletedProcess([], 0, stdout="", stderr=""))
+        code, out, err, _ = self.surface("origin/main", subprocess.CompletedProcess([], 0, stdout="", stderr=""))
         self.assertEqual((code, out, err), (0, "", ""))
 
     def test_a_drift_command_failure_is_reported_and_fails(self) -> None:
-        code, _, err, _ = self.surface(["--base", "origin/main"], subprocess.CompletedProcess([], 2, stdout="", stderr="error: boom"))
+        code, _, err, _ = self.surface("origin/main", subprocess.CompletedProcess([], 2, stdout="", stderr="error: boom"))
         self.assertEqual(code, 2)
         self.assertIn("drift report failed (exit 2): error: boom", err)
 
-    def test_missing_base_fails_explicitly_and_protected_full_has_no_changed_files(self) -> None:
-        code, _, err, run = self.surface(["--execute"])
-        self.assertEqual(code, 2)
-        self.assertIn("--base", err)
-        run.assert_not_called()
-        for argv in (["--mode", "protected-full", "--execute"], ["--protected-full"], ["--full"]):
+    def test_drift_base_is_explicit_and_protected_full_or_no_execute_has_none(self) -> None:
+        self.assertEqual(self.hook.drift_base(["--base", "origin/main", "--execute"]), "origin/main")
+        with self.assertRaisesRegex(SystemExit, "needs --base"):
+            self.hook.drift_base(["--execute", "--changed-file", "a.py"])
+        for argv in (["--mode", "protected-full", "--execute"], ["--protected-full", "--execute"], ["--full", "--execute"], ["--base", "origin/main"]):
             with self.subTest(argv=argv):
-                code, out, err, run = self.surface(argv)
-                self.assertEqual((code, out, err), (0, "", ""))
-                run.assert_not_called()
+                self.assertIsNone(self.hook.drift_base(argv))
 
     def test_main_preserves_the_selector_exit_code_and_adds_drift_failure_only_when_it_succeeded(self) -> None:
         for selector_code, drift_code, expected in ((0, 0, 0), (3, 0, 3), (0, 2, 2), (3, 2, 3)):
