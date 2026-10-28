@@ -1107,6 +1107,9 @@ def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
 # check supersedes the unclaimed integration-repair job of the integrated head.
 READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-retryable", "blocked-escalation",
                                 "integration-repair-pending"})
+# Waiting states a developer fix on top of the proven head answers directly: the local head is
+# handed off again (fresh review) instead of waiting for the coordinator job of the proven head.
+DEVELOPER_FIX_STATES = frozenset({"integration-repair-pending", "repair-pending", "blocked-escalation"})
 _SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
 
 
@@ -1595,11 +1598,11 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
             # finish's re-admission; admission's supersession proves it descends from the proven head.
             if observed.get("owner") == "developer re-admission" and observed.get("head") == local_head:
                 return {**observed, "state": "readmission"}
-            # A developer fix on top of the integrated head of a candidate waiting for integration
-            # repair: finish pushes it and admission supersedes the integration-repair job.
+            # A developer fix on top of the proven head of a candidate waiting for repair or
+            # escalation: finish pushes it and admission supersedes the waiting job.
             proven = _proven_head(events, admission)
             lineage = _latest(root, data["number"], _comments(root, repo, data["number"]))
-            if (lineage is not None and lineage.get("state") == "integration-repair-pending"
+            if (lineage is not None and lineage.get("state") in DEVELOPER_FIX_STATES
                     and lineage.get("head") == proven and _is_ancestor(root, proven, local_head)):
                 return {**observed, "state": "readmission", "number": data["number"],
                         "proven_head": proven, "head": local_head}
@@ -1611,7 +1614,7 @@ def semantic_readmission(root: Path, branch: str) -> dict[str, Any] | None:
     """This branch's admitted PR when it awaits a fresh developer handoff of the local head.
 
     A candidate qualifies when its proven head stopped ``blocked-retryable`` on the
-    ``semantic-verification`` red gate, or waits in ``integration-repair-pending``, and the local
+    ``semantic-verification`` red gate, or waits in one of ``DEVELOPER_FIX_STATES``, and the local
     head awaits developer re-admission over it; anything else is ``None``.
     """
     observed = local_status(root, branch)
@@ -1623,7 +1626,7 @@ def semantic_readmission(root: Path, branch: str) -> dict[str, Any] | None:
         return None
     semantic = (lineage.get("state") == "blocked-retryable"
                 and (lineage.get("red_gate") or {}).get("name") == "semantic-verification")
-    if not semantic and lineage.get("state") != "integration-repair-pending":
+    if not semantic and lineage.get("state") not in DEVELOPER_FIX_STATES:
         return None
     return {**observed, "lineage": lineage}
 
