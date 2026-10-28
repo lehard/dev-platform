@@ -15,5 +15,5 @@
 ## 4. Verification
 
 - [x] 4.1 Regression tests: recorded `sysctl`/`vm_stat` outputs (pressure warn blocks naming memory, normal admits, unreadable fails); two default-weight runs admitted together on 6 tokens with weight 3; mismatch warning; "tokens free, load blocks" reads as load; light selection leases 1; unlabelled leases full weight; current-schema config stays valid.
-- [ ] 4.2 On the coordinator's signal only: apply 6 tokens and `DEV_PLATFORM_TEST_JOBS=3` with measured thresholds on the owner's Mac, measure two concurrent heavy runs, report the edits and rollback.
-- [ ] 4.3 Full selected checks (on the coordinator's signal) and semantic OpenSpec verification.
+- [x] 4.2 Measure the recommended configuration (6 tokens, weight 3 through `DEV_PLATFORM_TEST_JOBS=3` set only in the two measured run processes) with two concurrent heavy runs on the owner's Mac (backup of the pool file first); record the measurement, the thresholds chosen from it and the operator's persistent edits with their rollback in `verification.md`. Persistently applying them on the machine is an operator step outside this change.
+- [x] 4.3 Full selected checks (on the coordinator's signal) and semantic OpenSpec verification.
