@@ -433,6 +433,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         for name in (
             "agent_board.py", "agent_doctor.py", "agent_friction.py", "finish_task.py", "reconcile_task.py", "managed_project_status.py", "openspec_lifecycle.py", "independent_review.py", "shared_workspace.py",
             "project_publish.py", "project_sync.py", "select_checks.py", "start_task.py", "start_worktree.py", "worktree_cleanup.py",
+            "managed_task.py", "orchestrate_pre_authoring.py", "requirement_intake.py", "start_managed_task.py",
         ):
             with self.subTest(name=name):
                 self.assertIn("run_template", (ROOT / "scripts" / name).read_text(encoding="utf-8"))
