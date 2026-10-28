@@ -27,3 +27,7 @@ Automated-Checks-Evidence: automated-checks.json
 ## Noticed, not changed
 
 - `rollout_project._read_operator_config` is best-effort; `shared_workspace_applicable` returns false on `OSError`/`SharedWorkspaceError`; `task_content_identity.content_identity` returns `None` on git failure (outside this slice).
+
+## Test adaptation
+
+- The first candidate-stage snapshot smoke failed in four tests whose fixtures wrote a one-line `.dev-platform.toml` (`agent_tools` only), which `capability_manager` now validates as a full platform configuration: `test_browser_verification` (two), `test_requirement_authoring`, `test_fresh_worktree_readiness`. The fixtures now write the complete test configuration, and the fresh-worktree fixture copies `_platform_common.py` and `shared_workspace.py` that `capability_manager` imports. The rerun passed.
