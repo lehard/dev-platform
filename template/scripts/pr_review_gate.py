@@ -426,7 +426,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     def before_push(harness, head):
         if not claim_current():
             return
-        workers._git(harness, "checkout", "--detach", head)
+        workers.checkout_harness(harness, head)
         fresh = refresh_identity(harness, identity)
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh,
                                         provider=provider if kind == "repair" else None))
@@ -470,7 +470,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                         rejected=outcome.get("rejected", False), adapter=adapter)
     elif kind == "repair" and outcome["status"] == "pushed":
         harness = Path(workdir) / "harness"
-        workers._git(harness, "checkout", "--detach", head)
+        workers.checkout_harness(harness, head)
         fresh = refresh_identity(harness, identity)
         # Every changed identity must repeat review and checks; retain only proven gates.
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}

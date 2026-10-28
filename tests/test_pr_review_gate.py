@@ -526,7 +526,7 @@ class ProviderSwitchTests(unittest.TestCase):
             def push(*args, **kwargs):
                 fixture.head = new_head
                 return {"status": "pushed", "pushed_head": new_head}
-            with mock.patch.object(workers, "execute_job", side_effect=push), mock.patch.object(workers, "_git"), \
+            with mock.patch.object(workers, "execute_job", side_effect=push), mock.patch.object(workers, "checkout_harness"), \
                     mock.patch.object(gate, "refresh_identity", return_value=IDENTITY):
                 gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
                                  allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: new_head,

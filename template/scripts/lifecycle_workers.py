@@ -617,6 +617,16 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
 SOURCE_CONTRACT = Path("dev-platform") / "source-contract.toml"
 
 
+def checkout_harness(harness: Path, head: str) -> None:
+    """Detach a harness-owned clone at ``head`` and install its platform contract before any config read.
+
+    ``prepare_harness`` clones without a checkout, so the contract can only be installed once the
+    head is checked out; it is excluded locally and never becomes candidate content.
+    """
+    _git(harness, "checkout", "--detach", head)
+    install_source_contract(harness)
+
+
 def install_source_contract(checkout: Path, contract_from: Path | None = None) -> None:
     """Give a clean checkout the committed contract, exactly as the CI publication queue does.
 
