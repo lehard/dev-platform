@@ -82,19 +82,17 @@ ROOT_CAUSE_STOP_WORDS = {
 }
 
 
-def local_path(key: str, default: str) -> Path:
+def local_path(key: str) -> Path:
     root = main_root()
-    config = read_platform_config(root)
-    relative = str(config.get("paths", {}).get(key, default))
-    return (root / relative).resolve()
+    return (root / read_platform_config(root)["paths"][key]).resolve()
 
 
 def log_path() -> Path:
-    return local_path("friction_log", ".claude/agent-friction.jsonl")
+    return local_path("friction_log")
 
 
 def state_path() -> Path:
-    return local_path("friction_state", ".claude/agent-friction-state.json")
+    return local_path("friction_state")
 
 
 def attributions_path() -> Path:
@@ -160,7 +158,7 @@ def attribute_event(event_id: str, task: str | None, reason: str) -> dict:
 
 
 def reports_dir() -> Path:
-    return local_path("friction_reports", ".claude/reports/process-improvement")
+    return local_path("friction_reports")
 
 
 def parse_time(value: str) -> datetime:
@@ -286,10 +284,7 @@ def current_task_content(root: Path) -> dict | None:
 
 def non_task_names(root: Path | None = None) -> frozenset[str]:
     names = set(NON_TASK_BRANCHES)
-    try:
-        names.add(str(read_platform_config(root or current_worktree_root()).get("main_branch", "main")))
-    except Exception:
-        pass
+    names.add(read_platform_config(root or current_worktree_root())["main_branch"])
     return frozenset(names)
 
 
@@ -1410,10 +1405,7 @@ def project_questions(root: Path, changed: list[str] | None) -> dict:
 
 def changed_paths(root: Path) -> list[str] | None:
     """Files this task changed relative to the integration branch; ``None`` when unknowable."""
-    try:
-        main = str(read_platform_config(root).get("main_branch", "main"))
-    except Exception:
-        main = "main"
+    main = read_platform_config(root)["main_branch"]
     names: set[str] = set()
     readable = False
     for command in (["git", "diff", "--name-only", f"origin/{main}...HEAD"], ["git", "diff", "--name-only", "HEAD"]):
@@ -1722,7 +1714,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
     if not isinstance(inbox_repo, str) or not inbox_repo.strip():
         raise SystemExit("Promotion requires operator-owned promotion.repo configuration.")
     config = read_platform_config(main_root())
-    project_slug = str(config.get("project_slug", "unknown-project"))
+    project_slug = config["project_slug"]
     title = f"[platform-candidate] {sanitize(str(event.get('proposal', event.get('category', 'friction'))))[:120]}"
     body = "\n".join(
         [

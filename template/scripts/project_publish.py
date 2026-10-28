@@ -725,7 +725,7 @@ def main() -> int:
     config = read_platform_config(root)
     lifecycle_mode(config)
     mode = args.mode or publish_mode(config)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     if mode == "direct":
         if protected_main(config):
             raise SystemExit("protected_main=true is incompatible with direct publication. Use PR publication so required checks can gate the merge.")

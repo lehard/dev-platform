@@ -109,7 +109,7 @@ def _list_worktrees(root: Path) -> list[Worktree]:
 
 
 def _active_board_paths(root: Path, config: dict) -> set[Path]:
-    relative = str(config.get("paths", {}).get("agent_board", ".claude/agents-board.json"))
+    relative = config["paths"]["agent_board"]
     path = root / relative
     if not path.exists():
         return set()
@@ -293,7 +293,7 @@ def scan(root: Path, older_than_days: int, *, active_cwds: set[Path] | None = No
     if older_than_days < 1:
         raise SystemExit("--older-than-days must be at least 1")
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     managed_root = machine_path("worktrees", root)
     board = _active_board_paths(root, config)
     process_paths = _active_cwds() if active_cwds is None else active_cwds
@@ -315,17 +315,12 @@ def scan(root: Path, older_than_days: int, *, active_cwds: set[Path] | None = No
 
 
 def pending_report_path(root: Path, config: dict) -> Path:
-    relative = str(config.get("paths", {}).get("pending_worktrees", ".claude/pending-worktrees.md"))
+    relative = config["paths"]["pending_worktrees"]
     return root / relative
 
 
 def deferred_cleanup_path(root: Path, config: dict) -> Path:
-    relative = str(
-        config.get("paths", {}).get(
-            "pending_completed_worktree_cleanup", ".claude/pending-completed-worktree-cleanup.json"
-        )
-    )
-    return root / relative
+    return root / config["paths"]["pending_completed_worktree_cleanup"]
 
 
 def _read_deferred_cleanup(root: Path, config: dict) -> list[dict[str, str]]:

@@ -63,7 +63,7 @@ def current_branch(root: Path) -> str:
 def observe(root: Path, *, read_only: bool = False) -> Freshness:
     """Fetch authoritative main and classify the exact checked-out task head."""
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     helper = observe_task_base_freshness_readonly if read_only else observe_task_base_freshness
     state, authoritative_sha = helper(root, "origin", main_branch)
     return Freshness(state=state, authoritative_sha=authoritative_sha)
@@ -266,7 +266,7 @@ def reconcile(root: Path | None = None) -> Freshness:
     config = read_platform_config(root)
     if harness_mode(config) != "platform" or publish_mode(config) != "pr":
         raise SystemExit("Task reconciliation is supported only for harness_mode=platform, publish_mode=pr tasks.")
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     kind = task_kind(root, main_branch)
     print(f"Task reconciliation: {kind} task.")
     branch = current_branch(root)

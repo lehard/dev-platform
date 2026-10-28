@@ -445,19 +445,14 @@ def _provision_local_contract(root: Path, worktree: Path) -> None:
 
 
 def _project_topology(root: Path) -> tuple[str, Path]:
-    config_path = root / ".dev-platform.toml"
-    if config_path.is_file():
-        try:
-            config = tomllib.loads(config_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError) as exc:
-            raise RequirementIntegrationError(f"cannot read platform source contract: {exc}") from exc
-    else:
-        config = {}
-    main_branch = config.get("main_branch", "main")
-    configured = config.get("paths", {}).get("worktrees", ".claude/worktrees")
-    if not isinstance(main_branch, str) or not main_branch or not isinstance(configured, str):
-        raise RequirementIntegrationError("platform topology is invalid")
-    configured_path = Path(configured)
+    from _platform_common import read_project_config
+
+    try:
+        config = read_project_config(root)
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise RequirementIntegrationError(f"cannot read platform source contract: {exc}") from exc
+    main_branch = config["main_branch"]
+    configured_path = Path(config["paths"]["worktrees"])
     if configured_path.is_absolute() or ".." in configured_path.parts:
         raise RequirementIntegrationError("worktree root must be repository-relative")
     return main_branch, (root / configured_path).resolve()
@@ -758,7 +753,7 @@ def _full_check_commands(root: Path, trusted_root: Path | None = None) -> list[s
         return commands
     from _platform_common import read_platform_config
 
-    relative = str(read_platform_config(root).get("paths", {}).get("checks", "dev-platform/checks.toml"))
+    relative = read_platform_config(root)["paths"]["checks"]
     path = root / relative
     if not path.is_file():
         raise RequirementIntegrationError(f"full candidate validation needs check configuration: {relative} not found")
@@ -781,7 +776,7 @@ def _project_runtime(root: Path) -> dict[str, list[str]]:
     """The reviewed ``[runtime]`` declaration of the project checks; absent means no declared needs."""
     from _platform_common import read_platform_config
 
-    relative = str(read_platform_config(root).get("paths", {}).get("checks", "dev-platform/checks.toml"))
+    relative = read_platform_config(root)["paths"]["checks"]
     path = root / relative
     if not path.is_file():
         return {}
@@ -891,7 +886,7 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
     from finish_task import sync_after_remote_pr_merge
 
     config = read_platform_config(root)
-    main_branch = str(config.get("main_branch", "main"))
+    main_branch = config["main_branch"]
     env = github_cli_env(root)
     if env is None:
         raise RequirementIntegrationError("GitHub authentication is required to prove exact merged PR state")

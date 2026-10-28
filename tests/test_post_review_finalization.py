@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import os
 import unittest
 from unittest import mock
@@ -16,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template/scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
@@ -24,6 +26,12 @@ workers = load_platform_module("lifecycle_workers", SCRIPTS / "lifecycle_workers
 final = load_platform_module("post_review_finalization", SCRIPTS / "post_review_finalization.py")
 lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
 finish = load_platform_module("finish_task", SCRIPTS / "finish_task.py")
+
+
+
+def platform_config(**overrides) -> dict:
+    return tomllib.loads(platform_config_text(**overrides))
+
 
 from test_pr_review_gate import PROVIDER, ROUTE, QueueFixture, git  # noqa: E402
 
@@ -84,13 +92,13 @@ class HygieneStageTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.make(root, managed=True)
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
                     mock.patch.dict("os.environ", {"GITHUB_REF": "refs/heads/main"}):
                 self.assertEqual(lifecycle.check_hygiene(root), 1)
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
                     mock.patch.dict("os.environ", {"GITHUB_REF": "refs/pull/9/merge"}):
                 self.assertEqual(lifecycle.check_hygiene(root), 0)
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "1.0"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="1.0")), \
                     mock.patch.dict("os.environ", {"GITHUB_REF": "refs/pull/9/merge"}):
                 self.assertEqual(lifecycle.check_hygiene(root), 1)
 
@@ -145,8 +153,9 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             tasks_state(root, "work", "- [x] done\n")
+            write_platform_config(root, platform_version="source")
             (root / "openspec/changes/work/.managed-task.json").write_text("{}")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value={"platform_version": "source", "harness_mode": "platform"}), \
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
                     mock.patch.object(lifecycle, "require_static_archive_readiness") as static, \
                     mock.patch.object(lifecycle, "require_managed_checkout_identity") as identity, \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff") as diff, \
@@ -314,7 +323,7 @@ class Remote:
         git(self.root, "init", "-qb", "main")
         git(self.root, "config", "user.name", "Fixture")
         git(self.root, "config", "user.email", "fixture@localhost")
-        (self.root / ".dev-platform.toml").write_text('main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n')
+        write_platform_config(self.root)
         (self.root / "dev-platform").mkdir()
         (self.root / "dev-platform/checks.toml").write_text("# no generated files\n")
         (self.root / "src.py").write_text("value = 0\n")
@@ -608,17 +617,7 @@ class FinalizeTests(CandidateCase):
             self.assertEqual(sorted(candidate["gates"]), ["review", "selected-checks", "semantic-verification"])
 
 
-SOURCE_CONTRACT = """platform_version = "source"
-paths = {checks = "dev-platform/checks.toml"}
-main_branch = "main"
-workflow_profile = "standard"
-harness_mode = "platform"
-publish_mode = "pr"
-scm_provider = "github"
-
-[capabilities]
-agent_board = true
-"""
+SOURCE_CONTRACT = platform_config_text(platform_version="source", workflow_profile="standard")
 
 
 def commit_source_contract(root: Path, tmp: Path) -> Path:
@@ -1100,7 +1099,7 @@ class GeneratedFileMergeTests(unittest.TestCase):
         git(self.trusted, "init", "-qb", "main")
         git(self.trusted, "config", "user.name", "Fixture")
         git(self.trusted, "config", "user.email", "fixture@localhost")
-        (self.trusted / ".dev-platform.toml").write_text('[paths]\nchecks = "dev-platform/checks.toml"\n')
+        write_platform_config(self.trusted)
         (self.trusted / "dev-platform").mkdir()
         (self.trusted / "dev-platform/checks.toml").write_text(
             f'[settings]\nfull_commands = ["python3 gen.py --check"]\n'
@@ -1248,7 +1247,7 @@ class ArchivedGeneratedMergeTests(unittest.TestCase):
         tmp = Path(self.tmp.name)
         self.repo = Remote(tmp)
         root = self.repo.root
-        (root / ".dev-platform.toml").write_text('main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n')
+        write_platform_config(root)
         (root / "dev-platform").mkdir(exist_ok=True)
         (root / "dev-platform/checks.toml").write_text(
             '[settings]\nfull_commands = ["python3 gen.py --check"]\n'
@@ -1275,7 +1274,7 @@ class ArchivedGeneratedMergeTests(unittest.TestCase):
         git(self.trusted, "init", "-qb", "main")
         git(self.trusted, "config", "user.name", "Fixture")
         git(self.trusted, "config", "user.email", "fixture@localhost")
-        (self.trusted / ".dev-platform.toml").write_text('[paths]\nchecks = "dev-platform/checks.toml"\n')
+        write_platform_config(self.trusted)
         (self.trusted / "dev-platform").mkdir()
         (self.trusted / "dev-platform/checks.toml").write_text(
             '[settings]\nfull_commands = ["python3 gen.py --check"]\n'

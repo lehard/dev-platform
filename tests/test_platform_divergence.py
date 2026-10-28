@@ -21,6 +21,9 @@ import tomllib
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _platform_config import write_platform_config  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "template"
 MANIFEST = json.loads((TEMPLATE / "dev-platform" / "platform-manifest.json").read_text(encoding="utf-8"))
@@ -109,10 +112,7 @@ class DivergenceTestCase(unittest.TestCase):
         self.write_friction_evidence()
 
     def write_config(self, *, version: str = PLATFORM_VERSION, harness: str = "platform") -> None:
-        (self.root / ".dev-platform.toml").write_text(
-            f'platform_version = "{version}"\nharness_mode = "{harness}"\n\n[paths]\nfriction_log = "{FRICTION_LOG}"\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.root, platform_version=version, harness_mode=harness, paths={"friction_log": FRICTION_LOG})
 
     def write_friction_evidence(self, payload: bytes | None = None) -> None:
         target = self.root / EVIDENCE_PATH

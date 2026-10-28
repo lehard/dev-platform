@@ -11,7 +11,9 @@ from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
+import tomllib
 from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +21,11 @@ HELPER = ROOT / "template" / "scripts" / "requirement_integration.py"
 sys.path.insert(0, str(HELPER.parent))
 integration = load_platform_module("requirement_integration", HELPER)
 merge_recovery = load_platform_module("requirement_merge_recovery", HELPER.parent / "requirement_merge_recovery.py")
+
+
+def config(**top):
+    """A complete validated platform configuration with the given top-level overrides."""
+    return tomllib.loads(platform_config_text(**top))
 
 
 def git(root: Path, *args: str) -> str:
@@ -68,6 +75,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         git(self.root, "config", "user.email", "test@example.com")
         git(self.root, "config", "user.name", "Test")
         (self.root / "base.txt").write_text("base\n", encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         git(self.root, "add", ".")
         git(self.root, "commit", "-m", "base")
         self.base = git(self.root, "rev-parse", "HEAD")
@@ -82,7 +90,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         self.assertEqual(integration._full_check_commands(self.root), list(integration.PLATFORM_FULL_CHECK_COMMANDS))
 
     def test_full_checks_in_installed_project_use_declared_full_commands(self) -> None:
-        (self.root / ".dev-platform.toml").write_text('[paths]\nchecks = "ci/checks.toml"\n', encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(paths={"checks": "ci/checks.toml"}), encoding="utf-8")
         (self.root / "ci").mkdir()
         (self.root / "ci" / "checks.toml").write_text(
             '[settings]\nfull_commands = ["git diff --check", "python3 scripts/check_app.py --label \'full gate\'"]\n',
@@ -368,10 +376,13 @@ class RequirementIntegrationTests(unittest.TestCase):
         self.assertEqual(git(self.root, "rev-parse", "one"), one)
 
     def test_ignored_local_contract_is_copied_and_mismatch_blocks(self) -> None:
+        # This history predates the committed contract: only an ignored local file carries it.
+        git(self.root, "rm", "--cached", "-q", ".dev-platform.toml")
+        git(self.root, "commit", "-q", "-m", "stop tracking the contract")
+        self.base = git(self.root, "rev-parse", "HEAD")
+        (self.root / ".git/info/exclude").write_text(".dev-platform.toml\n", encoding="utf-8")
         _, one_receipt = self.child("one", "one.txt")
         _, two_receipt = self.child("two", "two.txt")
-        (self.root / ".git/info/exclude").write_text(".dev-platform.toml\n", encoding="utf-8")
-        (self.root / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
         receipts = [one_receipt, two_receipt]
         manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
                                                   receipt_paths=receipts)
@@ -380,7 +391,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         kwargs = {"manifest": manifest, "receipt_paths": receipts, "worktree": candidate, "branch": "agent/" + slug}
         integration.compose_candidate(self.root, **kwargs)
         self.assertEqual((candidate / ".dev-platform.toml").read_bytes(), (self.root / ".dev-platform.toml").read_bytes())
-        (candidate / ".dev-platform.toml").write_text('main_branch = "other"\n', encoding="utf-8")
+        (candidate / ".dev-platform.toml").write_text(platform_config_text(main_branch="other"), encoding="utf-8")
         with self.assertRaisesRegex(integration.RequirementIntegrationError, "local source contract differs"):
             integration.compose_candidate(self.root, **kwargs)
 
@@ -466,7 +477,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt, two_receipt],
                                       worktree=candidate, branch="agent/" + slug)
         merged = {"status": "merged-and-reconciled", "pr": "https://example.invalid/pr/1"}
-        with mock.patch("_platform_common.read_platform_config", return_value={"platform_version": "1.0.0"}), \
+        with mock.patch("_platform_common.read_platform_config", return_value=config()), \
                 mock.patch.object(integration, "_reconcile_exact_merged", return_value=merged) as reconcile, \
                 mock.patch.object(integration, "_run_full_checks") as checks, \
                 mock.patch.object(integration, "compose_candidate") as compose:
@@ -488,7 +499,7 @@ class RequirementIntegrationTests(unittest.TestCase):
             {"source_issue": "acme/backlog#8"}, {"source_issue": "acme/backlog#9"},
         ]}
         base_patches = [
-            mock.patch.object(_platform_common, "read_platform_config", return_value={"main_branch": "main"}),
+            mock.patch.object(_platform_common, "read_platform_config", return_value=config()),
             mock.patch.object(_platform_common, "github_cli_env", return_value={"GH_TOKEN": "test"}),
             mock.patch.object(integration_state, "serialized_integration", return_value=nullcontext()),
         ]
@@ -683,7 +694,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         composed = integration.compose_candidate(self.root, manifest=manifest, receipt_paths=[one_receipt],
                                                  worktree=candidate, branch="agent/" + slug)
         with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
-                mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0.0", "publish_mode": "pr", "pr_merge_mode": "auto"}), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value=config(publish_mode="pr", pr_merge_mode="auto")), \
                 mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
                 mock.patch.object(integration, "_reconcile_exact_merged", return_value=None), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
@@ -705,7 +716,7 @@ class RequirementIntegrationTests(unittest.TestCase):
         manifest = integration.assemble_candidate(self.root, requirement="acme/backlog#7", base=self.base,
                                                   receipt_paths=[one_receipt], expected_changes=expected)
         merged = SimpleNamespace(available=True, exact_merged={"url": "https://example/pr/1"})
-        with mock.patch.object(_platform_common, "read_platform_config", return_value={"main_branch": "main"}), \
+        with mock.patch.object(_platform_common, "read_platform_config", return_value=config()), \
                 mock.patch.object(_platform_common, "github_cli_env", return_value={}), \
                 mock.patch.object(publication_state, "find_exact_head_pr", return_value=merged):
             with self.assertRaisesRegex(integration.RequirementIntegrationError, "incomplete Requirement candidate \\(missing: two\\)"):
@@ -734,7 +745,7 @@ class RequirementIntegrationTests(unittest.TestCase):
             return SimpleNamespace(returncode=0)
 
         with mock.patch.object(_platform_common, "main_root", return_value=self.root), \
-                mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0.0", "publish_mode": "pr", "pr_merge_mode": "manual"}), \
+                mock.patch.object(_platform_common, "read_platform_config", return_value=config(publish_mode="pr", pr_merge_mode="manual")), \
                 mock.patch.object(integration, "_validate_candidate_checkout", return_value=("agent/" + slug, composed["head"])), \
                 mock.patch.object(integration, "_reconcile_exact_merged", side_effect=[None, None]), \
                 mock.patch.object(integration, "compose_candidate", return_value={**composed, "resumed": True}), \
@@ -779,6 +790,7 @@ class ProjectCheckRuntimeTests(unittest.TestCase):
         base = Path(self._tmp.name)
         self.root, self.operator = base / "checkout", base / "operator"
         (self.root / "dev-platform").mkdir(parents=True)
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         (self.operator / "home" / ".docker").mkdir(parents=True)
         (self.operator / "home" / ".cache" / "uv").mkdir(parents=True)
         (self.operator / "bin").mkdir()

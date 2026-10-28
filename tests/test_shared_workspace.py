@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 
@@ -21,6 +22,7 @@ shared_workspace = load_platform_module("shared_workspace_under_test", SCRIPTS /
 class SharedWorkspaceTests(unittest.TestCase):
     def init_repo(self, directory: Path) -> None:
         subprocess.run(["git", "init", "-q", str(directory)], check=True)
+        write_platform_config(directory)
 
     def test_atomic_replacement_keeps_group_write(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -88,9 +90,7 @@ class SharedWorkspaceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             self.init_repo(root)
-            (root / ".dev-platform.toml").write_text(
-                '[paths]\nfriction_reports = ".claude/custom/reports"\n', encoding="utf-8"
-            )
+            write_platform_config(root, paths={"friction_reports": ".claude/custom/reports"})
             path = shared_workspace.publish_process_report(root, "review.md", "configured\n")
             self.assertEqual(path, root.resolve() / ".claude" / "custom" / "reports" / "review.md")
             self.assertEqual(stat.S_IMODE(path.stat().st_mode) & 0o060, 0o060)

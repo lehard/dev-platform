@@ -29,6 +29,7 @@ TEMPLATE_SCRIPTS = ROOT / "template" / "scripts"
 # order.
 sys.path.insert(0, str(TEMPLATE_SCRIPTS))
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 import managed_project_status  # noqa: E402
 import managed_task  # noqa: E402
@@ -49,10 +50,10 @@ def init_repo() -> tempfile.TemporaryDirectory[str]:
     git(root, "remote", "add", "origin", "https://github.com/acme/billing.git")
     (root / "README.md").write_text("seed\n", encoding="utf-8")
     (root / ".dev-platform.toml").write_text(
-        'protected_main = true\npublish_mode = "pr"\nscm_provider = "github"\nharness_mode = "platform"\n'
-        '\n[capabilities]\nopenspec = true\ngithub_sync = true\nfeature_branches = true\nplatform_git_lifecycle = true\n'
-        '\n[development_backlog]\nrepository = "acme/development-backlog"\n'
-        'project_label = "project:billing"\ndefault_priority = "P2"\n',
+        platform_config_text(
+            extra='[development_backlog]\nrepository = "acme/development-backlog"\n'
+                  'project_label = "project:billing"\ndefault_priority = "P2"',
+        ),
         encoding="utf-8",
     )
     for entrypoint in ri.requirement_target_lifecycle.REQUIRED_ENTRYPOINTS:
@@ -1372,6 +1373,7 @@ class StableIdentityRegressionTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         self.parent = "example-org/private-backlog#42"
         self.records = {42: ri.render_requirement_body(outcome="Ship", target_repository="example-org/app"),
                         10: "Technical task\n", 11: "Technical task\n", 12: "Technical task\n"}

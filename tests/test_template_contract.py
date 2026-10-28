@@ -500,7 +500,7 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("ensure_git_hooks", doctor)
         self.assertIn("integration copy is dirty", doctor)
         self.assertIn("run_multi_agent_hygiene", doctor)
-        self.assertIn("pending-worktrees.md", cleanup)
+        self.assertIn("pending_worktrees", cleanup)
         self.assertIn("candidate-no-longer-safe", cleanup)
         self.assertIn("DEV_PLATFORM_ALLOW_MAIN_COMMIT", pre_commit)
         self.assertIn("DEV_PLATFORM_ALLOW_MERGE_COMMIT", pre_merge)

@@ -394,15 +394,19 @@ def load_platform_config(project_root: Path) -> dict[str, Any]:
     if not path.exists():
         raise ValueError(".dev-platform.toml is missing")
     with path.open("rb") as fh:
-        return tomllib.load(fh)
+        config = tomllib.load(fh)
+    # The rollout reads only these keys of the project-owned configuration; the
+    # project's own platform scripts validate the full schema after upgrade.
+    for key in ("platform_version", "harness_mode"):
+        value = config.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{path} must set {key} to a non-empty string")
+    return config
 
 
 def load_platform_version(project_root: Path) -> str:
     config = load_platform_config(project_root)
-    value = str(config.get("platform_version", "")).strip()
-    if not value:
-        raise ValueError(".dev-platform.toml does not contain platform_version")
-    return value
+    return config["platform_version"].strip()
 
 
 def platform_config_contract(project_root: Path) -> dict[str, Any]:
@@ -432,7 +436,7 @@ def require_platform_config_contract(before: dict[str, Any], after: dict[str, An
 
 
 def harness_mode(project_root: Path) -> str:
-    return str(load_platform_config(project_root).get("harness_mode", "platform"))
+    return load_platform_config(project_root)["harness_mode"]
 
 
 def require_project_publication_safety_conformance(project_root: Path) -> None:
@@ -858,7 +862,7 @@ def reject_target(reject_path: str) -> str:
 def project_owned_paths(project_root: Path) -> set[str]:
     config = load_platform_config(project_root)
     paths = set(ALWAYS_PROJECT_OWNED_ROLLOUT_PATHS)
-    if str(config.get("harness_mode", "platform")) == "project":
+    if config["harness_mode"] == "project":
         paths.update(PROJECT_HARNESS_ROLLOUT_PATHS)
     required = config.get("project_required_files", [])
     if isinstance(required, list):

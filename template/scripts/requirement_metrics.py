@@ -1105,7 +1105,7 @@ def _cycles_after_first_review(first: datetime | None, validation: dict[str, Any
 
 
 def _friction_events(ctx: Context) -> tuple[list[dict[str, Any]] | None, str]:
-    relative = str((ctx.config.get("paths") or {}).get("friction_log", ".claude/agent-friction.jsonl"))
+    relative = ctx.config["paths"]["friction_log"]
     path = (ctx.root / relative).resolve()
     source = ctx.local_ref(path)
     if not path.is_file():
@@ -1314,7 +1314,7 @@ class ClaudeTranscripts:
         listing = run_git(["worktree", "list", "--porcelain"], cwd=self.root, check=False)
         if not listing.returncode:
             names.update(_sanitize(line[len("worktree "):].strip()) for line in listing.stdout.splitlines() if line.startswith("worktree "))
-        worktrees = str((self.config.get("paths") or {}).get("worktrees", ".claude/worktrees"))
+        worktrees = self.config["paths"]["worktrees"]
         prefix = _sanitize(str(self.root / worktrees)) + "-"
         return sorted(
             path for path in self.projects_dir.iterdir()

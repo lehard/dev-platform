@@ -13,8 +13,10 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import _platform_common  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 import project_publish  # noqa: E402
 import task_reconciliation  # noqa: E402
 
@@ -50,9 +52,7 @@ class TaskFreshnessTests(unittest.TestCase):
         self.task = self.base / "task"
         run("git", "clone", str(self.remote), str(self.task), cwd=self.base)
         configure(self.task)
-        (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\n[capabilities]\nagent_board = false\n', encoding="utf-8"
-        )
+        write_platform_config(self.task, workflow_profile="standard", capabilities={"agent_board": False})
         checks = self.task / "dev-platform" / "checks.toml"
         checks.parent.mkdir()
         checks.write_text(
@@ -140,9 +140,7 @@ class TaskFreshnessTests(unittest.TestCase):
         self.assertFalse((self.task / "validation-ran.txt").exists())
 
     def test_project_harness_keeps_its_existing_validation_runner_ownership(self) -> None:
-        (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "project"\n', encoding="utf-8"
-        )
+        write_platform_config(self.task, workflow_profile="standard", harness_mode="project")
         git("remote", "set-url", "origin", str(self.base / "missing.git"), cwd=self.task)
 
         result = self.selector()
@@ -189,11 +187,7 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         run("git", "clone", "-q", str(self.remote), str(self.task), cwd=self.base)
         configure(self.task)
         git("checkout", "-q", "-b", "main", cwd=self.task)
-        (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n[capabilities]\nagent_board = false\n'
-            '[paths]\nchecks = "dev-platform/checks.toml"\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.task, workflow_profile="standard", capabilities={"agent_board": False})
         (self.task / "dev-platform").mkdir()
         (self.task / CHECKS).write_text("# no generated files\n", encoding="utf-8")
         (self.task / "shared.txt").write_text("one\ntwo\nthree\n", encoding="utf-8")
@@ -331,13 +325,11 @@ class TaskBaseCurrencyTests(unittest.TestCase):
     def test_missing_paths_checks_key_fails_explicitly_for_a_conflict(self) -> None:
         self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
         self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
-        (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n'
-            '[capabilities]\nagent_board = false\n[paths]\nworktrees = ".claude/worktrees"\n',
-            encoding="utf-8",
+        write_platform_config(
+            self.task, workflow_profile="standard", capabilities={"agent_board": False}, omit=("paths.checks",)
         )
 
-        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, r"\[paths\] checks must be a repository-relative path"):
+        with self.assertRaisesRegex(_platform_common.PlatformConfigError, r"missing required key paths\.checks"):
             self.classify()
 
     def test_generated_file_reader_rejects_each_malformed_shape(self) -> None:

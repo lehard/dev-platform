@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
 review = load_platform_module("independent_review", SCRIPTS / "independent_review.py")
@@ -125,7 +126,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.temp.cleanup()
 
     def write_config(self, extra: str = 'provider = "codex"\n', enabled: str = "true") -> None:
-        (self.root / ".dev-platform.toml").write_text(f'platform_version = "customer"\nmain_branch = "main"\npaths = {{checks = "dev-platform/checks.toml"}}\n[independent_review]\nenabled = {enabled}\n{extra}', encoding="utf-8")
+        write_platform_config(self.root, platform_version="customer", extra=f"[independent_review]\nenabled = {enabled}\n{extra}")
 
     def commit(self, message: str) -> None:
         git(self.root, "add", "-A")

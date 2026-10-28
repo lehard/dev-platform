@@ -4,6 +4,7 @@ import importlib.util
 import sys
 import json
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -14,6 +15,12 @@ SPEC = importlib.util.spec_from_file_location("platform_doctor", SCRIPTS / "plat
 assert SPEC and SPEC.loader
 platform_doctor = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(platform_doctor)
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import platform_config_text  # noqa: E402
+
+
+def _config(**overrides: object) -> dict:
+    return tomllib.loads(platform_config_text(**overrides))
 
 
 class RenderedWorkflowModeTests(unittest.TestCase):
@@ -29,28 +36,28 @@ class RenderedWorkflowModeTests(unittest.TestCase):
         root, tmp = self._root("on:\n  pull_request:\n  push:\n")
         self.addCleanup(tmp.cleanup)
         failures = [0]
-        platform_doctor.check_rendered_workflow_mode(root, {"publish_mode": "pr"}, failures)
+        platform_doctor.check_rendered_workflow_mode(root, _config(publish_mode="pr"), failures)
         self.assertEqual(failures[0], 1)
 
     def test_pr_mode_accepts_pr_only_render(self) -> None:
         root, tmp = self._root("on:\n  pull_request:\n  workflow_dispatch:\n")
         self.addCleanup(tmp.cleanup)
         failures = [0]
-        platform_doctor.check_rendered_workflow_mode(root, {"publish_mode": "pr"}, failures)
+        platform_doctor.check_rendered_workflow_mode(root, _config(publish_mode="pr"), failures)
         self.assertEqual(failures[0], 0)
 
     def test_direct_mode_requires_push_trigger(self) -> None:
         root, tmp = self._root("on:\n  pull_request:\n  workflow_dispatch:\n")
         self.addCleanup(tmp.cleanup)
         failures = [0]
-        platform_doctor.check_rendered_workflow_mode(root, {"publish_mode": "direct"}, failures)
+        platform_doctor.check_rendered_workflow_mode(root, _config(publish_mode="direct"), failures)
         self.assertEqual(failures[0], 1)
 
     def test_direct_mode_accepts_push_health_trigger(self) -> None:
         root, tmp = self._root("on:\n  pull_request:\n  push:\n  workflow_dispatch:\n")
         self.addCleanup(tmp.cleanup)
         failures = [0]
-        platform_doctor.check_rendered_workflow_mode(root, {"publish_mode": "direct"}, failures)
+        platform_doctor.check_rendered_workflow_mode(root, _config(publish_mode="direct"), failures)
         self.assertEqual(failures[0], 0)
 
     def test_backlog_config_allows_legacy_renders_but_rejects_partial_authoring_contract(self) -> None:

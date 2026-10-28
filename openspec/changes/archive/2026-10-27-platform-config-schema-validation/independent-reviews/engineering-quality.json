@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
+    "base_ref": "origin/main",
+    "candidate_head": "93d374c0efb62e21fa9cd9141dde982ef4d3c188",
+    "diff_sha256": "c70f4f107df8825d136fc77899fc45dada2557d8a0c04da687aedf53d97ace9f"
+  },
+  "completed_at": "2026-10-28T13:29:13+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py `sys.excepthook = _report_platform_config_error` runs at import time. Any library or test that imports the module gets the hook, and a chained hook installed earlier is only reached through `_default`, which is captured at import. Because the error is printed as one line, the origin of an unexpected config failure (which call site raised it) is lost. Only uncaught errors are affected. Consider installing the hook from entry points, or keeping the traceback available behind an env flag.",
+      "id": "excepthook-global-side-effect",
+      "severity": "advisory",
+      "summary": "Importing _platform_common replaces sys.excepthook for the whole process, and the hook hides the traceback for every PlatformConfigError."
+    },
+    {
+      "evidence": "template/scripts/shared_workspace.py:107-111: `_configured(integration)[\"workflow_profile\"]` replaced a `config_path.is_file()` check that returned False. The handler still catches only `(OSError, SharedWorkspaceError)`. A checkout where `integration_root` resolves but the config is missing or incomplete (the disposable-fixture case the comment mentions) now raises PlatformConfigError, a RuntimeError, from a predicate. This matches the 'missing file is an error' intent but is an unannounced behaviour change in a boolean probe.",
+      "id": "shared-workspace-applicable-raises-on-config",
+      "severity": "advisory",
+      "summary": "shared_workspace_applicable no longer treats a missing or invalid config as 'not applicable'. It now raises, because its except clause doesn't cover PlatformConfigError or TOMLDecodeError."
+    },
+    {
+      "evidence": "template/scripts/capability_manager.py `configured_providers`: `config = _load_toml(root / \".dev-platform.toml\")` then `config[\"agent_tools\"]`. The default was removed but the loader was not routed through read_project_config, unlike dev.py and platform_bootstrap.py. The rest of the schema is enforced at read time; this path isn't.",
+      "id": "capability-manager-raw-agent-tools",
+      "severity": "advisory",
+      "summary": "capability_manager still reads .dev-platform.toml through its own raw loader. A missing agent_tools key now surfaces as a bare KeyError, not the named schema diagnostic."
+    }
+  ],
+  "launched_at": "2026-10-28T13:28:18+00:00",
+  "output_sha256": "4bac9a9e9b879e14572064999bf786a63d81b6830d04debe2ab1a299242f92ae",
+  "perspective": "engineering-quality",
+  "request_id": "e55c9b3f-9fc6-4b87-bb60-d6e9f87f2b53",
+  "reviewer": {
+    "context_id": "d823b2ce-d2af-4c70-8c32-67b547f57f9b",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-db39e198-d1b5-4635-8142-68f5d49ce20a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43397
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 125578
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54765
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55277
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2147
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e07a748712871ebad89c7d49349a4dbb5dd27593781d033cdc175e04b53baf5a"
+}

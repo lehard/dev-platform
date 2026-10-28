@@ -11,6 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import write_platform_config  # noqa: E402
 import publication_state  # noqa: E402
 
 
@@ -30,6 +32,7 @@ class PublicationStateTestCase(unittest.TestCase):
         git("config", "user.name", "Test", cwd=self.root)
         git("config", "user.email", "test@example.invalid", cwd=self.root)
         (self.root / "file.txt").write_text("base\n", encoding="utf-8")
+        write_platform_config(self.root)
         git("add", ".", cwd=self.root)
         git("commit", "-m", "base", cwd=self.root)
         git("switch", "-c", "agent/task", cwd=self.root)

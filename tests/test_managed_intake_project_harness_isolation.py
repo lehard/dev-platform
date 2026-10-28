@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from _platform_config import platform_config_text  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 
@@ -89,7 +91,7 @@ class ManagedIntakeProjectHarnessIsolationTests(unittest.TestCase):
         for args in (["init", "-q", "-b", "main"], ["config", "user.name", "t"], ["config", "user.email", "t@example.invalid"]):
             subprocess.run(["git", *args], cwd=root, check=True)
         (root / ".dev-platform.toml").write_text(
-            'workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8"
+            platform_config_text(workflow_profile="standard"), encoding="utf-8"
         )
         subprocess.run(["git", "add", ".dev-platform.toml"], cwd=root, check=True)
         subprocess.run(["git", "commit", "-qm", "initial"], cwd=root, check=True)

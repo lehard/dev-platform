@@ -13,6 +13,9 @@ sys.path.insert(0, str(SCRIPTS))
 
 import _platform_common  # noqa: E402
 
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
+
 
 class PlatformCommonTests(unittest.TestCase):
     def test_checked_git_failure_is_actionable_bounded_and_redacted(self) -> None:
@@ -62,6 +65,111 @@ class PlatformCommonTests(unittest.TestCase):
         self.assertNotEqual(done.returncode, 0)
         self.assertIn("shared_workspace", done.stderr)
         self.assertIn("ModuleNotFoundError", done.stderr)
+
+
+
+class PlatformConfigSchemaTests(unittest.TestCase):
+    def setUp(self) -> None:
+        import tempfile
+
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def read(self) -> dict:
+        return _platform_common.read_platform_config(self.root)
+
+    def test_missing_file_is_an_explicit_error(self) -> None:
+        with self.assertRaises(_platform_common.PlatformConfigError) as raised:
+            self.read()
+        self.assertIn(".dev-platform.toml is missing", str(raised.exception))
+
+    def test_missing_required_key_names_key_file_and_line_to_add(self) -> None:
+        path = write_platform_config(self.root, omit=("main_branch",))
+        with self.assertRaises(_platform_common.PlatformConfigError) as raised:
+            self.read()
+        message = str(raised.exception)
+        self.assertIn(str(path), message)
+        self.assertIn("missing required key main_branch", message)
+        self.assertIn('add `main_branch = "<value>"`', message)
+
+    def test_missing_required_path_names_the_paths_table(self) -> None:
+        write_platform_config(self.root, omit=("paths.friction_state",))
+        with self.assertRaises(_platform_common.PlatformConfigError) as raised:
+            self.read()
+        self.assertIn("paths.friction_state", str(raised.exception))
+        self.assertIn("under [paths]", str(raised.exception))
+
+    def test_wrong_type_names_key_and_expected_type(self) -> None:
+        write_platform_config(self.root, protected_main="yes")
+        with self.assertRaises(_platform_common.PlatformConfigError) as raised:
+            self.read()
+        self.assertIn("protected_main must be a bool", str(raised.exception))
+
+    def test_boolean_is_not_accepted_for_an_integer_key(self) -> None:
+        write_platform_config(self.root, schema_version=True)
+        with self.assertRaises(_platform_common.PlatformConfigError):
+            self.read()
+
+    def test_optional_path_uses_the_schema_default_only_when_absent(self) -> None:
+        write_platform_config(self.root)
+        self.assertEqual(
+            self.read()["paths"]["pending_completed_worktree_cleanup"],
+            ".claude/pending-completed-worktree-cleanup.json",
+        )
+        write_platform_config(self.root, paths={"pending_completed_worktree_cleanup": ".claude/custom.json"})
+        self.assertEqual(self.read()["paths"]["pending_completed_worktree_cleanup"], ".claude/custom.json")
+
+    def test_accessors_return_validated_values_without_substitutes(self) -> None:
+        write_platform_config(self.root, protected_main=False, pr_merge_mode="manual", scm_provider="GitLab")
+        config = self.read()
+        self.assertIs(_platform_common.protected_main(config), False)
+        self.assertEqual(_platform_common.pr_merge_mode(config), "manual")
+        self.assertEqual(_platform_common.scm_provider(config), "gitlab")
+        with self.assertRaises(KeyError):
+            _platform_common.pr_merge_mode({})
+
+    def test_source_and_template_configurations_satisfy_the_schema(self) -> None:
+        import re
+        import tomllib
+
+        # The committed public source contract is what CI and hosted workers install.
+        source = ROOT / "dev-platform" / "source-contract.toml"
+        _platform_common.validate_platform_config(tomllib.loads(source.read_text(encoding="utf-8")), source)
+        # The template renders every required key, so a fresh project always validates.
+        template = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
+        sections: dict[str, set[str]] = {"": set()}
+        current = ""
+        for line in template.splitlines():
+            header = re.fullmatch(r"\[([\w.]+)\]", line.strip())
+            if header:
+                current = header.group(1)
+                sections.setdefault(current, set())
+                continue
+            assignment = re.match(r"(\w+) = ", line)
+            if assignment:
+                sections[current].add(assignment.group(1))
+        self.assertLessEqual(set(_platform_common.PLATFORM_CONFIG_REQUIRED), sections[""])
+        for section, fields in _platform_common.PLATFORM_CONFIG_REQUIRED_TABLES.items():
+            self.assertLessEqual(set(fields), sections[section], section)
+        self.assertLessEqual(set(_platform_common.PLATFORM_CONFIG_OPTIONAL_DEFAULTS["paths"]), sections["paths"])
+
+    def test_entry_point_reports_a_configuration_error_in_one_line(self) -> None:
+        subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
+        write_platform_config(self.root, omit=("main_branch",))
+        result = subprocess.run(
+            [sys.executable, str(SCRIPTS / "select_checks.py")], cwd=self.root, capture_output=True, text=True, check=False
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+        self.assertIn("platform configuration error:", result.stderr)
+        self.assertIn("missing required key main_branch", result.stderr)
+
+    def test_fixture_text_is_complete(self) -> None:
+        import tomllib
+
+        _platform_common.validate_platform_config(tomllib.loads(platform_config_text()), self.root / "fixture.toml")
 
 
 if __name__ == "__main__":

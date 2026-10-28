@@ -134,7 +134,7 @@ def check_rendered_workflow_mode(root: Path, config: dict, failures: list[int]) 
     text = workflow.read_text(encoding="utf-8")
     if not TOP_LEVEL_PR_RE.search(text):
         fail("dev-platform workflow is missing the pull_request gate"); failures[0] += 1
-    mode = str(config.get("publish_mode", "pr"))
+    mode = config["publish_mode"]
     has_push = bool(TOP_LEVEL_PUSH_RE.search(text))
     if mode == "direct" and not has_push:
         fail("publish_mode=direct but rendered dev-platform workflow has no main push health trigger"); failures[0] += 1
@@ -199,7 +199,7 @@ def check_ci_runner_agreement(root: Path, config: dict, failures: list[int]) -> 
     """Prove the committed platform-ci and label-provision runners agree with the recorded Copier answers."""
     if scm_provider(config) == "gitlab":
         return
-    if str(config.get("platform_version", "")) == "source":
+    if config["platform_version"] == "source":
         return  # the source checkout is not a rendered project and records no Copier answers
     kind = copier_answer(root, "ci_runner")
     if kind not in CI_RUNNERS:
@@ -330,7 +330,7 @@ def check_task_start_contract(root: Path, config: dict, harness: str, failures: 
     """
     if harness != "platform":
         return  # the contract only governs the platform-owned managed-intake entrypoint
-    if str(config.get("platform_version", "")) == "source":
+    if config["platform_version"] == "source":
         return  # source checkout re-executes the template module as a CLI shim, not an importable API
     path = root / "scripts" / "start_task.py"
     if not path.exists():
@@ -445,7 +445,7 @@ def check_platform_check_contract(root: Path, config: dict, harness: str) -> Non
     if harness != "platform":
         return
     try:
-        relative = str(config.get("paths", {}).get("checks", "dev-platform/checks.toml"))
+        relative = config["paths"]["checks"]
         with (root / relative).open("rb") as handle:
             checks_config = tomllib.load(handle)
         checks = checks_config.get("checks", {})
@@ -497,7 +497,7 @@ def check_engineering_capabilities(root: Path, failures: list[int]) -> None:
 
 def check_platform_divergence_contract(root: Path, config: dict, failures: list[int]) -> None:
     """Fail on undeclared or unsafe local divergence from the installed release (see platform_divergence.py)."""
-    if str(config.get("platform_version", "")) == "source":
+    if config["platform_version"] == "source":
         return  # the source checkout is not a rendered project and carries no release manifest
     result = check_platform_divergence(root)
     for problem in result.problems:
@@ -515,7 +515,7 @@ def main() -> int:
     config = read_platform_config(root)
     check_development_backlog_config(config, failures)
     check_task_intake_reference(root, config, failures)
-    workflow_profile = str(config.get("workflow_profile", "standard"))
+    workflow_profile = config["workflow_profile"]
     harness = harness_mode(config)
     provider = scm_provider(config)
     if provider not in {"github", "gitlab"}:
@@ -560,7 +560,7 @@ def main() -> int:
     check_platform_divergence_contract(root, config, failures)
 
     commit = copier_commit(root)
-    configured_version = str(config.get("platform_version", ""))
+    configured_version = config["platform_version"]
     if commit and SEMVER_TAG_RE.fullmatch(commit):
         expected_version = commit[1:]
         if configured_version == expected_version:
@@ -588,7 +588,7 @@ def main() -> int:
     else:
         ok("no unresolved Copier/Git conflict artifacts")
 
-    board_rel = str(config.get("paths", {}).get("agent_board", ".claude/agents-board.json"))
+    board_rel = config["paths"]["agent_board"]
     ignored = subprocess.run(["git", "check-ignore", "-q", board_rel], cwd=root)
     if ignored.returncode == 0: ok(f"machine-local agent state is ignored: {board_rel}")
     else:

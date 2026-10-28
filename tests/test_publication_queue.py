@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -10,6 +11,8 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import write_platform_config  # noqa: E402
 import publication_queue as queue  # noqa: E402
 from publication_state import RequiredCheckState  # noqa: E402
 
@@ -21,6 +24,13 @@ ROOT_PATH = Path("/unused")
 
 
 def setUpModule() -> None:
+    # ROOT_PATH is a bare directory carrying a valid platform configuration: the
+    # queue reads its trust sources from the project config, which must exist.
+    global ROOT_PATH
+    workspace = tempfile.TemporaryDirectory()
+    unittest.addModuleCleanup(workspace.cleanup)
+    ROOT_PATH = Path(workspace.name)
+    write_platform_config(ROOT_PATH)
     # Finalization of the exact PR head is covered by test_post_review_finalization.
     patcher = patch.object(queue, "_require_finalized")
     patcher.start()
@@ -1575,14 +1585,17 @@ class TrustConfigurationTests(unittest.TestCase):
         os.environ.pop(queue.COORDINATOR_APP_ENV, None)
         os.environ.pop("DEV_PLATFORM_OPERATOR_CONFIG", None)
 
-    def config(self, text: str) -> None:
-        (self.root / ".dev-platform.toml").write_text(text, encoding="utf-8")
+    def config(self, extra: str = "", **top) -> None:
+        write_platform_config(self.root, extra=extra, **top)
+
+    def invalid_toml(self) -> None:
+        (self.root / ".dev-platform.toml").write_text("this is = = not toml", encoding="utf-8")
 
     def operator(self, text: str, *, write: bool = True) -> None:
         path = self.root / "operator.toml"
         if write:
             path.write_text(text, encoding="utf-8")
-        self.config(f'[operator]\nenabled = true\nconfig_path = "{path}"\n')
+        self.config(f'[operator]\nenabled = true\nconfig_path = "{path}"')
 
     def test_valid_sources_are_unioned_with_the_environment_name(self) -> None:
         import os
@@ -1590,21 +1603,22 @@ class TrustConfigurationTests(unittest.TestCase):
         os.environ[queue.COORDINATOR_APP_ENV] = "env-app"
         self.operator('[publication]\ncoordinator_app = "operator-app"\n')
         self.assertEqual(queue.trusted_apps(self.root), {"env-app", "operator-app"})
-        self.config('[publication]\ncoordinator_app = "project-app"\n')
+        self.config('[publication]\ncoordinator_app = "project-app"')
         self.assertEqual(queue.trusted_apps(self.root), {"env-app", "project-app"})
 
     def test_documented_absence_contributes_nothing_without_error(self) -> None:
-        self.assertEqual(queue.trusted_apps(self.root), frozenset())  # no project config
-        self.config('[operator]\nenabled = false\n')
+        with self.assertRaisesRegex(queue.QueueError, r"trust source \.dev-platform\.toml is unreadable or invalid: .*is missing"):
+            queue.trusted_apps(self.root)  # no project config is an explicit failure, not an empty trust set
+        self.config('[operator]\nenabled = false')
         self.assertEqual(queue.trusted_apps(self.root), frozenset())  # operator disabled, no [publication]
         self.operator("")  # enabled operator config without a publication table
         self.assertEqual(queue.trusted_apps(self.root), frozenset())
 
     def test_invalid_configured_sources_raise_naming_the_source(self) -> None:
         cases = {
-            "invalid TOML": (lambda: self.config("this is = = not toml"), r"\.dev-platform\.toml is unreadable"),
-            "non-table publication": (lambda: self.config('publication = "x"\n'), r"\.dev-platform\.toml is unreadable"),
-            "non-string app": (lambda: self.config("[publication]\ncoordinator_app = 5\n"), r"\.dev-platform\.toml is unreadable"),
+            "invalid TOML": (self.invalid_toml, r"\.dev-platform\.toml is unreadable"),
+            "non-table publication": (lambda: self.config(publication="x"), r"\.dev-platform\.toml is unreadable"),
+            "non-string app": (lambda: self.config("[publication]\ncoordinator_app = 5"), r"\.dev-platform\.toml is unreadable"),
             "missing operator config": (lambda: self.operator("", write=False), r"operator config is unreadable or invalid: operator configuration was requested"),
             "invalid operator TOML": (lambda: self.operator("= broken"), r"operator config is unreadable or invalid: "),
             "non-string operator app": (lambda: self.operator("[publication]\ncoordinator_app = [1]\n"), r"operator config is unreadable or invalid: "),
@@ -1616,8 +1630,9 @@ class TrustConfigurationTests(unittest.TestCase):
             (self.root / "operator.toml").unlink(missing_ok=True)
 
     def test_operator_override_cannot_mask_invalid_project_trust_source(self) -> None:
-        for text in ('publication = "invalid"\n', "[publication]\ncoordinator_app = 123\n"):
-            self.config(text + '[operator]\nenabled = true\nconfig_path = "operator.toml"\n')
+        operator_table = '[operator]\nenabled = true\nconfig_path = "operator.toml"'
+        for text in ({"publication": "invalid"}, {"extra": "[publication]\ncoordinator_app = 123\n" + operator_table}):
+            self.config(**({"extra": operator_table, **text} if "extra" not in text else text))
             (self.root / "operator.toml").write_text('[publication]\ncoordinator_app = "operator-app"\n', encoding="utf-8")
             with self.subTest(text), self.assertRaisesRegex(queue.QueueError, r"trust source \.dev-platform\.toml"):
                 queue.trusted_apps(self.root)
@@ -1625,7 +1640,7 @@ class TrustConfigurationTests(unittest.TestCase):
     def test_admission_and_worker_callers_stop_instead_of_narrowing_trust(self) -> None:
         import lifecycle_workers
 
-        self.config("this is = = not toml")
+        self.invalid_toml()
         with self.assertRaisesRegex(queue.QueueError, "trust source .dev-platform.toml"):
             lifecycle_workers._coordinator_trust(self.root)
         with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=pr(1)), \

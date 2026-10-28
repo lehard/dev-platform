@@ -11,8 +11,10 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import finish_task  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
 import managed_task  # noqa: E402
 import publication_state  # noqa: E402
 import task_reconciliation  # noqa: E402
@@ -46,9 +48,7 @@ class TaskReconciliationTests(unittest.TestCase):
         run("git", "--git-dir", str(self.remote), "symbolic-ref", "HEAD", "refs/heads/main", cwd=self.base)
         self.task = self.base / "task"
         run("git", "clone", str(self.remote), str(self.task), cwd=self.base); configure(self.task)
-        (self.task / ".dev-platform.toml").write_text(
-            'main_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\npublish_mode = "pr"\n', encoding="utf-8"
-        )
+        write_platform_config(self.task, workflow_profile="standard")
         git("add", ".dev-platform.toml", cwd=self.task); git("commit", "-m", "configure platform", cwd=self.task); git("push", cwd=self.task)
         git("switch", "-c", "agent/task", cwd=self.task)
 
@@ -250,8 +250,7 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
 
     def test_quick_task_reconcile_cli_named_by_blockers_works(self) -> None:
-        config = self.task / ".dev-platform.toml"
-        config.write_text(config.read_text(encoding="utf-8") + 'platform_version = "1.9.3"\n', encoding="utf-8")
+        write_platform_config(self.task, workflow_profile="standard", platform_version="1.9.3")
         git("add", ".dev-platform.toml", cwd=self.task); git("commit", "-m", "pin platform version", cwd=self.task)
         task_head = self.commit_task_work()
         self.advance_main()
@@ -324,8 +323,7 @@ class TaskReconciliationTests(unittest.TestCase):
 
     def test_freshness_blockers_name_the_working_reconcile_command(self) -> None:
         # A head behind main reads the lifecycle contract (portable here) to decide queue integration.
-        config = self.task / ".dev-platform.toml"
-        config.write_text(config.read_text(encoding="utf-8") + 'platform_version = "1.9.3"\n', encoding="utf-8")
+        write_platform_config(self.task, workflow_profile="standard", platform_version="1.9.3")
         self.commit_task_work()
         self.advance_main()
         git("fetch", "origin", cwd=self.task)
@@ -378,8 +376,7 @@ class TaskReconciliationTests(unittest.TestCase):
 
     def test_read_only_status_detects_advanced_main_without_updating_origin_main(self) -> None:
         # A head behind main reads the lifecycle contract (portable here) to decide candidacy.
-        config = self.task / ".dev-platform.toml"
-        config.write_text(config.read_text(encoding="utf-8") + 'platform_version = "1.9.3"\n', encoding="utf-8")
+        write_platform_config(self.task, workflow_profile="standard", platform_version="1.9.3")
         observed_before = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
         self.advance_main()
 

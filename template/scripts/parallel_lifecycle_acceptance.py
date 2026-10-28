@@ -108,13 +108,53 @@ SPEC = ("# {cap} Specification\n\n## Purpose\nFixture capability {cap} for the p
         "#### Scenario: {title}\n- **WHEN** it runs\n- **THEN** it provides {title}\n")
 
 
+# A complete platform configuration: the reader validates every required key.
+# The values keep the scenario's earlier semantics (standard profile, unprotected
+# main, manual PR merge, no board).
+SEED_CONFIG = """schema_version = 2
+platform_version = "1.0.0"
+platform_ci_ref = "fixture"
+project_name = "Parallel lifecycle fixture"
+project_slug = "parallel-lifecycle-fixture"
+main_branch = "main"
+workflow_profile = "standard"
+harness_mode = "platform"
+protected_main = false
+publish_mode = "pr"
+pr_merge_mode = "manual"
+scm_provider = "github"
+agent_tools = "claude,codex"
+
+[capabilities]
+openspec = true
+github_sync = true
+feature_branches = true
+worktrees = false
+agent_board = false
+platform_git_lifecycle = true
+
+[paths]
+worktrees = ".claude/worktrees"
+agent_board = ".claude/agents-board.json"
+main_merge_lock = ".claude/main-merge.lock"
+pending_worktrees = ".claude/pending-worktrees.md"
+friction_log = ".claude/agent-friction.jsonl"
+friction_state = ".claude/agent-friction-state.json"
+friction_reports = ".claude/reports/process-improvement"
+checks = "dev-platform/checks.toml"
+
+[independent_review]
+enabled = true
+provider = "codex"
+"""
+
+
 def build_seed(seed: Path) -> None:
     seed.mkdir(parents=True)
     git(seed, "init", "-q", "-b", "main")
     git(seed, "config", "user.name", "Fixture")
     git(seed, "config", "user.email", "fixture@localhost")
-    put(seed / ".dev-platform.toml",
-        'main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n[independent_review]\nenabled = true\nprovider = "codex"\n')
+    put(seed / ".dev-platform.toml", SEED_CONFIG)
     put(seed / "dev-platform/checks.toml", '[settings]\nfull_commands = ["python3 check.py"]\n')
     put(seed / "check.py", CHECK)
     put(seed / "shared.py", SHARED)

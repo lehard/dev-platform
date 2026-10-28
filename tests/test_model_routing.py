@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 from _platform_modules import load_platform_module  # noqa: E402
+from _platform_config import platform_config_text  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -29,7 +30,7 @@ routing = load("model_routing", "model_routing.py")
 agent_friction = load("agent_friction", "agent_friction.py")
 
 
-CONTRACT = 'main_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n'
+CONTRACT = platform_config_text()
 
 
 def git(cwd: Path, *args: str) -> None:
@@ -1492,8 +1493,7 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
         change = self.clone / "openspec" / "changes" / "routing-change"
         change.mkdir(parents=True)
         (change / ".managed-task.json").write_text(json.dumps({"source_issue": "owner/backlog#7", "change": "routing-change"}), encoding="utf-8")
-        (self.clone / ".dev-platform.toml").write_text(CONTRACT +
-            "workflow_profile = \"standard\"\n"
+        (self.clone / ".dev-platform.toml").write_text(platform_config_text(workflow_profile="standard") +
             "[model_routing.codex]\nstandard_model = \"cheap-codex\"\ncomplex_model = \"strong-codex\"\n",
             encoding="utf-8",
         )
@@ -3097,7 +3097,7 @@ class EarlyRoutingGateTemplateParityTests(unittest.TestCase):
             (project / "dev-platform").mkdir()
             shutil.copy2(SCRIPTS.parent / "dev-platform" / "blocking-gates.toml", project / "dev-platform" / "blocking-gates.toml")
             (project / ".gitignore").write_text(".claude/\n.managed-task-state.json\n__pycache__/\n", encoding="utf-8")
-            (project / ".dev-platform.toml").write_text('workflow_profile = "multi-agent"\n' + CONTRACT, encoding="utf-8")
+            (project / ".dev-platform.toml").write_text(CONTRACT, encoding="utf-8")
             (project / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
             git(project, "add", "-A")
             git(project, "commit", "-qm", "rendered project")

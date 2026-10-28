@@ -283,7 +283,7 @@ def recover_incomplete_managed_start(
     """
     worktree = Path(str(transaction["worktree"])).resolve()
     branch = str(transaction["branch"])
-    main_branch = str(read_platform_config(root).get("main_branch", "main"))
+    main_branch = read_platform_config(root)["main_branch"]
     path_exists = worktree.exists()
     branch_exists = _branch_exists(root, branch)
     board_item = _board_item_for_identity(root, worktree, branch)

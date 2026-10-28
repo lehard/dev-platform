@@ -10,8 +10,20 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+sys.path.insert(0, str(ROOT / "tests"))
 
 import managed_project_status  # noqa: E402
+from _platform_config import write_platform_config  # noqa: E402
+
+
+BACKLOG_TABLE = (
+    "[development_backlog]\n"
+    'repository = "example-org/development-backlog"\n'
+    'project_label = "project:dev-platform"\n'
+    'default_priority = "P2"\n'
+    'project_owner = "lehard"\n'
+    "project_number = 1"
+)
 
 
 def project_payload(*, current: str = "Ready", duplicate: bool = False) -> dict:
@@ -100,10 +112,7 @@ class EnsureItemTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
-        (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\n[development_backlog]\n'
-            'repository = "example-org/development-backlog"\nproject_label = "project:dev-platform"\n'
-            'default_priority = "P2"\nproject_owner = "lehard"\nproject_number = 1\n', encoding="utf-8")
+        write_platform_config(self.root, extra=BACKLOG_TABLE)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
@@ -195,16 +204,7 @@ class ManagedProjectStatusTests(unittest.TestCase):
         (self.root / "openspec" / "changes" / "managed" / ".managed-task.json").write_text(
             json.dumps({"source_issue": "example-org/development-backlog#8"}), encoding="utf-8"
         )
-        (self.root / ".dev-platform.toml").write_text(
-            'main_branch = "main"\n'
-            '[development_backlog]\n'
-            'repository = "example-org/development-backlog"\n'
-            'project_label = "project:dev-platform"\n'
-            'default_priority = "P2"\n'
-            'project_owner = "lehard"\n'
-            'project_number = 1\n',
-            encoding="utf-8",
-        )
+        write_platform_config(self.root, extra=BACKLOG_TABLE)
 
     def tearDown(self) -> None:
         self.tmp.cleanup()

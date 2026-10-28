@@ -25,7 +25,7 @@ def main() -> int:
     integration = main_root()
     preflight(integration)
     config = read_platform_config(caller)
-    branch = str(config.get("main_branch", "main"))
+    branch = config["main_branch"]
     remote_branch = f"{args.remote}/{branch}"
     require_origin(integration, args.remote)
     if args.lock_timeout < 0:

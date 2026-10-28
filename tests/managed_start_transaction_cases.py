@@ -5,10 +5,12 @@ import json
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +18,10 @@ SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 managed_start = load_platform_module("managed_start_transaction_cases_impl", SCRIPTS / "start_managed_task.py")
 import managed_task  # noqa: E402
+
+
+def platform_config(**overrides) -> dict:
+    return tomllib.loads(platform_config_text(**overrides))
 
 
 def package() -> managed_task.Package:
@@ -51,7 +57,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
 
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=machine_path),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
@@ -77,7 +83,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
 
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
@@ -99,7 +105,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
 
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
@@ -126,7 +132,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
 
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
@@ -177,7 +183,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
 
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
@@ -211,7 +217,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
                 (worktrees / pkg.change).resolve().mkdir(parents=True)
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=branch_exists),
                 patch.object(managed_start, "_board_item_for_identity", return_value=board_item),
@@ -230,7 +236,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
             before = receipt.read_text()
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", side_effect=managed_task.ManagedTaskError("multiple board entries")),
@@ -265,7 +271,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
 
             with (
                 patch.object(managed_start, "discover_task", return_value=pkg),
-                patch.object(managed_start, "read_platform_config", return_value={"workflow_profile": "multi-agent", "main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config(workflow_profile="multi-agent")),
                 patch.object(managed_start, "machine_path", side_effect=lambda key, _root: worktrees if key == "worktrees" else Path(tmp) / "board.json"),
                 patch.object(managed_start, "_branch_exists", return_value=False),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
@@ -287,6 +293,8 @@ class ManagedStartTransactionTests(unittest.TestCase):
             subprocess.run(["git", "init", "-q", "-b", "main"], cwd=root, check=True)
             subprocess.run(["git", "config", "user.name", "test"], cwd=root, check=True)
             subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+            write_platform_config(root)
+            subprocess.run(["git", "add", ".dev-platform.toml"], cwd=root, check=True)
             (root / "README").write_text("base\n"); subprocess.run(["git", "add", "README"], cwd=root, check=True)
             subprocess.run(["git", "commit", "-qm", "base"], cwd=root, check=True)
             worktrees = Path(tmp) / "worktrees"; worktrees.mkdir()
@@ -299,7 +307,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
             sentinel = sibling / "keep.txt"; sentinel.write_text("sibling work\n")
             transaction = {"worktree": str(target), "branch": branch}
             with (
-                patch.object(managed_start, "read_platform_config", return_value={"main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config()),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
             ):
                 self.assertTrue(managed_start.recover_incomplete_managed_start(root, pkg, transaction))
@@ -330,7 +338,7 @@ class ManagedStartTransactionTests(unittest.TestCase):
             sentinel = target / "manual.txt"; sentinel.write_text("keep\n")
             transaction = {"worktree": str(target), "branch": f"agent/{pkg.change}"}
             with (
-                patch.object(managed_start, "read_platform_config", return_value={"main_branch": "main"}),
+                patch.object(managed_start, "read_platform_config", return_value=platform_config()),
                 patch.object(managed_start, "_branch_exists", return_value=True),
                 patch.object(managed_start, "_board_item_for_identity", return_value=None),
                 patch.object(managed_start, "_registered_worktrees", return_value=set()),

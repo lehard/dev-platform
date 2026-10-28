@@ -10,6 +10,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_SOURCE = ROOT / "template" / "scripts"
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_config import write_platform_config  # noqa: E402
 
 
 def run(*args: str, cwd: Path, check: bool = True, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -80,10 +82,7 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
         install_scripts(seed)
         (seed / "README.md").write_text("seed\n", encoding="utf-8")
         (seed / ".gitignore").write_text(".claude/\n__pycache__/\n*.py[cod]\n", encoding="utf-8")
-        (seed / ".dev-platform.toml").write_text(
-            'platform_version = "1.0.0"\nmain_branch = "main"\nworkflow_profile = "standard"\nharness_mode = "platform"\nprotected_main = true\npublish_mode = "pr"\npr_merge_mode = "auto"\n[capabilities]\nagent_board = false\n',
-            encoding="utf-8",
-        )
+        write_platform_config(seed, workflow_profile="standard", capabilities={"agent_board": False})
         git("add", ".", cwd=seed)
         git("commit", "-m", "seed", cwd=seed)
         git("remote", "add", "origin", str(self.remote), cwd=seed)

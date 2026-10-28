@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from _platform_config import write_platform_config  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,9 +51,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
         (root / "README.md").write_text("test\n", encoding="utf-8")
         git(root, "add", "README.md")
         git(root, "commit", "-qm", "initial")
-        (root / ".dev-platform.toml").write_text(
-            'workflow_profile = "standard"\nharness_mode = "platform"\nmain_branch = "main"\npaths = {checks = "dev-platform/checks.toml"}\n', encoding="utf-8"
-        )
+        write_platform_config(root, workflow_profile="standard")
         scripts = root / "scripts"
         scripts.mkdir()
         for name in ("agent_doctor.py", "project_sync.py"):
@@ -171,9 +170,7 @@ class LightProfileControlTests(unittest.TestCase):
             (root / "README.md").write_text("test\n", encoding="utf-8")
             git(root, "add", "README.md")
             git(root, "commit", "-qm", "initial")
-            (root / ".dev-platform.toml").write_text(
-                'workflow_profile = "light"\nharness_mode = "platform"\nmain_branch = "main"\n', encoding="utf-8"
-            )
+            write_platform_config(root, workflow_profile="light")
             scripts = root / "scripts"
             scripts.mkdir()
             for name in ("agent_doctor.py", "project_sync.py"):

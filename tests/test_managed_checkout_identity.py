@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -13,10 +14,16 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+sys.path.insert(0, str(ROOT / "tests"))
 import managed_task  # noqa: E402
 import openspec_lifecycle  # noqa: E402
 import select_checks  # noqa: E402
 import task_content_identity  # noqa: E402
+from _platform_config import platform_config_text, write_platform_config  # noqa: E402
+
+
+def platform_config() -> dict:
+    return tomllib.loads(platform_config_text())
 
 
 def git(root: Path, *args: str) -> str:
@@ -32,7 +39,8 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
         git(self.integration, "config", "user.name", "test")
         git(self.integration, "config", "user.email", "test@example.invalid")
         (self.integration / "README.md").write_text("initial\n", encoding="utf-8")
-        git(self.integration, "add", "README.md")
+        write_platform_config(self.integration)
+        git(self.integration, "add", "README.md", ".dev-platform.toml")
         git(self.integration, "commit", "-qm", "initial")
         self.task = Path(self.tmp.name) / "task"
         git(self.integration, "worktree", "add", "-q", "-b", "agent/managed-checkout", str(self.task))
@@ -103,7 +111,7 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
                 mock.patch.object(
                     select_checks,
                     "read_platform_config",
-                    return_value={"harness_mode": "platform", "main_branch": "main"},
+                    return_value=platform_config(),
                 ),
                 mock.patch("sys.stdout") as stdout,
             ):
@@ -126,7 +134,7 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
                 mock.patch.object(
                     select_checks,
                     "read_platform_config",
-                    return_value={"harness_mode": "platform", "main_branch": "main"},
+                    return_value=platform_config(),
                 ),
                 mock.patch("sys.stdout") as stdout,
             ):
@@ -198,7 +206,7 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
     def test_reusable_quick_evidence_refuses_a_repeated_run(self) -> None:
         reused = {"decision": "reused", "reason": "unchanged", "evidence": "/git/dev-platform-task-evidence.json"}
         with mock.patch.object(openspec_lifecycle, "quick_evidence_reuse", return_value=reused) as decide, \
-                mock.patch.object(select_checks, "read_platform_config", return_value={"main_branch": "main"}):
+                mock.patch.object(select_checks, "read_platform_config", return_value=platform_config()):
             with self.assertRaisesRegex(SystemExit, "Repeated selected-check run refused.*task-evidence.json already proves"):
                 select_checks.refuse_repeated_run(self.task, None, True)
         decide.assert_called_once_with(self.task, base_ref="origin/main")
@@ -290,7 +298,7 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
                 mock.patch.object(
                     select_checks,
                     "read_platform_config",
-                    return_value={"harness_mode": "platform", "main_branch": "main"},
+                    return_value=platform_config(),
                 ),
                 mock.patch("sys.stdout") as stdout,
             ):
