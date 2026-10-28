@@ -221,6 +221,24 @@ def run_precheck(root: Path, paths: list[str], pass_fds: tuple[int, ...] = ()) -
     return record, result
 
 
+# Evidence types whose commands never start a parallel test run; only a selection made entirely of them is light.
+LIGHT_EVIDENCE_TYPES = frozenset({"configuration", "syntax"})
+
+
+def lease_weight(checks: list[dict[str, Any]], precheck: list[str] | None, test_jobs: int) -> int:
+    """Pool tokens for one execution: 1 when every command is labelled light and no precheck runs, else ``test_jobs``.
+
+    An unlabelled command counts as a test command, so a project without ``evidence_types`` keeps the full weight.
+    """
+    if precheck:
+        return test_jobs
+    for check in checks:
+        kinds = list(check.get("evidence_types", []))
+        if len(kinds) != len(check.get("commands", [])) or not set(kinds) <= LIGHT_EVIDENCE_TYPES:
+            return test_jobs
+    return 1
+
+
 def commands_for(checks: list[dict[str, Any]]) -> list[str]:
     commands: list[str] = []
     for check in checks:
@@ -351,9 +369,11 @@ def execute(
     from run_test_groups import resolve_jobs
 
     # One lease around the whole execution (affected-test precheck and command loop): the precheck's and the
-    # commands' test-group runs are nested and reuse it, so a top-level run acquires exactly once.
+    # commands' test-group runs are nested and reuse it, so a top-level run acquires exactly once. A selection of
+    # light commands only (no parallel test run) holds a single token.
     try:
-        with machine_pool.lease(weight=resolve_jobs()[0], purpose="select_checks", bounded=True, root=root) as pool_lease:
+        with machine_pool.lease(weight=lease_weight(checks, precheck, resolve_jobs()[0]), purpose="select_checks",
+                                bounded=True, root=root) as pool_lease:
             return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds,
                                      base_contract, quick_gate)
     except machine_pool.PoolError as exc:
