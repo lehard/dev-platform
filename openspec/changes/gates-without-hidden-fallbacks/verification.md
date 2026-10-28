@@ -27,6 +27,10 @@ Automated-Checks-Evidence: automated-checks.json
 
 - `docs/engineering/agent-workflow.md` documents the base rule; `docs/engineering/openspec-workflow.md` the guard rule for finish and publication.
 
+## Test adaptation
+
+- The first full run failed in two groups: the Explorer drift hook tests used the wrapper's old argv-based `surface_explorer_drift`, and skeletal `publish_pr` tests use roots without a platform configuration, which the configuration-based guard now reads. The hook tests now exercise `drift_base` and `surface_explorer_drift(base)`; the skeletal tests patch only the guard decision, which `GuardByConfigurationTests` covers. The rerun of both groups, the candidate-stage snapshot smoke (18 groups) and the full selected-check run passed.
+
 ## Noticed, not changed
 
 - `task_content_identity.content_identity` returns `None` on a failing `git merge-base`/`git diff`; callers then report "could not be proven equivalent" (named, not silent; outside this slice).

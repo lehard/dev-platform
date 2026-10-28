@@ -1,0 +1,157 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.834,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.556,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.179,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.179,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1242.242,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/select_checks.py",
+        "template/scripts/_platform_common.py",
+        "template/scripts/agent_friction.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/private_lineage.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/select_checks.py",
+        "tests/test_br_publication_identity.py",
+        "tests/test_build_explorer_editorial.py",
+        "tests/test_early_private_reference_guard.py",
+        "tests/test_friction_review.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_select_checks.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_90832c855444b097282be1c19cac6b97",
+    "change": "gates-without-hidden-fallbacks",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/gates-without-hidden-fallbacks",
+    "branch": "agent/br-772-t3-gates-without-hidden-fallbacks",
+    "head": "9da8f01fcb4a54e3899f07cfd4acbb55221b858d",
+    "task_content": {
+      "version": 1,
+      "digest": "2cd666641b334509969c758997e176b4c12232c892a076b7204d8e49d4a86317",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "7f26ea2201eff0dfbf750cde5ddd86e7f15aae48",
+        "docs/engineering/openspec-workflow.md": "3641895f2b9f09352a17761aec5c309923cc037e",
+        "openspec/changes/gates-without-hidden-fallbacks/.managed-task.json": "56c4757738f6dbe4baacd514c42cde3daac3fa2d",
+        "openspec/changes/gates-without-hidden-fallbacks/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+        "openspec/changes/gates-without-hidden-fallbacks/design.md": "25b45116f06ae82709f19e999c23206f7cdd75fe",
+        "openspec/changes/gates-without-hidden-fallbacks/proposal.md": "07012b92cb183a4b590a4e7527449344300365ec",
+        "openspec/changes/gates-without-hidden-fallbacks/specs/completion-lifecycle/spec.md": "d984568ba9ffb55994bc02601734fa166b19f926",
+        "openspec/changes/gates-without-hidden-fallbacks/specs/gate-fail-explicit/spec.md": "c7a23277cb7729ad07ff9b13f4ae71ca81a0dbc3",
+        "openspec/changes/gates-without-hidden-fallbacks/tasks.md": "5f91abba1137312cafedeee76d605a4395579b38",
+        "openspec/changes/gates-without-hidden-fallbacks/verification.md": "ef59dd3a5fcebc903f45af044ecf1732d8f0a259",
+        "scripts/select_checks.py": "b0e5b5d8347a22b145bfe33612002357ea3cbde0",
+        "template/dev-platform/platform-manifest.json": "003cdc7ebeb7a1772eb2c6071a67db84b2f252a1",
+        "template/scripts/_platform_common.py": "769da5827bb529eca91fdefa1bf19f15d537aba5",
+        "template/scripts/agent_friction.py": "fcc24c96e73c7193f1813538b3d84fa390308e7c",
+        "template/scripts/finish_task.py": "19d0b6cbdbc40524eface5dcd716409279e052cd",
+        "template/scripts/private_lineage.py": "61151b2743387c77e08d85df5daaa5bd58347201",
+        "template/scripts/project_publish.py": "a88b37e7ee56967a852afb2a2014f34ab541fd59",
+        "template/scripts/select_checks.py": "2ae08f9ae6b1700971181cbe6a03418f145f1c55",
+        "tests/test_br_publication_identity.py": "6ddabc44e2aab536cfe396b51604b1488b2c7df8",
+        "tests/test_build_explorer_editorial.py": "6bb5ca6ea499023fb0897ce42c353d6b6106458d",
+        "tests/test_early_private_reference_guard.py": "7a1de161581059da1e7e66573fa5f58fac4427e0",
+        "tests/test_friction_review.py": "a4f3427a3376bf8077dddd09a71c43fbd73defa1",
+        "tests/test_git_lifecycle.py": "5c74af9973ce2be6cd72c3197ce8836db0ce7d5b",
+        "tests/test_managed_status_lifecycle.py": "4cf644b75bce6c0239a605121de96cdebdeb3c38",
+        "tests/test_select_checks.py": "7b7880633b21054bb09763161b7c1eae0f99cd87"
+      },
+      "base": "cc00da1bbcc21eb37fb42ff75dec97d34c595484"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "d66ce27c7b3857348e0c949e74cc1f90e8ee96bf7f7a41223209d204422b3500",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "7f26ea2201eff0dfbf750cde5ddd86e7f15aae48",
+      "docs/engineering/openspec-workflow.md": "3641895f2b9f09352a17761aec5c309923cc037e",
+      "openspec/changes/gates-without-hidden-fallbacks/.managed-task.json": "56c4757738f6dbe4baacd514c42cde3daac3fa2d",
+      "openspec/changes/gates-without-hidden-fallbacks/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
+      "openspec/changes/gates-without-hidden-fallbacks/design.md": "25b45116f06ae82709f19e999c23206f7cdd75fe",
+      "openspec/changes/gates-without-hidden-fallbacks/proposal.md": "07012b92cb183a4b590a4e7527449344300365ec",
+      "openspec/changes/gates-without-hidden-fallbacks/specs/completion-lifecycle/spec.md": "d984568ba9ffb55994bc02601734fa166b19f926",
+      "openspec/changes/gates-without-hidden-fallbacks/specs/gate-fail-explicit/spec.md": "c7a23277cb7729ad07ff9b13f4ae71ca81a0dbc3",
+      "openspec/changes/gates-without-hidden-fallbacks/tasks.md": "5f91abba1137312cafedeee76d605a4395579b38",
+      "scripts/select_checks.py": "b0e5b5d8347a22b145bfe33612002357ea3cbde0",
+      "template/scripts/_platform_common.py": "769da5827bb529eca91fdefa1bf19f15d537aba5",
+      "template/scripts/agent_friction.py": "fcc24c96e73c7193f1813538b3d84fa390308e7c",
+      "template/scripts/finish_task.py": "19d0b6cbdbc40524eface5dcd716409279e052cd",
+      "template/scripts/private_lineage.py": "61151b2743387c77e08d85df5daaa5bd58347201",
+      "template/scripts/project_publish.py": "a88b37e7ee56967a852afb2a2014f34ab541fd59",
+      "template/scripts/select_checks.py": "2ae08f9ae6b1700971181cbe6a03418f145f1c55",
+      "tests/test_br_publication_identity.py": "6ddabc44e2aab536cfe396b51604b1488b2c7df8",
+      "tests/test_build_explorer_editorial.py": "6bb5ca6ea499023fb0897ce42c353d6b6106458d",
+      "tests/test_early_private_reference_guard.py": "7a1de161581059da1e7e66573fa5f58fac4427e0",
+      "tests/test_friction_review.py": "a4f3427a3376bf8077dddd09a71c43fbd73defa1",
+      "tests/test_git_lifecycle.py": "5c74af9973ce2be6cd72c3197ce8836db0ce7d5b",
+      "tests/test_managed_status_lifecycle.py": "4cf644b75bce6c0239a605121de96cdebdeb3c38",
+      "tests/test_select_checks.py": "7b7880633b21054bb09763161b7c1eae0f99cd87"
+    },
+    "base": "cc00da1bbcc21eb37fb42ff75dec97d34c595484",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/select_checks.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/agent_friction.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/private_lineage.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/select_checks.py --changed-file tests/test_br_publication_identity.py --changed-file tests/test_build_explorer_editorial.py --changed-file tests/test_early_private_reference_guard.py --changed-file tests/test_friction_review.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_managed_status_lifecycle.py --changed-file tests/test_select_checks.py",
+    "duration_seconds": 410.315,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
