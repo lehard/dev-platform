@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
+    "base_head": "c6f9cb40a69167d01f0a21cba64307f355e933ee",
     "base_ref": "origin/main",
-    "candidate_head": "e7af417fe98843c916aab1f53a38a6f9b95ba4e4",
-    "diff_sha256": "eece919059235fa75929b43722eea25a57110a686b9f315f2d215b7c39beb518"
+    "candidate_head": "148380fc41873f75b70b2bfe60ec0e98d0c72b89",
+    "diff_sha256": "f6af15137669de26dd120205f2f0bb9766771f264377ac352076fa17b83fe9f6"
   },
   "change": "openspec/changes/archive/2026-10-27-rollout-failure-alarm",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-28T11:27:19+00:00",
+  "prepared_at": "2026-10-28T20:33:14+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-27-rollout-failure-alarm/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "6aa8c4fd-516a-4a45-ac50-9027e9664758",
+  "request_id": "c90cd259-c2e9-4551-a49e-4615ca91ed4a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,14 +59,14 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "98178850383ea2f7b143bfa0ffc7f22379bb0848",
-    "digest": "cfbcc87e9e07cf5da5879e28a3b32bd073d16d1ef68817e9251750ab69be3fcc",
+    "base": "c6f9cb40a69167d01f0a21cba64307f355e933ee",
+    "digest": "dc0b6195352f3e01d835e75a74cf000210f44d436331dc5556890d4410cc9d38",
     "paths": {
       ".github/workflows/reconcile-stale-rollouts.yml": "636f6b79847d3c1103f68b990da6395f02395ef1",
-      ".github/workflows/rollout.yml": "20bf6412169c6ee5dd6c3a188c66ffd46322219f",
+      ".github/workflows/rollout.yml": "e66e3eab2f322c0d814eb58e9598f8ee9b0eb246",
       "dev-platform/checks.toml": "1ca38e365dc0cfaf039ee02d029eacf806039258",
-      "docs/managed-rollout.md": "a1a8aa6025918afb3828b6e6db4096379966dd19",
-      "explorer/editorial-review.json": "77ff01edba5dfd3fb926348fd2d9108708cb0d9c",
+      "docs/managed-rollout.md": "86250ef54bc3f1dc3a4c0b24d4d68c5ce2cf2c8e",
+      "explorer/editorial-review.json": "a05d35b519aa6c94eaac9172c2a56d281439716d",
       "explorer/nodes/copier-rollout.toml": "9a5fd75db6970d6c152b3e63267c5506a2d195d9",
       "openspec/changes/rollout-failure-alarm/.managed-task.json": "86d12a5f4ed5ec2cc632305f8786cabed1d68ee3",
       "openspec/changes/rollout-failure-alarm/.openspec.yaml": "1bb6456d1130fd6fd059c0d72f8f3c14f76dc1cb",
@@ -78,7 +78,7 @@
       "scripts/rollout_failure_streak.py": "ced72f8c0845e07e038ff37a03a63113898fbbd0",
       "tests/test_rollout_alarm.py": "2415a366a3ee117db14788044819be6a30ad7aae",
       "tests/test_rollout_failure_streak.py": "ef7fa27796f203019c81e7f1e9e93ff73e098693",
-      "tests/test_rollout_failure_streak_workflow.py": "cca187bcdec35b5fe22ec162d11440b5c8d73809"
+      "tests/test_rollout_failure_streak_workflow.py": "e30c14819c20474371dcf8a9abdb485dc024f69d"
     },
     "scope": "independent-review-v1",
     "version": 1
