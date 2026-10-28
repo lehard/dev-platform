@@ -1959,7 +1959,7 @@ def record_retained_execution(root: Path, *, reason: str) -> dict[str, Any]:
 
     Once the change is archived, the pre-implementation routing boundary has
     passed; callers can only verify the durable history, never repair it late.
-    The single exception is ``_retention_route``: the owner's decision is
+    The single exception is ``_retention_route``: the retention decision is
     already recorded in the plan, so only its outcome is still missing.
     """
     route, path = _retention_route(root)
@@ -2271,13 +2271,15 @@ def _sandboxed_claude_completed(execution: dict[str, Any]) -> bool:
 
 
 def _retention_route(root: Path) -> tuple[Route, Path]:
-    """The active route, or the owner-approved route of this task's archived change.
+    """The active route, or the retained route of this task's archived change.
 
-    Finalize may archive the change of an owner-approved supervisor diff whose
-    approval predates the outcome being recorded on approval. Only that exact
-    shape -- this task's own change, an owner-approved retained plan and no
-    execution evidence -- may record its outcome after archive; every other
-    archived route is refused.
+    Finalize may archive the change of a supervisor-retained plan before its
+    outcome is recorded: an owner-approved diff whose approval predates the
+    outcome being recorded on approval, or a balanced-parent plan retained at
+    route time whose developer handoff carried no outcome. Only those shapes --
+    this task's own change, a retained plan, no execution evidence and, for
+    balanced-parent, no delegation or plan switch -- may record their outcome after archive;
+    every other archived route is refused.
     """
     source_issue, change = current_managed_identity(root)
     _, _, status = resolve_managed_provenance(root, source_issue, change)
@@ -2285,10 +2287,14 @@ def _retention_route(root: Path) -> tuple[Route, Path]:
         return _read_route(root)
     route, path = _read_route_at(_record_path(root, change), source_issue, change)
     plan = _require_plan(route, "recording a retained execution after archive")
-    if plan["mode"] != PLAN_RETAINED or plan.get("policy") != OWNER_APPROVED_POLICY or route.execution is not None:
+    balanced_parent = (plan.get("policy") == BALANCED_PARENT_POLICY and plan.get("delegation") is None
+                       and "switched_from" not in plan)
+    if (plan["mode"] != PLAN_RETAINED or route.execution is not None
+            or not (plan.get("policy") == OWNER_APPROVED_POLICY or balanced_parent)):
         raise RoutingError(
-            f"managed change {change} is archived: only an owner-approved supervisor-retained plan without execution evidence "
-            "may record its retained outcome after archive; any other route cannot be repaired late"
+            f"managed change {change} is archived: only an owner-approved supervisor-retained plan, or a balanced-parent plan "
+            "declared at route time with no delegation, without execution evidence may record its retained outcome after archive; "
+            "any other route cannot be repaired late"
         )
     return route, path
 
