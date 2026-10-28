@@ -214,7 +214,7 @@ targets = ["test_publication_state"]
 mode = "parallel"
 
 [test_groups.publication_queue]
-targets = ["test_publication_queue", "test_publication_queue_workflow"]
+targets = ["test_publication_queue", "test_publication_queue_workflow", "test_queue_archived_readmission"]
 mode = "parallel"
 
 [test_groups.merge_lifecycle_resilience]
