@@ -966,7 +966,7 @@ For a Development Backlog managed task, platform-owned terminal reconciliation S
 
 For platform-owned task execution, the lifecycle SHALL refresh its observation of the configured remote integration branch and verify that the current task head is based on the authoritative remote history before running expensive full/protected validation intended as delivery evidence.
 
-One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. A second bounded exception SHALL exist for a coordinator-managed candidate, whose integration the publication queue performs by merging the current integration branch and gating on required checks of the integrated head. Its developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block. The lifecycle SHALL report that behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record it in the evidence. The declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files. A conflict in any other file or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command. Evidence recorded earlier under the behind-disjoint contract SHALL remain valid. Outside these two exceptions, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
+One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. A second bounded exception SHALL exist for a task the publication queue integrates: a coordinator-managed candidate, or, under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch, a quick task without canonical managed provenance. The queue integrates such a task by merging the current integration branch and gating on required checks of the integrated head. Its developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block. The lifecycle SHALL report that behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record it in the evidence. The declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files. A conflict in any other file or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command. Evidence recorded earlier under the behind-disjoint contract SHALL remain valid. Outside these two exceptions, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
 
 #### Scenario: Task remains fresh before full validation
 
@@ -1051,9 +1051,24 @@ One bounded exception SHALL exist, for trusted coordinator finalization of a rev
 - **WHEN** evidence-producing selected checks or the developer handoff run
 - **THEN** the conflict blocks as a real conflict
 
+#### Scenario: Quick task under the queue behind a cleanly mergeable main is handed off
+
+- **GIVEN** the coordinator lifecycle mode with the publication queue enabled on authoritative main
+- **AND** a quick task without canonical managed provenance whose head does not contain `origin/<main>`
+- **AND** a trial merge with the observed `origin/<main>` is clean or conflicts only in declared generated files
+- **WHEN** evidence-producing selected checks or `finish` run
+- **THEN** the freshness gate passes under the behind-mergeable contract with the same answer a coordinator-managed candidate gets
+- **AND** no reconcile is required, and the queue merges main and gates on the integrated head
+
+#### Scenario: Quick task under the queue with a real conflict must reconcile
+
+- **GIVEN** a quick task under the enabled queue whose head conflicts with `origin/<main>` in a file that is not declared generated
+- **WHEN** evidence-producing selected checks or `finish` run
+- **THEN** the lifecycle stops before any expensive command, naming the conflicting files and the reconcile command
+
 #### Scenario: Non-coordinator task keeps the fresh-base rule
 
-- **GIVEN** a task published without the coordinator queue whose head does not contain `origin/<main>`
+- **GIVEN** a task the publication queue does not integrate (a task published without the coordinator queue, or a managed task that is not a coordinator candidate) whose head does not contain `origin/<main>`
 - **WHEN** evidence-producing validation is requested
 - **THEN** it is blocked by the fresh-base requirement even when the changed files are disjoint
 
