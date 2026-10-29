@@ -256,6 +256,65 @@ class ExceptionTests(unittest.TestCase):
         self.assertIn("comment history unavailable", item["findings"][0]["detail"])
 
 
+class IdleReasonTests(unittest.TestCase):
+    def test_unclaimed_integration_repair_waits_for_the_local_macos_node(self):
+        item = assess([marker(record("integration-repair-pending", next_job=job("integration-repair")), 1)])
+        idle = item["idle"]
+        self.assertEqual(idle["kind"], "local-node-job")
+        self.assertIn("local macOS node", idle["waiting_for"])
+        self.assertIn("operator", idle["moved_by"])
+        self.assertIn("idle: waiting for the integration-repair job", overview.render_candidate(item, detail=False))
+
+    def test_unclaimed_review_waits_for_a_lifecycle_worker(self):
+        idle = assess([marker(record("review-pending", next_job=job()), 1)])["idle"]
+        self.assertEqual(idle["kind"], "worker-job")
+        self.assertEqual(idle["moved_by"], "a lifecycle worker")
+
+    def test_pr_without_lifecycle_record_waits_for_the_developer(self):
+        idle = assess([])["idle"]
+        self.assertEqual((idle["kind"], idle["moved_by"]), ("developer", "developer"))
+
+    def test_ready_candidate_waits_for_the_publication_queue(self):
+        idle = assess([marker(record("ready"), 1)])["idle"]
+        self.assertEqual((idle["kind"], idle["moved_by"]), ("publication-queue", "the publication queue"))
+
+    def test_exhausted_attempt_limit_is_named(self):
+        red = {"name": "repair", "identity": IDENTITY, "evidence": {"status": "exhausted"}}
+        idle = assess([marker(record("blocked-escalation", red=red, attempts={"repair": 3}), 1)])["idle"]
+        self.assertEqual(idle["kind"], "attempt-limit-exhausted")
+        self.assertIn("3/3", idle["waiting_for"])
+
+    def test_escalation_below_the_limit_waits_for_a_human(self):
+        red = {"name": "repair", "identity": IDENTITY, "evidence": {"status": "failed"}}
+        idle = assess([marker(record("blocked-escalation", red=red, attempts={"repair": 1}), 1)])["idle"]
+        self.assertEqual(idle["kind"], "human-decision")
+
+    def test_claimed_job_and_merged_pr_have_no_idle_reason(self):
+        comments = [marker(record("reviewing", next_job=job()), 1)]
+        candidate = lifecycle.derive_candidate(pull(), comments)
+        comments.append({"id": 2, "author_association": "OWNER", "body": workers.claim_body(
+            workers.build_job(candidate), "worker-1", (AT + timedelta(minutes=40)).isoformat().replace("+00:00", "Z"))})
+        self.assertIsNone(assess(comments)["idle"])
+        self.assertIsNone(assess([marker(record("integrating"), 1)], pr=pull(merged=True))["idle"])
+
+    def test_unestablished_reason_is_shown_as_unknown_never_hidden(self):
+        pr = pull()
+        candidate = lifecycle.derive_candidate(pr, [marker(record("merged"), 1)])
+        item = overview.assess_candidate(candidate, pr, [marker(record("merged"), 1)], repo="o/r", apps=frozenset(),
+                                         writers=frozenset(), now=AT + timedelta(minutes=10), threshold_minutes=30)
+        self.assertEqual(item["idle"]["kind"], "unknown")
+        self.assertIn("idle reason unknown", item["idle"]["waiting_for"])
+        self.assertIn("idle reason unknown", overview.render_candidate(item, detail=False))
+
+    def test_every_candidate_state_gets_an_explicit_reason(self):
+        for state in sorted(lifecycle.STATES):
+            with self.subTest(state=state):
+                pr = pull()
+                candidate = {**lifecycle.derive_candidate(pr, [marker(record("review-pending", next_job=job()), 1)]), "state": state}
+                idle = overview.idle_reason(candidate, job=None, winning=None, completed=False, open_pr=True)
+                self.assertTrue(idle["waiting_for"] and idle["moved_by"] and idle["kind"])
+
+
 class EligibilityAgreementTests(unittest.TestCase):
     """The overview lists an action if and only if the supported command accepts the candidate state."""
 
