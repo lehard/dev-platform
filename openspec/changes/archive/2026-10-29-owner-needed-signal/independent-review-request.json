@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "1dfdd37043f31ed274a0b9f56db72270d41ed535",
-    "diff_sha256": "d312f3cb41d340ca593e7850b1abcd690dad9f7c9bb87f49c169d01144221df1"
+    "candidate_head": "c19b2bfdbecf54350d707dbdd592438287647bd0",
+    "diff_sha256": "e4d138bccdd2297469883e8ed4ccbb8c3bdf6a7aad0a2119ddba4b71bf6b3f2d"
   },
   "change": "openspec/changes/archive/2026-10-29-owner-needed-signal",
   "excluded_lifecycle_paths": [
@@ -42,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-29T22:31:00+00:00",
+  "prepared_at": "2026-10-29T23:01:52+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews",
     "required_perspectives": [
@@ -51,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "10f3a789-82c9-4f13-9b2b-507a9501994b",
+  "request_id": "279e9a75-8be8-4cba-8d47-6bc68b927a7e",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -64,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
-    "digest": "25d38b3d0ce14bea882ed8f23e4551c98c6db62b3ae8dd9119d7edcda409bc6f",
+    "digest": "0a0959e00873e2e7e2a8840469c9c84a26afdfe518cf4dd6c14ccd2b00994b5d",
     "paths": {
       "dev-platform/checks.toml": "67a83a56f8ffc5c253592cfee7dc52a121d40c88",
       "docs/engineering/chat-coordinator.md": "e4f79c62376318804487657004b8c4e66f415162",
@@ -77,9 +77,9 @@
       "openspec/changes/owner-needed-signal/tasks.md": "1f9497732d3abe29eb27ce105d74424f52d6a6ae",
       "scripts/agent_signal.py": "02dacd8d2df454659710cab61d65994ef1273a02",
       "template/dev-platform/protected-surface.toml": "fe9fbee1a94bc1861b3a480240d3b8f3a2105d87",
-      "template/scripts/agent_signal.py": "a8eb6dda5c1500c8500743f0a7d00e42d7c6d2b4",
+      "template/scripts/agent_signal.py": "c3a5b5b3efb00da1c68a5736a2364d5feda81778",
       "template/scripts/lifecycle_overview.py": "890e12234e71865d646e7aae8f8816b710b00e1b",
-      "tests/test_agent_signal.py": "1eb098fadb48598aad85513dfb017282087b98df",
+      "tests/test_agent_signal.py": "de42d8848e691c965e7d126aebbb957190144edc",
       "tests/test_lifecycle_overview.py": "39e1d887f741cfcb564fdd8083d03dc5afbbe0c8",
       "tests/test_overview_agent_sessions.py": "66896fa4787619752497cf2ef4dbe886fa87024c"
     },

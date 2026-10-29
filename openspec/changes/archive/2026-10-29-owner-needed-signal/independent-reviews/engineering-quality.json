@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "1dfdd37043f31ed274a0b9f56db72270d41ed535",
-    "diff_sha256": "d312f3cb41d340ca593e7850b1abcd690dad9f7c9bb87f49c169d01144221df1"
+    "candidate_head": "c19b2bfdbecf54350d707dbdd592438287647bd0",
+    "diff_sha256": "e4d138bccdd2297469883e8ed4ccbb8c3bdf6a7aad0a2119ddba4b71bf6b3f2d"
   },
-  "completed_at": "2026-10-29T22:31:27+00:00",
+  "completed_at": "2026-10-29T23:02:22+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_signal.py:317 and :339 call locked_json, which raises RuntimeError(\"Invalid JSON in ...\") (_platform_common.py:1226). main() (agent_signal.py:394) catches only SignalError. The read-only path open_signals handles ValueError, but the write paths do not. The spec says failures must give an explicit error naming the cause, and the tests do not cover a corrupt board on raise or resolve.",
-      "id": "signal-cli-invalid-board-json-traceback",
+      "evidence": "template/scripts/agent_signal.py:403-410, main() catches only SignalError. locked_json (_platform_common.py:1225-1226) raises RuntimeError(\"Invalid JSON in ...\") on a corrupt board, and run_git in _own_entry (line 298) can raise on a detached or unborn HEAD. Neither is wrapped, though the design requires named errors for each cause. open_signals does handle ValueError and OSError for the read path.",
+      "id": "cli-uncaught-board-errors",
       "severity": "advisory",
-      "summary": "agent_signal raise/resolve do not convert an invalid-JSON board error into a SignalError, so the CLI exits with a traceback instead of the named-error contract."
+      "summary": "The raise and resolve commands only catch SignalError. A corrupt board file or a failing git call surfaces as a raw traceback instead of a named `agent_signal:` error."
     }
   ],
-  "launched_at": "2026-10-29T22:31:15+00:00",
-  "output_sha256": "c9d32afba70dcc79fc199a6d4aa1af5c481d1fcbd077c7776305dece0d94cae2",
+  "launched_at": "2026-10-29T23:02:08+00:00",
+  "output_sha256": "32ec80ded5f4315d20213f9268912e9d5e2d5a0e56f0be5c4b70a5eca1666f69",
   "perspective": "engineering-quality",
-  "request_id": "10f3a789-82c9-4f13-9b2b-507a9501994b",
+  "request_id": "279e9a75-8be8-4cba-8d47-6bc68b927a7e",
   "reviewer": {
-    "context_id": "3af63daa-a52e-4fb0-a9df-b11b6e1f0c7e",
+    "context_id": "df655cb2-fe9f-4866-9edb-614e2ddaf08f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-72f51c76-48b0-4380-901d-eeed03ce6602",
+    "launch_id": "platform-launch-cf5a89ed-f640-42ac-b400-28dfd8c8599c",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26001
+        "value": 27286
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44024
+        "value": 76651
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11243
+        "value": 12678
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11477
+        "value": 12936
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1099
+        "value": 1460
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "25d38b3d0ce14bea882ed8f23e4551c98c6db62b3ae8dd9119d7edcda409bc6f"
+  "task_content_digest": "0a0959e00873e2e7e2a8840469c9c84a26afdfe518cf4dd6c14ccd2b00994b5d"
 }

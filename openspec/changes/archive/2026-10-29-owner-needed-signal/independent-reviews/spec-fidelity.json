@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "1dfdd37043f31ed274a0b9f56db72270d41ed535",
-    "diff_sha256": "d312f3cb41d340ca593e7850b1abcd690dad9f7c9bb87f49c169d01144221df1"
+    "candidate_head": "c19b2bfdbecf54350d707dbdd592438287647bd0",
+    "diff_sha256": "e4d138bccdd2297469883e8ed4ccbb8c3bdf6a7aad0a2119ddba4b71bf6b3f2d"
   },
-  "completed_at": "2026-10-29T22:31:15+00:00",
+  "completed_at": "2026-10-29T23:02:08+00:00",
   "findings": [
     {
-      "evidence": "tests/test_agent_signal.py has no test that removes a board entry and checks that its signals disappear, and no test that raises from another worktree's entry. The missing-entry test only deletes the entry. The overview tests call `_owner_needed_lines` and mock `read_owner_needed`. No test checks that `overview()` or the `--json` output contains `owner_needed` with a real signal. The behavior itself is implemented: signals are stored on the entry, and the entry lookup is by worktree and branch.",
-      "id": "claimed-tests-not-present",
+      "evidence": "tasks.md section 3 lists 'missing/finished/foreign task ... task-end cleanup'. tests/test_agent_signal.py has no test that removes an entry or finishes a task and then checks open_signals. The behavior follows from storing signals inside the entry, but it is not demonstrated.",
+      "id": "task-end-cleanup-untested",
       "severity": "advisory",
-      "summary": "tasks.md marks as tested the task-end cleanup, a finished or foreign task, and the JSON overview output. The candidate tests do not cover these cases directly."
+      "summary": "The signal contract says a signal ends with its task's board entry, and tasks.md marks task-end cleanup as tested. No test in the candidate removes or finishes a board entry and checks that its signals stop appearing."
+    },
+    {
+      "evidence": "overview() adds an 'owner_needed' key in template/scripts/lifecycle_overview.py. test_overview_renders_open_signals_and_board_problems calls only overview._owner_needed_lines. The two modified overview tests mock read_owner_needed or hand-build the result dict, so they do not check the JSON output with a real signal.",
+      "id": "json-overview-owner-needed-untested",
+      "severity": "advisory",
+      "summary": "The chat-coordinator requirement covers machine-readable output, and the proposal's success evidence names the overview section in text and JSON. The tests render only the text lines."
     }
   ],
-  "launched_at": "2026-10-29T22:31:03+00:00",
-  "output_sha256": "53771f503012422c5d5994ea1f3ae343cf3d6da2f47090b3c8b4962a76b209dd",
+  "launched_at": "2026-10-29T23:01:55+00:00",
+  "output_sha256": "db83e23b9f1b5f8b9e003250ba62257932bd36ebf430333249a18daab5674bba",
   "perspective": "spec-fidelity",
-  "request_id": "10f3a789-82c9-4f13-9b2b-507a9501994b",
+  "request_id": "279e9a75-8be8-4cba-8d47-6bc68b927a7e",
   "reviewer": {
-    "context_id": "7705f5ec-e156-4a12-9091-05a73a711d0f",
+    "context_id": "caeaf50b-18fd-4e6f-8dd3-20f42cc872d9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-80fda367-2c3f-44e8-963e-4b1ca984e9fa",
+    "launch_id": "platform-launch-c7753d95-943e-4c1b-a100-01bd663a2363",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26682
+        "value": 28332
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43834
+        "value": 76361
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11312
+        "value": 12560
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11456
+        "value": 12727
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1367
+        "value": 1464
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "25d38b3d0ce14bea882ed8f23e4551c98c6db62b3ae8dd9119d7edcda409bc6f"
+  "task_content_digest": "0a0959e00873e2e7e2a8840469c9c84a26afdfe518cf4dd6c14ccd2b00994b5d"
 }
