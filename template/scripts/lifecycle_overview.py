@@ -6,7 +6,7 @@ markers, claim and result receipts, Requirement Issues and Project statuses)
 into human-facing delivery stages, the review -> ... -> cleanup chain, named
 exception findings and the operator actions the supported commands would
 accept. It writes nothing to GitHub, keeps no state store and, besides GitHub, only an optional disposable local read cache
-(``github_read_cache``: ETag/``updated_at`` revalidated, deleting it never changes the result, a corrupt cache fails
+(``github_read_cache``: ETag revalidated, deleting it never changes the result, a corrupt cache fails
 explicitly naming the file). It reports ``unknown`` for any source it cannot read instead of presenting it as healthy.
 See ``docs/engineering/chat-coordinator.md``.
 """

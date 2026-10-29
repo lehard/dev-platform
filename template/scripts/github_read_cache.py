@@ -119,7 +119,8 @@ def _page(root: Path, path: Path, url: str, run: Callable[..., Any]) -> tuple[An
     if entry is not None and _digest(entry["body"]) != entry["digest"]:
         raise _corrupt(path, f"body of {url} does not match its digest")
     command = ["gh", "api", "-i"]
-    if entry is not None:
+    # A last page (no stored ``next``) is always re-read: growth past it would otherwise stay hidden behind a 304.
+    if entry is not None and entry["next"] is not None:
         command += ["-H", f"If-None-Match: {entry['etag']}"]
     result = run([*command, url], cwd=root)
     try:
@@ -127,7 +128,7 @@ def _page(root: Path, path: Path, url: str, run: Callable[..., Any]) -> tuple[An
     except GithubReadError:
         raise GithubReadError((result.stderr or "").strip() or f"gh failed reading {url}") from None
     if status == 304:
-        if entry is None:
+        if entry is None or entry["next"] is None:
             raise GithubReadError(f"GitHub answered 304 to an unconditional request for {url}")
         return entry["body"], entry["next"]
     if status != 200 or result.returncode:

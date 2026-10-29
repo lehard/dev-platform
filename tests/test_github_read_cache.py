@@ -62,7 +62,8 @@ class ReadCacheTests(unittest.TestCase):
         cold = self.read()
         self.assertEqual((self.gh.counted, self.gh.conditional), (2, 0))
         warm = self.read()
-        self.assertEqual((self.gh.counted, self.gh.conditional), (2, 2))
+        # The last page is always re-read, so growth past it can never hide behind a 304.
+        self.assertEqual((self.gh.counted, self.gh.conditional), (3, 1))
         self.path.unlink()
         deleted = self.read()
         self.assertEqual(cold, warm)
@@ -75,6 +76,14 @@ class ReadCacheTests(unittest.TestCase):
         self.gh.pages[NEXT] = [{"id": 3}, {"id": 4}]
         self.assertEqual([row["id"] for row in self.read()], [1, 2, 3, 4])
         self.assertEqual([row["id"] for row in self.read()], [1, 2, 3, 4])
+
+    def test_growth_past_a_full_last_page_is_not_hidden(self) -> None:
+        self.gh.pages = {URL: [{"id": 1}, {"id": 2}]}
+        self.assertEqual([row["id"] for row in self.read()], [1, 2])
+        self.gh.pages[URL] = [{"id": 1}, {"id": 2}]
+        self.gh.version = 2
+        self.gh.pages = {URL: [{"id": 1}, {"id": 2}], NEXT: [{"id": 3}]}
+        self.assertEqual([row["id"] for row in self.read()], [1, 2, 3])
 
     def test_failed_read_keeps_the_previous_entry(self) -> None:
         self.read()
