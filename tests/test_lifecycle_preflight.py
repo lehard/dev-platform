@@ -12,7 +12,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from test_worktree_hygiene import ROOT, WorktreeHarnessCase, agent_board, git
+from test_worktree_hygiene import ROOT, WorktreeHarnessCase, agent_board, finish_task, git
 
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
@@ -213,6 +213,94 @@ class RunPreflightTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()):
             self.assertEqual([("one", preflight.ConditionResult(preflight.PASSED, "ok"))],
                              preflight.run_preflight(context(Path(".")), conditions=conditions))
+
+
+    def test_an_unexpected_failure_of_a_condition_is_a_refusal_and_the_others_still_run(self) -> None:
+        def fine(_):
+            return preflight.ConditionResult(preflight.PASSED, "ok")
+
+        def broken(_):
+            raise ValueError("checks.toml is not valid TOML")
+
+        def exits(_):
+            raise SystemExit("Check configuration not found")
+
+        conditions = (
+            preflight.Condition("broken", (), broken),
+            preflight.Condition("exits", (), exits),
+            preflight.Condition("after", (), fine),
+        )
+        out = io.StringIO()
+        with redirect_stdout(out), self.assertRaises(SystemExit) as raised:
+            preflight.run_preflight(context(Path(".")), conditions=conditions)
+        printed = out.getvalue()
+        self.assertIn("DEV_PLATFORM_PREFLIGHT: broken: refused: cannot be evaluated: checks.toml is not valid TOML", printed)
+        self.assertIn("DEV_PLATFORM_PREFLIGHT: exits: refused: cannot be evaluated: Check configuration not found", printed)
+        self.assertIn("DEV_PLATFORM_PREFLIGHT: after: passed", printed)
+        message = str(raised.exception.code)
+        self.assertIn("[broken] cannot be evaluated", message)
+        self.assertIn("[exits] cannot be evaluated", message)
+        self.assertIn("2 condition(s)", message)
+
+    def test_a_malformed_checks_file_refuses_the_cheap_gate_condition_through_the_registry(self) -> None:
+        from _platform_config import write_platform_config
+
+        with tempfile.TemporaryDirectory() as tmp:
+            write_platform_config(Path(tmp))
+            (Path(tmp) / "dev-platform").mkdir()
+            (Path(tmp) / "dev-platform" / "checks.toml").write_text("not = [valid", encoding="utf-8")
+            conditions = tuple(c for c in preflight.CONDITIONS if c.id == "project-cheap-gates")
+            with redirect_stdout(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                preflight.run_preflight(context(Path(tmp)), conditions=conditions)
+        self.assertIn("[project-cheap-gates] cannot be evaluated", str(raised.exception.code))
+
+
+class FinishWiringTests(unittest.TestCase):
+    def run_main(self, provider: str, mode_patches: dict) -> list[str]:
+        order: list[str] = []
+        config = {"main_branch": "main", "scm_provider": provider, "pr_merge_mode": "manual"}
+
+        def refuse(*_a, **_k):
+            order.append("preflight")
+            raise SystemExit("preflight refused")
+
+        with mock.patch.multiple(
+            finish_task,
+            current_worktree_root=mock.Mock(return_value=Path("/work")),
+            main_root=mock.Mock(return_value=Path("/work")),
+            read_platform_config=mock.Mock(return_value=config),
+            lifecycle_mode=mock.Mock(return_value="portable"),
+            scm_provider=mock.Mock(return_value=provider),
+            harness_mode=mock.Mock(return_value="platform"),
+            profile=mock.Mock(return_value="multi-agent"),
+            preflight_with_report=mock.Mock(return_value=[]),
+            publish_mode=mock.Mock(return_value="pr"),
+            current_branch=mock.Mock(return_value="task/x"),
+            require_managed_checkout_identity=mock.Mock(return_value=None),
+            validate_publication_config=mock.Mock(),
+            require_no_orphan_active_openspec=mock.Mock(),
+            require_delivery_provenance=mock.Mock(return_value=None),
+            observe_source_issue_drift=mock.Mock(return_value=None),
+            run_finish_preflight=refuse,
+            run_checks=mock.Mock(side_effect=lambda *a, **k: order.append("checks")),
+            **mode_patches,
+        ), mock.patch.object(sys, "argv", ["finish_task.py"]):
+            with self.assertRaisesRegex(SystemExit, "preflight refused"):
+                finish_task.main()
+        return order
+
+    def test_the_gitlab_path_runs_the_preflight_before_any_check(self) -> None:
+        order = self.run_main("gitlab", {})
+        self.assertEqual(["preflight"], order)
+
+    def test_the_github_path_runs_the_preflight_before_any_check(self) -> None:
+        order = self.run_main("github", {
+            "task_pr_is_already_merged": mock.Mock(return_value=False),
+            "find_existing_exact_open_pr": mock.Mock(return_value=None),
+            "fetch_main": mock.Mock(),
+            "emit_finish_stage": mock.Mock(),
+        })
+        self.assertEqual(["preflight"], order)
 
 
 class SelectorWiringTests(unittest.TestCase):
