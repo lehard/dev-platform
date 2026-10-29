@@ -15,6 +15,13 @@ from _platform_modules import load_platform_module  # noqa: E402
 overview = load_platform_module("lifecycle_overview", SCRIPTS / "lifecycle_overview.py")
 agent_sessions = load_platform_module("agent_sessions", SCRIPTS / "agent_sessions.py")
 
+
+
+def setUpModule() -> None:
+    # Other test modules put the source-checkout scripts/ wrappers ahead of template/scripts on sys.path.
+    sys.path.insert(0, str(SCRIPTS))
+
+
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 STAMP = "2026-10-29T11:59:00Z"
 
@@ -60,7 +67,7 @@ class OverviewSessionTests(unittest.TestCase):
 
     def detail_views(self, registry_config):
         """Run show_pr and show_requirement against stubbed GitHub reads and render both detail views."""
-        queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
+        import publication_queue as queue
         candidate = {"number": 5, "stage": "handed-off", "state": "review-pending", "head": "a" * 40, "url": "u",
                      "executor": {"activity": "not confirmed"}, "findings": [], "branch": "agent/br-1-t1-x", "chain": [],
                      "attempts": {}, "actions": []}
