@@ -3,46 +3,28 @@
   "candidate": {
     "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
     "base_ref": "origin/main",
-    "candidate_head": "30c9c579d1ed31fd4bcbd1ff5a81880e03c619ec",
-    "diff_sha256": "db6eb191d3e00444945ca89badbc3dbf98319e8ea8b4ca3936f0e7546acbe50e"
+    "candidate_head": "e045875b1085a6916618e7fe89a6b817f949abe6",
+    "diff_sha256": "103195259c14c13973599ecbbe84dcb5d180c553a41d7df431ee2ab3d6abe3e8"
   },
-  "completed_at": "2026-10-29T11:30:37+00:00",
+  "completed_at": "2026-10-29T11:37:44+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/github_read_cache.py `_page`: on 304 it does `return entry[\"body\"], entry[\"next\"]`. `entry[\"next\"]` was saved from the Link header of the old 200, and the 304's own headers are ignored. If a listing's last page is full (e.g. 100 comments, stored next=None) and one more item is added, page 1 can still validate as 304 and the read stops without fetching page 2. design.md says 'A 304 returns the complete stored body, never a delta; no cursor is kept', but the entry schema keeps `next` (`fields = (\"etag\",\"digest\",\"body\",\"next\")`). The tests' FakeGitHub derives the ETag from a global version, so this case is not exercised.",
-      "id": "stored-next-link-hidden-on-304",
+      "evidence": "template/scripts/github_read_cache.py `_page`: the comment says \"A last page (no stored ``next``) is always re-read\", and the code only adds `-H If-None-Match` when `entry is not None and entry[\"next\"] is not None`. A 304 on a last page also raises GithubReadError. `get_json` without paginate, as used by `managed_task.fetch_issue`, always fetches a single page whose `next` is None, so it is never conditional. Contract text: chat-coordinator spec says the cache is \"revalidated by ETag on every read\" and the Repeated-overview scenario says \"spends only conditional requests that return 304 plus a bounded number of counted requests\". The lifecycle-workers scenario says \"it spends conditional requests rather than counted re-reads for unchanged PRs\". design.md says \"Its Issue read is conditional instead\" and \"each page conditional\"; proposal.md says \"revalidated by ETag (conditional request) on every read\". tests/test_github_read_cache.py `test_warm_read_is_conditional_...` asserts (counted, conditional) == (3, 1) on a warm read, which confirms the last page is re-fetched at full cost. The implementation also contradicts the design's \"whole-body entries ... 304 returns the complete stored body\" model for last pages, and the design never documents the always-re-read rule.",
+      "id": "single-page-reads-never-conditional",
       "severity": "material",
-      "summary": "A 304 returns the pagination `next` link stored from the earlier 200, so growth beyond the last page can be hidden. This contradicts the contract that 'a 304 never hides' a change and the design's 'no cursor is kept'."
-    },
-    {
-      "evidence": "design.md 'Equivalence guard' and tasks.md 2.1 ('cold == warm == deleted-cache overview'). tests/test_github_read_cache.py checks only `cache.get_json` and `workers._gh_json`. The diff has no test that runs `lifecycle_overview.overview` or a worker poll warm against a fake GitHub. It also has no test of the 'worker poll selects same job' or 'repeated overview spends only conditional requests' scenarios. The tests/test_lifecycle_overview.py change only repoints a mock.",
-      "id": "overview-equivalence-test-missing",
-      "severity": "advisory",
-      "summary": "The design and tasks promise an overview-level cold/warm/deleted-cache equivalence test. The new tests only exercise `get_json` pagination."
-    },
-    {
-      "evidence": "template/scripts/lifecycle_overview.py module docstring: '(github_read_cache: ETag/updated_at revalidated ...)'. design.md: '`updated_at` is not used as a validity key'. github_read_cache.py uses ETag only.",
-      "id": "overview-docstring-updated-at-claim",
-      "severity": "advisory",
-      "summary": "The lifecycle_overview docstring says the cache is 'ETag/updated_at revalidated'. The design explicitly rejects `updated_at` as a validity key."
-    },
-    {
-      "evidence": "template/scripts/managed_task.py: new `_issue_read_env` dict and lock. The first successful `github_cli_env` result is reused for every later `fetch_issue` call in the process. The proposal only says fetch_issue 'reads through' the cache. A token that expires or changes mid-process would keep being used.",
-      "id": "fetch-issue-auth-memoization-out-of-scope",
-      "severity": "advisory",
-      "summary": "`managed_task.fetch_issue` now memoizes the validated gh auth env per process. No artifact (proposal, design, tasks, or spec) describes this behavior change."
+      "summary": "The cache never sends If-None-Match for a response without a `Link: rel=\"next\"`, i.e. any single-page read. That covers most PR comment histories, the PR list, the open-Requirement listing and every Requirement Issue read via `fetch_issue`. Those reads are always full counted requests. This contradicts the spec and design, which say every read is revalidated by ETag and an unchanged issue costs no counted request."
     }
   ],
-  "launched_at": "2026-10-29T11:30:06+00:00",
-  "output_sha256": "2161cfb9881a30de0fdb33d9ae222f9668a3a9f9aab2964fb5bf1822859d778e",
+  "launched_at": "2026-10-29T11:37:26+00:00",
+  "output_sha256": "b1d0c232d1877ff4389a99d3a32b1de51b943fab981f1b9bd07d9ca77d8fe760",
   "perspective": "spec-fidelity",
-  "request_id": "838e074f-dfcf-46e1-befa-a0e80072d367",
+  "request_id": "4bafd535-4fe1-4a7d-b16d-1a2052a8be00",
   "reviewer": {
-    "context_id": "c611460d-2123-4d58-be02-f99aee7e22f0",
+    "context_id": "7e8e3d47-712d-4c5f-83c4-2451361fa5c4",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f516f9a0-cd2c-4599-9bbb-afd326c6ad0e",
+    "launch_id": "platform-launch-2f7d93fe-f23f-4614-b36f-7cd2d3b04e98",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36724
+        "value": 34190
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 128611
+        "value": 87789
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30572
+        "value": 17209
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30728
+        "value": 17361
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3313
+        "value": 1999
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f028de8efb14044c64f418ce4033dce1ee7b488943c966d7648552dbdc523985"
+  "task_content_digest": "804eaf42867f6b4b7e9209b6aa29b2d6cf83bdef3f00f0f9f48a5d7886330205"
 }
