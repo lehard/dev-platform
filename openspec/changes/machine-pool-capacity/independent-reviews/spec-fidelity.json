@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "base_ref": "origin/main",
+    "candidate_head": "1f7687091eccbd6b1b73adb0af2e6e05360a273c",
+    "diff_sha256": "34bd33e069543bf55ab5be54bb97bb80ecbff985716aa03c6825d8b2e8bcdc9f"
+  },
+  "completed_at": "2026-10-29T00:21:38+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py:500 returns \"another run is being admitted\" and :505 returns \"an earlier-ranked run joined the queue\". Both flow through `_blocked_report` as `waiting, blocked by <reason>`. The tokens reason was changed to `tokens: fewer than N free` (:507) and the queue reason to `queue: N earlier queued run(s)` (:672), but these two were not changed. The line printed under this change is `queued only after waiting for ...`, which also lacks a kind. docs/engineering/agent-workflow.md lists `the admission lock` as a blocker kind.",
+      "id": "admission-blocker-not-labelled",
+      "severity": "advisory",
+      "summary": "Two admission-lock wait reasons are not labelled as the admission blocker. The spec says the waiting line SHALL name the blocker first by kind, among queue, load, memory, memory pressure, tokens or admission. The queue, load, memory, memory pressure and tokens reasons are labelled. The admission-lock reasons are bare sentences with no `admission` kind, so the waiting line reads `blocked by another run is being admitted` or `blocked by an earlier-ranked run joined the queue`."
+    }
+  ],
+  "launched_at": "2026-10-29T00:21:20+00:00",
+  "output_sha256": "5aff88d5dbad32f02c41d171d9da8cadc3d55915738e45770bc6a661b0e65c5a",
+  "perspective": "spec-fidelity",
+  "request_id": "5dfc1eb5-7726-4e37-9013-112f02416bea",
+  "reviewer": {
+    "context_id": "f3249fb2-8602-4d0b-be6c-13973a497e10",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f56764df-8ce3-413c-9c48-6f4f7774e003",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42787
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 91883
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16580
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16749
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1923
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "213ee14b2d736dba0bbe55ef30a73dab4f54367fe9e74d8a137e2de1fa45deb6"
+}
