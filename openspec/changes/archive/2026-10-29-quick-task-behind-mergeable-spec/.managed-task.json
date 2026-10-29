@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "quick-task-behind-mergeable-spec",
+  "imported_at": "2026-10-28T23:35:40+00:00",
+  "package_revision": "17e149b1d98b92c7d9dbc1a4ac027ac86ddbc23e5a7700bc65f85df0c5cccb43",
+  "prepared_against": "c49658416b256bac38efd3c5b5e7ca56c04e64f6",
+  "private_lineage_handle": "pln_5c925c9bb0a8d75073f75c227001da2e",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "89017d842e7cecd22cccdccd6d53c2ef6fe85cf4497d877d160090b95c58972f",
+    "updated_at": "2026-10-28T23:29:55Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-774/T1"
+}
