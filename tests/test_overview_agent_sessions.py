@@ -60,7 +60,7 @@ class OverviewSessionTests(unittest.TestCase):
 
     def detail_views(self, registry_config):
         """Run show_pr and show_requirement against stubbed GitHub reads and render both detail views."""
-        import publication_queue as queue
+        queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
         candidate = {"number": 5, "stage": "handed-off", "state": "review-pending", "head": "a" * 40, "url": "u",
                      "executor": {"activity": "not confirmed"}, "findings": [], "branch": "agent/br-1-t1-x", "chain": [],
                      "attempts": {}, "actions": []}
