@@ -37,8 +37,18 @@ def signal_id(task_key: str, question: str) -> str:
     return hashlib.sha256(f"{task_key}\0{normalise(question)}".encode("utf-8")).hexdigest()[:12]
 
 
+def _board_enabled(root: Path) -> bool:
+    """``[capabilities] agent_board`` as a bool; an unclassifiable config is a named error, never an exit."""
+    try:
+        return scope_gate_required(read_platform_config(root))
+    except PlatformConfigError as exc:
+        raise SignalError(f"platform config unreadable: {exc}") from exc
+    except SystemExit as exc:
+        raise SignalError(f"agent_board is not classified in .dev-platform.toml: {exc}") from exc
+
+
 def _require_board(root: Path) -> Path:
-    if not scope_gate_required(read_platform_config(root)):
+    if not _board_enabled(root):
         raise SignalError("owner-needed signals need the agent board: set [capabilities] agent_board = true in .dev-platform.toml")
     try:
         path = board_path(root)
@@ -58,6 +68,11 @@ def _own_entry(items: list[dict], worktree: Path) -> dict:
     return entry
 
 
+def _entry_signals(entry: object) -> list[dict]:
+    signals = entry.get("signals") if isinstance(entry, dict) else None
+    return [s for s in signals if isinstance(s, dict)] if isinstance(signals, list) else []
+
+
 def raise_signal(question: str, *, root: Path, worktree: Path, now: str | None = None) -> dict:
     text = normalise(question)
     if not text:
@@ -71,10 +86,10 @@ def raise_signal(question: str, *, root: Path, worktree: Path, now: str | None =
         entry = _own_entry(items, worktree)
         sid = signal_id(str(entry.get("id", "")), text)
         signals = entry.setdefault("signals", [])
-        existing = next((s for s in signals if s["id"] == sid and not s.get("resolved_at")), None)
+        existing = next((s for s in signals if isinstance(s, dict) and s.get("id") == sid and not s.get("resolved_at")), None)
         if existing is not None:
             existing["last_raised_at"] = stamp
-            existing["count"] += 1
+            existing["count"] = existing.get("count", 0) + 1
             return {**existing, "repeat": True}
         signal = {"id": sid, "question": text, "project": root.name, "task": entry.get("task", ""),
                   "branch": entry.get("branch", ""), "raised_at": stamp, "last_raised_at": stamp, "count": 1}
@@ -91,8 +106,8 @@ def resolve_signal(signal: str, resolved_by: str, *, root: Path, now: str | None
         if not isinstance(items, list):
             raise SignalError(f"the agent board {path} has no valid 'items' list")
         for entry in items:
-            for item in entry.get("signals", []):
-                if item["id"] == signal and not item.get("resolved_at"):
+            for item in _entry_signals(entry):
+                if item.get("id") == signal and not item.get("resolved_at"):
                     item["resolved_at"] = now or utc_now()
                     item["resolved_by"] = resolved_by.strip()
                     return dict(item)
@@ -101,24 +116,28 @@ def resolve_signal(signal: str, resolved_by: str, *, root: Path, now: str | None
 
 def open_signals(root: Path, *, now: datetime) -> dict:
     """Open signals for viewers: ``configured`` False, ``error`` text or the sorted ``signals`` list; never writes."""
-    config = read_platform_config(root)
-    if not scope_gate_required(config):
-        return {"configured": False, "signals": []}
     try:
+        if not _board_enabled(root):
+            return {"configured": False, "signals": []}
         path = board_path(root)
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (KeyError, PlatformConfigError, OSError, json.JSONDecodeError) as exc:
+    except SignalError as exc:
+        return {"configured": True, "error": f"agent board cannot be shown: {exc}", "signals": []}
+    except (KeyError, PlatformConfigError, OSError, ValueError) as exc:
         return {"configured": True, "error": f"agent board unreadable: {exc}", "signals": []}
     items = data.get("items") if isinstance(data, dict) else None
     if not isinstance(items, list):
         return {"configured": True, "error": f"agent board {path} has no valid 'items' list", "signals": []}
     signals = []
-    for entry in items:
-        for item in entry.get("signals", []):
-            if item.get("resolved_at"):
-                continue
-            age = max(0, int((now - datetime.fromisoformat(item["raised_at"].replace("Z", "+00:00"))).total_seconds() // 60))
-            signals.append({**item, "age_minutes": age})
+    try:
+        for entry in items:
+            for item in _entry_signals(entry):
+                if item.get("resolved_at"):
+                    continue
+                raised = datetime.fromisoformat(item["raised_at"].replace("Z", "+00:00"))
+                signals.append({**item, "age_minutes": max(0, int((now - raised).total_seconds() // 60))})
+    except (KeyError, AttributeError, TypeError, ValueError) as exc:
+        return {"configured": True, "error": f"agent board has a malformed signal: {exc!r}", "signals": []}
     signals.sort(key=lambda s: s["raised_at"])
     return {"configured": True, "signals": signals}
 

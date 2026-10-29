@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from _platform_common import current_worktree_root, main_root, read_platform_config
+from _platform_common import current_worktree_root, read_platform_config
 
 STAGES = ("not-started", "in-development", "handed-off", "delivering", "merged-open-obligations", "closed", "needs-intervention", "unknown")
 CHAIN = ("review", "repair", "re-review", "finalize", "integration", "retrospective", "terminal-reconciliation", "cleanup")
@@ -464,11 +464,11 @@ def read_sessions(root: Path, *, now: datetime) -> dict:
     return {"configured": True, "sessions": items}
 
 
-def read_owner_needed(now: datetime) -> dict:
+def read_owner_needed(root: Path, now: datetime) -> dict:
     """Open owner-needed signals from the agent board, exactly as ``agent_signal`` stores them (BR-888)."""
     import agent_signal
 
-    return agent_signal.open_signals(main_root(), now=now)
+    return agent_signal.open_signals(root, now=now)
 
 
 def attach_sessions(registry: dict, candidates: list[dict]) -> list[dict]:
@@ -515,7 +515,7 @@ def overview(root: Path, *, now: datetime) -> dict:
     registry = read_sessions(root, now=now)
     unattached = attach_sessions(registry, assessed)
     return {"agent_sessions": {**{k: v for k, v in registry.items() if k != "sessions"}, "unattached": unattached},
-            "owner_needed": read_owner_needed(now),
+            "owner_needed": read_owner_needed(root, now),
             "repository": repo, "backlog": backlog, "generated_at": now.isoformat(timespec="seconds"),
             "bounds": {"merged_discovery_page": MERGED_DISCOVERY_PAGE,
                        "note": "open PRs plus the most recently updated closed merged PRs, exactly the workers' candidate set",
