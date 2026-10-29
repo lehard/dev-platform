@@ -24,8 +24,9 @@ from _platform_common import (
     scm_provider,
     relation,
     run_git,
-    preflight,
 )
+from lifecycle_preflight import summarize_paths
+from shared_workspace import preflight_with_report
 from delegation_containment import ContainmentError, read_integration_advances, record_integration_advance, require_own_fast_forward
 from integration_state import (
     dirty_paths,
@@ -900,6 +901,20 @@ def validate_or_reuse(
     run_checks(work, remote_main, no_checks, task_evidence=quick_task)
 
 
+def run_finish_preflight(work: Path, integration: Path, branch: str, *, consolidated: bool) -> None:
+    """The shared lifecycle preflight, before any expensive finish operation (first submission and re-submission).
+
+    ``consolidated``: the board claim/scope and task freshness are evaluated, with the same functions, by the
+    consolidated completion preflight that follows and reports them together with the other blockers.
+    """
+    import lifecycle_preflight
+
+    waiver = "evaluated by the consolidated completion preflight that follows" if consolidated else None
+    lifecycle_preflight.run_preflight(lifecycle_preflight.PreflightContext(
+        root=work, integration=integration, branch=branch, entry="finish_task.py",
+        scope_gate_waiver=waiver, task_base_waiver=waiver))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate, integrate when needed, and publish a completed task without a human git hand-off.")
     parser.add_argument("--no-checks", action="store_true")
@@ -939,9 +954,11 @@ def main() -> int:
     prof = profile(config)
     if provider not in {"github", "gitlab"}:
         raise SystemExit(f"Unknown scm_provider: {provider}")
-    preflight(integration)
-    if work != integration:
-        preflight(work)
+    for shared_root in (integration, work) if work != integration else (integration,):
+        repaired = preflight_with_report(shared_root)
+        if repaired:
+            print(f"Shared-workspace preflight repaired {len(repaired)} path(s) owned by this account: "
+                  + summarize_paths(repaired), flush=True)
     mode = publish_mode(config)
     main_branch = config["main_branch"]
     branch = current_branch(work)
@@ -959,6 +976,7 @@ def main() -> int:
         from pr_review_gate import managed_candidate
 
         if managed_candidate(work):
+            run_finish_preflight(work, integration, branch, consolidated=False)
             return finish_developer_handoff(work, integration, config, branch, args.title, args.body)
     try:
         require_no_orphan_active_openspec(work)
@@ -1028,6 +1046,7 @@ def main() -> int:
             raise SystemExit("The bounded GitLab adapter supports publish_mode=pr only.")
         if branch == main_branch:
             raise SystemExit("GitLab merge-request publication requires a feature branch.")
+        run_finish_preflight(work, integration, branch, consolidated=False)
         hygiene_detail = run_openspec_hygiene(work)
         checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
         dirty_detail = "Current worktree is dirty." if not clean(work) else None
@@ -1073,6 +1092,7 @@ def main() -> int:
     if mode == "pr" and branch != main_branch:
         exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)
 
+    run_finish_preflight(work, integration, branch, consolidated=True)
     warn_current_worktree_scope_overlap(integration, work, branch)
 
     # Consolidated read-only completion preflight. Every already-observable

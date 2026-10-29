@@ -139,6 +139,7 @@ def gate(gate_id: str, **overrides: object) -> dict[str, object]:
     base: dict[str, object] = {
         "id": gate_id, "script": "scripts/x.py", "class": "recoverable", "summary": "s", "migrated": False,
         "rejection_tests": ["tests/test_a.py::A::test_b"], "recovery": "python3 scripts/x.py fix",
+        "no_preflight": "depends on the outcome of the run it would precede",
         "recovery_tests": ["tests/test_a.py::A::test_c"],
     }
     base.update(overrides)
@@ -289,6 +290,43 @@ class CatalogTests(unittest.TestCase):
                     self.assertGreaterEqual(given, 3, f"{path.relative_to(ROOT)}:{call.lineno}: gate_failure needs an explicit exception type")
 
 
+class PreflightRegistryTests(unittest.TestCase):
+    """Every blocking gate names the preflight condition that checks it ahead, or says why none can."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        import lifecycle_preflight
+
+        cls.registry = lifecycle_preflight
+        cls.gates = common.load_gate_catalog(CATALOG)
+
+    def test_every_gate_has_a_registered_condition_or_a_written_reason(self) -> None:
+        for gate_id, entry in self.gates.items():
+            with self.subTest(gate=gate_id):
+                self.assertEqual(1, ("preflight" in entry) + ("no_preflight" in entry))
+                if "preflight" in entry:
+                    self.assertIn(entry["preflight"], self.registry.CONDITION_IDS)
+                else:
+                    self.assertGreaterEqual(len(entry["no_preflight"].split()), 8, "a justification is a sentence, not a placeholder")
+
+    def test_each_condition_lists_exactly_the_gates_that_name_it(self) -> None:
+        for condition in self.registry.CONDITIONS:
+            with self.subTest(condition=condition.id):
+                naming = sorted(gid for gid, entry in self.gates.items() if entry.get("preflight") == condition.id)
+                self.assertEqual(sorted(condition.gates), naming)
+
+    def test_a_gate_with_neither_or_both_fields_is_rejected(self) -> None:
+        for extra in ({}, {"preflight": "task-base", "no_preflight": "a reason that is long enough"}):
+            with self.subTest(extra=extra), tempfile.TemporaryDirectory() as tmp:
+                entry = gate("some-gate")
+                entry.pop("no_preflight")
+                entry.update(extra)
+                path = Path(tmp) / "blocking-gates.toml"
+                path.write_text(catalog_text(entry), encoding="utf-8")
+                with self.assertRaisesRegex(common.BlockingGateCatalogError, "exactly one of 'preflight'"):
+                    common.load_gate_catalog(path)
+
+
 class CatalogValidationTests(CatalogFileCase):
     def assert_rejected(self, gates: list[dict[str, object]], *needles: str) -> None:
         with self.assertRaises(common.BlockingGateCatalogError) as raised:
@@ -300,9 +338,11 @@ class CatalogValidationTests(CatalogFileCase):
         loaded = common.load_gate_catalog(self.write(
             gate("a-gate"),
             {"id": "b-gate", "script": "scripts/y.py", "class": "hard-stop", "summary": "s", "migrated": True,
-             "rejection_tests": ["tests/test_a.py::A::test_b"], "justification": "intentional"},
+             "rejection_tests": ["tests/test_a.py::A::test_b"], "justification": "intentional",
+             "preflight": "task-base"},
             {"id": "c-gate", "script": "scripts/z.py", "class": "platform-defect", "summary": "s", "migrated": False,
-             "rejection_tests": ["tests/test_a.py::A::test_b"], "hotfix_path": "protected"},
+             "rejection_tests": ["tests/test_a.py::A::test_b"], "hotfix_path": "protected",
+             "no_preflight": "depends on the outcome of the run it would precede"},
         ))
         self.assertEqual(["a-gate", "b-gate", "c-gate"], list(loaded))
 
@@ -368,11 +408,11 @@ class GateHelperTests(CatalogFileCase):
         self.write(
             gate("fixable-gate", recovery="python3 scripts/x.py fix --owner-step"),
             {"id": "stop-gate", "script": "scripts/x.py", "class": "hard-stop", "summary": "s", "migrated": False,
-             "rejection_tests": ["tests/test_a.py::A::test_b"], "justification": "the boundary is intentional"},
+             "rejection_tests": ["tests/test_a.py::A::test_b"], "justification": "the boundary is intentional", "no_preflight": "depends on the outcome of the run it would precede"},
             {"id": "hotfix-gate", "script": "scripts/x.py", "class": "platform-defect", "summary": "s", "migrated": False,
-             "rejection_tests": ["tests/test_a.py::A::test_b"], "hotfix_path": "hotfixable"},
+             "rejection_tests": ["tests/test_a.py::A::test_b"], "hotfix_path": "hotfixable", "no_preflight": "depends on the outcome of the run it would precede"},
             {"id": "release-gate", "script": "scripts/x.py", "class": "platform-defect", "summary": "s", "migrated": False,
-             "rejection_tests": ["tests/test_a.py::A::test_b"], "hotfix_path": "protected"},
+             "rejection_tests": ["tests/test_a.py::A::test_b"], "hotfix_path": "protected", "no_preflight": "depends on the outcome of the run it would precede"},
         )
 
     def message(self, gate_id: str, detail: str = "something blocked") -> str:
