@@ -182,6 +182,15 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("--min-rest-remaining", arguments)
         self.assertTrue(data["EnvironmentVariables"]["PATH"].startswith("/opt/bin"))
 
+    def test_plist_path_has_sbin_dirs_for_lsof_without_duplicates(self):
+        with mock.patch.object(runner.shutil, "which", side_effect=lambda n: f"/usr/sbin/{n}"):
+            data = plistlib.loads(runner.render_plist(self.args))
+        entries = data["EnvironmentVariables"]["PATH"].split(":")
+        self.assertEqual(entries, ["/usr/sbin", "/usr/bin", "/bin", "/sbin"])
+        with mock.patch.object(runner.shutil, "which", side_effect=lambda n: f"/opt/bin/{n}"):
+            entries = plistlib.loads(runner.render_plist(self.args))["EnvironmentVariables"]["PATH"].split(":")
+        self.assertEqual(entries, ["/opt/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"])
+
     def test_render_without_gh_fails(self):
         with mock.patch.object(runner.shutil, "which", return_value=None):
             self.args.gh = str(self.args.checkout / "missing-gh")

@@ -233,7 +233,7 @@ def render_plist(args: argparse.Namespace) -> bytes:
                  "--repo", args.repo, "--checkout", str(args.checkout), "--journal-dir", str(args.journal_dir),
                  "--gh", gh, "--min-rest-remaining", str(args.min_rest_remaining), "--max-jobs", str(args.max_jobs),
                  "--max-seconds", str(args.max_seconds), "--claim-ttl", str(args.claim_ttl)]
-    path = ":".join(dict.fromkeys([str(Path(gh).parent), str(Path(git).parent), "/usr/bin", "/bin"]))
+    path = ":".join(dict.fromkeys([str(Path(gh).parent), str(Path(git).parent), "/usr/bin", "/bin", "/usr/sbin", "/sbin"]))
     log = str(args.journal_dir / "launchd.log")
     return plistlib.dumps({"Label": LABEL, "ProgramArguments": arguments, "WorkingDirectory": str(args.checkout),
                            "EnvironmentVariables": {"PATH": path}, "RunAtLoad": True,
