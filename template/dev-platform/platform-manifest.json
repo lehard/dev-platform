@@ -105,7 +105,7 @@
     "scripts/model_routing.py": "a3ba1815abd23e6c1c1fd4fdd960b58bbf063efb98c2bc01cb539bf1d0adab7f",
     "scripts/openspec_lifecycle.py": "0111107e776a5465fc9a0329a1c4afc46253452f29c36e3db26aaf3601ebd266",
     "scripts/orchestrate_pre_authoring.py": "d2d7e15a308578f6c2971b8d548bd43e54c36dff1067e67bf67e3fd36963ff79",
-    "scripts/parallel_lifecycle_acceptance.py": "79ed0f20a7c59d6f1c898123a6eb64cdbe8fa520cd4f97d2295e652f67325407",
+    "scripts/parallel_lifecycle_acceptance.py": "bd0343f7863d53e99b95164f8056f1b5c1286b16c44b29aeb59d0b9693ca0223",
     "scripts/platform_bootstrap.py": "ba1153d504fc626ade4bd0bebf69a1690924ee0b748dad25c083213dd77932e2",
     "scripts/platform_divergence.py": "8b722a148468ae79ce7ebab7fe0c250fa609c7688ca18a21aa545aff1d330a98",
     "scripts/platform_doctor.py": "fe3d332ed6a829c17a7950ef1086c456c5c9c815bd5d9591e84d468051644e95",
