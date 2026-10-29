@@ -125,6 +125,9 @@ def rest_remaining(gh: str, token: str, cwd: Path, run: Runner) -> tuple[int, in
 def validate(args: argparse.Namespace) -> None:
     if not REPO_RE.fullmatch(args.repo):
         raise RunnerError(f"--repo must be owner/repo, got {args.repo!r}")
+    for name in ("checkout", "journal_dir"):
+        if not getattr(args, name).is_absolute():
+            raise RunnerError(f"--{name.replace('_', '-')} must be an absolute path, got {getattr(args, name)}")
     if not (args.checkout / "scripts/lifecycle_workers.py").is_file():
         raise RunnerError(f"--checkout {args.checkout} has no scripts/lifecycle_workers.py")
     if not args.journal_dir.is_dir():
@@ -139,16 +142,21 @@ def validate(args: argparse.Namespace) -> None:
 def run_round(args: argparse.Namespace, *, run: Runner = run_command, monotonic: Callable[[], float] = time.monotonic) -> int:
     validate(args)
     journal = args.journal_dir
-    lock = open(journal / LOCK_NAME, "a")
+    lock = None
     try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        append_record(journal, {"event": "round-skipped", "reason": "previous round still running"})
-        return 0
-    try:
+        try:
+            lock = open(journal / LOCK_NAME, "a")
+        except OSError as exc:
+            raise RunnerError(f"lock file {journal / LOCK_NAME} cannot be opened: {exc}") from exc
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            append_record(journal, {"event": "round-skipped", "reason": "previous round still running"})
+            return 0
         return _locked_round(args, run, monotonic)
     finally:
-        lock.close()  # releases the single-instance lock
+        if lock is not None:
+            lock.close()  # releases the single-instance lock
 
 
 def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[], float]) -> int:
@@ -177,9 +185,13 @@ def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[],
                                         "threshold": args.min_rest_remaining, "reset": reset})
                 break
             started = monotonic()
+            budget = deadline - started
+            if budget <= 0:
+                outcome = "max-seconds"  # the rate-limit read used the last of the round's time
+                break
             done = run([sys.executable, "scripts/lifecycle_workers.py", "work-next", "--kinds", KINDS,
                         "--repo", args.repo, "--ttl", str(args.claim_ttl), "--run"],
-                       env=env, cwd=args.checkout, timeout=args.claim_ttl)
+                       env=env, cwd=args.checkout, timeout=min(args.claim_ttl, budget))
             if done.returncode:
                 raise RunnerError(f"work-next exited {done.returncode}: {(done.stderr or '').strip()[-ERROR_TAIL:]}")
             try:
@@ -249,7 +261,13 @@ def install_agent(args: argparse.Namespace) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(content)
     destination.chmod(0o600)
-    subprocess.run(["launchctl", "bootstrap", f"gui/{os.geteuid()}", str(destination)], check=True)
+    try:
+        subprocess.run(["launchctl", "bootstrap", f"gui/{os.geteuid()}", str(destination)], check=True,
+                       capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        raise RunnerError(f"launchctl bootstrap failed ({(exc.stderr or '').strip() or exc.returncode}); any previous agent "
+                          f"is already unloaded and the new plist is at {destination}; fix the cause and rerun --install, "
+                          "or remove-launchagent") from exc
 
 
 def remove_agent() -> None:
