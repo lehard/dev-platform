@@ -1,0 +1,135 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.987,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.66,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.076,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.176,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1716.689,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/agent_sessions.py",
+        "template/scripts/lifecycle_overview.py",
+        "tests/test_agent_sessions.py",
+        "tests/test_overview_agent_sessions.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b423813b1bf0e81a337808eac921b4a5",
+    "change": "agent-session-status",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/agent-session-status",
+    "branch": "agent/br-887-t1-agent-session-status",
+    "head": "c0b293683ce63b78137c40e3dddce3a831b9cc94",
+    "task_content": {
+      "version": 1,
+      "digest": "74dfebcfb24c3dc081c49644d681edfb13a1baee2ac28cf6a2c6874651dc53cb",
+      "paths": {
+        "dev-platform/checks.toml": "d3e6dd5ee654a36114c83d12a4bb043dea8cccf1",
+        "docs/engineering/agent-sessions.md": "dbe0439b4609e94683a9a9db8917846d802391e9",
+        "docs/engineering/chat-coordinator.md": "13deebea74e6b68c473741d5fb1051f0f80e0fa0",
+        "openspec/changes/agent-session-status/.managed-task.json": "b6f3ed7d06dd0f1e67fbc98eb9e21229f514f4dc",
+        "openspec/changes/agent-session-status/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/agent-session-status/design.md": "269b357a9181902c122c3ff8a41ddd8da705d243",
+        "openspec/changes/agent-session-status/proposal.md": "5a6498f7bc0eb876c3069f897ac2b5090e62af1b",
+        "openspec/changes/agent-session-status/specs/agent-sessions/spec.md": "7d499bd8bc9463436ddb5555e121667bdd2615d0",
+        "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md": "37331b757a150bb78204eba48a30bcc5420e5b62",
+        "openspec/changes/agent-session-status/tasks.md": "05bbba3a812900ee04316e88591d73f4384451b5",
+        "openspec/changes/agent-session-status/verification.md": "9e90331e2e52564134004e482942d0c9529d86df",
+        "template/dev-platform/platform-manifest.json": "efb9e17f3a4996fb358d8c6ec0e9fdace814cdf6",
+        "template/dev-platform/protected-surface.toml": "0abe1139bd5ff077474c202cdb75849731e8fb09",
+        "template/scripts/agent_sessions.py": "3e13e34408fb64dee7b832aeac7f07f4bd44c66d",
+        "template/scripts/lifecycle_overview.py": "10490e67bc077cbc0e41f78d864881bcae619aa2",
+        "tests/test_agent_sessions.py": "732b1c81c40bf683b0ba4e22731ebf755a486a70",
+        "tests/test_overview_agent_sessions.py": "11d764dc718b154b48f2c6bcd56a55db382a9f4c",
+        "tests/test_shared_writer_guard.py": "48e717e035dbe653ef15bd591a995aae66ba3ac2"
+      },
+      "base": "944837d28e779735705216f827133c37f1e44002"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378",
+    "paths": {
+      "dev-platform/checks.toml": "d3e6dd5ee654a36114c83d12a4bb043dea8cccf1",
+      "docs/engineering/agent-sessions.md": "dbe0439b4609e94683a9a9db8917846d802391e9",
+      "docs/engineering/chat-coordinator.md": "13deebea74e6b68c473741d5fb1051f0f80e0fa0",
+      "openspec/changes/agent-session-status/.managed-task.json": "b6f3ed7d06dd0f1e67fbc98eb9e21229f514f4dc",
+      "openspec/changes/agent-session-status/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/agent-session-status/design.md": "269b357a9181902c122c3ff8a41ddd8da705d243",
+      "openspec/changes/agent-session-status/proposal.md": "5a6498f7bc0eb876c3069f897ac2b5090e62af1b",
+      "openspec/changes/agent-session-status/specs/agent-sessions/spec.md": "7d499bd8bc9463436ddb5555e121667bdd2615d0",
+      "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md": "37331b757a150bb78204eba48a30bcc5420e5b62",
+      "openspec/changes/agent-session-status/tasks.md": "05bbba3a812900ee04316e88591d73f4384451b5",
+      "template/dev-platform/protected-surface.toml": "0abe1139bd5ff077474c202cdb75849731e8fb09",
+      "template/scripts/agent_sessions.py": "3e13e34408fb64dee7b832aeac7f07f4bd44c66d",
+      "template/scripts/lifecycle_overview.py": "10490e67bc077cbc0e41f78d864881bcae619aa2",
+      "tests/test_agent_sessions.py": "732b1c81c40bf683b0ba4e22731ebf755a486a70",
+      "tests/test_overview_agent_sessions.py": "11d764dc718b154b48f2c6bcd56a55db382a9f4c",
+      "tests/test_shared_writer_guard.py": "48e717e035dbe653ef15bd591a995aae66ba3ac2"
+    },
+    "base": "944837d28e779735705216f827133c37f1e44002",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_sessions.py --changed-file template/scripts/lifecycle_overview.py --changed-file tests/test_agent_sessions.py --changed-file tests/test_overview_agent_sessions.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 4.757,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
