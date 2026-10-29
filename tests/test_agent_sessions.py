@@ -77,6 +77,16 @@ class RegistryTests(unittest.TestCase):
         with self.assertRaisesRegex(sessions.SessionError, "does not exist"):
             sessions.ingest(self.dir / "none", "claude", {"hook_event_name": "Stop", "session_id": "a"}, pid=1)
 
+    def test_start_time_is_refreshed_when_the_same_pid_now_has_another_start_time(self):
+        self.send("SessionStart")
+        event = {"hook_event_name": "Stop", "session_id": SESSION, "cwd": str(self.cwd)}
+        record = sessions.ingest(self.dir, "claude", event, pid=os.getpid(), now=NOW + timedelta(seconds=1),
+                                 started=lambda pid: "start-2")
+        self.assertEqual((record["pid"], record["pid_started"]), (os.getpid(), "start-2"))
+        same = sessions.ingest(self.dir, "claude", event, pid=os.getpid(), now=NOW + timedelta(seconds=2),
+                               started=lambda pid: "start-2")
+        self.assertEqual(same["pid_started"], "start-2")
+
     def test_codex_reports_only_turn_complete(self):
         record = sessions.ingest(self.dir, "codex", {"type": "agent-turn-complete", "thread-id": "t1", "cwd": str(self.cwd)},
                                  pid=os.getpid(), now=NOW, started=lambda pid: "s")

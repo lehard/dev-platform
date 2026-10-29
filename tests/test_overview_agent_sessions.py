@@ -58,6 +58,44 @@ class OverviewSessionTests(unittest.TestCase):
                   "agent_sessions": {**registry, "unattached": []}}
         self.assertIn("registry unreadable", overview.render(result))
 
+    def detail_views(self, registry_config):
+        """Run show_pr and show_requirement against stubbed GitHub reads and render both detail views."""
+        import publication_queue as queue
+        candidate = {"number": 5, "stage": "handed-off", "state": "review-pending", "head": "a" * 40, "url": "u",
+                     "executor": {"activity": "not confirmed"}, "findings": [], "branch": "agent/br-1-t1-x", "chain": [],
+                     "attempts": {}, "actions": []}
+        requirement = {"requirement": "o/b#1", "stage": "in-development", "status": "In progress", "findings": [],
+                       "candidates": [5]}
+        with mock.patch.object(overview, "read_platform_config", return_value=registry_config), \
+                mock.patch.object(overview, "unclaimed_threshold_minutes", return_value=30), \
+                mock.patch.object(overview, "observe_candidate", return_value=dict(candidate)), \
+                mock.patch.object(overview, "_observe_requirement", return_value=requirement), \
+                mock.patch.object(queue, "_repo", return_value="o/r"), mock.patch.object(queue, "_pr", return_value={}), \
+                mock.patch.object(queue, "_requirement_candidate_numbers", return_value=([5], None)):
+            return (overview.render(overview.show_pr(Path("."), 5, now=NOW)),
+                    overview.render(overview.show_requirement(Path("."), "o/b#1", now=NOW)))
+
+    def test_detail_views_state_that_the_registry_is_not_configured(self):
+        for text in self.detail_views({}):
+            self.assertIn("Sessions: not configured", text)
+
+    def test_detail_views_state_that_the_registry_is_unreadable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            section = {"directory": str(Path(tmp) / "missing"), "stale_after_seconds": 3600, "ended_keep_seconds": 3600}
+            for text in self.detail_views({"agent_sessions": section}):
+                self.assertIn("Sessions: registry unreadable", text)
+                self.assertIn("does not exist", text)
+
+    def test_detail_views_show_an_attached_session_and_no_status_line_when_readable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            agent_sessions.ingest(Path(tmp), "claude", {"hook_event_name": "SessionStart", "session_id": "abc", "cwd": tmp},
+                                  pid=1, now=NOW, started=lambda pid: "s")
+            section = {"directory": tmp, "stale_after_seconds": 3600, "ended_keep_seconds": 3600}
+            with mock.patch.object(agent_sessions, "process_started", return_value="s"), mock.patch.object(agent_sessions.os, "kill"):
+                texts = self.detail_views({"agent_sessions": section})
+        for text in texts:
+            self.assertNotIn("Sessions:", text)
+
     def test_registry_sessions_are_read_through_the_platform_module(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp)
