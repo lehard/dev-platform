@@ -113,6 +113,11 @@ revision binding as specified here, and does not start implementation.
 Enabling the capability only adds the same text as a native provider skill; the
 file is read without enabling it.
 
+When the Requirement is a second or later attempt at a problem that already has
+a friction root issue, its `Context` links that issue and names the earlier
+attempts; the delivering change appends its own entry to the root issue (see
+[problem and decision history](agent-workflow.md#problem-and-decision-history)).
+
 When the user asks to execute a Business Requirement, the ordered flow is:
 
 The target checkout must first prove its managed lifecycle: valid Backlog

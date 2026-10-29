@@ -1,7 +1,7 @@
 {
   "version": 1,
   "capability": "requirement-authoring",
-  "content_sha256": "54c2c0ef0fbd333424ca5186fdde249911bd33bb7985178206ca7b519e9cec1f",
+  "content_sha256": "c94c578aad8ca78f78c13b976d09f22538a696fb93a54ca7003f8e0b9dc19a99",
   "cases": [
     {"id": "positive-fix-long-discussion", "expectation": "trigger", "prompt": "Зафиксируй всё, что мы согласовали выше: точные тексты экрана, порядок шагов и права менеджера.", "samples": ["triggered", "triggered", "triggered"]},
     {"id": "positive-add-to-backlog", "expectation": "trigger", "prompt": "Добавь в бэклог изменение, которое мы обсуждали последний час, со всеми принятыми деталями.", "samples": ["triggered", "triggered", "triggered"]},

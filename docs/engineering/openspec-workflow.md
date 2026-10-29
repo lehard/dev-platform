@@ -35,6 +35,8 @@ State relevant constraints and non-goals to bound the accepted iteration. When a
 
 In `design.md`, record concrete risks and mitigations when the work materially affects data or migrations, security/privacy, CI or release lifecycle, external integrations, backwards compatibility, cross-project rollout, or a comparable high-consequence boundary. Low-risk work does not need a ceremonial risk table.
 
+Before writing `proposal.md`, search for the friction root issue of the problem and the decision records that govern the concern (`docs/decisions/`), and link the ones that apply in the proposal; when the change rests on an owner choice between options, `design.md` links its decision record instead of quoting the choice ([agent-workflow.md](agent-workflow.md#problem-and-decision-history)).
+
 Keep this context in the existing proposal, specs, design, and tasks artifacts. Do not create a mandatory `intent.md`, Must/Should/Could layer, or manual status/date/expiry/artifact ledger; lifecycle state and receipts already have authoritative sources.
 
 ### Carry Requirement binding levels into OpenSpec

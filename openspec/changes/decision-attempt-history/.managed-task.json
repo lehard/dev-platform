@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/decision-registry/spec.md",
+    "tasks.md"
+  ],
+  "change": "decision-attempt-history",
+  "imported_at": "2026-10-29T00:33:22+00:00",
+  "package_revision": "640a0ed0cebe7225fcd10ad920fa286b4a4c6e659d22a7be929b360d2b7c59a4",
+  "prepared_against": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+  "private_lineage_handle": "pln_54ef5cedc0a6ce1aab0c9ada1fd5c07c",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "a7025e7c6da11d3996e0adbdd3d68f93ee5d2280ac32e9ce9f22f906811de4b6",
+    "updated_at": "2026-10-29T00:27:10Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-781/T1"
+}

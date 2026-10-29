@@ -7,12 +7,13 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | [DEC-0001](0001-teamai-substitution.md) | TeamAI substitution after the v0.25.0 pilot | External agent infrastructure | Current |
 | [DEC-0002](0002-public-br-identity.md) | Public BR identity with private technical lineage | Managed identity and public privacy | Current |
 | [DEC-0003](0003-sandboxed-claude-writer.md) | Sandboxed Claude writer under sandbox-runtime | Delegated Claude writers (macOS) | Current |
+| [DEC-0004](0004-main-advance-revalidation.md) | Main advance and repeated validation: one task-base classifier for every gate | Freshness gates and queue integration | Current |
 | [DEC-0005](0005-managed-rollout-on-demand.md) | Managed rollout on demand, not on every release | Releases and downstream updates | Current |
 | [DEC-0006](0006-claude-lifecycle-provider.md) | Claude as the provider for review, repair and finalize | Central lifecycle jobs | Current |
 
 ## Record contract
 
-Record a decision when losing its rationale or reconsideration conditions would materially affect later platform work. Minor implementation choices belong in the relevant OpenSpec change. Each record states:
+Record a decision when losing its rationale or reconsideration conditions would materially affect later platform work: an owner choice between options, a hard-to-reverse decision, or a problem attacked a second time. The change's `design.md` links the record instead of quoting the choice. Minor implementation choices belong in the relevant OpenSpec change. A problem with several attempts keeps one record that lists every attempt (what it did, why it was not enough, what stayed out of scope) and links the problem's friction root issue; see [problem and decision history](../engineering/agent-workflow.md#problem-and-decision-history). Each record states:
 
 - a stable ID, title, scope, decision date and repository revision;
 - its status and the accepted current choice;
@@ -20,6 +21,7 @@ Record a decision when losing its rationale or reconsideration conditions would 
 - evidence and source links rather than copied transcripts;
 - exact events or evidence that trigger reconsideration;
 - `Supersedes` and `Superseded by` links, using `None` when absent.
+- for a repeated problem: the friction root issue and the list of attempts.
 
 When a decision changes, create a new record with a new ID and a `Supersedes` link. Add only the new ID to the earlier record's `Superseded by` field; preserve its dated conclusion, rationale and evidence. Update this index to identify the current record. A revisit trigger prompts a new evaluation; it does not itself authorize implementation.
 
