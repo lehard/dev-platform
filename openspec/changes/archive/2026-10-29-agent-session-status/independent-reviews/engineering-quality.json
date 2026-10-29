@@ -1,0 +1,103 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "81d868042d97cbae99c47beb28a101e4c81a10ba",
+    "base_ref": "origin/main",
+    "candidate_head": "887ad3dd9da42b8b29198f80cbe8b0c7865fe50b",
+    "diff_sha256": "b4594245242dbb85aac08bfe6a11834c7aafa4d13ec63d1a242f392768d7461d"
+  },
+  "completed_at": "2026-10-29T15:33:23+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_sessions.py `ingest` calls `started(pid)` once for a new record, then twice for an existing one (`previous.get(\"pid_started\") != started(pid)` and again in `record.update`). `process_started` raises SessionError on a timeout or an unusable `ps`. That aborts the whole ingest, so a transient `ps` failure loses a state transition such as PostToolUse or Stop. The record then stays in an old state, for example `waiting-permission`. Compute the start time once, and only when the PID has changed or the record is new.",
+      "id": "hook-ps-failure-drops-event",
+      "severity": "advisory",
+      "summary": "Every hook event runs `ps` up to twice, and a `ps` failure discards the event. This contradicts the design note that tool-event hooks stay cheap."
+    },
+    {
+      "evidence": "`claude_transition` keeps `waiting-permission` on every PreToolUse. A PostToolUse for a different tool also keeps it. Only the PostToolUse of the same tool, UserPromptSubmit, Stop, StopFailure or SessionEnd clears it. A denial produces no PostToolUse for that tool. If the model carries on with other tools, the status stays `waiting-permission` until Stop, or until the silent-timeout `unknown`. This follows the spec scenario, but the docs do not mention the false-positive case.",
+      "id": "permission-wait-stuck-after-denial",
+      "severity": "advisory",
+      "summary": "A denied or interrupted permission prompt leaves the session reported as `waiting-permission` while it is working again."
+    },
+    {
+      "evidence": "`list_sessions` calls `read_record` for each file with no per-file handling. A single corrupt or foreign-version `*.json` raises SessionError and `read_sessions` returns `{error}` with no sessions. `view` also does `_parse(record[\"updated_at\"])`. A record with a valid version but no `updated_at` raises a bare KeyError, which `read_sessions` does not catch (it catches only SessionError and ValueError). The overview would crash instead of printing 'registry unreadable'.",
+      "id": "one-corrupt-record-hides-whole-registry",
+      "severity": "advisory",
+      "summary": "One unreadable or malformed session file makes the whole registry unreadable for every viewer."
+    },
+    {
+      "evidence": "`edit_settings` rebuilds `hooks` with `{k: v for k, v in hooks.items() if v}`, so any pre-existing empty hook lists are dropped on install and on remove. `_write_settings` uses `os.replace` on the given path, so a symlinked `~/.claude/settings.json` (a common dotfiles setup) is replaced by a regular file. No backup is made. The doc promises rollback 'leaves other hooks alone'.",
+      "id": "settings-edit-side-effects",
+      "severity": "advisory",
+      "summary": "The settings installer changes the owner's file in ways that go beyond adding or removing its own entries."
+    },
+    {
+      "evidence": "`_locked` opens `path.with_suffix(\".lock\")` in append mode with no mode restriction, while records are written 0600. Each session leaves a permanent `.lock` file, and `ended_keep` retention only hides records. `_write` leaves the `mkstemp` file in the state dir if the write or fsync fails, because it does not unlink the temp file on error.",
+      "id": "lock-file-permissions-and-leftovers",
+      "severity": "advisory",
+      "summary": "Lock files are created with the default umask and never cleaned up. A failed write also leaks its temp file."
+    }
+  ],
+  "launched_at": "2026-10-29T15:32:47+00:00",
+  "output_sha256": "c962cb00063834e3dd7e3507699e975372474cf82d283f325f7fe2859371f0a6",
+  "perspective": "engineering-quality",
+  "request_id": "174d709f-394d-4559-b88a-6e91a95a5a84",
+  "reviewer": {
+    "context_id": "4394fd71-35fc-45a9-9355-fb97c2222d81",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-83ad0bd2-1a77-4677-8f3e-4852eaaed48b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40149
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51823
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34451
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34779
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3917
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c4376d530ac414a36117ca40ae1359dabe1207f34f35ea37531209655894b20c"
+}

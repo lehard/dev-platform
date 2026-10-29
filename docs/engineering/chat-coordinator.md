@@ -144,3 +144,5 @@ truth and deleting the file never changes a result. Assessments, ages and claim 
 A corrupt or inconsistent cache fails the run with an error that names the file; reset it with `rm <that file>`.
 It is never silently replaced by a full re-read. The Project-status GraphQL reads of a Requirement's children are
 not conditional and still run on each overview.
+
+The overview also shows the platform's agent session status beside the candidate a session belongs to (by branch), or states that it is not configured or unreadable; the status rules, liveness and install steps are in [agent-sessions.md](agent-sessions.md).

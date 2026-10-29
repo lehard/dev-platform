@@ -1,0 +1,87 @@
+{
+  "candidate": {
+    "base_head": "81d868042d97cbae99c47beb28a101e4c81a10ba",
+    "base_ref": "origin/main",
+    "candidate_head": "887ad3dd9da42b8b29198f80cbe8b0c7865fe50b",
+    "diff_sha256": "b4594245242dbb85aac08bfe6a11834c7aafa4d13ec63d1a242f392768d7461d"
+  },
+  "change": "openspec/changes/agent-session-status",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/agent-session-status/automated-checks.json",
+    "openspec/changes/agent-session-status/independent-review-request.json",
+    "openspec/changes/agent-session-status/independent-reviews/engineering-quality.json",
+    "openspec/changes/agent-session-status/independent-reviews/spec-fidelity.json",
+    "openspec/changes/agent-session-status/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/agent-session-status/design.md",
+        "openspec/changes/agent-session-status/proposal.md",
+        "openspec/changes/agent-session-status/specs/agent-sessions/spec.md",
+        "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md",
+        "openspec/changes/agent-session-status/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/agent-session-status/proposal.md",
+        "openspec/changes/agent-session-status/design.md",
+        "openspec/changes/agent-session-status/tasks.md",
+        "openspec/changes/agent-session-status/specs/agent-sessions/spec.md",
+        "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T15:32:16+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/agent-session-status/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "174d709f-394d-4559-b88a-6e91a95a5a84",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "944837d28e779735705216f827133c37f1e44002",
+    "digest": "c4376d530ac414a36117ca40ae1359dabe1207f34f35ea37531209655894b20c",
+    "paths": {
+      "dev-platform/checks.toml": "d3e6dd5ee654a36114c83d12a4bb043dea8cccf1",
+      "docs/engineering/agent-sessions.md": "dbe0439b4609e94683a9a9db8917846d802391e9",
+      "docs/engineering/chat-coordinator.md": "13deebea74e6b68c473741d5fb1051f0f80e0fa0",
+      "openspec/changes/agent-session-status/.managed-task.json": "b6f3ed7d06dd0f1e67fbc98eb9e21229f514f4dc",
+      "openspec/changes/agent-session-status/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/agent-session-status/design.md": "4c2f15101e9d52d2f34c76d0124014ac0bbd93fb",
+      "openspec/changes/agent-session-status/proposal.md": "5a6498f7bc0eb876c3069f897ac2b5090e62af1b",
+      "openspec/changes/agent-session-status/specs/agent-sessions/spec.md": "7d499bd8bc9463436ddb5555e121667bdd2615d0",
+      "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md": "37331b757a150bb78204eba48a30bcc5420e5b62",
+      "openspec/changes/agent-session-status/tasks.md": "05bbba3a812900ee04316e88591d73f4384451b5",
+      "template/dev-platform/protected-surface.toml": "0abe1139bd5ff077474c202cdb75849731e8fb09",
+      "template/scripts/agent_sessions.py": "e9247888010c2d2fcd4317ed5c8465fbc287afde",
+      "template/scripts/lifecycle_overview.py": "81062ec5b51c5d6f9bbe2e9c41c504f16b9776ef",
+      "tests/test_agent_sessions.py": "0d435c650d726e17f14f7cddd246e45d098f104a",
+      "tests/test_overview_agent_sessions.py": "433eecfba9434b8e0ddcbe86d98fd39bb4803862",
+      "tests/test_shared_writer_guard.py": "48e717e035dbe653ef15bd591a995aae66ba3ac2"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

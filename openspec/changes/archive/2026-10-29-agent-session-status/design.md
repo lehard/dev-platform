@@ -1,0 +1,18 @@
+## Context
+
+Claude Code runs configured hooks as child processes of the session with a JSON event on stdin (`session_id`, `cwd`, `hook_event_name`, tool and notification fields). The session's own PID is therefore the hook's parent PID. Existing local state: `.claude/settings.local.json` of the integration checkout carries only the write-gate hook and is not loaded by sessions rooted in task worktrees, so per-session hooks must be installed in a settings file the owner chooses (user-level covers every worktree).
+
+## Decisions
+
+- **Platform computes, viewers read.** `agent_sessions.py` owns the status vocabulary and rules. The registry is a directory of `<provider>-<session id>.json` files (one writer per session, atomic temp+rename under a per-session lock), in a directory given explicitly (`--state-dir` on every command; the overview reads `agent_sessions.directory` from the external operator config and shows "not configured" if absent). No database or queue.
+- **Record.** `{version, provider, session_id, pid, pid_started, cwd, project (git top level), branch, task (worktree or branch name), state, state_since, updated_at, last_event, detail}`. Project/branch/task are refreshed on SessionStart, UserPromptSubmit and Stop and reused otherwise, so tool-event hooks stay cheap.
+- **Transitions.** SessionStart -> idle; UserPromptSubmit, PreToolUse, PostToolUse -> working (PreToolUse of AskUserQuestion -> waiting-input, cleared by its PostToolUse); PermissionRequest or Notification(permission_prompt) -> waiting-permission with the tool name; Notification(idle_prompt, elicitation) -> waiting-input; Stop -> idle; StopFailure -> limit-or-error with the error type; SessionEnd -> ended. A PostToolUse for another tool leaves waiting-permission in place.
+- **Liveness is a reader concern.** `list` checks `kill(pid, 0)` and the recorded process start time (`ps -o lstart=`). ESRCH or a different start time -> `ended` (reason `process-gone`). EPERM, ps failure or timeout -> liveness `unknown`, state unchanged. A non-ended record older than `--stale-after` seconds (required) with unknown liveness, or alive with no event for that long, is shown `unknown (silent for ...)`. Ended records older than `--ended-keep` seconds are hidden; the files are never deleted by readers.
+- **Hooks never steer the session.** No stdout, no JSON decision; an internal failure, an unreadable payload or an unknown event name prints one line on stderr and exits 1 (a non-blocking hook error, never 2), so the status table cannot silently go stale.
+- **Codex.** `hook --provider codex` accepts the `agent-turn-complete` notification payload (type, thread id, cwd) -> idle; the doc states that working, permission and limit states are not available for Codex and are reported as such rather than inferred.
+- **Install is rendering.** `hooks --print` renders the `hooks` block for a settings file; `--install --settings PATH` merges it idempotently, refuses malformed JSON, and backs up nothing silently (the owner passes the path). No install happens in tests, validation or release.
+
+## Risks
+
+- Parallel tool hooks race on one file; the per-session lock serialises them and ordering is by arrival, which matches the observable order of events.
+- The hook parent PID is the Claude Code process only for a direct child launch; if the platform reports a wrapper, the recorded PID would be the wrapper's. The record stores it as `pid` with its start time so a wrong PID can only produce `ended`/`unknown`, never a false `working`.

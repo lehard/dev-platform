@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "81d868042d97cbae99c47beb28a101e4c81a10ba",
+    "base_ref": "origin/main",
+    "candidate_head": "887ad3dd9da42b8b29198f80cbe8b0c7865fe50b",
+    "diff_sha256": "b4594245242dbb85aac08bfe6a11834c7aafa4d13ec63d1a242f392768d7461d"
+  },
+  "completed_at": "2026-10-29T15:32:47+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_sessions.py view(): on liveness 'gone' it sets state_since=shown['updated_at']. list_sessions() then drops any ended item where now - state_since > ended_keep. The docs say 'Ended records are listed for ended_keep_seconds', and the spec scenario 'Killed session' says it is shown `ended`.",
+      "id": "process-gone-retention-clock",
+      "severity": "advisory",
+      "summary": "The retention window for a session found dead without SessionEnd is measured from its last event, not from when it was seen to be gone. A session that was quiet for longer than ended_keep before it was killed is hidden as soon as it is detected as ended. A killed session is then neither shown `ended` nor reported as missing."
+    }
+  ],
+  "launched_at": "2026-10-29T15:32:22+00:00",
+  "output_sha256": "5ac5a950c8a42a159ed800479976136d252fea6666c92d8c46524cb98afa4c73",
+  "perspective": "spec-fidelity",
+  "request_id": "174d709f-394d-4559-b88a-6e91a95a5a84",
+  "reviewer": {
+    "context_id": "1abb1ddc-0dff-47f6-89c9-4a898c9aec23",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-17cd1fcf-1f0e-4ae0-b425-34bbfcf943a6",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41853
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51863
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24963
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25137
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2565
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c4376d530ac414a36117ca40ae1359dabe1207f34f35ea37531209655894b20c"
+}
