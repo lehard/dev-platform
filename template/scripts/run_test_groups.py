@@ -32,7 +32,7 @@ import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import machine_pool
 from _platform_common import current_worktree_root, read_platform_config, validation_subprocess_env
@@ -244,9 +244,9 @@ def execute(root: Path, start_dir: str, groups: dict[str, dict[str, Any]], jobs:
 _DEFAULT_JOBS_CEILING = 4
 
 
-def resolve_jobs() -> tuple[int, str]:
+def resolve_jobs(environ: Mapping[str, str] | None = None) -> tuple[int, str]:
     """Return the automatic parallelism and whether an operator selected it."""
-    configured = os.environ.get("DEV_PLATFORM_TEST_JOBS")
+    configured = (os.environ if environ is None else environ).get("DEV_PLATFORM_TEST_JOBS")
     if configured is not None:
         if not (configured.isascii() and configured.isdigit() and int(configured) > 0):
             raise TestGroupError(f"DEV_PLATFORM_TEST_JOBS must be a positive integer, found {configured!r}")

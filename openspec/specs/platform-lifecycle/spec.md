@@ -966,7 +966,7 @@ For a Development Backlog managed task, platform-owned terminal reconciliation S
 
 For platform-owned task execution, the lifecycle SHALL refresh its observation of the configured remote integration branch and verify that the current task head is based on the authoritative remote history before running expensive full/protected validation intended as delivery evidence.
 
-One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. A second bounded exception SHALL exist for a coordinator-managed candidate, whose integration the publication queue performs by merging the current integration branch and gating on required checks of the integrated head. Its developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block. The lifecycle SHALL report that behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record it in the evidence. The declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files. A conflict in any other file or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command. Evidence recorded earlier under the behind-disjoint contract SHALL remain valid. Outside these two exceptions, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
+One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. A second bounded exception SHALL exist for a task the publication queue integrates: a coordinator-managed candidate, or, under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch, a quick task without canonical managed provenance. The queue integrates such a task by merging the current integration branch and gating on required checks of the integrated head. Its developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block. The lifecycle SHALL report that behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record it in the evidence. The declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files. A conflict in any other file or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command. Evidence recorded earlier under the behind-disjoint contract SHALL remain valid. Outside these two exceptions, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
 
 #### Scenario: Task remains fresh before full validation
 
@@ -1051,9 +1051,24 @@ One bounded exception SHALL exist, for trusted coordinator finalization of a rev
 - **WHEN** evidence-producing selected checks or the developer handoff run
 - **THEN** the conflict blocks as a real conflict
 
+#### Scenario: Quick task under the queue behind a cleanly mergeable main is handed off
+
+- **GIVEN** the coordinator lifecycle mode with the publication queue enabled on authoritative main
+- **AND** a quick task without canonical managed provenance whose head does not contain `origin/<main>`
+- **AND** a trial merge with the observed `origin/<main>` is clean or conflicts only in declared generated files
+- **WHEN** evidence-producing selected checks or `finish` run
+- **THEN** the freshness gate passes under the behind-mergeable contract with the same answer a coordinator-managed candidate gets
+- **AND** no reconcile is required, and the queue merges main and gates on the integrated head
+
+#### Scenario: Quick task under the queue with a real conflict must reconcile
+
+- **GIVEN** a quick task under the enabled queue whose head conflicts with `origin/<main>` in a file that is not declared generated
+- **WHEN** evidence-producing selected checks or `finish` run
+- **THEN** the lifecycle stops before any expensive command, naming the conflicting files and the reconcile command
+
 #### Scenario: Non-coordinator task keeps the fresh-base rule
 
-- **GIVEN** a task published without the coordinator queue whose head does not contain `origin/<main>`
+- **GIVEN** a task the publication queue does not integrate (a task published without the coordinator queue, or a managed task that is not a coordinator candidate) whose head does not contain `origin/<main>`
 - **WHEN** evidence-producing validation is requested
 - **THEN** it is blocked by the fresh-base requirement even when the changed files are disjoint
 
@@ -1867,7 +1882,7 @@ The Business Requirement retrospective SHALL include durable coordinator evidenc
 
 ### Requirement: Heavy validation coordinates through an opt-in machine pool
 
-When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` is set, every top-level heavy validation run (selected-check execution, the canonical test-group runner and Requirement full-candidate validation) SHALL acquire its weight in tokens from the machine-wide pool before running, SHALL hold them through kernel-released leases inherited by its child processes, and SHALL release them when every holder exits. Nested runs SHALL reuse the parent lease without acquiring more tokens, and the test runner's parallelism SHALL NOT exceed the lease weight. Acquisition SHALL be all-or-nothing and ordered by priority class (`finalize` before `development`) then arrival, SHALL wait while the per-CPU load exceeds the configured limit or available memory is below the configured minimum (an unmeasurable value SHALL fail explicitly), and SHALL fail explicitly naming the holders after the configured wait timeout instead of running outside the pool. When the variable is unset the run SHALL print `DEV_PLATFORM_MACHINE_POOL: not configured` and run unpooled; a set but missing or invalid configuration SHALL fail explicitly naming the key or path. A read-only status command SHALL show configuration, holders, waiters and load.
+When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` is set, every top-level heavy validation run (selected-check execution, the canonical test-group runner and Requirement full-candidate validation) SHALL acquire its weight in tokens from the machine-wide pool before running, SHALL hold them through kernel-released leases inherited by its child processes, and SHALL release them when every holder exits. Nested runs SHALL reuse the parent lease without acquiring more tokens, and the test runner's parallelism SHALL NOT exceed the lease weight. Acquisition SHALL be all-or-nothing and ordered by priority class (`finalize` before `development`) then arrival, SHALL wait while the per-CPU load exceeds the configured limit, available memory is below the configured minimum or, on macOS, the kernel memory pressure level is above normal (an unmeasurable or unknown value SHALL fail explicitly), and SHALL fail explicitly naming the holders after the configured wait timeout instead of running outside the pool. When the variable is unset the run SHALL print `DEV_PLATFORM_MACHINE_POOL: not configured` and run unpooled; a set but missing or invalid configuration SHALL fail explicitly naming the key or path. A selected-check execution SHALL lease one token when every selected command is labelled with a non-test evidence type (`configuration` or `syntax`) and no affected-test precheck runs; otherwise its weight is the test parallelism bounded by the tokens, and an unlabelled command counts as a test command. A waiting run SHALL report the actual blocker first (queue, load, memory, memory pressure, tokens or admission) with its current value and threshold, before the needed and free tokens, its queue position and the holders. A read-only status command SHALL show configuration, holders, waiters, load, memory, the head waiter's blocker in the same terms, and the effective run weight in the caller's environment with how many such runs fit and how many tokens stay idle, warning when the tokens are not a multiple of that weight. The configuration keys and the slot, ticket and lease formats SHALL stay unchanged so that participants on different platform releases share one pool.
 
 #### Scenario: Pool is busy
 
@@ -1899,6 +1914,33 @@ When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` i
 - **THEN** the run prints `DEV_PLATFORM_MACHINE_POOL: not configured` and proceeds unpooled
 - **WHEN** it names a missing or invalid configuration
 - **THEN** the run fails naming the problem and runs nothing
+
+#### Scenario: Memory pressure blocks admission on macOS
+
+- **GIVEN** a pooled run on macOS whose `vm_stat` available memory is above the minimum
+- **WHEN** the kernel memory pressure level is warn or critical
+- **THEN** the run waits and its waiting line names memory pressure first with the current level
+- **AND** at the normal level the run is admitted
+- **AND** an unreadable or unknown level fails explicitly naming the measurement
+
+#### Scenario: Free tokens and a load blocker
+
+- **GIVEN** every token is free and the per-CPU load exceeds the limit
+- **WHEN** a run waits
+- **THEN** its waiting line and the status name the load with its value and limit first, not a shortage of tokens
+
+#### Scenario: Recommended configuration leaves no idle tokens
+
+- **GIVEN** 6 tokens and a run weight of 3 from `DEV_PLATFORM_TEST_JOBS`
+- **WHEN** two heavy runs start
+- **THEN** both are admitted together and no token stays free while runs are queued
+- **AND** with a weight that does not divide the tokens the status warns and names the idle tokens
+
+#### Scenario: Light selection
+
+- **WHEN** a selected-check execution runs only commands labelled `configuration` or `syntax` and no affected-test precheck
+- **THEN** it leases one token
+- **AND** a selection with a `test` or unlabelled command leases the test parallelism
 
 ### Requirement: Friction routing never substitutes a missing platform destination or label configuration
 

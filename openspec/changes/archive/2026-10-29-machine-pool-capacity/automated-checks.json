@@ -1,0 +1,134 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.487,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 3.135,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.239,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.289,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1610.993,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/machine_pool.py",
+        "template/scripts/run_test_groups.py",
+        "template/scripts/select_checks.py",
+        "tests/test_machine_pool.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_cc5f67adc352c13922bd354bba17f1af",
+    "change": "machine-pool-capacity",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/machine-pool-capacity",
+    "branch": "agent/br-730-t1-machine-pool-capacity",
+    "head": "3b5c2b866a9bc7da99069393ac5b320c35bbbd79",
+    "task_content": {
+      "version": 1,
+      "digest": "1dd6e253f88b504118c5e9ffb8cbe49dc1abfb29048e97ee05c2339490de48bf",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "ade1d1352e3ad901b4762e7b945d5d212af909cc",
+        "openspec/changes/machine-pool-capacity/.managed-task.json": "283cfbb7a0373d04aa145755c8f12bdb160cecc4",
+        "openspec/changes/machine-pool-capacity/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/machine-pool-capacity/design.md": "4d4fd573817d6ddcc5c6c8d7ae73887c5c956f9f",
+        "openspec/changes/machine-pool-capacity/proposal.md": "796fa79db44b047dd965cc094b21919286383fe8",
+        "openspec/changes/machine-pool-capacity/specs/platform-lifecycle/spec.md": "f64c61fd7655da9cd17b0d3739ff1376aaa71aa8",
+        "openspec/changes/machine-pool-capacity/tasks.md": "fe814d5841c790c185221e213f9b7474f60d747d",
+        "template/dev-platform/platform-manifest.json": "3e8f1dfd236968baeb2c5e9998583cc5134f69b7",
+        "template/docs/engineering/agent-workflow.md.jinja": "0247412005c82002ae00ea457f1d85a8445526a3",
+        "template/scripts/machine_pool.py": "d26e4b3be16423de6074e1a089aed7b2464f3107",
+        "template/scripts/run_test_groups.py": "da4fb548b42591c2f5a4a2a8c1b463117fe4c734",
+        "template/scripts/select_checks.py": "eb827071b71c0460885d89bf3feec0e4f33c1f03",
+        "tests/test_machine_pool.py": "e9e1b61604f8c4c5da429bd48828ecf312559272"
+      },
+      "base": "c18c91ede924ce04f6ed11a20563c739aa88eaaf"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "213ee14b2d736dba0bbe55ef30a73dab4f54367fe9e74d8a137e2de1fa45deb6",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "ade1d1352e3ad901b4762e7b945d5d212af909cc",
+      "openspec/changes/machine-pool-capacity/.managed-task.json": "283cfbb7a0373d04aa145755c8f12bdb160cecc4",
+      "openspec/changes/machine-pool-capacity/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/machine-pool-capacity/design.md": "4d4fd573817d6ddcc5c6c8d7ae73887c5c956f9f",
+      "openspec/changes/machine-pool-capacity/proposal.md": "796fa79db44b047dd965cc094b21919286383fe8",
+      "openspec/changes/machine-pool-capacity/specs/platform-lifecycle/spec.md": "f64c61fd7655da9cd17b0d3739ff1376aaa71aa8",
+      "openspec/changes/machine-pool-capacity/tasks.md": "fe814d5841c790c185221e213f9b7474f60d747d",
+      "template/docs/engineering/agent-workflow.md.jinja": "0247412005c82002ae00ea457f1d85a8445526a3",
+      "template/scripts/machine_pool.py": "d26e4b3be16423de6074e1a089aed7b2464f3107",
+      "template/scripts/run_test_groups.py": "da4fb548b42591c2f5a4a2a8c1b463117fe4c734",
+      "template/scripts/select_checks.py": "eb827071b71c0460885d89bf3feec0e4f33c1f03",
+      "tests/test_machine_pool.py": "e9e1b61604f8c4c5da429bd48828ecf312559272"
+    },
+    "base": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/machine_pool.py --changed-file template/scripts/run_test_groups.py --changed-file template/scripts/select_checks.py --changed-file tests/test_machine_pool.py",
+    "duration_seconds": 410.797,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "c49658416b256bac38efd3c5b5e7ca56c04e64f6",
+    "base": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+    "overlapping": [
+      "template/dev-platform/platform-manifest.json",
+      "template/docs/engineering/agent-workflow.md.jinja"
+    ],
+    "generated_conflicts": []
+  }
+}

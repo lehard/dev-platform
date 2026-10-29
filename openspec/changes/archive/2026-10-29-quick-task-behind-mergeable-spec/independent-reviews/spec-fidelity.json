@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c0f776e23a9d7b6d33257cf179a82c5876a0ef22",
+    "base_ref": "origin/main",
+    "candidate_head": "f4fd1f59e6f08d7ef1a933cdce8796cfb728e6ae",
+    "diff_sha256": "4e39ae4ada07a557da025da7566c6392bc379c1f9e741d1458e191855f2d33db"
+  },
+  "completed_at": "2026-10-29T00:36:09+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/specs/platform-lifecycle/spec.md:1347 says \"For a coordinator-managed candidate whose head is behind main under the behind-mergeable contract, status SHALL report that state as not requiring reconciliation\". Scenario at :1357 is also candidate-only. The delta's exception text says \"developer evidence-producing validation, handoff, re-admission and status SHALL accept\" for quick tasks. The proposal says task_reconciliation.observe_candidate reads the same predicate. Quick-task status behavior therefore has no matching scenario or requirement text.",
+      "id": "status-requirement-not-widened",
+      "severity": "advisory",
+      "summary": "The delta widens the second exception to quick tasks, including status. The separate requirement \"Freshness drift is visible before another expensive validation run\" is not modified, so it still limits the not-requiring-reconciliation status report to coordinator-managed candidates."
+    }
+  ],
+  "launched_at": "2026-10-29T00:35:58+00:00",
+  "output_sha256": "a8f1a81c9a37999a048e1862c7a1d63fb8d06e64237098bec2923aa3a1af389e",
+  "perspective": "spec-fidelity",
+  "request_id": "7dbdb607-c0c4-4288-8b6f-266716b0c62f",
+  "reviewer": {
+    "context_id": "08e0c235-ae65-4974-b8f3-a5255b783e5a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-68ed69d0-3d87-4618-9eba-aba12aa80a96",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18154
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 72630
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10178
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10358
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1239
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c01e7b833bd013abb4c543f86694f9d77c222754a47350fcb8b730033f5232ee"
+}

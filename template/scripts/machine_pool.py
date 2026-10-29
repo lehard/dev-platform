@@ -17,8 +17,9 @@ This module is an opt-in counting pool built on kernel ``flock`` leases:
   only when every holder has exited, including after SIGKILL.
 * Waiters take an exclusively locked ticket in ``directory/queue``.  Only the head
   ticket (``finalize`` before ``development``, then arrival) may acquire, all or
-  nothing, while the per-CPU load and available memory admit the run.  A ticket
-  whose lock is no longer held is dead and removed by the next waiter.
+  nothing, while the per-CPU load, available memory and (on macOS) the kernel
+  memory pressure level admit the run.  A ticket whose lock is no longer held is
+  dead and removed by the next waiter.
 * A granted lease is exported as ``DEV_PLATFORM_MACHINE_POOL_LEASE``; a nested
   acquisition that sees it reuses the parent lease and acquires nothing.
 
@@ -208,6 +209,47 @@ def parse_vm_stat(text: str) -> float:
     return pages * int(header.group(1)) / (1024 * 1024)
 
 
+# kern.memorystatus_vm_pressure_level values; only the normal level admits a run.
+MEMORY_PRESSURE_LEVELS = {1: "normal", 2: "warn", 4: "critical"}
+
+
+def parse_memory_pressure_level(text: str) -> str:
+    """The macOS kernel memory pressure level from ``sysctl -n kern.memorystatus_vm_pressure_level`` output."""
+    value = text.strip()
+    if not (value.isascii() and value.isdigit()):
+        raise PoolError(f"cannot measure memory pressure: kern.memorystatus_vm_pressure_level is not an integer: {value!r}")
+    level = int(value)
+    if level not in MEMORY_PRESSURE_LEVELS:
+        raise PoolError(f"cannot measure memory pressure: unknown kern.memorystatus_vm_pressure_level {level}")
+    return MEMORY_PRESSURE_LEVELS[level]
+
+
+def measure_memory_pressure() -> str | None:
+    """The macOS kernel memory pressure level; ``None`` on Linux, where admission uses MemAvailable only."""
+    if sys.platform.startswith("linux"):
+        return None
+    if sys.platform == "darwin":
+        try:
+            done = subprocess.run(["sysctl", "-n", "kern.memorystatus_vm_pressure_level"], capture_output=True, text=True)
+        except OSError as exc:
+            raise PoolError(f"cannot measure memory pressure: sysctl cannot be run: {exc}") from exc
+        if done.returncode:
+            raise PoolError(f"cannot measure memory pressure: sysctl exited {done.returncode}: {done.stderr.strip()}")
+        return parse_memory_pressure_level(done.stdout)
+    raise PoolError(f"cannot measure memory pressure: unsupported platform {sys.platform!r}")
+
+
+def admission_blocker(config: PoolConfig, load: float, memory: float, pressure: str | None) -> str | None:
+    """The machine measurement that blocks admission now, named with its value and threshold, or ``None``."""
+    if load > config.max_load_per_cpu:
+        return f"load per CPU {load:.2f} exceeds the limit {config.max_load_per_cpu:g}"
+    if memory < config.min_available_memory_mb:
+        return f"available memory {memory:.0f} MB is below the minimum {config.min_available_memory_mb} MB"
+    if pressure is not None and pressure != "normal":
+        return f"memory pressure is {pressure}; admission needs normal"
+    return None
+
+
 def measure_available_memory_mb() -> float:
     if sys.platform.startswith("linux"):
         try:
@@ -239,6 +281,7 @@ class Hooks:
     progress_interval: float = 60.0
     load_per_cpu: Callable[[], float] = measure_load_per_cpu
     available_memory_mb: Callable[[], float] = measure_available_memory_mb
+    memory_pressure: Callable[[], str | None] = measure_memory_pressure
     out: Callable[[str], None] = _emit
 
 
@@ -461,7 +504,7 @@ def _admit_if_head(config: PoolConfig, own: str, weight: int) -> tuple[str | Non
         if live[0] != own:
             return "an earlier-ranked run joined the queue", None
         held = _try_take_slots(config, weight)
-        return (None if held is not None else f"fewer than {weight} free token(s)"), held
+        return (None if held is not None else f"tokens: fewer than {weight} free"), held
 
 
 def _create_ticket(config: PoolConfig, check_class: str, metadata: dict[str, Any], hooks: Hooks,
@@ -586,8 +629,11 @@ def describe_holders(holders: list[dict[str, Any]]) -> str:
 
 
 def _blocked_report(config: PoolConfig, weight: int, check_class: str, position: int, queued: int, reason: str) -> str:
-    return (f"DEV_PLATFORM_MACHINE_POOL: waiting for {weight} of {config.tokens} token(s) as class {check_class}; "
-            f"queue position {position} of {queued}; {reason}; holders: {describe_holders(read_holders(config))}")
+    holders = read_holders(config)
+    free = config.tokens - sum(len(holder["slots"]) for holder in holders)
+    return (f"DEV_PLATFORM_MACHINE_POOL: waiting, blocked by {reason}; needs {weight} of {config.tokens} token(s) "
+            f"({free} free) as class {check_class}; queue position {position} of {queued}; "
+            f"holders: {describe_holders(holders)}")
 
 
 def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, root: Path, lease_id: str,
@@ -617,17 +663,15 @@ def _acquire(config: PoolConfig, weight: int, check_class: str, purpose: str, ro
             position = live.index(ticket.name) + 1
             # Measured on the first pass by every waiter so that an unmeasurable value fails at once,
             # afterwards only by the head, which is the only one that can be admitted.
-            load = memory = None
+            blocker = None
             if first or position == 1:
-                load = hooks.load_per_cpu()
-                memory = hooks.available_memory_mb()
+                blocker = admission_blocker(config, hooks.load_per_cpu(), hooks.available_memory_mb(),
+                                            hooks.memory_pressure())
             first = False
             if position != 1:
-                reason = f"waiting behind {position - 1} earlier queued run(s)"
-            elif load > config.max_load_per_cpu:
-                reason = f"load per CPU {load:.2f} exceeds the limit {config.max_load_per_cpu:g}"
-            elif memory < config.min_available_memory_mb:
-                reason = f"available memory {memory:.0f} MB is below the minimum {config.min_available_memory_mb} MB"
+                reason = f"queue: {position - 1} earlier queued run(s)"
+            elif blocker is not None:
+                reason = blocker
             else:
                 wait_reason, held = _admit_if_head(config, ticket.name, weight)
                 if held is not None:
@@ -767,12 +811,31 @@ def lease(weight: int, purpose: str, *, bounded: bool = False, check_class: str 
 # ------------------------------------------------------------------------- status
 
 
-def status_text(config: PoolConfig, hooks: Hooks | None = None) -> str:
+def run_weight_lines(config: PoolConfig, environ: MutableMapping[str, str]) -> list[str]:
+    """The effective heavy-run weight in ``environ`` and how it fits the configured tokens."""
+    from run_test_groups import TestGroupError, resolve_jobs
+
+    try:
+        jobs, source = resolve_jobs(environ)
+    except TestGroupError as exc:
+        raise PoolError(f"cannot resolve the heavy-run weight: {exc}") from exc
+    weight = min(jobs, config.tokens)
+    runs, idle = divmod(config.tokens, weight)
+    lines = [f"heavy-run weight: {weight} ({source}); {runs} concurrent run(s) fit, {idle} token(s) idle"]
+    if idle:
+        lines.append(f"warning: tokens {config.tokens} is not a multiple of the heavy-run weight {weight}, so {idle} "
+                     "token(s) stay idle; set DEV_PLATFORM_TEST_JOBS to a divisor of tokens or change tokens")
+    return lines
+
+
+def status_text(config: PoolConfig, hooks: Hooks | None = None, environ: MutableMapping[str, str] | None = None) -> str:
     hooks = Hooks() if hooks is None else hooks
+    environ = os.environ if environ is None else environ
     holders = read_holders(config)
     held = sum(len(holder["slots"]) for holder in holders)
     load = hooks.load_per_cpu()
     memory = hooks.available_memory_mb()
+    pressure = hooks.memory_pressure()
     lines = [
         f"{POOL_ENV}: {config.path}",
         f"directory: {config.directory}",
@@ -780,6 +843,8 @@ def status_text(config: PoolConfig, hooks: Hooks | None = None) -> str:
         f"wait_timeout_seconds: {config.wait_timeout_seconds}",
         f"max_load_per_cpu: {config.max_load_per_cpu:g}; current load per CPU: {load:.2f}",
         f"min_available_memory_mb: {config.min_available_memory_mb}; current available memory MB: {memory:.0f}",
+        f"memory pressure: {pressure if pressure is not None else 'not measured on this platform (MemAvailable only)'}",
+        *run_weight_lines(config, environ),
         "holders:",
     ]
     lines += [f"  {describe_holder(holder)}" for holder in holders] or ["  none"]
@@ -792,6 +857,14 @@ def status_text(config: PoolConfig, hooks: Hooks | None = None) -> str:
         lines.append(f"  {position}. {detail}")
     if not live:
         lines.append("  none")
+    else:
+        head = _read_metadata(config.queue / live[0])
+        weight = head.get("weight")
+        blocker = admission_blocker(config, load, memory, pressure)
+        if blocker is None and isinstance(weight, int) and config.tokens - held < weight:
+            blocker = f"tokens: {config.tokens - held} free, {weight} needed"
+        lines.append(f"head waiter: blocked by {blocker}" if blocker is not None
+                     else "head waiter: admissible at its next poll")
     dead = [name for name, alive in waiters if not alive]
     if dead:
         lines.append(f"dead tickets awaiting removal by the next waiter: {len(dead)}")
