@@ -1,5 +1,5 @@
 OpenSpec-Verify: PASS
-Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the documentation diff against the decision-registry delta, proposal, design and tasks; `openspec validate --strict`; documentation link and Explorer checks; capability fixture eval; private-reference guard; repository-owned selected checks recorded by the lifecycle
+Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the documentation diff against the decision-registry delta, proposal, design and tasks; `openspec validate --strict`; documentation link and Explorer checks; capability fixture eval; private-reference guard; repository-owned selected checks recorded by the lifecycle; local `public_distribution_snapshot_smoke.py` at candidate stage (18 groups passed)
 Automated-Checks-Evidence: automated-checks.json
 
 ## Decisions
