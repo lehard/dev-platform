@@ -1,0 +1,161 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.796,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.618,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.157,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.136,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1083.019,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/_platform_common.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/lifecycle_preflight.py",
+        "template/scripts/select_checks.py",
+        "template/scripts/shared_workspace.py",
+        "tests/test_blocking_gates.py",
+        "tests/test_finish_explicit_fallbacks.py",
+        "tests/test_finish_merged_queue.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_lifecycle_preflight.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_protected_main_zero_handoff.py",
+        "tests/test_publication_recovery_cli.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b1784d3c6fc541539ade7fb10c8b908e",
+    "change": "lifecycle-preflight-registry",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/lifecycle-preflight-registry",
+    "branch": "agent/br-919-t1-lifecycle-preflight-registry",
+    "head": "766fadb7120e37bff2ed96de7bc51666de4dfc93",
+    "task_content": {
+      "version": 1,
+      "digest": "50db28b63560e0f27eef6796ae736ce3fc2629e763f561bc941c04f0daf9a6be",
+      "paths": {
+        "dev-platform/checks.toml": "93293ec591b43778889a9f953d960667ce15fb93",
+        "docs/engineering/agent-workflow.md": "d9ba854a62c57a863b5d6fb9eff889576776b9aa",
+        "openspec/changes/lifecycle-preflight-registry/.managed-task.json": "b6ed7d7ac2767cc22748a1a9d458bcfcad8b6b60",
+        "openspec/changes/lifecycle-preflight-registry/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/lifecycle-preflight-registry/design.md": "9ed2f29c50d15ea70a2273de92b2fe45ce907ffa",
+        "openspec/changes/lifecycle-preflight-registry/proposal.md": "9fd83c12ce66371a5def61cda6002e0d1eedcb58",
+        "openspec/changes/lifecycle-preflight-registry/specs/blocking-check-recovery/spec.md": "c49bfe663880e24a64d69a1be67b4d7753a66173",
+        "openspec/changes/lifecycle-preflight-registry/specs/completion-lifecycle/spec.md": "c863144d9fc40809db010af7dbecc49a2a020322",
+        "openspec/changes/lifecycle-preflight-registry/specs/shared-workspace/spec.md": "2340afceb97d33efe6d11eee60c73eee677ea132",
+        "openspec/changes/lifecycle-preflight-registry/tasks.md": "6f548eb22269c0132cca4ed8cc2c3c1dced2c478",
+        "openspec/changes/lifecycle-preflight-registry/verification.md": "4d204e4b9ee75f4265d4570221922ee25e40498a",
+        "template/dev-platform/blocking-gates.toml": "1c8aeda18ab131043b653644b430cdf76f3eaed8",
+        "template/dev-platform/platform-manifest.json": "f53fc218074622753de094087bfda98612118dff",
+        "template/dev-platform/protected-surface.toml": "0d5dc59eb1bbef45302db394efa2c99623fa02e0",
+        "template/scripts/_platform_common.py": "8e37b4c6f4dbe7b0e6f0643017915dbab2062960",
+        "template/scripts/finish_task.py": "c404570bd056eb92c417254af701efbf3232c9fd",
+        "template/scripts/lifecycle_preflight.py": "28a88b3650876b8966d986d19cbe2ecdfe7084aa",
+        "template/scripts/select_checks.py": "f55effa560dc7aa1d378cca14b9d42f6b00b195d",
+        "template/scripts/shared_workspace.py": "d025e2d94cd7b0f9469880b9f3943a32c2d763cd",
+        "tests/test_blocking_gates.py": "d6aa1eba228601520d68d669691e561758298e28",
+        "tests/test_finish_explicit_fallbacks.py": "e3d557cae2c902e083782152059206f2aca3c1a2",
+        "tests/test_finish_merged_queue.py": "363dc3622a9f5dd65b06f60cb24b2cb650de8e2c",
+        "tests/test_git_lifecycle.py": "908c6522dcfab7fa5e9054f6a73b520d2dd59f25",
+        "tests/test_lifecycle_preflight.py": "3dc452e4e2abf75161df4e6d3732c3a59e7feb09",
+        "tests/test_merge_lifecycle_resilience.py": "d9baa554fa479492a141d88cc89a3dd0537dc3e7",
+        "tests/test_protected_main_zero_handoff.py": "b8988dfdd1f7c68b1914ef2eac826f2e1d1976f4",
+        "tests/test_publication_recovery_cli.py": "040e80988bfc7ae3ba76b9f986d744bd8e76b5db"
+      },
+      "base": "05ddca914edae6bee444a314d5faeeffd68f0a3f"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "26697c68840a3758442eace3adbfe8019668bc1740dbc6b7cdb256e7b6689956",
+    "paths": {
+      "dev-platform/checks.toml": "93293ec591b43778889a9f953d960667ce15fb93",
+      "docs/engineering/agent-workflow.md": "d9ba854a62c57a863b5d6fb9eff889576776b9aa",
+      "openspec/changes/lifecycle-preflight-registry/.managed-task.json": "b6ed7d7ac2767cc22748a1a9d458bcfcad8b6b60",
+      "openspec/changes/lifecycle-preflight-registry/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/lifecycle-preflight-registry/design.md": "9ed2f29c50d15ea70a2273de92b2fe45ce907ffa",
+      "openspec/changes/lifecycle-preflight-registry/proposal.md": "9fd83c12ce66371a5def61cda6002e0d1eedcb58",
+      "openspec/changes/lifecycle-preflight-registry/specs/blocking-check-recovery/spec.md": "c49bfe663880e24a64d69a1be67b4d7753a66173",
+      "openspec/changes/lifecycle-preflight-registry/specs/completion-lifecycle/spec.md": "c863144d9fc40809db010af7dbecc49a2a020322",
+      "openspec/changes/lifecycle-preflight-registry/specs/shared-workspace/spec.md": "2340afceb97d33efe6d11eee60c73eee677ea132",
+      "openspec/changes/lifecycle-preflight-registry/tasks.md": "6f548eb22269c0132cca4ed8cc2c3c1dced2c478",
+      "template/dev-platform/blocking-gates.toml": "1c8aeda18ab131043b653644b430cdf76f3eaed8",
+      "template/dev-platform/protected-surface.toml": "0d5dc59eb1bbef45302db394efa2c99623fa02e0",
+      "template/scripts/_platform_common.py": "8e37b4c6f4dbe7b0e6f0643017915dbab2062960",
+      "template/scripts/finish_task.py": "c404570bd056eb92c417254af701efbf3232c9fd",
+      "template/scripts/lifecycle_preflight.py": "28a88b3650876b8966d986d19cbe2ecdfe7084aa",
+      "template/scripts/select_checks.py": "f55effa560dc7aa1d378cca14b9d42f6b00b195d",
+      "template/scripts/shared_workspace.py": "d025e2d94cd7b0f9469880b9f3943a32c2d763cd",
+      "tests/test_blocking_gates.py": "d6aa1eba228601520d68d669691e561758298e28",
+      "tests/test_finish_explicit_fallbacks.py": "e3d557cae2c902e083782152059206f2aca3c1a2",
+      "tests/test_finish_merged_queue.py": "363dc3622a9f5dd65b06f60cb24b2cb650de8e2c",
+      "tests/test_git_lifecycle.py": "908c6522dcfab7fa5e9054f6a73b520d2dd59f25",
+      "tests/test_lifecycle_preflight.py": "3dc452e4e2abf75161df4e6d3732c3a59e7feb09",
+      "tests/test_merge_lifecycle_resilience.py": "d9baa554fa479492a141d88cc89a3dd0537dc3e7",
+      "tests/test_protected_main_zero_handoff.py": "b8988dfdd1f7c68b1914ef2eac826f2e1d1976f4",
+      "tests/test_publication_recovery_cli.py": "040e80988bfc7ae3ba76b9f986d744bd8e76b5db"
+    },
+    "base": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/_platform_common.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/lifecycle_preflight.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file tests/test_blocking_gates.py --changed-file tests/test_finish_explicit_fallbacks.py --changed-file tests/test_finish_merged_queue.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_lifecycle_preflight.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_recovery_cli.py",
+    "duration_seconds": 910.4,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
