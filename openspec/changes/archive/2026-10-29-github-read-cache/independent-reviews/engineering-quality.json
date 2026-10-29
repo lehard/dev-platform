@@ -1,36 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
+    "base_head": "39a6ae92daf33954c6da85069e666993f9ef8240",
     "base_ref": "origin/main",
-    "candidate_head": "e045875b1085a6916618e7fe89a6b817f949abe6",
-    "diff_sha256": "103195259c14c13973599ecbbe84dcb5d180c553a41d7df431ee2ab3d6abe3e8"
+    "candidate_head": "b939099b48b5a64b4fd5eb9153a5c6aefd4c18e8",
+    "diff_sha256": "fbe4394186189cf1b379ad1cc15ce04bc144c64af67d275a90aecd4741d05398"
   },
-  "completed_at": "2026-10-29T11:38:06+00:00",
+  "completed_at": "2026-10-29T12:28:26+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/github_read_cache.py `_page`: `if entry is not None and entry[\"next\"] is not None: command += [\"-H\", \"If-None-Match: ...\"]`, with the comment \"A last page (no stored next) is always re-read\". Single-page resources are PR lists, comment histories of 100 or fewer comments, and every Requirement Issue read. `managed_task.fetch_issue` says \"an unchanged issue costs no counted request\", which this code makes false. The test `test_warm_read_is_conditional...` asserts `(counted, conditional) == (3, 1)`: one of two pages is still counted. The proposal's motivation (about 140 counted requests per overview) is largely unaddressed.",
-      "id": "last-page-never-conditional",
-      "severity": "material",
-      "summary": "A stored page with no `rel=\"next\"` link is never revalidated with If-None-Match, so it is always a counted 200. Most cached resources are single-page, so the cache saves almost no counted requests. This conflicts with the design's \"Conditional GET per page\" and with the spec scenario \"only conditional requests that return 304 plus a bounded number of counted requests\"."
+      "evidence": "template/scripts/github_read_cache.py `_store` loads the entire file, sets one key and rewrites everything (lines 316-331). Nothing removes entries for closed or merged PRs, old comment-history URLs or old issue numbers. The file grows with every distinct URL ever read. Each later page write costs O(file size), and each `_page` call re-parses the whole file via `_load` (line 370). On a busy coordinator with parallel overview threads this adds contention and slowness over time.",
+      "id": "read-cache-unbounded-growth",
+      "severity": "advisory",
+      "summary": "The cache never evicts entries, and every 200 response rewrites the whole file under a global lock."
     },
     {
-      "evidence": "github_read_cache.py `_store` calls `_load(path)` then `json.dump(data, ...)` of the full file under flock for each page. `_page` and `get_pages` call `cache_path(root)`, which runs `run_git`. Entries are only ever added or replaced, never removed. Under the parallel overview threads this adds lock contention and growing I/O.",
-      "id": "unbounded-cache-growth-and-per-write-rewrite",
+      "evidence": "template/scripts/github_read_cache.py:336-338 first does `stdout.partition(\"\\n\\n\")`. With CRLF headers (`\\r\\n\\r\\n`) it only falls back to normalised splitting if no '\\n\\n' exists anywhere in the output. If the body contains '\\n\\n' (for example pretty-printed JSON), the header/body boundary is misplaced. The result is a misparsed Link/ETag or a JSON decode error. Normalising CRLF first would be safer.",
+      "id": "parse-response-crlf-body-split",
       "severity": "advisory",
-      "summary": "The cache has no eviction. Every stored page, including bodies for closed PRs and superseded `?page=N` URLs, stays in one JSON file. Each `_store` reloads, validates and rewrites the whole file, and `cache_path` spawns `git rev-parse` on every page read."
+      "summary": "`parse_response` splits headers from body on the first '\\n\\n' before it normalises CRLF, so a CRLF response whose body contains a blank line is split in the wrong place."
     }
   ],
-  "launched_at": "2026-10-29T11:37:44+00:00",
-  "output_sha256": "c2980f271fabb0e0cb1f743c89917e9eeee6a27d477ad79ed152fb70b33ab040",
+  "launched_at": "2026-10-29T12:27:55+00:00",
+  "output_sha256": "7d84a4fbb80d6703824d52bfee9ecf3049ef6fbc7740fab982cce3e00d506482",
   "perspective": "engineering-quality",
-  "request_id": "4bafd535-4fe1-4a7d-b16d-1a2052a8be00",
+  "request_id": "26e612e9-5f5b-410e-b1f1-761c5792ea78",
   "reviewer": {
-    "context_id": "85793f1e-2ed2-42e2-8c3a-4d3a4c9dc1b6",
+    "context_id": "5ca66805-218b-4379-b85f-5414d6930d13",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c44a6ba3-44df-41aa-a91f-65ba279594e3",
+    "launch_id": "platform-launch-254dc7e7-f65c-4a77-b73e-9228abedf3c2",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29048
+        "value": 34483
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16890
+        "value": 128121
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21485
+        "value": 30284
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21779
+        "value": 30614
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2102
+        "value": 2883
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "804eaf42867f6b4b7e9209b6aa29b2d6cf83bdef3f00f0f9f48a5d7886330205"
+  "task_content_digest": "001a52a3af4ff9501238ca242507127db83da6be46b792568e5f042e7bdfe9e5"
 }
