@@ -1,0 +1,103 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "944837d28e779735705216f827133c37f1e44002",
+    "base_ref": "origin/main",
+    "candidate_head": "fcd4e1f680e292d04eb0b1bbdf0580a801d806e1",
+    "diff_sha256": "43267a0166f0e7474b68f9797d680b80aa7eb22f6b128acb3ea569009e60a2d0"
+  },
+  "completed_at": "2026-10-29T14:54:06+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_sessions.py list_sessions loops over state_dir.glob('*.json') and calls read_record(path), which raises SessionError on bad JSON or a wrong version. Nothing catches it per file, so read_sessions in lifecycle_overview.py returns {'error': ...} with sessions=[]. Readers never delete files, so one bad record keeps the whole view blind until someone deletes it by hand.",
+      "id": "one-corrupt-record-hides-registry",
+      "severity": "advisory",
+      "summary": "A single unreadable or wrong-version session file makes the whole registry unreadable. The overview then shows 'Sessions: registry unreadable' for every session."
+    },
+    {
+      "evidence": "agent_sessions.py claude_transition: the permission_prompt branch sets detail {'tool': waiting_tool if state == 'waiting-permission' else None}. The PostToolUse branch only protects the wait when `waiting_tool is not None`. With tool=None, a parallel tool's PostToolUse returns 'working'.",
+      "id": "notification-permission-clears-on-any-tool",
+      "severity": "advisory",
+      "summary": "A permission wait started only by a Notification(permission_prompt) has no tool recorded. The next PostToolUse of any tool then clears it, which contradicts the spec's 'never cleared by another tool's event'."
+    },
+    {
+      "evidence": "agent_sessions.py main(): ingest(..., pid=os.getppid()). design.md Risks admits the PID may be a wrapper's. The fallback is ended/unknown, never 'working', but it would hide live sessions from the overview. Nothing in the diff shows the real-sequence run (task 3.2) checked that the recorded PID is the claude process.",
+      "id": "hook-parent-pid-may-be-shell-wrapper",
+      "severity": "advisory",
+      "summary": "The registry records os.getppid() as the session root PID, but the hook is run from a configured command string. If a shell wrapper is the parent, the session is shown 'ended (process-gone)' once the wrapper exits, even though the session is live and working."
+    },
+    {
+      "evidence": "agent_sessions.py ingest: `if previous and previous.get('pid') != pid: record.update(pid=pid, pid_started=started(pid))`. A resumed session with the same PID but a new start time is only refreshed when the PID differs. view/liveness then reports 'gone' because the recorded start time no longer matches.",
+      "id": "reused-pid-keeps-stale-start-time",
+      "severity": "advisory",
+      "summary": "When a session's PID is unchanged between events, pid_started is not refreshed. A restarted or resumed process that reuses the same PID keeps the old start time, and the session is then wrongly shown ended."
+    },
+    {
+      "evidence": "design.md, 'Hooks never steer the session': 'unknown event names exit 0 after recording `last_event` only for known sessions... an unknown event is an explicit stderr error with exit 1'. The code (claude_transition raising SessionError) does the second; the first clause is stale.",
+      "id": "design-hook-decision-text-garbled",
+      "severity": "advisory",
+      "summary": "The design decision for unknown events contradicts itself and was left unresolved in the text."
+    }
+  ],
+  "launched_at": "2026-10-29T14:53:31+00:00",
+  "output_sha256": "7170bd6688da6430fccc7007707b1315f0ccdb0bfc179965e96701429d0a1352",
+  "perspective": "engineering-quality",
+  "request_id": "ad02d712-614a-43f0-a745-5a08db098a82",
+  "reviewer": {
+    "context_id": "d2c31ff1-baad-4d36-8544-8ded1087fb5a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a783ac86-2030-4639-b703-a7c5ea4e29a6",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37739
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51740
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33598
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33909
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3748
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378"
+}

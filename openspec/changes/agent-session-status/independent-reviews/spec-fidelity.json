@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "944837d28e779735705216f827133c37f1e44002",
+    "base_ref": "origin/main",
+    "candidate_head": "fcd4e1f680e292d04eb0b1bbdf0580a801d806e1",
+    "diff_sha256": "43267a0166f0e7474b68f9797d680b80aa7eb22f6b128acb3ea569009e60a2d0"
+  },
+  "completed_at": "2026-10-29T14:53:31+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_overview.py: `show_pr` and `show_requirement` call `attach_sessions(read_sessions(...), ...)` and discard the result. The `configured` and `error` fields are never rendered. Only the top-level `render` branch for the overall overview prints 'Sessions: not configured' or 'registry unreadable'. `render_candidate` prints nothing when `sessions` is empty. Spec: chat-coordinator/spec.md, 'If the registry is not configured or cannot be read, the overview SHALL say so explicitly and SHALL NOT present sessions as absent'.",
+      "id": "detail-views-hide-registry-status",
+      "severity": "material",
+      "summary": "The single-PR and single-Requirement overview views silently drop the registry status. When the registry is unconfigured or unreadable they show no sessions and say nothing. The spec requires the overview to say so explicitly and not present sessions as absent."
+    },
+    {
+      "evidence": "agent-sessions/spec.md says 'SHALL state that working, waiting and limit states are unavailable'. The design says they are 'reported as such'. The statement exists only in docs/engineering/agent-sessions.md. `_session_line` in lifecycle_overview.py and the `list` output in agent_sessions.py add no Codex note.",
+      "id": "codex-unavailable-states-not-stated-at-runtime",
+      "severity": "advisory",
+      "summary": "The spec says the platform SHALL state that Codex working, waiting and limit states are unavailable. Only the docs say this. The listing and overview output never do, so a Codex session looks like any other idle session."
+    },
+    {
+      "evidence": "agent_sessions.py `claude_transition`: Notification permission_prompt returns `{\"tool\": waiting_tool if state == \"waiting-permission\" else None}`. PostToolUse only protects the wait when `waiting_tool is not None`, so with `tool=None` it falls through to `working`.",
+      "id": "permission-wait-tool-lost-via-notification",
+      "severity": "advisory",
+      "summary": "A permission_prompt Notification that arrives when the session is not already in waiting-permission records the state with `tool=None`. Any later PostToolUse then clears the wait, which contradicts the scenario that another tool's event must not clear it."
+    }
+  ],
+  "launched_at": "2026-10-29T14:52:59+00:00",
+  "output_sha256": "1a0361ccfb7e874f84ae8b5b77bb90d356291f956c9f38e527258e33aa3f20fa",
+  "perspective": "spec-fidelity",
+  "request_id": "ad02d712-614a-43f0-a745-5a08db098a82",
+  "reviewer": {
+    "context_id": "289fbf69-cc29-4862-8cae-8534a67b02ea",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f8c158ab-a586-43dc-acb0-a1ad4c7ac9f4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27995
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 65948
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31865
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32209
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2424
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378"
+}

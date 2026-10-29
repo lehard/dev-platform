@@ -1,0 +1,84 @@
+{
+  "candidate": {
+    "base_head": "944837d28e779735705216f827133c37f1e44002",
+    "base_ref": "origin/main",
+    "candidate_head": "fcd4e1f680e292d04eb0b1bbdf0580a801d806e1",
+    "diff_sha256": "43267a0166f0e7474b68f9797d680b80aa7eb22f6b128acb3ea569009e60a2d0"
+  },
+  "change": "openspec/changes/agent-session-status",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/agent-session-status/automated-checks.json",
+    "openspec/changes/agent-session-status/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/agent-session-status/design.md",
+        "openspec/changes/agent-session-status/proposal.md",
+        "openspec/changes/agent-session-status/specs/agent-sessions/spec.md",
+        "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md",
+        "openspec/changes/agent-session-status/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/agent-session-status/proposal.md",
+        "openspec/changes/agent-session-status/design.md",
+        "openspec/changes/agent-session-status/tasks.md",
+        "openspec/changes/agent-session-status/specs/agent-sessions/spec.md",
+        "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T14:52:52+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/agent-session-status/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "ad02d712-614a-43f0-a745-5a08db098a82",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "944837d28e779735705216f827133c37f1e44002",
+    "digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378",
+    "paths": {
+      "dev-platform/checks.toml": "d3e6dd5ee654a36114c83d12a4bb043dea8cccf1",
+      "docs/engineering/agent-sessions.md": "dbe0439b4609e94683a9a9db8917846d802391e9",
+      "docs/engineering/chat-coordinator.md": "13deebea74e6b68c473741d5fb1051f0f80e0fa0",
+      "openspec/changes/agent-session-status/.managed-task.json": "b6f3ed7d06dd0f1e67fbc98eb9e21229f514f4dc",
+      "openspec/changes/agent-session-status/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/agent-session-status/design.md": "269b357a9181902c122c3ff8a41ddd8da705d243",
+      "openspec/changes/agent-session-status/proposal.md": "5a6498f7bc0eb876c3069f897ac2b5090e62af1b",
+      "openspec/changes/agent-session-status/specs/agent-sessions/spec.md": "7d499bd8bc9463436ddb5555e121667bdd2615d0",
+      "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md": "37331b757a150bb78204eba48a30bcc5420e5b62",
+      "openspec/changes/agent-session-status/tasks.md": "05bbba3a812900ee04316e88591d73f4384451b5",
+      "template/dev-platform/protected-surface.toml": "0abe1139bd5ff077474c202cdb75849731e8fb09",
+      "template/scripts/agent_sessions.py": "3e13e34408fb64dee7b832aeac7f07f4bd44c66d",
+      "template/scripts/lifecycle_overview.py": "10490e67bc077cbc0e41f78d864881bcae619aa2",
+      "tests/test_agent_sessions.py": "732b1c81c40bf683b0ba4e22731ebf755a486a70",
+      "tests/test_overview_agent_sessions.py": "11d764dc718b154b48f2c6bcd56a55db382a9f4c",
+      "tests/test_shared_writer_guard.py": "48e717e035dbe653ef15bd591a995aae66ba3ac2"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
