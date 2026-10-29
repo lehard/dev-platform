@@ -197,7 +197,7 @@ def resolve_provider(root: Path, config: dict[str, Any]) -> tuple[str | None, st
     except Exception as exc:  # Any unknowable route is an actionable limitation, not a guess.
         return None, (
             f"the current task route provider is unknown ({exc}); record the route with "
-            "scripts/dogfood_task.py route-codex/route-claude or set [independent_review] provider"
+            "scripts/model_routing.py prepare --provider codex|claude or set [independent_review] provider"
         )
     if route.provider not in PROVIDERS:
         return None, f"task route provider {route.provider!r} has no independent review adapter"

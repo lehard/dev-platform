@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +36,10 @@ CONTRACT = platform_config_text()
 
 def git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=cwd, check=True, text=True, capture_output=True)
+
+
+def rev(cwd: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=cwd, check=True, text=True, capture_output=True).stdout.strip()
 
 
 def route_ready(repo: Path) -> None:
@@ -816,7 +821,7 @@ class ModelRoutingTests(unittest.TestCase):
         routing.check_task_write(self.task, self.task / "src" / "impl.py")
 
     def test_write_gate_denies_write_without_routing_record(self) -> None:
-        with self.assertRaisesRegex(routing.RoutingError, "route-claude"):
+        with self.assertRaisesRegex(routing.RoutingError, "model_routing.py prepare"):
             routing.check_task_write(self.task, self.task / "src" / "impl.py")
 
     def test_write_gate_ignores_non_managed_root(self) -> None:
@@ -1523,6 +1528,59 @@ class StandaloneStandardCloneRoutingTests(unittest.TestCase):
             execution = routing.record_retained_execution(self.clone, reason="standalone clone has no child-writer boundary")
         self.assertEqual(execution["retained"]["policy"], "parent-only-topology")
         routing.require_early_routing_gate(self.clone)
+
+    def retained_route(self):
+        with (self.clone / ".git" / "info" / "exclude").open("a", encoding="utf-8") as exclude:
+            exclude.write(".claude/\n")
+        route = self.prepare()
+        self.assertEqual(route.execution_plan["policy"], "parent-only-topology")
+        return route
+
+    def record(self):
+        with patch.object(routing, "main_root", return_value=self.clone):
+            return routing.record_retained_execution(self.clone, reason="standalone clone has no child-writer boundary")
+
+    def test_standalone_clone_accepts_implementation_commits_after_prepare(self) -> None:
+        route = self.retained_route()
+        before = rev(self.clone, "rev-parse", "HEAD")
+        (self.clone / "feature.py").write_text("print('task')\n", encoding="utf-8")
+        git(self.clone, "add", "feature.py")
+        git(self.clone, "commit", "-qm", "implement the task")
+        (self.clone / "more.py").write_text("print('more')\n", encoding="utf-8")
+        git(self.clone, "add", "more.py")
+        git(self.clone, "commit", "-qm", "second task commit")
+        execution = self.record()
+        commits = execution["postcheck"]["task_commits"]
+        self.assertEqual((commits["before_head"], commits["count"]), (before, 2))
+        self.assertEqual(commits["after_head"], rev(self.clone, "rev-parse", "HEAD"))
+        routing.require_early_routing_gate(self.clone)
+        self.assertEqual(route.topology, routing.STANDALONE_CLONE)
+
+    def test_standalone_clone_still_catches_an_uncommitted_or_untracked_leftover(self) -> None:
+        self.retained_route()
+        (self.clone / "feature.py").write_text("print('task')\n", encoding="utf-8")
+        git(self.clone, "add", "feature.py")
+        git(self.clone, "commit", "-qm", "implement the task")
+        (self.clone / "leftover.txt").write_text("not committed\n", encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "leftover.txt"):
+            self.record()
+
+    def test_standalone_clone_still_catches_a_changed_pre_existing_dirty_path(self) -> None:
+        self.retained_route()
+        # A path that is already dirty at the snapshot (the snapshot is replaced by one that includes it).
+        (self.clone / "scratch.txt").write_text("dirty before\n", encoding="utf-8")
+        dirty = routing.snapshot(self.clone)
+        (self.clone / "scratch.txt").write_text("changed after the snapshot\n", encoding="utf-8")
+        with patch.object(routing, "_snapshot_from_dict", return_value=dirty):
+            with self.assertRaisesRegex(routing.RoutingError, "scratch.txt"):
+                self.record()
+
+    def test_standalone_clone_still_catches_a_head_that_is_not_a_descendant(self) -> None:
+        self.retained_route()
+        orphan = rev(self.clone, "commit-tree", "HEAD^{tree}", "-m", "unrelated history")
+        git(self.clone, "reset", "-q", "--soft", orphan)
+        with self.assertRaisesRegex(routing.RoutingError, "delegated-write-containment|containment"):
+            self.record()
 
     def test_dispatch_codex_refuses_child_writer_from_standalone_clone(self) -> None:
         with patch.object(routing, "main_root", return_value=self.clone):
@@ -3080,6 +3138,29 @@ class EarlyRoutingGateTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stderr)
         self.assertEqual(json.loads(completed.stdout)["launch_evidence"], "self-reported")
         self.assertEqual(self.plan()["delegation"]["state"], "open")
+
+
+class TemplateCommandReferenceTests(unittest.TestCase):
+    """A rendered project has only template/scripts: hints and docs must not name any other platform script."""
+
+    def test_every_command_named_in_shipped_hints_and_docs_ships(self) -> None:
+        template = Path(__file__).resolve().parents[1] / "template"
+        shipped = {path.name for path in (template / "scripts").glob("*.py")}
+        hint_files = [template / "scripts/model_routing.py", template / "scripts/independent_review_runner.py",
+                      *sorted((template / "docs").rglob("*.md")), *sorted((template / "dev-platform").glob("*.toml"))]
+        missing: dict[str, list[str]] = {}
+        for path in hint_files:
+            for name in set(re.findall(r"python3 scripts/([a-z0-9_]+\.py)", path.read_text(encoding="utf-8"))):
+                if name not in shipped:
+                    missing.setdefault(name, []).append(str(path.relative_to(template)))
+        self.assertEqual(missing, {}, "shipped hints or docs name scripts a rendered project does not have")
+
+    def test_no_shipped_text_names_the_platform_only_route_subcommands(self) -> None:
+        template = Path(__file__).resolve().parents[1] / "template"
+        offenders = [str(path.relative_to(template)) for path in sorted(template.rglob("*"))
+                     if path.is_file() and path.suffix in {".py", ".md", ".toml", ".jinja"}
+                     and re.search(r"route-codex|route-claude", path.read_text(encoding="utf-8"))]
+        self.assertEqual(offenders, [])
 
 
 class EarlyRoutingGateTemplateParityTests(unittest.TestCase):

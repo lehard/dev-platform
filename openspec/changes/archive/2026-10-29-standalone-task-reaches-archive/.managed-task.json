@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/model-routing/spec.md",
+    "tasks.md"
+  ],
+  "change": "standalone-task-reaches-archive",
+  "imported_at": "2026-10-29T12:29:19+00:00",
+  "package_revision": "f723a0842a652a43d1b589b270b814bf0b55a4504e0afa0d6c8f02f4f516a840",
+  "prepared_against": "723083be92fadddc7110f89f9fc008220d89bd31",
+  "private_lineage_handle": "pln_321b891270e64375eaf79b20805b8796",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "e550b9d0b2590b63c01626511ea367f04a4c89f5b08cf2620258ba16881bace3",
+    "updated_at": "2026-10-29T12:24:14Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-896/T1"
+}

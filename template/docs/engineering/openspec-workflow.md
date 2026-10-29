@@ -217,7 +217,7 @@ unavailable review automatically after its cheap deterministic checks and
 before expensive validation, then stops with the findings and the exact next
 commands if the evidence does not validate. `finish` re-validates the evidence
 against the current task content before any publication step. Task status
-(`dogfood_task.py status` / `finish_task.py --status`) and Requirement
+(`finish_task.py --status`) and Requirement
 `advance` report the derived `independent_review` state (`not-required`,
 `missing`, `stale`, `blocked`, `ready`) and next command from the files in the
 change directory, so a new Codex or Claude Code session can resume. Inspect or

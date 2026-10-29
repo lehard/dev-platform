@@ -408,7 +408,7 @@ def _require_plan(route: Route, action: str) -> dict[str, Any]:
     if not isinstance(plan, dict):
         raise RoutingError(
             f"routing record for managed change {route.change} has no execution plan (it predates the early routing gate); "
-            f"re-route with prepare/route-codex/route-claude before {action}. Re-routing is refused when task content "
+            f"re-route with model_routing.py prepare before {action}. Re-routing is refused when task content "
             "has already diverged from the materialized managed package."
         )
     return plan
@@ -597,7 +597,7 @@ def read_durable_route(root: Path, source_issue: str, change: str) -> tuple[Rout
             missing_detail=f"routing evidence for {source_issue} ({change}) is incomplete or invalid",
         ), path
     raise RoutingError(
-        f"routing evidence is missing for {source_issue} ({change}); run route-codex or route-claude before implementation and archive"
+        f"routing evidence is missing for {source_issue} ({change}); run model_routing.py prepare before implementation and archive"
     )
 
 
@@ -844,7 +844,7 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
             raise gate_failure(
                 "routing-early-gate",
                 f"no routing record exists for managed change {change} but task content already changed ({_format_paths(diverged)}); "
-                "route before task content: run route-codex or route-claude before implementation",
+                "route before task content: run model_routing.py prepare before implementation",
                 RoutingError,
             )
         return None
@@ -854,7 +854,7 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
             raise gate_failure(
                 "routing-early-gate",
                 f"routing record for managed change {change} has no execution plan and no execution outcome; "
-                "re-route required (route-codex or route-claude). Re-routing is refused when task content already diverged.",
+                "re-route required (model_routing.py prepare). Re-routing is refused when task content already diverged.",
                 RoutingError,
             )
         return route
@@ -869,7 +869,7 @@ def _early_routing_gate(root: Path, source_issue: str, change: str) -> Route | N
             "routing-early-gate",
             f"the execution plan for managed change {change} is a delegated child, but no delegation is open and task content "
             f"changed ({_format_paths(diverged)}). Supervisor-written content under a child-executor plan is blocked: "
-            "open the delegation first (begin-claude-delegation or route-codex) before the child writes; a supervisor-written "
+            "open the delegation first (begin-claude-delegation, or dispatch-codex) before the child writes; a supervisor-written "
             "diff cannot be legalized by the supervisor alone: the owner must decide explicitly in chat, and only "
             "`model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"` records that decision.",
             RoutingError,
@@ -896,21 +896,21 @@ def check_task_write(root: Path, target: Path) -> None:
     if not path.is_file():
         raise RoutingError(
             f"no routing record exists for managed change {change}; route before the first implementation write: "
-            "python3 scripts/dogfood_task.py route-claude (routine/standard routes are supervisor-retained by default)"
+            "python3 scripts/model_routing.py prepare --provider claude (routine/standard routes are supervisor-retained by default)"
         )
     route, _ = _read_route_at(path, source_issue, change)
     if route.execution_plan is None:
         if route.execution is None:
             raise RoutingError(
                 f"routing record for managed change {change} has no execution plan and no execution outcome; "
-                "re-route required (route-codex or route-claude)"
+                "re-route required (model_routing.py prepare)"
             )
         return
     if route.execution_plan["mode"] == PLAN_RETAINED or _has_real_delegation(route):
         return
     raise RoutingError(
         f"the execution plan for managed change {change} is a delegated child and no delegation is open; write to {rel} refused before it happens. "
-        "Open the delegation first: python3 scripts/dogfood_task.py begin-claude-delegation, then invoke the emitted Agent hand-off "
+        "Open the delegation first: python3 scripts/model_routing.py begin-claude-delegation, then invoke the emitted Agent hand-off "
         "(or python3 scripts/model_routing.py dispatch-claude-sandboxed); a supervisor-written diff under a child-executor plan "
         "needs an explicit owner decision recorded by approve-supervisor-diff"
     )
@@ -1818,7 +1818,7 @@ def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, e
         output["next_steps"] = [
             "implement in the assigned task worktree",
             "python3 scripts/model_routing.py record-retained-execution --reason \"<reason>\" after implementation",
-            "pass --delegate to route-claude/dispatch-claude only when a child executor is explicitly required",
+            "pass --delegate to prepare/dispatch-claude only when a child executor is explicitly required",
         ]
         return output
     _refuse_child_writer_on_standalone_clone(route)
@@ -1835,7 +1835,7 @@ def prepare_claude_handoff(root: Path, *, profile: str | None, rationale: str, e
     output["mechanism"] = tier_decision.mechanism
     output["delegated"] = "pending_begin_delegation"
     output["next_steps"] = [
-        "python3 scripts/dogfood_task.py begin-claude-delegation (or model_routing.py begin-claude-delegation) BEFORE the Agent call; task content must still equal the route pre-snapshot",
+        "python3 scripts/model_routing.py begin-claude-delegation BEFORE the Agent call; task content must still equal the route pre-snapshot",
         "invoke the emitted handoff through the native Agent tool in place",
         "python3 scripts/model_routing.py record-claude-execution --agent-id <id> after it returns; recording without an open delegation is refused",
     ]
@@ -2357,12 +2357,20 @@ def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
         before = _without_platform_lifecycle_entries(before, route.change)
         after = _without_platform_lifecycle_entries(after, route.change)
     result = check_containment(before, after)
+    # Standalone clone: the supervisor is the only writer, so its implementation commits are the task itself.
+    # A pure HEAD move that descends from the snapshot is accepted; leftovers, changed pre-dirty paths and a
+    # non-descendant HEAD stay violations (commits unrelated to the task are not detectable in this topology).
+    task_commits = bool(
+        route.topology == STANDALONE_CLONE and supervisor and result.head_moved
+        and not result.new_changes and not result.disappeared_changes
+        and _is_ancestor(Path(route.integration_root), before.head, after.head)
+    )
     verified_advance = (
-        supervisor and result.violated and result.head_moved and not result.new_changes and not result.disappeared_changes
+        not task_commits and supervisor and result.violated and result.head_moved and not result.new_changes and not result.disappeared_changes
         and verify_remote_fast_forward(Path(route.integration_root), before.head, after.head)
     )
     refusal = None
-    if result.violated and not verified_advance and delegation is not None and result.head_moved:
+    if result.violated and not verified_advance and not task_commits and delegation is not None and result.head_moved:
         # Detection-only writer: a pure head move is accepted only with an unbroken
         # chain of platform-written integration-advance receipts since the delegation
         # opened. Everything else (and any unproven chain) stays a violation.
@@ -2392,7 +2400,7 @@ def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
                 },
             }
         refusal = assessment.reason
-    if result.violated and not verified_advance:
+    if result.violated and not verified_advance and not task_commits:
         assigned = Path(route.task_worktree)
         record_containment_friction(Path(route.integration_root), assigned, result, task=route.source_issue, enforcement_tier="native-worktree")
         message = format_violation_message(assigned, result)
@@ -2402,9 +2410,25 @@ def _postcheck(route: Route, *, supervisor: bool) -> dict[str, Any]:
             RoutingError,
         )
     check = {"containment": "clean", "pre_existing_changes": list(result.pre_existing_changes)}
+    if task_commits:
+        root = Path(route.integration_root)
+        count = subprocess.run(["git", "rev-list", "--count", f"{before.head}..{after.head}"], cwd=root, text=True,
+                               capture_output=True, check=False)
+        if count.returncode:
+            raise RoutingError(f"cannot count task commits {before.head}..{after.head}: {count.stderr.strip()}")
+        check["task_commits"] = {"before_head": before.head, "after_head": after.head, "count": int(count.stdout)}
     if verified_advance:
         check["integration_advance"] = {"classification": CLASSIFICATION_VERIFIED_EXTERNAL_ADVANCE, "before_head": before.head, "after_head": after.head}
     return check
+
+
+def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    """Whether ``ancestor`` is an ancestor of (or equal to) ``descendant``; any git failure other than "no" raises."""
+    done = subprocess.run(["git", "merge-base", "--is-ancestor", ancestor, descendant], cwd=root, text=True,
+                          capture_output=True, check=False)
+    if done.returncode not in (0, 1):
+        raise RoutingError(f"cannot compare {ancestor} with {descendant} in {root}: {done.stderr.strip()}")
+    return done.returncode == 0
 
 
 def _worktree_roots(root: Path) -> list[Path]:

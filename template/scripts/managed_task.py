@@ -1575,8 +1575,32 @@ def read_task_state(root: Path) -> dict[str, Any] | None:
     return {**value, "source_issue": f"{repository}#{number}", "change": change}
 
 
+def ensure_task_state_ignored(root: Path) -> None:
+    """Keep the local task state out of git without editing the project-owned ``.gitignore``.
+
+    The state is machine-local; a project whose ``.gitignore`` lacks it would otherwise commit it. An
+    already-ignored file is left alone; otherwise the repository's own ``info/exclude`` gets one line.
+    """
+    if run_git(["rev-parse", "--is-inside-work-tree"], cwd=root, check=False).returncode != 0:
+        return  # not a git work tree: there is no repository the file could be committed to
+    if run_git(["check-ignore", "-q", "--", TASK_STATE], cwd=root, check=False).returncode == 0:
+        return
+    located = run_git(["rev-parse", "--path-format=absolute", "--git-path", "info/exclude"], cwd=root, check=False)
+    if located.returncode or not located.stdout.strip():
+        raise ManagedTaskError(f"cannot locate the git exclude file to ignore {TASK_STATE}: {located.stderr.strip()}")
+    exclude = Path(located.stdout.strip())
+    try:
+        exclude.parent.mkdir(parents=True, exist_ok=True)
+        existing = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+        with exclude.open("a", encoding="utf-8") as handle:
+            handle.write(("" if not existing or existing.endswith("\n") else "\n") + f"{TASK_STATE}\n")
+    except OSError as exc:
+        raise ManagedTaskError(f"cannot add {TASK_STATE} to {exclude}: {exc}") from exc
+
+
 def write_task_state(root: Path, package: Package) -> None:
     """Persist identity, never a second copy of the managed package."""
+    ensure_task_state_ignored(root)
     atomic_write(
         task_state_path(root),
         json.dumps(

@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "41bf71a41bf6534334289b04222d4c4d981a9cf0",
+    "base_ref": "origin/main",
+    "candidate_head": "7f3163a523079642d80aada31c3f482368b24efd",
+    "diff_sha256": "24ce70e5d192494f998a50e8fca40de51db8abb96620d66317ca67d2ce6c8983"
+  },
+  "change": "openspec/changes/standalone-task-reaches-archive",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/standalone-task-reaches-archive/automated-checks.json",
+    "openspec/changes/standalone-task-reaches-archive/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/standalone-task-reaches-archive/design.md",
+        "openspec/changes/standalone-task-reaches-archive/proposal.md",
+        "openspec/changes/standalone-task-reaches-archive/specs/model-routing/spec.md",
+        "openspec/changes/standalone-task-reaches-archive/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/standalone-task-reaches-archive/proposal.md",
+        "openspec/changes/standalone-task-reaches-archive/design.md",
+        "openspec/changes/standalone-task-reaches-archive/tasks.md",
+        "openspec/changes/standalone-task-reaches-archive/specs/model-routing/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T13:49:15+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/standalone-task-reaches-archive/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "583c0bc7-c9f3-4cc4-91e2-cf7f4a136de0",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "41bf71a41bf6534334289b04222d4c4d981a9cf0",
+    "digest": "6eb9c2b9442b8511446b88ac3e2c43aad454e34d2e9fd59c2e38bbad8b647a39",
+    "paths": {
+      "openspec/changes/standalone-task-reaches-archive/.managed-task.json": "dba43c8415e9ada1e0ed8edabc37d8e58e53cd99",
+      "openspec/changes/standalone-task-reaches-archive/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/standalone-task-reaches-archive/design.md": "3b2d26d4bb4895cba4a5290ea1602578ae699caa",
+      "openspec/changes/standalone-task-reaches-archive/proposal.md": "bc1ed95da4ccd43be24969c06c889a7ed2286f54",
+      "openspec/changes/standalone-task-reaches-archive/specs/model-routing/spec.md": "2703e9b110ef6eb956fbca5d34f62c1592e7324b",
+      "openspec/changes/standalone-task-reaches-archive/tasks.md": "e68fa1264efa98ea316c03da7e72077cd93c7cde",
+      "template/dev-platform/blocking-gates.toml": "eaa04b281e610f321b92421e851b521c25236b61",
+      "template/docs/engineering/model-routing.md": "ad9b23da2570553aae5cf8a0a9fa418186e91c68",
+      "template/docs/engineering/openspec-workflow.md": "884d633fdf868991353b75cde351a2c7ccd48833",
+      "template/scripts/independent_review_runner.py": "f92a27a841e39c961abd2dd707ff21ba4bac78dd",
+      "template/scripts/managed_task.py": "d2614f46463c597cc5ee1b5992c93a575b401afb",
+      "template/scripts/model_routing.py": "e75605cbd58d9a7637655ad096d85e15ae785eda",
+      "tests/test_managed_task.py": "2acf86f883e2c5ae9ffe57614e2ef44fbc197068",
+      "tests/test_model_routing.py": "e34cc220c967ad5aa93ce552c66646a59e4268d6",
+      "tests/test_shared_writer_guard.py": "fd60d64c41336a28744992cf5a8b59ff475d15c2"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
