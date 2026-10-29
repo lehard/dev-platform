@@ -1,0 +1,78 @@
+{
+  "candidate": {
+    "base_head": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "base_ref": "origin/main",
+    "candidate_head": "1f7687091eccbd6b1b73adb0af2e6e05360a273c",
+    "diff_sha256": "34bd33e069543bf55ab5be54bb97bb80ecbff985716aa03c6825d8b2e8bcdc9f"
+  },
+  "change": "openspec/changes/machine-pool-capacity",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/machine-pool-capacity/automated-checks.json",
+    "openspec/changes/machine-pool-capacity/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/machine-pool-capacity/design.md",
+        "openspec/changes/machine-pool-capacity/proposal.md",
+        "openspec/changes/machine-pool-capacity/specs/platform-lifecycle/spec.md",
+        "openspec/changes/machine-pool-capacity/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/machine-pool-capacity/proposal.md",
+        "openspec/changes/machine-pool-capacity/design.md",
+        "openspec/changes/machine-pool-capacity/tasks.md",
+        "openspec/changes/machine-pool-capacity/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T00:21:18+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/machine-pool-capacity/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "5dfc1eb5-7726-4e37-9013-112f02416bea",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+    "digest": "213ee14b2d736dba0bbe55ef30a73dab4f54367fe9e74d8a137e2de1fa45deb6",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "ade1d1352e3ad901b4762e7b945d5d212af909cc",
+      "openspec/changes/machine-pool-capacity/.managed-task.json": "283cfbb7a0373d04aa145755c8f12bdb160cecc4",
+      "openspec/changes/machine-pool-capacity/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/machine-pool-capacity/design.md": "4d4fd573817d6ddcc5c6c8d7ae73887c5c956f9f",
+      "openspec/changes/machine-pool-capacity/proposal.md": "796fa79db44b047dd965cc094b21919286383fe8",
+      "openspec/changes/machine-pool-capacity/specs/platform-lifecycle/spec.md": "f64c61fd7655da9cd17b0d3739ff1376aaa71aa8",
+      "openspec/changes/machine-pool-capacity/tasks.md": "fe814d5841c790c185221e213f9b7474f60d747d",
+      "template/docs/engineering/agent-workflow.md.jinja": "0247412005c82002ae00ea457f1d85a8445526a3",
+      "template/scripts/machine_pool.py": "d26e4b3be16423de6074e1a089aed7b2464f3107",
+      "template/scripts/run_test_groups.py": "da4fb548b42591c2f5a4a2a8c1b463117fe4c734",
+      "template/scripts/select_checks.py": "eb827071b71c0460885d89bf3feec0e4f33c1f03",
+      "tests/test_machine_pool.py": "e9e1b61604f8c4c5da429bd48828ecf312559272"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
