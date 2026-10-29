@@ -69,8 +69,18 @@ def _own_entry(items: list[dict], worktree: Path) -> dict:
 
 
 def _entry_signals(entry: object) -> list[dict]:
-    signals = entry.get("signals") if isinstance(entry, dict) else None
-    return [s for s in signals if isinstance(s, dict)] if isinstance(signals, list) else []
+    """The signals of one board entry; a malformed entry or signal is a named error, never skipped."""
+    if not isinstance(entry, dict):
+        raise SignalError(f"agent board has a malformed entry: {entry!r}")
+    if "signals" not in entry:
+        return []
+    signals = entry["signals"]
+    if not isinstance(signals, list):
+        raise SignalError(f"agent board entry {entry.get('id')!r} has a malformed signals value: {signals!r}")
+    for item in signals:
+        if not isinstance(item, dict) or "id" not in item:
+            raise SignalError(f"agent board entry {entry.get('id')!r} has a malformed signal: {item!r}")
+    return signals
 
 
 def raise_signal(question: str, *, root: Path, worktree: Path, now: str | None = None) -> dict:
@@ -85,15 +95,17 @@ def raise_signal(question: str, *, root: Path, worktree: Path, now: str | None =
             raise SignalError(f"the agent board {path} has no valid 'items' list")
         entry = _own_entry(items, worktree)
         sid = signal_id(str(entry.get("id", "")), text)
-        signals = entry.setdefault("signals", [])
-        existing = next((s for s in signals if isinstance(s, dict) and s.get("id") == sid and not s.get("resolved_at")), None)
+        signals = _entry_signals(entry)
+        existing = next((s for s in signals if s["id"] == sid and not s.get("resolved_at")), None)
         if existing is not None:
+            if "count" not in existing:
+                raise SignalError(f"agent board signal {sid} has no count: {existing!r}")
             existing["last_raised_at"] = stamp
-            existing["count"] = existing.get("count", 0) + 1
+            existing["count"] += 1
             return {**existing, "repeat": True}
         signal = {"id": sid, "question": text, "project": root.name, "task": entry.get("task", ""),
                   "branch": entry.get("branch", ""), "raised_at": stamp, "last_raised_at": stamp, "count": 1}
-        signals.append(signal)
+        entry["signals"] = [*signals, signal]
         return {**signal, "repeat": False}
 
 
@@ -107,7 +119,7 @@ def resolve_signal(signal: str, resolved_by: str, *, root: Path, now: str | None
             raise SignalError(f"the agent board {path} has no valid 'items' list")
         for entry in items:
             for item in _entry_signals(entry):
-                if item.get("id") == signal and not item.get("resolved_at"):
+                if item["id"] == signal and not item.get("resolved_at"):
                     item["resolved_at"] = now or utc_now()
                     item["resolved_by"] = resolved_by.strip()
                     return dict(item)
@@ -136,6 +148,8 @@ def open_signals(root: Path, *, now: datetime) -> dict:
                     continue
                 raised = datetime.fromisoformat(item["raised_at"].replace("Z", "+00:00"))
                 signals.append({**item, "age_minutes": max(0, int((now - raised).total_seconds() // 60))})
+    except SignalError as exc:
+        return {"configured": True, "error": str(exc), "signals": []}
     except (KeyError, AttributeError, TypeError, ValueError) as exc:
         return {"configured": True, "error": f"agent board has a malformed signal: {exc!r}", "signals": []}
     signals.sort(key=lambda s: s["raised_at"])

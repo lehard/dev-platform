@@ -126,6 +126,55 @@ class SignalTests(unittest.TestCase):
         self.assertIn("cannot be shown", "\n".join(overview._owner_needed_lines({"configured": True, "error": "x", "signals": []})))
         self.assertIn("not shown", "\n".join(overview._owner_needed_lines({"configured": False, "signals": []})))
 
+    def test_unclassified_capabilities_is_an_explicit_error_not_an_exit(self):
+        from agent_board import scope_gate_required
+        with mock.patch.object(signal, "scope_gate_required", scope_gate_required):
+            with self.assertRaisesRegex(signal.SignalError, "not classified"):
+                self.raise_()
+            with self.assertRaisesRegex(signal.SignalError, "not classified"):
+                signal.resolve_signal("x", "owner", root=self.root)
+            listed = signal.open_signals(self.root, now=NOW)
+            self.assertIn("cannot be shown", listed["error"])
+            with mock.patch.object(signal, "main_root", return_value=self.root), \
+                    mock.patch.object(signal, "current_worktree_root", return_value=self.worktree):
+                self.assertEqual(signal.main(["raise", "--question", "Q?"]), 1)
+
+    def test_malformed_entry_or_signal_is_an_error_in_the_cli_and_in_the_overview(self):
+        cases = {
+            "signals not a list": {"signals": "oops"},
+            "signal not a dict": {"signals": ["oops"]},
+            "signal without id": {"signals": [{"question": "Q"}]},
+            "signal without raised_at": {"signals": [{"id": "x1", "question": "Q"}]},
+        }
+        for name, extra in cases.items():
+            with self.subTest(name):
+                items = self.items()
+                items[0].update(extra)
+                self.write_board(items)
+                listed = signal.open_signals(self.root, now=NOW)
+                self.assertTrue(listed["error"] and not listed["signals"], listed)
+                if name != "signal without raised_at":
+                    with self.assertRaises(signal.SignalError):
+                        self.raise_()
+                    with self.assertRaises(signal.SignalError):
+                        signal.resolve_signal("x1", "owner", root=self.root)
+        items = self.items()
+        items[0] = {"id": "aaa", "task": "task one", "branch": "agent/t1", "worktree": str(self.worktree)}
+        items.append("not an entry")
+        self.write_board(items)
+        self.assertIn("malformed entry", signal.open_signals(self.root, now=NOW)["error"])
+        with self.assertRaisesRegex(signal.SignalError, "malformed entry"):
+            signal.resolve_signal("x1", "owner", root=self.root)
+
+    def test_open_signal_without_count_cannot_be_raised_again(self):
+        self.raise_()
+        items = self.items()
+        del items[0]["signals"][0]["count"]
+        self.write_board(items)
+        with self.assertRaisesRegex(signal.SignalError, "has no count"):
+            self.raise_()
+        self.assertNotIn("count", self.items()[0]["signals"][0])
+
     def test_cli_failure_exits_nonzero_with_the_cause(self):
         with mock.patch.object(signal, "main_root", return_value=self.root), \
                 mock.patch.object(signal, "current_worktree_root", return_value=self.worktree):

@@ -22,6 +22,12 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Spec deltas, design, docs and tests state the same contract: report a question only, no decisions, no notifications, no new configuration.
 
+## Repair review (malformed data and unclassified config)
+
+- Re-verified after the review repair and the follow-up edit: a malformed board entry, a non-list `signals` value, a non-dict signal, a signal without `id`, `raised_at` or `count` is a named `SignalError` in `raise`/`resolve` and an explicit `error` in the overview; nothing is skipped silently (`test_malformed_entry_or_signal_is_an_error_in_the_cli_and_in_the_overview`, `test_open_signal_without_count_cannot_be_raised_again`).
+- An unclassified `[capabilities]` stops with `SignalError` / an overview error line instead of exiting the process (`test_unclassified_capabilities_is_an_explicit_error_not_an_exit`).
+- Spec deltas and design are unchanged: the behavior still matches them; the change tightens failure handling only.
+
 ## Not verified / limits
 
 - Not exercised from a real agent session against the live board; covered by tests over a temporary git repository with worktrees and a temporary board file.
