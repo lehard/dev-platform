@@ -14,7 +14,9 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
-import agent_sessions as sessions  # noqa: E402
+from _platform_modules import load_platform_module  # noqa: E402
+
+sessions = load_platform_module("agent_sessions", ROOT / "template" / "scripts" / "agent_sessions.py")
 
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 SESSION = "11111111-aaaa-bbbb-cccc-222222222222"
@@ -218,6 +220,16 @@ class SettingsTests(unittest.TestCase):
     def test_install_needs_a_named_settings_file(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(sessions.main(["hooks", "--state-dir", str(self.state), "--install"]), 2)
+
+
+class SourceWrapperTests(unittest.TestCase):
+    def test_source_checkout_wrapper_runs_the_template_script(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "agent_sessions.py"), "list", "--help"],
+            capture_output=True, text=True, check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("usage: agent_sessions.py list", result.stdout)
 
 
 if __name__ == "__main__":

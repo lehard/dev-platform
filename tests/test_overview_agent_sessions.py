@@ -13,7 +13,14 @@ sys.path.insert(0, str(SCRIPTS))
 from _platform_modules import load_platform_module  # noqa: E402
 
 overview = load_platform_module("lifecycle_overview", SCRIPTS / "lifecycle_overview.py")
-import agent_sessions  # noqa: E402
+agent_sessions = load_platform_module("agent_sessions", SCRIPTS / "agent_sessions.py")
+
+
+
+def setUpModule() -> None:
+    # Other test modules put the source-checkout scripts/ wrappers ahead of template/scripts on sys.path.
+    sys.path.insert(0, str(SCRIPTS))
+
 
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 STAMP = "2026-10-29T11:59:00Z"
