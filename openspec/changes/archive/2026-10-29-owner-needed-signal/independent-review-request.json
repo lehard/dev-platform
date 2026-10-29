@@ -2,13 +2,18 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "38a47796c7b3d0d7b60dbb8c6b91e2fca3207868",
-    "diff_sha256": "6342a77365d745b479a897495e7216cc448ec09aeb94200f08314ec5bdc4aa66"
+    "candidate_head": "a4b58b3778da2085e3ec3227358ccdf800fbc4e1",
+    "diff_sha256": "2521c4f3542ee01c427ee6940c19927ca14b19334f3f7935ce53ef4040d85ca9"
   },
-  "change": "openspec/changes/owner-needed-signal",
+  "change": "openspec/changes/archive/2026-10-29-owner-needed-signal",
   "excluded_lifecycle_paths": [
-    "openspec/changes/owner-needed-signal/automated-checks.json",
-    "openspec/changes/owner-needed-signal/verification.md",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/automated-checks.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-review-request.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/verification.md",
+    "openspec/specs/chat-coordinator/spec.md",
+    "openspec/specs/shared-workspace-coordination/spec.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -19,34 +24,34 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/owner-needed-signal/design.md",
-        "openspec/changes/owner-needed-signal/proposal.md",
-        "openspec/changes/owner-needed-signal/specs/chat-coordinator/spec.md",
-        "openspec/changes/owner-needed-signal/specs/shared-workspace-coordination/spec.md",
-        "openspec/changes/owner-needed-signal/tasks.md"
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/design.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/proposal.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/shared-workspace-coordination/spec.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/owner-needed-signal/proposal.md",
-        "openspec/changes/owner-needed-signal/design.md",
-        "openspec/changes/owner-needed-signal/tasks.md",
-        "openspec/changes/owner-needed-signal/specs/chat-coordinator/spec.md",
-        "openspec/changes/owner-needed-signal/specs/shared-workspace-coordination/spec.md"
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/proposal.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/design.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/tasks.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/shared-workspace-coordination/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-10-29T22:16:42+00:00",
+  "prepared_at": "2026-10-29T22:26:29+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/owner-needed-signal/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "5e53be98-2595-43b6-bd15-dcb85519caa8",
+  "request_id": "39ade455-ab3b-4f9b-a23b-83748093088d",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
-    "digest": "8598ad12bcf0688e1f664277405bd57754067d7c4416f7d277161004e0d0119a",
+    "digest": "06731e13aceb0c9fbe39782d0a3010ac04f5db5c43405bb21a7cb738928fa164",
     "paths": {
       "dev-platform/checks.toml": "67a83a56f8ffc5c253592cfee7dc52a121d40c88",
       "docs/engineering/chat-coordinator.md": "e4f79c62376318804487657004b8c4e66f415162",
@@ -74,7 +79,7 @@
       "template/dev-platform/protected-surface.toml": "fe9fbee1a94bc1861b3a480240d3b8f3a2105d87",
       "template/scripts/agent_signal.py": "634d557ee16ef54d599e5f9e93921833b9e0e3a0",
       "template/scripts/lifecycle_overview.py": "e731a2110ee3435ad3ed25922839b5f3651e9c31",
-      "tests/test_agent_signal.py": "3cb9520c13df78f7c69cea59cfa94a3fa910bb68",
+      "tests/test_agent_signal.py": "1eb098fadb48598aad85513dfb017282087b98df",
       "tests/test_lifecycle_overview.py": "39e1d887f741cfcb564fdd8083d03dc5afbbe0c8",
       "tests/test_overview_agent_sessions.py": "66896fa4787619752497cf2ef4dbe886fa87024c"
     },

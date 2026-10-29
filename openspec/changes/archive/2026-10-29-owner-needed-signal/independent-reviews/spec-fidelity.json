@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "38a47796c7b3d0d7b60dbb8c6b91e2fca3207868",
-    "diff_sha256": "6342a77365d745b479a897495e7216cc448ec09aeb94200f08314ec5bdc4aa66"
+    "candidate_head": "a4b58b3778da2085e3ec3227358ccdf800fbc4e1",
+    "diff_sha256": "2521c4f3542ee01c427ee6940c19927ca14b19334f3f7935ce53ef4040d85ca9"
   },
-  "completed_at": "2026-10-29T22:17:07+00:00",
+  "completed_at": "2026-10-29T22:26:43+00:00",
   "findings": [
     {
-      "evidence": "proposal.md 'Success evidence' and tasks.md 3 ('the overview output'). tests/test_agent_signal.py::test_overview_renders_open_signals_and_board_problems calls only `overview._owner_needed_lines`. The edits to tests/test_lifecycle_overview.py and tests/test_overview_agent_sessions.py mock `read_owner_needed` or hard-code `owner_needed` as `{\"configured\": False, ...}`. The `owner_needed` key added to `overview()` in template/scripts/lifecycle_overview.py is never checked against a real signal.",
-      "id": "overview-json-owner-needed-untested",
+      "evidence": "template/scripts/agent_signal.py open_signals: the try block covers only board_path and the file read/JSON parse. The later loop calls entry.get(\"signals\", []), item[\"raised_at\"] and datetime.fromisoformat(...) with no guard. A non-dict entry, a missing raised_at or a bad timestamp raises AttributeError, KeyError or ValueError. read_owner_needed in lifecycle_overview.py does not catch these, so the whole overview fails. The spec says an unreadable board SHALL be stated explicitly.",
+      "id": "overview-malformed-signal-crashes",
       "severity": "advisory",
-      "summary": "The proposal's success evidence and tasks.md say the overview section is tested in text and in JSON. The tests only cover the text rendering helper `_owner_needed_lines`. No test shows that the JSON output carries real `owner_needed` data."
+      "summary": "A malformed signal or board entry makes the overview raise instead of printing the explicit 'cannot be shown' line the chat-coordinator spec requires."
     }
   ],
-  "launched_at": "2026-10-29T22:16:45+00:00",
-  "output_sha256": "4302cc338e8cc1a63af4a1556306d3aca360036e923ecd1f5176c86ccd3c472f",
+  "launched_at": "2026-10-29T22:26:32+00:00",
+  "output_sha256": "be7a248b9f10d2eb4360b2579b670db28046323c4c315c1a0a47936eea67f834",
   "perspective": "spec-fidelity",
-  "request_id": "5e53be98-2595-43b6-bd15-dcb85519caa8",
+  "request_id": "39ade455-ab3b-4f9b-a23b-83748093088d",
   "reviewer": {
-    "context_id": "648e4a72-3832-40c9-aaec-98cb5dc0a383",
+    "context_id": "adbfe536-6264-4ae8-bf00-048548e64f54",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-98c29695-a5c5-41a6-b5bf-3dd6c469b80d",
+    "launch_id": "platform-launch-c94ed560-a0e1-4eca-b6fe-b5cf47c3b531",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35140
+        "value": 25873
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 162875
+        "value": 43574
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21066
+        "value": 10175
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21265
+        "value": 10297
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2548
+        "value": 1254
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8598ad12bcf0688e1f664277405bd57754067d7c4416f7d277161004e0d0119a"
+  "task_content_digest": "06731e13aceb0c9fbe39782d0a3010ac04f5db5c43405bb21a7cb738928fa164"
 }
