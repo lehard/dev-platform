@@ -1,54 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "944837d28e779735705216f827133c37f1e44002",
+    "base_head": "81d868042d97cbae99c47beb28a101e4c81a10ba",
     "base_ref": "origin/main",
-    "candidate_head": "8e3c82b575e1f305263f8bb7edd0ccc1ca6ef914",
-    "diff_sha256": "e5599fe7f2c9226492faed09e7825f84a3421711b5d4cb01080b7f6735ab50c4"
+    "candidate_head": "887ad3dd9da42b8b29198f80cbe8b0c7865fe50b",
+    "diff_sha256": "b4594245242dbb85aac08bfe6a11834c7aafa4d13ec63d1a242f392768d7461d"
   },
-  "completed_at": "2026-10-29T14:59:23+00:00",
+  "completed_at": "2026-10-29T15:32:47+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_sessions.py:359-360 sets detail {\"tool\": waiting_tool if state == \"waiting-permission\" else None}. Line 352 guards PostToolUse only when waiting_tool is not None. The spec scenario \"Permission wait is not cleared by another tool\" is therefore not guaranteed on this path.",
-      "id": "permission-prompt-notification-loses-tool",
+      "evidence": "template/scripts/agent_sessions.py view(): on liveness 'gone' it sets state_since=shown['updated_at']. list_sessions() then drops any ended item where now - state_since > ended_keep. The docs say 'Ended records are listed for ended_keep_seconds', and the spec scenario 'Killed session' says it is shown `ended`.",
+      "id": "process-gone-retention-clock",
       "severity": "advisory",
-      "summary": "A permission_prompt Notification that is not preceded by a PermissionRequest records waiting-permission with tool=None. Any later PostToolUse then clears the wait, which contradicts the rule that only the matching tool's PostToolUse or a new prompt clears it."
-    },
-    {
-      "evidence": "template/scripts/lifecycle_overview.py read_sessions: `raise OverviewError(f\"[agent_sessions] {key} must be set ...\")`. Only SessionError and ValueError become {\"configured\": True, \"error\": ...}. tests/test_overview_agent_sessions.py::test_partial_configuration_names_the_missing_key asserts the raise.",
-      "id": "partial-config-aborts-overview",
-      "severity": "advisory",
-      "summary": "A partially configured [agent_sessions] section (a missing key) raises OverviewError and aborts the whole overview. The spec says the overview SHALL state explicitly that the registry is unconfigured or unreadable. Only the missing-section and listing-error cases render a Sessions line."
-    },
-    {
-      "evidence": "template/scripts/agent_sessions.py list_sessions calls read_record(path) per file without per-record handling. read_record raises SessionError for bad JSON or a wrong version.",
-      "id": "one-corrupt-record-hides-all-sessions",
-      "severity": "advisory",
-      "summary": "list_sessions raises on the first unreadable record, so one corrupt file makes the whole registry unreadable and every live session disappears from the overview. The overview does print that the registry is unreadable, so sessions are not shown as absent."
-    },
-    {
-      "evidence": "_session_line in lifecycle_overview.py and the `list` CLI output in agent_sessions.py print the state for codex sessions without any note about unavailable states.",
-      "id": "codex-limits-only-in-docs",
-      "severity": "advisory",
-      "summary": "The spec says the platform SHALL state that Codex working, waiting and limit states are unavailable. This statement appears only in docs/engineering/agent-sessions.md. The list and overview output for a Codex session shows plain `idle` with no such marker."
-    },
-    {
-      "evidence": "openspec/changes/agent-session-status/design.md: \"unknown event names exit 0 after recording `last_event` only for known sessions... an unknown event is an explicit stderr error with exit 1\".",
-      "id": "design-text-garbled-unknown-event",
-      "severity": "advisory",
-      "summary": "design.md gives contradictory behavior for unknown hook events. The same bullet says they exit 0 and then that they are an explicit stderr error with exit 1. The proposal also says hooks exit 0 on success. The spec and implementation use stderr with exit 1, so the design artifact is internally inconsistent."
+      "summary": "The retention window for a session found dead without SessionEnd is measured from its last event, not from when it was seen to be gone. A session that was quiet for longer than ended_keep before it was killed is hidden as soon as it is detected as ended. A killed session is then neither shown `ended` nor reported as missing."
     }
   ],
-  "launched_at": "2026-10-29T14:58:55+00:00",
-  "output_sha256": "58cba00c72c4859c3bfa70568eb9f762b7a5a7631ba89ac441aa385efdfe72c8",
+  "launched_at": "2026-10-29T15:32:22+00:00",
+  "output_sha256": "5ac5a950c8a42a159ed800479976136d252fea6666c92d8c46524cb98afa4c73",
   "perspective": "spec-fidelity",
-  "request_id": "d400336a-5892-4cd5-9f6c-b0ecb57a6621",
+  "request_id": "174d709f-394d-4559-b88a-6e91a95a5a84",
   "reviewer": {
-    "context_id": "2453a9f6-7e65-4e6b-a718-19cd60769b50",
+    "context_id": "1abb1ddc-0dff-47f6-89c9-4a898c9aec23",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5b1cce35-5d96-436d-984e-68a059247812",
+    "launch_id": "platform-launch-17cd1fcf-1f0e-4ae0-b425-34bbfcf943a6",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -63,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39400
+        "value": 41853
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 102311
+        "value": 51863
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27973
+        "value": 24963
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 28304
+        "value": 25137
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3269
+        "value": 2565
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "3e8e1a91ceb75a165ec3a890bef2dac9317cff3a63f02ccb8cec083af28c4f6d"
+  "task_content_digest": "c4376d530ac414a36117ca40ae1359dabe1207f34f35ea37531209655894b20c"
 }

@@ -1,60 +1,54 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "944837d28e779735705216f827133c37f1e44002",
+    "base_head": "81d868042d97cbae99c47beb28a101e4c81a10ba",
     "base_ref": "origin/main",
-    "candidate_head": "8e3c82b575e1f305263f8bb7edd0ccc1ca6ef914",
-    "diff_sha256": "e5599fe7f2c9226492faed09e7825f84a3421711b5d4cb01080b7f6735ab50c4"
+    "candidate_head": "887ad3dd9da42b8b29198f80cbe8b0c7865fe50b",
+    "diff_sha256": "b4594245242dbb85aac08bfe6a11834c7aafa4d13ec63d1a242f392768d7461d"
   },
-  "completed_at": "2026-10-29T15:00:02+00:00",
+  "completed_at": "2026-10-29T15:33:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_sessions.py, hook_command(): f\"{sys.executable} {script} hook --provider {provider} --state-dir {state_dir}\". Use shlex.quote on each part. _is_ours() matches on the HOOK_MARKER substring, so quoting is compatible with detection as long as the marker text stays contiguous.",
-      "id": "hook-command-unquoted",
+      "evidence": "template/scripts/agent_sessions.py `ingest` calls `started(pid)` once for a new record, then twice for an existing one (`previous.get(\"pid_started\") != started(pid)` and again in `record.update`). `process_started` raises SessionError on a timeout or an unusable `ps`. That aborts the whole ingest, so a transient `ps` failure loses a state transition such as PostToolUse or Stop. The record then stays in an old state, for example `waiting-permission`. Compute the start time once, and only when the PID has changed or the record is new.",
+      "id": "hook-ps-failure-drops-event",
       "severity": "advisory",
-      "summary": "The rendered hook command interpolates the interpreter, script and state-dir paths without shell quoting. A path containing a space, for example a macOS home directory, produces a command that fails on every event. Each failure exits 1 and the registry silently goes stale."
+      "summary": "Every hook event runs `ps` up to twice, and a `ps` failure discards the event. This contradicts the design note that tool-event hooks stay cheap."
     },
     {
-      "evidence": "agent_sessions.py ingest(): `started(pid)` is called once for a new record, then twice more in the `previous.get(\"pid_started\") != started(pid)` check and the following `record.update(pid=pid, pid_started=started(pid))`. Compute it once per event and reuse it. Better, only re-probe when `previous.get(\"pid\") != pid`.",
-      "id": "per-event-subprocess-cost",
+      "evidence": "`claude_transition` keeps `waiting-permission` on every PreToolUse. A PostToolUse for a different tool also keeps it. Only the PostToolUse of the same tool, UserPromptSubmit, Stop, StopFailure or SessionEnd clears it. A denial produces no PostToolUse for that tool. If the model carries on with other tools, the status stays `waiting-permission` until Stop, or until the silent-timeout `unknown`. This follows the spec scenario, but the docs do not mention the false-positive case.",
+      "id": "permission-wait-stuck-after-denial",
       "severity": "advisory",
-      "summary": "The design says tool-event hooks stay cheap, but ingest() runs `ps` up to three times per event. Every PreToolUse and PostToolUse also pays a Python start-up plus an fsync'd write."
+      "summary": "A denied or interrupted permission prompt leaves the session reported as `waiting-permission` while it is working again."
     },
     {
-      "evidence": "agent_sessions.py list_sessions(): `record = read_record(path)` and `view(...)` are not guarded per file. read_record raises on JSON errors or a version mismatch, and _parse raises on a bad timestamp. lifecycle_overview.read_sessions then returns {\"error\":...,\"sessions\":[]}. Consider skipping and reporting the bad file while still listing the rest.",
-      "id": "one-bad-record-hides-whole-registry",
+      "evidence": "`list_sessions` calls `read_record` for each file with no per-file handling. A single corrupt or foreign-version `*.json` raises SessionError and `read_sessions` returns `{error}` with no sessions. `view` also does `_parse(record[\"updated_at\"])`. A record with a valid version but no `updated_at` raises a bare KeyError, which `read_sessions` does not catch (it catches only SessionError and ValueError). The overview would crash instead of printing 'registry unreadable'.",
+      "id": "one-corrupt-record-hides-whole-registry",
       "severity": "advisory",
-      "summary": "A single corrupt or invalid session file makes list_sessions raise. The overview then reports the whole registry as unreadable and hides all healthy sessions. A bad `updated_at` has the same effect, because view() calls _parse and that raises SessionError."
+      "summary": "One unreadable or malformed session file makes the whole registry unreadable for every viewer."
     },
     {
-      "evidence": "lifecycle_overview.py read_sessions(): `raise OverviewError(f\"[agent_sessions] {key} must be set ...\")`. overview(), show_pr() and show_requirement() call it unguarded.",
-      "id": "partial-config-aborts-overview",
+      "evidence": "`edit_settings` rebuilds `hooks` with `{k: v for k, v in hooks.items() if v}`, so any pre-existing empty hook lists are dropped on install and on remove. `_write_settings` uses `os.replace` on the given path, so a symlinked `~/.claude/settings.json` (a common dotfiles setup) is replaced by a regular file. No backup is made. The doc promises rollback 'leaves other hooks alone'.",
+      "id": "settings-edit-side-effects",
       "severity": "advisory",
-      "summary": "An incomplete `[agent_sessions]` section raises OverviewError from read_sessions. That aborts the entire lifecycle overview, including the PR and Requirement views, instead of degrading to the explicit session-status line the registry-unreadable case uses."
+      "summary": "The settings installer changes the owner's file in ways that go beyond adding or removing its own entries."
     },
     {
-      "evidence": "agent_sessions.py main(): `ingest(..., pid=os.getppid())`. liveness() returns `gone` when the pid is missing or its start time differs, and view() then forces state=\"ended\". design.md Risks covers only the 'never a false working' direction.",
-      "id": "root-pid-is-hook-parent-fragile",
+      "evidence": "`_locked` opens `path.with_suffix(\".lock\")` in append mode with no mode restriction, while records are written 0600. Each session leaves a permanent `.lock` file, and `ended_keep` retention only hides records. `_write` leaves the `mkstemp` file in the state dir if the write or fsync fails, because it does not unlink the temp file on error.",
+      "id": "lock-file-permissions-and-leftovers",
       "severity": "advisory",
-      "summary": "The session root pid is taken as os.getppid() of the hook, and it is re-recorded on every event when it differs. If the hook runs under a short-lived shell, or a Codex notify wrapper, the recorded process dies quickly. A live, working session is then shown `ended (process-gone)`, which is a false negative. The design only argues that a false `working` is impossible."
-    },
-    {
-      "evidence": "docs/engineering/agent-sessions.md, 'Codex' section, plus the argparse definition `hook.add_argument(\"--payload-json\", ...)` in agent_sessions.py. The `hooks` subcommand renders only CLAUDE_EVENTS.",
-      "id": "codex-setup-undocumented",
-      "severity": "advisory",
-      "summary": "Codex ingestion has no render or install path, and the docs do not show the `notify` configuration. The CLI needs an explicit `--payload-json` flag as the final argument, whereas the docs say Codex passes the payload as the last argument. Operators cannot wire Codex from the docs alone."
+      "summary": "Lock files are created with the default umask and never cleaned up. A failed write also leaks its temp file."
     }
   ],
-  "launched_at": "2026-10-29T14:59:23+00:00",
-  "output_sha256": "4655632a0e31eb0b830239fb652351d88c6ab8fad542a93fe8303c5333c915c7",
+  "launched_at": "2026-10-29T15:32:47+00:00",
+  "output_sha256": "c962cb00063834e3dd7e3507699e975372474cf82d283f325f7fe2859371f0a6",
   "perspective": "engineering-quality",
-  "request_id": "d400336a-5892-4cd5-9f6c-b0ecb57a6621",
+  "request_id": "174d709f-394d-4559-b88a-6e91a95a5a84",
   "reviewer": {
-    "context_id": "3ac725b2-3a68-46bf-b753-d9151dc21d8d",
+    "context_id": "4394fd71-35fc-45a9-9355-fb97c2222d81",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5bcb3c61-c1e8-4503-b58e-211b240cd2f5",
+    "launch_id": "platform-launch-83ad0bd2-1a77-4677-8f3e-4852eaaed48b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -69,41 +63,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39350
+        "value": 40149
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 112909
+        "value": 51823
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37463
+        "value": 34451
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37753
+        "value": 34779
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4287
+        "value": 3917
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "3e8e1a91ceb75a165ec3a890bef2dac9317cff3a63f02ccb8cec083af28c4f6d"
+  "task_content_digest": "c4376d530ac414a36117ca40ae1359dabe1207f34f35ea37531209655894b20c"
 }
