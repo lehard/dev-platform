@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import fcntl
 import json
 import plistlib
@@ -23,14 +25,17 @@ def done(out="", err="", code=0):
 class FakeRun:
     """Dispatches on argv: gh auth token, gh api rate_limit, work-next."""
 
-    def __init__(self, work, remaining=5000):
-        self.work, self.remaining, self.calls = list(work), remaining, []
+    def __init__(self, work, remaining=5000, on_rate=None):
+        self.work, self.remaining, self.calls, self.timeouts, self.on_rate = list(work), remaining, [], [], on_rate
 
     def __call__(self, argv, *, env, cwd, timeout):
         self.calls.append(argv)
+        self.timeouts.append(timeout)
         if argv[1:3] == ["auth", "token"]:
             return done("tok\n")
         if argv[1:3] == ["api", "rate_limit"]:
+            if self.on_rate:
+                self.on_rate()
             value = self.remaining.pop(0) if isinstance(self.remaining, list) else self.remaining
             return done(json.dumps({"resources": {"core": {"remaining": value, "reset": 1}}}))
         item = self.work.pop(0)
@@ -122,6 +127,39 @@ class RunnerTests(unittest.TestCase):
             with self.assertRaises(runner.RunnerError):
                 runner.validate(args)
 
+    def test_relative_paths_are_rejected_naming_the_argument(self):
+        for field in ("checkout", "journal_dir"):
+            args = argparse.Namespace(**{**vars(self.args), field: Path("relative")})
+            with self.assertRaisesRegex(runner.RunnerError, f"--{field.replace('_', '-')} must be an absolute path"):
+                runner.validate(args)
+
+    def test_run_timeout_is_bounded_by_the_round_deadline(self):
+        clock = [0.0]
+        self.args.max_seconds, self.args.claim_ttl = 100, 900
+        fake = FakeRun([job("claimed"), done(json.dumps({"status": "idle", "job": None}))],
+                       on_rate=lambda: clock.__setitem__(0, clock[0] + 40))
+        with mock.patch.object(runner.shutil, "which", return_value="/usr/bin/gh"):
+            runner.run_round(self.args, run=fake, monotonic=lambda: clock[0])
+        work_timeouts = [t for c, t in zip(fake.calls, fake.timeouts) if "work-next" in c]
+        self.assertEqual(work_timeouts[0], 60)
+
+    def test_no_time_left_ends_the_round_without_a_run(self):
+        clock = [0.0]
+        self.args.max_seconds = 100
+        fake = FakeRun([], on_rate=lambda: clock.__setitem__(0, clock[0] + 200))
+        with mock.patch.object(runner.shutil, "which", return_value="/usr/bin/gh"):
+            self.assertEqual(runner.run_round(self.args, run=fake, monotonic=lambda: clock[0]), 0)
+        self.assertEqual(self.events()[-1]["outcome"], "max-seconds")
+        self.assertFalse(any("work-next" in c for c in fake.calls))
+
+    def test_unwritable_lock_is_an_explicit_error(self):
+        self.args.journal_dir = self.args.journal_dir / "gone"
+        self.args.journal_dir.mkdir()
+        (self.args.journal_dir / runner.LOCK_NAME).mkdir()  # a directory cannot be opened as the lock file
+        with mock.patch.object(runner.shutil, "which", return_value="/usr/bin/gh"):
+            with self.assertRaisesRegex(runner.RunnerError, "lock file"):
+                runner.run_round(self.args, run=FakeRun([]))
+
     def test_missing_token_fails_explicitly(self):
         def bad(argv, *, env, cwd, timeout):
             return done(err="not logged in", code=1)
@@ -149,6 +187,79 @@ class RunnerTests(unittest.TestCase):
             self.args.gh = str(self.args.checkout / "missing-gh")
             with self.assertRaises(runner.RunnerError):
                 runner.render_plist(self.args)
+
+
+class LaunchAgentTests(unittest.TestCase):
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        base = Path(tmp.name)
+        (base / "co/scripts").mkdir(parents=True)
+        (base / "co/scripts/lifecycle_workers.py").write_text("")
+        (base / "journal").mkdir()
+        self.plist = base / "LaunchAgents" / f"{runner.LABEL}.plist"
+        self.argv = ["--repo", "o/r", "--checkout", str(base / "co"), "--journal-dir", str(base / "journal"),
+                     "--gh", "/usr/bin/gh", "--min-rest-remaining", "1000", "--max-jobs", "5",
+                     "--max-seconds", "100", "--claim-ttl", "900"]
+        for patcher in (mock.patch.object(runner, "agent_path", return_value=self.plist),
+                        mock.patch.object(runner.sys, "platform", "darwin"),
+                        mock.patch.object(runner.shutil, "which", side_effect=lambda n: f"/opt/bin/{n}")):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def launchctl(self, loaded=True, bootout=0, bootstrap=0):
+        calls = []
+
+        def fake(argv, **kwargs):
+            calls.append(argv[:2])
+            if argv[1] == "print":
+                return subprocess.CompletedProcess(argv, 0 if loaded else 1, "", "")
+            if argv[1] == "bootout":
+                return subprocess.CompletedProcess(argv, bootout, "", "Boot-out failed: 5")
+            if bootstrap:
+                raise subprocess.CalledProcessError(bootstrap, argv, "", "Bootstrap failed: 5")
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        return calls, fake
+
+    def test_print_writes_and_loads_nothing(self):
+        calls, fake = self.launchctl()
+        with mock.patch.object(runner.subprocess, "run", fake):
+            with contextlib.redirect_stdout(io.StringIO()) as out:
+                self.assertEqual(runner.main(["launchagent", "--print", *self.argv]), 0)
+        self.assertIn(runner.LABEL, out.getvalue())
+        self.assertEqual(calls, [])
+        self.assertFalse(self.plist.exists())
+
+    def test_removal_keeps_the_plist_when_unload_fails(self):
+        self.plist.parent.mkdir()
+        self.plist.write_bytes(b"agent")
+        calls, fake = self.launchctl(loaded=True, bootout=5)
+        with mock.patch.object(runner.subprocess, "run", fake):
+            with self.assertRaisesRegex(runner.RunnerError, "unload failed, plist kept: Boot-out failed: 5"):
+                runner.remove_agent()
+        self.assertTrue(self.plist.exists())
+
+    def test_removal_unloads_then_deletes(self):
+        self.plist.parent.mkdir()
+        self.plist.write_bytes(b"agent")
+        calls, fake = self.launchctl(loaded=True)
+        with mock.patch.object(runner.subprocess, "run", fake):
+            runner.remove_agent()
+        self.assertEqual(calls, [["launchctl", "print"], ["launchctl", "bootout"]])
+        self.assertFalse(self.plist.exists())
+
+    def test_bootstrap_failure_names_the_unloaded_agent_and_plist(self):
+        calls, fake = self.launchctl(loaded=True, bootstrap=5)
+        with mock.patch.object(runner.subprocess, "run", fake):
+            with self.assertRaises(runner.RunnerError) as caught:
+                runner.install_agent(argparse.Namespace(
+                    repo="o/r", checkout=Path(self.argv[3]), journal_dir=Path(self.argv[5]), gh="/usr/bin/gh",
+                    min_rest_remaining=1000, max_jobs=5, max_seconds=100, claim_ttl=900))
+        message = str(caught.exception)
+        self.assertIn("Bootstrap failed: 5", message)
+        self.assertIn("already unloaded", message)
+        self.assertIn(str(self.plist), message)
+        self.assertTrue(self.plist.exists())
 
 
 if __name__ == "__main__":
