@@ -42,6 +42,8 @@ The levels hold on the whole path to implementation. ADD and OpenSpec keep each 
 
 If the discussion supplied a screenshot, mockup, document, link or other reference, keep it **reachable by the executing agent** through a stable, permitted channel and say which of its properties are mandatory (layout, hierarchy, wording, behavior). If the executor cannot reach an attachment, say it is unavailable and record what is known from it; never substitute a link to a changing site root. Do not copy private conversations, secrets, unreachable personal files or whole external documents into a public repository.
 
+When the work is a second or later attempt at a problem that already has a friction root issue, link that issue in `Context` and name the earlier attempts with what each left unsolved, so the executor does not repeat a rejected path.
+
 Place content in the existing sections only — `Outcome`, `Context`, `Acceptance evidence`, `Target repository`, `Exclusions`. Acceptance evidence names concrete observable results and, where it matters, the successful, failing and forbidden behavior; it does not restate the goal. Keep technical design, file plans and OpenSpec content out; ADD and OpenSpec own those later.
 
 ## 6. Ask only about unresolved material choices

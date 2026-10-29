@@ -1,0 +1,138 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.91,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.866,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.165,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.166,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1028.171,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-fallback",
+      "paths": [
+        "dev-platform/evals/requirement-authoring-pilot.json",
+        "template/dev-platform/capabilities/requirement-authoring.toml",
+        "template/dev-platform/evals/requirement-authoring-pilot.json",
+        "template/dev-platform/platform-manifest.json"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "unknown-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_54ef5cedc0a6ce1aab0c9ada1fd5c07c",
+    "change": "decision-attempt-history",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/decision-attempt-history",
+    "branch": "agent/br-781-t1-decision-attempt-history",
+    "head": "2a7dcf561a3b84b2ed6dbd7c168edcd6bd706361",
+    "task_content": {
+      "version": 1,
+      "digest": "fac461c5d05f029fb57a5cb7ba61ef6fbb9825d4da11e6e042c438f9c79173c3",
+      "paths": {
+        "dev-platform/capabilities/requirement-authoring.md": "08ea98a7100d4f8acbd0fe41ebacc5e69cf8248f",
+        "dev-platform/capabilities/requirement-authoring.toml": "40fc3f71d9a598af3a59a1a1c3edf79df1b44367",
+        "dev-platform/evals/requirement-authoring-pilot.json": "f5a3c8632eafe6359275de35d8fb6dc90971ab2c",
+        "docs/decisions/0004-main-advance-revalidation.md": "eae946620b69addfbc6033e8cf7bf365bb0fdd98",
+        "docs/decisions/README.md": "c181ee628e05d4acee747079017b4dc600ca97d5",
+        "docs/engineering/agent-workflow.md": "2723fa32a9f7b5fd1f93e388b5ff1d9c96f01482",
+        "docs/engineering/openspec-workflow.md": "973b11efeded702f6bce743c40d857d0d83d3e43",
+        "docs/engineering/task-intake.md": "fbee44933bc9f4e4f3eda6a609fa63ccb8de70cb",
+        "openspec/changes/decision-attempt-history/.managed-task.json": "026b24b2effb01cdf3c29ef050e8fd3f15363d4d",
+        "openspec/changes/decision-attempt-history/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/decision-attempt-history/design.md": "6d9eb852ebffb4006925d9ab157994ebc1628f56",
+        "openspec/changes/decision-attempt-history/proposal.md": "d6266e01e0842ed19f673ee84a9585100ed0123a",
+        "openspec/changes/decision-attempt-history/specs/decision-registry/spec.md": "441c23d59949138bddbd1f9bb82f1b76f74d4bab",
+        "openspec/changes/decision-attempt-history/tasks.md": "bba1d2967259b2baa84c98007cd2d635fc099dca",
+        "openspec/changes/decision-attempt-history/verification.md": "3b4334100197bbbfe7759828ae75d150e73dbe31",
+        "template/dev-platform/capabilities/requirement-authoring.md": "08ea98a7100d4f8acbd0fe41ebacc5e69cf8248f",
+        "template/dev-platform/capabilities/requirement-authoring.toml": "40fc3f71d9a598af3a59a1a1c3edf79df1b44367",
+        "template/dev-platform/evals/requirement-authoring-pilot.json": "f5a3c8632eafe6359275de35d8fb6dc90971ab2c",
+        "template/dev-platform/platform-manifest.json": "8df24e08e10b0187cb67d4547d54c20a8393c0d7"
+      },
+      "base": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "7d4d0804a277bf0f67038179edcd74a42c8a3f47643f25614646f5f3ac5118a0",
+    "paths": {
+      "dev-platform/capabilities/requirement-authoring.md": "08ea98a7100d4f8acbd0fe41ebacc5e69cf8248f",
+      "dev-platform/capabilities/requirement-authoring.toml": "40fc3f71d9a598af3a59a1a1c3edf79df1b44367",
+      "dev-platform/evals/requirement-authoring-pilot.json": "f5a3c8632eafe6359275de35d8fb6dc90971ab2c",
+      "docs/decisions/0004-main-advance-revalidation.md": "eae946620b69addfbc6033e8cf7bf365bb0fdd98",
+      "docs/decisions/README.md": "c181ee628e05d4acee747079017b4dc600ca97d5",
+      "docs/engineering/agent-workflow.md": "2723fa32a9f7b5fd1f93e388b5ff1d9c96f01482",
+      "docs/engineering/openspec-workflow.md": "973b11efeded702f6bce743c40d857d0d83d3e43",
+      "docs/engineering/task-intake.md": "fbee44933bc9f4e4f3eda6a609fa63ccb8de70cb",
+      "openspec/changes/decision-attempt-history/.managed-task.json": "026b24b2effb01cdf3c29ef050e8fd3f15363d4d",
+      "openspec/changes/decision-attempt-history/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/decision-attempt-history/design.md": "6d9eb852ebffb4006925d9ab157994ebc1628f56",
+      "openspec/changes/decision-attempt-history/proposal.md": "d6266e01e0842ed19f673ee84a9585100ed0123a",
+      "openspec/changes/decision-attempt-history/specs/decision-registry/spec.md": "441c23d59949138bddbd1f9bb82f1b76f74d4bab",
+      "openspec/changes/decision-attempt-history/tasks.md": "bba1d2967259b2baa84c98007cd2d635fc099dca",
+      "template/dev-platform/capabilities/requirement-authoring.md": "08ea98a7100d4f8acbd0fe41ebacc5e69cf8248f",
+      "template/dev-platform/capabilities/requirement-authoring.toml": "40fc3f71d9a598af3a59a1a1c3edf79df1b44367",
+      "template/dev-platform/evals/requirement-authoring-pilot.json": "f5a3c8632eafe6359275de35d8fb6dc90971ab2c"
+    },
+    "base": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "scope": "independent-review-v1"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "c8b555068dd226a8a674c155b72f4b9b9cd940a6",
+    "base": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "overlapping": [
+      "docs/engineering/agent-workflow.md",
+      "template/dev-platform/platform-manifest.json"
+    ],
+    "generated_conflicts": []
+  }
+}
