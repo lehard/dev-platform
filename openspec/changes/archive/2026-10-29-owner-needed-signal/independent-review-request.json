@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "a4b58b3778da2085e3ec3227358ccdf800fbc4e1",
-    "diff_sha256": "2521c4f3542ee01c427ee6940c19927ca14b19334f3f7935ce53ef4040d85ca9"
+    "candidate_head": "1dfdd37043f31ed274a0b9f56db72270d41ed535",
+    "diff_sha256": "d312f3cb41d340ca593e7850b1abcd690dad9f7c9bb87f49c169d01144221df1"
   },
   "change": "openspec/changes/archive/2026-10-29-owner-needed-signal",
   "excluded_lifecycle_paths": [
@@ -42,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-29T22:26:29+00:00",
+  "prepared_at": "2026-10-29T22:31:00+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews",
     "required_perspectives": [
@@ -51,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "39ade455-ab3b-4f9b-a23b-83748093088d",
+  "request_id": "10f3a789-82c9-4f13-9b2b-507a9501994b",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -64,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
-    "digest": "06731e13aceb0c9fbe39782d0a3010ac04f5db5c43405bb21a7cb738928fa164",
+    "digest": "25d38b3d0ce14bea882ed8f23e4551c98c6db62b3ae8dd9119d7edcda409bc6f",
     "paths": {
       "dev-platform/checks.toml": "67a83a56f8ffc5c253592cfee7dc52a121d40c88",
       "docs/engineering/chat-coordinator.md": "e4f79c62376318804487657004b8c4e66f415162",
@@ -77,8 +77,8 @@
       "openspec/changes/owner-needed-signal/tasks.md": "1f9497732d3abe29eb27ce105d74424f52d6a6ae",
       "scripts/agent_signal.py": "02dacd8d2df454659710cab61d65994ef1273a02",
       "template/dev-platform/protected-surface.toml": "fe9fbee1a94bc1861b3a480240d3b8f3a2105d87",
-      "template/scripts/agent_signal.py": "634d557ee16ef54d599e5f9e93921833b9e0e3a0",
-      "template/scripts/lifecycle_overview.py": "e731a2110ee3435ad3ed25922839b5f3651e9c31",
+      "template/scripts/agent_signal.py": "a8eb6dda5c1500c8500743f0a7d00e42d7c6d2b4",
+      "template/scripts/lifecycle_overview.py": "890e12234e71865d646e7aae8f8816b710b00e1b",
       "tests/test_agent_signal.py": "1eb098fadb48598aad85513dfb017282087b98df",
       "tests/test_lifecycle_overview.py": "39e1d887f741cfcb564fdd8083d03dc5afbbe0c8",
       "tests/test_overview_agent_sessions.py": "66896fa4787619752497cf2ef4dbe886fa87024c"

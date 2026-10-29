@@ -3,40 +3,28 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "a4b58b3778da2085e3ec3227358ccdf800fbc4e1",
-    "diff_sha256": "2521c4f3542ee01c427ee6940c19927ca14b19334f3f7935ce53ef4040d85ca9"
+    "candidate_head": "1dfdd37043f31ed274a0b9f56db72270d41ed535",
+    "diff_sha256": "d312f3cb41d340ca593e7850b1abcd690dad9f7c9bb87f49c169d01144221df1"
   },
-  "completed_at": "2026-10-29T22:26:57+00:00",
+  "completed_at": "2026-10-29T22:31:27+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_signal.py: open_signals() and _require_board() call scope_gate_required(read_platform_config(root)) outside any handler. In agent_board.py:52-54 and 765-770, scope_gate_required raises SystemExit when [capabilities] or agent_board is missing or not a bool. open_signals() only catches KeyError, PlatformConfigError, OSError and JSONDecodeError. SystemExit is not caught, so lifecycle_overview.overview() (via read_owner_needed) terminates the whole coordinator overview. main() only catches SignalError, so the CLI also exits with SystemExit rather than 'agent_signal: ...' and rc 1. The tests mock scope_gate_required, so this path is untested.",
-      "id": "overview-aborts-on-unclassified-board-config",
-      "severity": "material",
-      "summary": "The overview and the raise/resolve CLI can exit instead of reporting an explicit board problem. This breaks the spec's \"say so explicitly\" and \"named error\" requirements."
-    },
-    {
-      "evidence": "agent_signal.open_signals iterates `entry.get(\"signals\", [])` and reads `item[\"raised_at\"]` and `datetime.fromisoformat(...)` with no guard. A non-dict entry, a non-list signals value, or a missing or invalid raised_at raises AttributeError, TypeError, KeyError or ValueError, none of which is caught. raise_signal and resolve_signal use `s[\"id\"]` and `existing[\"count\"] += 1` the same way.",
-      "id": "overview-open-signals-malformed-data-crash",
+      "evidence": "template/scripts/agent_signal.py:317 and :339 call locked_json, which raises RuntimeError(\"Invalid JSON in ...\") (_platform_common.py:1226). main() (agent_signal.py:394) catches only SignalError. The read-only path open_signals handles ValueError, but the write paths do not. The spec says failures must give an explicit error naming the cause, and the tests do not cover a corrupt board on raise or resolve.",
+      "id": "signal-cli-invalid-board-json-traceback",
       "severity": "advisory",
-      "summary": "A single malformed board entry or signal crashes the whole overview, and the CLI mutation paths have the same fragility. This undercuts the \"unreadable board is reported\" contract."
-    },
-    {
-      "evidence": "lifecycle_overview.py: `overview(root, ...)` calls `read_owner_needed(now)`, which calls `agent_signal.open_signals(main_root(), now=now)`. This differs from the neighbouring `read_sessions(root, now=now)`. When overview is called with a non-default root, it reports the wrong project's signals. The test only passes because it mocks read_owner_needed.",
-      "id": "overview-ignores-root-argument",
-      "severity": "advisory",
-      "summary": "read_owner_needed reads the board from main_root(), not from the root passed to overview(root, now=...)."
+      "summary": "agent_signal raise/resolve do not convert an invalid-JSON board error into a SignalError, so the CLI exits with a traceback instead of the named-error contract."
     }
   ],
-  "launched_at": "2026-10-29T22:26:43+00:00",
-  "output_sha256": "56d60269d641442e2cba467ee93c56f12ce18a4ccc55cad7f193729eac902260",
+  "launched_at": "2026-10-29T22:31:15+00:00",
+  "output_sha256": "c9d32afba70dcc79fc199a6d4aa1af5c481d1fcbd077c7776305dece0d94cae2",
   "perspective": "engineering-quality",
-  "request_id": "39ade455-ab3b-4f9b-a23b-83748093088d",
+  "request_id": "10f3a789-82c9-4f13-9b2b-507a9501994b",
   "reviewer": {
-    "context_id": "f4de74eb-2d56-4f79-9f63-a2683317abc1",
+    "context_id": "3af63daa-a52e-4fb0-a9df-b11b6e1f0c7e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-66de193e-15ed-4359-babe-fe1b27f4cf02",
+    "launch_id": "platform-launch-72f51c76-48b0-4380-901d-eeed03ce6602",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23485
+        "value": 26001
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 71638
+        "value": 44024
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13266
+        "value": 11243
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13541
+        "value": 11477
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1501
+        "value": 1099
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "06731e13aceb0c9fbe39782d0a3010ac04f5db5c43405bb21a7cb738928fa164"
+  "task_content_digest": "25d38b3d0ce14bea882ed8f23e4551c98c6db62b3ae8dd9119d7edcda409bc6f"
 }
