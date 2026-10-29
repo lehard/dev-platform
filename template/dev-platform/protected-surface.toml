@@ -80,6 +80,7 @@ hotfixable = [
   "scripts/check_docs_links.py",
   "scripts/deepseek_harness_adapter.py",
   "scripts/harness_replay.py",
+  "scripts/github_read_cache.py",
   "scripts/lifecycle_overview.py",
   "scripts/machine_pool.py",
   "scripts/managed_project_status.py",

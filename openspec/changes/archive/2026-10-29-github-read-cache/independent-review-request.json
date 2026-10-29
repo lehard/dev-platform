@@ -1,0 +1,93 @@
+{
+  "candidate": {
+    "base_head": "39a6ae92daf33954c6da85069e666993f9ef8240",
+    "base_ref": "origin/main",
+    "candidate_head": "b939099b48b5a64b4fd5eb9153a5c6aefd4c18e8",
+    "diff_sha256": "fbe4394186189cf1b379ad1cc15ce04bc144c64af67d275a90aecd4741d05398"
+  },
+  "change": "openspec/changes/archive/2026-10-29-github-read-cache",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-29-github-read-cache/automated-checks.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/independent-review-request.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/verification.md",
+    "openspec/specs/chat-coordinator/spec.md",
+    "openspec/specs/lifecycle-workers/spec.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/design.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/proposal.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/lifecycle-workers/spec.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-29-github-read-cache/proposal.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/design.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/tasks.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T12:27:37+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-29-github-read-cache/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "26e612e9-5f5b-410e-b1f1-761c5792ea78",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "723083be92fadddc7110f89f9fc008220d89bd31",
+    "digest": "001a52a3af4ff9501238ca242507127db83da6be46b792568e5f042e7bdfe9e5",
+    "paths": {
+      "dev-platform/checks.toml": "100b34ea2bbf614e1736e388b2a80e96fa451aa2",
+      "docs/engineering/chat-coordinator.md": "a4260a96be7902724b28a582696835b1d37aed22",
+      "openspec/changes/github-read-cache/.managed-task.json": "0a0af73bdc34bca0b71e57ee077f4b25b0609106",
+      "openspec/changes/github-read-cache/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/github-read-cache/design.md": "77d9d99d31b580f50ad6ee30ae35c4ca1aad751b",
+      "openspec/changes/github-read-cache/proposal.md": "3b88b28dea53e71158ccabdba81cee54735fba4d",
+      "openspec/changes/github-read-cache/specs/chat-coordinator/spec.md": "8e5df5fcff056559cf01716a8ac4b743c57cf5a5",
+      "openspec/changes/github-read-cache/specs/lifecycle-workers/spec.md": "f2880468fc8db2b0ee2c3fbe5bc7aa74b2ab3e99",
+      "openspec/changes/github-read-cache/tasks.md": "36664d63184583b5fea74ff6fa89595590e85f5b",
+      "template/dev-platform/protected-surface.toml": "c5661a86b2766d587771fa825e947ad6ea36ad4e",
+      "template/scripts/github_read_cache.py": "ca8a49a7d71ef149ff7f081e2be7606940b14b50",
+      "template/scripts/lifecycle_overview.py": "55f65f19cfb2ce4008807f1b8d687e38f6d6d293",
+      "template/scripts/lifecycle_workers.py": "0179ecaf25e3be3c2239f5dc87952d194b583009",
+      "template/scripts/managed_task.py": "867f9e203bfee6c9eba5e2ed8e8ed2fdbd9c6706",
+      "template/scripts/parallel_lifecycle_acceptance.py": "6b0acd4f51c3d60b1da3a4678b0748045a73c74d",
+      "template/scripts/publication_queue.py": "7cc4a07e36cd4ecd48f44ed192090f54d2baa54e",
+      "tests/test_github_read_cache.py": "dce85454093f7e901b755a412885ecc8f4237c84",
+      "tests/test_lifecycle_overview.py": "eb047cffea634015006e238085719694234b7692",
+      "tests/test_publication_queue.py": "259a315e7a5a153b60762aa5733df087feea2b96",
+      "tests/test_shared_writer_guard.py": "999bb4f31df108174ac32f00e1f37f894fba74e0"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -1521,9 +1521,10 @@ class CommentHistoryTests(unittest.TestCase):
         return [rows[i:i + 100] for i in range(0, len(rows), 100)] or [[]]
 
     def read(self, observed):
-        with patch.object(queue, "_gh", return_value=observed) as gh:
+        with patch("github_read_cache.get_pages", return_value=observed) as pages:
             result = queue._comments(ROOT_PATH, REPO, 7)
-        self.assertEqual(gh.call_args.args[1:4], ("api", "--paginate", "--slurp"))
+        self.assertEqual(pages.call_args.args[2:], ())
+        self.assertEqual(pages.call_args.args[1], f"repos/{REPO}/issues/7/comments?per_page=100")
         return result
 
     def test_histories_of_every_boundary_size_are_complete_and_ordered(self) -> None:
@@ -1537,7 +1538,7 @@ class CommentHistoryTests(unittest.TestCase):
             {"version": 1, "number": 7, "kind": "admit", "head": HEAD, "base": BASE, "branch": "agent/7"})}
         observed = self.pages([*self.rows(100), marker])
         self.assertEqual(len(observed), 2)
-        with patch.object(queue, "_gh", return_value=observed), \
+        with patch("github_read_cache.get_pages", return_value=observed), \
              patch.object(queue, "trusted_apps", return_value=frozenset()):
             events = queue._events(ROOT_PATH, REPO, 7)
         self.assertEqual([event["kind"] for event in events], ["admit"])
@@ -1557,16 +1558,17 @@ class CommentHistoryTests(unittest.TestCase):
             "regressing id across pages": [good, [{"id": 1}]],
         }
         for name, observed in cases.items():
-            with self.subTest(name), patch.object(queue, "_gh", return_value=observed):
+            with self.subTest(name), patch("github_read_cache.get_pages", return_value=observed):
                 with self.assertRaisesRegex(queue.QueueError, "comment-history acquisition failed for #7"):
                     queue._comments(ROOT_PATH, REPO, 7)
 
     def test_transport_failure_and_invalid_json_are_named(self) -> None:
-        with patch.object(queue, "_gh", side_effect=queue.QueueError("page 2 unavailable")):
+        import github_read_cache
+
+        with patch("github_read_cache.get_pages", side_effect=github_read_cache.GithubReadError("page 2 unavailable")):
             with self.assertRaisesRegex(queue.QueueError, "comment-history acquisition failed for #7: page 2 unavailable"):
                 queue._comments(ROOT_PATH, REPO, 7)
-        from subprocess import CompletedProcess
-        with patch("_platform_common.run_github_with_retry", return_value=CompletedProcess([], 0, "[[{", "")):
+        with patch("github_read_cache.get_pages", side_effect=github_read_cache.GithubReadError("unrecognised GitHub response")):
             with self.assertRaisesRegex(queue.QueueError, "comment-history acquisition failed for #7"):
                 queue._comments(ROOT_PATH, REPO, 7)
 

@@ -31,6 +31,8 @@ from _platform_common import (REFUSED_HOME_PATHS, ProjectCheckRuntimeError, chec
                               credential_free_env, project_check_env, read_platform_config, refused_home_path)
 from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
+import github_read_cache as read_cache
+from github_read_cache import GithubReadCacheError
 
 CLAIM_PREFIX = "dev-platform-lifecycle-claim:v1 "
 JOB_KINDS = frozenset({"review", "repair", "integration-repair", "integration-merge", "finalize", "retrospective",
@@ -849,6 +851,8 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
             comments = comments_for(pr["number"])
             proven = writers(comments)
             candidate = derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven)
+        except GithubReadCacheError:
+            raise  # a corrupt read cache is not one PR's unreadable record: it fails the run, naming the file
         except Exception as exc:  # one PR's unreadable record or comments never stops the other PRs
             skipped.append({"number": pr["number"], "error": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]})
             continue
@@ -1194,7 +1198,22 @@ def _decode_all(text: str) -> Any:
     return items if single is None and text else single
 
 
+def _is_plain_api_read(args: tuple[str, ...]) -> bool:
+    """``api [--paginate] <path>`` with no method, field or other flag: a pure GET the read cache can serve."""
+    rest = list(args[1:]) if args[:1] == ("api",) else None
+    if rest is None:
+        return False
+    if rest[:1] == ["--paginate"]:
+        rest = rest[1:]
+    return len(rest) == 1 and not rest[0].startswith("-")
+
+
 def _gh_json(*args: str) -> Any:
+    if _is_plain_api_read(args):  # unchanged reads are revalidated by ETag through the disposable read cache
+        try:
+            return read_cache.cached_gh_json(Path.cwd(), *args)
+        except read_cache.GithubReadError as exc:
+            raise WorkerError(str(exc)) from exc
     done = subprocess.run(["gh", *args], text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if done.returncode:
         raise WorkerError(done.stderr.strip() or "gh failed")
@@ -1453,7 +1472,7 @@ def main(argv: list[str] | None = None) -> int:
             result = {**result, "providers": {"ready": sorted(name for name, limitation in readiness.items() if limitation is None),
                                               "unavailable": {name: limitation for name, limitation in readiness.items() if limitation}}}
         result = {**result, "worker": args.worker}
-    except (WorkerError, ValueError) as exc:
+    except (WorkerError, ValueError, GithubReadCacheError) as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(result, sort_keys=True))

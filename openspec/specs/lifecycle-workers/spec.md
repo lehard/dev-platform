@@ -457,6 +457,20 @@ A bounded pilot on real pull requests of the platform repository SHALL end in a 
 - **WHEN** the record recommends the local fallback for a kind
 - **THEN** it grants that worker no merge or `main` authority beyond the existing CI-only protocol
 
+### Requirement: Workers read unchanged GitHub state through the disposable read cache
+
+Lifecycle workers SHALL read PR lists, PR comment histories and Requirement Issue state through the same disposable local read cache as the lifecycle overview, so unchanged reads are revalidated conditionally instead of re-fetched. The cache SHALL never change which jobs a worker offers or claims: job selection, claim expiry and attempt counters SHALL equal those of a cache-free read at the same GitHub state. A corrupt or inconsistent cache SHALL fail the worker run explicitly naming the cache file and its reset, and SHALL NOT be bypassed silently. Claim, result and every other write SHALL bypass the cache.
+
+#### Scenario: Worker poll with nothing changed
+- **GIVEN** a warm cache and no change on GitHub
+- **WHEN** a worker polls for its next job
+- **THEN** it selects the same job as a cache-free poll
+- **AND** it spends conditional requests rather than counted re-reads for unchanged PRs
+
+#### Scenario: Corrupt cache stops the worker
+- **WHEN** the cache file is corrupt
+- **THEN** the worker run fails naming the file and the reset command and claims nothing
+
 ### Requirement: Post-merge lifecycle work runs on the operator Mac on a schedule
 
 The platform SHALL provide a scheduled operator-Mac runner that executes the existing retrospective, terminal-reconciliation and cleanup jobs through `lifecycle_workers.py work-next --run` and its claim/result protocol, with no queue, claim format or state store of its own. One scheduled round SHALL repeat `work-next` until it reports idle or a bound is reached: a maximum number of runs, a maximum duration, the first failed run, or a GitHub REST remainder below a required threshold. The remainder SHALL be read without spending the counted limit before the round and between runs. Every round and every `work-next` run SHALL be recorded in an append-only run journal with its outcome. Missing or invalid configuration, credentials, an unreadable rate limit or an unwritable journal SHALL fail the round explicitly. The runner SHALL NOT open its own attention path: a spent post-merge obligation stays reported by the existing attention on the merged PR and in the lifecycle overview.

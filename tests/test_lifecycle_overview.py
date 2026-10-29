@@ -235,7 +235,7 @@ class ExceptionTests(unittest.TestCase):
 
         config = {"development_backlog": {"repository": "o/b", "project_label": "project:dev-platform"}}
         with mock.patch.object(overview, "read_platform_config", return_value=config), \
-                mock.patch.object(queue, "_gh", side_effect=gh):
+                mock.patch("github_read_cache.cached_gh_json", side_effect=gh):
             backlog, label = overview._backlog_binding(ROOT)
             self.assertEqual(overview._open_requirements(ROOT, backlog, label), ["o/b#5"])
         self.assertEqual(calls, [("api", "--paginate",

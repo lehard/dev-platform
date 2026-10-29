@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import tomllib
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -264,11 +265,30 @@ def run_json(command: list[str], root: Path, env: dict[str, str] | None = None) 
         raise ManagedTaskError(f"{' '.join(command[:2])} did not return structured JSON")
 
 
+_issue_read_env: dict[str, dict[str, str]] = {}
+_issue_read_env_lock = threading.Lock()
+
+
 def fetch_issue(root: Path, repository: str, number: int) -> dict[str, Any]:
-    env = github_cli_env(root)
-    if env is None:
-        raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
-    issue = run_json(["gh", "api", f"repos/{repository}/issues/{number}"], root, env)
+    # ``gh auth status`` is itself a counted API request; one successful validation serves this process's issue reads.
+    with _issue_read_env_lock:
+        env = _issue_read_env.get(str(root))
+        if env is None:
+            env = github_cli_env(root)
+            if env is None:
+                raise ManagedTaskError("GitHub CLI authentication is required; run gh auth login and retry")
+            _issue_read_env[str(root)] = env
+    import functools
+
+    import github_read_cache
+    from _platform_common import run_github_with_retry
+
+    # Revalidated by ETag on every call, so the answer is always current; an unchanged issue costs no counted request.
+    try:
+        issue = github_read_cache.get_json(root, f"repos/{repository}/issues/{number}",
+                                           run=functools.partial(run_github_with_retry, env=env))
+    except github_read_cache.GithubReadError as exc:
+        raise ManagedTaskError(str(exc)) from exc
     if not isinstance(issue, dict):
         raise ManagedTaskError("GitHub returned an unexpected issue payload")
     return issue

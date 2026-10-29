@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "39a6ae92daf33954c6da85069e666993f9ef8240",
+    "base_ref": "origin/main",
+    "candidate_head": "b939099b48b5a64b4fd5eb9153a5c6aefd4c18e8",
+    "diff_sha256": "fbe4394186189cf1b379ad1cc15ce04bc144c64af67d275a90aecd4741d05398"
+  },
+  "completed_at": "2026-10-29T12:28:26+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/github_read_cache.py `_store` loads the entire file, sets one key and rewrites everything (lines 316-331). Nothing removes entries for closed or merged PRs, old comment-history URLs or old issue numbers. The file grows with every distinct URL ever read. Each later page write costs O(file size), and each `_page` call re-parses the whole file via `_load` (line 370). On a busy coordinator with parallel overview threads this adds contention and slowness over time.",
+      "id": "read-cache-unbounded-growth",
+      "severity": "advisory",
+      "summary": "The cache never evicts entries, and every 200 response rewrites the whole file under a global lock."
+    },
+    {
+      "evidence": "template/scripts/github_read_cache.py:336-338 first does `stdout.partition(\"\\n\\n\")`. With CRLF headers (`\\r\\n\\r\\n`) it only falls back to normalised splitting if no '\\n\\n' exists anywhere in the output. If the body contains '\\n\\n' (for example pretty-printed JSON), the header/body boundary is misplaced. The result is a misparsed Link/ETag or a JSON decode error. Normalising CRLF first would be safer.",
+      "id": "parse-response-crlf-body-split",
+      "severity": "advisory",
+      "summary": "`parse_response` splits headers from body on the first '\\n\\n' before it normalises CRLF, so a CRLF response whose body contains a blank line is split in the wrong place."
+    }
+  ],
+  "launched_at": "2026-10-29T12:27:55+00:00",
+  "output_sha256": "7d84a4fbb80d6703824d52bfee9ecf3049ef6fbc7740fab982cce3e00d506482",
+  "perspective": "engineering-quality",
+  "request_id": "26e612e9-5f5b-410e-b1f1-761c5792ea78",
+  "reviewer": {
+    "context_id": "5ca66805-218b-4379-b85f-5414d6930d13",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-254dc7e7-f65c-4a77-b73e-9228abedf3c2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34483
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 128121
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30284
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30614
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2883
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "001a52a3af4ff9501238ca242507127db83da6be46b792568e5f042e7bdfe9e5"
+}
