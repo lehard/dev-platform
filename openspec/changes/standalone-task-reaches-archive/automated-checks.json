@@ -1,0 +1,133 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.161,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.443,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.139,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.185,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1380.28,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/independent_review_runner.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/model_routing.py",
+        "tests/test_managed_task.py",
+        "tests/test_model_routing.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_321b891270e64375eaf79b20805b8796",
+    "change": "standalone-task-reaches-archive",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/standalone-task-reaches-archive",
+    "branch": "agent/br-896-t1-standalone-task-reaches-archive",
+    "head": "a6ebc1bef7b3994c661a26e918451dabbb7ae1cd",
+    "task_content": {
+      "version": 1,
+      "digest": "dcb7cfb190316536f6c9464cacf143e15c7c82ef8f65fe89fc34fe6e30c3f235",
+      "paths": {
+        "openspec/changes/standalone-task-reaches-archive/.managed-task.json": "dba43c8415e9ada1e0ed8edabc37d8e58e53cd99",
+        "openspec/changes/standalone-task-reaches-archive/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/standalone-task-reaches-archive/design.md": "3b2d26d4bb4895cba4a5290ea1602578ae699caa",
+        "openspec/changes/standalone-task-reaches-archive/proposal.md": "bc1ed95da4ccd43be24969c06c889a7ed2286f54",
+        "openspec/changes/standalone-task-reaches-archive/specs/model-routing/spec.md": "2703e9b110ef6eb956fbca5d34f62c1592e7324b",
+        "openspec/changes/standalone-task-reaches-archive/tasks.md": "e68fa1264efa98ea316c03da7e72077cd93c7cde",
+        "openspec/changes/standalone-task-reaches-archive/verification.md": "be08ad93a1afe6d95f098b652d01f53d1c99e2ba",
+        "template/dev-platform/blocking-gates.toml": "eaa04b281e610f321b92421e851b521c25236b61",
+        "template/dev-platform/platform-manifest.json": "604744d2520771e559be76c1b780849160251548",
+        "template/docs/engineering/model-routing.md": "ad9b23da2570553aae5cf8a0a9fa418186e91c68",
+        "template/docs/engineering/openspec-workflow.md": "884d633fdf868991353b75cde351a2c7ccd48833",
+        "template/scripts/independent_review_runner.py": "f92a27a841e39c961abd2dd707ff21ba4bac78dd",
+        "template/scripts/managed_task.py": "d2614f46463c597cc5ee1b5992c93a575b401afb",
+        "template/scripts/model_routing.py": "e75605cbd58d9a7637655ad096d85e15ae785eda",
+        "tests/test_managed_task.py": "2acf86f883e2c5ae9ffe57614e2ef44fbc197068",
+        "tests/test_model_routing.py": "e34cc220c967ad5aa93ce552c66646a59e4268d6",
+        "tests/test_shared_writer_guard.py": "fd60d64c41336a28744992cf5a8b59ff475d15c2"
+      },
+      "base": "41bf71a41bf6534334289b04222d4c4d981a9cf0"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "6eb9c2b9442b8511446b88ac3e2c43aad454e34d2e9fd59c2e38bbad8b647a39",
+    "paths": {
+      "openspec/changes/standalone-task-reaches-archive/.managed-task.json": "dba43c8415e9ada1e0ed8edabc37d8e58e53cd99",
+      "openspec/changes/standalone-task-reaches-archive/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/standalone-task-reaches-archive/design.md": "3b2d26d4bb4895cba4a5290ea1602578ae699caa",
+      "openspec/changes/standalone-task-reaches-archive/proposal.md": "bc1ed95da4ccd43be24969c06c889a7ed2286f54",
+      "openspec/changes/standalone-task-reaches-archive/specs/model-routing/spec.md": "2703e9b110ef6eb956fbca5d34f62c1592e7324b",
+      "openspec/changes/standalone-task-reaches-archive/tasks.md": "e68fa1264efa98ea316c03da7e72077cd93c7cde",
+      "template/dev-platform/blocking-gates.toml": "eaa04b281e610f321b92421e851b521c25236b61",
+      "template/docs/engineering/model-routing.md": "ad9b23da2570553aae5cf8a0a9fa418186e91c68",
+      "template/docs/engineering/openspec-workflow.md": "884d633fdf868991353b75cde351a2c7ccd48833",
+      "template/scripts/independent_review_runner.py": "f92a27a841e39c961abd2dd707ff21ba4bac78dd",
+      "template/scripts/managed_task.py": "d2614f46463c597cc5ee1b5992c93a575b401afb",
+      "template/scripts/model_routing.py": "e75605cbd58d9a7637655ad096d85e15ae785eda",
+      "tests/test_managed_task.py": "2acf86f883e2c5ae9ffe57614e2ef44fbc197068",
+      "tests/test_model_routing.py": "e34cc220c967ad5aa93ce552c66646a59e4268d6",
+      "tests/test_shared_writer_guard.py": "fd60d64c41336a28744992cf5a8b59ff475d15c2"
+    },
+    "base": "41bf71a41bf6534334289b04222d4c4d981a9cf0",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/independent_review_runner.py --changed-file template/scripts/managed_task.py --changed-file template/scripts/model_routing.py --changed-file tests/test_managed_task.py --changed-file tests/test_model_routing.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 442.766,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
