@@ -1,3 +1,7 @@
+## Purpose
+
+Let the platform know, honestly and from one source, which Claude Code and Codex sessions are alive on the operator machine and what each is doing, so that the lifecycle overview, the coordinator and the board show real activity instead of inferring it from claims.
+
 ## ADDED Requirements
 
 ### Requirement: The platform computes the status of live agent sessions
