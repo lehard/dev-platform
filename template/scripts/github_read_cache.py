@@ -20,6 +20,7 @@ import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import parse_qs, urlsplit
 
 from _platform_common import run_github_with_retry
 from _platform_common import run_git
@@ -113,14 +114,33 @@ def parse_response(stdout: str) -> tuple[int, dict[str, str], str]:
     return int(match.group(1)), headers, body
 
 
+DEFAULT_PAGE_SIZE = 30  # GitHub's page size when the URL names no ``per_page``
+
+
+def page_size(url: str) -> int:
+    """The page size ``url`` asks for; a ``per_page`` that is not an integer from 1 to 100 is an error, not a guess."""
+    values = parse_qs(urlsplit(url).query).get("per_page")
+    if values is None:
+        return DEFAULT_PAGE_SIZE
+    if len(values) != 1 or not values[0].isdigit() or not 1 <= int(values[0]) <= 100:
+        raise GithubReadError(f"cannot determine the page size of {url}: per_page must be one integer from 1 to 100")
+    return int(values[0])
+
+
+def _may_have_unseen_next_page(url: str, entry: dict[str, Any]) -> bool:
+    return entry["next"] is None and isinstance(entry["body"], list) and len(entry["body"]) >= page_size(url)
+
+
 def _page(root: Path, path: Path, url: str, run: Callable[..., Any]) -> tuple[Any, str | None]:
     with _lock:
         entry = _load(path)["pages"].get(url)
     if entry is not None and _digest(entry["body"]) != entry["digest"]:
         raise _corrupt(path, f"body of {url} does not match its digest")
     command = ["gh", "api", "-i"]
-    # A last page (no stored ``next``) is always re-read: growth past it would otherwise stay hidden behind a 304.
-    if entry is not None and entry["next"] is not None:
+    # A stored 304 answer carries the ``next`` link of the old 200. A list page that is full and has no stored ``next``
+    # may have grown a following page without changing itself, so only that page is re-read unconditionally.
+    unconditional = entry is not None and _may_have_unseen_next_page(url, entry)
+    if entry is not None and not unconditional:
         command += ["-H", f"If-None-Match: {entry['etag']}"]
     result = run([*command, url], cwd=root)
     try:
@@ -128,7 +148,7 @@ def _page(root: Path, path: Path, url: str, run: Callable[..., Any]) -> tuple[An
     except GithubReadError:
         raise GithubReadError((result.stderr or "").strip() or f"gh failed reading {url}") from None
     if status == 304:
-        if entry is None or entry["next"] is None:
+        if entry is None or unconditional:
             raise GithubReadError(f"GitHub answered 304 to an unconditional request for {url}")
         return entry["body"], entry["next"]
     if status != 200 or result.returncode:

@@ -137,7 +137,8 @@ automatic and appear only in the overview.
 
 The overview and the lifecycle workers revalidate every GitHub GET they repeat (PR lists, PR comment
 histories, Requirement Issues) with a conditional request. A `304 Not Modified` is not charged against the
-shared REST limit and returns the whole stored page, so a changed comment or PR state is never hidden.
+shared REST limit and returns the whole stored page, so a changed comment or PR state is never hidden. Only a list page that is full and has no known next page is re-read
+unconditionally, because a following page may have appeared without changing it.
 The cache is a local file `<git-common-dir>/dev-platform/github-read-cache.json`; GitHub stays the only source of
 truth and deleting the file never changes a result. Assessments, ages and claim expiry are always recomputed.
 A corrupt or inconsistent cache fails the run with an error that names the file; reset it with `rm <that file>`.

@@ -6,11 +6,12 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Every scenario of the chat-coordinator delta is covered: warm read equals cold and deleted-cache read and spends only conditional requests (`test_warm_read_is_conditional_and_equals_cold_and_deleted_cache`); a change after the previous read is never hidden by a 304 (`test_a_change_after_the_previous_read_is_never_hidden_by_a_304`); a corrupt cache fails naming the file and `rm` reset without a silent re-read (`test_corrupt_cache_fails_naming_the_file_and_reset`, five corruption shapes); an absent or stale cache is an ordinary read.
 - lifecycle-workers delta: plain `api` GETs of the worker go through the cache and writes bypass it (`test_worker_reads_fail_the_run_on_a_corrupt_cache_and_never_cache_writes`); the per-PR discovery loop re-raises `GithubReadCacheError` instead of recording a skipped PR.
+- Growth past a full last page cannot hide behind a 304 (`test_growth_past_a_full_last_page_is_not_hidden`, fake GitHub whose ETag follows the body only); single-page lists, short pages and objects stay conditional (`test_warm_single_page_lists_and_objects_make_only_conditional_requests`); an undeterminable page size is an explicit error.
 - A failed or interrupted read keeps the previous entry (`test_failed_read_keeps_the_previous_entry`).
 
 ## Correctness
 
-- Measured on real GitHub (2026-10-29, 50 candidates, 46 Requirements): main without cache spent 146 counted REST requests per overview; a warm overview spends about 4 (`gh repo view`, a few `gh auth status`). The 20 Project-status GraphQL reads of Requirement children are not conditional and remain (separate GraphQL limit). Conditional 304 answers were confirmed not to lower `X-RateLimit-Remaining`.
+- Measured on real GitHub (2026-10-29, 51 candidates, 44 Requirements) after the full-last-page repair: main without cache spends 146 counted REST requests per overview; a warm overview spends 2 (`gh repo view` and one `gh auth status`), every list page, comment history and Issue read being a conditional request. The 20 Project-status GraphQL reads of Requirement children are not conditional and remain (separate GraphQL limit). Conditional 304 answers were confirmed not to lower `X-RateLimit-Remaining`.
 - The cached overview equals the main (cache-free) overview field for field, except `job_age_minutes` and the finding text embedding it, which differ by the minutes elapsed between runs.
 - `updated_at` is not a validity key (deviation from the owner's wording, reported to the owner): the aggregate of a Requirement depends on machine-local pre-authoring state, so it is not stored; only raw responses are, each revalidated by ETag.
 

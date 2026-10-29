@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -25,7 +26,6 @@ class FakeGitHub:
 
     def __init__(self) -> None:
         self.pages: dict[str, list] = {}
-        self.version = 1
         self.counted = 0
         self.conditional = 0
         self.fail: str | None = None
@@ -34,7 +34,7 @@ class FakeGitHub:
         url = command[-1]
         if self.fail:
             return CompletedProcess(command, 1, "", self.fail)
-        etag = f'"{self.version}:{url}"'
+        etag = '"' + hashlib.sha256(json.dumps(self.pages[url]).encode()).hexdigest() + '"'  # the ETag follows the body only
         link = f'Link: <{NEXT}>; rel="next"\n' if url == URL and NEXT in self.pages else ""
         if "-H" in command and command[command.index("-H") + 1] == f"If-None-Match: {etag}":
             self.conditional += 1
@@ -62,8 +62,7 @@ class ReadCacheTests(unittest.TestCase):
         cold = self.read()
         self.assertEqual((self.gh.counted, self.gh.conditional), (2, 0))
         warm = self.read()
-        # The last page is always re-read, so growth past it can never hide behind a 304.
-        self.assertEqual((self.gh.counted, self.gh.conditional), (3, 1))
+        self.assertEqual((self.gh.counted, self.gh.conditional), (2, 2))
         self.path.unlink()
         deleted = self.read()
         self.assertEqual(cold, warm)
@@ -72,7 +71,6 @@ class ReadCacheTests(unittest.TestCase):
 
     def test_a_change_after_the_previous_read_is_never_hidden_by_a_304(self) -> None:
         self.read()
-        self.gh.version = 2
         self.gh.pages[NEXT] = [{"id": 3}, {"id": 4}]
         self.assertEqual([row["id"] for row in self.read()], [1, 2, 3, 4])
         self.assertEqual([row["id"] for row in self.read()], [1, 2, 3, 4])
@@ -80,15 +78,39 @@ class ReadCacheTests(unittest.TestCase):
     def test_growth_past_a_full_last_page_is_not_hidden(self) -> None:
         self.gh.pages = {URL: [{"id": 1}, {"id": 2}]}
         self.assertEqual([row["id"] for row in self.read()], [1, 2])
-        self.gh.pages[URL] = [{"id": 1}, {"id": 2}]
-        self.gh.version = 2
+        # Page 1 is unchanged, so its ETag still matches, but it now has a next page.
         self.gh.pages = {URL: [{"id": 1}, {"id": 2}], NEXT: [{"id": 3}]}
         self.assertEqual([row["id"] for row in self.read()], [1, 2, 3])
+        self.assertEqual([row["id"] for row in self.read()], [1, 2, 3])
+
+    def test_warm_single_page_lists_and_objects_make_only_conditional_requests(self) -> None:
+        single = "repos/o/r/issues/7/comments?per_page=100"
+        obj = "repos/o/r/issues/7"
+        default = "repos/o/r/pulls?state=open"
+        self.gh.pages.update({single: [{"id": 1}], obj: {"number": 7}, default: [{"number": 1}]})
+        for endpoint, paginate in ((single, True), (obj, False), (default, True)):
+            with self.subTest(endpoint):
+                cold = cache.get_json(self.root, endpoint, paginate=paginate, run=self.gh)
+                before = (self.gh.counted, self.gh.conditional)
+                warm = cache.get_json(self.root, endpoint, paginate=paginate, run=self.gh)
+                self.assertEqual(warm, cold)
+                self.assertEqual((self.gh.counted, self.gh.conditional), (before[0], before[1] + 1))
+
+    def test_full_last_page_is_read_unconditionally_and_undeterminable_size_is_an_error(self) -> None:
+        self.gh.pages = {URL: [{"id": 1}, {"id": 2}]}
+        self.read()
+        before = (self.gh.counted, self.gh.conditional)
+        self.read()
+        self.assertEqual((self.gh.counted, self.gh.conditional), (before[0] + 1, before[1]))
+        self.assertEqual(cache.page_size("repos/o/r/x"), 30)
+        self.assertEqual(cache.page_size("repos/o/r/x?per_page=100"), 100)
+        for bad in ("per_page=abc", "per_page=0", "per_page=101", "per_page=5&per_page=6"):
+            with self.subTest(bad), self.assertRaises(cache.GithubReadError):
+                cache.page_size("repos/o/r/x?" + bad)
 
     def test_failed_read_keeps_the_previous_entry(self) -> None:
         self.read()
         before = self.path.read_text()
-        self.gh.version = 2
         self.gh.fail = "gh: HTTP 502"
         with self.assertRaises(cache.GithubReadError):
             self.read()
