@@ -130,5 +130,43 @@ class FreshMainTerminalTests(unittest.TestCase):
             execute_requirement._done_child_is_delivered(self.integration, CHILD, CHANGE)
 
 
+class CloseIssueTests(unittest.TestCase):
+    """``_close_issue`` reads the Issue state first: closed already means reconciled; every other failure stays explicit."""
+
+    def close(self, issue: dict | Exception, patch_result: SimpleNamespace | None = None) -> mock.Mock:
+        fetch = mock.patch.object(requirement_terminal.requirement_intake, "fetch_issue",
+                                  side_effect=issue if isinstance(issue, Exception) else None,
+                                  return_value=None if isinstance(issue, Exception) else issue)
+        with fetch, mock.patch.object(requirement_terminal, "github_cli_env", return_value={}), \
+             mock.patch.object(requirement_terminal.subprocess, "run", return_value=patch_result) as run:
+            requirement_terminal._close_issue(Path("."), REQUIREMENT)
+        return run
+
+    def test_already_closed_issue_is_reconciled_without_a_patch(self) -> None:
+        for state in ("closed", "CLOSED"):
+            with self.subTest(state):
+                self.close({"state": state}).assert_not_called()
+
+    def test_open_issue_is_closed_as_completed(self) -> None:
+        run = self.close({"state": "open"}, SimpleNamespace(returncode=0, stdout="", stderr=""))
+        command = run.call_args.args[0]
+        self.assertEqual(command[:5], ["gh", "api", "--method", "PATCH", "repos/acme/backlog/issues/7"])
+        self.assertIn("state=closed", command)
+
+    def test_other_closure_failures_stay_explicit(self) -> None:
+        failed = SimpleNamespace(returncode=1, stdout="", stderr="HTTP 422: Validation Failed")
+        with self.assertRaisesRegex(requirement_terminal.RequirementTerminalError, "Issue closure failed: HTTP 422"):
+            self.close({"state": "open"}, failed)
+
+    def test_unreadable_issue_state_is_not_swallowed_and_nothing_is_patched(self) -> None:
+        with mock.patch.object(requirement_terminal.subprocess, "run") as run, \
+             mock.patch.object(requirement_terminal, "github_cli_env", return_value={}), \
+             mock.patch.object(requirement_terminal.requirement_intake, "fetch_issue",
+                               side_effect=managed_task.ManagedTaskError("HTTP 502")):
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "HTTP 502"):
+                requirement_terminal._close_issue(Path("."), REQUIREMENT)
+        run.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
