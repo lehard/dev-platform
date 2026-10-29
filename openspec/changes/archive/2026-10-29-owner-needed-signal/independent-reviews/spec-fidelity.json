@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
     "base_ref": "origin/main",
-    "candidate_head": "a4b58b3778da2085e3ec3227358ccdf800fbc4e1",
-    "diff_sha256": "2521c4f3542ee01c427ee6940c19927ca14b19334f3f7935ce53ef4040d85ca9"
+    "candidate_head": "1dfdd37043f31ed274a0b9f56db72270d41ed535",
+    "diff_sha256": "d312f3cb41d340ca593e7850b1abcd690dad9f7c9bb87f49c169d01144221df1"
   },
-  "completed_at": "2026-10-29T22:26:43+00:00",
+  "completed_at": "2026-10-29T22:31:15+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_signal.py open_signals: the try block covers only board_path and the file read/JSON parse. The later loop calls entry.get(\"signals\", []), item[\"raised_at\"] and datetime.fromisoformat(...) with no guard. A non-dict entry, a missing raised_at or a bad timestamp raises AttributeError, KeyError or ValueError. read_owner_needed in lifecycle_overview.py does not catch these, so the whole overview fails. The spec says an unreadable board SHALL be stated explicitly.",
-      "id": "overview-malformed-signal-crashes",
+      "evidence": "tests/test_agent_signal.py has no test that removes a board entry and checks that its signals disappear, and no test that raises from another worktree's entry. The missing-entry test only deletes the entry. The overview tests call `_owner_needed_lines` and mock `read_owner_needed`. No test checks that `overview()` or the `--json` output contains `owner_needed` with a real signal. The behavior itself is implemented: signals are stored on the entry, and the entry lookup is by worktree and branch.",
+      "id": "claimed-tests-not-present",
       "severity": "advisory",
-      "summary": "A malformed signal or board entry makes the overview raise instead of printing the explicit 'cannot be shown' line the chat-coordinator spec requires."
+      "summary": "tasks.md marks as tested the task-end cleanup, a finished or foreign task, and the JSON overview output. The candidate tests do not cover these cases directly."
     }
   ],
-  "launched_at": "2026-10-29T22:26:32+00:00",
-  "output_sha256": "be7a248b9f10d2eb4360b2579b670db28046323c4c315c1a0a47936eea67f834",
+  "launched_at": "2026-10-29T22:31:03+00:00",
+  "output_sha256": "53771f503012422c5d5994ea1f3ae343cf3d6da2f47090b3c8b4962a76b209dd",
   "perspective": "spec-fidelity",
-  "request_id": "39ade455-ab3b-4f9b-a23b-83748093088d",
+  "request_id": "10f3a789-82c9-4f13-9b2b-507a9501994b",
   "reviewer": {
-    "context_id": "adbfe536-6264-4ae8-bf00-048548e64f54",
+    "context_id": "7705f5ec-e156-4a12-9091-05a73a711d0f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c94ed560-a0e1-4eca-b6fe-b5cf47c3b531",
+    "launch_id": "platform-launch-80fda367-2c3f-44e8-963e-4b1ca984e9fa",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25873
+        "value": 26682
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43574
+        "value": 43834
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10175
+        "value": 11312
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10297
+        "value": 11456
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -69,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1254
+        "value": 1367
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "06731e13aceb0c9fbe39782d0a3010ac04f5db5c43405bb21a7cb738928fa164"
+  "task_content_digest": "25d38b3d0ce14bea882ed8f23e4551c98c6db62b3ae8dd9119d7edcda409bc6f"
 }
