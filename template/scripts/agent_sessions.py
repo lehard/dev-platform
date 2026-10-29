@@ -217,7 +217,7 @@ def ingest(state_dir: Path, provider: str, event: dict, *, pid: int, now: dateti
         stamp = _stamp(now)
         record = dict(previous) if previous else {"version": VERSION, "provider": provider, "session_id": session_id,
                                                   "pid": pid, "pid_started": started(pid), "state_since": stamp}
-        if previous and previous.get("pid") != pid:
+        if previous and (previous.get("pid") != pid or previous.get("pid_started") != started(pid)):
             record.update(pid=pid, pid_started=started(pid))
         event_name = event.get("hook_event_name") or event.get("type")
         if previous is None or event_name in CONTEXT_EVENTS or provider == "codex":

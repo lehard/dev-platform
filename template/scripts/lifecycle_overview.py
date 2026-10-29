@@ -525,8 +525,10 @@ def show_pr(root: Path, number: int, *, now: datetime) -> dict:
     item = observe_candidate(root, repo, queue._pr(root, repo, number), now=now, threshold=threshold)
     if item is None:
         raise OverviewError(f"PR #{number} carries no lifecycle record")
-    attach_sessions(read_sessions(root, now=now), [item])
-    return {"repository": repo, "generated_at": now.isoformat(timespec="seconds"), "candidate": item}
+    registry = read_sessions(root, now=now)
+    attach_sessions(registry, [item])
+    return {"repository": repo, "generated_at": now.isoformat(timespec="seconds"), "candidate": item,
+            "agent_sessions": {k: v for k, v in registry.items() if k != "sessions"}}
 
 
 def show_requirement(root: Path, requirement: str, *, now: datetime) -> dict:
@@ -537,9 +539,11 @@ def show_requirement(root: Path, requirement: str, *, now: datetime) -> dict:
     numbers, lineage_note = queue._requirement_candidate_numbers(root, requirement, repo)
     items = [i for i in (observe_candidate(root, repo, queue._pr(root, repo, n), now=now, threshold=threshold)
                          for n in numbers) if i is not None]
-    attach_sessions(read_sessions(root, now=now), items)
+    registry = read_sessions(root, now=now)
+    attach_sessions(registry, items)
     result = {"repository": repo, "generated_at": now.isoformat(timespec="seconds"),
-              "requirement": _observe_requirement(root, requirement, items), "candidates": items}
+              "requirement": _observe_requirement(root, requirement, items), "candidates": items,
+              "agent_sessions": {k: v for k, v in registry.items() if k != "sessions"}}
     if lineage_note:
         result["shared_lineage"] = lineage_note
     return result
@@ -575,6 +579,15 @@ def render_candidate(item: dict, *, detail: bool) -> str:
     return "\n".join(lines)
 
 
+def _registry_status(registry: dict) -> str | None:
+    """The explicit line for an unconfigured or unreadable registry; sessions are never silently shown as absent."""
+    if not registry["configured"]:
+        return "Sessions: not configured ([agent_sessions] directory in the platform configuration)"
+    if registry.get("error"):
+        return f"Sessions: registry unreadable: {registry['error']}"
+    return None
+
+
 def render(result: dict) -> str:
     lines = []
     if "bounds" in result:
@@ -591,10 +604,9 @@ def render(result: dict) -> str:
         lines.append("\nCandidates:")
         lines += [render_candidate(item, detail=False) for item in result["candidates"]] or ["  none"]
         registry = result["agent_sessions"]
-        if not registry["configured"]:
-            lines.append("\nSessions: not configured ([agent_sessions] directory in the platform configuration)")
-        elif registry.get("error"):
-            lines.append(f"\nSessions: registry unreadable: {registry['error']}")
+        status = _registry_status(registry)
+        if status:
+            lines.append(f"\n{status}")
         else:
             lines.append("\nSessions not attached to a candidate PR:")
             lines += [f"  {_session_line(item)} branch={item.get('branch') or '-'} project={item.get('project') or '-'}"
@@ -605,10 +617,14 @@ def render(result: dict) -> str:
                      + (" (merged, Requirement not Done)" if req.get("merged_not_done") else ""))
         lines += [f"  ! {f['kind']}: {f['detail']}" for f in req["findings"]]
         lines += [render_candidate(item, detail=True) for item in result["candidates"]] or ["  no candidate PRs"]
+        if status := _registry_status(result["agent_sessions"]):
+            lines.append(status)
         if result.get("shared_lineage"):
             lines.append(result["shared_lineage"])
     else:
         lines.append(render_candidate(result["candidate"], detail=True))
+        if status := _registry_status(result["agent_sessions"]):
+            lines.append(status)
     return "\n".join(lines)
 
 
