@@ -445,6 +445,46 @@ def _requirement_of(assessment: dict) -> str | None:
     return match.group(1) if match else None
 
 
+def read_sessions(root: Path, *, now: datetime) -> dict:
+    """The platform session registry as ``agent_sessions`` computed it; never inferred here (BR-887)."""
+    import agent_sessions
+
+    section = read_platform_config(root).get("agent_sessions")
+    if not isinstance(section, dict):
+        return {"configured": False, "sessions": []}
+    for key in ("directory", "stale_after_seconds", "ended_keep_seconds"):
+        if key not in section:
+            raise OverviewError(f"[agent_sessions] {key} must be set in the platform configuration")
+    try:
+        items = agent_sessions.list_sessions(Path(str(section["directory"])).expanduser(), now=now,
+                                             stale_after=int(section["stale_after_seconds"]),
+                                             ended_keep=int(section["ended_keep_seconds"]))
+    except (agent_sessions.SessionError, ValueError) as exc:
+        return {"configured": True, "error": str(exc), "sessions": []}
+    return {"configured": True, "sessions": items}
+
+
+def attach_sessions(registry: dict, candidates: list[dict]) -> list[dict]:
+    """Put each session on the candidate whose PR head ref is the session's branch; return the unattached ones."""
+    by_branch: dict[str, list[dict]] = {}
+    for item in registry["sessions"]:
+        if item.get("branch"):
+            by_branch.setdefault(item["branch"], []).append(item)
+    attached: set[int] = set()
+    for candidate in candidates:
+        matches = by_branch.get(candidate.get("branch") or "", [])
+        candidate["sessions"] = matches
+        attached.update(id(m) for m in matches)
+    return [item for item in registry["sessions"] if id(item) not in attached]
+
+
+def _session_line(item: dict) -> str:
+    detail = item.get("detail") or {}
+    note = f" ({', '.join(f'{k}={v}' for k, v in detail.items() if v)})" if detail else ""
+    return (f"{item['provider']} session {item['session_id'][:8]} pid {item.get('pid')} [{item['state']}]{note} "
+            f"since {item['state_since']}; liveness {item.get('liveness')}")
+
+
 def overview(root: Path, *, now: datetime) -> dict:
     """Summary of every candidate the workers consider and every open Requirement."""
     import publication_queue as queue
@@ -465,7 +505,10 @@ def overview(root: Path, *, now: datetime) -> dict:
                 item for item in assessed if _requirement_of(item) == parent_identity(requirement).split("-")[-1]]),
             listed))
     claimed = {n for r in requirements for n in r["candidates"]}
-    return {"repository": repo, "backlog": backlog, "generated_at": now.isoformat(timespec="seconds"),
+    registry = read_sessions(root, now=now)
+    unattached = attach_sessions(registry, assessed)
+    return {"agent_sessions": {**{k: v for k, v in registry.items() if k != "sessions"}, "unattached": unattached},
+            "repository": repo, "backlog": backlog, "generated_at": now.isoformat(timespec="seconds"),
             "bounds": {"merged_discovery_page": MERGED_DISCOVERY_PAGE,
                        "note": "open PRs plus the most recently updated closed merged PRs, exactly the workers' candidate set",
                        "prs_without_lifecycle_record": without_record, "unclaimed_job_after_minutes": threshold},
@@ -482,6 +525,7 @@ def show_pr(root: Path, number: int, *, now: datetime) -> dict:
     item = observe_candidate(root, repo, queue._pr(root, repo, number), now=now, threshold=threshold)
     if item is None:
         raise OverviewError(f"PR #{number} carries no lifecycle record")
+    attach_sessions(read_sessions(root, now=now), [item])
     return {"repository": repo, "generated_at": now.isoformat(timespec="seconds"), "candidate": item}
 
 
@@ -493,6 +537,7 @@ def show_requirement(root: Path, requirement: str, *, now: datetime) -> dict:
     numbers, lineage_note = queue._requirement_candidate_numbers(root, requirement, repo)
     items = [i for i in (observe_candidate(root, repo, queue._pr(root, repo, n), now=now, threshold=threshold)
                          for n in numbers) if i is not None]
+    attach_sessions(read_sessions(root, now=now), items)
     result = {"repository": repo, "generated_at": now.isoformat(timespec="seconds"),
               "requirement": _observe_requirement(root, requirement, items), "candidates": items}
     if lineage_note:
@@ -511,6 +556,8 @@ def render_candidate(item: dict, *, detail: bool) -> str:
     else:
         age = executor.get("job_age_minutes")
         lines.append(f"  executor: {executor['activity']}" + (f"; job published {age} min ago" if age is not None else ""))
+    for session in item.get("sessions", []):
+        lines.append(f"  {_session_line(session)}")
     lines.append(f"  next: {item.get('next_operation')} | expected automation: {item.get('expected_automation')}")
     idle = item.get("idle")
     if idle:
@@ -543,6 +590,15 @@ def render(result: dict) -> str:
                 lines.append(f"  ! {finding['kind']}: {finding['detail']}")
         lines.append("\nCandidates:")
         lines += [render_candidate(item, detail=False) for item in result["candidates"]] or ["  none"]
+        registry = result["agent_sessions"]
+        if not registry["configured"]:
+            lines.append("\nSessions: not configured ([agent_sessions] directory in the platform configuration)")
+        elif registry.get("error"):
+            lines.append(f"\nSessions: registry unreadable: {registry['error']}")
+        else:
+            lines.append("\nSessions not attached to a candidate PR:")
+            lines += [f"  {_session_line(item)} branch={item.get('branch') or '-'} project={item.get('project') or '-'}"
+                      for item in registry["unattached"]] or ["  none"]
     elif "requirement" in result:
         req = result["requirement"]
         lines.append(f"Requirement {req['requirement']} [{req['stage']}] status={req.get('status')}"

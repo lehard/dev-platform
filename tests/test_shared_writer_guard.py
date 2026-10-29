@@ -128,6 +128,13 @@ REVIEWED_BASELINE: dict[str, int] = {
     'local_workspace.py:_open:open': 3,
     # The external fleet lock is no-follow, regular/single-link checked and group writable.
     'local_workspace.py:sync:open': 1,
+    # Session registry (BR-887): one record per session in the explicit state directory, atomic temp+replace under a per-session
+    # lock, mode 0600; the settings editor replaces only the owner-named settings file atomically, preserving its mode.
+    'agent_sessions.py:_locked:open': 1,
+    'agent_sessions.py:_write:mkstemp': 1,
+    'agent_sessions.py:_write:replace': 1,
+    'agent_sessions.py:_write_settings:mkstemp': 1,
+    'agent_sessions.py:_write_settings:replace': 1,
     # Appends one fixed line to the repository's own .git/info/exclude so the local task state is never committed (BR-896);
     # idempotent, path resolved by git, no project-owned file touched.
     'managed_task.py:ensure_task_state_ignored:open': 1,
