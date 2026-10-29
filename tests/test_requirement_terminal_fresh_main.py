@@ -158,6 +158,16 @@ class CloseIssueTests(unittest.TestCase):
         with self.assertRaisesRegex(requirement_terminal.RequirementTerminalError, "Issue closure failed: HTTP 422"):
             self.close({"state": "open"}, failed)
 
+    def test_missing_or_unexpected_state_is_an_explicit_error_and_nothing_is_patched(self) -> None:
+        for issue in ({}, {"state": None}, {"state": "merged"}, {"state": 1}):
+            with self.subTest(issue), mock.patch.object(requirement_terminal.subprocess, "run") as run, \
+                 mock.patch.object(requirement_terminal, "github_cli_env", return_value={}), \
+                 mock.patch.object(requirement_terminal.requirement_intake, "fetch_issue", return_value=issue):
+                with self.assertRaisesRegex(requirement_terminal.RequirementTerminalError,
+                                            rf"{REQUIREMENT} Issue state is {issue.get('state')!r}"):
+                    requirement_terminal._close_issue(Path("."), REQUIREMENT)
+                run.assert_not_called()
+
     def test_unreadable_issue_state_is_not_swallowed_and_nothing_is_patched(self) -> None:
         with mock.patch.object(requirement_terminal.subprocess, "run") as run, \
              mock.patch.object(requirement_terminal, "github_cli_env", return_value={}), \

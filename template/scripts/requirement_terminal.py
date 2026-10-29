@@ -37,7 +37,10 @@ def _close_issue(root: Path, reference: str) -> None:
         raise RequirementTerminalError("GitHub authentication is required for terminal Issue closure")
     repository, number = requirement_intake.issue_ref(reference)
     # Closing an Issue that something else already closed answers 422; read the current state first.
-    if str(requirement_intake.fetch_issue(root, repository, number).get("state", "")).lower() == "closed":
+    state = requirement_intake.fetch_issue(root, repository, number).get("state")
+    if not isinstance(state, str) or state.lower() not in {"open", "closed"}:
+        raise RequirementTerminalError(f"{reference} Issue state is {state!r}, expected 'open' or 'closed'")
+    if state.lower() == "closed":
         return
     closed = subprocess.run(
         ["gh", "api", "--method", "PATCH", f"repos/{repository}/issues/{number}", "-f", "state=closed", "-f", "state_reason=completed"],
