@@ -1,0 +1,95 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.038,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 0.578,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.151,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "openspec/changes/quick-task-behind-mergeable-spec/.managed-task.json",
+        "openspec/changes/quick-task-behind-mergeable-spec/.openspec.yaml",
+        "openspec/changes/quick-task-behind-mergeable-spec/design.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/proposal.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/specs/platform-lifecycle/spec.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/tasks.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration",
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_5c925c9bb0a8d75073f75c227001da2e",
+    "change": "quick-task-behind-mergeable-spec",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/quick-task-behind-mergeable-spec",
+    "branch": "agent/br-774-t1-quick-task-behind-mergeable-spec",
+    "head": "e319b9ae423c75d9fcba2c955c5d7db26caa831c",
+    "task_content": {
+      "version": 1,
+      "digest": "8a1cc2580419aec43a92a0ab799972bcfb2197759df2b7ec8dacaba323a0d491",
+      "paths": {
+        "openspec/changes/quick-task-behind-mergeable-spec/.managed-task.json": "d432ae051b2889899e83fff8c2e5aa28b2677337",
+        "openspec/changes/quick-task-behind-mergeable-spec/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/quick-task-behind-mergeable-spec/design.md": "f863768f1f3ff3accf52fee5a29b0f50085cecfb",
+        "openspec/changes/quick-task-behind-mergeable-spec/proposal.md": "672d6f6229774fe14f728bca21746754ffa300d5",
+        "openspec/changes/quick-task-behind-mergeable-spec/specs/platform-lifecycle/spec.md": "3d8c479c699155df95adc17b14fad30ccc560aba",
+        "openspec/changes/quick-task-behind-mergeable-spec/tasks.md": "136d05b719ec0e39e0d90862ce71b7bc263a41f1",
+        "openspec/changes/quick-task-behind-mergeable-spec/verification.md": "0f26d4a858efb22be68e925b7828a488d3a81470"
+      },
+      "base": "c49658416b256bac38efd3c5b5e7ca56c04e64f6"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "c01e7b833bd013abb4c543f86694f9d77c222754a47350fcb8b730033f5232ee",
+    "paths": {
+      "openspec/changes/quick-task-behind-mergeable-spec/.managed-task.json": "d432ae051b2889899e83fff8c2e5aa28b2677337",
+      "openspec/changes/quick-task-behind-mergeable-spec/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/quick-task-behind-mergeable-spec/design.md": "f863768f1f3ff3accf52fee5a29b0f50085cecfb",
+      "openspec/changes/quick-task-behind-mergeable-spec/proposal.md": "672d6f6229774fe14f728bca21746754ffa300d5",
+      "openspec/changes/quick-task-behind-mergeable-spec/specs/platform-lifecycle/spec.md": "3d8c479c699155df95adc17b14fad30ccc560aba",
+      "openspec/changes/quick-task-behind-mergeable-spec/tasks.md": "136d05b719ec0e39e0d90862ce71b7bc263a41f1"
+    },
+    "base": "c49658416b256bac38efd3c5b5e7ca56c04e64f6",
+    "scope": "independent-review-v1"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "base": "c49658416b256bac38efd3c5b5e7ca56c04e64f6",
+    "overlapping": [],
+    "generated_conflicts": []
+  }
+}
