@@ -12,6 +12,7 @@ Automated-Checks-Evidence: automated-checks.json
 - Commits between `prepare` and `record_retained_execution` are accepted with `task_commits` (two commits counted); an untracked leftover, a changed pre-dirty path (snapshot replaced by one that includes it, because prepare itself refuses diverged task content) and an unrelated-history HEAD each fail with a containment violation: `StandaloneStandardCloneRoutingTests`.
 - Shipped hints, gate recovery and docs no longer name `dogfood_task.py`, `route-codex` or `route-claude`; `TemplateCommandReferenceTests` checks every `python3 scripts/<x>.py` in the hint files and docs exists in `template/scripts` and that the platform-only subcommands are not named.
 - `.managed-task-state.json` is ignored through `.git/info/exclude` (idempotent, project `.gitignore` untouched, explicit error when it cannot be written): two tests in `test_managed_task.py`.
+- The shared-writer guard baseline gains one reviewed entry for the exclude-file append (`test_shared_writer_guard.py`).
 - `model-routing.md` describes the implemented postcheck; the platform manifest is regenerated.
 
 ## Correctness

@@ -128,6 +128,9 @@ REVIEWED_BASELINE: dict[str, int] = {
     'local_workspace.py:_open:open': 3,
     # The external fleet lock is no-follow, regular/single-link checked and group writable.
     'local_workspace.py:sync:open': 1,
+    # Appends one fixed line to the repository's own .git/info/exclude so the local task state is never committed (BR-896);
+    # idempotent, path resolved by git, no project-owned file touched.
+    'managed_task.py:ensure_task_state_ignored:open': 1,
     # Committed provenance copied from a git object into a private temporary directory for validation.
     'managed_task.py:resolve_committed_lineage:write_text': 1,
     # Empty owner-local advisory lock in system temp: no-follow, regular/single-link
