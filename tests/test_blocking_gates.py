@@ -483,6 +483,78 @@ class MergeCommitHookTests(unittest.TestCase):
         self.assertIn("merge commits in task worktrees are blocked", merged.stderr)
         self.assertEqual(before, self.git(task, "rev-parse", "HEAD").stdout, "a merge commit was created despite the hook")
 
+    def reconcile_worktree(self) -> tuple[Path, str]:
+        """A diverged task worktree whose origin/main is ahead, as reconcile finds it."""
+        (self.main / ".dev-platform.toml").write_text('main_branch = "main"\n', encoding="utf-8")
+        self.git(self.main, "add", ".dev-platform.toml")
+        self.git(self.main, "commit", "-q", "-m", "config")
+        task = self.base / "task"
+        self.git(self.main, "worktree", "add", "-q", "-b", "task", str(task))
+        self.commit(self.main, "main-change.txt")
+        target = self.git(self.main, "rev-parse", "HEAD").stdout.strip()
+        self.git(self.main, "update-ref", "refs/remotes/origin/main", target)
+        self.commit(task, "task-change.txt")
+        return task, target
+
+    def intent(self, worktree: Path, branch: str, target: str) -> Path:
+        path = Path(self.git(worktree, "rev-parse", "--path-format=absolute", "--git-dir").stdout.strip())
+        path = path / "dev-platform-reconcile-merge"
+        path.write_text(f"branch {branch}\ntarget {target}\n", encoding="utf-8")
+        return path
+
+    def assert_refused(self, worktree: Path, ref: str, message: str) -> None:
+        before = self.git(worktree, "rev-parse", "HEAD").stdout
+        merged = self.git(worktree, "merge", "--no-edit", ref, check=False)
+        self.assertNotEqual(0, merged.returncode)
+        self.assertIn(message, merged.stderr)
+        self.assertEqual(before, self.git(worktree, "rev-parse", "HEAD").stdout, "a merge commit was created despite the hook")
+        self.git(worktree, "merge", "--abort", check=False)
+
+    def test_reconcile_intent_admits_the_matching_merge_once(self) -> None:
+        task, target = self.reconcile_worktree()
+        intent = self.intent(task, "task", target)
+        merged = self.git(task, "merge", "--no-edit", "origin/main", check=False)
+        self.assertEqual(0, merged.returncode, merged.stderr)
+        self.assertEqual(2, len(self.git(task, "rev-list", "--parents", "-n", "1", "HEAD").stdout.split()) - 1)
+        self.assertFalse(intent.exists(), "the hook did not consume the one-shot intent")
+
+    def test_reconcile_intent_admits_no_other_merge(self) -> None:
+        task, target = self.reconcile_worktree()
+        older = self.git(self.main, "rev-parse", "HEAD~1").stdout.strip()
+        cases = (
+            ("another branch", "other-branch", target, "origin/main", "names branch 'other-branch'"),
+            ("another ref", "task", target, "main", "not the reconcile merge of origin/main"),
+            ("stale target", "task", older, "origin/main", "no longer points to the commit"),
+        )
+        for label, branch, recorded, ref, message in cases:
+            with self.subTest(label):
+                intent = self.intent(task, branch, recorded)
+                self.assert_refused(task, ref, message)
+                self.assertTrue(intent.exists())
+                intent.unlink()
+        with self.subTest("no intent, reconcile flag set"):
+            self.env["DEV_PLATFORM_RECONCILE_MERGE"] = "1"
+            self.assert_refused(task, "origin/main", "merge commits in task worktrees are blocked")
+
+    def test_reconcile_intent_of_another_worktree_admits_nothing(self) -> None:
+        task, target = self.reconcile_worktree()
+        sibling = self.base / "sibling"
+        self.git(self.main, "worktree", "add", "-q", "-b", "sibling", str(sibling), "HEAD~1")
+        self.commit(sibling, "sibling-change.txt")
+        self.intent(sibling, "task", target)
+        self.assert_refused(task, "origin/main", "merge commits in task worktrees are blocked")
+
+    def test_reconcile_intent_does_not_admit_a_merge_commit_in_the_integration_copy(self) -> None:
+        self.git(self.main, "checkout", "-q", "-b", "topic")
+        self.commit(self.main, "topic-change.txt")
+        self.git(self.main, "checkout", "-q", "main")
+        self.commit(self.main, "main-change.txt")
+        target = self.git(self.main, "rev-parse", "topic").stdout.strip()
+        self.git(self.main, "update-ref", "refs/remotes/origin/main", target)
+        self.intent(self.main, "main", target)
+        self.env["DEV_PLATFORM_RECONCILE_MERGE"] = "1"
+        self.assert_refused(self.main, "origin/main", "merge commits in the integration copy are blocked")
+
     def test_merge_commit_in_the_integration_copy_is_blocked(self) -> None:
         self.git(self.main, "checkout", "-q", "-b", "topic")
         self.commit(self.main, "topic-change.txt")

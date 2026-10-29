@@ -29,12 +29,12 @@
 #     explains stays a hard stop. The only exit that exists, `model_routing.py
 #     recover-external-advance --owner-approval`, is a historical recovery that is refused once
 #     receipts exist at or after the recorded friction event. Platform friction event to record.
-#  3. merge-commit-hook vs `reconcile_task.py`: reconcile runs `git merge --no-edit origin/<main>`
-#     in the task worktree and sets no override, so where the hook is installed a clean merge of
-#     a diverged task is blocked by the hook (reproduced in a throwaway repository). Resolving a
-#     reconcile merge conflict by committing the merge hits the same hook, and no acceptance test
-#     covers completing a conflict resolution. Platform friction event to record; no gate entry is
-#     claimed recoverable for it.
+#  3. merge-commit-hook vs `reconcile_task.py`: resolved. Before its own `git merge --no-edit
+#     origin/<main>`, reconcile records a one-shot intent (branch, commit of origin/<main>) in the task
+#     worktree's own git directory, and the hook admits a merge commit only when the intent, the
+#     branch, the merged ref and that commit all match; it consumes the intent. Any other merge commit,
+#     another worktree, a stale intent and the integration copy stay blocked. Committing a resolved
+#     reconcile conflict uses `git commit`, which does not run pre-merge-commit.
 #  4. shared-workspace-admission is recoverable for real permission/umask/group findings. A correct
 #     shared workspace that the check rejects wrongly (issue #427) has no local exit: shared_workspace.py
 #     is protected, so that defect needs a platform release.
@@ -91,7 +91,7 @@ id = "task-freshness"
 script = "scripts/select_checks.py"
 class = "recoverable"
 summary = "Full or protected validation is refused because the task does not contain freshly observed authoritative main."
-recovery = "python3 scripts/reconcile_task.py (merges current authoritative main into the task without rewriting history), then rerun the validation; if the installed pre-merge-commit hook blocks that merge (known gap 3, a platform defect) stop, do not override the hook, and record it with `python3 scripts/agent_friction.py record ...`"
+recovery = "python3 scripts/reconcile_task.py (merges current authoritative main into the task without rewriting history), then rerun the validation"
 migrated = true
 rejection_tests = [
   "tests/test_select_checks.py::ProvenBaseContractTests::test_without_proven_base_a_stale_head_is_still_blocked",
@@ -100,6 +100,7 @@ rejection_tests = [
 recovery_tests = [
   "tests/test_task_freshness.py::TaskFreshnessTests::test_stale_task_stops_before_full_validation_and_retry_after_reconciliation_runs_it",
   "tests/test_task_reconciliation.py::TaskReconciliationTests::test_unpublished_task_merges_authoritative_main_without_rewriting_history",
+  "tests/test_task_reconciliation.py::TaskReconciliationTests::test_installed_merge_hook_admits_only_the_reconcile_merge_in_a_task_worktree",
 ]
 
 [[gate]]
@@ -149,11 +150,14 @@ recovery_tests = [
 id = "merge-commit-hook"
 script = "scripts/git_hooks/pre-merge-commit"
 class = "hard-stop"
-summary = "A merge commit in the integration copy or in a task worktree is blocked to keep task history linear."
-justification = "Linear task history and fast-forward-only integration are a Git-history protection. The hook names the supported route (publish through finish_task.py; rebase an unpublished task) and allows an override only after an explicit user decision made through an unrecorded environment flag, which the platform does not treat as a supported recovery. The hook is a shell script and cannot call the Python helper."
+summary = "A merge commit in the integration copy, or in a task worktree other than the reconcile merge of main, is blocked."
+justification = "Fast-forward-only integration and no ad-hoc merge commits are a Git-history protection. The hook names the supported route (publish through finish_task.py; bring a task up to date through reconcile_task.py, whose single merge of main the hook admits in that task worktree only, through a one-shot intent bound to the branch and the commit of main) and allows any other merge only after an explicit user decision made through an unrecorded environment flag, which the platform does not treat as a supported recovery. The hook is a shell script and cannot call the Python helper."
 migrated = false
 rejection_tests = [
   "tests/test_blocking_gates.py::MergeCommitHookTests::test_merge_commit_in_a_task_worktree_is_blocked",
+  "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_admits_no_other_merge",
+  "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_of_another_worktree_admits_nothing",
+  "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_does_not_admit_a_merge_commit_in_the_integration_copy",
 ]
 
 [[gate]]

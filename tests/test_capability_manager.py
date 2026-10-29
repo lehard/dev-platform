@@ -8,10 +8,12 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "template" / "scripts"))
 manager = load_platform_module("capability_manager", ROOT / "template" / "scripts" / "capability_manager.py")
 
 evals = load_platform_module("capability_evals", ROOT / "template" / "scripts" / "capability_evals.py")
@@ -130,7 +132,7 @@ class CapabilityManagerTests(unittest.TestCase):
         (self.root / "scripts").mkdir()
         (self.root / "scripts" / "capability_manager.py").write_text("# isolated adapter fixture\n", encoding="utf-8")
         (self.root / "dev-platform" / "evals").mkdir()
-        (self.root / ".dev-platform.toml").write_text('agent_tools = "claude,codex"\n', encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         shutil.copyfile(ROOT / "dev-platform" / "capabilities.toml", self.root / "dev-platform" / "capabilities.toml")
         for name in (
             "repository-hygiene.toml",
@@ -188,6 +190,13 @@ class CapabilityManagerTests(unittest.TestCase):
 
     def registry(self):
         return manager.load_registry(self.root)
+
+    def test_missing_agent_tools_is_the_named_schema_error(self) -> None:
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(omit=("agent_tools",)), encoding="utf-8")
+        with self.assertRaisesRegex(manager.CapabilityError, "missing required key agent_tools"):
+            manager.configured_providers(self.root)
+        with self.assertRaisesRegex(manager.CapabilityError, "missing required key agent_tools"):
+            manager.create_from_descriptor(self.root, self.root / "missing.toml", enable=False)
 
     def test_opt_out_materializes_no_provider_surface(self) -> None:
         result = manager.sync(self.root, self.registry(), manager.load_selection(self.root))

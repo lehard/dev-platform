@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _platform_common import (
+    atomic_write_text,
     RECONCILE_COMMAND,
     TASK_BASE_BEHIND_MERGEABLE,
     TaskFreshnessError,
@@ -36,6 +37,11 @@ import publication_state
 TASK_KIND_MANAGED = "managed"
 TASK_KIND_QUICK = "quick"
 MANAGED_PROVENANCE_FILE = ".managed-task.json"
+# One-shot intent in the task worktree's own git directory. The installed
+# pre-merge-commit hook admits a merge commit in a task worktree only when this
+# names the current branch and the commit origin/<main_branch> still points to,
+# and the merge is exactly ``merge origin/<main_branch>``.
+RECONCILE_MERGE_INTENT = "dev-platform-reconcile-merge"
 
 
 @dataclass(frozen=True)
@@ -298,7 +304,13 @@ def reconcile(root: Path | None = None) -> Freshness:
         print(f"Task branch is already current relative to origin/{main_branch} ({before.state}); reconcile is a no-op.")
         return before
 
-    result = run_git(["merge", "--no-edit", f"origin/{main_branch}"], cwd=root, check=False)
+    intent = Path(run_git(["rev-parse", "--path-format=absolute", "--git-dir"], cwd=root).stdout.strip()) / RECONCILE_MERGE_INTENT
+    target = run_git(["rev-parse", f"origin/{main_branch}^{{commit}}"], cwd=root).stdout.strip()
+    atomic_write_text(intent, f"branch {branch}\ntarget {target}\n")
+    try:
+        result = run_git(["merge", "--no-edit", f"origin/{main_branch}"], cwd=root, check=False)
+    finally:
+        intent.unlink(missing_ok=True)
     if result.returncode != 0:
         conflicts = _conflict_paths(root)
         if conflicts:

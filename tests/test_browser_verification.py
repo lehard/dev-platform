@@ -15,6 +15,7 @@ import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 
@@ -196,7 +197,7 @@ class CapabilityMaterializationTests(unittest.TestCase):
         self.root = Path(self.tmp.name)
         (self.root / "dev-platform" / "capabilities").mkdir(parents=True)
         (self.root / "scripts").mkdir()
-        (self.root / ".dev-platform.toml").write_text('agent_tools = "claude,codex"\n', encoding="utf-8")
+        (self.root / ".dev-platform.toml").write_text(platform_config_text(), encoding="utf-8")
         for name in ("browser_verification.py", "capability_manager.py"):
             (self.root / "scripts" / name).write_text("# fixture\n", encoding="utf-8")
         shutil.copyfile(ROOT / "dev-platform" / "capabilities.toml", self.root / "dev-platform" / "capabilities.toml")
