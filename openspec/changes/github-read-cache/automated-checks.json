@@ -1,0 +1,147 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.19,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.551,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.18,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.253,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1693.188,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/github_read_cache.py",
+        "template/scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/managed_task.py",
+        "template/scripts/parallel_lifecycle_acceptance.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_github_read_cache.py",
+        "tests/test_lifecycle_overview.py",
+        "tests/test_publication_queue.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_cd2224a85dd92183cd33b92646dad283",
+    "change": "github-read-cache",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/github-read-cache",
+    "branch": "agent/br-886-t1-github-read-cache",
+    "head": "20be83362244bb65afdebc18d7ccc94ba3b37bc9",
+    "task_content": {
+      "version": 1,
+      "digest": "86119d93d98f8102b49ce869cd2c496b90d6114231020f2d952324cc700b6316",
+      "paths": {
+        "dev-platform/checks.toml": "e592f38bdfe104e0a161298208722ee2160ad787",
+        "docs/engineering/chat-coordinator.md": "12ae0b6a3fc8ac3463efbf445392ecacdd7be3e4",
+        "openspec/changes/github-read-cache/.managed-task.json": "0a0af73bdc34bca0b71e57ee077f4b25b0609106",
+        "openspec/changes/github-read-cache/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/github-read-cache/design.md": "dbabe7aa41ae8b6e30d9dc2b05e6a55d3199c619",
+        "openspec/changes/github-read-cache/proposal.md": "3b88b28dea53e71158ccabdba81cee54735fba4d",
+        "openspec/changes/github-read-cache/specs/chat-coordinator/spec.md": "8e5df5fcff056559cf01716a8ac4b743c57cf5a5",
+        "openspec/changes/github-read-cache/specs/lifecycle-workers/spec.md": "f2880468fc8db2b0ee2c3fbe5bc7aa74b2ab3e99",
+        "openspec/changes/github-read-cache/tasks.md": "36664d63184583b5fea74ff6fa89595590e85f5b",
+        "template/dev-platform/platform-manifest.json": "78e3c7cbc722a5fd44a8b601d82005f8cc183b72",
+        "template/dev-platform/protected-surface.toml": "c5661a86b2766d587771fa825e947ad6ea36ad4e",
+        "template/scripts/github_read_cache.py": "da2ac9a11a7da3083c310b42acfde983a7d913f4",
+        "template/scripts/lifecycle_overview.py": "cbca5d2b0bda4a77f40935898ae71a0e082cdb17",
+        "template/scripts/lifecycle_workers.py": "0179ecaf25e3be3c2239f5dc87952d194b583009",
+        "template/scripts/managed_task.py": "867f9e203bfee6c9eba5e2ed8e8ed2fdbd9c6706",
+        "template/scripts/parallel_lifecycle_acceptance.py": "6b0acd4f51c3d60b1da3a4678b0748045a73c74d",
+        "template/scripts/publication_queue.py": "7cc4a07e36cd4ecd48f44ed192090f54d2baa54e",
+        "tests/test_github_read_cache.py": "04404d86b44c17533aeae3e39764a6306e336ab3",
+        "tests/test_lifecycle_overview.py": "eb047cffea634015006e238085719694234b7692",
+        "tests/test_publication_queue.py": "259a315e7a5a153b60762aa5733df087feea2b96",
+        "tests/test_shared_writer_guard.py": "999bb4f31df108174ac32f00e1f37f894fba74e0"
+      },
+      "base": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "2324ad1e3ba8dcb76203b59cf4badd921547ab8045f923e29e9b932e748458a9",
+    "paths": {
+      "dev-platform/checks.toml": "e592f38bdfe104e0a161298208722ee2160ad787",
+      "docs/engineering/chat-coordinator.md": "12ae0b6a3fc8ac3463efbf445392ecacdd7be3e4",
+      "openspec/changes/github-read-cache/.managed-task.json": "0a0af73bdc34bca0b71e57ee077f4b25b0609106",
+      "openspec/changes/github-read-cache/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/github-read-cache/design.md": "dbabe7aa41ae8b6e30d9dc2b05e6a55d3199c619",
+      "openspec/changes/github-read-cache/proposal.md": "3b88b28dea53e71158ccabdba81cee54735fba4d",
+      "openspec/changes/github-read-cache/specs/chat-coordinator/spec.md": "8e5df5fcff056559cf01716a8ac4b743c57cf5a5",
+      "openspec/changes/github-read-cache/specs/lifecycle-workers/spec.md": "f2880468fc8db2b0ee2c3fbe5bc7aa74b2ab3e99",
+      "openspec/changes/github-read-cache/tasks.md": "36664d63184583b5fea74ff6fa89595590e85f5b",
+      "template/dev-platform/protected-surface.toml": "c5661a86b2766d587771fa825e947ad6ea36ad4e",
+      "template/scripts/github_read_cache.py": "da2ac9a11a7da3083c310b42acfde983a7d913f4",
+      "template/scripts/lifecycle_overview.py": "cbca5d2b0bda4a77f40935898ae71a0e082cdb17",
+      "template/scripts/lifecycle_workers.py": "0179ecaf25e3be3c2239f5dc87952d194b583009",
+      "template/scripts/managed_task.py": "867f9e203bfee6c9eba5e2ed8e8ed2fdbd9c6706",
+      "template/scripts/parallel_lifecycle_acceptance.py": "6b0acd4f51c3d60b1da3a4678b0748045a73c74d",
+      "template/scripts/publication_queue.py": "7cc4a07e36cd4ecd48f44ed192090f54d2baa54e",
+      "tests/test_github_read_cache.py": "04404d86b44c17533aeae3e39764a6306e336ab3",
+      "tests/test_lifecycle_overview.py": "eb047cffea634015006e238085719694234b7692",
+      "tests/test_publication_queue.py": "259a315e7a5a153b60762aa5733df087feea2b96",
+      "tests/test_shared_writer_guard.py": "999bb4f31df108174ac32f00e1f37f894fba74e0"
+    },
+    "base": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/github_read_cache.py --changed-file template/scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/managed_task.py --changed-file template/scripts/parallel_lifecycle_acceptance.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_github_read_cache.py --changed-file tests/test_lifecycle_overview.py --changed-file tests/test_publication_queue.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 455.805,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
