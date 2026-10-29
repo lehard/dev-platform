@@ -3,34 +3,46 @@
   "candidate": {
     "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
     "base_ref": "origin/main",
-    "candidate_head": "2f52f7219d173180d4341ac8908e2edd015bb505",
-    "diff_sha256": "bb7a2714f6ef5f529a0cd642375fc465c2e63a5a008dca1f84304b7f314283bc"
+    "candidate_head": "30c9c579d1ed31fd4bcbd1ff5a81880e03c619ec",
+    "diff_sha256": "db6eb191d3e00444945ca89badbc3dbf98319e8ea8b4ca3936f0e7546acbe50e"
   },
-  "completed_at": "2026-10-29T11:21:05+00:00",
+  "completed_at": "2026-10-29T11:30:37+00:00",
   "findings": [
     {
-      "evidence": "design.md 'Equivalence guard' and tasks.md 2.1 'cold == warm == deleted-cache overview'. tests/test_github_read_cache.py only exercises github_read_cache.get_json on a comment-page fake. The edit to tests/test_lifecycle_overview.py only re-patches _open_requirements. The only overview-level support added is the `api -i` fake in parallel_lifecycle_acceptance.py, and the diff contains no test that uses it. The chat-coordinator scenarios 'Repeated overview without GitHub changes' and 'Corrupt cache' and the lifecycle-workers scenario 'Worker poll with nothing changed' are therefore not covered at the overview or worker level. The only worker-level test is a corrupt-cache check on _gh_json.",
-      "id": "overview-equivalence-test-missing",
-      "severity": "advisory",
-      "summary": "The design and tasks 2.1 promise an overview-level test (cold, warm and deleted-cache runs against a fake GitHub give identical output, and the warm run charges only conditional requests). The candidate adds no such test."
+      "evidence": "template/scripts/github_read_cache.py `_page`: on 304 it does `return entry[\"body\"], entry[\"next\"]`. `entry[\"next\"]` was saved from the Link header of the old 200, and the 304's own headers are ignored. If a listing's last page is full (e.g. 100 comments, stored next=None) and one more item is added, page 1 can still validate as 304 and the read stops without fetching page 2. design.md says 'A 304 returns the complete stored body, never a delta; no cursor is kept', but the entry schema keeps `next` (`fields = (\"etag\",\"digest\",\"body\",\"next\")`). The tests' FakeGitHub derives the ETag from a global version, so this case is not exercised.",
+      "id": "stored-next-link-hidden-on-304",
+      "severity": "material",
+      "summary": "A 304 returns the pagination `next` link stored from the earlier 200, so growth beyond the last page can be hidden. This contradicts the contract that 'a 304 never hides' a change and the design's 'no cursor is kept'."
     },
     {
-      "evidence": "template/scripts/lifecycle_overview.py docstring in the diff: '(``github_read_cache``: ETag/``updated_at`` revalidated ...'. design.md: '`updated_at` is not used as a validity key'. github_read_cache.py revalidates by ETag only.",
-      "id": "overview-docstring-updated-at-contradiction",
+      "evidence": "design.md 'Equivalence guard' and tasks.md 2.1 ('cold == warm == deleted-cache overview'). tests/test_github_read_cache.py checks only `cache.get_json` and `workers._gh_json`. The diff has no test that runs `lifecycle_overview.overview` or a worker poll warm against a fake GitHub. It also has no test of the 'worker poll selects same job' or 'repeated overview spends only conditional requests' scenarios. The tests/test_lifecycle_overview.py change only repoints a mock.",
+      "id": "overview-equivalence-test-missing",
       "severity": "advisory",
-      "summary": "The lifecycle_overview.py module docstring says the cache is 'ETag/``updated_at`` revalidated'. design.md says updated_at is deliberately not used as a validity key; only ETag is."
+      "summary": "The design and tasks promise an overview-level cold/warm/deleted-cache equivalence test. The new tests only exercise `get_json` pagination."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_overview.py module docstring: '(github_read_cache: ETag/updated_at revalidated ...)'. design.md: '`updated_at` is not used as a validity key'. github_read_cache.py uses ETag only.",
+      "id": "overview-docstring-updated-at-claim",
+      "severity": "advisory",
+      "summary": "The lifecycle_overview docstring says the cache is 'ETag/updated_at revalidated'. The design explicitly rejects `updated_at` as a validity key."
+    },
+    {
+      "evidence": "template/scripts/managed_task.py: new `_issue_read_env` dict and lock. The first successful `github_cli_env` result is reused for every later `fetch_issue` call in the process. The proposal only says fetch_issue 'reads through' the cache. A token that expires or changes mid-process would keep being used.",
+      "id": "fetch-issue-auth-memoization-out-of-scope",
+      "severity": "advisory",
+      "summary": "`managed_task.fetch_issue` now memoizes the validated gh auth env per process. No artifact (proposal, design, tasks, or spec) describes this behavior change."
     }
   ],
-  "launched_at": "2026-10-29T11:20:31+00:00",
-  "output_sha256": "1d162f9711be71530ffc835d76de08ae151c8bcbc7fba0cae7f0c5de42ab9fb9",
+  "launched_at": "2026-10-29T11:30:06+00:00",
+  "output_sha256": "2161cfb9881a30de0fdb33d9ae222f9668a3a9f9aab2964fb5bf1822859d778e",
   "perspective": "spec-fidelity",
-  "request_id": "6ab25c81-406a-44d7-9571-846e4af1ef2d",
+  "request_id": "838e074f-dfcf-46e1-befa-a0e80072d367",
   "reviewer": {
-    "context_id": "37b019e8-392d-40c4-859e-3b9ffc6cc01c",
+    "context_id": "c611460d-2123-4d58-be02-f99aee7e22f0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d0a0e4c5-c254-48c6-ba07-5459468a6afa",
+    "launch_id": "platform-launch-f516f9a0-cd2c-4599-9bbb-afd326c6ad0e",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +57,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33200
+        "value": 36724
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 119204
+        "value": 128611
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32863
+        "value": 30572
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32983
+        "value": 30728
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,11 +87,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2568
+        "value": 3313
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2324ad1e3ba8dcb76203b59cf4badd921547ab8045f923e29e9b932e748458a9"
+  "task_content_digest": "f028de8efb14044c64f418ce4033dce1ee7b488943c966d7648552dbdc523985"
 }

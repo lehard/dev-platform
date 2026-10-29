@@ -2,13 +2,18 @@
   "candidate": {
     "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
     "base_ref": "origin/main",
-    "candidate_head": "2f52f7219d173180d4341ac8908e2edd015bb505",
-    "diff_sha256": "bb7a2714f6ef5f529a0cd642375fc465c2e63a5a008dca1f84304b7f314283bc"
+    "candidate_head": "30c9c579d1ed31fd4bcbd1ff5a81880e03c619ec",
+    "diff_sha256": "db6eb191d3e00444945ca89badbc3dbf98319e8ea8b4ca3936f0e7546acbe50e"
   },
-  "change": "openspec/changes/github-read-cache",
+  "change": "openspec/changes/archive/2026-10-29-github-read-cache",
   "excluded_lifecycle_paths": [
-    "openspec/changes/github-read-cache/automated-checks.json",
-    "openspec/changes/github-read-cache/verification.md",
+    "openspec/changes/archive/2026-10-29-github-read-cache/automated-checks.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/independent-review-request.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-29-github-read-cache/verification.md",
+    "openspec/specs/chat-coordinator/spec.md",
+    "openspec/specs/lifecycle-workers/spec.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -19,34 +24,34 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/github-read-cache/design.md",
-        "openspec/changes/github-read-cache/proposal.md",
-        "openspec/changes/github-read-cache/specs/chat-coordinator/spec.md",
-        "openspec/changes/github-read-cache/specs/lifecycle-workers/spec.md",
-        "openspec/changes/github-read-cache/tasks.md"
+        "openspec/changes/archive/2026-10-29-github-read-cache/design.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/proposal.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/lifecycle-workers/spec.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/github-read-cache/proposal.md",
-        "openspec/changes/github-read-cache/design.md",
-        "openspec/changes/github-read-cache/tasks.md",
-        "openspec/changes/github-read-cache/specs/chat-coordinator/spec.md",
-        "openspec/changes/github-read-cache/specs/lifecycle-workers/spec.md"
+        "openspec/changes/archive/2026-10-29-github-read-cache/proposal.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/design.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/tasks.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-github-read-cache/specs/lifecycle-workers/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-10-29T11:20:21+00:00",
+  "prepared_at": "2026-10-29T11:30:03+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/github-read-cache/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-10-29-github-read-cache/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "6ab25c81-406a-44d7-9571-846e4af1ef2d",
+  "request_id": "838e074f-dfcf-46e1-befa-a0e80072d367",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,10 +63,10 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
-    "digest": "2324ad1e3ba8dcb76203b59cf4badd921547ab8045f923e29e9b932e748458a9",
+    "base": "723083be92fadddc7110f89f9fc008220d89bd31",
+    "digest": "f028de8efb14044c64f418ce4033dce1ee7b488943c966d7648552dbdc523985",
     "paths": {
-      "dev-platform/checks.toml": "e592f38bdfe104e0a161298208722ee2160ad787",
+      "dev-platform/checks.toml": "100b34ea2bbf614e1736e388b2a80e96fa451aa2",
       "docs/engineering/chat-coordinator.md": "12ae0b6a3fc8ac3463efbf445392ecacdd7be3e4",
       "openspec/changes/github-read-cache/.managed-task.json": "0a0af73bdc34bca0b71e57ee077f4b25b0609106",
       "openspec/changes/github-read-cache/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",

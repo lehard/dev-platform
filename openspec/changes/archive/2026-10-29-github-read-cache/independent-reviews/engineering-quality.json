@@ -3,46 +3,46 @@
   "candidate": {
     "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
     "base_ref": "origin/main",
-    "candidate_head": "2f52f7219d173180d4341ac8908e2edd015bb505",
-    "diff_sha256": "bb7a2714f6ef5f529a0cd642375fc465c2e63a5a008dca1f84304b7f314283bc"
+    "candidate_head": "30c9c579d1ed31fd4bcbd1ff5a81880e03c619ec",
+    "diff_sha256": "db6eb191d3e00444945ca89badbc3dbf98319e8ea8b4ca3936f0e7546acbe50e"
   },
-  "completed_at": "2026-10-29T11:21:43+00:00",
+  "completed_at": "2026-10-29T11:31:10+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/github_read_cache.py:330-334: `stdout.partition(\"\\n\\n\")` runs first and `replace(\"\\r\\n\", \"\\n\")` only runs as a fallback. A CRLF response that has a literal `\\n\\n` in its body would be cut there, which drops part of the body or puts body text in the headers. Every test transcript in tests/test_github_read_cache.py and the acceptance fake in parallel_lifecycle_acceptance.py uses LF only, so the CRLF path is never exercised. The design's own Risks section says the gh transcript parsing is covered by recorded transcripts, but none are recorded.",
-      "id": "parse-response-crlf-order",
+      "evidence": "template/scripts/managed_task.py fetch_issue converts only GithubReadError to ManagedTaskError. template/scripts/publication_queue.py _comments converts only GithubReadError to QueueError. Only lifecycle_overview.main and lifecycle_workers.main add GithubReadCacheError to their except tuples. Other CLIs that use fetch_issue or _comments, such as managed task start/create and the publication queue, are not shown to handle it. A corrupt file under the git common dir can therefore break these paths with an uncaught exception.",
+      "id": "cache-error-escapes-non-worker-callers",
       "severity": "advisory",
-      "summary": "`parse_response` splits on a bare `\\n\\n` before it normalises CRLF. Real `gh api -i` output uses CRLF line endings, so the first partition can miss the header/body boundary or split at a blank line inside the body."
+      "summary": "A corrupt cache now raises GithubReadCacheError (a RuntimeError) from shared read paths whose callers only handle their own error types. A cache problem can therefore surface as a raw traceback, or block unrelated flows."
     },
     {
-      "evidence": "template/scripts/github_read_cache.py:288-327: `_load` parses and structure-checks all entries on every `_page` call. `_store` rewrites the whole file on every 200. Entries are keyed per URL and nothing removes closed PRs or old Requirements. The overview reads many PRs in parallel, so with a large cache every 200 re-serialises the full file under the flock. The cost scales with accumulated history, not with the current candidate set.",
-      "id": "cache-unbounded-growth-full-rewrite",
+      "evidence": "github_read_cache.py `_load` reads and validates the entire file on each `_page` call. `_store` re-dumps all pages for each 200 response. Comment pages for merged or closed PRs and issues accumulate forever. With parallel overview threads this makes cost grow with history, and a cold run does O(n\u00b2) writes.",
+      "id": "cache-unbounded-growth-and-full-rewrite",
       "severity": "advisory",
-      "summary": "Cache entries are never evicted, and every read and write loads and validates the whole file. Cost grows with the history of PRs and comment pages seen."
+      "summary": "The cache never evicts entries. Every `_page` read parses the whole file, and every store rewrites the whole file under a global lock."
     },
     {
-      "evidence": "template/scripts/managed_task.py:268-278: `_issue_read_env[str(root)]` is set once and never invalidated. Later calls skip `github_cli_env`, so a changed or expired gh login is not re-detected in that process. Tests that patch `github_cli_env` per case can see state left by earlier tests. The proposal does not mention this change.",
-      "id": "fetch-issue-process-global-env-cache",
+      "evidence": "github_read_cache.py `_page`: `if etag:` guards the store, with no else branch that deletes the existing entry. A stale etag/body pair therefore survives. It could produce a stale 304 hit if the content later matches the old ETag again.",
+      "id": "cache-stale-etag-on-200-without-etag",
       "severity": "advisory",
-      "summary": "`managed_task.fetch_issue` now keeps the result of a successful `github_cli_env` check in a process-global dict. This is a behaviour change outside the stated scope, and it can leak between tests or long-lived processes."
+      "summary": "A 200 response without an ETag leaves the previous entry in place instead of dropping it."
     },
     {
-      "evidence": "template/scripts/lifecycle_workers.py:1211-1217 passes `Path.cwd()` to `read_cache.cached_gh_json`. `cache_path` (github_read_cache.py:273-277) calls `run_git(... --git-common-dir)`. A failure there is not a `GithubReadError`, so the `WorkerError` mapping does not apply. `main` catches only `(WorkerError, ValueError, GithubReadCacheError)`, so such a failure may surface as a traceback rather than a clean exit 2. No test covers a worker started outside a repository.",
-      "id": "worker-cache-root-cwd-coupling",
+      "evidence": "lifecycle_workers.py `_gh_json` calls `read_cache.cached_gh_json(Path.cwd(), ...)`. `cache_path` calls `run_git` and raises GithubReadCacheError if it yields nothing. The error text says the cache is corrupt or names the reset, which is misleading. A failing `run_git` may also raise a different exception type.",
+      "id": "cache-path-git-failure-reported-as-corrupt-cache",
       "severity": "advisory",
-      "summary": "The worker `_gh_json` now needs a git checkout at `Path.cwd()` even for plain `gh api` reads. A non-git cwd fails in `run_git` inside `cache_path`, where before it ran `gh` directly."
+      "summary": "`cache_path` runs `git rev-parse` in the caller's cwd, and `_gh_json` in lifecycle_workers passes `Path.cwd()`. A worker started outside a git work tree fails with a cache error, where it previously did not need git."
     }
   ],
-  "launched_at": "2026-10-29T11:21:05+00:00",
-  "output_sha256": "a0534759e59a45506071810919f9697abd60edbd94fcecb0815f756121edd5f4",
+  "launched_at": "2026-10-29T11:30:37+00:00",
+  "output_sha256": "d2290886fc6931229647196f005c0b35a70bab900087a0da872ae8675c27f817",
   "perspective": "engineering-quality",
-  "request_id": "6ab25c81-406a-44d7-9571-846e4af1ef2d",
+  "request_id": "838e074f-dfcf-46e1-befa-a0e80072d367",
   "reviewer": {
-    "context_id": "daa396bd-0e30-40a7-9393-6dd2f31e9c9b",
+    "context_id": "f643ae57-0e35-4e96-a2f2-cde733064253",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8cdd9076-af47-461c-ab53-31b4ffce7ca1",
+    "launch_id": "platform-launch-9c44f2d1-65fe-4f31-9143-862705a3edce",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +57,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33273
+        "value": 30985
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 157053
+        "value": 85398
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37851
+        "value": 32408
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38135
+        "value": 32703
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4045
+        "value": 3002
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2324ad1e3ba8dcb76203b59cf4badd921547ab8045f923e29e9b932e748458a9"
+  "task_content_digest": "f028de8efb14044c64f418ce4033dce1ee7b488943c966d7648552dbdc523985"
 }
