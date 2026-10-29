@@ -45,7 +45,8 @@ class OverviewSessionTests(unittest.TestCase):
             self.assertEqual(overview.read_sessions(Path("."), now=NOW), {"configured": False, "sessions": []})
         result = {"bounds": {"note": "n", "merged_discovery_page": 50, "prs_without_lifecycle_record": 0},
                   "generated_at": "t", "repository": "o/r", "requirements": [], "candidates": [],
-                  "agent_sessions": {"configured": False, "unattached": []}}
+                  "agent_sessions": {"configured": False, "unattached": []},
+                  "owner_needed": {"configured": False, "signals": []}}
         self.assertIn("Sessions: not configured", overview.render(result))
 
     def test_partial_configuration_names_the_missing_key(self):
@@ -62,7 +63,8 @@ class OverviewSessionTests(unittest.TestCase):
         self.assertIn("does not exist", registry["error"])
         result = {"bounds": {"note": "n", "merged_discovery_page": 50, "prs_without_lifecycle_record": 0},
                   "generated_at": "t", "repository": "o/r", "requirements": [], "candidates": [],
-                  "agent_sessions": {**registry, "unattached": []}}
+                  "agent_sessions": {**registry, "unattached": []},
+                  "owner_needed": {"configured": False, "signals": []}}
         self.assertIn("registry unreadable", overview.render(result))
 
     def detail_views(self, registry_config):

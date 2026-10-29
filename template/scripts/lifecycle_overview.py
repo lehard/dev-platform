@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
-from _platform_common import current_worktree_root, read_platform_config
+from _platform_common import current_worktree_root, main_root, read_platform_config
 
 STAGES = ("not-started", "in-development", "handed-off", "delivering", "merged-open-obligations", "closed", "needs-intervention", "unknown")
 CHAIN = ("review", "repair", "re-review", "finalize", "integration", "retrospective", "terminal-reconciliation", "cleanup")
@@ -464,6 +464,13 @@ def read_sessions(root: Path, *, now: datetime) -> dict:
     return {"configured": True, "sessions": items}
 
 
+def read_owner_needed(now: datetime) -> dict:
+    """Open owner-needed signals from the agent board, exactly as ``agent_signal`` stores them (BR-888)."""
+    import agent_signal
+
+    return agent_signal.open_signals(main_root(), now=now)
+
+
 def attach_sessions(registry: dict, candidates: list[dict]) -> list[dict]:
     """Put each session on the candidate whose PR head ref is the session's branch; return the unattached ones."""
     by_branch: dict[str, list[dict]] = {}
@@ -508,6 +515,7 @@ def overview(root: Path, *, now: datetime) -> dict:
     registry = read_sessions(root, now=now)
     unattached = attach_sessions(registry, assessed)
     return {"agent_sessions": {**{k: v for k, v in registry.items() if k != "sessions"}, "unattached": unattached},
+            "owner_needed": read_owner_needed(now),
             "repository": repo, "backlog": backlog, "generated_at": now.isoformat(timespec="seconds"),
             "bounds": {"merged_discovery_page": MERGED_DISCOVERY_PAGE,
                        "note": "open PRs plus the most recently updated closed merged PRs, exactly the workers' candidate set",
@@ -588,6 +596,17 @@ def _registry_status(registry: dict) -> str | None:
     return None
 
 
+def _owner_needed_lines(owner_needed: dict) -> list[str]:
+    if not owner_needed["configured"]:
+        return ["\nOwner needed: not shown (agent board capability is not enabled in the platform configuration)"]
+    if owner_needed.get("error"):
+        return [f"\nOwner needed: cannot be shown: {owner_needed['error']}"]
+    lines = ["\nOwner needed:"]
+    lines += [f"  [{s['project']}] {s['task']}: {s['question']} (id {s['id']}, {s['age_minutes']} min ago)"
+              for s in owner_needed["signals"]] or ["  none"]
+    return lines
+
+
 def render(result: dict) -> str:
     lines = []
     if "bounds" in result:
@@ -601,6 +620,7 @@ def render(result: dict) -> str:
                          f"PRs={req['candidates']}" + (f" ({req['note']})" if req.get("note") else ""))
             for finding in req["findings"]:
                 lines.append(f"  ! {finding['kind']}: {finding['detail']}")
+        lines += _owner_needed_lines(result["owner_needed"])
         lines.append("\nCandidates:")
         lines += [render_candidate(item, detail=False) for item in result["candidates"]] or ["  none"]
         registry = result["agent_sessions"]

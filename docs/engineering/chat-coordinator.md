@@ -22,6 +22,15 @@ python3 scripts/lifecycle_overview.py show --requirement owner/repo#N
 python3 scripts/lifecycle_overview.py --json show --pr N    # same data, machine-readable
 ```
 
+The summary also prints an **Owner needed** section (and `owner_needed` in `--json`): the open signals that agents raised because they are blocked on a question only the owner can answer. An agent raises one from its own task worktree and clears it when the question is settled:
+
+```bash
+python3 scripts/agent_signal.py raise --question "<the question>"   # prints the signal id; a repeat of the same question is collapsed
+python3 scripts/agent_signal.py resolve --id <signal id> --by <who answered>
+```
+
+A signal is stored on the task's agent-board entry (it needs `[capabilities] agent_board = true`) and ends with that entry. It is rejected with a named error when the worktree has no active board entry. The section shows the question, project, task and age, and says so explicitly when the board is not enabled or cannot be read. A signal only reports a question: material review findings, business decisions and OpenSpec decisions stay with the owner, and notifications and rendering belong to the board application.
+
 It requires `[chat_coordinator] unclaimed_job_after_minutes` in `.dev-platform.toml`
 (committed in `dev-platform/source-contract.toml`; the installed, locally excluded
 `.dev-platform.toml` must carry the same value) and fails naming the key when it
