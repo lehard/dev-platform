@@ -139,6 +139,62 @@ def _results(comments: list[dict], apps: frozenset[str], writers: frozenset[str]
     return found
 
 
+def idle_reason(candidate: dict, *, job: dict | None, winning: dict | None, completed: bool, open_pr: bool) -> dict | None:
+    """Why an open candidate has nothing executing now: what it waits for and who or what moves it.
+
+    ``None`` for a candidate that is not open or whose job is claimed. Every rule reads only fields the
+    assessment already holds; a state no rule explains is reported as ``unknown``, never guessed.
+    """
+    from hosted_workers import UNHOSTED
+    from lifecycle_workers import WRITE_KINDS
+    from pr_review_gate import MAX_ROUNDS
+    from publication_queue import MAX_INTEGRATION_REPAIRS
+
+    if not open_pr or winning:
+        return None
+    state, reason = candidate["state"], str(candidate.get("reason") or "")
+    attempts, red = candidate.get("attempts") or {}, candidate.get("red_gate") or {}
+
+    def idle(kind: str, waiting_for: str, moved_by: str, evidence: str) -> dict:
+        return {"kind": kind, "waiting_for": waiting_for, "moved_by": moved_by, "evidence": evidence}
+
+    if reason.startswith("malformed marker"):
+        return idle("unknown", f"idle reason unknown: {reason}", "unknown", "lifecycle record")
+    if candidate.get("task_identity") is None:
+        return idle("developer", "the developer to hand the PR off: it has no trusted lifecycle record yet", "developer",
+                    "no task identity in the lifecycle records")
+    if state == "blocked-escalation":
+        limits = {"repair": MAX_ROUNDS, "integration-repair": MAX_INTEGRATION_REPAIRS}
+        gate = red.get("name")
+        count = attempts.get(gate)
+        if gate in limits and type(count) is int and count >= limits[gate]:
+            return idle("attempt-limit-exhausted", f"a human decision: {gate} attempts reached the limit ({count}/{limits[gate]}) and nothing retries automatically",
+                        "a human decision", f"attempts.{gate} in the latest lifecycle record")
+        return idle("human-decision", f"a human decision: the candidate is escalated ({gate or 'unnamed gate'})", "a human decision",
+                    "state blocked-escalation in the latest lifecycle record")
+    if job and not completed:
+        kind = job["kind"]
+        if kind in WRITE_KINDS and kind in UNHOSTED:
+            return idle("local-node-job", f"the {kind} job, which is executed only by an operator-run local macOS node "
+                        "(no hosted worker runs it)", "an operator running work-next on a local node", f"{kind} job in the latest lifecycle record")
+        if kind in UNHOSTED:
+            return idle("local-node-job", f"the {kind} job, which is executed only by a local operator node (no hosted worker runs it)",
+                        "an operator running work-next on a local node", f"{kind} job in the latest lifecycle record")
+        return idle("worker-job", f"a lifecycle worker (hosted run or local node) to claim the {kind} job", "a lifecycle worker",
+                    f"{kind} job in the latest lifecycle record")
+    if state in {"ready", "integrating"}:
+        return idle("publication-queue", "the publication queue to integrate the candidate", "the publication queue",
+                    f"state {state} in the latest lifecycle record")
+    if state == "blocked-retryable":
+        return idle("retry-pending", f"the automatic retry of the red {red.get('name') or 'gate'}", "the publication queue",
+                    "state blocked-retryable in the latest lifecycle record")
+    if state == "contribution-integrated":
+        return idle("requirement-composition", "the Requirement's other contributions and its composition", "the coordinator composing the Requirement",
+                    "state contribution-integrated in the latest lifecycle record")
+    return idle("unknown", f"idle reason unknown: state {state} matches no known waiting rule", "unknown",
+                "state in the latest lifecycle record")
+
+
 def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: str, apps: frozenset[str],
                      writers: frozenset[str], now: datetime, threshold_minutes: int) -> dict:
     """Pure assessment of one derived candidate: stage, chain, executor, findings and permitted actions."""
@@ -254,6 +310,7 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
     else:
         expected = "none scheduled"
     return {"number": number, "url": url, "head": head, "state": state, "stage": stage, "reason": reason,
+            "idle": idle_reason(candidate, job=job, winning=winning, completed=completed, open_pr=open_pr),
             "post_merge_tracked": bool(attempts.get(POST_MERGE_FLAG)),
             "attempts": attempts, "chain": stage_chain(candidate),
             "job": ({"kind": job["kind"], "attempt": job["attempt"], "providers": job.get("providers")} if job else None),
@@ -333,6 +390,8 @@ def observe_candidate(root: Path, repo: str, pr: dict, *, now: datetime, thresho
                 "executor": {"claimed_by": None, "activity": EXECUTOR_NOT_CONFIRMED},
                 "findings": [{"kind": "unknown-source", "detail": f"lifecycle state of PR #{number} is unreadable: {exc}",
                               "evidence": _pr_url(repo, number)}],
+                "idle": {"kind": "unknown", "waiting_for": f"idle reason unknown: lifecycle state is unreadable: {exc}",
+                         "moved_by": "unknown", "evidence": _pr_url(repo, number)},
                 "actions": [], "human_decision": None, "next_operation": None, "expected_automation": "unknown",
                 "merged": bool(pr.get("merged")), "branch": (pr.get("head") or {}).get("ref")}
 
@@ -441,6 +500,10 @@ def render_candidate(item: dict, *, detail: bool) -> str:
         age = executor.get("job_age_minutes")
         lines.append(f"  executor: {executor['activity']}" + (f"; job published {age} min ago" if age is not None else ""))
     lines.append(f"  next: {item.get('next_operation')} | expected automation: {item.get('expected_automation')}")
+    idle = item.get("idle")
+    if idle:
+        lines.append(f"  idle: {idle['waiting_for']} ({idle['evidence']})" if idle["kind"] == "unknown"
+                     else f"  idle: waiting for {idle['waiting_for']}; moved by {idle['moved_by']} ({idle['evidence']})")
     for finding in item["findings"]:
         lines.append(f"  ! {finding['kind']}: {finding['detail']} ({finding['evidence']})")
     if item.get("human_decision") and item["stage"] in {"needs-intervention", "unknown"}:
