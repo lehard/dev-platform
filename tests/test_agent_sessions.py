@@ -14,7 +14,9 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
-import agent_sessions as sessions  # noqa: E402
+from _platform_modules import load_platform_module  # noqa: E402
+
+sessions = load_platform_module("agent_sessions", ROOT / "template" / "scripts" / "agent_sessions.py")
 
 NOW = datetime(2026, 10, 29, 12, 0, tzinfo=timezone.utc)
 SESSION = "11111111-aaaa-bbbb-cccc-222222222222"
