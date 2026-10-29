@@ -45,7 +45,7 @@ class QueueMergedFinishTests(unittest.TestCase):
             mock.patch.object(finish_task, "scm_provider", return_value="github"),
             mock.patch.object(finish_task, "harness_mode", return_value="platform"),
             mock.patch.object(finish_task, "profile", return_value="multi-agent"),
-            mock.patch.object(finish_task, "preflight"),
+            mock.patch.object(finish_task, "preflight_with_report", return_value=[]),
             mock.patch.object(finish_task, "publish_mode", return_value="pr"),
             mock.patch.object(finish_task, "current_branch", return_value="agent/task"),
             mock.patch.object(finish_task, "require_managed_checkout_identity"),

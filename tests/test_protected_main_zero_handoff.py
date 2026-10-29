@@ -30,7 +30,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "managed_project_status.py", "finish_task.py", "worktree_cleanup.py", "openspec_lifecycle.py", "requirement_integration.py", "managed_task.py", "managed_work_identity.py", "private_lineage.py", "start_tier_routing.py"):
+    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "lifecycle_preflight.py", "managed_project_status.py", "finish_task.py", "worktree_cleanup.py", "openspec_lifecycle.py", "requirement_integration.py", "managed_task.py", "managed_work_identity.py", "private_lineage.py", "start_tier_routing.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 

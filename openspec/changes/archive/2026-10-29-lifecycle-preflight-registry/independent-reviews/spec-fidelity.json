@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
+    "base_ref": "origin/main",
+    "candidate_head": "d437e6bfb702ac2b5195df3053b7649809c41630",
+    "diff_sha256": "aba5991239f7831c9abde635b9e60f2366a1db90b455c22312614a912a2b6c1d"
+  },
+  "completed_at": "2026-10-29T21:10:40+00:00",
+  "findings": [
+    {
+      "evidence": "The candidate's template/scripts/select_checks.py hunk wraps the call as `if harness == \"platform\": run_selector_preflight(...)`. Design.md lists `harness_mode=project` as a case that should return `not-applicable` with its reason. The completion-lifecycle scenario \"Not applicable is explicit\" says the condition is \"printed as not-applicable ... never silently skipped\".",
+      "id": "project-harness-preflight-silent-skip",
+      "severity": "advisory",
+      "summary": "With harness_mode=project the selector does not run the preflight at all. Nothing is printed, although the spec and design say a non-applicable condition is shown as `not-applicable` and never skipped silently."
+    },
+    {
+      "evidence": "`run_selector_preflight` sets `base_waiver = \"checked by the task freshness gate that ran before this preflight\"` unconditionally. The scope waiver, by contrast, is conditional on `expensive`. The spec requires the printed fact to be the one that makes the condition not applicable.",
+      "id": "task-base-waiver-reason-overstates",
+      "severity": "advisory",
+      "summary": "In the selector, the `task-base` condition is always printed as not-applicable with the reason \"checked by the task freshness gate that ran before this preflight\". That gate runs only when the selection needs task freshness. For other selections, such as a non-expensive selection or `--scope-gate not-applicable`, the printed reason does not match what ran."
+    }
+  ],
+  "launched_at": "2026-10-29T21:10:21+00:00",
+  "output_sha256": "0a106eb3d2c84c9b8018c053cc5476e69242b18b75a577e9ce3f948a3707866b",
+  "perspective": "spec-fidelity",
+  "request_id": "c4e09a9b-4c7b-4dae-b46e-e45a5c1dd239",
+  "reviewer": {
+    "context_id": "5657cced-b4e9-4351-8382-17e2ec3d9917",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bd00a904-e8e0-491d-bea2-196386aaeaef",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43734
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54432
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18385
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18486
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2093
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "266028a92c358bccb7c6430ac9a1c0568f8a985355e2cb0586badae329fca70d"
+}

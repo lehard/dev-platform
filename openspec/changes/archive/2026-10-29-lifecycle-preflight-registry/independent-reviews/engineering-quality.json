@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
+    "base_ref": "origin/main",
+    "candidate_head": "d437e6bfb702ac2b5195df3053b7649809c41630",
+    "diff_sha256": "aba5991239f7831c9abde635b9e60f2366a1db90b455c22312614a912a2b6c1d"
+  },
+  "completed_at": "2026-10-29T21:11:10+00:00",
+  "findings": [
+    {
+      "evidence": "In template/scripts/shared_workspace.py, `audit()` returns `(None, [Finding(... 'POSIX group-mode enforcement unavailable; no changes made')])` when `posix_available()` is false. The old `preflight()` did `if group is None: return`. The new `preflight_with_report` does `if group is None: raise SharedWorkspaceError(findings[0].message)`. The registry condition guards this with `shared_workspace_applicable`, but the finish_task.py main loop (`for shared_root in (integration, work)...: repaired = preflight_with_report(shared_root)`) does not. A finish run on a non-POSIX platform therefore regresses from a silent skip to a hard failure.",
+      "id": "finish-permission-step-refuses-on-non-posix",
+      "severity": "advisory",
+      "summary": "finish_task.py now calls shared_workspace.preflight_with_report unconditionally. Where POSIX group enforcement is unavailable, it raises instead of returning silently, as the old preflight did."
+    }
+  ],
+  "launched_at": "2026-10-29T21:10:40+00:00",
+  "output_sha256": "b60345be13283cd96d224d20c19f5169720cfb45385baff750a24be6fca04ecd",
+  "perspective": "engineering-quality",
+  "request_id": "c4e09a9b-4c7b-4dae-b46e-e45a5c1dd239",
+  "reviewer": {
+    "context_id": "ce905d3a-35b7-4261-91f9-02b5fc45e7b8",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b2ef1bc4-8849-446d-8546-7aea2a0e2958",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48203
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 247107
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29798
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30066
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2620
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "266028a92c358bccb7c6430ac9a1c0568f8a985355e2cb0586badae329fca70d"
+}

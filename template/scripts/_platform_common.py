@@ -920,6 +920,7 @@ _GATE_CLASS_FIELDS = {
     "hard-stop": frozenset({"justification"}),
     "platform-defect": frozenset({"hotfix_path"}),
 }
+_GATE_PREFLIGHT_FIELDS = frozenset({"preflight", "no_preflight"})
 _GATE_TEST_ID = re.compile(r"tests/[A-Za-z0-9_]+\.py::[A-Za-z_][A-Za-z0-9_]*::test[A-Za-z0-9_]*")
 
 
@@ -978,7 +979,7 @@ def load_gate_catalog(path: Path | None = None) -> dict[str, dict[str, Any]]:
         if gate_class not in GATE_CLASSES:
             raise BlockingGateCatalogError(f"{where}: field 'class' must be one of {list(GATE_CLASSES)}, found {gate_class!r}")
         expected = _GATE_COMMON_FIELDS | _GATE_CLASS_FIELDS[gate_class]
-        missing, unknown = sorted(expected - set(entry)), sorted(set(entry) - expected)
+        missing, unknown = sorted(expected - set(entry)), sorted(set(entry) - expected - _GATE_PREFLIGHT_FIELDS)
         if missing or unknown:
             raise BlockingGateCatalogError(f"{where}: class {gate_class!r} requires exactly {sorted(expected)}; missing={missing} unknown={unknown}")
         _gate_text(entry, "script", where)
@@ -993,6 +994,13 @@ def load_gate_catalog(path: Path | None = None) -> dict[str, dict[str, Any]]:
             _gate_text(entry, "justification", where)
         elif entry["hotfix_path"] not in GATE_HOTFIX_PATHS:
             raise BlockingGateCatalogError(f"{where}: field 'hotfix_path' must be one of {list(GATE_HOTFIX_PATHS)}")
+        preflight_field = "preflight" if "preflight" in entry else "no_preflight"
+        if ("preflight" in entry) == ("no_preflight" in entry):
+            raise BlockingGateCatalogError(
+                f"{where}: exactly one of 'preflight' (a lifecycle preflight condition id) or 'no_preflight' "
+                "(why the gate cannot be checked ahead of the expensive run) is required"
+            )
+        _gate_text(entry, preflight_field, where)
         gates[gate_id] = entry
     return gates
 

@@ -20,6 +20,8 @@
 # (true when the gate fails through `_platform_common.gate_failure`, so its message carries the
 # class line; false when it still fails in its own words), plus the class fields above. Test ids
 # are `tests/<file>.py::<Class>::<test>` and must resolve; tests/test_blocking_gates.py checks it.
+# Exactly one of `preflight` (the id of a condition in scripts/lifecycle_preflight.py that checks the
+# gate ahead of the expensive run) or `no_preflight` (why the gate cannot be checked ahead) is required.
 #
 # Known gaps / follow-ups (recorded, not redesigned here):
 #  1. The Python gates in model_routing.py and publication_queue.py now fail through gate_failure/
@@ -66,6 +68,7 @@ class = "recoverable"
 summary = "Task content exists without a routing record, or supervisor-written content contradicts a delegated-child execution plan."
 recovery = "no routing record: run `python3 scripts/model_routing.py prepare --provider codex|claude ...` before task content; a record without an execution plan: re-route while task content is unchanged, otherwise the owner decides in chat; supervisor-written content under a delegated-child plan: the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
 migrated = true
+no_preflight = "The gate runs at its own entries (routing-adjacent commands and the start of run_test_groups.py) before any test executes, on content that exists before validation; no expensive run precedes it, so it never stops work after one."
 rejection_tests = [
   "tests/test_model_routing.py::EarlyRoutingGateTests::test_supervisor_content_under_delegated_plan_blocks_every_routing_adjacent_command",
 ]
@@ -81,6 +84,7 @@ class = "hard-stop"
 summary = "A delegated write left its assigned worktree: integration paths changed, or the integration head moved without a verified integration-advance receipt chain."
 justification = "This is the integrity of the delegated write boundary: it cannot be waived by the agent whose write it bounds. The only exit is the owner-authorized historical recovery `model_routing.py recover-external-advance`, which is refused once integration-advance receipts exist at or after the recorded friction event, and never applies to a changed path."
 migrated = true
+no_preflight = "It judges the writes a delegated executor already made during implementation and can be evaluated only after them; those writes precede validation and are not known before the executor runs."
 rejection_tests = [
   "tests/test_model_routing.py::ModelRoutingTests::test_postcheck_reports_native_worktree_escape",
   "tests/test_integration_advance_receipts.py::ClaudeRecordingTests::test_missing_receipt_is_a_violation",
@@ -93,6 +97,7 @@ class = "recoverable"
 summary = "Full or protected validation is refused because the task does not contain freshly observed authoritative main."
 recovery = "python3 scripts/reconcile_task.py (merges current authoritative main into the task without rewriting history), then rerun the validation"
 migrated = true
+preflight = "task-base"
 rejection_tests = [
   "tests/test_select_checks.py::ProvenBaseContractTests::test_without_proven_base_a_stale_head_is_still_blocked",
   "tests/test_task_freshness.py::TaskFreshnessTests::test_unavailable_remote_never_claims_the_task_is_fresh",
@@ -110,6 +115,7 @@ class = "hard-stop"
 summary = "Validation of a Requirement contribution is refused because HEAD does not contain the contribution's exact base."
 justification = "The contribution identity binds the exact base commit, so the platform must not validate content that is not built on it. Rebuild the contribution on its recorded base; a started child whose base moved is restarted from the current Requirement head."
 migrated = true
+no_preflight = "select_checks.py evaluates it at its --execute entry before any command in the coordinator-declared contribution mode; the developer-side preflight condition task-base is declared not applicable there, so this entry is the early check."
 rejection_tests = [
   "tests/test_task_freshness.py::TaskFreshnessTests::test_contribution_missing_its_exact_base_stops_before_validation",
 ]
@@ -126,6 +132,7 @@ class = "hard-stop"
 summary = "Coordinator finalization checks are refused because HEAD does not fork from its proven base on authoritative main."
 justification = "intentional: the proven base comes from reviewed evidence; no agent-side repair"
 migrated = true
+no_preflight = "select_checks.py evaluates it at its --execute entry before any command in the coordinator finalization mode; the developer-side preflight condition task-base is declared not applicable there, so this entry is the early check."
 rejection_tests = [
   "tests/test_select_checks.py::ProvenBaseContractTests::test_misuse_is_refused_before_any_command_starts",
   "tests/test_post_review_finalization.py::PlantedLegacyContextTests::test_planted_legacy_dependent_context_makes_proven_base_refuse_and_finalize_escalate",
@@ -138,6 +145,7 @@ class = "recoverable"
 summary = "Managed intake is refused before any mutation because the live session or a registered shared path does not satisfy the shared-workspace contract."
 recovery = "have the path owner run the printed `chgrp`/`chmod` repair, or run `python3 scripts/shared_workspace.py fix` where permitted, and correct the launcher group or umask for session findings; then rerun the intake"
 migrated = true
+preflight = "shared-workspace"
 rejection_tests = [
   "tests/test_shared_workspace.py::SharedWorkspaceTests::test_admission_aggregates_session_and_every_historical_finding",
   "tests/test_shared_workspace.py::SharedWorkspaceTests::test_foreign_owned_path_reports_minimal_owner_action",
@@ -153,6 +161,7 @@ class = "hard-stop"
 summary = "A merge commit in the integration copy, or in a task worktree other than the reconcile merge of main, is blocked."
 justification = "Fast-forward-only integration and no ad-hoc merge commits are a Git-history protection. The hook names the supported route (publish through finish_task.py; bring a task up to date through reconcile_task.py, whose single merge of main the hook admits in that task worktree only, through a one-shot intent bound to the branch and the commit of main) and allows any other merge only after an explicit user decision made through an unrecorded environment flag, which the platform does not treat as a supported recovery. The hook is a shell script and cannot call the Python helper."
 migrated = false
+no_preflight = "It fires on a merge commit made by an explicit git action; no lifecycle command makes one after a validation run (reconcile records its one-shot intent first), so there is nothing to check ahead."
 rejection_tests = [
   "tests/test_blocking_gates.py::MergeCommitHookTests::test_merge_commit_in_a_task_worktree_is_blocked",
   "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_admits_no_other_merge",
@@ -167,6 +176,7 @@ class = "recoverable"
 summary = "Coordinator configuration preflight stops at the first missing or contradictory input, names it, and exits 2."
 recovery = "supply or correct the named input (tool, token, slug or trust configuration), then rerun `python3 scripts/publication_queue.py preflight --mode <ci|local> --phase <inputs|runtime|all>`"
 migrated = true
+no_preflight = "It is the coordinator's own configuration preflight (publication_queue.py preflight), a cheap early check run by coordinator workers and CI, not a gate reached after a developer validation run."
 rejection_tests = [
   "tests/test_coordinator_preflight.py::CiPreflightTests::test_each_missing_input_is_named",
 ]
@@ -181,6 +191,7 @@ class = "recoverable"
 summary = "Costly validation or publication is blocked by an unacknowledged hard scope overlap with an active task."
 recovery = "verify the overlap is safe and record it with `python3 scripts/agent_board.py acknowledge --branch <branch> --worktree <worktree> --with-id <board id> --path <path> --reason <reason>`, or wait for the sibling task to finish"
 migrated = true
+preflight = "board-claim-and-scope"
 rejection_tests = [
   "tests/test_worktree_hygiene.py::AgentBoardAcknowledgmentTests::test_acknowledgment_does_not_cover_a_later_unacknowledged_path",
   "tests/test_worktree_hygiene.py::AgentBoardAcknowledgmentTests::test_hard_scope_gate_keeps_active_or_unavailable_sibling_claims_fail_closed",
@@ -196,6 +207,7 @@ class = "recoverable"
 summary = "The multi-agent scope gate is required ([capabilities] agent_board = true) but a precondition is unmet: capability or main_branch missing, board path unconfigured, board file missing or unreadable, no item list, or no claim for this worktree and branch."
 recovery = "fix the named input: declare `[capabilities] agent_board` and `main_branch` in .dev-platform.toml, or register this task with `python3 scripts/agent_board.py start ...`; a plain disposable checkout such as CI declares the gate not applicable with `select_checks.py --scope-gate not-applicable`"
 migrated = true
+preflight = "board-claim-and-scope"
 rejection_tests = [
   "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_corrupt_board_stops_the_gate_instead_of_reporting_no_conflicts",
   "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_missing_claim_for_the_current_worktree_stops_the_gate",
@@ -213,6 +225,7 @@ class = "recoverable"
 summary = "A hotfixable platform-owned file differs from the release manifest without a valid, current hotfix record, or the record itself is invalid."
 recovery = "restore the released file, or declare the repair through the temporary local hotfix flow: regression test, `python3 scripts/agent_friction.py record ...` with `python3 scripts/platform_divergence.py export-friction <id>`, and an entry in dev-platform/local-hotfixes.toml (docs/engineering/change-classes.md)"
 migrated = true
+no_preflight = "The divergence check is a standalone seconds-long check run by the platform doctor and its own tests on the installed release; it does not depend on the outcome of a validation run and is not reached after one."
 rejection_tests = [
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_undeclared_divergence_of_a_hotfixable_file_fails",
 ]
@@ -227,6 +240,7 @@ class = "hard-stop"
 summary = "A protected platform-owned file, the manifest or the detector differs from the release, or a hotfix record names a protected path."
 justification = "Protected rules have no local change path: a local patch could weaken review, publication, isolation, credential, provenance, history or release guarantees. The only exits are restoring the released bytes (Copier update) or a platform release."
 migrated = true
+no_preflight = "The divergence check is a standalone seconds-long check run by the platform doctor and its own tests on the installed release; it does not depend on the outcome of a validation run and is not reached after one."
 rejection_tests = [
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_protected_file_edit_fails_as_protected_touch_without_a_record",
   "tests/test_platform_divergence.py::DivergenceCheckTests::test_record_naming_a_protected_path_fails_as_protected_touch_even_with_matching_digest",

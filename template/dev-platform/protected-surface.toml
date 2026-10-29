@@ -219,6 +219,10 @@ path = "scripts/agent_board.py"
 category = "worktree-isolation"
 
 [[protected]]
+path = "scripts/lifecycle_preflight.py"
+category = "worktree-isolation"
+
+[[protected]]
 path = "scripts/worktree_cleanup.py"
 category = "worktree-isolation"
 

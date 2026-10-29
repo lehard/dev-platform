@@ -648,6 +648,35 @@ def preflight(
     _repair_shared_repository(integration, serializer)
 
 
+def preflight_with_report(root: Path) -> list[Path]:
+    """The lifecycle preflight's permission step: repair own paths and report them, refuse foreign ones.
+
+    Audits without modifying anything. A finding on a path owned by another account is refused
+    with the owner and the exact repair command (``shared-workspace-admission``); the remaining
+    findings are all owned by the current account and are repaired by ``preflight(fix=True)``.
+    Returns the paths that were repaired. An audit that cannot run raises.
+    """
+    group, findings = audit(root, fix=False)
+    if group is None:
+        raise SharedWorkspaceError(findings[0].message)
+    foreign: list[Finding] = []
+    for finding in findings:
+        try:
+            owner = finding.path.lstat().st_uid
+        except OSError as exc:
+            raise SharedWorkspaceError(f"cannot read the owner of {finding.path}: {exc}") from exc
+        if owner != os.geteuid():
+            foreign.append(finding)
+    if foreign:
+        from _platform_common import gate_failure
+
+        lines = ["paths owned by another account cannot be repaired by this session:"]
+        lines.extend(format_admission_findings(group, foreign))
+        raise gate_failure("shared-workspace-admission", "\n".join(lines), SharedWorkspaceError)
+    preflight(root, fix=True)
+    return [finding.path for finding in findings]
+
+
 def atomic_write_text(path: Path, text: str, *, group: SharedGroup | None = None) -> None:
     """Atomically publish a platform state file without regressing it to 0600."""
     cooperative_umask()

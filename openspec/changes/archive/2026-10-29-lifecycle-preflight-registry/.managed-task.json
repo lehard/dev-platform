@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/blocking-check-recovery/spec.md",
+    "specs/shared-workspace/spec.md",
+    "tasks.md"
+  ],
+  "change": "lifecycle-preflight-registry",
+  "imported_at": "2026-10-29T18:52:30+00:00",
+  "package_revision": "556382e1a9f772fa840e217dda7cb77641cc047525b839b0665ccf2c1db3a8e8",
+  "prepared_against": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
+  "private_lineage_handle": "pln_b1784d3c6fc541539ade7fb10c8b908e",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "6277f9b31fc78ca9e60bd39aa6a8341d9c325d5ed3e99d961fa4c7ee54e7d443",
+    "updated_at": "2026-10-29T18:46:07Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-919/T1"
+}
