@@ -132,7 +132,7 @@
     "scripts/requirement_metrics.py": "abce6789f61338e9d5fab1e3fb197abce0ebb13207808092bddeff3f1a26981c",
     "scripts/requirement_retrospective.py": "b835ece1a909319a5e999d2cbde4ca0ea5b5b03ad362e7cd48470b1d67778ed3",
     "scripts/requirement_target_lifecycle.py": "e15370e7649765616a0e57e8a41e32d5409b0ad5a657bec58066e709df58be9a",
-    "scripts/requirement_terminal.py": "68c051169ea186058d130e9b78216bff18ada69fbf4d164588d53f20667ea9c6",
+    "scripts/requirement_terminal.py": "0d25f6504b8e599dba55232bb8b7438b676a2b76ba8e0fdbf492803e686f61db",
     "scripts/rollout_identity.py": "230a478d340bf7efbfee03ba2c1647df1d37d61c9672e0281cfb273d550a4f1f",
     "scripts/rollout_preflight.py": "50fa174a065f37b2f825e14167a7d5f650669cd63fc0873e9b8f09d7d9536557",
     "scripts/run_test_groups.py": "b071ee0327b5997ec023df427fc8fbc0fc47b32f533e47072d1337cdab9f7586",
