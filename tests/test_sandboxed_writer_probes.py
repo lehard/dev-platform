@@ -105,5 +105,18 @@ class PromptTests(unittest.TestCase):
         self.assertNotIn("~", " ".join(probes.writer_argv(prompt)))
 
 
+
+class ProbeFixtureContractTests(unittest.TestCase):
+    def test_synthetic_integration_carries_a_schema_valid_source_contract(self) -> None:
+        import tempfile
+        import tomllib
+
+        import _platform_common
+
+        with tempfile.TemporaryDirectory() as tmp:
+            integration, _, _, _ = probes.build_repositories(Path(tmp))
+            contract = integration / "dev-platform" / "source-contract.toml"
+            _platform_common.validate_platform_config(tomllib.loads(contract.read_text(encoding="utf-8")), contract)
+
 if __name__ == "__main__":
     unittest.main()

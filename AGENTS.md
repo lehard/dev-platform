@@ -53,7 +53,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 
 ## Entrypoints
 
-Ordinary work in this repository uses the committed source contract in `.dev-platform.toml` and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow.
+Ordinary work in this repository uses the committed source contract `dev-platform/source-contract.toml` (installed as the untracked local `.dev-platform.toml`, which also carries operator-only sections) and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow.
 
 ```bash
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
@@ -75,6 +75,8 @@ Minimum validation before finishing:
 ```bash
 python3 -m compileall -q template/scripts scripts
 python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests
+python3 -m ruff check scripts template/scripts tests
+python3 scripts/generate_platform_manifest.py --check
 python3 scripts/managed_projects.py validate
 python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check

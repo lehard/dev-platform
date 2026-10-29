@@ -86,15 +86,16 @@ class FakeClock:
         self.now += seconds
 
 
-def fake_hooks(clock: FakeClock, lines: list[str], *, load=lambda: 0.0, memory=lambda: 1e6) -> object:
+def fake_hooks(clock: FakeClock, lines: list[str], *, load=lambda: 0.0, memory=lambda: 1e6,
+               pressure=lambda: "normal") -> object:
     return machine_pool.Hooks(monotonic=clock.monotonic, sleep=clock.sleep, poll_interval=1.0, progress_interval=60.0,
-                              load_per_cpu=load, available_memory_mb=memory, out=lines.append)
+                              load_per_cpu=load, available_memory_mb=memory, memory_pressure=pressure, out=lines.append)
 
 
 def fast_hooks(lines: list[str] | None = None) -> object:
     sink = [] if lines is None else lines
     return machine_pool.Hooks(poll_interval=0.01, progress_interval=60.0, load_per_cpu=lambda: 0.0,
-                              available_memory_mb=lambda: 1e6, out=sink.append)
+                              available_memory_mb=lambda: 1e6, memory_pressure=lambda: "normal", out=sink.append)
 
 
 class PoolFixture(unittest.TestCase):
@@ -320,7 +321,7 @@ class LeaseTests(PoolFixture):
             self.assertIn("timed out after 200s", message)
             self.assertIn("branch=task-branch", message)
             self.assertIn("class=development", message)
-            self.assertIn("fewer than 2 free token(s)", message)
+            self.assertIn("tokens: fewer than 2 free", message)
             # The one free token was never kept by the failed all-or-nothing attempt.
             spare = machine_pool._try_take_slots(self.config, 1)
             self.assertIsNotNone(spare)
@@ -344,7 +345,7 @@ class LeaseTests(PoolFixture):
             hooks = machine_pool.Hooks(
                 monotonic=hooks.monotonic, sleep=release_after_deadline, poll_interval=hooks.poll_interval,
                 progress_interval=hooks.progress_interval, load_per_cpu=hooks.load_per_cpu,
-                available_memory_mb=hooks.available_memory_mb, out=hooks.out)
+                available_memory_mb=hooks.available_memory_mb, memory_pressure=hooks.memory_pressure, out=hooks.out)
             with self.assertRaisesRegex(machine_pool.PoolTimeout, "timed out after 200s"):
                 with machine_pool.lease(1, "waiter", environ=dict(self.environ), hooks=hooks):
                     self.fail("must not acquire after the deadline even when tokens are free")
@@ -360,7 +361,7 @@ class LeaseTests(PoolFixture):
         load = lambda: 9.0 if clock.now < 130 else 0.1  # noqa: E731
         with machine_pool.lease(1, "t", environ=dict(self.environ), hooks=fake_hooks(clock, lines, load=load)):
             pass
-        waiting = [line for line in lines if "waiting for" in line]
+        waiting = [line for line in lines if "waiting, blocked by" in line]
         self.assertEqual(len(waiting), 3, lines)
         self.assertIn("load per CPU 9.00 exceeds the limit 2", waiting[0])
         self.assertTrue(any("acquired 1 of 3" in line for line in lines))
@@ -380,6 +381,46 @@ class LeaseTests(PoolFixture):
             with machine_pool.lease(1, "t", environ=dict(self.environ), hooks=fake_hooks(FakeClock(), [], memory=unmeasurable)):
                 self.fail("must not run")
         self.assertEqual(self.queue_names(), [])
+
+    def test_memory_pressure_above_normal_waits_naming_memory_and_unmeasurable_pressure_fails(self) -> None:
+        lines: list[str] = []
+        clock = FakeClock()
+        pressure = lambda: "warn" if clock.now < 5 else "normal"  # noqa: E731
+        with machine_pool.lease(1, "t", environ=dict(self.environ), hooks=fake_hooks(clock, lines, pressure=pressure)):
+            pass
+        waiting = [line for line in lines if "waiting" in line]
+        self.assertTrue(waiting, lines)
+        self.assertIn("waiting, blocked by memory pressure is warn; admission needs normal", waiting[0])
+        self.assertTrue(any("acquired 1 of 3" in line for line in lines), lines)
+
+        def unmeasurable() -> str:
+            raise machine_pool.PoolError("cannot measure memory pressure: test")
+
+        with self.assertRaisesRegex(machine_pool.PoolError, "cannot measure memory pressure"):
+            with machine_pool.lease(1, "t", environ=dict(self.environ),
+                                    hooks=fake_hooks(FakeClock(), [], pressure=unmeasurable)):
+                self.fail("must not run")
+        self.assertEqual(self.queue_names(), [])
+
+    def test_free_tokens_with_a_load_blocker_read_as_load_not_tokens(self) -> None:
+        lines: list[str] = []
+        with self.assertRaises(machine_pool.PoolTimeout):
+            with machine_pool.lease(2, "t", environ=dict(self.environ),
+                                    hooks=fake_hooks(FakeClock(), lines, load=lambda: 40.41)):
+                self.fail("must not run")
+        first = next(line for line in lines if "waiting" in line)
+        self.assertTrue(first.startswith(
+            "DEV_PLATFORM_MACHINE_POOL: waiting, blocked by load per CPU 40.41 exceeds the limit 2; "
+            "needs 2 of 3 token(s) (3 free)"), first)
+
+    def test_two_runs_of_weight_three_share_six_tokens_with_none_idle(self) -> None:
+        self.write_config(tokens=6)
+        environ = {POOL_ENV: str(self.config_path)}
+        config = machine_pool.load_config(environ)
+        with machine_pool.lease(3, "first", environ=dict(environ), hooks=fast_hooks()) as first, \
+                machine_pool.lease(3, "second", environ=dict(environ), hooks=fake_hooks(FakeClock(), [])) as second:
+            self.assertEqual((first.weight, second.weight), (3, 3))
+            self.assertEqual(sum(len(holder["slots"]) for holder in machine_pool.read_holders(config)), 6)
 
     def test_load_and_memory_that_never_clear_time_out_without_running(self) -> None:
         with self.assertRaisesRegex(machine_pool.PoolTimeout, "load per CPU 9.00"):
@@ -505,7 +546,7 @@ class QueueOrderTests(PoolFixture):
                                    progress_interval=1e9, load_per_cpu=load_per_cpu, available_memory_mb=lambda: 1e6,
                                    out=lambda _: None)
         try:
-            with self.assertRaisesRegex(machine_pool.PoolTimeout, r"queue position 2; waiting behind 1 earlier"):
+            with self.assertRaisesRegex(machine_pool.PoolTimeout, r"queue position 2; queue: 1 earlier"):
                 with machine_pool.lease(1, "dev", environ=dict(self.environ), hooks=hooks):
                     self.fail("development must not be admitted ahead of the waiting finalize run")
             self.assertEqual(machine_pool.read_holders(self.config), [])
@@ -565,7 +606,7 @@ class QueueOrderTests(PoolFixture):
                 monotonic=base.monotonic, sleep=sleep, poll_interval=base.poll_interval,
                 progress_interval=base.progress_interval, load_per_cpu=base.load_per_cpu,
                 available_memory_mb=base.available_memory_mb, out=base.out)
-            with self.assertRaisesRegex(machine_pool.PoolTimeout, "timed out after 200s.*fewer than 1 free token"):
+            with self.assertRaisesRegex(machine_pool.PoolTimeout, "timed out after 200s.*tokens: fewer than 1 free"):
                 with machine_pool.lease(1, "waiter", environ=dict(self.environ), hooks=hooks):
                     self.fail("all tokens are held")
             # Queued at 190s, then one poll; a restarted budget would keep polling until 390s.
@@ -718,6 +759,46 @@ class ProcessTests(PoolFixture):
         self.assertIn("absent.toml", done.stderr)
 
 
+class StatusWeightTests(PoolFixture):
+    TOKENS = 6
+
+    def status(self, environ: dict[str, str]) -> str:
+        hooks = machine_pool.Hooks(load_per_cpu=lambda: 0.5, available_memory_mb=lambda: 4096.0,
+                                   memory_pressure=lambda: "normal")
+        return machine_pool.status_text(self.config, hooks, environ)
+
+    def test_a_weight_that_divides_the_tokens_reports_runs_and_no_warning(self) -> None:
+        output = self.status({"DEV_PLATFORM_TEST_JOBS": "3"})
+        self.assertIn("heavy-run weight: 3 (DEV_PLATFORM_TEST_JOBS); 2 concurrent run(s) fit, 0 token(s) idle", output)
+        self.assertNotIn("warning:", output)
+        self.assertIn("memory pressure: normal", output)
+
+    def test_a_weight_that_leaves_idle_tokens_warns(self) -> None:
+        output = self.status({"DEV_PLATFORM_TEST_JOBS": "4"})
+        self.assertIn("1 concurrent run(s) fit, 2 token(s) idle", output)
+        self.assertIn("warning: tokens 6 is not a multiple of the heavy-run weight 4, so 2 token(s) stay idle", output)
+
+    def test_an_invalid_test_jobs_value_fails_explicitly(self) -> None:
+        with self.assertRaisesRegex(machine_pool.PoolError, "DEV_PLATFORM_TEST_JOBS must be a positive integer"):
+            self.status({"DEV_PLATFORM_TEST_JOBS": "zero"})
+
+    def test_head_waiter_blocker_is_named_with_free_tokens(self) -> None:
+        with machine_pool.lease(5, "holder", environ=dict(self.environ), hooks=fast_hooks()):
+            ticket = machine_pool._create_ticket_unlocked(
+                self.config, "development", machine_pool._metadata("w", 3, "development", "t", ROOT))
+            try:
+                output = self.status({"DEV_PLATFORM_TEST_JOBS": "3"})
+            finally:
+                ticket.release()
+        self.assertIn("head waiter: blocked by tokens: 1 free, 3 needed", output)
+
+    def test_current_schema_configuration_stays_valid(self) -> None:
+        # Older pooled releases share this file: the change adds no key, so the same five keys stay the whole schema.
+        self.assertEqual(machine_pool.CONFIG_KEYS,
+                         ("directory", "tokens", "wait_timeout_seconds", "max_load_per_cpu", "min_available_memory_mb"))
+        self.assertEqual(self.config.tokens, 6)
+
+
 class MeasurementTests(unittest.TestCase):
     VM_STAT = (
         "Mach Virtual Memory Statistics: (page size of 16384 bytes)\n"
@@ -751,6 +832,50 @@ class MeasurementTests(unittest.TestCase):
                 mock.patch.object(machine_pool.subprocess, "run", return_value=SimpleNamespace(returncode=1, stderr="boom", stdout="")), \
                 self.assertRaisesRegex(machine_pool.PoolError, "vm_stat exited 1"):
             machine_pool.measure_available_memory_mb()
+
+    def test_memory_pressure_level_is_parsed_and_unknown_values_fail(self) -> None:
+        self.assertEqual(machine_pool.parse_memory_pressure_level("1\n"), "normal")
+        self.assertEqual(machine_pool.parse_memory_pressure_level("2"), "warn")
+        self.assertEqual(machine_pool.parse_memory_pressure_level("4"), "critical")
+        with self.assertRaisesRegex(machine_pool.PoolError, "unknown kern.memorystatus_vm_pressure_level 3"):
+            machine_pool.parse_memory_pressure_level("3")
+        with self.assertRaisesRegex(machine_pool.PoolError, "not an integer"):
+            machine_pool.parse_memory_pressure_level("")
+
+    def test_memory_pressure_is_read_with_sysctl_on_macos_and_not_on_linux(self) -> None:
+        with mock.patch.object(machine_pool.sys, "platform", "darwin"), \
+                mock.patch.object(machine_pool.subprocess, "run",
+                                  return_value=SimpleNamespace(returncode=0, stderr="", stdout="4\n")) as run:
+            self.assertEqual(machine_pool.measure_memory_pressure(), "critical")
+        self.assertEqual(run.call_args.args[0], ["sysctl", "-n", "kern.memorystatus_vm_pressure_level"])
+        with mock.patch.object(machine_pool.sys, "platform", "darwin"), \
+                mock.patch.object(machine_pool.subprocess, "run",
+                                  return_value=SimpleNamespace(returncode=1, stderr="boom", stdout="")), \
+                self.assertRaisesRegex(machine_pool.PoolError, "sysctl exited 1"):
+            machine_pool.measure_memory_pressure()
+        with mock.patch.object(machine_pool.sys, "platform", "linux"):
+            self.assertIsNone(machine_pool.measure_memory_pressure())
+        with mock.patch.object(machine_pool.sys, "platform", "plan9"), \
+                self.assertRaisesRegex(machine_pool.PoolError, "unsupported platform 'plan9'"):
+            machine_pool.measure_memory_pressure()
+
+    # The 2026-10-20 incident shape: swap at 9.6 of 10 GB while free + inactive + speculative still read ~5957 MB.
+    INCIDENT_VM_STAT = (
+        "Mach Virtual Memory Statistics: (page size of 4096 bytes)\n"
+        "Pages free:                                 9000.\n"
+        "Pages active:                            1500000.\n"
+        "Pages inactive:                          1510000.\n"
+        "Pages speculative:                          6000.\n"
+    )
+
+    def test_nearly_exhausted_swap_with_plenty_of_inactive_pages_is_blocked_by_pressure(self) -> None:
+        config = SimpleNamespace(max_load_per_cpu=2.5, min_available_memory_mb=2048)
+        memory = machine_pool.parse_vm_stat(self.INCIDENT_VM_STAT)
+        self.assertGreater(memory, config.min_available_memory_mb)  # the old check alone admitted this run
+        self.assertEqual(machine_pool.admission_blocker(config, 1.0, memory, machine_pool.parse_memory_pressure_level("2\n")),
+                         "memory pressure is warn; admission needs normal")
+        self.assertIsNone(machine_pool.admission_blocker(config, 1.0, memory, machine_pool.parse_memory_pressure_level("1\n")))
+        self.assertIsNone(machine_pool.admission_blocker(config, 1.0, memory, None))  # Linux: MemAvailable only
 
     def test_load_per_cpu_needs_a_cpu_count(self) -> None:
         with mock.patch.object(machine_pool.os, "cpu_count", return_value=None), \
@@ -802,6 +927,21 @@ class IntegrationTests(PoolFixture):
         self.assertEqual(out.getvalue().count("DEV_PLATFORM_MACHINE_POOL: acquired"), 1)
         self.assertEqual(machine_pool.read_holders(self.config), [])
         self.assertNotIn(LEASE_ENV, os.environ)
+
+    def test_select_checks_light_selection_leases_one_token_and_others_the_test_parallelism(self) -> None:
+        light = {"id": "docs", "commands": ["a", "b"], "evidence_types": ["configuration", "syntax"]}
+        tests = {"id": "py", "commands": ["c"], "evidence_types": ["test"]}
+        unlabelled = {"id": "project", "commands": ["npm test"]}
+        self.assertEqual(select_checks.lease_weight([light], None, 3), 1)
+        self.assertEqual(select_checks.lease_weight([light, tests], None, 3), 3)
+        self.assertEqual(select_checks.lease_weight([light, unlabelled], None, 3), 3)
+        self.assertEqual(select_checks.lease_weight([light], ["x.py"], 3), 3)
+        out = io.StringIO()
+        with self.patched_environment(DEV_PLATFORM_TEST_JOBS="2"), mock.patch.object(machine_pool, "_git_branch", return_value="b"), \
+                contextlib.redirect_stdout(out):
+            result = select_checks.execute(ROOT, [{"id": "c", "commands": ["true"], "evidence_types": ["configuration"]}])
+        self.assertEqual(result, 0, out.getvalue())
+        self.assertIn("DEV_PLATFORM_MACHINE_POOL: acquired 1 of 3 token(s)", out.getvalue())
 
     def test_select_checks_execute_unpooled_prints_the_declared_line_once(self) -> None:
         out = io.StringIO()

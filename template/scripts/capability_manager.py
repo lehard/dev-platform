@@ -206,9 +206,18 @@ def write_selection(root: Path, enabled: list[str]) -> None:
     path.write_text("# Project-owned optional engineering capability selection.\nversion = 1\nenabled = " + json.dumps(normalized) + "\n", encoding="utf-8")
 
 
+def _platform_config(root: Path) -> dict[str, Any]:
+    """The schema-validated project configuration; a missing or invalid key is named by the schema."""
+    from _platform_common import PlatformConfigError, read_project_config
+
+    try:
+        return read_project_config(root)
+    except PlatformConfigError as exc:
+        raise CapabilityError(str(exc)) from exc
+
+
 def configured_providers(root: Path) -> list[str]:
-    config = _load_toml(root / ".dev-platform.toml")
-    raw = config["agent_tools"]
+    raw = _platform_config(root)["agent_tools"]
     if not isinstance(raw, str):
         raise CapabilityError("agent_tools must be a comma-separated string")
     return sorted({value.strip() for value in raw.split(",") if value.strip()})
@@ -370,8 +379,7 @@ def evaluate_existing(
 
 
 def create_from_descriptor(root: Path, source: Path, enable: bool) -> dict[str, Any]:
-    config = _load_toml(root / ".dev-platform.toml")
-    if config.get("platform_version") != "source":
+    if _platform_config(root)["platform_version"] != "source":
         raise CapabilityError(
             "new canonical descriptors are authored only in the Dev Platform source through a managed task; "
             "downstream projects may enable, disable, list, audit, and synchronize released capabilities"

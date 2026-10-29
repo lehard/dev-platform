@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "machine-pool-capacity",
+  "imported_at": "2026-10-28T22:34:23+00:00",
+  "package_revision": "f2b8b19d1edf30902739f3798c7fb2668f9d25c0554a0fc965084f11f2ff706b",
+  "prepared_against": "c18c91ede924ce04f6ed11a20563c739aa88eaaf",
+  "private_lineage_handle": "pln_cc5f67adc352c13922bd354bba17f1af",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "5a5a79624ea25c7304c420e13b65507be2e9b08e05487876a3690b57643712c4",
+    "updated_at": "2026-10-28T22:26:05Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-730/T1"
+}

@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "base_ref": "origin/main",
+    "candidate_head": "1f7687091eccbd6b1b73adb0af2e6e05360a273c",
+    "diff_sha256": "34bd33e069543bf55ab5be54bb97bb80ecbff985716aa03c6825d8b2e8bcdc9f"
+  },
+  "completed_at": "2026-10-29T00:21:53+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/machine_pool.py run_weight_lines raises PoolError(\"cannot resolve the heavy-run weight\") when resolve_jobs fails. status_text calls it unconditionally while building `lines`, before the holders and waiters sections. The diagnostic command used to inspect a stuck pool therefore fails on a bad environment variable, and this is pinned by test_an_invalid_test_jobs_value_fails_explicitly. Printing the pool state first and reporting the weight problem as a line or warning would keep status usable.",
+      "id": "status-fails-on-invalid-test-jobs",
+      "severity": "advisory",
+      "summary": "The read-only `machine_pool.py status` now aborts entirely when DEV_PLATFORM_TEST_JOBS is invalid, or when the memory-pressure sysctl cannot be read. It prints no configuration, holders or queue in those cases."
+    },
+    {
+      "evidence": "template/scripts/select_checks.py lease_weight returns 1 when every command is labelled in LIGHT_EVIDENCE_TYPES and there is no precheck. Nested run_test_groups is capped at the lease weight, so a mislabelled command would run its tests serially, while a `configuration` command that is heavy but not a test run still holds only one token. The design records this as a deliberate trade-off, but the docs don't tell project authors that labelling a command `configuration` or `syntax` lowers its pool weight.",
+      "id": "light-lease-trusts-evidence-labels",
+      "severity": "advisory",
+      "summary": "A one-token lease depends only on the project's `evidence_types` labels. A command labelled `configuration` or `syntax` that actually starts a parallel test run is still limited to one token by the pool."
+    }
+  ],
+  "launched_at": "2026-10-29T00:21:38+00:00",
+  "output_sha256": "4b9829e57233c80b69d0cd83ed9efbe51d0e1caaf51b7a7aecad9696fe9fea29",
+  "perspective": "engineering-quality",
+  "request_id": "5dfc1eb5-7726-4e37-9013-112f02416bea",
+  "reviewer": {
+    "context_id": "b1ffcaf3-30e0-47f0-b5e6-a11e75946cd1",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b7e299ae-40a7-450e-b7e1-bc68a6782fe6",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33279
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53260
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14722
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15023
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1648
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "213ee14b2d736dba0bbe55ef30a73dab4f54367fe9e74d8a137e2de1fa45deb6"
+}
