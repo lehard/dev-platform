@@ -57,7 +57,7 @@ class BoardReleaseTests(unittest.TestCase):
 
 class SelectChecksImportTests(unittest.TestCase):
     def test_scope_conflict_status_is_imported_without_a_stub(self) -> None:
-        source = (SCRIPTS / "select_checks.py").read_text(encoding="utf-8")
+        source = (SCRIPTS / "lifecycle_preflight.py").read_text(encoding="utf-8")  # the scope gate moved into the shared preflight
         self.assertIn("from managed_project_status import block_for_scope_conflict\n", source)
         self.assertNotIn("def block_for_scope_conflict", source)
 

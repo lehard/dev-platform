@@ -29,20 +29,11 @@ from _platform_common import (
     validation_subprocess_env,
 )
 from managed_task import ManagedTaskError, require_managed_checkout_identity
-from agent_board import HardScopeOverlap, enforce_scope_gate
-from managed_project_status import block_for_scope_conflict
+import lifecycle_preflight
 
 
 def load_config(root: Path) -> dict[str, Any]:
-    import tomllib
-
-    platform = read_platform_config(root)
-    rel = platform["paths"]["checks"]
-    path = root / rel
-    if not path.exists():
-        raise SystemExit(f"Check configuration not found: {path}")
-    with path.open("rb") as fh:
-        return tomllib.load(fh)
+    return lifecycle_preflight.load_checks_config(root)
 
 
 def match_any(path: str, patterns: list[str]) -> bool:
@@ -598,6 +589,37 @@ def require_disposable_checkout(root: Path) -> None:
                          "checkout that always enforces the scope gate")
 
 
+def selector_scope_waiver(root: Path, args: argparse.Namespace, expensive: bool) -> str | None:
+    """The declared reason the board claim and scope condition does not apply to this run, or ``None``."""
+    if args.proven_base is not None or args.contribution_base is not None:
+        return "coordinator disposable checkout (--proven-base/--contribution-base)"
+    if args.scope_gate == "not-applicable":
+        require_disposable_checkout(root)
+        return "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
+    if not expensive:
+        return "selection neither starts the full validation set nor produces handoff evidence"
+    return None
+
+
+def run_selector_preflight(root: Path, args: argparse.Namespace, checks: list[dict[str, Any]], evidence_path: Path | None) -> None:
+    """Refuse, before any expensive operation, on every condition the later gates would stop on."""
+    handoff_evidence = bool(checks) and evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root)
+    expensive = requires_task_freshness(checks) or handoff_evidence
+    # The selector's own task freshness gate above ran the same classification (and records its contract in the evidence).
+    base_waiver = "checked by the task freshness gate that ran before this preflight"
+    scope_waiver = selector_scope_waiver(root, args, expensive)
+    if scope_waiver is not None:
+        print(f"Scope gate not applicable: {scope_waiver}.")
+    lifecycle_preflight.run_preflight(lifecycle_preflight.PreflightContext(
+        root=root,
+        integration=main_root(),
+        branch=run_git(["branch", "--show-current"], cwd=root).stdout.strip(),
+        entry="select_checks.py --execute",
+        scope_gate_waiver=scope_waiver,
+        task_base_waiver=base_waiver,
+    ))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
@@ -779,22 +801,8 @@ def main() -> int:
                         SystemExit,
                     ) from exc
                 print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({observed}).")
-            branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
-            if args.proven_base is not None or args.contribution_base is not None:
-                declared = "coordinator disposable checkout (--proven-base/--contribution-base)"
-            elif args.scope_gate == "not-applicable":
-                require_disposable_checkout(root)
-                declared = "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
-            else:
-                declared = None
-            if declared is not None:
-                print(f"Scope gate not applicable: {declared}.")
-            else:
-                try:
-                    enforce_scope_gate(main_root(), root, branch)
-                except HardScopeOverlap as exc:
-                    block_for_scope_conflict(root, str(exc))
-                    raise SystemExit(str(exc)) from exc
+        if harness == "platform":
+            run_selector_preflight(root, args, checks, evidence_path)
         return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), base_contract, quick_gate)
     return 0
 
