@@ -8,7 +8,10 @@ full_commands = [
 ]
 # Cheap project gates run by the lifecycle preflight before any expensive run: the same test the full
 # suite runs (an unregistered direct file-creation site fails here in a second, not after the full run).
-preflight_commands = ["python3 -m unittest tests.test_shared_writer_guard"]
+preflight_commands = [
+  "python3 -m unittest tests.test_shared_writer_guard",
+  "python3 scripts/generate_platform_manifest.py --check",
+]
 full_evidence_types = ["syntax", "syntax", "syntax", "configuration", "test"]
 full_required_evidence_types = ["test"]
 # Early feedback before the full set: run only test modules that directly
