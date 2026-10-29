@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+    "base_ref": "origin/main",
+    "candidate_head": "1e4135d964a7ae5ab722bc6f7ed820af7a7a983d",
+    "diff_sha256": "18c41eb457e38237ffbb896c6a35de37ddb7842a7ae7c6f8a1b2d0ed748d220a"
+  },
+  "completed_at": "2026-10-29T09:39:00+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_overview.py:177-205; WRITE_KINDS = {repair, integration-repair} at lifecycle_workers.py:38",
+      "id": "redundant-unhosted-branch",
+      "severity": "advisory",
+      "summary": "The two UNHOSTED branches in idle_reason are near-duplicates. The `kind in WRITE_KINDS and kind in UNHOSTED` branch adds only the word 'macOS' and the `lifecycle_workers` import. The macOS claim therefore rests on a second table (WRITE_KINDS) in addition to UNHOSTED, and the two can drift apart. The design says the macOS claim should come from UNHOSTED's class table."
+    },
+    {
+      "evidence": "lifecycle_overview.py:206 against hosted_workers.py:22 and :68-73",
+      "id": "worker-job-hosted-claim-unverified",
+      "severity": "advisory",
+      "summary": "Any job kind not in UNHOSTED is reported as `worker-job` ('hosted run or local node'). HOSTED_KINDS is also gated at runtime by the DEV_PLATFORM_HOSTED_KINDS env var, so a hosted-capable kind may have no hosted worker enabled. The overview does not distinguish that case, and the reason is a plausible guess rather than an established one."
+    },
+    {
+      "evidence": "tests/test_lifecycle_overview.py:310-316 (`job=None`, assertTrue on non-empty fields only); design.md Risks",
+      "id": "state-coverage-test-skips-job-rules",
+      "severity": "advisory",
+      "summary": "The 'every candidate state gets an explicit reason' test always passes job=None. Its guarantee therefore does not cover job-bearing states. Because of the ordering, blocked-escalation and the other states are checked without a job, and the result is only a non-empty-field check. The unknown fallback would also satisfy that check, so a new state that falls through to unknown passes the test. This differs from the design's stated mitigation of asserting that every state is classified or explicitly unknown."
+    }
+  ],
+  "launched_at": "2026-10-29T09:38:41+00:00",
+  "output_sha256": "570a1c9b4215e73ef8a6a161d60efdf9cde5702d34f6c4692039d349022af971",
+  "perspective": "engineering-quality",
+  "request_id": "57f654d2-4bba-4ec3-be60-7de3cd71f9f5",
+  "reviewer": {
+    "context_id": "86a7d8dd-514f-4717-9ec6-5f18f493f2ca",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e34a67b7-f59f-47dd-bd3e-a427d3115373",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16807
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37520
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18155
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18294
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1228
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ed75c6a858726d4d0918cfe3ba73adf76140c008693076be4081b4d3733ef0fe"
+}

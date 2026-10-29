@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+    "base_ref": "origin/main",
+    "candidate_head": "1e4135d964a7ae5ab722bc6f7ed820af7a7a983d",
+    "diff_sha256": "18c41eb457e38237ffbb896c6a35de37ddb7842a7ae7c6f8a1b2d0ed748d220a"
+  },
+  "change": "openspec/changes/overview-idle-reason",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/overview-idle-reason/automated-checks.json",
+    "openspec/changes/overview-idle-reason/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/overview-idle-reason/design.md",
+        "openspec/changes/overview-idle-reason/proposal.md",
+        "openspec/changes/overview-idle-reason/specs/chat-coordinator/spec.md",
+        "openspec/changes/overview-idle-reason/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/overview-idle-reason/proposal.md",
+        "openspec/changes/overview-idle-reason/design.md",
+        "openspec/changes/overview-idle-reason/tasks.md",
+        "openspec/changes/overview-idle-reason/specs/chat-coordinator/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T09:38:25+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/overview-idle-reason/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "57f654d2-4bba-4ec3-be60-7de3cd71f9f5",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+    "digest": "ed75c6a858726d4d0918cfe3ba73adf76140c008693076be4081b4d3733ef0fe",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "cbd5edcf556c82b7318be9dc33ff2fd0fffee07d",
+      "openspec/changes/overview-idle-reason/.managed-task.json": "90039a39a2333d09edff31dec1bb2d00fb9d6a01",
+      "openspec/changes/overview-idle-reason/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/overview-idle-reason/design.md": "46c51e9fbbc982afd969b531675729da387608f0",
+      "openspec/changes/overview-idle-reason/proposal.md": "2b150f86a697da8059e04ee136e58b202f46b694",
+      "openspec/changes/overview-idle-reason/specs/chat-coordinator/spec.md": "d412422e4261b02203ce2094729b3cad8596f80d",
+      "openspec/changes/overview-idle-reason/tasks.md": "9a0e7bfeffe634184167fcfe2a0e24e9e140f7bb",
+      "template/scripts/lifecycle_overview.py": "90d3cf4aa6e17883473bc26afc3e6e53e059ec8d",
+      "tests/test_lifecycle_overview.py": "ced36c1976828323325de6bcd998ce338d3f9460"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
