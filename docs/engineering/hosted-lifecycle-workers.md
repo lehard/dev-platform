@@ -108,6 +108,24 @@ The hosted worker also reviewed #613, #614, #619, #629, #631, #635, #636, #637, 
 | `finalize` | **Hosted** (`DEV_PLATFORM_HOSTED_KINDS=review,finalize` since 2026-10-22) | It runs candidate code beside a contents-write token. It was not part of the evaluated period above; the local worker finalized every PR in that record. |
 | `integration-merge` | **Hosted class `integrate` once the owner adds it to `DEV_PLATFORM_HOSTED_KINDS`** | The queue offers it when integration failed on the `integration` gate with a clean trial merge (typically a failed derived merge). The harness merges current main without any writer, provider secret or `--llm-command`; a conflict or red required check at execution fails it by name and the next attempt is a writer `integration-repair` (BR-768). |
 | `repair`, `integration-repair` | **Local operator node (BR-433), run by an operator** | A writer holds a shell and the provider token, and no hosted writer with proven containment exists (BR-576). The queue escalates each repair round with a "Repair needed" attention comment; no writer starts automatically (BR-768). |
-| `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
+| `retrospective`, `terminal-reconciliation`, `cleanup` | **Local operator node (BR-433), scheduled on the operator Mac by `scripts/post_merge_runner.py` (BR-885)** | They read the friction log, retrospective checkpoints and Development Backlog Issues, which a runner token cannot reach. |
 
 No kind moved to CI by default, and no local worker gained merge or `main` authority beyond the CI-only protocol.
+
+## Post-merge runner on the operator Mac (BR-885)
+
+`scripts/post_merge_runner.py` runs the three post-merge kinds on the operator Mac every 10 minutes (a LaunchAgent, `StartInterval` 600) through the existing `lifecycle_workers.py work-next --run`. A round repeats `work-next` until it reports `idle`, so the chain retrospective -> terminal-reconciliation -> cleanup catches up in one round. It has no queue or state of its own: claims, results, the attempt limit and the attention on a spent obligation (`post-merge-exhausted` in `lifecycle_overview.py` and on the merged PR) are the platform's.
+
+A round stops at: `idle`; `--max-jobs` runs; `--max-seconds`; the first failed run (the next round retries it, and the platform attempt limit ends the retries); or a GitHub REST remainder below `--min-rest-remaining` (read from `gh api rate_limit`, which is not charged; a skip is journaled as `rest-low` and is not a failure). A second round started while one runs is journaled as skipped (`flock`). A round that started and never ended (reboot, kill) is journaled by the next round as `interrupted-previous-round`; its claim expires by the claim protocol. Every argument is required and a missing one fails the round.
+
+The journal is `<journal-dir>/post-merge-runs.jsonl`; read it with `python3 scripts/post_merge_runner.py journal --journal-dir <dir> --last 50`.
+
+Install and rollback are owner steps; nothing installs the agent automatically. Arguments below are the recommended values (`CHECKOUT` is the integration checkout):
+
+```bash
+mkdir -p ~/.local/state/dev-platform/post-merge
+python3 scripts/post_merge_runner.py launchagent --install --repo lehard/dev-platform --checkout "$CHECKOUT" --journal-dir ~/.local/state/dev-platform/post-merge --gh "$(command -v gh)" --min-rest-remaining 1500 --max-jobs 12 --max-seconds 840 --claim-ttl 900
+python3 scripts/post_merge_runner.py remove-launchagent
+```
+
+Use `launchagent --print` with the same arguments to review the plist first.
