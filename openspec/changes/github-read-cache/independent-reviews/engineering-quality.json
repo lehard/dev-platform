@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
+    "base_ref": "origin/main",
+    "candidate_head": "2f52f7219d173180d4341ac8908e2edd015bb505",
+    "diff_sha256": "bb7a2714f6ef5f529a0cd642375fc465c2e63a5a008dca1f84304b7f314283bc"
+  },
+  "completed_at": "2026-10-29T11:21:43+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/github_read_cache.py:330-334: `stdout.partition(\"\\n\\n\")` runs first and `replace(\"\\r\\n\", \"\\n\")` only runs as a fallback. A CRLF response that has a literal `\\n\\n` in its body would be cut there, which drops part of the body or puts body text in the headers. Every test transcript in tests/test_github_read_cache.py and the acceptance fake in parallel_lifecycle_acceptance.py uses LF only, so the CRLF path is never exercised. The design's own Risks section says the gh transcript parsing is covered by recorded transcripts, but none are recorded.",
+      "id": "parse-response-crlf-order",
+      "severity": "advisory",
+      "summary": "`parse_response` splits on a bare `\\n\\n` before it normalises CRLF. Real `gh api -i` output uses CRLF line endings, so the first partition can miss the header/body boundary or split at a blank line inside the body."
+    },
+    {
+      "evidence": "template/scripts/github_read_cache.py:288-327: `_load` parses and structure-checks all entries on every `_page` call. `_store` rewrites the whole file on every 200. Entries are keyed per URL and nothing removes closed PRs or old Requirements. The overview reads many PRs in parallel, so with a large cache every 200 re-serialises the full file under the flock. The cost scales with accumulated history, not with the current candidate set.",
+      "id": "cache-unbounded-growth-full-rewrite",
+      "severity": "advisory",
+      "summary": "Cache entries are never evicted, and every read and write loads and validates the whole file. Cost grows with the history of PRs and comment pages seen."
+    },
+    {
+      "evidence": "template/scripts/managed_task.py:268-278: `_issue_read_env[str(root)]` is set once and never invalidated. Later calls skip `github_cli_env`, so a changed or expired gh login is not re-detected in that process. Tests that patch `github_cli_env` per case can see state left by earlier tests. The proposal does not mention this change.",
+      "id": "fetch-issue-process-global-env-cache",
+      "severity": "advisory",
+      "summary": "`managed_task.fetch_issue` now keeps the result of a successful `github_cli_env` check in a process-global dict. This is a behaviour change outside the stated scope, and it can leak between tests or long-lived processes."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1211-1217 passes `Path.cwd()` to `read_cache.cached_gh_json`. `cache_path` (github_read_cache.py:273-277) calls `run_git(... --git-common-dir)`. A failure there is not a `GithubReadError`, so the `WorkerError` mapping does not apply. `main` catches only `(WorkerError, ValueError, GithubReadCacheError)`, so such a failure may surface as a traceback rather than a clean exit 2. No test covers a worker started outside a repository.",
+      "id": "worker-cache-root-cwd-coupling",
+      "severity": "advisory",
+      "summary": "The worker `_gh_json` now needs a git checkout at `Path.cwd()` even for plain `gh api` reads. A non-git cwd fails in `run_git` inside `cache_path`, where before it ran `gh` directly."
+    }
+  ],
+  "launched_at": "2026-10-29T11:21:05+00:00",
+  "output_sha256": "a0534759e59a45506071810919f9697abd60edbd94fcecb0815f756121edd5f4",
+  "perspective": "engineering-quality",
+  "request_id": "6ab25c81-406a-44d7-9571-846e4af1ef2d",
+  "reviewer": {
+    "context_id": "daa396bd-0e30-40a7-9393-6dd2f31e9c9b",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8cdd9076-af47-461c-ab53-31b4ffce7ca1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33273
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 157053
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37851
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38135
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4045
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2324ad1e3ba8dcb76203b59cf4badd921547ab8045f923e29e9b932e748458a9"
+}

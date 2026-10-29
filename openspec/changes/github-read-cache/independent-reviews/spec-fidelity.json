@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "723083be92fadddc7110f89f9fc008220d89bd31",
+    "base_ref": "origin/main",
+    "candidate_head": "2f52f7219d173180d4341ac8908e2edd015bb505",
+    "diff_sha256": "bb7a2714f6ef5f529a0cd642375fc465c2e63a5a008dca1f84304b7f314283bc"
+  },
+  "completed_at": "2026-10-29T11:21:05+00:00",
+  "findings": [
+    {
+      "evidence": "design.md 'Equivalence guard' and tasks.md 2.1 'cold == warm == deleted-cache overview'. tests/test_github_read_cache.py only exercises github_read_cache.get_json on a comment-page fake. The edit to tests/test_lifecycle_overview.py only re-patches _open_requirements. The only overview-level support added is the `api -i` fake in parallel_lifecycle_acceptance.py, and the diff contains no test that uses it. The chat-coordinator scenarios 'Repeated overview without GitHub changes' and 'Corrupt cache' and the lifecycle-workers scenario 'Worker poll with nothing changed' are therefore not covered at the overview or worker level. The only worker-level test is a corrupt-cache check on _gh_json.",
+      "id": "overview-equivalence-test-missing",
+      "severity": "advisory",
+      "summary": "The design and tasks 2.1 promise an overview-level test (cold, warm and deleted-cache runs against a fake GitHub give identical output, and the warm run charges only conditional requests). The candidate adds no such test."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_overview.py docstring in the diff: '(``github_read_cache``: ETag/``updated_at`` revalidated ...'. design.md: '`updated_at` is not used as a validity key'. github_read_cache.py revalidates by ETag only.",
+      "id": "overview-docstring-updated-at-contradiction",
+      "severity": "advisory",
+      "summary": "The lifecycle_overview.py module docstring says the cache is 'ETag/``updated_at`` revalidated'. design.md says updated_at is deliberately not used as a validity key; only ETag is."
+    }
+  ],
+  "launched_at": "2026-10-29T11:20:31+00:00",
+  "output_sha256": "1d162f9711be71530ffc835d76de08ae151c8bcbc7fba0cae7f0c5de42ab9fb9",
+  "perspective": "spec-fidelity",
+  "request_id": "6ab25c81-406a-44d7-9571-846e4af1ef2d",
+  "reviewer": {
+    "context_id": "37b019e8-392d-40c4-859e-3b9ffc6cc01c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d0a0e4c5-c254-48c6-ba07-5459468a6afa",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33200
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 119204
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32863
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32983
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2568
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2324ad1e3ba8dcb76203b59cf4badd921547ab8045f923e29e9b932e748458a9"
+}
