@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
     "base_ref": "origin/main",
-    "candidate_head": "590baf63f30aa7cf79db4f5bf934498c1e3dc62d",
-    "diff_sha256": "9764b61b9a2cf235db6d4a7096c5cc5d8b5f17f07fbfa9985d72f7b5d09b97c7"
+    "candidate_head": "a78ac8de0e31b6abbc6b46e4c8a53ad33bf2cbb0",
+    "diff_sha256": "067fad844cbbbcf4136c4ebe5884c26aab3f3c1ee8b417fe99d52050b1da15f6"
   },
   "change": "openspec/changes/lifecycle-preflight-registry",
   "excluded_lifecycle_paths": [
     "openspec/changes/lifecycle-preflight-registry/automated-checks.json",
+    "openspec/changes/lifecycle-preflight-registry/independent-review-request.json",
+    "openspec/changes/lifecycle-preflight-registry/independent-reviews/engineering-quality.json",
+    "openspec/changes/lifecycle-preflight-registry/independent-reviews/spec-fidelity.json",
     "openspec/changes/lifecycle-preflight-registry/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -39,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-29T20:15:42+00:00",
+  "prepared_at": "2026-10-29T20:22:03+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/lifecycle-preflight-registry/independent-reviews",
     "required_perspectives": [
@@ -48,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "03f52030-cfa5-4aa5-bed9-6f6058b59245",
+  "request_id": "f63974ed-0ad6-49df-bdd9-06ce8213c8cf",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
-    "digest": "26697c68840a3758442eace3adbfe8019668bc1740dbc6b7cdb256e7b6689956",
+    "digest": "7cbe99fbfb11242ca0347ea27c0860879a56b6762cee5cb78a2aef251ea02b8c",
     "paths": {
       "dev-platform/checks.toml": "93293ec591b43778889a9f953d960667ce15fb93",
       "docs/engineering/agent-workflow.md": "d9ba854a62c57a863b5d6fb9eff889576776b9aa",
@@ -76,8 +79,8 @@
       "template/dev-platform/blocking-gates.toml": "1c8aeda18ab131043b653644b430cdf76f3eaed8",
       "template/dev-platform/protected-surface.toml": "0d5dc59eb1bbef45302db394efa2c99623fa02e0",
       "template/scripts/_platform_common.py": "8e37b4c6f4dbe7b0e6f0643017915dbab2062960",
-      "template/scripts/finish_task.py": "c404570bd056eb92c417254af701efbf3232c9fd",
-      "template/scripts/lifecycle_preflight.py": "28a88b3650876b8966d986d19cbe2ecdfe7084aa",
+      "template/scripts/finish_task.py": "df796c08954f37e2b1c471d2c119710daad5dd51",
+      "template/scripts/lifecycle_preflight.py": "d225b2e4f67d73dd34e058d89f1f3a9e28c8bdcf",
       "template/scripts/select_checks.py": "f55effa560dc7aa1d378cca14b9d42f6b00b195d",
       "template/scripts/shared_workspace.py": "d025e2d94cd7b0f9469880b9f3943a32c2d763cd",
       "tests/test_blocking_gates.py": "d6aa1eba228601520d68d669691e561758298e28",
