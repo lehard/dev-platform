@@ -43,7 +43,7 @@ class SignalTests(unittest.TestCase):
         for patcher in (mock.patch.object(signal, "board_path", return_value=self.board),
                         mock.patch.object(signal, "scope_gate_required", return_value=True),
                         mock.patch.object(signal, "read_platform_config", return_value={}),
-                        mock.patch.dict(signal.locked_json.__globals__, {"ensure_shared_path": lambda *a, **k: None})):
+                        mock.patch.dict(signal.locked_json.__wrapped__.__globals__, {"ensure_shared_path": lambda *a, **k: None})):
             patcher.start()
             self.addCleanup(patcher.stop)
 
