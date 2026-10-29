@@ -3,46 +3,28 @@
   "candidate": {
     "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
     "base_ref": "origin/main",
-    "candidate_head": "a78ac8de0e31b6abbc6b46e4c8a53ad33bf2cbb0",
-    "diff_sha256": "067fad844cbbbcf4136c4ebe5884c26aab3f3c1ee8b417fe99d52050b1da15f6"
+    "candidate_head": "d437e6bfb702ac2b5195df3053b7649809c41630",
+    "diff_sha256": "aba5991239f7831c9abde635b9e60f2366a1db90b455c22312614a912a2b6c1d"
   },
-  "completed_at": "2026-10-29T20:23:36+00:00",
+  "completed_at": "2026-10-29T21:11:10+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/select_checks.py:604-615 sets `base_waiver` unconditionally. The freshness gate is guarded at select_checks.py:759 by `harness == \"platform\" and (requires_task_freshness(checks) or handoff_evidence)`. For a narrow mapped selection with no handoff evidence, no freshness check ran. The output `DEV_PLATFORM_PREFLIGHT: task-base: not-applicable: checked by ...` then misstates what was checked. This weakens the 'not-applicable is explicit and truthful' requirement.",
-      "id": "selector-task-base-waiver-misleading",
+      "evidence": "In template/scripts/shared_workspace.py, `audit()` returns `(None, [Finding(... 'POSIX group-mode enforcement unavailable; no changes made')])` when `posix_available()` is false. The old `preflight()` did `if group is None: return`. The new `preflight_with_report` does `if group is None: raise SharedWorkspaceError(findings[0].message)`. The registry condition guards this with `shared_workspace_applicable`, but the finish_task.py main loop (`for shared_root in (integration, work)...: repaired = preflight_with_report(shared_root)`) does not. A finish run on a non-POSIX platform therefore regresses from a silent skip to a hard failure.",
+      "id": "finish-permission-step-refuses-on-non-posix",
       "severity": "advisory",
-      "summary": "The selector always reports `task-base` as not-applicable with the reason 'checked by the task freshness gate that ran before this preflight'. That gate runs only for expensive selections, so for a narrow run the printed reason is false."
-    },
-    {
-      "evidence": "The removed code in select_checks.py main() called `require_disposable_checkout(root)` only when `requires_task_freshness(checks) or handoff_evidence`. The new `selector_scope_waiver` calls it whenever `args.scope_gate == \"not-applicable\"` and the run is not proven-base or contribution-base. The `expensive` test is applied after that call.",
-      "id": "selector-disposable-checkout-check-widened",
-      "severity": "advisory",
-      "summary": "`selector_scope_waiver` now calls `require_disposable_checkout` for every `--scope-gate not-applicable` run, including non-expensive selections. Previously that check ran only inside the freshness/handoff branch. A narrow run that used to pass now exits, which contradicts the proposal's 'no change to what any gate accepts or rejects'."
-    },
-    {
-      "evidence": "template/scripts/lifecycle_preflight.py:657: `subprocess.run(command, cwd=ctx.root, shell=True, capture_output=True, text=True, check=False)`. It has no `timeout=` and no `validation_subprocess_env`, which select_checks.py uses for selected commands.",
-      "id": "preflight-commands-unbounded-shell",
-      "severity": "advisory",
-      "summary": "Project cheap gates run through `shell=True` with no timeout and with the caller's full environment. A hung command blocks the 'cheap' preflight indefinitely. The command runs outside the sanitized validation environment that selected checks use."
-    },
-    {
-      "evidence": "template/scripts/finish_task.py:957-961 (the early loop over `preflight_with_report`) versus the new `run_finish_preflight`. Its `PreflightContext` leaves the shared-workspace condition enabled, so `check_shared_workspace` calls `preflight_with_report` on `root` and `integration` again.",
-      "id": "finish-preflight-repeats-shared-workspace-repair",
-      "severity": "advisory",
-      "summary": "`finish_task.main` already runs `preflight_with_report` on the integration root and the worktree. `run_finish_preflight` then runs the shared-workspace condition again over the same roots, which doubles the audit. Each preflight call prints a second report line."
+      "summary": "finish_task.py now calls shared_workspace.preflight_with_report unconditionally. Where POSIX group enforcement is unavailable, it raises instead of returning silently, as the old preflight did."
     }
   ],
-  "launched_at": "2026-10-29T20:22:53+00:00",
-  "output_sha256": "103708f5737e41d859b30483e146d5ffae0368293ce41cde165cada6b8cd04f5",
+  "launched_at": "2026-10-29T21:10:40+00:00",
+  "output_sha256": "b60345be13283cd96d224d20c19f5169720cfb45385baff750a24be6fca04ecd",
   "perspective": "engineering-quality",
-  "request_id": "f63974ed-0ad6-49df-bdd9-06ce8213c8cf",
+  "request_id": "c4e09a9b-4c7b-4dae-b46e-e45a5c1dd239",
   "reviewer": {
-    "context_id": "6594fded-e0a8-44f3-91f6-44bf4d461fbe",
+    "context_id": "ce905d3a-35b7-4261-91f9-02b5fc45e7b8",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-bdecc0a7-b42e-4ef5-892c-fca5c25af558",
+    "launch_id": "platform-launch-b2ef1bc4-8849-446d-8546-7aea2a0e2958",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,27 +39,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50552
+        "value": 48203
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 158274
+        "value": 247107
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41680
+        "value": 29798
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42114
+        "value": 30066
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -87,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3596
+        "value": 2620
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "7cbe99fbfb11242ca0347ea27c0860879a56b6762cee5cb78a2aef251ea02b8c"
+  "task_content_digest": "266028a92c358bccb7c6430ac9a1c0568f8a985355e2cb0586badae329fca70d"
 }

@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
     "base_ref": "origin/main",
-    "candidate_head": "a78ac8de0e31b6abbc6b46e4c8a53ad33bf2cbb0",
-    "diff_sha256": "067fad844cbbbcf4136c4ebe5884c26aab3f3c1ee8b417fe99d52050b1da15f6"
+    "candidate_head": "d437e6bfb702ac2b5195df3053b7649809c41630",
+    "diff_sha256": "aba5991239f7831c9abde635b9e60f2366a1db90b455c22312614a912a2b6c1d"
   },
-  "completed_at": "2026-10-29T20:22:53+00:00",
+  "completed_at": "2026-10-29T21:10:40+00:00",
   "findings": [
     {
-      "evidence": "`run_selector_preflight` in template/scripts/select_checks.py sets `base_waiver = \"checked by the task freshness gate that ran before this preflight\"` and passes it for every selection. The inline freshness gate only runs when `requires_task_freshness(checks)` is true. For selections that are neither expensive nor proven-base, the printed `DEV_PLATFORM_PREFLIGHT: task-base: not-applicable` line claims a check that did not happen. This is also broader than the design and the spec's \"freshness against main\" condition.",
-      "id": "selector-task-base-waiver-unconditional",
+      "evidence": "The candidate's template/scripts/select_checks.py hunk wraps the call as `if harness == \"platform\": run_selector_preflight(...)`. Design.md lists `harness_mode=project` as a case that should return `not-applicable` with its reason. The completion-lifecycle scenario \"Not applicable is explicit\" says the condition is \"printed as not-applicable ... never silently skipped\".",
+      "id": "project-harness-preflight-silent-skip",
       "severity": "advisory",
-      "summary": "The selector always waives the `task-base` condition, and the stated reason is not true for every run. design.md says `task-base` is waived only in `--proven-base` and `--contribution-base` modes."
+      "summary": "With harness_mode=project the selector does not run the preflight at all. Nothing is printed, although the spec and design say a non-applicable condition is shown as `not-applicable` and never skipped silently."
     },
     {
-      "evidence": "template/scripts/finish_task.py replaces `preflight(integration)` and `preflight(work)` with `preflight_with_report(shared_root)`. In template/scripts/shared_workspace.py, `preflight_with_report` does `if group is None: raise SharedWorkspaceError(findings[0].message)`. `audit` returns `(None, [Finding(... 'POSIX group-mode enforcement unavailable; no changes made' ...)])` when `posix_available()` is false. The old `shared_workspace.preflight` returns silently when `group is None`. The proposal says there is \"No change to what any gate accepts or rejects\".",
-      "id": "finish-permission-step-behavior-change",
+      "evidence": "`run_selector_preflight` sets `base_waiver = \"checked by the task freshness gate that ran before this preflight\"` unconditionally. The scope waiver, by contrast, is conditional on `expensive`. The spec requires the printed fact to be the one that makes the condition not applicable.",
+      "id": "task-base-waiver-reason-overstates",
       "severity": "advisory",
-      "summary": "The early permission step in `finish_task.main` now calls `preflight_with_report` where it used to call `preflight`. It does this without the applicability check that `check_shared_workspace` applies. Where POSIX group-mode enforcement is unavailable, it refuses instead of returning silently."
+      "summary": "In the selector, the `task-base` condition is always printed as not-applicable with the reason \"checked by the task freshness gate that ran before this preflight\". That gate runs only when the selection needs task freshness. For other selections, such as a non-expensive selection or `--scope-gate not-applicable`, the printed reason does not match what ran."
     }
   ],
-  "launched_at": "2026-10-29T20:22:06+00:00",
-  "output_sha256": "1d3ef235ce3918f7ef496b524e8af71cbd6a832daa4194faf3d778eb0559d1aa",
+  "launched_at": "2026-10-29T21:10:21+00:00",
+  "output_sha256": "0a106eb3d2c84c9b8018c053cc5476e69242b18b75a577e9ce3f948a3707866b",
   "perspective": "spec-fidelity",
-  "request_id": "f63974ed-0ad6-49df-bdd9-06ce8213c8cf",
+  "request_id": "c4e09a9b-4c7b-4dae-b46e-e45a5c1dd239",
   "reviewer": {
-    "context_id": "2299e4d3-f130-45ba-816d-b4abce763620",
+    "context_id": "5657cced-b4e9-4351-8382-17e2ec3d9917",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-15b67e46-bb01-43f3-896e-b91c461494c4",
+    "launch_id": "platform-launch-bd00a904-e8e0-491d-bea2-196386aaeaef",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50937
+        "value": 43734
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 465877
+        "value": 54432
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46319
+        "value": 18385
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46573
+        "value": 18486
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4119
+        "value": 2093
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "7cbe99fbfb11242ca0347ea27c0860879a56b6762cee5cb78a2aef251ea02b8c"
+  "task_content_digest": "266028a92c358bccb7c6430ac9a1c0568f8a985355e2cb0586badae329fca70d"
 }

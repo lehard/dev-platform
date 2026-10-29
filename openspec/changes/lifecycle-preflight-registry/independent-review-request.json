@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
     "base_ref": "origin/main",
-    "candidate_head": "a78ac8de0e31b6abbc6b46e4c8a53ad33bf2cbb0",
-    "diff_sha256": "067fad844cbbbcf4136c4ebe5884c26aab3f3c1ee8b417fe99d52050b1da15f6"
+    "candidate_head": "d437e6bfb702ac2b5195df3053b7649809c41630",
+    "diff_sha256": "aba5991239f7831c9abde635b9e60f2366a1db90b455c22312614a912a2b6c1d"
   },
   "change": "openspec/changes/lifecycle-preflight-registry",
   "excluded_lifecycle_paths": [
@@ -42,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-29T20:22:03+00:00",
+  "prepared_at": "2026-10-29T21:10:19+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/lifecycle-preflight-registry/independent-reviews",
     "required_perspectives": [
@@ -51,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "f63974ed-0ad6-49df-bdd9-06ce8213c8cf",
+  "request_id": "c4e09a9b-4c7b-4dae-b46e-e45a5c1dd239",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -64,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
-    "digest": "7cbe99fbfb11242ca0347ea27c0860879a56b6762cee5cb78a2aef251ea02b8c",
+    "digest": "266028a92c358bccb7c6430ac9a1c0568f8a985355e2cb0586badae329fca70d",
     "paths": {
       "dev-platform/checks.toml": "93293ec591b43778889a9f953d960667ce15fb93",
       "docs/engineering/agent-workflow.md": "d9ba854a62c57a863b5d6fb9eff889576776b9aa",
@@ -87,7 +87,7 @@
       "tests/test_finish_explicit_fallbacks.py": "e3d557cae2c902e083782152059206f2aca3c1a2",
       "tests/test_finish_merged_queue.py": "363dc3622a9f5dd65b06f60cb24b2cb650de8e2c",
       "tests/test_git_lifecycle.py": "908c6522dcfab7fa5e9054f6a73b520d2dd59f25",
-      "tests/test_lifecycle_preflight.py": "3dc452e4e2abf75161df4e6d3732c3a59e7feb09",
+      "tests/test_lifecycle_preflight.py": "b4a5be223b68bdc3b4ee6f1da2685185cd89cfe1",
       "tests/test_merge_lifecycle_resilience.py": "d9baa554fa479492a141d88cc89a3dd0537dc3e7",
       "tests/test_protected_main_zero_handoff.py": "b8988dfdd1f7c68b1914ef2eac826f2e1d1976f4",
       "tests/test_publication_recovery_cli.py": "040e80988bfc7ae3ba76b9f986d744bd8e76b5db"
