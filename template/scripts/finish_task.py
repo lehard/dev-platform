@@ -1046,6 +1046,7 @@ def main() -> int:
             raise SystemExit("The bounded GitLab adapter supports publish_mode=pr only.")
         if branch == main_branch:
             raise SystemExit("GitLab merge-request publication requires a feature branch.")
+        run_finish_preflight(work, integration, branch, consolidated=False)
         hygiene_detail = run_openspec_hygiene(work)
         checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
         dirty_detail = "Current worktree is dirty." if not clean(work) else None

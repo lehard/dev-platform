@@ -180,6 +180,11 @@ def run_preflight(ctx: PreflightContext, *, conditions: tuple[Condition, ...] = 
         except PreflightRefusal as exc:
             result = ConditionResult(REFUSED, str(exc))
             refusals.append(f"[{condition.id}] {exc}")
+        except (Exception, SystemExit) as exc:
+            # A condition that cannot be evaluated refuses; it must not hide the other conditions' results.
+            detail = f"cannot be evaluated: {exc if str(exc) else type(exc).__name__}"
+            result = ConditionResult(REFUSED, detail)
+            refusals.append(f"[{condition.id}] {detail}")
         results.append((condition.id, result))
         first = result.detail.splitlines()[0] if result.detail else ""
         print(f"{OUTPUT_PREFIX}{condition.id}: {result.state}: {first}", flush=True)
