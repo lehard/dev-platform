@@ -1,0 +1,103 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
+    "base_ref": "origin/main",
+    "candidate_head": "0dba785e589ef096b8e70c671d55a9de4ae1ad05",
+    "diff_sha256": "321cca9c94d63a8bb0512b98312c5ce476685040f32db3bed9aeda5a8f4994af"
+  },
+  "completed_at": "2026-10-29T10:36:04+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/post_merge_runner.py validate() (lines ~330-342) only checks that the paths exist. render_plist() writes `str(args.checkout / ...)`, `str(args.journal_dir)` and WorkingDirectory as given. A relative argument produces a relative path in the plist. The spec says: 'render the LaunchAgent definition ... with explicit absolute paths'.",
+      "id": "plist-paths-not-absolute",
+      "severity": "advisory",
+      "summary": "The LaunchAgent spec requires explicit absolute paths, but nothing requires or resolves absolute `--checkout` and `--journal-dir`."
+    },
+    {
+      "evidence": "design.md Risks: 'journaling the remainder before and after every run'. The work-next record in post_merge_runner.py has only `rest_remaining: remaining`, read before the run. The post-run value is not recorded, although the next iteration's record does carry it.",
+      "id": "journal-missing-rest-after",
+      "severity": "advisory",
+      "summary": "The design says the remainder is journaled before and after every run, but each work-next record carries only the remainder read before the run."
+    },
+    {
+      "evidence": "The deadline is checked at the top of the loop. Each run is given `timeout=args.claim_ttl`, and the recommended values are max-seconds 840 and claim-ttl 900. The spec says one round stops at 'a maximum duration'.",
+      "id": "max-seconds-overrun",
+      "severity": "advisory",
+      "summary": "The duration bound is checked only between runs, so a round can exceed `--max-seconds` by up to one run's timeout."
+    },
+    {
+      "evidence": "tasks.md 2.1 lists 'install/remove guard'. tests/test_post_merge_runner.py has no test of `install_agent`, `remove_agent` or `_bootout`. The spec scenario 'Unload fails on removal' (plist kept, launchctl error named) and the 'Render without installing' scenario (nothing written or loaded) have no test.",
+      "id": "launchagent-install-remove-untested",
+      "severity": "advisory",
+      "summary": "tasks.md 2.1 promises tests for the install/remove guard, but no test covers install, remove or the unload-failure scenario."
+    },
+    {
+      "evidence": "design.md launchd decision: '`--install` / `--remove`'. post_merge_runner.py main() defines `launchagent` with only `--print`/`--install` and a separate `remove-launchagent` subcommand. The docs match the implementation, not the design.",
+      "id": "design-remove-flag-mismatch",
+      "severity": "advisory",
+      "summary": "The design describes `--install` / `--remove` flags on `launchagent`, but the implementation uses a separate `remove-launchagent` subcommand."
+    }
+  ],
+  "launched_at": "2026-10-29T10:35:30+00:00",
+  "output_sha256": "591724c679bcc20a58dd8eda49a505d8533b25aa6b577a6e65e395df698e8670",
+  "perspective": "spec-fidelity",
+  "request_id": "f31a7480-b9e7-4f7a-96a5-813a7b09ec2b",
+  "reviewer": {
+    "context_id": "48661aaf-d8d2-40b2-9ee1-e13357e07ef9",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3e67f166-fa4b-41f5-8ec7-6590c1085471",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33573
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 185607
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32896
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33128
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3339
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "33b17edf226da68a1af06941982619ee97abafaf28b7c90976cd77ee6fd735b3"
+}

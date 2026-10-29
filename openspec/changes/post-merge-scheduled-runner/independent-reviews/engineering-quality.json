@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
+    "base_ref": "origin/main",
+    "candidate_head": "0dba785e589ef096b8e70c671d55a9de4ae1ad05",
+    "diff_sha256": "321cca9c94d63a8bb0512b98312c5ce476685040f32db3bed9aeda5a8f4994af"
+  },
+  "completed_at": "2026-10-29T10:36:43+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/post_merge_runner.py:375 checks `monotonic() >= deadline` only before each run. Line 387 gives each run `timeout=args.claim_ttl`. With the recommended 840 s and 900 s, a round can run about 1740 s, nearly three 600 s start intervals. The flock guard keeps this safe, but ticks are skipped and the documented bound is not what a round actually takes. A per-run timeout of `min(claim_ttl, deadline - now)` would honour it.",
+      "id": "round-duration-unbounded-by-max-seconds",
+      "severity": "advisory",
+      "summary": "`--max-seconds` is checked only between runs, so one round can last up to `max_seconds` plus `claim_ttl`. The docs and design present it as the duration bound of a round."
+    },
+    {
+      "evidence": "scripts/post_merge_runner.py:457 `subprocess.run([... 'bootstrap' ...], check=True)`. `main()` at line 513 catches only `RunnerError`. `_bootout` at line 453 has already unloaded the previous agent, so a failed bootstrap leaves nothing loaded.",
+      "id": "install-bootstrap-uncaught-calledprocesserror",
+      "severity": "advisory",
+      "summary": "`launchctl bootstrap` failure during install raises `CalledProcessError`, not `RunnerError`. The CLI prints a traceback instead of the 'post-merge runner: ...' message. The plist is also left on disk, with the old agent already booted out."
+    },
+    {
+      "evidence": "scripts/post_merge_runner.py:347-352: on `BlockingIOError` the function returns 0 without `lock.close()`. The handle is only released by garbage collection. This is harmless in a short-lived process, but the pattern is inconsistent with the `finally: lock.close()` on the success path.",
+      "id": "lock-handle-not-closed-on-skip",
+      "severity": "advisory",
+      "summary": "When the lock is contended, the opened lock file handle is never closed explicitly. Also, `open(..., 'a')` on the lock file is outside the try block."
+    },
+    {
+      "evidence": "scripts/post_merge_runner.py:362 `interrupted_round(read_records(journal))` runs at the start of each round, every 10 minutes. A single corrupt line makes `read_records` raise (lines 274-276). `_locked_round` does not catch that, because the call at line 362 sits outside the try block, so `run_round` propagates an uncaught `RunnerError` as a traceback and no `round-end` is journaled. The round dies before any work, and every later round dies the same way until someone repairs the file by hand. The design notes 'No rotation in this change'. Reading only the tail, or catching the error, would limit the risk.",
+      "id": "journal-unbounded-and-fully-read",
+      "severity": "advisory",
+      "summary": "The journal is append-only with no rotation. Every round reads and parses the whole file via `read_records` just to find an interrupted round, so cost grows linearly with history."
+    }
+  ],
+  "launched_at": "2026-10-29T10:36:04+00:00",
+  "output_sha256": "2faa8974cacebcda145949d2b78aadb13eb8654085ddcdab0850abec9ebc2faf",
+  "perspective": "engineering-quality",
+  "request_id": "f31a7480-b9e7-4f7a-96a5-813a7b09ec2b",
+  "reviewer": {
+    "context_id": "d9e9afa1-0c4f-4eaf-8d33-87022ff38ce8",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-12548739-e4c7-4d52-a727-0b4c5d78273f",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30536
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 138699
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38124
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38434
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2819
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "33b17edf226da68a1af06941982619ee97abafaf28b7c90976cd77ee6fd735b3"
+}
