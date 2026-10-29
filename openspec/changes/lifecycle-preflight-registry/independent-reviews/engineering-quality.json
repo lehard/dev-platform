@@ -1,0 +1,103 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
+    "base_ref": "origin/main",
+    "candidate_head": "590baf63f30aa7cf79db4f5bf934498c1e3dc62d",
+    "diff_sha256": "9764b61b9a2cf235db6d4a7096c5cc5d8b5f17f07fbfa9985d72f7b5d09b97c7"
+  },
+  "completed_at": "2026-10-29T20:17:00+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py: the `if provider == \"gitlab\":` block (about lines 1044-1070) calls `run_checks(work, remote_main, args.no_checks)` and returns. `run_finish_preflight(..., consolidated=True)` is only called later (about line 1094). The developer-handoff path calls it at about line 979. GitLab finishes therefore get no board/scope check, no freshness check, and none of the project's `preflight_commands`, before the full validation.",
+      "id": "finish-gitlab-path-skips-preflight",
+      "severity": "material",
+      "summary": "In finish_task.main the GitLab publication branch returns after run_checks without ever reaching run_finish_preflight. The spec requires finish_task.py to run the preflight before any expensive operation."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_preflight.py: `if not agent_board.scope_gate_required(read_platform_config(ctx.root)):` sits before `try: agent_board.enforce_scope_gate(...)`. In agent_board.py, `scope_gate_required` raises `_scope_gate_unavailable(...)` when `[capabilities]` is missing or `agent_board` is not a bool.",
+      "id": "scope-gate-required-escapes-aggregation",
+      "severity": "advisory",
+      "summary": "`agent_board.scope_gate_required(read_platform_config(...))` is called outside the try block in check_board_claim_and_scope. A missing or invalid `[capabilities]` raises a raw SystemExit that skips PreflightRefusal handling. The preflight then aborts at that condition, so later refusals are not reported together, and the condition is never printed as refused."
+    },
+    {
+      "evidence": "lifecycle_preflight.py: `load_checks_config` does an unguarded `tomllib.load` and `.get('settings', {}).get(...)`. `check_project_cheap_gates` calls `subprocess.run(command, shell=True, ...)` with no timeout. `run_preflight` has `except PreflightRefusal` only.",
+      "id": "preflight-unexpected-errors-abort-registry",
+      "severity": "advisory",
+      "summary": "run_preflight only catches PreflightRefusal. Malformed TOML in checks.toml, a non-dict `settings`, or an OSError or timeout from a project command propagates as a raw traceback or SystemExit. That breaks the 'all refusals reported together' and 'cannot be evaluated refuses' contract. Project commands also run with no timeout."
+    },
+    {
+      "evidence": "shared_workspace.preflight: `group, findings = audit(root, fix=fix)`, then `if group is None: return`. preflight_with_report: `if group is None: raise SharedWorkspaceError(findings[0].message)`. audit returns `(None, [Finding(... 'POSIX group-mode enforcement unavailable' ...)])` when `not posix_available()`. finish_task.main calls `preflight_with_report(shared_root)` unconditionally.",
+      "id": "finish-shared-workspace-nonposix-regression",
+      "severity": "advisory",
+      "summary": "In finish_task.main the old `preflight(root)` returned silently when no group contract is available (`audit` returns group None). The replacement `preflight_with_report` raises SharedWorkspaceError in that case, and finish calls it without the `shared_workspace_applicable` guard that the registry condition uses. Finish therefore refuses on environments where it previously proceeded, and the proposal says no gate's acceptance changes."
+    },
+    {
+      "evidence": "shared_workspace.py preflight_with_report: `if owner != os.geteuid(): foreign.append(finding)`. finish_task.py: the `preflight_with_report` loop at about lines 957-961 runs before `run_finish_preflight`, whose `check_shared_workspace` calls `preflight_with_report` on the same roots.",
+      "id": "shared-workspace-owner-check-root-and-duplication",
+      "severity": "advisory",
+      "summary": "The foreign-owner test is `st_uid != os.geteuid()`, so a root-run session treats every non-root-owned path as foreign and refuses it, although root could repair it. On the handoff path, finish_task.main runs the permission repair and then the registry's shared-workspace condition runs the same audit and repair again."
+    }
+  ],
+  "launched_at": "2026-10-29T20:16:10+00:00",
+  "output_sha256": "cc07f1ef10da35d2bdb11e39d6775fff5c4400872bc9b587e5bbab1f66a9257b",
+  "perspective": "engineering-quality",
+  "request_id": "03f52030-cfa5-4aa5-bed9-6f6058b59245",
+  "reviewer": {
+    "context_id": "dc0ed7f4-95f8-4d79-9487-16bc35029927",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-dc20acb4-2610-4ef1-870e-7886958989e7",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56685
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 341382
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48772
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49241
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5311
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "26697c68840a3758442eace3adbfe8019668bc1740dbc6b7cdb256e7b6689956"
+}

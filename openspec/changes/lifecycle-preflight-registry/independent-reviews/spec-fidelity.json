@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "05ddca914edae6bee444a314d5faeeffd68f0a3f",
+    "base_ref": "origin/main",
+    "candidate_head": "590baf63f30aa7cf79db4f5bf934498c1e3dc62d",
+    "diff_sha256": "9764b61b9a2cf235db6d4a7096c5cc5d8b5f17f07fbfa9985d72f7b5d09b97c7"
+  },
+  "completed_at": "2026-10-29T20:16:10+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff `run_selector_preflight`: `base_waiver = \"checked by the task freshness gate that ran before this preflight\"` is passed unconditionally as `task_base_waiver`. design.md says the inline freshness block stays and `task-base` is declared not applicable only in `--proven-base`/`--contribution-base` modes. tasks.md 1.2 says `task-base` (existing freshness functions, all modes). The freshness check in `main` is gated by `requires_task_freshness`.",
+      "id": "selector-task-base-always-waived",
+      "severity": "advisory",
+      "summary": "In `select_checks.py` the `task-base` condition is waived in every mode with the reason \"checked by the task freshness gate that ran before this preflight\". The design and tasks 1.2 say it is waived only for `--proven-base` and `--contribution-base`. The waiver is also inaccurate for selections where `requires_task_freshness(checks)` is false, because the inline freshness gate did not run there."
+    },
+    {
+      "evidence": "candidate.diff select_checks.py `if harness == \"platform\": run_selector_preflight(...)` has no else branch that prints. design.md says `harness_mode=project` returns `not-applicable` with the configuration fact. The completion-lifecycle spec scenario \"Not applicable is explicit\" says \"never silently skipped\".",
+      "id": "selector-project-harness-silent-skip",
+      "severity": "advisory",
+      "summary": "The selector calls the preflight only when `harness == \"platform\"`. In project harness mode nothing is printed, although the design and spec require an explicit `not-applicable` with the configuration fact and say a condition is never silently skipped."
+    },
+    {
+      "evidence": "candidate.diff lifecycle_preflight.py `run_preflight`: `except PreflightRefusal as exc:` is the only handler. `load_checks_config` raises `SystemExit`, and `tomllib` errors propagate uncaught from `configured_preflight_commands`.",
+      "id": "preflight-nonrefusal-exceptions-abort-collection",
+      "severity": "advisory",
+      "summary": "`run_preflight` collects only `PreflightRefusal`. Any other exception from a condition aborts the run without printing the results of the other conditions or reporting the other refusals together. Examples are a malformed `checks.toml` in `project-cheap-gates`, an `OSError`, or the `SystemExit` from `load_checks_config`. The spec requires all refusals to be reported together and every condition to be printed."
+    }
+  ],
+  "launched_at": "2026-10-29T20:15:45+00:00",
+  "output_sha256": "4f30090cbb874c0be5da66b354a2f970ce8b11020ed2ae859c1331dd07c5160b",
+  "perspective": "spec-fidelity",
+  "request_id": "03f52030-cfa5-4aa5-bed9-6f6058b59245",
+  "reviewer": {
+    "context_id": "7bd84085-9368-4bc4-a148-50d1e6afe261",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a218310f-a618-400b-9e35-8981852691f8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46672
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50787
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24686
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24830
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3149
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "26697c68840a3758442eace3adbfe8019668bc1740dbc6b7cdb256e7b6689956"
+}
