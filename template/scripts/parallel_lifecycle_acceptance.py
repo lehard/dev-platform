@@ -314,9 +314,24 @@ class LocalGitHub:
             return 0, json.dumps(rows), ""
         if argv[:2] == ["pr", "merge"]:
             return self.merge(argv, entry)
+        if argv[:2] == ["api", "-i"]:
+            return self.api_with_headers(argv[2:], entry)
         if argv[:1] == ["api"]:
             return self.api(argv, entry)
         return self.unsupported(argv, entry)
+
+    def api_with_headers(self, rest: list[str], entry: dict) -> tuple[int, str, str]:
+        """``gh api -i [-H If-None-Match: <etag>] <path>``: the response headers plus an ETag of the body (read-cache reads)."""
+        match = None
+        if rest[:1] == ["-H"] and rest[1].startswith("If-None-Match: "):
+            match, rest = rest[1].split(": ", 1)[1], rest[2:]
+        code, out, err = self.api(["api", *rest], entry)
+        if code:
+            return code, out, err
+        etag = '"' + hashlib.sha256(out.encode()).hexdigest() + '"'
+        if match == etag:
+            return 1, f"HTTP/2.0 304 Not Modified\nEtag: {etag}\n\n", "gh: HTTP 304"
+        return 0, f"HTTP/2.0 200 OK\nEtag: {etag}\n\n{out}", ""
 
     def merge(self, argv: list[str], entry: dict) -> tuple[int, str, str]:
         number, head = argv[2], argv[argv.index("--match-head-commit") + 1]

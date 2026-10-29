@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/chat-coordinator/spec.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "github-read-cache",
+  "imported_at": "2026-10-29T08:58:33+00:00",
+  "package_revision": "3428ae42f86e01850e42e1ebd14a479d7a9d13322001cdf1f9738843db779c14",
+  "prepared_against": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+  "private_lineage_handle": "pln_cd2224a85dd92183cd33b92646dad283",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "4ec68b1bfb3ab59b5c8fa99bc63cb9b1b4271406cd9b3922832f9fb24db6dd8b",
+    "updated_at": "2026-10-29T08:51:44Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-886/T1"
+}

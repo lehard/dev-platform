@@ -5,8 +5,9 @@ Projects what GitHub already records (PR heads, checks, versioned lifecycle
 markers, claim and result receipts, Requirement Issues and Project statuses)
 into human-facing delivery stages, the review -> ... -> cleanup chain, named
 exception findings and the operator actions the supported commands would
-accept. It writes nothing, keeps no cache and no state store, and reports
-``unknown`` for any source it cannot read instead of presenting it as healthy.
+accept. It writes nothing to GitHub, keeps no state store and, besides GitHub, only an optional disposable local read cache
+(``github_read_cache``: ETag revalidated, deleting it never changes the result, a corrupt cache fails
+explicitly naming the file). It reports ``unknown`` for any source it cannot read instead of presenting it as healthy.
 See ``docs/engineering/chat-coordinator.md``.
 """
 from __future__ import annotations
@@ -406,6 +407,17 @@ def _observe_requirement(root: Path, requirement: str, candidates: list[dict]) -
         return assess_requirement(requirement, None, str(exc), candidates)
 
 
+def _cached_read(root: Path, *args: str) -> Any:
+    """A GitHub GET through the disposable read cache; read failures surface as ``QueueError``."""
+    import github_read_cache
+    import publication_queue as queue
+
+    try:
+        return github_read_cache.cached_gh_json(root, *args)
+    except github_read_cache.GithubReadError as exc:
+        raise queue.QueueError(str(exc)) from exc
+
+
 def _backlog_binding(root: Path) -> tuple[str, str]:
     section = read_platform_config(root).get("development_backlog")
     section = section if isinstance(section, dict) else {}
@@ -422,7 +434,7 @@ def _open_requirements(root: Path, backlog: str, project_label: str) -> list[str
     import publication_queue as queue
 
     labels = quote(f"type:requirement,{project_label}", safe=",")
-    rows = queue._gh(root, "api", "--paginate", f"repos/{backlog}/issues?state=open&labels={labels}&per_page=100")
+    rows = _cached_read(root, "api", "--paginate", f"repos/{backlog}/issues?state=open&labels={labels}&per_page=100")
     if not isinstance(rows, list):
         raise OverviewError(f"open Requirements of {backlog} labeled {project_label} could not be listed")
     return [f"{backlog}#{row['number']}" for row in rows if isinstance(row, dict) and "pull_request" not in row]
@@ -442,7 +454,7 @@ def overview(root: Path, *, now: datetime) -> dict:
     threshold = unclaimed_threshold_minutes(root)
     repo = queue._repo(root)
     backlog, project_label = _backlog_binding(root)
-    prs = candidate_prs(repo, include_merged=True, gh_json=lambda *args: queue._gh(root, *args))
+    prs = candidate_prs(repo, include_merged=True, gh_json=lambda *args: _cached_read(root, *args))
     with ThreadPoolExecutor(max_workers=READ_PARALLELISM) as pool:  # independent read-only GitHub observations
         observed = list(pool.map(lambda pr: observe_candidate(root, repo, pr, now=now, threshold=threshold), prs))
         assessed = [item for item in observed if item is not None]
@@ -554,6 +566,7 @@ def main(argv: list[str] | None = None) -> int:
     target.add_argument("--pr", type=int)
     target.add_argument("--requirement")
     args = parser.parse_args(argv)
+    from github_read_cache import GithubReadCacheError
     from publication_queue import QueueError
 
     root = current_worktree_root()
@@ -565,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
             result = show_requirement(root, args.requirement, now=now)
         else:
             result = overview(root, now=now)
-    except (OverviewError, QueueError) as exc:
+    except (OverviewError, QueueError, GithubReadCacheError) as exc:
         print(f"lifecycle overview: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(result, sort_keys=True) if args.json else render(result))

@@ -13,7 +13,7 @@ the same picture from GitHub.
 
 ## Reading the state
 
-Always start from the read-only overview, which writes nothing:
+Always start from the read-only overview, which writes nothing to GitHub and reads unchanged state through a disposable local cache (see *Read cache* below):
 
 ```bash
 python3 scripts/lifecycle_overview.py                       # all candidates and open Requirements
@@ -132,3 +132,15 @@ per exact escalation. Successful stages post nothing, so ordinary GitHub
 notifications stay quiet on the happy path. Final Requirement closure is the
 existing close of the Requirement Issue. Provider-unavailable retries are
 automatic and appear only in the overview.
+
+## Read cache
+
+The overview and the lifecycle workers revalidate every GitHub GET they repeat (PR lists, PR comment
+histories, Requirement Issues) with a conditional request. A `304 Not Modified` is not charged against the
+shared REST limit and returns the whole stored page, so a changed comment or PR state is never hidden. Only a list page that is full and has no known next page is re-read
+unconditionally, because a following page may have appeared without changing it.
+The cache is a local file `<git-common-dir>/dev-platform/github-read-cache.json`; GitHub stays the only source of
+truth and deleting the file never changes a result. Assessments, ages and claim expiry are always recomputed.
+A corrupt or inconsistent cache fails the run with an error that names the file; reset it with `rm <that file>`.
+It is never silently replaced by a full re-read. The Project-status GraphQL reads of a Requirement's children are
+not conditional and still run on each overview.

@@ -226,9 +226,11 @@ def _comments(root: Path, repo: str, number: int) -> list[dict[str, Any]]:
     def fail(cause: str) -> QueueError:
         return QueueError(f"PR comment-history acquisition failed for #{number}: {cause}")
 
+    import github_read_cache
+
     try:
-        pages = _gh(root, "api", "--paginate", "--slurp", f"repos/{repo}/issues/{number}/comments?per_page=100")
-    except QueueError as exc:
+        pages = github_read_cache.get_pages(root, f"repos/{repo}/issues/{number}/comments?per_page=100")
+    except github_read_cache.GithubReadError as exc:
         raise fail(str(exc)) from exc
     if pages is None:
         raise fail("empty response")

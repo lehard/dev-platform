@@ -104,6 +104,11 @@ REVIEWED_BASELINE: dict[str, int] = {
     'dev.py:ensure_local_generated_excludes:open': 1,
     'dev.py:refresh_openspec:write_text': 1,
     'disposable_repository_sandbox.py:create:write_text': 1,
+    # Disposable GitHub read cache in the git common directory: atomic temp-file replace under an advisory lock,
+    # holding only raw GitHub GET responses; deleting it never changes a result.
+    'github_read_cache.py:_store:mkstemp': 1,
+    'github_read_cache.py:_store:open': 1,
+    'github_read_cache.py:_store:replace': 1,
     'harness_replay.py:isolated_workspace:write_text': 1,
     'harness_replay.py:main:write_text': 1,
     # Reviewed: appends the outcome to the runner-provided GITHUB_STEP_SUMMARY file; no shared workspace state.
