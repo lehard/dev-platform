@@ -1,0 +1,71 @@
+{
+  "candidate": {
+    "base_head": "c0f776e23a9d7b6d33257cf179a82c5876a0ef22",
+    "base_ref": "origin/main",
+    "candidate_head": "f4fd1f59e6f08d7ef1a933cdce8796cfb728e6ae",
+    "diff_sha256": "4e39ae4ada07a557da025da7566c6392bc379c1f9e741d1458e191855f2d33db"
+  },
+  "change": "openspec/changes/quick-task-behind-mergeable-spec",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/quick-task-behind-mergeable-spec/automated-checks.json",
+    "openspec/changes/quick-task-behind-mergeable-spec/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/design.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/proposal.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/specs/platform-lifecycle/spec.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/quick-task-behind-mergeable-spec/proposal.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/design.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/tasks.md",
+        "openspec/changes/quick-task-behind-mergeable-spec/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T00:35:56+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/quick-task-behind-mergeable-spec/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "7dbdb607-c0c4-4288-8b6f-266716b0c62f",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c49658416b256bac38efd3c5b5e7ca56c04e64f6",
+    "digest": "c01e7b833bd013abb4c543f86694f9d77c222754a47350fcb8b730033f5232ee",
+    "paths": {
+      "openspec/changes/quick-task-behind-mergeable-spec/.managed-task.json": "d432ae051b2889899e83fff8c2e5aa28b2677337",
+      "openspec/changes/quick-task-behind-mergeable-spec/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/quick-task-behind-mergeable-spec/design.md": "f863768f1f3ff3accf52fee5a29b0f50085cecfb",
+      "openspec/changes/quick-task-behind-mergeable-spec/proposal.md": "672d6f6229774fe14f728bca21746754ffa300d5",
+      "openspec/changes/quick-task-behind-mergeable-spec/specs/platform-lifecycle/spec.md": "3d8c479c699155df95adc17b14fad30ccc560aba",
+      "openspec/changes/quick-task-behind-mergeable-spec/tasks.md": "136d05b719ec0e39e0d90862ce71b7bc263a41f1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
