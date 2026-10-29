@@ -64,7 +64,7 @@ id = "routing-early-gate"
 script = "scripts/model_routing.py"
 class = "recoverable"
 summary = "Task content exists without a routing record, or supervisor-written content contradicts a delegated-child execution plan."
-recovery = "no routing record: run `python3 scripts/model_routing.py route-codex` or `route-claude` before task content; a record without an execution plan: re-route while task content is unchanged, otherwise the owner decides in chat; supervisor-written content under a delegated-child plan: the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
+recovery = "no routing record: run `python3 scripts/model_routing.py prepare --provider codex|claude ...` before task content; a record without an execution plan: re-route while task content is unchanged, otherwise the owner decides in chat; supervisor-written content under a delegated-child plan: the owner decides in chat and it is recorded with `python3 scripts/model_routing.py approve-supervisor-diff --approval \"<owner statement>\" --reason \"<reason>\"`"
 migrated = true
 rejection_tests = [
   "tests/test_model_routing.py::EarlyRoutingGateTests::test_supervisor_content_under_delegated_plan_blocks_every_routing_adjacent_command",

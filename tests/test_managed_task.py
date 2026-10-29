@@ -464,6 +464,33 @@ class ManagedPackageTests(unittest.TestCase):
             self.assertEqual(managed_task.main(), 0)
         imported.assert_called_once_with(Path("/tmp/task"), "example-org/development-backlog#1", acknowledge_source_issue_revision=None)
 
+    def test_task_state_is_ignored_locally_without_editing_the_project_gitignore(self) -> None:
+        package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            (root / ".gitignore").write_text("build/\n", encoding="utf-8")
+            managed_task.write_task_state(root, package)
+            managed_task.write_task_state(root, package)  # idempotent
+            status = subprocess.run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=root, text=True,
+                                    capture_output=True, check=True).stdout
+            self.assertNotIn(".managed-task-state.json", status)
+            exclude = (root / ".git" / "info" / "exclude").read_text(encoding="utf-8")
+            self.assertEqual(exclude.count(".managed-task-state.json"), 1)
+            self.assertEqual((root / ".gitignore").read_text(encoding="utf-8"), "build/\n")
+
+    def test_task_state_ignore_failure_is_explicit(self) -> None:
+        package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            info = root / ".git" / "info"
+            info.mkdir(exist_ok=True)
+            (info / "exclude").unlink()
+            (info / "exclude").mkdir()  # a directory cannot be read or appended as the exclude file
+            with self.assertRaisesRegex(managed_task.ManagedTaskError, "cannot add .managed-task-state.json"):
+                managed_task.write_task_state(root, package)
+
     def test_canonical_provenance_fails_closed_when_state_loses_its_change(self) -> None:
         package = managed_task.parse_package([package_body()], "example-org/development-backlog#1")
         with tempfile.TemporaryDirectory() as tmp:
