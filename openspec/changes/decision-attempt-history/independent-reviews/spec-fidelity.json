@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c8b555068dd226a8a674c155b72f4b9b9cd940a6",
+    "base_ref": "origin/main",
+    "candidate_head": "38942e0fa771d95005e52847bdfa541ef924194a",
+    "diff_sha256": "ba16619e68e5cff442e7f17269b4fd4d5267243e923955bb5876ebcee4a66e0f"
+  },
+  "completed_at": "2026-10-29T01:14:28+00:00",
+  "findings": [
+    {
+      "evidence": "design.md:3 \"The owner's decision is recorded in BR-781 (variant A of three, 2026-10-23)\" cites a private Backlog item with no docs/decisions link. spec.md says \"the change's design SHALL link the record instead of restating the choice\". Only DEC-0004 is added, and it covers the main-advance topic, not this choice.",
+      "id": "design-quotes-owner-choice-without-record",
+      "severity": "advisory",
+      "summary": "The change's own design.md states the owner's choice (variant A of three) without linking a decision record. The delta spec and rule 2 require a record with rejected options and revisit triggers, and require design to link it instead of restating the choice. No DEC record covers the variant A choice, and the rejected variants (a separate problems registry, a fifth OpenSpec artifact) appear only in proposal.md."
+    },
+    {
+      "evidence": "proposal.md:3 \"at least eight times (\u2026 eight names \u2026, plus BR-774 and BR-777)\"; docs/decisions/0004-main-advance-revalidation.md attempts table has 11 rows.",
+      "id": "proposal-count-mismatch",
+      "severity": "advisory",
+      "summary": "proposal.md says the problem was attacked \"at least eight times\" but names ten or more changes, and DEC-0004 lists eleven attempt rows. The counts are inconsistent. The proposal also does not link DEC-0004 or issue #553 in a form that follows its own rule 3. The links appear only under \"What Changes\"."
+    }
+  ],
+  "launched_at": "2026-10-29T01:14:17+00:00",
+  "output_sha256": "3c1d449f64cfd685009457abc39ffff312e6e46c08c27d3c3984d054eef2c6b0",
+  "perspective": "spec-fidelity",
+  "request_id": "b6da50a2-6ea3-4cb7-bd38-abd05e9995a1",
+  "reviewer": {
+    "context_id": "9fafb118-ce1c-499a-beb9-72ed9d9883d6",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-59e8a9ce-0893-45ad-8b99-485c112f26cd",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22174
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15056
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9865
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10000
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1243
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7d4d0804a277bf0f67038179edcd74a42c8a3f47643f25614646f5f3ac5118a0"
+}

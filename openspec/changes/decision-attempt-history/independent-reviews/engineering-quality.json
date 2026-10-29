@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c8b555068dd226a8a674c155b72f4b9b9cd940a6",
+    "base_ref": "origin/main",
+    "candidate_head": "38942e0fa771d95005e52847bdfa541ef924194a",
+    "diff_sha256": "ba16619e68e5cff442e7f17269b4fd4d5267243e923955bb5876ebcee4a66e0f"
+  },
+  "completed_at": "2026-10-29T01:14:39+00:00",
+  "findings": [
+    {
+      "evidence": "docs/decisions/0004-main-advance-revalidation.md line 81: '| 2026-10-29 | quick-task-behind-mergeable-spec, BR-774 (in progress) | ... | Spec catch-up, no behavior change. |'. docs/decisions/README.md says to change a decision by creating a new record, not by editing the old one.",
+      "id": "dec-0004-in-progress-row-goes-stale",
+      "severity": "advisory",
+      "summary": "DEC-0004 is marked Current and lists an attempt as '(in progress)' with no PR link. The record contract says earlier records are preserved and changed only by a superseding record, so nothing is set up to update that row once the work lands. The record then keeps pointing at unfinished work."
+    },
+    {
+      "evidence": "proposal.md 'Why' names eight changes 'plus BR-774 and BR-777'. The DEC-0004 'Attempts' table has 12 rows.",
+      "id": "proposal-attempt-count-inconsistent",
+      "severity": "advisory",
+      "summary": "The proposal says the problem was attacked 'at least eight' times. Its own list, together with the BR-774 and BR-777 additions, names ten or more attempts. DEC-0004's table has eleven completed or in-progress rows. The count and the enumeration disagree, which weakens the claim that the history is complete."
+    }
+  ],
+  "launched_at": "2026-10-29T01:14:28+00:00",
+  "output_sha256": "21b605fa52d272dac6ad5b6d699fa5fd1ef376099315612c870c915fb80fc877",
+  "perspective": "engineering-quality",
+  "request_id": "b6da50a2-6ea3-4cb7-bd38-abd05e9995a1",
+  "reviewer": {
+    "context_id": "02b14dfc-ce5d-43a0-911c-d491cf73715f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5af0eaf2-a9dc-49b0-b6e3-9d61299900f7",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19436
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16656
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9580
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9799
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 974
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "7d4d0804a277bf0f67038179edcd74a42c8a3f47643f25614646f5f3ac5118a0"
+}

@@ -1,0 +1,83 @@
+{
+  "candidate": {
+    "base_head": "c8b555068dd226a8a674c155b72f4b9b9cd940a6",
+    "base_ref": "origin/main",
+    "candidate_head": "38942e0fa771d95005e52847bdfa541ef924194a",
+    "diff_sha256": "ba16619e68e5cff442e7f17269b4fd4d5267243e923955bb5876ebcee4a66e0f"
+  },
+  "change": "openspec/changes/decision-attempt-history",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/decision-attempt-history/automated-checks.json",
+    "openspec/changes/decision-attempt-history/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/decision-attempt-history/design.md",
+        "openspec/changes/decision-attempt-history/proposal.md",
+        "openspec/changes/decision-attempt-history/specs/decision-registry/spec.md",
+        "openspec/changes/decision-attempt-history/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/decision-attempt-history/proposal.md",
+        "openspec/changes/decision-attempt-history/design.md",
+        "openspec/changes/decision-attempt-history/tasks.md",
+        "openspec/changes/decision-attempt-history/specs/decision-registry/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T01:14:15+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/decision-attempt-history/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b6da50a2-6ea3-4cb7-bd38-abd05e9995a1",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ffc0b55e2be8bee27a152a98cbb04642ecaac3fe",
+    "digest": "7d4d0804a277bf0f67038179edcd74a42c8a3f47643f25614646f5f3ac5118a0",
+    "paths": {
+      "dev-platform/capabilities/requirement-authoring.md": "08ea98a7100d4f8acbd0fe41ebacc5e69cf8248f",
+      "dev-platform/capabilities/requirement-authoring.toml": "40fc3f71d9a598af3a59a1a1c3edf79df1b44367",
+      "dev-platform/evals/requirement-authoring-pilot.json": "f5a3c8632eafe6359275de35d8fb6dc90971ab2c",
+      "docs/decisions/0004-main-advance-revalidation.md": "eae946620b69addfbc6033e8cf7bf365bb0fdd98",
+      "docs/decisions/README.md": "c181ee628e05d4acee747079017b4dc600ca97d5",
+      "docs/engineering/agent-workflow.md": "2723fa32a9f7b5fd1f93e388b5ff1d9c96f01482",
+      "docs/engineering/openspec-workflow.md": "973b11efeded702f6bce743c40d857d0d83d3e43",
+      "docs/engineering/task-intake.md": "fbee44933bc9f4e4f3eda6a609fa63ccb8de70cb",
+      "openspec/changes/decision-attempt-history/.managed-task.json": "026b24b2effb01cdf3c29ef050e8fd3f15363d4d",
+      "openspec/changes/decision-attempt-history/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/decision-attempt-history/design.md": "6d9eb852ebffb4006925d9ab157994ebc1628f56",
+      "openspec/changes/decision-attempt-history/proposal.md": "d6266e01e0842ed19f673ee84a9585100ed0123a",
+      "openspec/changes/decision-attempt-history/specs/decision-registry/spec.md": "441c23d59949138bddbd1f9bb82f1b76f74d4bab",
+      "openspec/changes/decision-attempt-history/tasks.md": "bba1d2967259b2baa84c98007cd2d635fc099dca",
+      "template/dev-platform/capabilities/requirement-authoring.md": "08ea98a7100d4f8acbd0fe41ebacc5e69cf8248f",
+      "template/dev-platform/capabilities/requirement-authoring.toml": "40fc3f71d9a598af3a59a1a1c3edf79df1b44367",
+      "template/dev-platform/evals/requirement-authoring-pilot.json": "f5a3c8632eafe6359275de35d8fb6dc90971ab2c"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
