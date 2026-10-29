@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
+    "base_ref": "origin/main",
+    "candidate_head": "0dba785e589ef096b8e70c671d55a9de4ae1ad05",
+    "diff_sha256": "321cca9c94d63a8bb0512b98312c5ce476685040f32db3bed9aeda5a8f4994af"
+  },
+  "change": "openspec/changes/post-merge-scheduled-runner",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/post-merge-scheduled-runner/automated-checks.json",
+    "openspec/changes/post-merge-scheduled-runner/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/post-merge-scheduled-runner/design.md",
+        "openspec/changes/post-merge-scheduled-runner/proposal.md",
+        "openspec/changes/post-merge-scheduled-runner/specs/lifecycle-workers/spec.md",
+        "openspec/changes/post-merge-scheduled-runner/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/post-merge-scheduled-runner/proposal.md",
+        "openspec/changes/post-merge-scheduled-runner/design.md",
+        "openspec/changes/post-merge-scheduled-runner/tasks.md",
+        "openspec/changes/post-merge-scheduled-runner/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-29T10:35:27+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/post-merge-scheduled-runner/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "f31a7480-b9e7-4f7a-96a5-813a7b09ec2b",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
+    "digest": "33b17edf226da68a1af06941982619ee97abafaf28b7c90976cd77ee6fd735b3",
+    "paths": {
+      "dev-platform/checks.toml": "f5bf9105aa790a5c1ecbbcb02d7883fa141508ff",
+      "docs/engineering/hosted-lifecycle-workers.md": "636f153d811cb0621dcad5ddeeca1678e883a604",
+      "openspec/changes/post-merge-scheduled-runner/.managed-task.json": "76da52bd6bc73d7abf77203e6e22b8a6bbdb59b9",
+      "openspec/changes/post-merge-scheduled-runner/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/post-merge-scheduled-runner/design.md": "c81f8756386365a7937f0c950bcac708f0f0d115",
+      "openspec/changes/post-merge-scheduled-runner/proposal.md": "4be9bba763b4932342b0cb0f8316a01dccd739e2",
+      "openspec/changes/post-merge-scheduled-runner/specs/lifecycle-workers/spec.md": "75abdce4eb1efee33b8e94ecbced745918eb9552",
+      "openspec/changes/post-merge-scheduled-runner/tasks.md": "e3cbac4d9dec800dfc58d27b9bf3345e8faf3537",
+      "scripts/post_merge_runner.py": "43f07aef40e220c939a487f0df5ca064417535f0",
+      "tests/test_post_merge_runner.py": "5979becbbca120e4b3f685961046701eb0cb8ddd"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

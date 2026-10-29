@@ -1,0 +1,118 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.286,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.128,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.164,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.185,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1791.233,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/post_merge_runner.py",
+        "tests/test_post_merge_runner.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_26190c902d8820138442eedf05ecfc6a",
+    "change": "post-merge-scheduled-runner",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/post-merge-scheduled-runner",
+    "branch": "agent/br-885-t1-post-merge-scheduled-runner",
+    "head": "adea20157bb5f6780125ac11bfaf94656ed032ac",
+    "task_content": {
+      "version": 1,
+      "digest": "7535a918f0b84ecd16d1820334f5deff15224047664e7f836a4449ff5fec9e30",
+      "paths": {
+        "dev-platform/checks.toml": "f5bf9105aa790a5c1ecbbcb02d7883fa141508ff",
+        "docs/engineering/hosted-lifecycle-workers.md": "636f153d811cb0621dcad5ddeeca1678e883a604",
+        "openspec/changes/post-merge-scheduled-runner/.managed-task.json": "76da52bd6bc73d7abf77203e6e22b8a6bbdb59b9",
+        "openspec/changes/post-merge-scheduled-runner/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/post-merge-scheduled-runner/design.md": "c81f8756386365a7937f0c950bcac708f0f0d115",
+        "openspec/changes/post-merge-scheduled-runner/proposal.md": "4be9bba763b4932342b0cb0f8316a01dccd739e2",
+        "openspec/changes/post-merge-scheduled-runner/specs/lifecycle-workers/spec.md": "75abdce4eb1efee33b8e94ecbced745918eb9552",
+        "openspec/changes/post-merge-scheduled-runner/tasks.md": "e3cbac4d9dec800dfc58d27b9bf3345e8faf3537",
+        "scripts/post_merge_runner.py": "43f07aef40e220c939a487f0df5ca064417535f0",
+        "tests/test_post_merge_runner.py": "5979becbbca120e4b3f685961046701eb0cb8ddd"
+      },
+      "base": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "33b17edf226da68a1af06941982619ee97abafaf28b7c90976cd77ee6fd735b3",
+    "paths": {
+      "dev-platform/checks.toml": "f5bf9105aa790a5c1ecbbcb02d7883fa141508ff",
+      "docs/engineering/hosted-lifecycle-workers.md": "636f153d811cb0621dcad5ddeeca1678e883a604",
+      "openspec/changes/post-merge-scheduled-runner/.managed-task.json": "76da52bd6bc73d7abf77203e6e22b8a6bbdb59b9",
+      "openspec/changes/post-merge-scheduled-runner/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/post-merge-scheduled-runner/design.md": "c81f8756386365a7937f0c950bcac708f0f0d115",
+      "openspec/changes/post-merge-scheduled-runner/proposal.md": "4be9bba763b4932342b0cb0f8316a01dccd739e2",
+      "openspec/changes/post-merge-scheduled-runner/specs/lifecycle-workers/spec.md": "75abdce4eb1efee33b8e94ecbced745918eb9552",
+      "openspec/changes/post-merge-scheduled-runner/tasks.md": "e3cbac4d9dec800dfc58d27b9bf3345e8faf3537",
+      "scripts/post_merge_runner.py": "43f07aef40e220c939a487f0df5ca064417535f0",
+      "tests/test_post_merge_runner.py": "5979becbbca120e4b3f685961046701eb0cb8ddd"
+    },
+    "base": "ddfcdf1c7f20cfbbe8293ce7728822eb710df6cd",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/post_merge_runner.py --changed-file tests/test_post_merge_runner.py",
+    "duration_seconds": 4.339,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
