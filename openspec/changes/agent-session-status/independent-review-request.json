@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "944837d28e779735705216f827133c37f1e44002",
     "base_ref": "origin/main",
-    "candidate_head": "fcd4e1f680e292d04eb0b1bbdf0580a801d806e1",
-    "diff_sha256": "43267a0166f0e7474b68f9797d680b80aa7eb22f6b128acb3ea569009e60a2d0"
+    "candidate_head": "8e3c82b575e1f305263f8bb7edd0ccc1ca6ef914",
+    "diff_sha256": "e5599fe7f2c9226492faed09e7825f84a3421711b5d4cb01080b7f6735ab50c4"
   },
   "change": "openspec/changes/agent-session-status",
   "excluded_lifecycle_paths": [
     "openspec/changes/agent-session-status/automated-checks.json",
+    "openspec/changes/agent-session-status/independent-review-request.json",
+    "openspec/changes/agent-session-status/independent-reviews/engineering-quality.json",
+    "openspec/changes/agent-session-status/independent-reviews/spec-fidelity.json",
     "openspec/changes/agent-session-status/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -37,7 +40,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-29T14:52:52+00:00",
+  "prepared_at": "2026-10-29T14:58:52+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/agent-session-status/independent-reviews",
     "required_perspectives": [
@@ -46,7 +49,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "ad02d712-614a-43f0-a745-5a08db098a82",
+  "request_id": "d400336a-5892-4cd5-9f6c-b0ecb57a6621",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +62,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "944837d28e779735705216f827133c37f1e44002",
-    "digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378",
+    "digest": "3e8e1a91ceb75a165ec3a890bef2dac9317cff3a63f02ccb8cec083af28c4f6d",
     "paths": {
       "dev-platform/checks.toml": "d3e6dd5ee654a36114c83d12a4bb043dea8cccf1",
       "docs/engineering/agent-sessions.md": "dbe0439b4609e94683a9a9db8917846d802391e9",
@@ -72,8 +75,8 @@
       "openspec/changes/agent-session-status/specs/chat-coordinator/spec.md": "37331b757a150bb78204eba48a30bcc5420e5b62",
       "openspec/changes/agent-session-status/tasks.md": "05bbba3a812900ee04316e88591d73f4384451b5",
       "template/dev-platform/protected-surface.toml": "0abe1139bd5ff077474c202cdb75849731e8fb09",
-      "template/scripts/agent_sessions.py": "3e13e34408fb64dee7b832aeac7f07f4bd44c66d",
-      "template/scripts/lifecycle_overview.py": "10490e67bc077cbc0e41f78d864881bcae619aa2",
+      "template/scripts/agent_sessions.py": "e9247888010c2d2fcd4317ed5c8465fbc287afde",
+      "template/scripts/lifecycle_overview.py": "81062ec5b51c5d6f9bbe2e9c41c504f16b9776ef",
       "tests/test_agent_sessions.py": "732b1c81c40bf683b0ba4e22731ebf755a486a70",
       "tests/test_overview_agent_sessions.py": "11d764dc718b154b48f2c6bcd56a55db382a9f4c",
       "tests/test_shared_writer_guard.py": "48e717e035dbe653ef15bd591a995aae66ba3ac2"

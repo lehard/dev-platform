@@ -3,52 +3,58 @@
   "candidate": {
     "base_head": "944837d28e779735705216f827133c37f1e44002",
     "base_ref": "origin/main",
-    "candidate_head": "fcd4e1f680e292d04eb0b1bbdf0580a801d806e1",
-    "diff_sha256": "43267a0166f0e7474b68f9797d680b80aa7eb22f6b128acb3ea569009e60a2d0"
+    "candidate_head": "8e3c82b575e1f305263f8bb7edd0ccc1ca6ef914",
+    "diff_sha256": "e5599fe7f2c9226492faed09e7825f84a3421711b5d4cb01080b7f6735ab50c4"
   },
-  "completed_at": "2026-10-29T14:54:06+00:00",
+  "completed_at": "2026-10-29T15:00:02+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_sessions.py list_sessions loops over state_dir.glob('*.json') and calls read_record(path), which raises SessionError on bad JSON or a wrong version. Nothing catches it per file, so read_sessions in lifecycle_overview.py returns {'error': ...} with sessions=[]. Readers never delete files, so one bad record keeps the whole view blind until someone deletes it by hand.",
-      "id": "one-corrupt-record-hides-registry",
+      "evidence": "template/scripts/agent_sessions.py, hook_command(): f\"{sys.executable} {script} hook --provider {provider} --state-dir {state_dir}\". Use shlex.quote on each part. _is_ours() matches on the HOOK_MARKER substring, so quoting is compatible with detection as long as the marker text stays contiguous.",
+      "id": "hook-command-unquoted",
       "severity": "advisory",
-      "summary": "A single unreadable or wrong-version session file makes the whole registry unreadable. The overview then shows 'Sessions: registry unreadable' for every session."
+      "summary": "The rendered hook command interpolates the interpreter, script and state-dir paths without shell quoting. A path containing a space, for example a macOS home directory, produces a command that fails on every event. Each failure exits 1 and the registry silently goes stale."
     },
     {
-      "evidence": "agent_sessions.py claude_transition: the permission_prompt branch sets detail {'tool': waiting_tool if state == 'waiting-permission' else None}. The PostToolUse branch only protects the wait when `waiting_tool is not None`. With tool=None, a parallel tool's PostToolUse returns 'working'.",
-      "id": "notification-permission-clears-on-any-tool",
+      "evidence": "agent_sessions.py ingest(): `started(pid)` is called once for a new record, then twice more in the `previous.get(\"pid_started\") != started(pid)` check and the following `record.update(pid=pid, pid_started=started(pid))`. Compute it once per event and reuse it. Better, only re-probe when `previous.get(\"pid\") != pid`.",
+      "id": "per-event-subprocess-cost",
       "severity": "advisory",
-      "summary": "A permission wait started only by a Notification(permission_prompt) has no tool recorded. The next PostToolUse of any tool then clears it, which contradicts the spec's 'never cleared by another tool's event'."
+      "summary": "The design says tool-event hooks stay cheap, but ingest() runs `ps` up to three times per event. Every PreToolUse and PostToolUse also pays a Python start-up plus an fsync'd write."
     },
     {
-      "evidence": "agent_sessions.py main(): ingest(..., pid=os.getppid()). design.md Risks admits the PID may be a wrapper's. The fallback is ended/unknown, never 'working', but it would hide live sessions from the overview. Nothing in the diff shows the real-sequence run (task 3.2) checked that the recorded PID is the claude process.",
-      "id": "hook-parent-pid-may-be-shell-wrapper",
+      "evidence": "agent_sessions.py list_sessions(): `record = read_record(path)` and `view(...)` are not guarded per file. read_record raises on JSON errors or a version mismatch, and _parse raises on a bad timestamp. lifecycle_overview.read_sessions then returns {\"error\":...,\"sessions\":[]}. Consider skipping and reporting the bad file while still listing the rest.",
+      "id": "one-bad-record-hides-whole-registry",
       "severity": "advisory",
-      "summary": "The registry records os.getppid() as the session root PID, but the hook is run from a configured command string. If a shell wrapper is the parent, the session is shown 'ended (process-gone)' once the wrapper exits, even though the session is live and working."
+      "summary": "A single corrupt or invalid session file makes list_sessions raise. The overview then reports the whole registry as unreadable and hides all healthy sessions. A bad `updated_at` has the same effect, because view() calls _parse and that raises SessionError."
     },
     {
-      "evidence": "agent_sessions.py ingest: `if previous and previous.get('pid') != pid: record.update(pid=pid, pid_started=started(pid))`. A resumed session with the same PID but a new start time is only refreshed when the PID differs. view/liveness then reports 'gone' because the recorded start time no longer matches.",
-      "id": "reused-pid-keeps-stale-start-time",
+      "evidence": "lifecycle_overview.py read_sessions(): `raise OverviewError(f\"[agent_sessions] {key} must be set ...\")`. overview(), show_pr() and show_requirement() call it unguarded.",
+      "id": "partial-config-aborts-overview",
       "severity": "advisory",
-      "summary": "When a session's PID is unchanged between events, pid_started is not refreshed. A restarted or resumed process that reuses the same PID keeps the old start time, and the session is then wrongly shown ended."
+      "summary": "An incomplete `[agent_sessions]` section raises OverviewError from read_sessions. That aborts the entire lifecycle overview, including the PR and Requirement views, instead of degrading to the explicit session-status line the registry-unreadable case uses."
     },
     {
-      "evidence": "design.md, 'Hooks never steer the session': 'unknown event names exit 0 after recording `last_event` only for known sessions... an unknown event is an explicit stderr error with exit 1'. The code (claude_transition raising SessionError) does the second; the first clause is stale.",
-      "id": "design-hook-decision-text-garbled",
+      "evidence": "agent_sessions.py main(): `ingest(..., pid=os.getppid())`. liveness() returns `gone` when the pid is missing or its start time differs, and view() then forces state=\"ended\". design.md Risks covers only the 'never a false working' direction.",
+      "id": "root-pid-is-hook-parent-fragile",
       "severity": "advisory",
-      "summary": "The design decision for unknown events contradicts itself and was left unresolved in the text."
+      "summary": "The session root pid is taken as os.getppid() of the hook, and it is re-recorded on every event when it differs. If the hook runs under a short-lived shell, or a Codex notify wrapper, the recorded process dies quickly. A live, working session is then shown `ended (process-gone)`, which is a false negative. The design only argues that a false `working` is impossible."
+    },
+    {
+      "evidence": "docs/engineering/agent-sessions.md, 'Codex' section, plus the argparse definition `hook.add_argument(\"--payload-json\", ...)` in agent_sessions.py. The `hooks` subcommand renders only CLAUDE_EVENTS.",
+      "id": "codex-setup-undocumented",
+      "severity": "advisory",
+      "summary": "Codex ingestion has no render or install path, and the docs do not show the `notify` configuration. The CLI needs an explicit `--payload-json` flag as the final argument, whereas the docs say Codex passes the payload as the last argument. Operators cannot wire Codex from the docs alone."
     }
   ],
-  "launched_at": "2026-10-29T14:53:31+00:00",
-  "output_sha256": "7170bd6688da6430fccc7007707b1315f0ccdb0bfc179965e96701429d0a1352",
+  "launched_at": "2026-10-29T14:59:23+00:00",
+  "output_sha256": "4655632a0e31eb0b830239fb652351d88c6ab8fad542a93fe8303c5333c915c7",
   "perspective": "engineering-quality",
-  "request_id": "ad02d712-614a-43f0-a745-5a08db098a82",
+  "request_id": "d400336a-5892-4cd5-9f6c-b0ecb57a6621",
   "reviewer": {
-    "context_id": "d2c31ff1-baad-4d36-8544-8ded1087fb5a",
+    "context_id": "3ac725b2-3a68-46bf-b753-d9151dc21d8d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a783ac86-2030-4639-b703-a7c5ea4e29a6",
+    "launch_id": "platform-launch-5bcb3c61-c1e8-4503-b58e-211b240cd2f5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -63,41 +69,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37739
+        "value": 39350
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51740
+        "value": 112909
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33598
+        "value": 37463
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33909
+        "value": 37753
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3748
+        "value": 4287
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378"
+  "task_content_digest": "3e8e1a91ceb75a165ec3a890bef2dac9317cff3a63f02ccb8cec083af28c4f6d"
 }

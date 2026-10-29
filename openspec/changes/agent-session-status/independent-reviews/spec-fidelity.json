@@ -3,40 +3,52 @@
   "candidate": {
     "base_head": "944837d28e779735705216f827133c37f1e44002",
     "base_ref": "origin/main",
-    "candidate_head": "fcd4e1f680e292d04eb0b1bbdf0580a801d806e1",
-    "diff_sha256": "43267a0166f0e7474b68f9797d680b80aa7eb22f6b128acb3ea569009e60a2d0"
+    "candidate_head": "8e3c82b575e1f305263f8bb7edd0ccc1ca6ef914",
+    "diff_sha256": "e5599fe7f2c9226492faed09e7825f84a3421711b5d4cb01080b7f6735ab50c4"
   },
-  "completed_at": "2026-10-29T14:53:31+00:00",
+  "completed_at": "2026-10-29T14:59:23+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_overview.py: `show_pr` and `show_requirement` call `attach_sessions(read_sessions(...), ...)` and discard the result. The `configured` and `error` fields are never rendered. Only the top-level `render` branch for the overall overview prints 'Sessions: not configured' or 'registry unreadable'. `render_candidate` prints nothing when `sessions` is empty. Spec: chat-coordinator/spec.md, 'If the registry is not configured or cannot be read, the overview SHALL say so explicitly and SHALL NOT present sessions as absent'.",
-      "id": "detail-views-hide-registry-status",
-      "severity": "material",
-      "summary": "The single-PR and single-Requirement overview views silently drop the registry status. When the registry is unconfigured or unreadable they show no sessions and say nothing. The spec requires the overview to say so explicitly and not present sessions as absent."
+      "evidence": "template/scripts/agent_sessions.py:359-360 sets detail {\"tool\": waiting_tool if state == \"waiting-permission\" else None}. Line 352 guards PostToolUse only when waiting_tool is not None. The spec scenario \"Permission wait is not cleared by another tool\" is therefore not guaranteed on this path.",
+      "id": "permission-prompt-notification-loses-tool",
+      "severity": "advisory",
+      "summary": "A permission_prompt Notification that is not preceded by a PermissionRequest records waiting-permission with tool=None. Any later PostToolUse then clears the wait, which contradicts the rule that only the matching tool's PostToolUse or a new prompt clears it."
     },
     {
-      "evidence": "agent-sessions/spec.md says 'SHALL state that working, waiting and limit states are unavailable'. The design says they are 'reported as such'. The statement exists only in docs/engineering/agent-sessions.md. `_session_line` in lifecycle_overview.py and the `list` output in agent_sessions.py add no Codex note.",
-      "id": "codex-unavailable-states-not-stated-at-runtime",
+      "evidence": "template/scripts/lifecycle_overview.py read_sessions: `raise OverviewError(f\"[agent_sessions] {key} must be set ...\")`. Only SessionError and ValueError become {\"configured\": True, \"error\": ...}. tests/test_overview_agent_sessions.py::test_partial_configuration_names_the_missing_key asserts the raise.",
+      "id": "partial-config-aborts-overview",
       "severity": "advisory",
-      "summary": "The spec says the platform SHALL state that Codex working, waiting and limit states are unavailable. Only the docs say this. The listing and overview output never do, so a Codex session looks like any other idle session."
+      "summary": "A partially configured [agent_sessions] section (a missing key) raises OverviewError and aborts the whole overview. The spec says the overview SHALL state explicitly that the registry is unconfigured or unreadable. Only the missing-section and listing-error cases render a Sessions line."
     },
     {
-      "evidence": "agent_sessions.py `claude_transition`: Notification permission_prompt returns `{\"tool\": waiting_tool if state == \"waiting-permission\" else None}`. PostToolUse only protects the wait when `waiting_tool is not None`, so with `tool=None` it falls through to `working`.",
-      "id": "permission-wait-tool-lost-via-notification",
+      "evidence": "template/scripts/agent_sessions.py list_sessions calls read_record(path) per file without per-record handling. read_record raises SessionError for bad JSON or a wrong version.",
+      "id": "one-corrupt-record-hides-all-sessions",
       "severity": "advisory",
-      "summary": "A permission_prompt Notification that arrives when the session is not already in waiting-permission records the state with `tool=None`. Any later PostToolUse then clears the wait, which contradicts the scenario that another tool's event must not clear it."
+      "summary": "list_sessions raises on the first unreadable record, so one corrupt file makes the whole registry unreadable and every live session disappears from the overview. The overview does print that the registry is unreadable, so sessions are not shown as absent."
+    },
+    {
+      "evidence": "_session_line in lifecycle_overview.py and the `list` CLI output in agent_sessions.py print the state for codex sessions without any note about unavailable states.",
+      "id": "codex-limits-only-in-docs",
+      "severity": "advisory",
+      "summary": "The spec says the platform SHALL state that Codex working, waiting and limit states are unavailable. This statement appears only in docs/engineering/agent-sessions.md. The list and overview output for a Codex session shows plain `idle` with no such marker."
+    },
+    {
+      "evidence": "openspec/changes/agent-session-status/design.md: \"unknown event names exit 0 after recording `last_event` only for known sessions... an unknown event is an explicit stderr error with exit 1\".",
+      "id": "design-text-garbled-unknown-event",
+      "severity": "advisory",
+      "summary": "design.md gives contradictory behavior for unknown hook events. The same bullet says they exit 0 and then that they are an explicit stderr error with exit 1. The proposal also says hooks exit 0 on success. The spec and implementation use stderr with exit 1, so the design artifact is internally inconsistent."
     }
   ],
-  "launched_at": "2026-10-29T14:52:59+00:00",
-  "output_sha256": "1a0361ccfb7e874f84ae8b5b77bb90d356291f956c9f38e527258e33aa3f20fa",
+  "launched_at": "2026-10-29T14:58:55+00:00",
+  "output_sha256": "58cba00c72c4859c3bfa70568eb9f762b7a5a7631ba89ac441aa385efdfe72c8",
   "perspective": "spec-fidelity",
-  "request_id": "ad02d712-614a-43f0-a745-5a08db098a82",
+  "request_id": "d400336a-5892-4cd5-9f6c-b0ecb57a6621",
   "reviewer": {
-    "context_id": "289fbf69-cc29-4862-8cae-8534a67b02ea",
+    "context_id": "2453a9f6-7e65-4e6b-a718-19cd60769b50",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f8c158ab-a586-43dc-acb0-a1ad4c7ac9f4",
+    "launch_id": "platform-launch-5b1cce35-5d96-436d-984e-68a059247812",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,22 +63,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27995
+        "value": 39400
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 65948
+        "value": 102311
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31865
+        "value": 27973
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32209
+        "value": 28304
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -76,16 +88,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2424
+        "value": 3269
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "8de66321d7a08d4588217c3933d9684685083b18d181d61ed36dc9a098b90378"
+  "task_content_digest": "3e8e1a91ceb75a165ec3a890bef2dac9317cff3a63f02ccb8cec083af28c4f6d"
 }
