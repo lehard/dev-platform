@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/chat-coordinator/spec.md",
+    "tasks.md"
+  ],
+  "change": "overview-idle-reason",
+  "imported_at": "2026-10-29T08:53:09+00:00",
+  "package_revision": "f7434a0df20a86b2440e285d840da8a742aa683e392dffbba23ed7ed6b7f7c4d",
+  "prepared_against": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+  "private_lineage_handle": "pln_24b232d5168fe2cee929ac7425886251",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "cc0ce421688e03e41788f79d8b0e7e70e5a6bef5c8b0b70551a266ca95ab4087",
+    "updated_at": "2026-10-29T08:48:08Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-889/T1"
+}

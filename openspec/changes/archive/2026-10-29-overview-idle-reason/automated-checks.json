@@ -1,0 +1,116 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.125,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.415,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.123,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.148,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1938.562,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/lifecycle_overview.py",
+        "tests/test_lifecycle_overview.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_24b232d5168fe2cee929ac7425886251",
+    "change": "overview-idle-reason",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/overview-idle-reason",
+    "branch": "agent/br-889-t1-overview-idle-reason",
+    "head": "9f8fb98c3e8643ffdee838c4edb16e1d84d045fb",
+    "task_content": {
+      "version": 1,
+      "digest": "1b45d5126172abb730f83371ec99311c7e56b544f5763a025660d4cbc870c083",
+      "paths": {
+        "docs/engineering/chat-coordinator.md": "cbd5edcf556c82b7318be9dc33ff2fd0fffee07d",
+        "openspec/changes/overview-idle-reason/.managed-task.json": "90039a39a2333d09edff31dec1bb2d00fb9d6a01",
+        "openspec/changes/overview-idle-reason/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+        "openspec/changes/overview-idle-reason/design.md": "46c51e9fbbc982afd969b531675729da387608f0",
+        "openspec/changes/overview-idle-reason/proposal.md": "2b150f86a697da8059e04ee136e58b202f46b694",
+        "openspec/changes/overview-idle-reason/specs/chat-coordinator/spec.md": "d412422e4261b02203ce2094729b3cad8596f80d",
+        "openspec/changes/overview-idle-reason/tasks.md": "9a0e7bfeffe634184167fcfe2a0e24e9e140f7bb",
+        "template/dev-platform/platform-manifest.json": "714c237028ee00e38e9c09c71e4bb7a8539135e8",
+        "template/scripts/lifecycle_overview.py": "90d3cf4aa6e17883473bc26afc3e6e53e059ec8d",
+        "tests/test_lifecycle_overview.py": "ced36c1976828323325de6bcd998ce338d3f9460"
+      },
+      "base": "516ed612b20bf338cca8c356abdbd9d8349590d1"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "ed75c6a858726d4d0918cfe3ba73adf76140c008693076be4081b4d3733ef0fe",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "cbd5edcf556c82b7318be9dc33ff2fd0fffee07d",
+      "openspec/changes/overview-idle-reason/.managed-task.json": "90039a39a2333d09edff31dec1bb2d00fb9d6a01",
+      "openspec/changes/overview-idle-reason/.openspec.yaml": "5c99d6d7445ddeb2064fa90d16a7cfc9c5579970",
+      "openspec/changes/overview-idle-reason/design.md": "46c51e9fbbc982afd969b531675729da387608f0",
+      "openspec/changes/overview-idle-reason/proposal.md": "2b150f86a697da8059e04ee136e58b202f46b694",
+      "openspec/changes/overview-idle-reason/specs/chat-coordinator/spec.md": "d412422e4261b02203ce2094729b3cad8596f80d",
+      "openspec/changes/overview-idle-reason/tasks.md": "9a0e7bfeffe634184167fcfe2a0e24e9e140f7bb",
+      "template/scripts/lifecycle_overview.py": "90d3cf4aa6e17883473bc26afc3e6e53e059ec8d",
+      "tests/test_lifecycle_overview.py": "ced36c1976828323325de6bcd998ce338d3f9460"
+    },
+    "base": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_overview.py --changed-file tests/test_lifecycle_overview.py",
+    "duration_seconds": 3.42,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

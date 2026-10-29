@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "516ed612b20bf338cca8c356abdbd9d8349590d1",
+    "base_ref": "origin/main",
+    "candidate_head": "1e4135d964a7ae5ab722bc6f7ed820af7a7a983d",
+    "diff_sha256": "18c41eb457e38237ffbb896c6a35de37ddb7842a7ae7c6f8a1b2d0ed748d220a"
+  },
+  "completed_at": "2026-10-29T09:38:41+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_overview.py: idle_reason's malformed-marker branch returns f\"idle reason unknown: {reason}\". The observe_candidate fallback returns \"idle reason unknown: lifecycle state is unreadable: {exc}\". Spec: 'report it explicitly as unknown, naming the state'. Only the final fallback names the state.",
+      "id": "unknown-reason-omits-state",
+      "severity": "advisory",
+      "summary": "Spec requires the unknown reason to name the state. The malformed-marker and unreadable-lifecycle paths report 'idle reason unknown' with a reason or exception text but never name a state."
+    },
+    {
+      "evidence": "idle_reason uses `if job and not completed:`. design.md: 'job present (unclaimed, expired or published) -> worker class'. No test covers the completed case.",
+      "id": "completed-job-falls-through-to-unknown",
+      "severity": "advisory",
+      "summary": "When a job exists and `completed` is true, the job rule is skipped. A candidate in a job-bearing state such as review-pending can then fall to 'unknown', or be attributed to the publication queue by state alone. The design says a job present (unclaimed, expired or published) maps to a worker class, and it does not mention a completed exclusion."
+    }
+  ],
+  "launched_at": "2026-10-29T09:38:28+00:00",
+  "output_sha256": "8478256e1df1774bf633f36f5cbd3448dbc12e9211033e35961e61167e14bfb7",
+  "perspective": "spec-fidelity",
+  "request_id": "57f654d2-4bba-4ec3-be60-7de3cd71f9f5",
+  "reviewer": {
+    "context_id": "343901a9-577c-4b28-b0d4-ea83251a0d49",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3c23de55-e47e-4982-b5e6-2e65f1a63d1d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23388
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34191
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11607
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11764
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1242
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ed75c6a858726d4d0918cfe3ba73adf76140c008693076be4081b4d3733ef0fe"
+}
