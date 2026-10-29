@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
+    "base_ref": "origin/main",
+    "candidate_head": "38a47796c7b3d0d7b60dbb8c6b91e2fca3207868",
+    "diff_sha256": "6342a77365d745b479a897495e7216cc448ec09aeb94200f08314ec5bdc4aa66"
+  },
+  "completed_at": "2026-10-29T22:17:26+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_overview.py: `return agent_signal.open_signals(main_root(), now=now)` in read_owner_needed, called from overview(root, now) as `read_owner_needed(now)`. read_sessions(root, now=now) takes the root.",
+      "id": "overview-ignores-root-argument",
+      "severity": "advisory",
+      "summary": "read_owner_needed() calls main_root() instead of using the root given to overview(root, ...). The sessions registry reads from the passed root, so the two sections can read different repositories. The new function takes only `now`, which makes it harder to test and inconsistent with its neighbours."
+    },
+    {
+      "evidence": "template/scripts/agent_signal.py open_signals: `for item in entry.get(\"signals\", [])`, `datetime.fromisoformat(item[\"raised_at\"]...)` and `signals.sort(key=lambda s: s[\"raised_at\"])` are all outside the try/except that only wraps the file read and JSON parse.",
+      "id": "open-signals-fragile-on-malformed-data",
+      "severity": "advisory",
+      "summary": "The viewer path reads board data without checking its shape. A non-dict board entry, a signal missing `raised_at` or `id`, or a bad timestamp raises KeyError, AttributeError or ValueError. That aborts the whole lifecycle overview instead of producing the explicit 'cannot be shown' line the spec requires. read_platform_config is also called outside the try block. The writer path has the same fragility: `s[\"id\"]` and `existing[\"count\"] += 1` assume well-formed stored signals."
+    },
+    {
+      "evidence": "template/scripts/_platform_common.py locked_json: `raise RuntimeError(f\"Invalid JSON in {path}: ...\")`. template/scripts/agent_signal.py main(): `except SignalError` only.",
+      "id": "cli-board-json-error-traceback",
+      "severity": "advisory",
+      "summary": "The CLI only catches SignalError. locked_json raises RuntimeError for invalid board JSON, and board_path or read_platform_config can raise other errors from the writer path. These surface as a traceback instead of the named single-line error the proposal promises (`No fallbacks: ... fails with a named error`). The `except` around `board_path` in _require_board does not cover this case."
+    },
+    {
+      "evidence": "design.md 'Storage and lifecycle' versus template/scripts/agent_signal.py `with locked_json(path) as data:` in raise_signal and resolve_signal.",
+      "id": "design-board-writer-mismatch",
+      "severity": "advisory",
+      "summary": "The design says signals are written 'through the board's own writer, so the shared-writer guard stays valid'. The implementation uses the generic `locked_json` from _platform_common directly. It does not use any agent_board writer function, and no test shows that the board's own commands or validation preserve or ignore the new `signals` key on the entry."
+    }
+  ],
+  "launched_at": "2026-10-29T22:17:07+00:00",
+  "output_sha256": "bd41e8241b33c1721fe165e9801bf5c9459221644c8f0452d5da595fb4ea7fca",
+  "perspective": "engineering-quality",
+  "request_id": "5e53be98-2595-43b6-bd15-dcb85519caa8",
+  "reviewer": {
+    "context_id": "7d735930-5768-44ba-8057-f23f9a823d86",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ae71b54e-b935-430e-a5f5-5ac990065c2f",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25145
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 70684
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18414
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18688
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2185
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8598ad12bcf0688e1f664277405bd57754067d7c4416f7d277161004e0d0119a"
+}

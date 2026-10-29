@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
+    "base_ref": "origin/main",
+    "candidate_head": "38a47796c7b3d0d7b60dbb8c6b91e2fca3207868",
+    "diff_sha256": "6342a77365d745b479a897495e7216cc448ec09aeb94200f08314ec5bdc4aa66"
+  },
+  "completed_at": "2026-10-29T22:17:07+00:00",
+  "findings": [
+    {
+      "evidence": "proposal.md 'Success evidence' and tasks.md 3 ('the overview output'). tests/test_agent_signal.py::test_overview_renders_open_signals_and_board_problems calls only `overview._owner_needed_lines`. The edits to tests/test_lifecycle_overview.py and tests/test_overview_agent_sessions.py mock `read_owner_needed` or hard-code `owner_needed` as `{\"configured\": False, ...}`. The `owner_needed` key added to `overview()` in template/scripts/lifecycle_overview.py is never checked against a real signal.",
+      "id": "overview-json-owner-needed-untested",
+      "severity": "advisory",
+      "summary": "The proposal's success evidence and tasks.md say the overview section is tested in text and in JSON. The tests only cover the text rendering helper `_owner_needed_lines`. No test shows that the JSON output carries real `owner_needed` data."
+    }
+  ],
+  "launched_at": "2026-10-29T22:16:45+00:00",
+  "output_sha256": "4302cc338e8cc1a63af4a1556306d3aca360036e923ecd1f5176c86ccd3c472f",
+  "perspective": "spec-fidelity",
+  "request_id": "5e53be98-2595-43b6-bd15-dcb85519caa8",
+  "reviewer": {
+    "context_id": "648e4a72-3832-40c9-aaec-98cb5dc0a383",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-98c29695-a5c5-41a6-b5bf-3dd6c469b80d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35140
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 162875
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21066
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21265
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2548
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "8598ad12bcf0688e1f664277405bd57754067d7c4416f7d277161004e0d0119a"
+}
