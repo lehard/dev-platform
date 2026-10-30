@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+import io
 import json
 import os
 from pathlib import Path
@@ -1148,7 +1149,121 @@ class PremergeRetrospectiveResumeTests(unittest.TestCase):
         finalize = {**workers.job_record("finalize", HEAD, IDENTITY, 0, reoffer=event), "number": 7}
         self.assertTrue(workers.job_id(finalize).endswith(":a0:r2"))
         with self.assertRaises(ValueError):
-            workers.job_record("retrospective", HEAD, IDENTITY, 0, reoffer=event)
+            workers.job_record("integration-repair", HEAD, IDENTITY, 0, reoffer=event)
+        # A post-merge obligation accepts an operator re-offer (reoffer-post-merge) and keeps its suffix.
+        cleanup = {**workers.job_record("cleanup", HEAD, IDENTITY, 0, reoffer=event), "number": 7}
+        self.assertTrue(workers.job_id(cleanup).endswith(":a0:r2"))
+
+
+class PostMergeReofferTests(unittest.TestCase):
+    """``reoffer-post-merge`` re-offers an exhausted post-merge obligation of a merged PR with a fresh budget."""
+
+    QUICK = {"branch": "agent/example", "head": HEAD}
+
+    def merged_fixture(self, *, cleanup=("blocked: local cleanup refused: active-board",) * 3):
+        fixture = QueueFixture(ROOT, HEAD).__enter__()
+        self.addCleanup(fixture.__exit__)
+        queue._transition(ROOT, "o/r", 7, "integrating", HEAD, task_identity=self.QUICK, inherit_identity=False,
+                          set_attempts={"post-merge": 1})
+        merged = {"number": 7, "state": "closed", "merged": True, "head": {"sha": HEAD, "ref": "agent/example"}, "labels": []}
+        fixture.stack.enter_context(mock.patch.object(queue, "_pr", side_effect=lambda *a: merged))
+        self.result(fixture, "retrospective", 0, "task-recorded")
+        self.result(fixture, "terminal-reconciliation", 0, "no-source-issue: quick task")
+        for attempt, outcome in enumerate(cleanup):
+            self.result(fixture, "cleanup", attempt, outcome)
+        return fixture
+
+    def result(self, fixture, kind, attempt, outcome, seq=0):
+        job = {"number": 7, "kind": kind, "head": HEAD, "attempt": attempt, **({"reoffer": {"seq": seq}} if seq else {})}
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.result_body(job, "w", outcome)})
+
+    def reoffer(self, **kwargs):
+        return gate.reoffer_post_merge(ROOT, "o/r", 7, **{"reason": "worktree gone", "actor": "op",
+                                                          "expected_head": HEAD, **kwargs})
+
+    def test_exhausted_cleanup_is_re_offered_with_a_fresh_budget_and_completed_kinds_are_kept(self):
+        fixture = self.merged_fixture()
+        exhausted = fixture.candidate()
+        self.assertEqual((exhausted["state"], exhausted["post_merge_exhausted"], exhausted["next_job"]),
+                         ("merged", "cleanup", None))
+        writes = len(fixture.comments)
+        result = self.reoffer(via="chat-coordinator")
+        self.assertEqual((result["kind"], result["seq"]), ("cleanup", 1))
+        self.assertEqual(len(fixture.comments), writes + 1)
+        offered = fixture.candidate()
+        job = workers.build_job(offered)
+        self.assertEqual((offered["state"], job["kind"], job["attempt"]), ("merged", "cleanup", 0))
+        self.assertEqual({key: job["reoffer"][key] for key in ("seq", "action", "kind", "reason", "actor", "via", "head")},
+                         {"seq": 1, "action": "reoffer-post-merge", "kind": "cleanup", "reason": "worktree gone",
+                          "actor": "op", "via": "chat-coordinator", "head": HEAD})
+        self.assertEqual(workers.job_id(job), f"pr7:cleanup:{HEAD}:a0:r1")
+        self.assertNotIn("post_merge_exhausted", offered)
+        self.assertEqual(offered["attempts"]["post-merge"], 1)
+        # A verified already-clean outcome completes the obligation; nothing earlier is offered again.
+        self.result(fixture, "cleanup", 0, "already-clean", seq=1)
+        done = fixture.candidate()
+        self.assertEqual((done["next_job"], done.get("post_merge_exhausted"), done["reason"]), (None, None, ""))
+
+    def test_a_re_offer_that_exhausts_again_can_be_re_offered_again(self):
+        fixture = self.merged_fixture()
+        self.reoffer()
+        for attempt in range(3):
+            self.result(fixture, "cleanup", attempt, "blocked: active-board", seq=1)
+        self.assertEqual(fixture.candidate()["post_merge_exhausted"], "cleanup")
+        self.assertEqual(self.reoffer()["seq"], 2)
+        self.assertEqual(workers.job_id(workers.build_job(fixture.candidate())), f"pr7:cleanup:{HEAD}:a0:r2")
+
+    def test_refusals_write_nothing(self):
+        fixture = self.merged_fixture()
+        writes = len(fixture.comments)
+        with self.assertRaisesRegex(queue.QueueError, "not the expected"):
+            self.reoffer(expected_head="b" * 40)
+        with self.assertRaisesRegex(queue.QueueError, "needs --expected-head"):
+            self.reoffer(expected_head="")
+        with self.assertRaisesRegex(queue.QueueError, "operator's reason"):
+            self.reoffer(reason=" ")
+        claim = {"number": 7, "kind": "cleanup", "head": HEAD, "attempt": 2}
+        fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                 "body": workers.claim_body(claim, "runner", "2999-01-01T00:00:00Z")})
+        with self.assertRaisesRegex(queue.QueueError, "claimed by runner"):
+            self.reoffer()
+        self.assertEqual(len(fixture.comments), writes + 1)  # only the claim added above
+        open_pr = {"number": 7, "state": "open", "head": {"sha": HEAD, "ref": "agent/example"}, "labels": []}
+        with mock.patch.object(queue, "_pr", return_value=open_pr):
+            with self.assertRaisesRegex(queue.QueueError, "is not merged"):
+                self.reoffer()
+
+    def test_an_obligation_that_is_not_exhausted_is_refused(self):
+        fixture = self.merged_fixture(cleanup=("blocked: active-board",))
+        self.assertEqual(workers.build_job(fixture.candidate())["attempt"], 1)
+        with self.assertRaisesRegex(queue.QueueError, "no exhausted post-merge obligation"):
+            self.reoffer()
+
+    def test_a_re_offer_sequence_without_its_event_is_malformed(self):
+        import candidate_lifecycle as lifecycle
+
+        fixture = self.merged_fixture()
+        queue._transition(ROOT, "o/r", 7, "merged", HEAD, task_identity=self.QUICK, inherit_identity=False,
+                          set_attempts={"post-merge-reoffers": 1})
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "without its re-offer event"):
+            fixture.candidate()
+
+    def test_attention_and_cli_name_the_command(self):
+        fixture = self.merged_fixture()
+        self.assertTrue(queue.ensure_post_merge_attention(ROOT, "o/r", 7))
+        body = fixture.comments[-1]["body"]
+        self.assertIn(f"publication_queue.py reoffer-post-merge --pr 7 --expected-head {HEAD}", body)
+        self.assertIn("active-board", body)
+        out = io.StringIO()
+        with mock.patch.object(queue, "current_worktree_root", return_value=ROOT), \
+                mock.patch.object(queue, "_repo", return_value="o/r"), \
+                mock.patch.object(queue, "_actor", return_value="op"), \
+                mock.patch("sys.argv", ["publication_queue", "reoffer-post-merge", "--pr", "7", "--expected-head", HEAD,
+                                        "--reason", "lsof restored"]), \
+                mock.patch("sys.stdout", out):
+            self.assertEqual(queue.main(), 0)
+        self.assertEqual(json.loads(out.getvalue())["kind"], "cleanup")
 
 
 class ArchivedSemanticReadmissionTests(unittest.TestCase):

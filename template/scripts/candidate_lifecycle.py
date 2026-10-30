@@ -486,10 +486,10 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         result.update(state="contribution-integrated" if result["state"] == "contribution-integrated"
                       else "contribution-integration-pending", next_job=None)
     elif pr.get("merged") or pr.get("mergedAt"):
-        job, reason = post_merge_job(result, comments, trusted_apps, trusted_writers)
+        job, exhausted = post_merge_progress(result, comments, trusted_apps, trusted_writers)
         result.update(state="merged", next_job=job)
-        if reason:
-            result["reason"] = reason
+        if exhausted:
+            result.update(reason=exhausted_reason(exhausted), post_merge_exhausted=exhausted)
     elif pr.get("state", "").lower() == "closed":
         result.update(state="blocked-escalation", reason="PR closed without merge")
     if checks and checks.get("head") == head and result["state"] in {"ready", "integrating", "contribution-integration-pending"}:
@@ -522,6 +522,7 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
 POST_MERGE_KINDS = ("retrospective", "terminal-reconciliation", "cleanup")
 MAX_POST_MERGE_ATTEMPTS = 3
 POST_MERGE_FLAG = "post-merge"
+POST_MERGE_REOFFERS = "post-merge-reoffers"
 
 
 def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
@@ -576,34 +577,66 @@ def premerge_retrospective_attempt(number: int, head: str, comments: list[dict],
                      "attempts; operator action required")
 
 
-def post_merge_job(candidate: dict, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
-                   trusted_writers: frozenset[str] = frozenset()) -> tuple[dict | None, str]:
-    """The next post-merge obligation of a merged candidate, derived only from trusted result receipts.
+def exhausted_reason(kind: str) -> str:
+    return f"post-merge {kind} exhausted {MAX_POST_MERGE_ATTEMPTS} attempts; operator action required"
+
+
+def post_merge_reoffer_seq(candidate: dict) -> int:
+    """The operator re-offer sequence of a merged candidate's post-merge chain (0: never re-offered)."""
+    return candidate.get("attempts", {}).get(POST_MERGE_REOFFERS, 0)
+
+
+def post_merge_progress(candidate: dict, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
+                        trusted_writers: frozenset[str] = frozenset()) -> tuple[dict | None, str | None]:
+    """``(next job, exhausted kind)`` of a merged candidate's post-merge chain, from trusted result receipts only.
 
     A candidate the coordinator merged carries ``attempts["post-merge"] = 1``; anything merged
     earlier or elsewhere offers nothing. The chain is retrospective, terminal reconciliation,
     then cleanup. A receipt whose outcome starts with ``failed`` or ``blocked`` leaves the same
     obligation open for a new attempt, bounded by ``MAX_POST_MERGE_ATTEMPTS``; any other outcome
-    completes it. Nothing is stored, so an interrupted run resumes by re-deriving.
+    completes it. An operator re-offer (``attempts["post-merge-reoffers"]``, its event carried in the
+    record's ``next_job``) gives an incomplete obligation a fresh budget under the re-offer's job ids;
+    an obligation completed under any earlier sequence stays complete. Nothing is stored, so an
+    interrupted run resumes by re-deriving.
     """
     from lifecycle_workers import job_id
 
     identity = candidate.get("task_identity")
     if candidate.get("attempts", {}).get(POST_MERGE_FLAG) != 1 or identity is None:
-        return None, ""
+        return None, None
+    seq = post_merge_reoffer_seq(candidate)
+    event = None
+    if seq:
+        carried = candidate.get("next_job")
+        event = carried.get("reoffer") if isinstance(carried, dict) else None
+        if not isinstance(event, dict) or event.get("seq") != seq or event.get("kind") not in POST_MERGE_KINDS:
+            raise MalformedMarkerError(f"PR #{candidate['number']} records post-merge re-offer {seq} without its "
+                                       "re-offer event; inspect the latest coordinator record")
     outcomes = job_outcomes(candidate["head"], comments, trusted_apps, trusted_writers)
+
+    def job(kind: str, attempt: int, sequence: int) -> dict:
+        return {"number": candidate["number"], "kind": kind, "head": candidate["head"], "attempt": attempt,
+                **({"reoffer": deepcopy(event) if sequence == seq else {"seq": sequence}} if sequence else {})}
+
     for kind in POST_MERGE_KINDS:
+        if any(seen and not seen[-1].startswith(("failed", "blocked"))
+               for sequence in range(seq + 1) for attempt in range(MAX_POST_MERGE_ATTEMPTS)
+               for seen in [outcomes.get(job_id(job(kind, attempt, sequence)))]):
+            continue
         for attempt in range(MAX_POST_MERGE_ATTEMPTS):
-            job = {"number": candidate["number"], "kind": kind, "head": candidate["head"], "attempt": attempt}
-            seen = outcomes.get(job_id(job))
-            if not seen:
+            if not outcomes.get(job_id(job(kind, attempt, seq))):
+                offered = job(kind, attempt, seq)
                 return {"kind": kind, "head": candidate["head"], "task_identity": deepcopy(identity),
-                        "attempt": attempt}, ""
-            if not seen[-1].startswith(("failed", "blocked")):
-                break
-        else:
-            return None, f"post-merge {kind} exhausted {MAX_POST_MERGE_ATTEMPTS} attempts; operator action required"
-    return None, ""
+                        "attempt": attempt, **({"reoffer": offered["reoffer"]} if seq else {})}, None
+        return None, kind
+    return None, None
+
+
+def post_merge_job(candidate: dict, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
+                   trusted_writers: frozenset[str] = frozenset()) -> tuple[dict | None, str]:
+    """The next post-merge obligation and, when one is exhausted, the reason naming it."""
+    job, exhausted = post_merge_progress(candidate, comments, trusted_apps, trusted_writers)
+    return job, exhausted_reason(exhausted) if exhausted else ""
 
 
 def passed_content_gate(candidate: dict, name: str) -> bool:

@@ -135,7 +135,7 @@ def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *,
     if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
         raise ValueError("invalid job phase")
     if reoffer is not None and (not isinstance(reoffer, dict) or type(reoffer.get("seq")) is not int or reoffer["seq"] < 1
-                                or not (kind in {"review", "repair", "finalize"} or phase == "pre-merge")):
+                                or not (kind in {"review", "repair", "finalize"} | POST_MERGE_KINDS or phase == "pre-merge")):
         raise ValueError("invalid job re-offer")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
             **({"phase": phase} if phase else {}),
@@ -784,7 +784,8 @@ def push_validated(repo: Path, branch: str, expected_head: str, result_head: str
 
 def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict[int, list[dict]], *,
                now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset(),
-               only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None,
+               only_prs: frozenset[int] | None = None, exclude_prs: frozenset[int] = frozenset(),
+               eligible: Callable[[dict], bool] | None = None,
                executor_provider: str | None = None, unauthorized: list[dict] | None = None,
                invalid: list[dict] | None = None) -> dict | None:
     """The first claimable job of the requested kinds.
@@ -795,7 +796,7 @@ def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict
     so it never stops the selection of other PRs; without it the error is raised.
     """
     for candidate in sorted(candidates, key=lambda item: item.get("number", 0)):
-        if only_prs is not None and candidate.get("number") not in only_prs:
+        if (only_prs is not None and candidate.get("number") not in only_prs) or candidate.get("number") in exclude_prs:
             continue
         job = build_job(candidate)
         if job and job["kind"] in kinds and (eligible is None or eligible(job)) and is_claimable(
@@ -827,8 +828,12 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               worker: str, ttl_seconds: int = 1800, dry_run: bool = False, now: datetime | None = None,
               current_head: Callable[[int], str] | None = None, provider: str | None = None,
               trusted_apps=frozenset(), trusted_writers=frozenset(),
-              only_prs: frozenset[int] | None = None, eligible: Callable[[dict], bool] | None = None) -> dict:
+              only_prs: frozenset[int] | None = None, exclude_prs: frozenset[int] = frozenset(),
+              eligible: Callable[[dict], bool] | None = None) -> dict:
     """Select, claim, re-read and confirm one job; abandon if another worker won.
+
+    ``exclude_prs`` are not read or offered in this run (the post-merge runner paces a blocked obligation to one
+    attempt per round this way).
 
     A PR whose record, comments or provider record cannot be read is skipped and listed under
     ``skipped`` so it never stops the other PRs; when nothing else is claimable the run fails naming them.
@@ -845,7 +850,7 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
     candidates, claims, all_writers = [], {}, set()
     skipped: list[dict] = []
     for pr in list_prs():
-        if only_prs is not None and pr["number"] not in only_prs:
+        if (only_prs is not None and pr["number"] not in only_prs) or pr["number"] in exclude_prs:
             continue
         try:
             comments = comments_for(pr["number"])
@@ -862,7 +867,7 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
     trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
     unauthorized: list[dict] = []
     skipped_jobs: list[dict] = []
-    job = select_job(candidates, kinds, claims, only_prs=only_prs, eligible=eligible,
+    job = select_job(candidates, kinds, claims, only_prs=only_prs, exclude_prs=exclude_prs, eligible=eligible,
                      executor_provider=provider, unauthorized=unauthorized, invalid=skipped_jobs, **trust)
     skipped += skipped_jobs
     report = {**({"unauthorized": unauthorized} if unauthorized else {}), **({"skipped": skipped} if skipped else {})}
@@ -1266,6 +1271,8 @@ def main(argv: list[str] | None = None) -> int:
                      help="platform repair writer instead of --llm-command: claude-sandboxed runs Claude (R2) under the "
                           "BR-576 sandbox for repair and integration-repair")
     nxt.add_argument("--pr", type=int, action="append", help="select only jobs of this PR (repeatable)")
+    nxt.add_argument("--exclude-pr", type=int, action="append", default=[],
+                     help="do not read or offer jobs of this PR in this run (repeatable)")
     nxt.add_argument("--providers", help="comma list of review providers this worker offers; each must pass a readiness probe")
     nxt.add_argument("--repair-provider", help="provider behind --llm-command; required to claim repair with --run or --providers")
     nxt.add_argument("--source", help="repository URL or absolute path (default: the GitHub repo)")
@@ -1348,7 +1355,7 @@ def main(argv: list[str] | None = None) -> int:
                 repair_ready = frozenset([args.repair_provider]) if readiness[args.repair_provider] is None else frozenset()
         backlog_configured = bool(read_platform_config(Path.cwd()).get("development_backlog", {}).get("repository"))
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
-                           only_prs=frozenset(args.pr) if args.pr else None,
+                           only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
                            eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
                                                              backlog_configured=backlog_configured),
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,

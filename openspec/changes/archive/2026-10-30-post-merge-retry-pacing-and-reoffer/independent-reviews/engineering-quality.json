@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c9802fdaf44edfa2d12e6e5c264a2ed1a0fe0afe",
+    "base_ref": "origin/main",
+    "candidate_head": "b52e193e6f5354916483593a3c66d74a9fac03ee",
+    "diff_sha256": "9a1dda102e0af87e070e4e7dbe0b49c986510a599d72ab068d87d6bb3c59897e"
+  },
+  "completed_at": "2026-10-30T09:49:21+00:00",
+  "findings": [
+    {
+      "evidence": "`run_claimed_post_merge` re-raises `PostMergeEnvironmentError`. The generic `except Exception` in `lifecycle_workers.py` (~1465-1476) then calls `release_claim`, which posts a `released` result. `is_claimable` (~331-334) requires `release_count < MAX_RELEASES` (= 3). The escalation is skipped for post-merge kinds (`job[\"kind\"] not in POST_MERGE_KINDS`). So three rounds hitting `process-check-unavailable` leave the cleanup job id unclaimable. `post_merge_progress` still derives that attempt as the next job, so there is no `post_merge_exhausted` and no attention, and `reoffer-post-merge` refuses it with 'no exhausted post-merge obligation'. This contradicts the new spec scenario 'the next derivation offers the same attempt again'. The `lsof` PATH precheck makes this unlikely, but a cleanup-time `process-check-unavailable` that gets past the precheck would still get here. No test covers repeated releases.",
+      "id": "env-error-releases-exhaust-claimability",
+      "severity": "advisory",
+      "summary": "An environment failure spends no attempt, but its released claim still counts against the job's release limit. After 3 such releases the job can no longer be claimed, and nothing reports it."
+    }
+  ],
+  "launched_at": "2026-10-30T09:48:51+00:00",
+  "output_sha256": "bd8b487217b1fbd8bb73cede513d59abb34366bf70bf45a46c3540b04f7ffc77",
+  "perspective": "engineering-quality",
+  "request_id": "e488f33a-d14b-4ce7-bbfc-4ba07567a206",
+  "reviewer": {
+    "context_id": "5bfa7542-2f7f-4549-96c8-6d8ac370d08e",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6a3f7dc5-866d-417e-9d4c-23b42c1d23f0",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46282
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 196743
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28629
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28884
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2558
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "807e7291936f2aebcd489746e8e9cf50bbabb24d9d62655975f92e2da2c7d657"
+}

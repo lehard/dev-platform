@@ -37,7 +37,6 @@ FINDING_HINTS = {
     "unclaimed-next-job": "No operator command applies: a lifecycle worker (hosted run or local node) has to claim the job; check that workers are running.",
     "expired-claim": "No operator command applies: the claim expired, so any lifecycle worker may claim the job again; check that workers are running.",
     "stale-head": "Nothing to decide: the candidate is re-evaluated for its current head.",
-    "post-merge-exhausted": "No supported re-offer command exists for a post-merge step; fix the cause named in the reason.",
     "provider-unavailable": "The automatic retry continues once the provider is available; switch-provider is listed when it applies.",
 }
 CLAIM_FINDINGS = frozenset({"unclaimed-next-job", "expired-claim"})
@@ -201,7 +200,7 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
     """Pure assessment of one derived candidate: stage, chain, executor, findings and permitted actions."""
     from candidate_lifecycle import POST_MERGE_FLAG
     from lifecycle_workers import build_job, job_completed, latest_claim, winning_claim
-    from pr_review_gate import _repair_status, operational_escalation, permitted_actions
+    from pr_review_gate import _repair_status, operational_escalation, permitted_actions, permitted_post_merge_actions
     from publication_queue import retry_job_kind
 
     number, head, state = candidate["number"], candidate["head"], candidate["state"]
@@ -285,9 +284,13 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
         stage = "delivering"
 
     open_pr = pr.get("state") == "open" and not merged
-    plan = (permitted_actions(candidate, winning, number=number, retry_kind=retry_job_kind(candidate),
-                              job_completed=completed)
-            if open_pr else {"actions": [], "human_decision": None})
+    if open_pr:
+        plan = permitted_actions(candidate, winning, number=number, retry_kind=retry_job_kind(candidate),
+                                 job_completed=completed)
+    elif any(f["kind"] == "post-merge-exhausted" for f in findings):
+        plan = permitted_post_merge_actions(candidate, comments, number=number, now=now, **trust)
+    else:
+        plan = {"actions": [], "human_decision": None}
     if stage == "needs-intervention" and not plan["human_decision"]:
         hints = list(dict.fromkeys(FINDING_HINTS[f["kind"]] for f in findings if f["kind"] in FINDING_HINTS))
         if hints:

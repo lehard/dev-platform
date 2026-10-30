@@ -82,12 +82,23 @@ healthy. The line explains the wait and takes no action.
 
 The overview prints, per item, either the permitted commands or the human
 decision that is needed. The permitted list is computed by the same eligibility
-function as the commands and is limited to `resume` and `switch-provider`:
+function as the commands and is limited to `resume`, `switch-provider` and, for a
+merged PR, `reoffer-post-merge`:
 
 ```bash
 python3 scripts/publication_queue.py resume --pr N --expected-head <head> --via chat-coordinator --reason "<why>"
 python3 scripts/publication_queue.py switch-provider --pr N --provider <provider> --expected-head <head> --via chat-coordinator --reason "<why>"
+python3 scripts/publication_queue.py reoffer-post-merge --pr N --expected-head <merged-head> --via chat-coordinator --reason "<why>"
 ```
+
+`reoffer-post-merge` applies to a `post-merge-exhausted` item: a merged PR whose
+retrospective, terminal reconciliation or cleanup spent its attempts. Fix the
+cause the overview names as the last outcome first (for example an active board
+claim on the worktree); the command then appends one coordinator record at the
+merged head with the actor and reason, and the obligation is offered again with
+a fresh attempt budget. Completed obligations are not re-run, and a cleanup that
+finds no worktree of the branch completes as `already-clean`. It refuses before
+any write for an open PR, another head, nothing exhausted or a live claim.
 
 A candidate in `finalize-pending`, `review-pending` or `blocked-retryable` whose
 admission gates were lost across the harness's own review-evidence pushes (for
