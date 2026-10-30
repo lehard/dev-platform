@@ -26,6 +26,7 @@ MANAGED_START_IMPORT_GRAPH = (
     "publication_state.py",
     "rollout_identity.py",
     "rollout_preflight.py",
+    "task_content_identity.py",
     "start_worktree.py",
     "start_task.py",
 )

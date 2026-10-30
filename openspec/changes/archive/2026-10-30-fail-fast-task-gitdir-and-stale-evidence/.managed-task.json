@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/shared-workspace/spec.md",
+    "specs/completion-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "fail-fast-task-gitdir-and-stale-evidence",
+  "imported_at": "2026-10-30T10:50:07+00:00",
+  "package_revision": "48e573ecb7471c5fd2d1e800791ce7f847c037cec2b0047e911268b8c9da6b9c",
+  "prepared_against": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+  "private_lineage_handle": "pln_4efe274028a85f60eb4ef9e48e986b52",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "4f8b27e8f088350bfd70d3ecae684db3d77f424eddf394ac77e079f074c65f7d",
+    "updated_at": "2026-10-30T10:42:38Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-927/T1"
+}

@@ -541,6 +541,16 @@ def session_admission_probe(root: Path) -> None:
             shutil.rmtree(probe, ignore_errors=True)
 
 
+def _admit_local_source_repairing(root: Path) -> list[str]:
+    """Publication's local source admission over the same paths, repairing own findings; foreign ones raise."""
+    from local_workspace import PolicyError, admit_repairing
+
+    try:
+        return admit_repairing(root)
+    except (PolicyError, OSError, ValueError, KeyError) as exc:
+        raise SharedWorkspaceError(str(exc)) from exc
+
+
 def _admit_local_source(root: Path) -> None:
     """Independent opt-in admission; never expands platform registered paths."""
     from local_workspace import PolicyError, admit
@@ -654,7 +664,10 @@ def preflight_with_report(root: Path) -> list[Path]:
     Audits without modifying anything. A finding on a path owned by another account is refused
     with the owner and the exact repair command (``shared-workspace-admission``); the remaining
     findings are all owned by the current account and are repaired by ``preflight(fix=True)``.
-    Returns the paths that were repaired. An audit that cannot run raises.
+    Local source admission, which publication runs over the task's sources and its whole git
+    administration directory, is evaluated by the same function over the same paths; its own-account
+    findings are repaired here and reported, another account's raise. Returns the paths that were
+    repaired. An audit that cannot run raises.
     """
     group, findings = audit(root, fix=False)
     if group is None:
@@ -673,8 +686,9 @@ def preflight_with_report(root: Path) -> list[Path]:
         lines = ["paths owned by another account cannot be repaired by this session:"]
         lines.extend(format_admission_findings(group, foreign))
         raise gate_failure("shared-workspace-admission", "\n".join(lines), SharedWorkspaceError)
+    admitted = _admit_local_source_repairing(root)
     preflight(root, fix=True)
-    return [finding.path for finding in findings]
+    return [finding.path for finding in findings] + [Path(item.split(": ", 1)[0]) for item in admitted]
 
 
 def atomic_write_text(path: Path, text: str, *, group: SharedGroup | None = None) -> None:

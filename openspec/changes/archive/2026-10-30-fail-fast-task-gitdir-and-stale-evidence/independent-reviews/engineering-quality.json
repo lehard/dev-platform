@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "425a5916dd6f1e28e8da1505281d3dc0b47867ca",
+    "base_ref": "origin/main",
+    "candidate_head": "a65da44aa51a674de03e32d190c2f6ead1cfeb54",
+    "diff_sha256": "cb5fb587395f574cb5819c0eaa43bdadb3015e8a00164c3ff4d92304b32dfb66"
+  },
+  "completed_at": "2026-10-30T13:52:47+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/task_content_identity.py `ensure_quick_evidence_directory` calls `shared_workspace.ensure_shared_path` directly. template/scripts/select_checks.py `write_evidence` now calls `shared_workspace.atomic_write_text` directly. `ensure_shared_path` returns early only when POSIX is unavailable (shared_workspace.py:321-331). So light/standard single-user or CI checkouts also get setgid and group-rwx chmods and can hit `SharedWorkspaceError` from `resolve_shared_group`. Previously `write_evidence` used a plain `mkdir` and `write_text`. This widens the behavior change beyond multi-agent workspaces.",
+      "id": "shared-contract-applied-unconditionally",
+      "severity": "advisory",
+      "summary": "Evidence directory creation and evidence writes apply the shared-group contract without the `shared_workspace_applicable` gate that the preflight uses."
+    },
+    {
+      "evidence": "template/scripts/shared_workspace.py `_admit_local_source_repairing` wraps `PolicyError` in `SharedWorkspaceError(str(exc))`. The registered-path refusal just above it in `preflight_with_report` uses `gate_failure(\"shared-workspace-admission\", ...)`. The spec requires the owner and the exact repair command for foreign paths. The local_workspace PolicyError text is the generic 'local source admission blocked' or 'foreign active worktree' message. The test only asserts 'foreign active worktree' and does not check for an owner or a chgrp/chmod command.",
+      "id": "preflight-admission-foreign-error-not-gate-classified",
+      "severity": "advisory",
+      "summary": "A foreign-owner refusal from the new repairing admission is raised as a plain SharedWorkspaceError rather than through `gate_failure('shared-workspace-admission', ...)`."
+    },
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py `stale_committed_evidence` calls `_read_check_evidence(...)` and does `raise SystemExit(...)` when `review_content_identity` returns None. template/scripts/lifecycle_preflight.py `check_task_evidence` has no handling for this. The preflight is meant to collect every refused condition into one report, so this failure would abort the run and skip the other conditions' output.",
+      "id": "stale-evidence-unreadable-systemexit-in-preflight",
+      "severity": "advisory",
+      "summary": "`stale_committed_evidence` can raise `SystemExit` (unreadable evidence, or no current proof), and `check_task_evidence` only converts `PreflightRefusal`."
+    },
+    {
+      "evidence": "template/scripts/task_reconciliation.py: `if not before.reconcile_required: ... return before` (line ~305) returns before `require_committed_evidence_current(root)` at line 345. Stale evidence on an already-merged task is therefore reported only by the preflight at finish. That matches the spec wording but weakens the 'fail now, not at finish' goal.",
+      "id": "reconcile-evidence-check-skipped-on-noop",
+      "severity": "advisory",
+      "summary": "Reconcile checks the committed evidence only after a successful merge, not on the already-current no-op path."
+    }
+  ],
+  "launched_at": "2026-10-30T13:52:12+00:00",
+  "output_sha256": "31a80f16f8a4c52cd3ce2d3387a3307705f9e390e2b57f023bb5efa0e6e21cde",
+  "perspective": "engineering-quality",
+  "request_id": "be6c4cea-0cb7-4cb2-990c-39576ec14ce7",
+  "reviewer": {
+    "context_id": "dfbdf0dc-b18d-4930-85e8-e39f3a144251",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f4d42f98-f5b7-4901-9f74-029333cd8485",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35416
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 127563
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33999
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34654
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2667
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "30ab0c29e57cc568c0b72ad7513943c079434bc50b23cafd9b390ae0e30d761a"
+}

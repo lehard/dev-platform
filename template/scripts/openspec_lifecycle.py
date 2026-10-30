@@ -196,12 +196,9 @@ def evidence_matches_checkout(
         evidence = {}
     recorded_gate = evidence.get("gate_task_content")
     if recorded_gate is not None:
-        from task_content_identity import review_content_identity, equivalent_proofs
-
         stable_expected = {key: value for key, value in expected.items() if key not in {"head", "task_content"}}
         stable_actual = {key: value for key, value in actual.items() if key not in {"head", "task_content"}}
-        return (stable_actual == stable_expected
-                and equivalent_proofs(root, recorded_gate, review_content_identity(root, identity.change)))
+        return stable_actual == stable_expected and recorded_content_is_current(root, identity.change, recorded_gate)
     expected_content = expected.get("task_content")
     actual_content = actual.get("task_content") if isinstance(actual, dict) else None
     if isinstance(expected_content, dict) or isinstance(actual_content, dict):
@@ -273,6 +270,54 @@ def evidence_matches_checkout(
     return True
 
 
+def recorded_content_is_current(root: Path, change: str, recorded: object) -> bool:
+    """Whether evidence's recorded task-content proof still proves the change's content at ``root``."""
+    from task_content_identity import equivalent_proofs, review_content_identity
+
+    return equivalent_proofs(root, recorded, review_content_identity(root, change))
+
+
+EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base origin/main --execute --evidence {path}"
+
+
+def stale_committed_evidence(root: Path) -> tuple[str, str]:
+    """``(state, detail)`` of the task's committed selected-check evidence against its current content.
+
+    ``state`` is ``not-applicable`` (no committed evidence that gates publication), ``current`` or
+    ``stale``; a stale detail names the evidence, both bases and the exact refresh command. The
+    comparison is the one ``evidence_matches_checkout`` applies at the gate. Evidence gates
+    publication when its change is archived or the task is a coordinator-managed candidate; an
+    active change in the portable lifecycle is revalidated by archive.
+    """
+    from managed_task import resolve_canonical_provenance
+
+    provenance = resolve_canonical_provenance(root)
+    if provenance is None:
+        return "not-applicable", "quick task: its evidence is machine-local and finish reruns validation when it no longer proves the content"
+    path = provenance.path / AUTOMATED_EVIDENCE_FILE
+    relative = Path(os.path.relpath(path.resolve(), root.resolve())).as_posix()
+    if not path.is_file():
+        return "not-applicable", f"no committed selected-check evidence at {relative} yet"
+    from pr_review_gate import managed_candidate
+    from task_content_identity import review_content_identity
+
+    if provenance.lifecycle != "archived" and not managed_candidate(root):
+        return "not-applicable", f"active change {provenance.change} outside the coordinator lifecycle: archive revalidates evidence it cannot reuse"
+    evidence = _read_check_evidence(path, f"{provenance.change}: committed selected-check evidence {relative} is unreadable")
+    recorded = evidence.get("gate_task_content")
+    if recorded_content_is_current(root, provenance.change, recorded):
+        return "current", f"{relative} proves the current task content"
+    current = review_content_identity(root, provenance.change)
+    if current is None:
+        raise SystemExit(f"{provenance.change}: cannot compute the current task-content proof for {relative}")
+    recorded_base = recorded.get("base") if isinstance(recorded, dict) else None
+    return "stale", (
+        f"committed selected-check evidence {relative} does not prove the current task content "
+        f"(recorded base {recorded_base or 'none'}, current base {current.get('base')}): main or the task changed a task path. "
+        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=relative)}, then commit {relative}"
+    )
+
+
 REVIEW_EVIDENCE_FILES = ("independent-review-request.json", "independent-review-dispositions.json")
 REVIEW_EVIDENCE_DIR = "independent-reviews/"
 
@@ -321,9 +366,11 @@ def require_automated_evidence(change: Path, *, root: Path | None = None) -> Non
             raise SystemExit(f"{change.name}: managed checkout identity cannot accept automated evidence: {exc}") from exc
         actual = evidence.get("managed_checkout")
         if identity is None or not evidence_matches_checkout(change, (root or change.parents[2]).resolve(), identity, actual):
+            evidence_path = os.path.relpath(path.resolve(), (root or change.parents[2]).resolve())
             raise SystemExit(
                 f"{change.name}: automated evidence checkout identity does not match this managed task; "
-                "rerun validation from the exact registered task checkout. Only the same change's committed OpenSpec archive materialization may follow a validated HEAD."
+                "rerun validation from the exact registered task checkout. Only the same change's committed OpenSpec archive materialization may follow a validated HEAD. "
+                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=evidence_path)}, then commit {evidence_path}"
             )
 
 

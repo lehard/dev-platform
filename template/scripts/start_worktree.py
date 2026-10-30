@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from _platform_common import main_root, machine_path, preflight, profile, read_platform_config, run_git
+from task_content_identity import ensure_quick_evidence_directory
 
 
 def slug(value: str) -> str:
@@ -71,6 +72,9 @@ def create_worktree(root: Path, slug_value: str, task: str, scope: str = "", *, 
         # Selected capability surfaces are gitignored, so a fresh checkout never
         # inherits them; materialize them before the first doctor-gated check.
         materialize_capability_surfaces(worktree)
+        # Validation writes evidence into the task's own git dir; create its directory under the
+        # shared contract now so publication admission never meets a directory made later by mkdir.
+        ensure_quick_evidence_directory(worktree)
         # Git creates several shared common-directory entries while adding the
         # worktree.  Verify/repair that bounded writer boundary before package
         # materialization or board publication can continue.
