@@ -27,6 +27,14 @@ BLOCKED = "publication:blocked"
 WORKFLOW = ".github/workflows/publication-queue.yml"
 CHECK_WAIT_SECONDS = 240
 MAX_INTEGRATION_REPAIRS = 2  # bounded integration-repair attempts before a candidate is blocked
+# BR-831: consecutive transient integration failures on one head before the candidate is blocked; the counter
+# lives in the candidate record under ``TRANSIENT_COUNTER_PREFIX + head``, so a new head starts from zero.
+MAX_TRANSIENT_FAILURES = 3
+TRANSIENT_COUNTER_PREFIX = "transient-failures:"
+# Backoff (seconds) between the bounded attempts of one candidate observation in a queue run.
+OBSERVATION_BACKOFF = (15, 30, 60, 120)
+# Observed on a PR read (#744, 2026-10-27) and gone minutes later; transient for the queue's observation only.
+OBSERVATION_TRANSIENT = re.compile(r"too many files changed.*HTTP 422", re.IGNORECASE | re.DOTALL)
 
 
 class QueueError(RuntimeError):
@@ -981,6 +989,67 @@ def _pr(root: Path, repo: str, number: int) -> dict[str, Any]:
     if not isinstance(data, dict) or data.get("number") != number:
         raise QueueError(f"PR #{number} is unavailable")
     return data
+
+
+def _observe_pr(root: Path, repo: str, number: int, *, sleep: Callable[[float], None]) -> dict[str, Any]:
+    """Read a queue candidate, retrying a transient failure within ``OBSERVATION_BACKOFF``.
+
+    Every failed attempt is logged; the last one raises ``TransientQueueError`` naming the attempts and the
+    error. A non-transient failure is raised at once.
+    """
+    attempts = len(OBSERVATION_BACKOFF) + 1
+    for attempt in range(1, attempts + 1):
+        try:
+            return _pr(root, repo, number)
+        except QueueError as exc:
+            if not (isinstance(exc, TransientQueueError) or OBSERVATION_TRANSIENT.search(str(exc))):
+                raise
+            print(f"publication queue: #{number} observation attempt {attempt}/{attempts} failed: {exc}", file=sys.stderr)
+            if attempt == attempts:
+                raise TransientQueueError(f"observation failed after {attempts} attempts: {exc}") from exc
+            sleep(OBSERVATION_BACKOFF[attempt - 1])
+    raise AssertionError("unreachable")
+
+
+def _transient_wait(root: Path, repo: str, number: int, detail: str) -> dict[str, Any]:
+    """Count one transient integration failure on the candidate's current head; block at the limit.
+
+    The counter is published in the candidate record (same state); a claim that took the candidate meanwhile
+    keeps it and the result is a plain wait.
+    """
+    observed = _pr(root, repo, number)
+    head = observed.get("head", {}).get("sha")
+    comments = _comments(root, repo, number)
+    current = _derive(root, observed, comments)
+    previous = _latest(root, number, comments, head) or {}  # legitimate absence: no record at this head yet
+    key = TRANSIENT_COUNTER_PREFIX + str(head)
+    spent = previous.get("attempts", {}).get(key, 0) + 1
+    if spent >= MAX_TRANSIENT_FAILURES:
+        return _block(root, repo, number, f"transient failure repeated {spent} times on head {head}: {detail}"[:500],
+                      head=head)
+    try:
+        _transition(root, repo, number, current["state"], head, task_identity=current.get("task_identity") or {"head": head},
+                    set_attempts={key: spent}, refuse_from=CLAIM_STATES, cross_head_claims=True)
+    except LifecycleOwnershipChanged as owned:
+        return {"state": "waiting", "number": number, "reason": f"transient failure; {owned}"[:500], "transient": True}
+    return {"state": "waiting", "number": number, "transient": True,
+            "reason": f"transient failure {spent}/{MAX_TRANSIENT_FAILURES} on this head; will re-evaluate: {detail}"[:500]}
+
+
+def _reset_transient(root: Path, repo: str, number: int) -> None:
+    """Reset a non-zero transient counter of the current head after an evaluation without a transient failure."""
+    observed = _pr(root, repo, number)
+    head = observed.get("head", {}).get("sha")
+    comments = _comments(root, repo, number)
+    key = TRANSIENT_COUNTER_PREFIX + str(head)
+    if not (_latest(root, number, comments, head) or {}).get("attempts", {}).get(key):
+        return
+    current = _derive(root, observed, comments)
+    try:
+        _transition(root, repo, number, current["state"], head, task_identity=current.get("task_identity") or {"head": head},
+                    set_attempts={key: 0}, refuse_from=CLAIM_STATES, cross_head_claims=True)
+    except LifecycleOwnershipChanged:
+        return  # the claiming lifecycle work owns the record now; its next transient failure counts on
 
 
 def _main(root: Path) -> str:
@@ -2073,7 +2142,7 @@ def worker(root: Path) -> dict[str, Any]:
     failures = 0
     for _, number, _ in queue:
         try:
-            observed_prs[number] = _pr(root, repo, number)
+            observed_prs[number] = _observe_pr(root, repo, number, sleep=time.sleep)
         except QueueError as exc:
             skipped.append(f"#{number} not observable: {exc}"[:300])
             failures += 1
@@ -2238,9 +2307,13 @@ def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, A
             _label(root, repo, number, ACTIVE, present=False)
         return None, None
     outcome = _integrate(root, repo, number, admission, pr)
+    transient = outcome.pop("transient", False)
     if outcome.pop("released", False):
         skipped.append(f"#{number} {outcome.get('state')}: {outcome.get('reason', '')}"[:300])
         return None, outcome if outcome.get("state") == "blocked" else None
+    if not transient and outcome.get("state") != "merged":
+        # The candidate kept integration ownership without a transient failure: its head's count starts over.
+        _reset_transient(root, repo, number)
     if skipped:
         outcome["skipped"] = skipped
     return outcome, None
@@ -2364,13 +2437,13 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         if not _transient(str(exc)):
             raise  # not a candidate defect the queue can classify: the worker skips this candidate, naming it
         _label(root, repo, number, ACTIVE, present=False)
-        return _released({"state": "waiting", "number": number, "reason": f"transient failure; will re-evaluate: {exc}"[:500]})
+        return _released(_transient_wait(root, repo, number, str(exc)))
     except (QueueError, subprocess.CalledProcessError) as exc:
         detail = str(exc) if isinstance(exc, QueueError) else f"{exc}: {(exc.stderr or '').strip()}"
         if isinstance(exc, TransientQueueError) or (isinstance(exc, subprocess.CalledProcessError) and _transient(detail)):
             # A network, GitHub 5xx or timeout failure is not a candidate defect: wait, never block.
             _label(root, repo, number, ACTIVE, present=False)
-            return _released({"state": "waiting", "number": number, "reason": f"transient failure; will re-evaluate: {detail}"[:500]})
+            return _released(_transient_wait(root, repo, number, detail))
         head_now = pr.get("head", {}).get("sha")
         try:
             # Never block a candidate that review or repair claimed meanwhile.
