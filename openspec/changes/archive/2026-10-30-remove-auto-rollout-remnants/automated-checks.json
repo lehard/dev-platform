@@ -1,0 +1,141 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.963,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.335,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.097,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.216,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 2013.286,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/reconcile-stale-rollouts.yml",
+        "scripts/rollout_project.py",
+        "tests/test_rollout_recopy.py",
+        "tests/test_rollout_supersession.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_de39d94ee59df0890782e716e44f3404",
+    "change": "remove-auto-rollout-remnants",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/remove-auto-rollout-remnants",
+    "branch": "agent/br-846-t1-remove-auto-rollout-remnants",
+    "head": "5c87271140c1e5c6963d823ddd7f24f9b2df8d59",
+    "task_content": {
+      "version": 1,
+      "digest": "460d05ccd52760d4c65b6f4c7f7145949c26c2a005d5c8f7fc4b838360d5b58e",
+      "paths": {
+        ".github/workflows/reconcile-stale-rollouts.yml": "6defde02915a5f0ae0bb5740d0e18a4746c4c4c6",
+        "docs/engineering/code-erosion.md": "a8665b849f4dba31278956b5cc9be469f756dbb7",
+        "docs/managed-rollout.md": "2125fe34fc1ac42c219ffcfe5f93bb22e6743fa5",
+        "docs/operator-config.example.toml": "7dc87e75e483acc7d9250e1380e0386d43f72659",
+        "docs/public-cutover.md": "2eeef1910ae1678dcaaf86bf978326a0c4229588",
+        "explorer/editorial-review.json": "62397b56d209d89e87ec97e82c8c849022e458e9",
+        "explorer/nodes/copier-rollout.toml": "d52cd790dddea94b6a1f0b8b81c2af6789409593",
+        "explorer/nodes/managed-rollout.toml": "a00253f68d8f14abb576856166b53591ef4f7d68",
+        "explorer/nodes/release-rollout.toml": "4459cd46101f0351f39fa67df644d32b113d5ac2",
+        "openspec/changes/remove-auto-rollout-remnants/.managed-task.json": "1fc9b9bb6806b12a2d40d92c350b33c85e6b98f2",
+        "openspec/changes/remove-auto-rollout-remnants/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/remove-auto-rollout-remnants/design.md": "14fd39163f7eca29678229589ee29c34dd379c43",
+        "openspec/changes/remove-auto-rollout-remnants/independent-review-request.json": "2a68176da7968c1a438bc319efda9619db169820",
+        "openspec/changes/remove-auto-rollout-remnants/independent-reviews/engineering-quality.json": "cfb1567462b349efd8819019d023429c92021fd7",
+        "openspec/changes/remove-auto-rollout-remnants/independent-reviews/spec-fidelity.json": "c225c49d20febaa6def8c3aa2479b2a1b55f50f4",
+        "openspec/changes/remove-auto-rollout-remnants/proposal.md": "b0be26bd58f558923aac0e0f42909b914f4351d1",
+        "openspec/changes/remove-auto-rollout-remnants/specs/platform-config/spec.md": "937cf5264ff2598bbacd2d16779d251fa487306d",
+        "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md": "887ffd1af0a9f4d53bbb6067c539ad9f1da3e1a5",
+        "openspec/changes/remove-auto-rollout-remnants/tasks.md": "d724d1b02556697259ca98455db9842fd6a24401",
+        "openspec/changes/remove-auto-rollout-remnants/verification.md": "10a9c2e3aaae5c14ae9cb6cb9ea029229e8e42e1",
+        "scripts/rollout_project.py": "e268eb15cc4444f341f1f3d0cef0472b0acaab48",
+        "tests/test_rollout_recopy.py": "1023142add20fc8e79556973a587d355b5498969",
+        "tests/test_rollout_supersession.py": "320af60860c0e5763d2d3da33a7c6ef5162e1100"
+      },
+      "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "c8480bed08dfd67b0eed28211a8478a62684cc28798538347aa020f8f85ec72a",
+    "paths": {
+      ".github/workflows/reconcile-stale-rollouts.yml": "6defde02915a5f0ae0bb5740d0e18a4746c4c4c6",
+      "docs/engineering/code-erosion.md": "a8665b849f4dba31278956b5cc9be469f756dbb7",
+      "docs/managed-rollout.md": "2125fe34fc1ac42c219ffcfe5f93bb22e6743fa5",
+      "docs/operator-config.example.toml": "7dc87e75e483acc7d9250e1380e0386d43f72659",
+      "docs/public-cutover.md": "2eeef1910ae1678dcaaf86bf978326a0c4229588",
+      "explorer/editorial-review.json": "62397b56d209d89e87ec97e82c8c849022e458e9",
+      "explorer/nodes/copier-rollout.toml": "d52cd790dddea94b6a1f0b8b81c2af6789409593",
+      "explorer/nodes/managed-rollout.toml": "a00253f68d8f14abb576856166b53591ef4f7d68",
+      "explorer/nodes/release-rollout.toml": "4459cd46101f0351f39fa67df644d32b113d5ac2",
+      "openspec/changes/remove-auto-rollout-remnants/.managed-task.json": "1fc9b9bb6806b12a2d40d92c350b33c85e6b98f2",
+      "openspec/changes/remove-auto-rollout-remnants/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/remove-auto-rollout-remnants/design.md": "14fd39163f7eca29678229589ee29c34dd379c43",
+      "openspec/changes/remove-auto-rollout-remnants/proposal.md": "b0be26bd58f558923aac0e0f42909b914f4351d1",
+      "openspec/changes/remove-auto-rollout-remnants/specs/platform-config/spec.md": "937cf5264ff2598bbacd2d16779d251fa487306d",
+      "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md": "887ffd1af0a9f4d53bbb6067c539ad9f1da3e1a5",
+      "openspec/changes/remove-auto-rollout-remnants/tasks.md": "d724d1b02556697259ca98455db9842fd6a24401",
+      "scripts/rollout_project.py": "e268eb15cc4444f341f1f3d0cef0472b0acaab48",
+      "tests/test_rollout_recopy.py": "1023142add20fc8e79556973a587d355b5498969",
+      "tests/test_rollout_supersession.py": "320af60860c0e5763d2d3da33a7c6ef5162e1100"
+    },
+    "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/rollout_project.py --changed-file tests/test_rollout_recopy.py --changed-file tests/test_rollout_supersession.py",
+    "duration_seconds": 1011.717,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "cd9e857b3d0edb010e6a931728e7d12c5ff193e6",
+    "diff_sha256": "5b146594c3e832e15f268f1204e9f4187f0003a4eedd4a1ed5d281949ac9f3fb"
+  },
+  "completed_at": "2026-10-30T17:30:00+00:00",
+  "findings": [
+    {
+      "evidence": "The candidate diff for docs/managed-rollout.md adds: 'Rollout is manual on this installation: since 2026-10-28 the variable described below is not `true`...'. The next paragraph still documents `publish-version.yml` dispatching rollout when `DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED=true`. The doc is the cross-project reference, and it now mixes a dated operator-state claim with the general contract. This can go stale if the variable is re-enabled. The section is also an Explorer source node, via the editorial-review hashes.",
+      "id": "installation-state-in-public-doc",
+      "severity": "advisory",
+      "summary": "The renamed docs/managed-rollout.md section 'Release rollout' states installation-specific operator state in platform-wide documentation. It says rollout is manual on this installation and gives a date, 2026-10-28."
+    }
+  ],
+  "launched_at": "2026-10-30T17:29:28+00:00",
+  "output_sha256": "a9e4ab968496dc11694d86dd215f6a62e9a767f935401faecb14ec1c28908e1e",
+  "perspective": "engineering-quality",
+  "request_id": "233f6c9f-65f0-45f7-a05f-d29f5b415252",
+  "reviewer": {
+    "context_id": "1ed509d2-2f0b-438c-b9db-134c61a50b93",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bf4e3ede-bb4a-4db6-9d9f-780207fdd290",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54558
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 174104
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27078
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28997
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1647
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c8480bed08dfd67b0eed28211a8478a62684cc28798538347aa020f8f85ec72a"
+}
