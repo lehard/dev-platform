@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-rollout/spec.md",
+    "specs/platform-config/spec.md",
+    "tasks.md"
+  ],
+  "change": "remove-auto-rollout-remnants",
+  "imported_at": "2026-10-30T17:02:49+00:00",
+  "package_revision": "4ea9e4857f873d844e402f532ef0d15e9645443eeda1891f3bac4d3ae87f4e47",
+  "prepared_against": "69c8d093bf9dddfb1214734ce471c337411d979d",
+  "private_lineage_handle": "pln_de39d94ee59df0890782e716e44f3404",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "cb00930228f804a8cc9ead1611ea579b55ce7cba82939d576a37f88fd122fbe7",
+    "updated_at": "2026-10-30T16:56:17Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-846/T1"
+}
