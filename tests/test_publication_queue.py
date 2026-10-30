@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import sys
 import tempfile
+import io
+import contextlib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -1080,7 +1082,8 @@ class PerCandidateIsolationTests(unittest.TestCase):
                 result, _, block = self.run_worker({1: pr(1), 2: pr(2)}, prepare=lambda *a, failure=failure: (_ for _ in ()).throw(failure))
                 block.assert_not_called()
                 self.assertEqual(result["state"], "waiting")
-                self.assertIn("#1 waiting: transient failure; will re-evaluate", result["reason"])
+                self.assertIn(f"#1 waiting: transient failure 1/{queue.MAX_TRANSIENT_FAILURES} on this head; will re-evaluate",
+                              result["reason"])
                 self.assertIn("#2 waiting: transient failure", result["reason"])
 
     def test_gh_classifies_transient_failures(self):
@@ -1091,6 +1094,123 @@ class PerCandidateIsolationTests(unittest.TestCase):
                 with self.assertRaises(kind) as caught:
                     queue._gh(ROOT_PATH, "api", "-X", "PUT", "repos/o/r/pulls/1/update-branch")
                 self.assertIs(type(caught.exception), kind)
+
+
+TOO_MANY_FILES = "gh: The request could not be processed because too many files changed (HTTP 422)"
+
+
+class TransientObservationTests(unittest.TestCase):
+    """BR-831: bounded retry of a transient candidate observation and a bounded transient counter per head."""
+
+    def observe(self, failures):
+        calls, sleeps = [], []
+
+        def read(_r, _repo, number):
+            calls.append(number)
+            if len(calls) <= len(failures):
+                raise failures[len(calls) - 1]
+            return pr(number)
+        err = io.StringIO()
+        with patch.object(queue, "_pr", side_effect=read), contextlib.redirect_stderr(err):
+            try:
+                return queue._observe_pr(ROOT_PATH, REPO, 1, sleep=sleeps.append), calls, sleeps, err.getvalue()
+            except queue.QueueError as exc:
+                return exc, calls, sleeps, err.getvalue()
+
+    def test_transient_422_is_retried_then_the_candidate_is_read(self):
+        result, calls, sleeps, log = self.observe([queue.QueueError(TOO_MANY_FILES), queue.TransientQueueError("HTTP 502")])
+        self.assertEqual((result["number"], len(calls), sleeps), (1, 3, [15, 30]))
+        self.assertIn("#1 observation attempt 1/5 failed: " + TOO_MANY_FILES, log)
+        self.assertIn("#1 observation attempt 2/5 failed: HTTP 502", log)
+
+    def test_persistent_transient_failure_fails_naming_attempts_and_error(self):
+        result, calls, sleeps, _ = self.observe([queue.QueueError(TOO_MANY_FILES)] * 5)
+        self.assertIsInstance(result, queue.TransientQueueError)
+        self.assertIn("#1 observation failed after 5 attempts: " + TOO_MANY_FILES, str(result))
+        self.assertEqual((len(calls), sleeps), (5, list(queue.OBSERVATION_BACKOFF)))
+
+    def test_non_transient_failure_is_not_retried(self):
+        result, calls, sleeps, _ = self.observe([queue.QueueError("HTTP 422: Validation Failed")])
+        self.assertEqual((str(result), len(calls), sleeps), ("HTTP 422: Validation Failed", 1, []))
+
+    def test_worker_names_the_unobservable_pr_and_fails_when_none_is_observable(self):
+        with patch.object(queue, "_repo", return_value=REPO), \
+             patch.object(queue, "_queued", return_value=[(17, 1, admission(1, 17))]), \
+             patch.object(queue, "_pr", side_effect=queue.QueueError(TOO_MANY_FILES)), \
+             patch.object(queue.time, "sleep") as sleep, contextlib.redirect_stderr(io.StringIO()):
+            with self.assertRaisesRegex(queue.QueueError, "#1 not observable: #1 observation failed after 5 attempts"):
+                queue.worker(ROOT_PATH)
+        self.assertEqual([call.args[0] for call in sleep.call_args_list], list(queue.OBSERVATION_BACKOFF))
+
+    @staticmethod
+    def record(head, counter=None):
+        from candidate_lifecycle import build_handoff_record, marker_body
+
+        attempts = {} if counter is None else {queue.TRANSIENT_COUNTER_PREFIX + head: counter}
+        body = marker_body(build_handoff_record(
+            number=1, state="integrating", head=head, task_identity={"branch": "agent/1", "head": head}, gates={},
+            red_gate=None, not_reverified=[], attempts=attempts, next_job=None, at="2026-10-30T08:00:00Z"))
+        return [{"id": 50, "author_association": "OWNER", "body": body}]
+
+    def wait(self, comments, head=HEAD, owned=None):
+        with patch.object(queue, "_pr", return_value=pr(1, head)), patch.object(queue, "_comments", return_value=comments), \
+             patch.object(queue, "_raise_if_owned_elsewhere", side_effect=owned), \
+             patch.object(queue, "trusted_apps", return_value=frozenset()), \
+             patch.object(queue, "trusted_writers", return_value=frozenset()), \
+             patch.object(queue, "_transition") as transition, \
+             patch.object(queue, "_block", side_effect=lambda _r, _repo, number, reason, **_k: {
+                 "state": "blocked", "number": number, "reason": reason}) as block:
+            return queue._transient_wait(ROOT_PATH, REPO, 1, "HTTP 503"), transition, block
+
+    def test_transient_failures_count_per_head_then_block(self):
+        key = queue.TRANSIENT_COUNTER_PREFIX + HEAD
+        result, transition, block = self.wait(self.record(HEAD))
+        self.assertEqual((result["state"], transition.call_args.kwargs["set_attempts"]), ("waiting", {key: 1}))
+        self.assertIn("transient failure 1/3 on this head", result["reason"])
+        block.assert_not_called()
+        result, transition, block = self.wait(self.record(HEAD, 1))
+        self.assertEqual(transition.call_args.kwargs["set_attempts"], {key: 2})
+        result, transition, block = self.wait(self.record(HEAD, 2))
+        transition.assert_not_called()
+        self.assertEqual(result["state"], "blocked")
+        self.assertIn(f"transient failure repeated 3 times on head {HEAD}: HTTP 503", result["reason"])
+
+    def test_a_claimed_candidate_is_not_blocked_at_the_limit(self):
+        result, transition, block = self.wait(self.record(HEAD, 2), owned=queue.LifecycleOwnershipChanged("candidate is now repairing"))
+        block.assert_not_called()
+        transition.assert_not_called()
+        self.assertEqual(result["state"], "waiting")
+        self.assertIn("candidate is now repairing", result["reason"])
+
+    def test_a_new_head_counts_from_one(self):
+        other = "e" * 40
+        _, transition, block = self.wait(self.record(HEAD, 2), head=other)
+        self.assertEqual(transition.call_args.kwargs["set_attempts"], {queue.TRANSIENT_COUNTER_PREFIX + other: 1})
+        block.assert_not_called()
+
+    def test_an_evaluation_without_transient_failure_resets_the_counter(self):
+        def reset(comments):
+            with patch.object(queue, "_pr", return_value=pr(1)), patch.object(queue, "_comments", return_value=comments), \
+                 patch.object(queue, "trusted_apps", return_value=frozenset()), \
+                 patch.object(queue, "trusted_writers", return_value=frozenset()), \
+                 patch.object(queue, "_transition") as transition:
+                queue._reset_transient(ROOT_PATH, REPO, 1)
+            return transition
+        self.assertEqual(reset(self.record(HEAD, 2)).call_args.kwargs["set_attempts"],
+                         {queue.TRANSIENT_COUNTER_PREFIX + HEAD: 0})
+        reset(self.record(HEAD)).assert_not_called()
+
+    def test_worker_resets_only_while_the_candidate_keeps_integration_ownership(self):
+        for outcome, expected in (({"state": "waiting", "number": 1, "reason": "required CI pending"}, True),
+                                  ({"state": "waiting", "number": 1, "reason": "x", "transient": True, "released": True}, False),
+                                  ({"state": "waiting", "number": 1, "reason": "claimed", "released": True}, False),
+                                  ({"state": "merged", "number": 1}, False)):
+            with self.subTest(outcome=outcome), \
+                 patch.object(queue, "_comments", return_value=[]), \
+                 patch.object(queue, "_integrate", return_value=dict(outcome)), \
+                 patch.object(queue, "_reset_transient") as reset:
+                queue._worker_candidate(ROOT_PATH, REPO, 1, admission(1, 17), pr(1), [], lambda number: False)
+            self.assertEqual(reset.called, expected)
 
 
 class LineageAndOwnershipTests(unittest.TestCase):

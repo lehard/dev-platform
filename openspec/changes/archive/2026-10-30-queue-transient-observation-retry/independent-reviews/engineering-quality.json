@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "69c8d093bf9dddfb1214734ce471c337411d979d",
+    "base_ref": "origin/main",
+    "candidate_head": "f56eead1e64fe7a7d03fdab1ce964711c2086006",
+    "diff_sha256": "9331d7de488cb934477a021ca3ea98731f78c46d39e5521947989c09bfad09d6"
+  },
+  "completed_at": "2026-10-30T15:45:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py diff lines 187-189 (`observed = _pr(...)`, `_comments(...)` inside _transient_wait, called from the `except` branches of _integrate at lines 257/263). Previously these branches returned `waiting` without any network call. A repeated outage may therefore bypass the counter that is meant to bound it.",
+      "id": "transient-wait-rereads-can-raise",
+      "severity": "advisory",
+      "summary": "_transient_wait and _reset_transient perform fresh _pr/_comments reads outside any retry. During the same outage that caused the integration failure, these reads can raise, so a candidate that previously became a plain `waiting` now surfaces as a worker-level QueueError and is skipped as not observable without its counter being incremented."
+    },
+    {
+      "evidence": "_worker_candidate diff lines 246-248 call _reset_transient for every non-merged, non-released outcome; _reset_transient (lines 212-217) reads `_pr` and `_comments` before checking for a non-zero counter.",
+      "id": "reset-extra-reads-after-success",
+      "severity": "advisory",
+      "summary": "After every successful non-transient evaluation, _reset_transient does two extra API reads (PR + comments) even when no counter exists. A read failure there is raised after integration work has already completed, so it can fail a healthy candidate."
+    }
+  ],
+  "launched_at": "2026-10-30T15:44:57+00:00",
+  "output_sha256": "bc57e1efafb38a3c412ab78205fb76cf6a0fcc4058c42da972174c12a0eff6e3",
+  "perspective": "engineering-quality",
+  "request_id": "1af18250-d1b1-45b0-a574-994d6ba8ae17",
+  "reviewer": {
+    "context_id": "4f38815c-6318-4af5-a87c-4815d60435aa",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f8cff5f1-a73b-4495-a498-bf4aee3f6bbd",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24154
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49193
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13054
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14581
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1415
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "27fc8cfe429211a231d45453dc38523cb0d61d7f41c0e8d20e9a8ca1e8b37c39"
+}
