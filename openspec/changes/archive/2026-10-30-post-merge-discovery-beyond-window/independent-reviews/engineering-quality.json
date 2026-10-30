@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+    "base_ref": "origin/main",
+    "candidate_head": "f7c5a027275c3bec5f6551ae060d82f5487447f3",
+    "diff_sha256": "1a4b521fde88a907c89b8c0167af1d03eabe5f2c88f48eaf4f15f231b7f35d92"
+  },
+  "completed_at": "2026-10-30T12:21:44+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py candidate_prs: `read(\"api\",\"--paginate\", f\"repos/{repo}/issues?state=closed&labels=lifecycle%3Amerged&per_page=100\")` returns settled and unsettled PRs alike, and `SETTLED_LABEL` is filtered client-side after the fetch. design.md claims that after the one-off cost 'only unsettled ones are read'. That holds for `pulls/N` and comment reads but not for the listing. Adding `-post-merge:settled` is not possible in the issues API, so the bound could be stated honestly in design.md or docs.",
+      "id": "settled-label-scan-grows-with-history",
+      "severity": "advisory",
+      "summary": "Every run still pages the full closed `lifecycle:merged` issue listing, settled PRs included, so discovery cost grows linearly with history even though the PR reads are bounded."
+    },
+    {
+      "evidence": "candidate_prs skips any issue with `SETTLED_LABEL in _label_names(issue)`, and work_next's `settle` check skips it too. There is no check of who applied the label and no periodic revalidation. This differs from post-merge obligations, which otherwise derive only from trusted receipts (candidate_lifecycle.post_merge_progress). The design accepts 'absence is the safe default', but presence is not safe.",
+      "id": "settled-label-is-an-unauthenticated-suppressor",
+      "severity": "advisory",
+      "summary": "Beyond-window discovery trusts the mere presence of the `post-merge:settled` label. Anyone able to label issues can hide an open post-merge obligation from workers and the overview, and nothing re-derives it once the PR leaves the window."
+    },
+    {
+      "evidence": "lifecycle_workers.py work_next: `if settle is not None and SETTLED_LABEL not in _label_names(pr) and post_merge_settled(candidate): settle(pr[\"number\"])`. post_merge_progress returns `(None, None)` whenever `attempts['post-merge'] != 1` or identity is None, so those PRs are labeled settled too. The behavior is harmless today but is not covered by a test or stated in the spec.",
+      "id": "settle-applies-beyond-lifecycle-merged-prs",
+      "severity": "advisory",
+      "summary": "`work_next` labels any merged candidate that derives as settled, including recent-window PRs merged outside the coordinator (no `post-merge` flag) and PRs not labeled `lifecycle:merged`. That is wider than the spec's 'merged candidate' wording suggests, and it makes the label a write side effect on unrelated PRs."
+    }
+  ],
+  "launched_at": "2026-10-30T12:20:38+00:00",
+  "output_sha256": "e6cdaa738ced0a0c4b342a3174e362b2cc0a677c906ae6c6f9a4d60931e961ea",
+  "perspective": "engineering-quality",
+  "request_id": "1ce6170f-61e7-4285-bbc0-bb259bfa5801",
+  "reviewer": {
+    "context_id": "2a75787c-a6df-464b-9033-169b14553b3c",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0e884a2a-51dc-44e2-8a6a-a4bea6642205",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38536
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 199789
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51025
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57194
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4356
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "10ee0b58399c24140dec30227dfa9696682acad6da8557ddc5a9f12ff4fee2ee"
+}

@@ -37,8 +37,12 @@ It requires `[chat_coordinator] unclaimed_job_after_minutes` in `.dev-platform.t
 is missing. It lists only the open Requirements labeled with this project's
 `[development_backlog] project_label` and fails naming the key when it is
 missing or invalid. It considers the candidate set the
-lifecycle workers consider (open PRs plus one bounded page of recently merged
-PRs) and states that bound.
+lifecycle workers consider (open PRs, one bounded page of recently merged
+PRs, and every PR labeled `lifecycle:merged` that is not labeled
+`post-merge:settled`) and states that bound. `work-next` labels a merged PR
+`post-merge:settled` once its post-merge chain has no next job and no exhausted
+obligation, so later discovery stops re-reading it; `work-next --pr N` reads
+PR N directly.
 
 Stages:
 

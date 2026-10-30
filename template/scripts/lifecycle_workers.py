@@ -26,6 +26,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import quote
 
 from _platform_common import (REFUSED_HOME_PATHS, ProjectCheckRuntimeError, check_runtime_declaration,
                               credential_free_env, project_check_env, read_platform_config, refused_home_path)
@@ -829,7 +830,8 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               current_head: Callable[[int], str] | None = None, provider: str | None = None,
               trusted_apps=frozenset(), trusted_writers=frozenset(),
               only_prs: frozenset[int] | None = None, exclude_prs: frozenset[int] = frozenset(),
-              eligible: Callable[[dict], bool] | None = None) -> dict:
+              eligible: Callable[[dict], bool] | None = None,
+              settle: Callable[[int], None] | None = None) -> dict:
     """Select, claim, re-read and confirm one job; abandon if another worker won.
 
     ``exclude_prs`` are not read or offered in this run (the post-merge runner paces a blocked obligation to one
@@ -837,6 +839,9 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
 
     A PR whose record, comments or provider record cannot be read is skipped and listed under
     ``skipped`` so it never stops the other PRs; when nothing else is claimable the run fails naming them.
+
+    ``settle`` marks a merged PR whose post-merge chain is settled (``post_merge_settled``) and not yet
+    labeled ``SETTLED_LABEL``; its failure fails the run.
     """
     unknown = kinds - JOB_KINDS
     if unknown:
@@ -864,6 +869,8 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
         claims[pr["number"]] = comments
         all_writers |= proven
         candidates.append(candidate)
+        if settle is not None and SETTLED_LABEL not in _label_names(pr) and post_merge_settled(candidate):
+            settle(pr["number"])
     trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
     unauthorized: list[dict] = []
     skipped_jobs: list[dict] = []
@@ -1236,22 +1243,47 @@ def _coordinator_trust(root: Path, repo: str | None = None) -> dict[str, Any]:
 
 
 MERGED_DISCOVERY_PAGE = 50
+MERGED_LABEL = "lifecycle:merged"
+SETTLED_LABEL = "post-merge:settled"
 
 
-def candidate_prs(repo: str, *, include_merged: bool, gh_json: Callable[..., Any] | None = None) -> list[dict]:
+def _label_names(item: dict) -> set[str]:
+    return {label if isinstance(label, str) else label.get("name") for label in item.get("labels", [])}
+
+
+def candidate_prs(repo: str, *, include_merged: bool, only_prs: frozenset[int] | None = None,
+                  gh_json: Callable[..., Any] | None = None) -> list[dict]:
     """The pull requests lifecycle workers consider: every open PR, plus the merged ones when asked.
 
-    Post-merge obligations belong to recently merged candidates: one bounded page
-    (``MERGED_DISCOVERY_PAGE``) of the most recently updated closed PRs. Older merges offer nothing
-    from here. The read-only lifecycle overview uses this same function so it shows exactly the
-    candidates workers can act on.
+    Merged candidates are one bounded page (``MERGED_DISCOVERY_PAGE``) of the most recently updated closed
+    PRs plus every closed PR labeled ``MERGED_LABEL`` and not ``SETTLED_LABEL``, read from a complete
+    listing, so an open post-merge obligation never ages out of discovery. ``only_prs`` reads each named PR
+    directly instead. Every read raises on failure; nothing returns a partial set. The read-only lifecycle
+    overview uses this same function so it shows exactly the candidates workers can act on.
     """
     read = gh_json or _gh_json
+    if only_prs is not None:
+        named = [read("api", f"repos/{repo}/pulls/{number}") for number in sorted(only_prs)]
+        return [pr for pr in named
+                if pr.get("state") == "open" or (include_merged and (pr.get("merged") or pr.get("merged_at")))]
     listed = read("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
     if include_merged:
         closed = read("api", f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page={MERGED_DISCOVERY_PAGE}")
-        listed = [*listed, *({**pr, "merged": True} for pr in closed if pr.get("merged_at"))]
+        merged = [{**pr, "merged": True} for pr in closed if pr.get("merged_at")]
+        seen = {pr["number"] for pr in merged}
+        labeled = read("api", "--paginate",
+                       f"repos/{repo}/issues?state=closed&labels={quote(MERGED_LABEL)}&per_page=100")
+        for issue in labeled:  # an Issue (no ``pull_request``) is never a PR candidate
+            if "pull_request" in issue and issue["number"] not in seen and SETTLED_LABEL not in _label_names(issue):
+                merged.append(read("api", f"repos/{repo}/pulls/{issue['number']}"))
+        listed = [*listed, *merged]
     return listed
+
+
+def post_merge_settled(candidate: dict) -> bool:
+    """A merged candidate whose post-merge chain has no next job and no exhausted obligation."""
+    return (candidate.get("state") == "merged" and candidate.get("next_job") is None
+            and not candidate.get("post_merge_exhausted"))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1296,8 +1328,13 @@ def main(argv: list[str] | None = None) -> int:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2
 
+    include_merged = bool(set(args.kinds.split(",")) & (POST_MERGE_KINDS | {"contribution-integration"}))
+
     def list_prs() -> list[dict]:
-        return candidate_prs(repo, include_merged=bool(set(args.kinds.split(",")) & (POST_MERGE_KINDS | {"contribution-integration"})))
+        return candidate_prs(repo, include_merged=include_merged, only_prs=frozenset(args.pr) if args.pr else None)
+
+    def settle(number: int) -> None:
+        _gh_json("api", "-X", "POST", f"repos/{repo}/issues/{number}/labels", "-f", f"labels[]={SETTLED_LABEL}")
 
     def comments_for(number: int) -> list[dict]:
         return _gh_json("api", "--paginate", f"repos/{repo}/issues/{number}/comments?per_page=100")
@@ -1361,6 +1398,7 @@ def main(argv: list[str] | None = None) -> int:
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
                            ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                            current_head=lambda n: pr_info(n)["head"]["sha"],
+                           settle=settle if include_merged and not args.dry_run else None,
                            **_coordinator_trust(Path.cwd(), repo))
         if args.run and result["status"] == "claimed":
             job = result["job"]

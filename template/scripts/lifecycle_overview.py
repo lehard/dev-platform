@@ -521,7 +521,8 @@ def overview(root: Path, *, now: datetime) -> dict:
             "owner_needed": read_owner_needed(root, now),
             "repository": repo, "backlog": backlog, "generated_at": now.isoformat(timespec="seconds"),
             "bounds": {"merged_discovery_page": MERGED_DISCOVERY_PAGE,
-                       "note": "open PRs plus the most recently updated closed merged PRs, exactly the workers' candidate set",
+                       "note": "open PRs, the most recently updated closed merged PRs and every lifecycle:merged PR not "
+                               "labeled post-merge:settled, exactly the workers' candidate set",
                        "prs_without_lifecycle_record": without_record, "unclaimed_job_after_minutes": threshold},
             "requirements": requirements,
             "candidates": assessed,
@@ -615,7 +616,7 @@ def render(result: dict) -> str:
     if "bounds" in result:
         bounds = result["bounds"]
         lines.append(f"Dev Platform lifecycle overview {result['generated_at']} ({result['repository']})")
-        lines.append(f"scope: {bounds['note']} (last {bounds['merged_discovery_page']} merged); "
+        lines.append(f"scope: {bounds['note']} (recent window: last {bounds['merged_discovery_page']} closed); "
                      f"{bounds['prs_without_lifecycle_record']} PR(s) without lifecycle record skipped")
         for req in result["requirements"]:
             note = " (merged, Requirement not Done)" if req.get("merged_not_done") else ""

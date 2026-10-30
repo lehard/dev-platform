@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+    "base_ref": "origin/main",
+    "candidate_head": "f7c5a027275c3bec5f6551ae060d82f5487447f3",
+    "diff_sha256": "1a4b521fde88a907c89b8c0167af1d03eabe5f2c88f48eaf4f15f231b7f35d92"
+  },
+  "change": "openspec/changes/post-merge-discovery-beyond-window",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/post-merge-discovery-beyond-window/automated-checks.json",
+    "openspec/changes/post-merge-discovery-beyond-window/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/post-merge-discovery-beyond-window/design.md",
+        "openspec/changes/post-merge-discovery-beyond-window/proposal.md",
+        "openspec/changes/post-merge-discovery-beyond-window/specs/lifecycle-workers/spec.md",
+        "openspec/changes/post-merge-discovery-beyond-window/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/post-merge-discovery-beyond-window/proposal.md",
+        "openspec/changes/post-merge-discovery-beyond-window/design.md",
+        "openspec/changes/post-merge-discovery-beyond-window/tasks.md",
+        "openspec/changes/post-merge-discovery-beyond-window/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T12:19:26+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/post-merge-discovery-beyond-window/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "1ce6170f-61e7-4285-bbc0-bb259bfa5801",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+    "digest": "10ee0b58399c24140dec30227dfa9696682acad6da8557ddc5a9f12ff4fee2ee",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "6f1ddd58fdf744961f9c558e94993369594f3e78",
+      "openspec/changes/post-merge-discovery-beyond-window/.managed-task.json": "5ffa6ac8f7952b721209be93a902d431dc2af38f",
+      "openspec/changes/post-merge-discovery-beyond-window/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/post-merge-discovery-beyond-window/design.md": "5b8008d4ca68c636b5faa1df21ac05dc524c4580",
+      "openspec/changes/post-merge-discovery-beyond-window/proposal.md": "1b6b2c0e7b6d8f45b1745f354140acb08d0c7fad",
+      "openspec/changes/post-merge-discovery-beyond-window/specs/lifecycle-workers/spec.md": "42116abd306ca5c6476cd92009723c63075b8c0c",
+      "openspec/changes/post-merge-discovery-beyond-window/tasks.md": "7204eb5bba4a5b578a8fd60dc39a91b9c174f46b",
+      "template/scripts/lifecycle_overview.py": "54c203eab8aa701dadc6ee204ec9afb59a719428",
+      "template/scripts/lifecycle_workers.py": "5a7012068cb0bf083ff4f55b6c6118b26a516ee9",
+      "tests/test_autonomous_integration_contour.py": "28259411050ed3781e12272209ca8c9e199bf66a",
+      "tests/test_lifecycle_workers.py": "f149f93c9525945286a50975d627bf3a5e6bb180"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
