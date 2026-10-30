@@ -1,9 +1,9 @@
 {
   "candidate": {
-    "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
+    "base_head": "172a623064729328e2d4ab0181d02f8a7f08173d",
     "base_ref": "origin/main",
-    "candidate_head": "ec5fbdda09288bd341140bb6da4b26a94ae8ac4d",
-    "diff_sha256": "c08be9099c99d4f1e11ab08c8d1b8cf4930389b421d3f933a4ad5e5a0e47e8e7"
+    "candidate_head": "97ad9b509d4d0fd46a5123c78cd006af0edeeb6c",
+    "diff_sha256": "99a81bfd2026c456204569f88a47124a5bf26185ff0caa6169bc2032fc8de794"
   },
   "change": "openspec/changes/archive/2026-10-29-owner-needed-signal",
   "excluded_lifecycle_paths": [
@@ -42,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-29T23:10:28+00:00",
+  "prepared_at": "2026-10-30T07:02:06+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews",
     "required_perspectives": [
@@ -51,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "6da0e4cd-145d-4a87-82d2-dff78b66a81e",
+  "request_id": "ac0d1268-d9da-46a8-bb3c-aebe2cf0d457",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -63,8 +63,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
-    "digest": "c2fa23d3ce0582e9227d3fc6e23565d5877086e6554224c2c1c8325fed21b96f",
+    "base": "172a623064729328e2d4ab0181d02f8a7f08173d",
+    "digest": "72e3a8d3517e747fc74f78032b7c421bdc8deb1be40a4d3daf8831d976c267b5",
     "paths": {
       "dev-platform/checks.toml": "67a83a56f8ffc5c253592cfee7dc52a121d40c88",
       "docs/engineering/chat-coordinator.md": "e4f79c62376318804487657004b8c4e66f415162",
@@ -77,9 +77,9 @@
       "openspec/changes/owner-needed-signal/tasks.md": "1f9497732d3abe29eb27ce105d74424f52d6a6ae",
       "scripts/agent_signal.py": "02dacd8d2df454659710cab61d65994ef1273a02",
       "template/dev-platform/protected-surface.toml": "fe9fbee1a94bc1861b3a480240d3b8f3a2105d87",
-      "template/scripts/agent_signal.py": "c3a5b5b3efb00da1c68a5736a2364d5feda81778",
+      "template/scripts/agent_signal.py": "97573b86cfa80a2d32049ef33897c16f0b24cf12",
       "template/scripts/lifecycle_overview.py": "890e12234e71865d646e7aae8f8816b710b00e1b",
-      "tests/test_agent_signal.py": "ce0392dd4dda29709a33eede16022b9506f61943",
+      "tests/test_agent_signal.py": "72044e6884307fbcdbd76d50101faa3f98e5e81a",
       "tests/test_lifecycle_overview.py": "39e1d887f741cfcb564fdd8083d03dc5afbbe0c8",
       "tests/test_overview_agent_sessions.py": "66896fa4787619752497cf2ef4dbe886fa87024c"
     },

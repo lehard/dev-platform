@@ -1,30 +1,42 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "ba45934f37fed9a15ad1723a0b3507680f14edd8",
+    "base_head": "172a623064729328e2d4ab0181d02f8a7f08173d",
     "base_ref": "origin/main",
-    "candidate_head": "ec5fbdda09288bd341140bb6da4b26a94ae8ac4d",
-    "diff_sha256": "c08be9099c99d4f1e11ab08c8d1b8cf4930389b421d3f933a4ad5e5a0e47e8e7"
+    "candidate_head": "97ad9b509d4d0fd46a5123c78cd006af0edeeb6c",
+    "diff_sha256": "99a81bfd2026c456204569f88a47124a5bf26185ff0caa6169bc2032fc8de794"
   },
-  "completed_at": "2026-10-29T23:10:49+00:00",
+  "completed_at": "2026-10-30T07:02:34+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_signal.py:297-303 `_own_entry` calls `_find_item(items, ...)` before any `_entry_signals` validation. `_find_item` (agent_board.py:582-591) calls `item.get(...)` on every item. If the board contains a non-dict item, such as the string \"not an entry\" that the tests append, this raises AttributeError. That error is not a SignalError, so `main` does not catch it and the CLI prints a traceback instead of `agent_signal: ...`. The malformed-entry test covers only `resolve_signal` and `open_signals`, not `raise_signal`.",
-      "id": "raise-malformed-entry-traceback",
+      "evidence": "template/scripts/agent_signal.py:350-364 `resolve_signal` loops over every entry in `items` and takes no worktree. The docs say an agent clears its own signal, so the permissive scope may be intentional (the owner or coordinator resolves). The intent is undocumented.",
+      "id": "resolve-not-scoped-to-caller",
       "severity": "advisory",
-      "summary": "`raise` can crash with an unhandled AttributeError on a malformed non-dict board entry. The module's own contract is to report malformed board data as a named SignalError."
+      "summary": "`resolve` can close a signal on any task's board entry. The spec says a signal is accepted only for the caller's own worktree, but it doesn't scope resolution."
+    },
+    {
+      "evidence": "template/scripts/agent_signal.py:346 appends `[*signals, signal]`. Resolution at line 361 only sets `resolved_at`, and nothing prunes resolved items. The design says resolved signals are 'not shown' and doesn't give a retention bound.",
+      "id": "resolved-signals-accumulate",
+      "severity": "advisory",
+      "summary": "Resolved signals stay in the entry's `signals` list for the life of the entry. Every raise and every overview read re-validates and scans them, and the board file keeps growing."
+    },
+    {
+      "evidence": "template/scripts/agent_signal.py:389-392 return `signals: []` with an error on the first malformed item. The failure is explicit rather than silent, which matches the no-fallback constraint, but the blast radius is board-wide.",
+      "id": "overview-unreadable-board-aborts-all-signals",
+      "severity": "advisory",
+      "summary": "One malformed signal or entry makes `open_signals` hide every open signal and show only an error. A single bad record can therefore keep the owner from seeing other agents' questions."
     }
   ],
-  "launched_at": "2026-10-29T23:10:39+00:00",
-  "output_sha256": "57f6bc8653368665a999fc5b9939431bdf854f78f335c6b455e7db82e629ab4e",
+  "launched_at": "2026-10-30T07:02:19+00:00",
+  "output_sha256": "c43069f790c7c3fd62da8220943dd7b8c9bc0e1c8294d65d794e3e124983a5be",
   "perspective": "engineering-quality",
-  "request_id": "6da0e4cd-145d-4a87-82d2-dff78b66a81e",
+  "request_id": "ac0d1268-d9da-46a8-bb3c-aebe2cf0d457",
   "reviewer": {
-    "context_id": "bee27142-2775-4d05-93ab-fc05aa768341",
+    "context_id": "79119cab-4891-49ad-9733-0de2bba9fc9d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d3837c56-281c-42cd-87cb-2b0ba1412cb7",
+    "launch_id": "platform-launch-6655c9ec-aec4-465d-ae0d-fc7a973a6541",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +51,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26947
+        "value": 25019
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 45486
+        "value": 74585
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9486
+        "value": 13427
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9720
+        "value": 13709
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 961
+        "value": 1347
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c2fa23d3ce0582e9227d3fc6e23565d5877086e6554224c2c1c8325fed21b96f"
+  "task_content_digest": "72e3a8d3517e747fc74f78032b7c421bdc8deb1be40a4d3daf8831d976c267b5"
 }
