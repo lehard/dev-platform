@@ -1,0 +1,118 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.337,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.491,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.106,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.252,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1980.684,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/publication_queue.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_queue_archived_readmission.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_f3ee58e5940b57fc5062f596bab7f198",
+    "change": "readmit-over-unclaimed-finalize",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/readmit-over-unclaimed-finalize",
+    "branch": "agent/br-933-t1-readmit-over-unclaimed-finalize",
+    "head": "1bc92166532a22179230cf60532157d8e3021654",
+    "task_content": {
+      "version": 1,
+      "digest": "2a9491d82f56a0cb3b951ddc6446ff89dd02d0e87d16708185529f26ee4316f9",
+      "paths": {
+        "openspec/changes/readmit-over-unclaimed-finalize/.managed-task.json": "9119836815b97ff5720acccfa5cbf5f3e5cb4ec6",
+        "openspec/changes/readmit-over-unclaimed-finalize/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/readmit-over-unclaimed-finalize/design.md": "68f265a2064ab0655139c8d8666ffd47d789f073",
+        "openspec/changes/readmit-over-unclaimed-finalize/proposal.md": "2ca122a276e3744002a86419178269e29d5d70a2",
+        "openspec/changes/readmit-over-unclaimed-finalize/specs/publication-queue/spec.md": "41b2a2444b1cb71763f8042617eeb6645b048dce",
+        "openspec/changes/readmit-over-unclaimed-finalize/tasks.md": "2726aa2805e42cc13dc35bda1189408b021190d3",
+        "openspec/changes/readmit-over-unclaimed-finalize/verification.md": "abb47a33224286b8044557555d13fcff4180edf7",
+        "template/dev-platform/platform-manifest.json": "5376b7981c25b3ad17aca4f6f0338bb74a67de5d",
+        "template/scripts/publication_queue.py": "05f21d1170b9cfe8cc9b74edc4d9518bc6df0fc0",
+        "tests/test_pr_review_gate.py": "8dbe09cdbdca43c346195aaa79ced21b09d793bc",
+        "tests/test_queue_archived_readmission.py": "35e3fcc45b6c5fe74c46c858efbe7f5706787230"
+      },
+      "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "30e40bebd6bd48d3968716f9835b774491e915973e639d0d718b1cf49c34546f",
+    "paths": {
+      "openspec/changes/readmit-over-unclaimed-finalize/.managed-task.json": "9119836815b97ff5720acccfa5cbf5f3e5cb4ec6",
+      "openspec/changes/readmit-over-unclaimed-finalize/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/readmit-over-unclaimed-finalize/design.md": "68f265a2064ab0655139c8d8666ffd47d789f073",
+      "openspec/changes/readmit-over-unclaimed-finalize/proposal.md": "2ca122a276e3744002a86419178269e29d5d70a2",
+      "openspec/changes/readmit-over-unclaimed-finalize/specs/publication-queue/spec.md": "41b2a2444b1cb71763f8042617eeb6645b048dce",
+      "openspec/changes/readmit-over-unclaimed-finalize/tasks.md": "2726aa2805e42cc13dc35bda1189408b021190d3",
+      "template/scripts/publication_queue.py": "05f21d1170b9cfe8cc9b74edc4d9518bc6df0fc0",
+      "tests/test_pr_review_gate.py": "8dbe09cdbdca43c346195aaa79ced21b09d793bc",
+      "tests/test_queue_archived_readmission.py": "35e3fcc45b6c5fe74c46c858efbe7f5706787230"
+    },
+    "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/publication_queue.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_queue_archived_readmission.py",
+    "duration_seconds": 191.505,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
