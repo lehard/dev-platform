@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "425a5916dd6f1e28e8da1505281d3dc0b47867ca",
+    "base_ref": "origin/main",
+    "candidate_head": "a65da44aa51a674de03e32d190c2f6ead1cfeb54",
+    "diff_sha256": "cb5fb587395f574cb5819c0eaa43bdadb3015e8a00164c3ff4d92304b32dfb66"
+  },
+  "completed_at": "2026-10-30T13:52:12+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/local_workspace.py:172 raises `foreign active worktree; owner must act: {item}`. It names no owner and gives no chgrp/chmod command. `audit(repair=True)` calls `checkout` first, so `admit_repairing` (diff lines 330-345) propagates this message. `shared_workspace._admit_local_source_repairing` wraps it unchanged in SharedWorkspaceError. tests/test_local_workspace.py `test_preflight_admission_refuses_another_accounts_task_without_repair` asserts only the regex 'foreign active worktree'. Foreign files inside an own worktree go through the findings path, which may be compliant, but the whole-worktree foreign case is not.",
+      "id": "foreign-admission-refusal-lacks-owner-and-command",
+      "severity": "advisory",
+      "summary": "The spec requires a foreign-owned path to be refused with the owner and the exact chgrp/chmod repair command. When `admit_repairing` reaches a foreign worktree, it raises the generic checkout message instead. The new test only asserts that generic text."
+    }
+  ],
+  "launched_at": "2026-10-30T13:51:55+00:00",
+  "output_sha256": "77b9e380e6bceaaa474a810be861d46603ce418b80c2dc6eadfa3a35ae463153",
+  "perspective": "spec-fidelity",
+  "request_id": "be6c4cea-0cb7-4cb2-990c-39576ec14ce7",
+  "reviewer": {
+    "context_id": "ff24e9a7-5b92-4a98-b451-d0dbcac228f7",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-880fafeb-ec11-4bb6-9c4a-f8939dcbfd6b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39556
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49276
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15952
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16123
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1771
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "30ab0c29e57cc568c0b72ad7513943c079434bc50b23cafd9b390ae0e30d761a"
+}

@@ -13,6 +13,8 @@ SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "tests"))
 
+import json  # noqa: E402
+
 import finish_task  # noqa: E402
 from _platform_config import write_platform_config  # noqa: E402
 import managed_task  # noqa: E402
@@ -76,6 +78,49 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(result.state, "ahead")
         self.assertEqual(git("merge-base", "--is-ancestor", task_head, "HEAD", cwd=self.task).returncode, 0)
         self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
+
+    def archived_change_with_evidence(self) -> managed_task.CanonicalProvenance:
+        """An archived managed change whose committed evidence proves the current task content."""
+        from task_content_identity import review_content_identity
+
+        (self.task / "shared.txt").write_text("base\n" + "\n" * 8 + "tail\n", encoding="utf-8")
+        (self.task / "dev-platform").mkdir()
+        (self.task / "dev-platform" / "checks.toml").write_text("", encoding="utf-8")
+        git("add", "shared.txt", "dev-platform", cwd=self.task); git("commit", "-m", "widen shared", cwd=self.task); git("push", "origin", "agent/task:main", cwd=self.task)
+        git("fetch", "origin", cwd=self.task)
+        (self.task / "shared.txt").write_text("task\n" + "\n" * 8 + "tail\n", encoding="utf-8")
+        change = self.task / "openspec" / "changes" / "archive" / "2026-10-30-demo"
+        change.mkdir(parents=True)
+        (change / "tasks.md").write_text("- [x] 1.1 demo\n", encoding="utf-8")
+        git("add", ".", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        proof = review_content_identity(self.task, "demo")
+        (change / "automated-checks.json").write_text(json.dumps({"outcome": "success", "gate_task_content": proof}), encoding="utf-8")
+        git("add", ".", cwd=self.task); git("commit", "-m", "record evidence", cwd=self.task)
+        return managed_task.CanonicalProvenance("owner/repo#1", "demo", change, "archived")
+
+    def test_stale_committed_evidence_after_the_merge_fails_with_the_refresh_command(self) -> None:
+        provenance = self.archived_change_with_evidence()
+        other = self.base / "other"
+        run("git", "clone", str(self.remote), str(other), cwd=self.base); configure(other)
+        (other / "shared.txt").write_text("base\n" + "\n" * 8 + "main tail\n", encoding="utf-8")
+        git("commit", "-am", "main touches a task path", cwd=other); git("push", cwd=other)
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance):
+            with self.assertRaises(SystemExit) as stopped:
+                self.reconcile()
+        message = str(stopped.exception)
+        self.assertIn("Task reconciliation merged main", message)
+        self.assertIn("python3 scripts/select_checks.py --base origin/main --execute --evidence "
+                      "openspec/changes/archive/2026-10-30-demo/automated-checks.json", message)
+        self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
+
+    def test_committed_evidence_survives_a_main_move_that_touches_no_task_path(self) -> None:
+        provenance = self.archived_change_with_evidence()
+        self.advance_main()
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+                mock.patch("sys.stdout") as out:
+            self.reconcile()
+        printed = "".join(call.args[0] for call in out.write.call_args_list)
+        self.assertIn("Committed selected-check evidence: current", printed)
 
     def test_current_task_is_an_idempotent_no_op(self) -> None:
         before = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()

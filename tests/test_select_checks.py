@@ -344,6 +344,31 @@ class SelectChecksTests(unittest.TestCase):
 SOURCE_CONTRACT = platform_config_text(platform_version="source", workflow_profile="standard", capabilities={"agent_board": False})
 
 
+@unittest.skipUnless(os.name == "posix", "POSIX permissions required")
+class EvidencePermissionTests(unittest.TestCase):
+    def test_evidence_is_published_under_the_shared_contract_without_inherited_bits(self) -> None:
+        import stat
+
+        with tempfile.TemporaryDirectory() as tmp:
+            git_dir = Path(tmp) / "worktrees" / "slug"
+            git_dir.mkdir(parents=True)
+            path = git_dir / "dev-platform" / "check-evidence.json"
+            previous = os.umask(0o022)
+            try:
+                select_checks.write_evidence(path, [], {"state": "ready"}, [], "success")
+            finally:
+                os.umask(previous)
+            directory = path.parent.stat()
+            self.assertEqual(directory.st_mode & 0o070, 0o070)
+            probe = Path(tmp) / "probe"
+            probe.mkdir()
+            probe.chmod(probe.stat().st_mode | stat.S_ISGID)
+            if probe.stat().st_mode & stat.S_ISGID:  # some temporary volumes strip setgid even on owner chmod
+                self.assertTrue(directory.st_mode & stat.S_ISGID)
+            self.assertEqual(path.stat().st_mode & 0o060, 0o060)
+            self.assertEqual("success", json.loads(path.read_text(encoding="utf-8"))["outcome"])
+
+
 class ChangedFileBaseTests(unittest.TestCase):
     """The changed-file base is explicit or task-derived; no previous-commit fallback, git failures stop."""
 

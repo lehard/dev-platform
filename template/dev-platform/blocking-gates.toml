@@ -109,6 +109,23 @@ recovery_tests = [
 ]
 
 [[gate]]
+id = "stale-check-evidence"
+script = "scripts/openspec_lifecycle.py"
+class = "recoverable"
+summary = "Publication is refused because the task's committed selected-check evidence no longer proves its content (for example after reconcile merged a main that changed a task path)."
+recovery = "python3 scripts/select_checks.py --base origin/main --execute --evidence <the evidence path the message names>, then commit the refreshed evidence"
+migrated = false
+preflight = "task-evidence"
+rejection_tests = [
+  "tests/test_task_reconciliation.py::TaskReconciliationTests::test_stale_committed_evidence_after_the_merge_fails_with_the_refresh_command",
+  "tests/test_lifecycle_preflight.py::TaskEvidenceConditionTests::test_stale_committed_evidence_is_refused_with_the_refresh_command",
+]
+recovery_tests = [
+  "tests/test_task_reconciliation.py::TaskReconciliationTests::test_committed_evidence_survives_a_main_move_that_touches_no_task_path",
+  "tests/test_lifecycle_preflight.py::TaskEvidenceConditionTests::test_current_evidence_passes_and_absent_evidence_is_not_applicable",
+]
+
+[[gate]]
 id = "contribution-base-freshness"
 script = "scripts/select_checks.py"
 class = "hard-stop"

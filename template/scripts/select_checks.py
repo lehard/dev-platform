@@ -30,6 +30,7 @@ from _platform_common import (
 )
 from managed_task import ManagedTaskError, require_managed_checkout_identity
 import lifecycle_preflight
+import shared_workspace
 
 
 def load_config(root: Path) -> dict[str, Any]:
@@ -452,7 +453,6 @@ def write_evidence(
     base_contract: dict[str, Any] | None = None,
     quick_gate: dict[str, Any] | None = None,
 ) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "version": 2 if managed_checkout is not None else 1,
         "selection": status,
@@ -479,7 +479,9 @@ def write_evidence(
     if base_contract is not None:
         # The head did not contain main: a reviewer of the evidence sees which contract passed it.
         payload["task_base"] = base_contract
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    # Publication admission walks the task git dir that holds quick evidence: publish the file and its
+    # directory under the shared group contract, never with the process umask or inherited bits.
+    shared_workspace.atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
 
 
 def coordinator_contract(root: Path) -> bool:
@@ -617,6 +619,7 @@ def run_selector_preflight(root: Path, args: argparse.Namespace, checks: list[di
         entry="select_checks.py --execute",
         scope_gate_waiver=scope_waiver,
         task_base_waiver=base_waiver,
+        evidence_waiver="a selected-check run records evidence; it does not consume committed evidence",
     ))
 
 
