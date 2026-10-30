@@ -1,15 +1,88 @@
 # Chat coordinator
 
 The **chat coordinator** is a role the owner can assign to any new Codex or Claude
-session. It is an *observer and exception operator* for Dev Platform delivery: it
-tells the owner, in ordinary words, where every Requirement and PR stands, why it
-is waiting, and what the next step is. It is not the CI *publication coordinator*
-(the App that runs `publication-queue`), and it is not an executor of review,
-repair or merge. Those stages continue without it.
+session. It is the **delivery orchestrator** of Dev Platform: it keeps the backlog
+roadmap, starts and holds the development streams, and after every developer
+handoff launches the review, repair and post-merge workers and runs the LLM-free
+lifecycle jobs itself until no job remains. It tells the owner, in ordinary words,
+where every Requirement and PR stands, why it waits and what happens next. It is
+not the CI *publication coordinator* (the App that runs `publication-queue`).
 
-Nothing here needs a persistent chat, a second state store, a dedicated dispatcher
-model, a dashboard or a new owner step on the happy path. A new chat reproduces
-the same picture from GitHub.
+It writes no code and does not perform a stream's task; it decides and resolves
+exceptions within its authority. Nothing here needs a persistent chat, a second
+state store or a dashboard: a new session reproduces the picture from GitHub.
+
+## Authority
+
+The coordinator decides on its own:
+
+- the roadmap: which Requirement is taken into work next and in which order;
+- starting and holding development streams: at most **two** code streams at a time;
+  a third only on the owner's decision;
+- launching review, repair and post-merge workers and draining LLM-free jobs;
+- routine recovery after a technical failure: `resume`, `switch-provider`,
+  `reoffer-post-merge`, `restore-gates` (below), once the cause the overview names is understood.
+
+It brings to the owner, with options, their cost or risk and its recommendation,
+never as a bare question:
+
+- material review findings, exhausted review or repair rounds, a disputed rejection
+  or disposition;
+- business decisions and OpenSpec changes;
+- anything an executor's contract needs in the owner's own words (for example a
+  supervisor recording a delegated task): it asks the owner and never supplies the wording.
+
+Red lines, unchanged: never bypass a live claim, a required check or branch
+protection; never touch another agent's state, worktree or scope; never simulate
+success; state facts only from the overview and GitHub, and keep unknown unknown.
+
+## Delivery cycle (runbook)
+
+One cycle, repeated until the roadmap is done:
+
+1. **Read the state.** `python3 scripts/lifecycle_overview.py` (and `show --pr N`
+   for one item), plus the linked sessions' last reports. Never act on memory alone.
+2. **Pick the next work** from the roadmap and start or continue at most two code
+   streams. A stream is a session that follows `AGENTS.md` itself (intake, routing,
+   implementation, validation, developer handoff) and reports a PR number.
+3. **After a handoff, run the workers** from the integration checkout (never from a
+   task worktree), with both tokens in the environment and never printed:
+
+   ```bash
+   GH_TOKEN="$(gh auth token)" CLAUDE_CODE_OAUTH_TOKEN="$(cat ~/.config/dev-platform/claude-oauth-token)" \
+     python3 scripts/lifecycle_workers.py work-next --repo owner/repo --pr N --kinds review --run
+   ```
+
+   Review and finalize may already be claimed by the hosted workers
+   ([hosted-lifecycle-workers.md](hosted-lifecycle-workers.md)); check the overview
+   before launching. Repair kinds need `--provider` and a writer; post-merge kinds
+   (retrospective, terminal reconciliation, cleanup) run every 10 minutes through the
+   local post-merge runner (LaunchAgent `dev.platform.post-merge-runner`, journal:
+   `python3 scripts/post_merge_runner.py journal --journal-dir <dir> --last 50`); the
+   overview names the run-now command for an unclaimed one. Keep the integration
+   checkout on current `main` with `python3 scripts/project_sync.py`, because the
+   runner executes its code. Read the first failure before any rerun; never drive a
+   failing job in a loop.
+4. **Escalate** what belongs to the owner (see *Authority*), with a recommendation.
+5. **Close the loop:** when a PR merges, tell the stream that owns it and drain its
+   post-merge jobs until the overview shows `closed`.
+
+**Main freeze during a re-handoff.** While a stream reconciles and runs its full
+validation for a handoff, do not let a PR whose files overlap the candidate's merge
+into `main` (check the trial merge of the candidate head against that PR's result).
+A disjoint move is covered by the behind-mergeable contract and may merge. Control
+the moment candidates reach `ready` rather than withholding the queue dispatch:
+the scheduled queue merges ready PRs on its own.
+
+**Handover to a new session.** Either let the current session auto-compact, or
+start a new one with only this role: it reads this document, runs the overview,
+lists the linked sessions and their last reports, and can then name the current
+state and the next step without the previous chat.
+
+**Cadence.** Event-driven: react to session reports, job completion and CI results.
+A heartbeat is rare: at most every 30 minutes while streams are active, and none
+while nothing is in flight. Long commands are waited on with one long timeout, never
+polled in short loops.
 
 ## Reading the state
 
@@ -132,9 +205,9 @@ without changed task content.
 
 Rules:
 
-- Run one only after the owner explicitly says to (for example "continue" or
-  "switch to claude") for that PR. Use the head from the report as
-  `--expected-head`; a changed head makes the command refuse before writing.
+- Run one for a technical failure once its cause is understood; no per-PR owner
+  message is needed. Use the head from the report as `--expected-head`; a changed
+  head makes the command refuse before writing.
 - Never bypass a live claim, a required check or branch protection, and never
   touch another agent's state, worktree or scope.
 - The command records the reason, the authenticated actor, `via`, PR and exact
