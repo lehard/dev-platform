@@ -1,0 +1,124 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.928,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.12,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.138,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.251,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1482.555,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "tests/test_autonomous_integration_contour.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6fc60e28156e6d77ef03b4798733ca8d",
+    "change": "post-merge-release-limit-attention",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/post-merge-release-limit-attention",
+    "branch": "agent/br-775-t1-post-merge-release-limit-attention",
+    "head": "0a00de1d4880cc8420b9ba9226381ce144880f5e",
+    "task_content": {
+      "version": 1,
+      "digest": "a3301f3b6663c2aaf3179baf7230acda1b90bc8d50203cef526045bf3f6eb101",
+      "paths": {
+        "openspec/changes/post-merge-release-limit-attention/.managed-task.json": "744a96ecf01971f1f1b45f742144773d844b74c9",
+        "openspec/changes/post-merge-release-limit-attention/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/post-merge-release-limit-attention/design.md": "4499bf089d11536b416f906abe64d12d4664099f",
+        "openspec/changes/post-merge-release-limit-attention/independent-review-request.json": "9577cbf4d5c9982479029cdedfe5c6ded60221c2",
+        "openspec/changes/post-merge-release-limit-attention/independent-reviews/engineering-quality.json": "b209dba453a3271ceaf6e51f47da08d29b9b69b2",
+        "openspec/changes/post-merge-release-limit-attention/independent-reviews/spec-fidelity.json": "8686f099765c296950b154271a49f2d4f2790866",
+        "openspec/changes/post-merge-release-limit-attention/proposal.md": "14c6ef5aeeb368dcf0357c6defb185886abd1420",
+        "openspec/changes/post-merge-release-limit-attention/specs/lifecycle-workers/spec.md": "880ffcffe6be56a7496379a269f75a6f9b353608",
+        "openspec/changes/post-merge-release-limit-attention/tasks.md": "8be132ffd2d6e3e40c44ad60360c3616e770d789",
+        "openspec/changes/post-merge-release-limit-attention/verification.md": "4fc0c92d11acf7569792aa52eeecf743b2e69b92",
+        "template/dev-platform/platform-manifest.json": "c84e15910b64b564caa82622015227a2f6f1fd86",
+        "template/scripts/candidate_lifecycle.py": "7b246cf9a030040fe06f00e505dfee3492593aba",
+        "template/scripts/lifecycle_workers.py": "d49312524e5108fbe67972419411ce39dc8aed7d",
+        "template/scripts/pr_review_gate.py": "d2f1200e5c63f6e1342c801ae269612224d78116",
+        "tests/test_autonomous_integration_contour.py": "adb43effa2e433ea9acb985f6dfca1319a42f4d4"
+      },
+      "base": "425a5916dd6f1e28e8da1505281d3dc0b47867ca"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "b1382b9d8eace32b112062349542d4140f2dd7d2d1b68ad666acb3f61ecb00e1",
+    "paths": {
+      "openspec/changes/post-merge-release-limit-attention/.managed-task.json": "744a96ecf01971f1f1b45f742144773d844b74c9",
+      "openspec/changes/post-merge-release-limit-attention/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/post-merge-release-limit-attention/design.md": "4499bf089d11536b416f906abe64d12d4664099f",
+      "openspec/changes/post-merge-release-limit-attention/proposal.md": "14c6ef5aeeb368dcf0357c6defb185886abd1420",
+      "openspec/changes/post-merge-release-limit-attention/specs/lifecycle-workers/spec.md": "880ffcffe6be56a7496379a269f75a6f9b353608",
+      "openspec/changes/post-merge-release-limit-attention/tasks.md": "8be132ffd2d6e3e40c44ad60360c3616e770d789",
+      "template/scripts/candidate_lifecycle.py": "7b246cf9a030040fe06f00e505dfee3492593aba",
+      "template/scripts/lifecycle_workers.py": "d49312524e5108fbe67972419411ce39dc8aed7d",
+      "template/scripts/pr_review_gate.py": "d2f1200e5c63f6e1342c801ae269612224d78116",
+      "tests/test_autonomous_integration_contour.py": "adb43effa2e433ea9acb985f6dfca1319a42f4d4"
+    },
+    "base": "425a5916dd6f1e28e8da1505281d3dc0b47867ca",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file tests/test_autonomous_integration_contour.py",
+    "duration_seconds": 418.134,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
