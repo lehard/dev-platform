@@ -1,0 +1,123 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.25,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.409,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.102,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.228,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 4195.05,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_workers.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_lifecycle_workers.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_28a646377f9f8a08bb409e1ba2abfa40",
+    "change": "post-merge-discovery-beyond-window",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/post-merge-discovery-beyond-window",
+    "branch": "agent/br-882-t1-post-merge-discovery-beyond-window",
+    "head": "303786a92f6a9fd6f5ec55c2d145d31fc872b2fb",
+    "task_content": {
+      "version": 1,
+      "digest": "8a287b570708e1cf966b2dce6894710698e822f7c924f6fba4b9eddbfb5a1d00",
+      "paths": {
+        "docs/engineering/chat-coordinator.md": "6f1ddd58fdf744961f9c558e94993369594f3e78",
+        "openspec/changes/post-merge-discovery-beyond-window/.managed-task.json": "5ffa6ac8f7952b721209be93a902d431dc2af38f",
+        "openspec/changes/post-merge-discovery-beyond-window/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/post-merge-discovery-beyond-window/design.md": "5b8008d4ca68c636b5faa1df21ac05dc524c4580",
+        "openspec/changes/post-merge-discovery-beyond-window/proposal.md": "1b6b2c0e7b6d8f45b1745f354140acb08d0c7fad",
+        "openspec/changes/post-merge-discovery-beyond-window/specs/lifecycle-workers/spec.md": "42116abd306ca5c6476cd92009723c63075b8c0c",
+        "openspec/changes/post-merge-discovery-beyond-window/tasks.md": "7204eb5bba4a5b578a8fd60dc39a91b9c174f46b",
+        "openspec/changes/post-merge-discovery-beyond-window/verification.md": "37a4c5a1d0df3e6cb5d847641c1840aec67d8c3f",
+        "template/dev-platform/platform-manifest.json": "b32431a11e6527525bf4b8c2a6fb8baa85762d1f",
+        "template/scripts/lifecycle_overview.py": "54c203eab8aa701dadc6ee204ec9afb59a719428",
+        "template/scripts/lifecycle_workers.py": "5a7012068cb0bf083ff4f55b6c6118b26a516ee9",
+        "tests/test_autonomous_integration_contour.py": "28259411050ed3781e12272209ca8c9e199bf66a",
+        "tests/test_lifecycle_workers.py": "f149f93c9525945286a50975d627bf3a5e6bb180"
+      },
+      "base": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "10ee0b58399c24140dec30227dfa9696682acad6da8557ddc5a9f12ff4fee2ee",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "6f1ddd58fdf744961f9c558e94993369594f3e78",
+      "openspec/changes/post-merge-discovery-beyond-window/.managed-task.json": "5ffa6ac8f7952b721209be93a902d431dc2af38f",
+      "openspec/changes/post-merge-discovery-beyond-window/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/post-merge-discovery-beyond-window/design.md": "5b8008d4ca68c636b5faa1df21ac05dc524c4580",
+      "openspec/changes/post-merge-discovery-beyond-window/proposal.md": "1b6b2c0e7b6d8f45b1745f354140acb08d0c7fad",
+      "openspec/changes/post-merge-discovery-beyond-window/specs/lifecycle-workers/spec.md": "42116abd306ca5c6476cd92009723c63075b8c0c",
+      "openspec/changes/post-merge-discovery-beyond-window/tasks.md": "7204eb5bba4a5b578a8fd60dc39a91b9c174f46b",
+      "template/scripts/lifecycle_overview.py": "54c203eab8aa701dadc6ee204ec9afb59a719428",
+      "template/scripts/lifecycle_workers.py": "5a7012068cb0bf083ff4f55b6c6118b26a516ee9",
+      "tests/test_autonomous_integration_contour.py": "28259411050ed3781e12272209ca8c9e199bf66a",
+      "tests/test_lifecycle_workers.py": "f149f93c9525945286a50975d627bf3a5e6bb180"
+    },
+    "base": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_workers.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_lifecycle_workers.py",
+    "duration_seconds": 287.132,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
