@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "e68555697fbf2206491bbd89a596b7e04edfaa89",
     "base_ref": "origin/main",
-    "candidate_head": "36a17164db0ca1cea0be4e702aa4239db76ec34c",
-    "diff_sha256": "a971da469f4761fbb2e3ee588e21d3ed415086d4ade9a8d9f25d19950a6aa65f"
+    "candidate_head": "f85fa4945ef5cf42c62448e35946fcd318449daa",
+    "diff_sha256": "b83db3a5da79f628cf85c09eeecc41f8c61c22be84d6e69e4c608949ef2d34fe"
   },
   "change": "openspec/changes/coordinator-orchestrator-role",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-30T21:30:06+00:00",
+  "prepared_at": "2026-10-30T22:57:21+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/coordinator-orchestrator-role/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "ea470bbc-9b2e-482d-a930-60e8c5b48119",
+  "request_id": "bae9b6d6-32f1-48bc-94e5-cdd02de4e836",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "e68555697fbf2206491bbd89a596b7e04edfaa89",
-    "digest": "8a7d79be1524a8db667ee0b55247cab515b940ce21d61e1888fa95ea258a5f49",
+    "digest": "93ab6ab8777db8858f0303ac88251bb443553c4d3a7b28aa8689baf2d17a8355",
     "paths": {
       "AGENTS.md": "97770398074869d5d5845c4d722e010a9597cb16",
       "docs/engineering/agent-workflow.md": "0b331e64416001a1e679f329eeffad4da1f28604",
@@ -68,7 +68,7 @@
       "openspec/changes/coordinator-orchestrator-role/.managed-task.json": "7f71c96304efdc90c6f3d0fb6412d157713b3095",
       "openspec/changes/coordinator-orchestrator-role/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
       "openspec/changes/coordinator-orchestrator-role/design.md": "fb4f9edd0d2df24e1b61b361dbf39f7640c67df5",
-      "openspec/changes/coordinator-orchestrator-role/proposal.md": "59f654cd7b5ceb37586d8fa54ac2797a35ce043f",
+      "openspec/changes/coordinator-orchestrator-role/proposal.md": "f73f49ae955ff024c1c171ce9f61f4da7ea7341e",
       "openspec/changes/coordinator-orchestrator-role/specs/chat-coordinator/spec.md": "a0bf3f3e593bd5a8bc815ff201228a30f628910c",
       "openspec/changes/coordinator-orchestrator-role/tasks.md": "fea7d872773a8922acf7e9d3ba02251784b25a4f",
       "template/scripts/lifecycle_overview.py": "73a0b5f6bd80f0221dd3702f4f5ab1916b30b77c",
