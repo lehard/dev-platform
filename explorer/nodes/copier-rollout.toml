@@ -8,7 +8,7 @@ terms = ["copier", "managed-rollout", "pr"]
 lead = "Подключённые проекты обновляются до точного опубликованного тега через Copier, а управляемая раскатка избавляет человека от необходимости помнить, каким проектам нужна новая версия. В каждом проекте открывается отдельный PR, и по умолчанию он не сливается автоматически."
 thesis = "При неясности раскатка не продолжает: блокируется только проект с проблемой, а остальные получают свои PR и принимают их через собственный CI и ревью. Ветку проекта по умолчанию раскатка при блокировке не меняет."
 sources = [
-  "docs/managed-rollout.md#Automatic release rollout",
+  "docs/managed-rollout.md#Release rollout",
   "docs/managed-rollout.md#Registry",
   "docs/managed-rollout.md#Downstream adoption at task start",
   "docs/managed-rollout.md#Failed-run alarm",

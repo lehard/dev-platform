@@ -3,6 +3,6 @@ kind = "term"
 title = "управляемая раскатка"
 definition = "Управляемая раскатка — необязательная возможность оператора: после публикации версии платформы для каждого проекта в состоянии `managed` открывается отдельный PR с обновлением Copier до этого тега. Автослияния по умолчанию нет, а без включения оператором раскатка не запускается."
 sources = [
-  "docs/managed-rollout.md#Automatic release rollout",
+  "docs/managed-rollout.md#Release rollout",
   "docs/release-policy.md#Managed rollout",
 ]

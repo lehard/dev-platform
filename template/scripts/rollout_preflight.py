@@ -12,6 +12,7 @@ ignored or force-adopted.
 """
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,7 +21,7 @@ from typing import Any
 from _platform_common import harness_mode
 from integration_state import serialized_integration
 from publication_state import PrRef, github_repo_name, required_check_state_for_ref
-from rollout_identity import RolloutPR, authoritative_pending_rollout, candidate_rollout_prs, list_open_prs
+from rollout_identity import RolloutPR, authoritative_pending_rollout, candidate_rollout_prs, gh_api, list_open_prs, parse_version
 
 # Populated lazily, and only for a proven platform-harness-only reconciliation,
 # by `_load_platform_reconciliation_helpers`. They are never imported at module
@@ -296,4 +297,88 @@ def reconcile_pending_rollout(root: Path, config: dict[str, Any], env: dict[str,
         RECONCILED,
         detail=f"merged and synchronized rollout PR #{observed.pr.number} ({observed.pr.version}) before starting new work",
         pr=observed.pr,
+    )
+
+
+# Platform release lag at task start (BR-843). A lagging project is reported and the start
+# continues; anything that cannot be determined fails the start with its cause.
+LAG_CURRENT = "current"
+LAG_BEHIND = "behind"
+LAG_NOT_APPLICABLE = "not-applicable"
+ROLLOUT_COMMAND = "gh workflow run rollout.yml --repo {source} -f version={latest} -f repository={project}"
+_SOURCE_RE = re.compile(r"^(?:gh:|https://github\.com/|git@github\.com:)([A-Za-z0-9-]+/[A-Za-z0-9._-]+?)(?:\.git)?/?$")
+
+
+class PlatformLagError(RuntimeError):
+    """The project's platform release lag cannot be determined."""
+
+
+@dataclass(frozen=True)
+class PlatformLag:
+    state: str
+    detail: str
+    project_version: str = ""
+    latest_version: str = ""
+    command: str = ""
+
+
+def platform_source_repository(root: Path) -> str:
+    """``owner/name`` of the platform source recorded as ``_src_path`` in ``.copier-answers.yml``."""
+    answers = root / ".copier-answers.yml"
+    if not answers.is_file():
+        raise PlatformLagError(f"{answers.name} is missing, so the platform source repository is unknown")
+    for line in answers.read_text(encoding="utf-8").splitlines():
+        if line.startswith("_src_path:"):
+            source = line.split(":", 1)[1].strip().strip("'\"")
+            match = _SOURCE_RE.fullmatch(source)
+            if match is None:
+                raise PlatformLagError(f"{answers.name} _src_path {source!r} is not a GitHub repository this check can read")
+            return match.group(1)
+    raise PlatformLagError(f"{answers.name} has no _src_path, so the platform source repository is unknown")
+
+
+def latest_platform_release(source: str, env: dict[str, str]) -> str:
+    """Tag of the latest published release of ``source``; it must be a stable ``vX.Y.Z``."""
+    try:
+        release = gh_api([f"repos/{source}/releases/latest"], env=env)
+    except ValueError as exc:
+        raise PlatformLagError(f"cannot read the latest release of {source}: {exc}") from exc
+    tag = release.get("tag_name") if isinstance(release, dict) else None
+    if not isinstance(tag, str):
+        raise PlatformLagError(f"the latest release of {source} has no tag_name")
+    try:
+        parse_version(tag)
+    except ValueError as exc:
+        raise PlatformLagError(f"the latest release of {source} is not a stable version: {exc}") from exc
+    return tag
+
+
+def observe_platform_lag(root: Path, config: dict[str, Any], env: dict[str, str] | None) -> PlatformLag:
+    """Compare the project's ``platform_version`` with its platform source's latest release.
+
+    ``not-applicable`` only for the platform source checkout itself (``platform_version = "source"``).
+    ``behind`` carries the exact Roll Out Platform command that opens this project's update PR.
+    """
+    installed = config["platform_version"]
+    if installed == "source":
+        return PlatformLag(LAG_NOT_APPLICABLE, "the platform source repository is not a managed downstream project")
+    try:
+        project_version = parse_version(f"v{installed}")
+    except ValueError as exc:
+        raise PlatformLagError(f".dev-platform.toml platform_version {installed!r} is not a stable version: {exc}") from exc
+    source = platform_source_repository(root)
+    if env is None:
+        raise PlatformLagError(f"GitHub CLI authentication is unavailable, so the latest release of {source} cannot be read")
+    latest = latest_platform_release(source, env)
+    if project_version >= parse_version(latest):
+        return PlatformLag(LAG_CURRENT, f"platform {installed} is the latest release {latest}", f"v{installed}", latest)
+    project = github_repo_name(root, env)
+    if project is None:
+        raise PlatformLagError("cannot resolve this project's GitHub repository from `gh repo view` for the update command")
+    command = ROLLOUT_COMMAND.format(source=source, latest=latest, project=project)
+    return PlatformLag(
+        LAG_BEHIND,
+        f"this project runs Dev Platform v{installed}; the latest release is {latest}. "
+        f"Open the update pull request for {project} with: {command}",
+        f"v{installed}", latest, command,
     )

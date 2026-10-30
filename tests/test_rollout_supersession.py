@@ -154,6 +154,13 @@ class RolloutSupersessionWorkflowTests(unittest.TestCase):
         self.assertIn("python3 scripts/rollout_supersession.py reconcile", workflow)
         self.assertEqual(workflow.count("Checkout operator registry"), 2)
 
+    def test_stale_rollout_reconciliation_runs_only_on_operator_dispatch(self) -> None:
+        # BR-846: the schedule keeps only the rollout-alert recovery check.
+        workflow = (ROOT / ".github/workflows/reconcile-stale-rollouts.yml").read_text(encoding="utf-8")
+        step = workflow.split("- name: Plan or apply stale rollout supersession", 1)[1].split("- name:", 1)[0]
+        self.assertIn("if: github.event_name == 'workflow_dispatch'", step)
+        self.assertIn("if: always() && github.event_name == 'workflow_dispatch'", workflow)
+
     def test_maintenance_is_explicit_dry_run_or_confirmed_apply_and_uses_managed_matrix(self) -> None:
         workflow = (ROOT / ".github/workflows/reconcile-stale-rollouts.yml").read_text(encoding="utf-8")
         self.assertIn("options: [dry-run, apply]", workflow)

@@ -1,0 +1,78 @@
+{
+  "candidate": {
+    "base_head": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74",
+    "base_ref": "origin/main",
+    "candidate_head": "12d3e4ea3efadfb5f20c7e81712085a345e606d7",
+    "diff_sha256": "b96b1ff27a9a638e40958fbeecaea653153348fcb6bfcefb228bd419ecea253f"
+  },
+  "change": "openspec/changes/report-platform-release-lag-at-start",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/report-platform-release-lag-at-start/automated-checks.json",
+    "openspec/changes/report-platform-release-lag-at-start/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/report-platform-release-lag-at-start/design.md",
+        "openspec/changes/report-platform-release-lag-at-start/proposal.md",
+        "openspec/changes/report-platform-release-lag-at-start/specs/platform-lifecycle/spec.md",
+        "openspec/changes/report-platform-release-lag-at-start/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/report-platform-release-lag-at-start/proposal.md",
+        "openspec/changes/report-platform-release-lag-at-start/design.md",
+        "openspec/changes/report-platform-release-lag-at-start/tasks.md",
+        "openspec/changes/report-platform-release-lag-at-start/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T20:11:09+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/report-platform-release-lag-at-start/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "a3747905-b7f4-4b86-8098-c43d3816c027",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74",
+    "digest": "6ae24b770396d6a47c27d2ee3f0818f7f36e30a299d7b1d294b6884433135207",
+    "paths": {
+      "openspec/changes/report-platform-release-lag-at-start/.managed-task.json": "d6201db2cd477143f0e51d2b9ef56ee4284816fc",
+      "openspec/changes/report-platform-release-lag-at-start/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/report-platform-release-lag-at-start/design.md": "758a4da70b572ca1467cbe07e8ca6e79b732fdb3",
+      "openspec/changes/report-platform-release-lag-at-start/proposal.md": "ee84004b6a9238305141dc780797d51d64e9c34c",
+      "openspec/changes/report-platform-release-lag-at-start/specs/platform-lifecycle/spec.md": "8ea3126a4d1407ce066ffc64d3b8db11db923924",
+      "openspec/changes/report-platform-release-lag-at-start/tasks.md": "7a42aaf2824ff5eb4dd51fcf7c275c5c66606166",
+      "template/scripts/rollout_preflight.py": "211e4bfe777f3102e54df9e3746ab8546984d6e5",
+      "template/scripts/start_task.py": "61da6e5c86ded50ac1dbb39bcbaf632ac80c2426",
+      "tests/test_managed_intake_project_harness_isolation.py": "fab6f6c2793e985aa6f4ce4b5673aa36cfba57e2",
+      "tests/test_managed_task.py": "545e8bd53dd05ed2de08c42afd1fe8f02c31ff2f",
+      "tests/test_rollout_preflight.py": "b74a8bc6badca33bb457378f31b9006440c5837e",
+      "tests/test_standard_profile_lifecycle_compatibility.py": "5aba790246dee936560bf3c3a89134675605d5b9"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

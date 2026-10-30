@@ -504,7 +504,7 @@ Remote branch deletion for a superseded rollout SHALL occur only after the corre
 
 ### Requirement: Existing stale rollout debt can be reconciled without creating a release
 
-The platform SHALL provide an explicit maintenance mode for reporting and reconciling stale eligible rollout PRs across the current managed registry using the same identity and SemVer rules as normal rollout.
+The platform SHALL provide an explicit maintenance mode for reporting and reconciling stale eligible rollout PRs across the current managed registry using the same identity and SemVer rules as normal rollout. The maintenance (its dry-run plan and its apply) SHALL run only when an operator dispatches it; a scheduled run of the same workflow SHALL NOT plan or apply stale-rollout reconciliation.
 
 #### Scenario: Maintenance runs in dry-run mode
 
@@ -517,6 +517,11 @@ The platform SHALL provide an explicit maintenance mode for reporting and reconc
 - **WHEN** reviewed maintenance mutation is invoked
 - **THEN** it closes only PRs proven stale by committed downstream version or a safely available newer rollout target
 - **AND** never mutates candidate/excluded repositories
+
+#### Scenario: No scheduled maintenance
+
+- **WHEN** the maintenance workflow runs on its schedule
+- **THEN** it neither plans nor applies stale-rollout reconciliation
 
 ### Requirement: Platform-owned rollout helpers are invoked from their actual checkout path
 
@@ -777,132 +782,6 @@ Before publishing a managed rollout, the platform SHALL detect when managed rend
 - **THEN** validation passes this guard
 - **AND** those artifacts remain ignored after the update
 
-### Requirement: Managed project-owned publication harnesses conform to shared exact-head merge safety
-
-A managed repository with `harness_mode=project` SHALL retain ownership of its repository-specific task/worktree/integration harness, but that ownership SHALL NOT weaken the platform-owned merge-safety invariant. Managed rollout SHALL treat exact-head publication safety as a conformance requirement for project-owned publication code.
-
-A bounded compatibility migration MAY change only the recognized publication identity/confirmation surface when applicability is proven by a deterministic, reviewed compatibility predicate. Unknown or drifted project-owned harness content SHALL fail closed with an actionable diagnostic and SHALL be preserved rather than overwritten.
-
-Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadata alone SHALL NOT count as successful safety adoption for a project-owned harness whose publication surface is known to require conformance.
-
-#### Scenario: Legacy-merge-harness-like project harness has a recognized vulnerable publication shape
-
-- **GIVEN** a managed project-owned harness matches the reviewed legacy-merge-harness compatibility fixture
-- **WHEN** rollout applies the safety release
-- **THEN** only the vulnerable publication identity/confirmation surface is migrated to stable PR identity plus exact expected head
-- **AND** project-owned board, worktree, and serialized integration behavior remains intact
-- **AND** the migration is idempotent
-
-#### Scenario: Legacy-publish-harness-like project harness has a recognized vulnerable publication shape
-
-- **GIVEN** a managed project-owned harness matches the reviewed legacy-publish-harness compatibility fixture
-- **WHEN** rollout applies the safety release
-- **THEN** its publication path gains stable PR identity and exact-head confirmation
-- **AND** its standalone integration-clone semantics remain intact
-- **AND** the migration is idempotent
-
-#### Scenario: Project-owned publication harness has unexpected drift
-
-- **GIVEN** a managed `harness_mode=project` repository does not match a reviewed compatibility predicate
-- **WHEN** rollout cannot prove the bounded safety migration is applicable
-- **THEN** rollout fails closed before publishing a downstream update that claims safety conformance
-- **AND** the project-owned harness bytes remain unchanged
-- **AND** the diagnostic identifies the publication-safety compatibility blocker without guessing a rewrite
-
-#### Scenario: Platform-owned harness receives the same safety release
-
-- **GIVEN** a managed repository uses `harness_mode=platform`
-- **WHEN** rollout applies the safety release
-- **THEN** normal Copier-managed lifecycle files receive the exact-head publication implementation
-- **AND** no project-harness compatibility rewrite is attempted
-
-#### Scenario: Candidate or excluded repository is known to the registry
-
-- **GIVEN** a repository is not in `managed` state
-- **WHEN** ordinary managed rollout runs for the safety release
-- **THEN** the repository is not mutated
-- **AND** it receives the corrected contract only through a later deliberate adoption path
-
-### Requirement: Compatibility migration activates before a project harness CLI guard
-
-When a managed project-owned publication harness matches a reviewed legacy
-compatibility predicate, Dev Platform SHALL install the exact-head publication
-implementation before the script's effective CLI entrypoint. A migration SHALL
-NOT rely on definitions that execute only after `if __name__ == "__main__"`.
-The migration SHALL preserve repository-specific orchestration outside the
-bounded publication surface and SHALL fail closed without writing unrecognized
-or structurally ambiguous harness bytes.
-
-#### Scenario: Legacy-merge-harness-like harness is invoked as a CLI after migration
-
-- **GIVEN** a reviewed legacy-merge-harness-like harness has an old merged PR for branch X at
-  head A and a current reused branch X at head B
-- **WHEN** its migrated script is run through Python's CLI entrypoint
-- **THEN** the exact-head publication implementation is active before `main()`
-- **AND** PR A cannot authorize terminal success, remote deletion, or board
-  cleanup for B
-- **AND** board/worktree/serialized orchestration remains intact.
-
-#### Scenario: Legacy-publish-harness-like harness is invoked as a CLI after migration
-
-- **GIVEN** a reviewed legacy-publish-harness-like harness is migrated
-- **WHEN** the script is invoked through its real CLI entrypoint
-- **THEN** exact PR identity and exact merge confirmation are active before
-  `main()`
-- **AND** standalone integration-clone orchestration remains intact.
-
-#### Scenario: Unknown or ambiguous project harness is encountered
-
-- **WHEN** its source fingerprint or CLI guard shape differs from a reviewed
-  migration predicate
-- **THEN** rollout fails with a compatibility diagnostic
-- **AND** it does not write the helper or modify harness bytes.
-
-### Requirement: Reviewed legacy-merge-harness exact-head migration adapts its known regression surface
-
-When a reviewed legacy-merge-harness project-owned publication harness requires an exact-head
-compatibility migration, Dev Platform SHALL also adapt the known reviewed
-regression test surface that strictly mocks that publication behavior. Both
-surfaces SHALL be selected only by exact reviewed bytes and a rerun SHALL
-prove the generated state by reconstructing those bytes. Unknown or partial
-project-owned test drift SHALL block without writing either surface.
-
-#### Scenario: Known legacy-merge-harness strict mocks receive exact-head responses
-
-- **GIVEN** the legacy-merge-harness's reviewed legacy test source and publication harness
-- **WHEN** rollout applies the exact-head migration
-- **THEN** the strict mocks return a local branch head and one matching exact
-  PR record
-- **AND** the legacy-merge-harness's merge-policy and cleanup regressions remain asserted
-- **AND** the resulting legacy-merge-harness CI is eligible to pass without manual edits.
-
-#### Scenario: Unknown legacy-merge-harness regression-test drift is encountered
-
-- **WHEN** the companion test source differs from both the reviewed legacy
-  and reversibly generated forms
-- **THEN** rollout fails closed before modifying the harness, helper, or test.
-
-### Requirement: Project-harness rollout proves terminal reconciliation conformance
-
-For a managed project-owned harness whose lifecycle requires terminal status
-projection, rollout SHALL not treat platform version metadata advancement as
-successful adoption unless the reviewed compatibility surface proves exact
-merged-PR terminal reconciliation. Unknown or drifted project-owned harnesses
-SHALL remain unchanged and block rollout.
-
-#### Scenario: Recognized legacy-publish-harness-like harness receives terminal migration
-
-- **GIVEN** the reviewed legacy-publish-harness-like publication and finish surfaces match the
-  approved compatibility predicate
-- **WHEN** rollout applies the terminal reconciliation release
-- **THEN** exact merge proof, pending-reconciliation recovery and idempotent
-  `Done` projection are installed without replacing standalone-clone behavior
-
-#### Scenario: Legacy-publish-harness-like harness cannot be proven safe
-
-- **WHEN** either required compatibility surface has unknown or drifted bytes
-- **THEN** rollout fails before advancing version metadata or modifying harness bytes
-
 ### Requirement: Public rollout core contains no private-project compatibility branches
 
 The public managed-rollout implementation SHALL express rollout and migration behavior in generic platform terms. Compatibility logic whose trigger, constants, hashes, messages, or code payloads are specific to a private downstream repository SHALL NOT be hard-coded into the public core.
@@ -1095,3 +974,41 @@ Every `Roll Out Platform` run, whether dispatched by the release workflow or man
 - **WHEN** reading the run's jobs, bootstrapping the label, or creating or commenting on the alert fails
 - **THEN** the alarm job exits non-zero naming the failed operation
 - **AND** it is not hidden by `continue-on-error`
+
+### Requirement: Managed project-owned publication harnesses prove exact-head merge safety without platform rewrites
+
+A managed repository with `harness_mode=project` SHALL retain ownership of its repository-specific task/worktree/integration harness, but that ownership SHALL NOT weaken the platform-owned merge-safety invariant. Managed rollout SHALL treat exact-head publication safety as a conformance requirement for project-owned publication code and SHALL NOT rewrite project-owned harness bytes to obtain it. A project-owned harness that does not prove conformance SHALL fail closed with an actionable diagnostic and SHALL be preserved rather than overwritten.
+
+Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadata alone SHALL NOT count as successful safety adoption for a project-owned harness whose publication surface is known to require conformance.
+
+#### Scenario: Project-owned publication harness does not prove conformance
+
+- **GIVEN** a managed `harness_mode=project` repository whose publication surface lacks the exact-head conformance signals
+- **WHEN** rollout runs
+- **THEN** rollout fails closed before publishing a downstream update that claims safety conformance
+- **AND** the project-owned harness bytes remain unchanged
+- **AND** the diagnostic identifies the publication-safety compatibility blocker without guessing a rewrite
+
+#### Scenario: Platform-owned harness receives the same safety release
+
+- **GIVEN** a managed repository uses `harness_mode=platform`
+- **WHEN** rollout applies the safety release
+- **THEN** normal Copier-managed lifecycle files receive the exact-head publication implementation
+- **AND** no project-harness compatibility rewrite is attempted
+
+#### Scenario: Candidate or excluded repository is known to the registry
+
+- **GIVEN** a repository is not in `managed` state
+- **WHEN** ordinary managed rollout runs for the safety release
+- **THEN** the repository is not mutated
+- **AND** it receives the corrected contract only through a later deliberate adoption path
+
+### Requirement: Project-harness rollout proves terminal reconciliation conformance without platform rewrites
+
+For a managed project-owned harness whose lifecycle requires terminal status projection (it ships `scripts/finish_task.py`), rollout SHALL not treat platform version metadata advancement as successful adoption unless the project's own publication surface proves exact merged-PR terminal reconciliation. Rollout SHALL NOT rewrite project-owned harness bytes to obtain it; a harness that does not prove it SHALL remain unchanged and block rollout.
+
+#### Scenario: Project-owned finish surface lacks terminal reconciliation
+
+- **GIVEN** a managed `harness_mode=project` repository with `scripts/finish_task.py` whose publication surface lacks the terminal-reconciliation conformance signals
+- **WHEN** rollout runs
+- **THEN** rollout fails before advancing version metadata or modifying harness bytes

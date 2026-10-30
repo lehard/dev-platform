@@ -23,6 +23,9 @@ def load(name: str):
 managed_task = load("managed_task")
 start_managed_task = load("start_managed_task")
 task_start = sys.modules["start_task"]
+rollout_preflight = sys.modules["rollout_preflight"]
+# Task start reads the platform release lag from GitHub; these compatibility tests start offline.
+CURRENT_LAG = rollout_preflight.PlatformLag(rollout_preflight.LAG_CURRENT, "platform is the latest release")
 routing = load("model_routing")
 
 
@@ -97,6 +100,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
                 patch.object(start_managed_task, "import_task", side_effect=self._materialize(package)),
                 patch.object(start_managed_task, "reconcile") as reconcile,
                 patch.object(task_start, "require_fresh_task_base", return_value="a" * 40),
+                patch.object(task_start, "observe_platform_lag", return_value=CURRENT_LAG),
             ):
                 reconcile.return_value = __import__("types").SimpleNamespace(changed=True)
                 started, current_main, reused = start_managed_task.start_managed_task(root, "example-org/development-backlog#62")
@@ -147,6 +151,7 @@ class StandardProfileManagedStartCompositionTests(unittest.TestCase):
                     side_effect=start_managed_task.ManagedProjectStatusError("missing project scope"),
                 ),
                 patch.object(task_start, "require_fresh_task_base", return_value="a" * 40),
+                patch.object(task_start, "observe_platform_lag", return_value=CURRENT_LAG),
             ):
                 with self.assertRaisesRegex(start_managed_task.ManagedProjectStatusError, "missing project scope"):
                     start_managed_task.start_managed_task(root, "example-org/development-backlog#62")
@@ -175,7 +180,7 @@ class LightProfileControlTests(unittest.TestCase):
             scripts.mkdir()
             for name in ("agent_doctor.py", "project_sync.py"):
                 (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-            with patch.object(task_start, "require_fresh_task_base", return_value="a" * 40):
+            with patch.object(task_start, "require_fresh_task_base", return_value="a" * 40), patch.object(task_start, "observe_platform_lag", return_value=CURRENT_LAG):
                 started = task_start.start_task(root, "quick-fix", "Quick fix")
             self.assertEqual(started.profile, "light")
             self.assertEqual(started.branch, "main")
