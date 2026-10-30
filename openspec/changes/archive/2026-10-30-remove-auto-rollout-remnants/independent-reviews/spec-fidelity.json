@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "cd9e857b3d0edb010e6a931728e7d12c5ff193e6",
+    "diff_sha256": "5b146594c3e832e15f268f1204e9f4187f0003a4eedd4a1ed5d281949ac9f3fb"
+  },
+  "completed_at": "2026-10-30T17:29:28+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/specs/platform-rollout/spec.md:906-912 ('Existing operator still needs a project compatibility override ... supplied through an explicitly operator-owned external mechanism'). The change's specs/platform-rollout/spec.md doesn't touch this requirement, while the diff deletes `apply_operator_legacy_harness_continuity` and the config section.",
+      "id": "public-core-compat-scenario-stale",
+      "severity": "advisory",
+      "summary": "The unchanged requirement 'Public rollout core contains no private-project compatibility branches' still has a scenario saying an operator-owned external mechanism supplies compatibility material. The delta removes the only such mechanism (`apply_operator_legacy_harness_continuity` and `[rollout.legacy_harness_migrations]`) but doesn't update that scenario."
+    }
+  ],
+  "launched_at": "2026-10-30T17:28:58+00:00",
+  "output_sha256": "881464a37e32cc897e688abbc6ca7ae2ab7b39e0b9d1ca812710e01eba5f00fa",
+  "perspective": "spec-fidelity",
+  "request_id": "233f6c9f-65f0-45f7-a05f-d29f5b415252",
+  "reviewer": {
+    "context_id": "5b88cef3-6be3-4967-93bf-42aa6c662b5b",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b9344386-574e-4f7f-8dd2-ceba1d25b693",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45049
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 159905
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22413
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26869
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1931
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c8480bed08dfd67b0eed28211a8478a62684cc28798538347aa020f8f85ec72a"
+}

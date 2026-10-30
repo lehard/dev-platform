@@ -42,7 +42,7 @@ Measured with `scb-check==0.2.0` at main `d61e65f` (2026-09-28):
 
 Largest existing hotspots: `finish_task.py:main` (complexity 89),
 `add_intents.py:validate_intents` (82) and `_validate_add_document` (63),
-`rollout_project.py:migrate_project_publication_safety` (36).
+`rollout_project.py:migrate_project_publication_safety` (36; removed after this baseline with the legacy-harness migration).
 
 ## Updating the tool
 

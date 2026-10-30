@@ -38,11 +38,11 @@
     "docs/release-policy.md#Copier version": "f6753d3369d6551e1c140dc583ddda7f88f57931d2595bdd95888d3222abecf5"
   },
   "copier-rollout": {
-    "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
     "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
     "docs/managed-rollout.md#Failed-run alarm": "02a5ded2f2b5d479f31aefce0a3d910ed8325a5f8edad7cb212d2e5ebc106f98",
     "docs/managed-rollout.md#Failure handling": "1d9cbbe8de447a780ca2ae4612c144c34ecafe86d71303f7c6ecb333c3ddb0ac",
-    "docs/managed-rollout.md#Registry": "ecc444e60edd50db77a930966a5f7636d0ae5dc70215bb4b1f3446f0e5995551",
+    "docs/managed-rollout.md#Registry": "b1978656f36395451fc9560c96cca0211ed517704aeaf27ec4c2109ab1809461",
+    "docs/managed-rollout.md#Release rollout": "d6d3c55c8eff029f38b8c982479e46c9f37d9eff6d49dcc110d6ff66e8ffb482",
     "docs/managed-rollout.md#Repeated-failure alerting": "8ee4838ccdad8957d043ffab5ed5e05a19e3b1c34fe06992c12fc58543030b68",
     "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f"
   },
@@ -111,7 +111,7 @@
     "openspec/specs/lifecycle-workers/spec.md#Requirement: Worker claim identity is unique and validated": "663303200a63c06b0940b1219b85396eeed5ceae882e6d73605d173a5944bb9b"
   },
   "managed-rollout": {
-    "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
+    "docs/managed-rollout.md#Release rollout": "d6d3c55c8eff029f38b8c982479e46c9f37d9eff6d49dcc110d6ff66e8ffb482",
     "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f"
   },
   "openspec": {
@@ -164,8 +164,8 @@
     "docs/engineering/task-intake.md#Escalating quick work": "3fd1df769cbaa2b394b589d8f4c17faa5cba18faf00b878a844cb26e72615b0d"
   },
   "release-rollout": {
-    "docs/managed-rollout.md#Automatic release rollout": "2defa9a2f5c186ff5b350791eed7aa9bb7b655a17783ceffc3717a19ee63d0b6",
     "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
+    "docs/managed-rollout.md#Release rollout": "d6d3c55c8eff029f38b8c982479e46c9f37d9eff6d49dcc110d6ff66e8ffb482",
     "docs/release-policy.md#Choosing the version": "cefd837530445a2b799e482db7791d8f8db4a6f617077e7e9d5acbd9930d72c4",
     "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f",
     "docs/release-policy.md#Release identity": "8eba03c35056e7362908d50d1661668af7a1fa47ccd81948d0461639927d8b18",

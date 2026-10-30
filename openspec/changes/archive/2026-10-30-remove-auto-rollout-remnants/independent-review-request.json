@@ -1,0 +1,88 @@
+{
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "cd9e857b3d0edb010e6a931728e7d12c5ff193e6",
+    "diff_sha256": "5b146594c3e832e15f268f1204e9f4187f0003a4eedd4a1ed5d281949ac9f3fb"
+  },
+  "change": "openspec/changes/remove-auto-rollout-remnants",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/remove-auto-rollout-remnants/independent-review-request.json",
+    "openspec/changes/remove-auto-rollout-remnants/independent-reviews/engineering-quality.json",
+    "openspec/changes/remove-auto-rollout-remnants/independent-reviews/spec-fidelity.json",
+    "openspec/changes/remove-auto-rollout-remnants/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/remove-auto-rollout-remnants/design.md",
+        "openspec/changes/remove-auto-rollout-remnants/proposal.md",
+        "openspec/changes/remove-auto-rollout-remnants/specs/platform-config/spec.md",
+        "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md",
+        "openspec/changes/remove-auto-rollout-remnants/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/remove-auto-rollout-remnants/proposal.md",
+        "openspec/changes/remove-auto-rollout-remnants/design.md",
+        "openspec/changes/remove-auto-rollout-remnants/tasks.md",
+        "openspec/changes/remove-auto-rollout-remnants/specs/platform-config/spec.md",
+        "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T17:28:47+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/remove-auto-rollout-remnants/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "233f6c9f-65f0-45f7-a05f-d29f5b415252",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "digest": "c8480bed08dfd67b0eed28211a8478a62684cc28798538347aa020f8f85ec72a",
+    "paths": {
+      ".github/workflows/reconcile-stale-rollouts.yml": "6defde02915a5f0ae0bb5740d0e18a4746c4c4c6",
+      "docs/engineering/code-erosion.md": "a8665b849f4dba31278956b5cc9be469f756dbb7",
+      "docs/managed-rollout.md": "2125fe34fc1ac42c219ffcfe5f93bb22e6743fa5",
+      "docs/operator-config.example.toml": "7dc87e75e483acc7d9250e1380e0386d43f72659",
+      "docs/public-cutover.md": "2eeef1910ae1678dcaaf86bf978326a0c4229588",
+      "explorer/editorial-review.json": "62397b56d209d89e87ec97e82c8c849022e458e9",
+      "explorer/nodes/copier-rollout.toml": "d52cd790dddea94b6a1f0b8b81c2af6789409593",
+      "explorer/nodes/managed-rollout.toml": "a00253f68d8f14abb576856166b53591ef4f7d68",
+      "explorer/nodes/release-rollout.toml": "4459cd46101f0351f39fa67df644d32b113d5ac2",
+      "openspec/changes/remove-auto-rollout-remnants/.managed-task.json": "1fc9b9bb6806b12a2d40d92c350b33c85e6b98f2",
+      "openspec/changes/remove-auto-rollout-remnants/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/remove-auto-rollout-remnants/design.md": "14fd39163f7eca29678229589ee29c34dd379c43",
+      "openspec/changes/remove-auto-rollout-remnants/proposal.md": "b0be26bd58f558923aac0e0f42909b914f4351d1",
+      "openspec/changes/remove-auto-rollout-remnants/specs/platform-config/spec.md": "937cf5264ff2598bbacd2d16779d251fa487306d",
+      "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md": "887ffd1af0a9f4d53bbb6067c539ad9f1da3e1a5",
+      "openspec/changes/remove-auto-rollout-remnants/tasks.md": "d724d1b02556697259ca98455db9842fd6a24401",
+      "scripts/rollout_project.py": "e268eb15cc4444f341f1f3d0cef0472b0acaab48",
+      "tests/test_rollout_recopy.py": "1023142add20fc8e79556973a587d355b5498969",
+      "tests/test_rollout_supersession.py": "320af60860c0e5763d2d3da33a7c6ef5162e1100"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
