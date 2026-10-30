@@ -56,7 +56,7 @@ class BoardClaimAndScopeTests(WorktreeHarnessCase):
             self.check()
         self.assertIn(str(gate.exception.code), str(refused.exception))  # same answer as the gate
         self.assertIn("has no claim for worktree", str(refused.exception))
-        self.assertIn("agent_board.py admit --branch agent/only", str(refused.exception))
+        self.assertIn('agent_board.py start --task "<task>" --branch agent/only', str(refused.exception))
 
     def test_a_claimed_task_passes(self) -> None:
         self.write_board([self.claim()])
