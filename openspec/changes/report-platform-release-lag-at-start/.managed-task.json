@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "report-platform-release-lag-at-start",
+  "imported_at": "2026-10-30T19:06:05+00:00",
+  "package_revision": "e567811172fddc4731fae915afdbe48543949cc3ad6932e7ae0889081490ed39",
+  "prepared_against": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74",
+  "private_lineage_handle": "pln_779ec0887161145b477ec4493ea6c45b",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "66ef71e2e8afb2bd0242fb95ccadaed72aa244ac878c952459329ffb8c455bc5",
+    "updated_at": "2026-10-30T18:59:33Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-843/T1"
+}
