@@ -823,6 +823,59 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
                 self.readmit(fixture)
             self.assertEqual(len(fixture.comments), count)
 
+    def finalize_pending(self, fixture, stack):
+        """Review passed and the finalize job is offered; no worker holds its claim."""
+        self.admitted(fixture, stack)
+        queue._transition(ROOT, "o/r", 7, "reviewing", HEAD, task_identity=IDENTITY)
+        gate.complete_review(ROOT, "o/r", fixture.candidate(), {"s": {"availability": "available", "findings": []}}, HEAD)
+        self.assertEqual(fixture.candidate()["state"], "finalize-pending")
+        self.assertEqual(workers.build_job(fixture.candidate())["kind"], "finalize")
+
+    def test_developer_handoff_supersedes_the_unclaimed_finalize_job(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.finalize_pending(fixture, stack)
+            self.readmit(fixture)
+            self.assert_superseded(fixture, "finalize-pending")
+
+    def test_merge_only_reconcile_over_finalize_pending_carries_the_passed_review(self):
+        unchanged = json.loads(json.dumps(IDENTITY))
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.finalize_pending(fixture, stack)
+            review = fixture.candidate()["gates"]["review"]
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD, handoff=self.handoff(unchanged))
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], candidate["head"]), ("review-pending", self.NEW_HEAD))
+            self.assertEqual(candidate["gates"]["review"], {**review, "identity": unchanged})
+            admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            self.assertEqual((admission["head"], admission["supersedes"]["state"]), (self.NEW_HEAD, "finalize-pending"))
+
+    def test_finalize_pending_refuses_a_live_claim_an_unrelated_head_and_another_task(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.finalize_pending(fixture, stack)
+            job = workers.build_job(fixture.candidate())
+            fixture.comments.append({"id": len(fixture.comments) + 1, "author_association": "OWNER",
+                                     "body": workers.claim_body(job, "finisher", "2099-01-01T00:00:00Z", provider=PROVIDER)})
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "finalize job is claimed by finisher"):
+                self.readmit(fixture)
+            self.assertEqual(len(fixture.comments), count)
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.finalize_pending(fixture, stack)
+            self.descends.return_value = False
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "does not descend from the admitted head"):
+                self.readmit(fixture)
+            self.assertEqual(len(fixture.comments), count)
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.finalize_pending(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            count = len(fixture.comments)
+            with self.assertRaisesRegex(queue.QueueError, "does not name the same task"):
+                queue.admit(ROOT, 7, self.NEW_HEAD, handoff={"task_identity": {**self.NEW_IDENTITY, "change": "other"},
+                                                             "gates": {}})
+            self.assertEqual(len(fixture.comments), count)
+
     def test_new_developer_head_supersedes_a_repair_pending_admission(self):
         with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
             self.admitted_repair_pending(fixture, stack)
