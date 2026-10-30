@@ -290,8 +290,6 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     active change in the portable lifecycle is revalidated by archive.
     """
     from managed_task import resolve_canonical_provenance
-    from pr_review_gate import managed_candidate
-    from task_content_identity import review_content_identity
 
     provenance = resolve_canonical_provenance(root)
     if provenance is None:
@@ -300,6 +298,9 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     relative = Path(os.path.relpath(path.resolve(), root.resolve())).as_posix()
     if not path.is_file():
         return "not-applicable", f"no committed selected-check evidence at {relative} yet"
+    from pr_review_gate import managed_candidate
+    from task_content_identity import review_content_identity
+
     if provenance.lifecycle != "archived" and not managed_candidate(root):
         return "not-applicable", f"active change {provenance.change} outside the coordinator lifecycle: archive revalidates evidence it cannot reuse"
     evidence = _read_check_evidence(path, f"{provenance.change}: committed selected-check evidence {relative} is unreadable")
