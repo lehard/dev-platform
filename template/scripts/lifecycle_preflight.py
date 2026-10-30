@@ -97,7 +97,7 @@ def check_board_claim_and_scope(ctx: PreflightContext) -> ConditionResult:
     except SystemExit as exc:
         detail = _gate_text(exc)
         if "has no claim for worktree" in detail:
-            detail += (f"\nrestore the claim: python3 scripts/agent_board.py admit --branch {ctx.branch} "
+            detail += (f"\nrestore the claim: python3 scripts/agent_board.py start --task \"<task>\" --branch {ctx.branch} "
                        f"--worktree {ctx.root}")
         raise PreflightRefusal(detail) from exc
     return ConditionResult(PASSED, f"claim for {ctx.branch} found; no unacknowledged hard scope overlap")

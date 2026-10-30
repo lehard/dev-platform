@@ -135,5 +135,100 @@ class QueueMergedFinishTests(unittest.TestCase):
         reconcile.assert_not_called()
 
 
+class QueueAdmissionReleasesClaimTests(unittest.TestCase):
+    """Admission releases the developer claim: a queued quick task must not keep its
+    board claim, or post-merge cleanup refuses with ``active-board`` (friction #802)."""
+
+    def run_queued(self, *, claimed: bool, early: bool, release_code: int = 0) -> tuple[int | None, list, str]:
+        import finish_task
+        import pr_review_gate
+        import publication_queue
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        work = Path(tmp.name).resolve()
+        board = work / ".claude" / "agents-board.json"
+        board.parent.mkdir()
+        items = [{"id": "claim-1", "worktree": str(work), "branch": "agent/task", "task": "Quick"}] if claimed else []
+        board.write_text(json.dumps({"items": items}), encoding="utf-8")
+        config = {"main_branch": "main", "platform_version": "source", "capabilities": {"agent_board": True},
+                  "paths": {"agent_board": ".claude/agents-board.json"}}
+        waiting = {"state": "waiting", "position": 3, "number": 7}
+        commands: list = []
+
+        def run(command, **_kwargs):
+            commands.append(command)
+            if "project_publish.py" in str(command[1]):
+                return types.SimpleNamespace(returncode=1)  # publish stops at queue admission
+            return types.SimpleNamespace(returncode=release_code)
+
+        patches = [
+            mock.patch.object(sys, "argv", ["finish_task.py"]),
+            mock.patch.object(finish_task, "current_worktree_root", return_value=work),
+            mock.patch.object(finish_task, "main_root", return_value=work),
+            mock.patch.object(finish_task, "read_platform_config", return_value=config),
+            mock.patch.object(finish_task, "lifecycle_mode", return_value="coordinator"),
+            mock.patch.object(finish_task, "scm_provider", return_value="github"),
+            mock.patch.object(finish_task, "harness_mode", return_value="platform"),
+            mock.patch.object(finish_task, "profile", return_value="multi-agent"),
+            mock.patch.object(finish_task, "preflight_with_report", return_value=[]),
+            mock.patch.object(finish_task, "publish_mode", return_value="pr"),
+            mock.patch.object(finish_task, "current_branch", return_value="agent/task"),
+            mock.patch.object(finish_task, "require_managed_checkout_identity"),
+            mock.patch.object(finish_task, "validate_publication_config"),
+            mock.patch.object(pr_review_gate, "managed_candidate", return_value=False),
+            mock.patch.object(finish_task, "require_no_orphan_active_openspec"),
+            mock.patch.object(finish_task, "require_delivery_provenance", return_value=None),  # quick task
+            mock.patch.object(publication_queue, "enabled", return_value=True),
+            mock.patch.object(publication_queue, "local_status",
+                              side_effect=[waiting] if early else [None, waiting]),
+            mock.patch.object(finish_task, "pr_merge_mode", return_value="queue"),
+            mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
+            mock.patch.object(finish_task, "fetch_main"),
+            mock.patch.object(finish_task, "task_pr_is_already_merged", return_value=False),
+            mock.patch.object(finish_task, "find_existing_exact_open_pr", return_value={"url": "https://example.test/pr/7"}),
+            mock.patch.object(finish_task, "run_finish_preflight"),
+            mock.patch.object(finish_task, "warn_current_worktree_scope_overlap"),
+            mock.patch.object(finish_task, "observe_completion_blockers", return_value=[]),
+            mock.patch.object(finish_task, "validate_or_reuse"),
+            mock.patch.object(finish_task, "observe_private_reference_blocker", return_value=None),
+            mock.patch.object(finish_task, "enforce_scope_gate"),
+            mock.patch.object(finish_task, "resume_from_scope_conflict"),
+            mock.patch.object(finish_task.subprocess, "run", side_effect=run),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        return finish_task.main(), commands, str(work)
+
+    @staticmethod
+    def releases(commands: list) -> list:
+        return [command for command in commands if command[1].endswith("agent_board.py")]
+
+    def test_publication_queue_admission_releases_the_quick_task_claim(self) -> None:
+        code, commands, work = self.run_queued(claimed=True, early=False)
+        self.assertEqual(code, 2)
+        self.assertEqual(self.releases(commands),
+                         [["python3", str(Path(work) / "scripts" / "agent_board.py"), "finish", "--id", "claim-1", "--quiet"]])
+
+    def test_rerun_while_admitted_releases_a_claim_still_held(self) -> None:
+        code, commands, _ = self.run_queued(claimed=True, early=True)
+        self.assertEqual(code, 2)
+        self.assertEqual([command[3:5] for command in self.releases(commands)], [["--id", "claim-1"]])
+
+    def test_rerun_after_release_needs_no_claim(self) -> None:
+        for early in (True, False):
+            with self.subTest(early=early):
+                code, commands, _ = self.run_queued(claimed=False, early=early)
+                self.assertEqual(code, 2)
+                self.assertEqual(self.releases(commands), [])
+
+    def test_a_failed_release_stops_with_the_rerun_command(self) -> None:
+        for early in (True, False):
+            with self.subTest(early=early):
+                with self.assertRaisesRegex(SystemExit, "releasing board claim claim-1 failed; rerun scripts/agent_board.py finish --id claim-1"):
+                    self.run_queued(claimed=True, early=early, release_code=1)
+
+
 if __name__ == "__main__":
     unittest.main()

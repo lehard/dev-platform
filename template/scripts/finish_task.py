@@ -995,6 +995,10 @@ def main() -> int:
                 raise SystemExit("Publication queue observation blocked: " + str(exc)) from exc
             if queued is not None:
                 if queued["state"] in {"active", "waiting"}:
+                    # Admission of this exact head releases the developer claim;
+                    # the coordinator, not a finish rerun, drives the merge.
+                    if prof == "multi-agent":
+                        finish_board(integration, work, config)
                     print(f"Publication queue position {queued.get('position')}: {queued['state']}; coordinator owns final integration.")
                     return 2
                 if queued["state"] == "blocked":
@@ -1147,6 +1151,8 @@ def main() -> int:
                 if queue_enabled(work):
                     queued = queue_local_status(work, branch)
                     if queued is not None and queued["state"] in {"active", "waiting"}:
+                        if prof == "multi-agent":
+                            finish_board(integration, work, config)
                         print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
                         return 2
                     if queued is not None and queued["state"] == "blocked":
