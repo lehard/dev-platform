@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "69c8d093bf9dddfb1214734ce471c337411d979d",
+    "base_ref": "origin/main",
+    "candidate_head": "f56eead1e64fe7a7d03fdab1ce964711c2086006",
+    "diff_sha256": "9331d7de488cb934477a021ca3ea98731f78c46d39e5521947989c09bfad09d6"
+  },
+  "completed_at": "2026-10-30T15:44:57+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md line 132: \"`_count_transient`: head-scoped counter in the record...\". template/scripts/publication_queue.py defines `_transient_wait` and `_reset_transient` and has no `_count_transient`.",
+      "id": "tasks-names-nonexistent-count-transient",
+      "severity": "advisory",
+      "summary": "tasks.md item 2.1 names a helper `_count_transient`, but the candidate implements `_transient_wait` and `_reset_transient`. design.md uses the implemented names, so the task artifact is stale."
+    },
+    {
+      "evidence": "`_transient_wait` catches `LifecycleOwnershipChanged` and returns waiting without `set_attempts`. The spec scenario \"Repeated transient integration failure\" has no claimed-candidate exception.",
+      "id": "counter-lost-when-claim-takes-candidate",
+      "severity": "advisory",
+      "summary": "The spec says each transient run SHALL leave the candidate `waiting` with the counter visible in its record. When `_transition` refuses because a claim took the candidate, no counter is recorded and the failure is not counted. design.md documents this (\"plain waiting\"), but the spec text does not carve out the exception."
+    }
+  ],
+  "launched_at": "2026-10-30T15:44:35+00:00",
+  "output_sha256": "7975020ee7dae2189f3ace5ed6efcb88920e5f7be6607128f3f51b57365e27af",
+  "perspective": "spec-fidelity",
+  "request_id": "1af18250-d1b1-45b0-a574-994d6ba8ae17",
+  "reviewer": {
+    "context_id": "1082c942-4fae-456c-b076-0665a46cacd6",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-56897e35-1553-4ef6-8785-e10fc386e702",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25098
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21074
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18477
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19426
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1302
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "27fc8cfe429211a231d45453dc38523cb0d61d7f41c0e8d20e9a8ca1e8b37c39"
+}

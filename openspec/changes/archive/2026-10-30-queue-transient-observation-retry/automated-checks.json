@@ -1,0 +1,118 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.933,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.784,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.144,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.17,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1426.909,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/publication_queue.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_554eed1431a5918e7bf563faa84b0255",
+    "change": "queue-transient-observation-retry",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/queue-transient-observation-retry",
+    "branch": "agent/br-831-t1-queue-transient-observation-retry",
+    "head": "c353a369b2df96f74cac54a3b650adfab81e96c4",
+    "task_content": {
+      "version": 1,
+      "digest": "ccccd1ae426353bc74fdceed1869e7d32c24167a5d9d66be91c809657979729d",
+      "paths": {
+        "openspec/changes/queue-transient-observation-retry/.managed-task.json": "f52b9c235876e27b95fee98abe2797837d60e9eb",
+        "openspec/changes/queue-transient-observation-retry/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/queue-transient-observation-retry/design.md": "e7621a9dae55261f5cdb4fdc3ee065a93296eec2",
+        "openspec/changes/queue-transient-observation-retry/independent-review-request.json": "4000b24c8198f6434a5462785f363cc4127e12e9",
+        "openspec/changes/queue-transient-observation-retry/independent-reviews/engineering-quality.json": "aa671d8dd8e03c92c8fac3ef9944457664a43727",
+        "openspec/changes/queue-transient-observation-retry/independent-reviews/spec-fidelity.json": "3e874e3a094d340f86e690e848894fa222a67384",
+        "openspec/changes/queue-transient-observation-retry/proposal.md": "3fc608d50473319da489292cb31476a88f5e25a2",
+        "openspec/changes/queue-transient-observation-retry/specs/publication-queue/spec.md": "067114ea02fab356e394dc356097009fe756e92b",
+        "openspec/changes/queue-transient-observation-retry/tasks.md": "1e173dd0203f131066706c93d1fdc800858dd9fc",
+        "openspec/changes/queue-transient-observation-retry/verification.md": "3bef24df01d46ed0bcf494877c2e4f821515d779",
+        "template/dev-platform/platform-manifest.json": "56823d04534c13d80cd109b388bcd5f7a49b1296",
+        "template/scripts/publication_queue.py": "4524f5bcd7b7610d3ddfd5824d5636b66c45e566",
+        "tests/test_publication_queue.py": "803be409a7e7c89d8ae3d58a41cf17c94285687c"
+      },
+      "base": "69c8d093bf9dddfb1214734ce471c337411d979d"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "27fc8cfe429211a231d45453dc38523cb0d61d7f41c0e8d20e9a8ca1e8b37c39",
+    "paths": {
+      "openspec/changes/queue-transient-observation-retry/.managed-task.json": "f52b9c235876e27b95fee98abe2797837d60e9eb",
+      "openspec/changes/queue-transient-observation-retry/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/queue-transient-observation-retry/design.md": "e7621a9dae55261f5cdb4fdc3ee065a93296eec2",
+      "openspec/changes/queue-transient-observation-retry/proposal.md": "3fc608d50473319da489292cb31476a88f5e25a2",
+      "openspec/changes/queue-transient-observation-retry/specs/publication-queue/spec.md": "067114ea02fab356e394dc356097009fe756e92b",
+      "openspec/changes/queue-transient-observation-retry/tasks.md": "1e173dd0203f131066706c93d1fdc800858dd9fc",
+      "template/scripts/publication_queue.py": "4524f5bcd7b7610d3ddfd5824d5636b66c45e566",
+      "tests/test_publication_queue.py": "803be409a7e7c89d8ae3d58a41cf17c94285687c"
+    },
+    "base": "69c8d093bf9dddfb1214734ce471c337411d979d",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/publication_queue.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 177.486,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
