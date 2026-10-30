@@ -567,6 +567,51 @@ class LocalWorkspaceTests(unittest.TestCase):
                 shared_workspace._admit_local_source(self.root)
         self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
 
+    def test_preflight_admission_repairs_the_task_git_dir_publication_walks(self):
+        import local_workspace
+        local.audit(self.root, self.policy, repair=True)
+        self.attach()
+        task = self.workspace / 'task'
+        self.git('worktree', 'add', '-qb', 'task', str(task))
+        evidence = Path(local.git(task, 'rev-parse', '--absolute-git-dir')) / 'dev-platform'
+        evidence.mkdir()
+        evidence.chmod(0o755)
+        (evidence / 'check-evidence.json').write_text('{}')
+        (evidence / 'check-evidence.json').chmod(0o644)
+        with mock.patch.object(local_workspace, 'expected_bits', local.expected_bits):
+            with self.assertRaisesRegex(local_workspace.PolicyError, 'local source admission blocked'):
+                local_workspace.admit(task)
+            repaired = local_workspace.admit_repairing(task)
+            self.assertTrue(any(item.startswith(f'{evidence}: ') for item in repaired))
+            local_workspace.admit(task)  # publication admission now finds nothing
+            self.assertEqual(local_workspace.admit_repairing(task), [])
+
+    def test_start_creates_the_quick_evidence_directory_under_the_shared_contract(self):
+        import task_content_identity
+        task = self.workspace / 'task'
+        self.git('worktree', 'add', '-qb', 'task', str(task))
+        previous = os.umask(0o022)
+        try:
+            directory = task_content_identity.ensure_quick_evidence_directory(task)
+        finally:
+            os.umask(previous)
+        self.assertEqual(directory, Path(local.git(task, 'rev-parse', '--absolute-git-dir')) / 'dev-platform')
+        self.assertEqual(directory.stat().st_mode & 0o070, 0o070)
+        if self.retains_setgid:
+            self.assertTrue(directory.stat().st_mode & stat.S_ISGID)
+
+    def test_preflight_admission_refuses_another_accounts_task_without_repair(self):
+        import local_workspace
+        self.attach()
+        task = self.workspace / 'task'
+        self.git('worktree', 'add', '-qb', 'task', str(task))
+        source = task / 'src/main.py'
+        source.chmod(0o600)
+        with mock.patch.object(local_workspace.os, 'geteuid', return_value=os.geteuid() + 100000):
+            with self.assertRaisesRegex(local_workspace.PolicyError, 'foreign active worktree'):
+                local_workspace.admit_repairing(task)
+        self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
+
     def test_changed_generated_hook_refuses_removal(self):
         self.attach()
         hooks = Path(self.git('config', 'core.hooksPath'))

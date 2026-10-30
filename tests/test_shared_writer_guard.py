@@ -161,7 +161,6 @@ REVIEWED_BASELINE: dict[str, int] = {
     'run_test_groups.py:main:write_text': 1,
     'run_test_groups.py:write_git_template:write_text': 2,
     'sandboxed_writer.py:write_profile:write_text': 1,
-    'select_checks.py:write_evidence:write_text': 1,
     'shared_workspace.py:atomic_write_text:mkstemp': 1,
     'shared_workspace.py:atomic_write_text:replace': 1,
     'shared_workspace.py:create_shared_text:open': 1,

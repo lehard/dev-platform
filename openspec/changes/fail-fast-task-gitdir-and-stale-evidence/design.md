@@ -1,0 +1,18 @@
+## Context
+
+Publication admission (`shared_workspace.preflight` → `_admit_local_source` → `local_workspace.admit` → `audit(repair=False)`) walks the task worktree's sources and its whole Git administration directory. The lifecycle preflight's shared-workspace condition already calls `shared_workspace.preflight`, so it evaluates the same function, but only over what exists at preflight time; the evidence directory and file are created afterwards by `select_checks.write_evidence` with `mkdir`/`write_text`. Its admission step also refuses own-account findings, while its registered-path step repairs them.
+
+Committed evidence (`openspec/changes/<change>/automated-checks.json` or its archive copy) carries `gate_task_content`; `openspec_lifecycle.evidence_matches_checkout` accepts it when `task_content_identity.equivalent_proofs(root, recorded, review_content_identity(root, change))` holds (equal digest/scope, and across a base move no task path changed).
+
+## Decisions
+
+- **Create, don't chase.** The evidence directory is created under the contract at start (`ensure_quick_evidence_directory`, `shared_workspace.ensure_shared_path`) and every evidence write goes through `shared_workspace.atomic_write_text`, which repairs its parent directory and publishes a group-rw file. Then nothing created after the preflight leaves the contract, so preflight and publication evaluate the same set. Rejected: creating the directory in the preflight (a check with a creation side effect, and it would still not cover the file).
+- **Same admission function, repairing own paths.** `local_workspace.admit_repairing` = `audit` (report) then, when findings exist, `audit(repair=True)`; remaining findings raise `PolicyError` with the owner command. `audit(repair=True)` already repairs only paths owned by the current uid and refuses a foreign worktree. `preflight_with_report` calls it before the existing `preflight(fix=True)` and returns its repaired paths with the registered ones. Publication keeps read-only `admit`.
+- **One content rule for stale evidence.** `openspec_lifecycle.recorded_content_is_current(root, change, recorded)` is extracted from `evidence_matches_checkout` and used by `stale_committed_evidence`. The check applies when the task has managed provenance, its change holds `automated-checks.json`, and the evidence is a gate (the change is archived, or `pr_review_gate.managed_candidate`); an active change in the portable lifecycle is re-validated by archive and is not applicable. Evidence without `gate_task_content` is stale (it cannot prove current content). The message names the evidence path, recorded and current bases, and `python3 scripts/select_checks.py --base origin/main --execute --evidence <path>` followed by committing it.
+- **Where it fires.** `reconcile` calls it after the merge succeeds (and after the push of a published branch) and exits non-zero with the message. Preflight condition `task-evidence` (gate `stale-check-evidence`) refuses with the same message; `select_checks` passes a waiver (it is the refresh, or does not consume committed evidence), `finish` evaluates it.
+- Quick tasks: evidence is machine-local and `finish` reruns validation when it does not prove current content (`quick_evidence_reuse`); `reconcile` reports that the evidence will be rerun and the condition is not applicable.
+
+## Risks
+
+- The extra repairing audit walks the worktree once more at preflight: bounded to the source allowlist and the task admin dir, as at publication.
+- An evidence path whose parent is owned by another account fails explicitly in `atomic_write_text`; that is the existing foreign-path rule.

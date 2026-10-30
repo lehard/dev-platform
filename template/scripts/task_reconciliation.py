@@ -342,7 +342,18 @@ def reconcile(root: Path | None = None) -> Freshness:
         f"Reconciled {branch} with origin/{main_branch} at {after.authoritative_sha} using normal Git history. "
         "The resulting head is new execution state: rerun validation and then resume the existing exact-head publication flow."
     )
+    require_committed_evidence_current(root)
     return after
+
+
+def require_committed_evidence_current(root: Path) -> None:
+    """Fail now, not at finish, when the merged main left committed selected-check evidence unable to prove the task."""
+    from openspec_lifecycle import stale_committed_evidence
+
+    state, detail = stale_committed_evidence(root)
+    if state == "stale":
+        raise SystemExit("Task reconciliation merged main, but " + detail)
+    print(f"Committed selected-check evidence: {state}: {detail}")
 
 
 def main() -> int:

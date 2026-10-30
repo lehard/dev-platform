@@ -357,6 +357,24 @@ def admit(root: Path) -> None:
             raise PolicyError('local source admission blocked:\n' + '\n'.join(findings))
 
 
+def admit_repairing(root: Path) -> list[str]:
+    """``admit`` over the same paths, repairing those this account owns first (the lifecycle preflight).
+
+    Returns the findings that were repaired; any finding left (another account's path) raises.
+    """
+    policy = policy_for(root)
+    if not policy:
+        return []
+    data = read_json(policy)
+    findings = audit(root, data)
+    if not findings:
+        return []
+    remaining = audit(root, data, repair=True)
+    if remaining:
+        raise PolicyError('local source admission blocked:\n' + '\n'.join(remaining))
+    return findings
+
+
 def attach(root: Path, policy_path: Path, runtime: Path) -> None:
     policy = read_json(policy_path)
     checkout(root, policy, integration_only=True)

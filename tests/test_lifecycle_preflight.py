@@ -93,6 +93,20 @@ class SharedWorkspaceConditionTests(unittest.TestCase):
             self.assertEqual(preflight.REPAIRED, result.state)
             self.assertIn(str(path), result.detail)
 
+    def test_own_local_source_admission_findings_are_repaired_and_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            evidence = Path(tmp) / "git" / "worktrees" / "slug" / "dev-platform"
+            group = shared_workspace.SharedGroup(os.getgid(), "g", "test")
+            with mock.patch.object(shared_workspace, "shared_workspace_applicable", return_value=True), \
+                    mock.patch.object(shared_workspace, "audit", return_value=(group, [])), \
+                    mock.patch.object(shared_workspace, "_admit_local_source_repairing",
+                                      return_value=[f"{evidence}: owner uid=1, gid=20, mode=0755; owner must run chgrp"]) as admission, \
+                    mock.patch.object(shared_workspace, "preflight"):
+                result = preflight.check_shared_workspace(context(Path(tmp), integration=Path(tmp)))
+            admission.assert_called_once_with(Path(tmp))
+            self.assertEqual(preflight.REPAIRED, result.state)
+            self.assertIn(str(evidence), result.detail)
+
     def test_foreign_paths_are_refused_with_the_owner_and_the_command_and_not_repaired(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "worktree-metadata"
@@ -126,6 +140,30 @@ class SharedWorkspaceConditionTests(unittest.TestCase):
                 mock.patch.object(shared_workspace, "audit", return_value=(None, [shared_workspace.Finding(Path(tmp), "POSIX group-mode enforcement unavailable", False)])):
             with self.assertRaisesRegex(preflight.PreflightRefusal, "unavailable"):
                 preflight.check_shared_workspace(context(Path(tmp), integration=Path(tmp)))
+
+
+class TaskEvidenceConditionTests(unittest.TestCase):
+    def check(self, state: str, detail: str, **overrides) -> preflight.ConditionResult:
+        import openspec_lifecycle
+
+        with mock.patch.object(openspec_lifecycle, "stale_committed_evidence", return_value=(state, detail)):
+            return preflight.check_task_evidence(context(Path("."), **overrides))
+
+    def test_stale_committed_evidence_is_refused_with_the_refresh_command(self) -> None:
+        detail = ("committed selected-check evidence x/automated-checks.json does not prove the current task content. Refresh it: "
+                  "python3 scripts/select_checks.py --base origin/main --execute --evidence x/automated-checks.json, then commit it")
+        with self.assertRaises(preflight.PreflightRefusal) as refused:
+            self.check("stale", detail)
+        self.assertIn("--evidence x/automated-checks.json", str(refused.exception))
+
+    def test_current_evidence_passes_and_absent_evidence_is_not_applicable(self) -> None:
+        self.assertEqual(preflight.PASSED, self.check("current", "proves it").state)
+        result = self.check("not-applicable", "quick task")
+        self.assertEqual((preflight.NOT_APPLICABLE, "quick task"), (result.state, result.detail))
+
+    def test_a_run_that_records_evidence_declares_the_waiver(self) -> None:
+        result = self.check("stale", "never consulted", evidence_waiver="records evidence")
+        self.assertEqual((preflight.NOT_APPLICABLE, "records evidence"), (result.state, result.detail))
 
 
 class TaskBaseTests(unittest.TestCase):
