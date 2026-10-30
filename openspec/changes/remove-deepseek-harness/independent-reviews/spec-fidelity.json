@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "2fae009190403e41619cb0d6f94d5b304b3fcc5c",
+    "diff_sha256": "d0733679495b48120a82e1d70f9749b6dc1e752b502a18588d49192cbe0ce27d"
+  },
+  "completed_at": "2026-10-30T18:36:42+00:00",
+  "findings": [
+    {
+      "evidence": "proposal.md, Impact: \"the rendered `.dev-platform.toml` section is removed by the update's three-way merge\". design.md, Update migration: \"`.dev-platform.toml` is `_skip_if_exists`, so Copier never removes the section.\" specs/platform-config/spec.md: \"Because Copier never updates `.dev-platform.toml`, the platform bootstrap ... SHALL first delete the exact section form\". The code follows the design (template/scripts/platform_bootstrap.py remove_shipped_deepseek_section, called first in main()).",
+      "id": "proposal-update-mechanism-contradiction",
+      "severity": "advisory",
+      "summary": "proposal.md says the rendered .dev-platform.toml section is removed by Copier's three-way merge on update. design.md and the platform-config delta spec say the opposite: the file is skip-if-exists and Copier never updates it, so platform_bootstrap.remove_shipped_deepseek_section removes the section."
+    }
+  ],
+  "launched_at": "2026-10-30T18:35:59+00:00",
+  "output_sha256": "62f7e3b87b38bae0fdeb570e3a540c55311d9540789d6022f263139b1d7ab5b7",
+  "perspective": "spec-fidelity",
+  "request_id": "a425cddb-36ec-44bf-8037-1560a731dae2",
+  "reviewer": {
+    "context_id": "bc614445-55e3-4b03-a9f5-cc8e2e0276c1",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f042a8d7-afca-4d4e-85b9-0c396e860ba8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52802
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 206103
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36159
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40416
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2655
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "bf05970af3ec93515612b19b7b00e320b6a6614e31c084f0cdf83b0605cbc2a8"
+}

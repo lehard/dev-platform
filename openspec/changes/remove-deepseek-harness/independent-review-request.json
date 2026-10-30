@@ -1,0 +1,94 @@
+{
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "2fae009190403e41619cb0d6f94d5b304b3fcc5c",
+    "diff_sha256": "d0733679495b48120a82e1d70f9749b6dc1e752b502a18588d49192cbe0ce27d"
+  },
+  "change": "openspec/changes/remove-deepseek-harness",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/remove-deepseek-harness/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/remove-deepseek-harness/design.md",
+        "openspec/changes/remove-deepseek-harness/proposal.md",
+        "openspec/changes/remove-deepseek-harness/specs/agent-runtime/spec.md",
+        "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md",
+        "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md",
+        "openspec/changes/remove-deepseek-harness/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/remove-deepseek-harness/proposal.md",
+        "openspec/changes/remove-deepseek-harness/design.md",
+        "openspec/changes/remove-deepseek-harness/tasks.md",
+        "openspec/changes/remove-deepseek-harness/specs/agent-runtime/spec.md",
+        "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md",
+        "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T18:35:48+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/remove-deepseek-harness/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "a425cddb-36ec-44bf-8037-1560a731dae2",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "digest": "bf05970af3ec93515612b19b7b00e320b6a6614e31c084f0cdf83b0605cbc2a8",
+    "paths": {
+      "dev-platform/checks.toml": "b373f50fd10f602d21770f09d4f723bc3efa920b",
+      "docs/engineering/deepseek-harness-runtime.md": null,
+      "docs/engineering/upstream-substitution.md": "c4e9526622afa9b6c7de967e1cd4bf4cd0c5fa3b",
+      "explorer/map.toml": "bae4837c8506893a8fad353c222f4101417a9174",
+      "openspec/changes/remove-deepseek-harness/.managed-task.json": "1a6c7cb759b0a4d40e0863be57a7c2c28197c149",
+      "openspec/changes/remove-deepseek-harness/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/remove-deepseek-harness/design.md": "bd9aae0418f118a8b24a6470067f84eaa8dec012",
+      "openspec/changes/remove-deepseek-harness/proposal.md": "af8682edf52d5c9c211c4a2b3041ef713363c6bc",
+      "openspec/changes/remove-deepseek-harness/specs/agent-runtime/spec.md": "3466567f38610b074952470f2eafc3a4e5ffb019",
+      "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md": "c9d94a8c95ba118a5d4d367f402773c5e05c1a64",
+      "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md": "6520f042efd9759bcd65171668fd61371c55e5e6",
+      "openspec/changes/remove-deepseek-harness/tasks.md": "d402b5d3f2906e4c8a157f79031c56e0537b31ed",
+      "scripts/deepseek_harness_adapter.py": null,
+      "template/.dev-platform.toml.jinja": "f28fc78b53ca0f7fb8e9977dfc6b74705a91d1c6",
+      "template/dev-platform/deepseek-harness-observation.cordis.yml": null,
+      "template/dev-platform/protected-surface.toml": "46a05dac7971172cc1fc74b6fa85d63607122d06",
+      "template/docs/engineering/deepseek-harness-runtime.md": null,
+      "template/requirements/deepseek-harness.txt": null,
+      "template/scripts/_platform_common.py": "992906e920591b9e73ceabdc99ec7589115f6a26",
+      "template/scripts/deepseek_harness_adapter.py": null,
+      "template/scripts/platform_bootstrap.py": "589cac87ac32b800edf2984a1e8203387af49ab0",
+      "tests/test_build_explorer_editorial.py": "b1134bc7c137dee05a9d6efccd2ad7adb57a211a",
+      "tests/test_deepseek_harness_runtime.py": null,
+      "tests/test_downstream_boundary.py": "014d3e6acd08bce27727ef58934cbe19e1db5167",
+      "tests/test_platform_bootstrap.py": "e35f8f62d4178c6c1d3ca8cd9e369d530794e102"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

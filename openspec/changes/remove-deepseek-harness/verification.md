@@ -19,3 +19,4 @@ Independent-Review-Evidence: independent-review-request.json
 
 - The untracked operator `.dev-platform.toml` in the integration root and the copies in active worktrees still carry the shipped section (machine-local, not touched by this change); after merge they fail on read until the section is deleted. Raised to the coordinator with options before publication.
 - The first Copier proof attempt in the session scratchpad failed in the bootstrap's shared-workspace preflight (no group setgid on a temporary directory); the recorded proof ran in a group-shared directory.
+- Independent review: advisories only. The proposal's update-mechanism sentence was corrected to the bootstrap removal; the exact-match-only removal is intended (an edited section is never rewritten and fails on read with the fix named).

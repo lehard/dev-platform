@@ -11,6 +11,6 @@ Owner decision 2026-10-28 (repository audit, stabilization mode): remove the Dee
 
 ## Impact
 
-- Template-visible. New render: no DeepSeek files or section. Copier update of an existing project: files deleted by the template are deleted (unchanged local copies), the rendered `.dev-platform.toml` section is removed by the update's three-way merge; a locally kept or edited section fails with the explicit error. Verified with a render of v3.0.0 updated to the change head.
+- Template-visible. New render: no DeepSeek files or section. Copier update of an existing project: files deleted by the template are deleted (unchanged local copies), `.dev-platform.toml` is skip-if-exists, so the update's bootstrap task deletes the exact shipped section; an edited section stays and fails with the explicit error. Verified with a render of v3.0.0 updated to the change head.
 - Release: removal of a shipped (disabled) capability and a new configuration error; classified by the release owner.
 - Archived OpenSpec changes and `docs/decisions/` keep their history.
