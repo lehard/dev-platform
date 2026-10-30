@@ -3,30 +3,23 @@
   "candidate": {
     "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
     "base_ref": "origin/main",
-    "candidate_head": "2fae009190403e41619cb0d6f94d5b304b3fcc5c",
-    "diff_sha256": "d0733679495b48120a82e1d70f9749b6dc1e752b502a18588d49192cbe0ce27d"
+    "candidate_head": "ec096f095eb462cd47a3549df6ed9e557f153504",
+    "diff_sha256": "a4348c8fe0c7c41db46ec386a6a3110ef746c52d218839c2a75a489a1a2b3f34"
   },
-  "completed_at": "2026-10-30T18:38:00+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/platform_bootstrap.py:1518-1523 (candidate diff lines 1518-1523). The matching depends on the claim that every release from v1.5.0 to v3.0.0 rendered this exact comment and section text. The review could not check that claim against older release tags. The 'update from v3.0.0' proof covers only the latest shipped form. This does fail explicitly through validate_platform_config, so it is not a masked fallback.",
-      "id": "bootstrap-removal-exact-match-only",
-      "severity": "advisory",
-      "summary": "remove_shipped_deepseek_section only matches four byte-exact block forms and requires exactly one occurrence. Any other form is left in place, and the error appears later, on a read, not during the update."
-    }
-  ],
-  "launched_at": "2026-10-30T18:36:42+00:00",
-  "output_sha256": "9cc0ee2e2c6b13cc1e30bce9ba814082d3fc4175afba780fe382f26c590af2f4",
+  "completed_at": "2026-10-30T18:40:47+00:00",
+  "findings": [],
+  "launched_at": "2026-10-30T18:40:15+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "a425cddb-36ec-44bf-8037-1560a731dae2",
+  "request_id": "d8b4df5f-d688-4501-acd9-3203dfe9fe50",
   "reviewer": {
-    "context_id": "ddfde2fd-39d4-4001-a75a-84482c154076",
+    "context_id": "16917d08-601d-4eba-8d46-273f79fc9587",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-fc372ce6-d6ec-4bdf-89cd-ef2d9421290b",
+    "launch_id": "platform-launch-586d6067-0a3a-45b9-ab1d-1ae4c4148f26",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43551
+        "value": 42275
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 292111
+        "value": 197175
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 71226
+        "value": 25132
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 75527
+        "value": 29775
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2137
+        "value": 1475
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "bf05970af3ec93515612b19b7b00e320b6a6614e31c084f0cdf83b0605cbc2a8"
+  "task_content_digest": "61d84afc22add2f6d5a44cb8246d9297a0db296e978ed7226eee04fd79df3957"
 }

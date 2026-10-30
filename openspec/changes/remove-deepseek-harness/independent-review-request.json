@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
     "base_ref": "origin/main",
-    "candidate_head": "2fae009190403e41619cb0d6f94d5b304b3fcc5c",
-    "diff_sha256": "d0733679495b48120a82e1d70f9749b6dc1e752b502a18588d49192cbe0ce27d"
+    "candidate_head": "ec096f095eb462cd47a3549df6ed9e557f153504",
+    "diff_sha256": "a4348c8fe0c7c41db46ec386a6a3110ef746c52d218839c2a75a489a1a2b3f34"
   },
   "change": "openspec/changes/remove-deepseek-harness",
   "excluded_lifecycle_paths": [
+    "openspec/changes/remove-deepseek-harness/independent-review-request.json",
+    "openspec/changes/remove-deepseek-harness/independent-reviews/engineering-quality.json",
+    "openspec/changes/remove-deepseek-harness/independent-reviews/spec-fidelity.json",
     "openspec/changes/remove-deepseek-harness/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -38,7 +41,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-30T18:35:48+00:00",
+  "prepared_at": "2026-10-30T18:38:53+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/remove-deepseek-harness/independent-reviews",
     "required_perspectives": [
@@ -47,7 +50,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "a425cddb-36ec-44bf-8037-1560a731dae2",
+  "request_id": "d8b4df5f-d688-4501-acd9-3203dfe9fe50",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +63,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
-    "digest": "bf05970af3ec93515612b19b7b00e320b6a6614e31c084f0cdf83b0605cbc2a8",
+    "digest": "61d84afc22add2f6d5a44cb8246d9297a0db296e978ed7226eee04fd79df3957",
     "paths": {
       "dev-platform/checks.toml": "b373f50fd10f602d21770f09d4f723bc3efa920b",
       "docs/engineering/deepseek-harness-runtime.md": null,
@@ -69,7 +72,7 @@
       "openspec/changes/remove-deepseek-harness/.managed-task.json": "1a6c7cb759b0a4d40e0863be57a7c2c28197c149",
       "openspec/changes/remove-deepseek-harness/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
       "openspec/changes/remove-deepseek-harness/design.md": "bd9aae0418f118a8b24a6470067f84eaa8dec012",
-      "openspec/changes/remove-deepseek-harness/proposal.md": "af8682edf52d5c9c211c4a2b3041ef713363c6bc",
+      "openspec/changes/remove-deepseek-harness/proposal.md": "e364866b0af2044c1934979fa26bd35a145b2155",
       "openspec/changes/remove-deepseek-harness/specs/agent-runtime/spec.md": "3466567f38610b074952470f2eafc3a4e5ffb019",
       "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md": "c9d94a8c95ba118a5d4d367f402773c5e05c1a64",
       "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md": "6520f042efd9759bcd65171668fd61371c55e5e6",
