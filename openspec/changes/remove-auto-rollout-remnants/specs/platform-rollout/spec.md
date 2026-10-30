@@ -51,6 +51,16 @@ Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadat
 - **THEN** the repository is not mutated
 - **AND** it receives the corrected contract only through a later deliberate adoption path
 
+### Requirement: Project-harness rollout proves terminal reconciliation conformance without platform rewrites
+
+For a managed project-owned harness whose lifecycle requires terminal status projection (it ships `scripts/finish_task.py`), rollout SHALL not treat platform version metadata advancement as successful adoption unless the project's own publication surface proves exact merged-PR terminal reconciliation. Rollout SHALL NOT rewrite project-owned harness bytes to obtain it; a harness that does not prove it SHALL remain unchanged and block rollout.
+
+#### Scenario: Project-owned finish surface lacks terminal reconciliation
+
+- **GIVEN** a managed `harness_mode=project` repository with `scripts/finish_task.py` whose publication surface lacks the terminal-reconciliation conformance signals
+- **WHEN** rollout runs
+- **THEN** rollout fails before advancing version metadata or modifying harness bytes
+
 ## REMOVED Requirements
 
 ### Requirement: Managed project-owned publication harnesses conform to shared exact-head merge safety
@@ -68,3 +78,8 @@ Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadat
 
 **Reason**: Removed with the legacy-harness exact-head migration.
 **Migration**: None.
+
+### Requirement: Project-harness rollout proves terminal reconciliation conformance
+
+**Reason**: Replaced by "Project-harness rollout proves terminal reconciliation conformance without platform rewrites", which drops the reviewed legacy-publish-harness terminal migration.
+**Migration**: None; the conformance gate keeps failing closed for a finish surface without terminal reconciliation.

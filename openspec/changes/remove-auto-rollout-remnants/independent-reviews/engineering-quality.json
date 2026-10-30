@@ -3,30 +3,36 @@
   "candidate": {
     "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
     "base_ref": "origin/main",
-    "candidate_head": "f1adfd9810469546addbf6128d3e3a2398d1f1cb",
-    "diff_sha256": "4a46cb3f48d2f44216ccdcc22ce3267053fe169d9b2627f5226bac3348dd93c2"
+    "candidate_head": "63db46919fdc57966bebe180f1ac291d28561749",
+    "diff_sha256": "d80096ab220b1206a5f9871153e4027729f3f98be2224e3c6a2f0fbabb1e366a"
   },
-  "completed_at": "2026-10-30T17:25:13+00:00",
+  "completed_at": "2026-10-30T17:27:28+00:00",
   "findings": [
     {
-      "evidence": "docs/engineering/code-erosion.md:45: `rollout_project.py:migrate_project_publication_safety` (36). The diff removes that function from scripts/rollout_project.py.",
-      "id": "code-erosion-doc-stale-reference",
+      "evidence": "docs/managed-rollout.md new \"Release rollout\" section: \"Rollout is manual on this installation: since 2026-10-28 the variable described below is not `true`...\". The same section still documents the automatic dispatch via DEV_PLATFORM_MANAGED_ROLLOUT_ENABLED. Explorer nodes (explorer/nodes/copier-rollout.toml lead, managed-rollout.toml) still describe rollout as opening PRs after each release. These nodes were only re-pointed, not reworded.",
+      "id": "installation-specific-claim-in-public-doc",
       "severity": "advisory",
-      "summary": "docs/engineering/code-erosion.md still lists the deleted function `rollout_project.py:migrate_project_publication_safety` as a largest existing hotspot. The proposal's Impact section says to update this doc if it references removed code, but the diff leaves it unchanged."
+      "summary": "The platform doc states an operator-specific, time-bound fact as if it were product behavior. It will go stale when the variable is flipped back."
+    },
+    {
+      "evidence": "In reconcile-stale-rollouts.yml, the `if: github.event_name == 'workflow_dispatch'` guard is on a single step. The target-token step with permission-contents/pull-requests/workflows write and the registry checkout still run on schedule. That is needed for the alert recovery step, so it is acceptable, but the workflow is no longer a dedicated stale-rollout workflow in name or structure.",
+      "id": "scheduled-run-still-plans-matrix",
+      "severity": "advisory",
+      "summary": "The scheduled run of reconcile-stale-rollouts.yml still runs the whole plan job and mints a write-scoped target token per project. Only the supersession step is skipped."
     }
   ],
-  "launched_at": "2026-10-30T17:24:45+00:00",
-  "output_sha256": "60dc99613d2bf13ad5335570884677a034d898df6f6a6435c36d2f0f690dc3b6",
+  "launched_at": "2026-10-30T17:26:42+00:00",
+  "output_sha256": "bc5cb5d2206de5240b7b15be5c55e27737213af00ab2ea72e45350c5020d23d0",
   "perspective": "engineering-quality",
-  "request_id": "bcbe97aa-bed6-4080-9b03-82d4ef34ca11",
+  "request_id": "5b67965e-1b11-4b33-a2dc-9e556c063e87",
   "reviewer": {
-    "context_id": "c26463d6-fee5-4859-8f5f-90a2d3e1b3c1",
+    "context_id": "6ddcbff7-85ee-4d9a-8f38-b111acae0a0b",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2d88acc6-4b53-4c79-83e3-cb5b41236371",
+    "launch_id": "platform-launch-bed9388c-448a-47a5-aaed-cec40f735117",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53374
+        "value": 53090
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 171247
+        "value": 114165
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22835
+        "value": 40448
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24912
+        "value": 43112
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1421
+        "value": 1504
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "a212698b1a9230ddc3dff0c884f22e071efe0f5f3063164924678e4176243b9b"
+  "task_content_digest": "f845c3f9aec0ec8e34ce016cf1db550017705ac77b7573579b50335d7c4d0c71"
 }

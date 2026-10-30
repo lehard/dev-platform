@@ -3,36 +3,42 @@
   "candidate": {
     "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
     "base_ref": "origin/main",
-    "candidate_head": "f1adfd9810469546addbf6128d3e3a2398d1f1cb",
-    "diff_sha256": "4a46cb3f48d2f44216ccdcc22ce3267053fe169d9b2627f5226bac3348dd93c2"
+    "candidate_head": "63db46919fdc57966bebe180f1ac291d28561749",
+    "diff_sha256": "d80096ab220b1206a5f9871153e4027729f3f98be2224e3c6a2f0fbabb1e366a"
   },
-  "completed_at": "2026-10-30T17:24:45+00:00",
+  "completed_at": "2026-10-30T17:26:42+00:00",
   "findings": [
     {
-      "evidence": "scripts/rollout_project.py:4 `import ast` is the only match for `\\bast\\b` in the file. The removed `is_cli_guard` and `unique_top_level_cli_guard_offset` were the only users (candidate.diff lines 614-650).",
-      "id": "unused-ast-import",
+      "evidence": "openspec/specs/platform-rollout/spec.md:885-904 is not in the delta's MODIFIED or REMOVED sections (specs/platform-rollout/spec.md). candidate.diff removes the `finish_target`/`terminal_changed` block and `LEGACY_PUBLISH_HARNESS_TERMINAL_OVERRIDE` from scripts/rollout_project.py. The proposal and design list only three legacy requirements as removed.",
+      "id": "terminal-reconciliation-requirement-left-stale",
       "severity": "material",
-      "summary": "After the legacy-migration removal, `import ast` in scripts/rollout_project.py has no remaining user. The required `ruff check scripts` validation would fail with F401."
+      "summary": "The code removal also drops the legacy-publish-harness terminal-reconciliation migration (finish_task.py rewrite, LEGACY_PUBLISH_HARNESS_TERMINAL_OVERRIDE, project_terminal_reconciliation.py copy). The delta does not modify or remove the accepted requirement \"Project-harness rollout proves terminal reconciliation conformance\". Its scenario \"Recognized legacy-publish-harness-like harness receives terminal migration\" would stay in the accepted spec after archive, but nothing implements it any more."
     },
     {
-      "evidence": "docs/engineering/code-erosion.md:45 `rollout_project.py:migrate_project_publication_safety` (36). The function is deleted in the candidate and the file is not in the diff.",
-      "id": "code-erosion-stale-reference",
+      "evidence": "openspec/specs/platform-rollout/spec.md:906-928; the delta's platform-rollout/spec.md does not touch these requirements, and docs/operator-config.example.toml drops `[rollout.legacy_harness_migrations]`.",
+      "id": "platform-config-legacy-values-ok-but-other-legacy-specs-unaddressed",
       "severity": "advisory",
-      "summary": "docs/engineering/code-erosion.md still lists the removed function `rollout_project.py:migrate_project_publication_safety` as a current hotspot. The proposal's Impact section names this file as one to update if it references removed code."
+      "summary": "Two accepted requirements still describe the removed continuity mechanism and are not modified by the delta. \"Public rollout core contains no private-project compatibility branches\" has an external operator-owned compatibility mechanism scenario. \"Removing private compatibility does not silently break the operator fleet\" has a scenario about recording operator-owned compatibility configuration. The latter's \"records the required operator-owned compatibility configuration\" clause now has no mechanism behind it, since the delta removes the operator config section."
+    },
+    {
+      "evidence": "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md:26-59 compared with openspec/specs/platform-rollout/spec.md:780-824.",
+      "id": "conformance-requirement-modeled-as-add-plus-remove",
+      "severity": "advisory",
+      "summary": "The delta expresses the rename and narrowing of the conformance requirement as ADDED plus REMOVED rather than RENAMED or MODIFIED. The REMOVED block names the old header, and the new header is added, so archive should work. The removed scenario \"Project-owned publication harness has unexpected drift\" is reworded rather than preserved, and the `harness_mode=project` conformance gate now relies on the new wording. Archive materialization should be checked for this."
     }
   ],
-  "launched_at": "2026-10-30T17:24:16+00:00",
-  "output_sha256": "2ee81a60dd0521abb8cbebdefe3d19090616b9a49a0cfcef9af9f09fa52e50f5",
+  "launched_at": "2026-10-30T17:26:16+00:00",
+  "output_sha256": "df138e47979128a34eca5dd1ff1656b4ae8a38d81674201dd45d8a7dbf860993",
   "perspective": "spec-fidelity",
-  "request_id": "bcbe97aa-bed6-4080-9b03-82d4ef34ca11",
+  "request_id": "5b67965e-1b11-4b33-a2dc-9e556c063e87",
   "reviewer": {
-    "context_id": "cf51a40a-0828-43ac-b4cf-62a1be8de087",
+    "context_id": "f06b6cd5-d63d-4cce-be45-0bd904adb15b",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0116b1ad-12be-44aa-afd6-4d288911856e",
+    "launch_id": "platform-launch-5c0a3f8c-d69f-41d5-8228-bf4d72e6fa95",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +54,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 59673
+        "value": 56811
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 231126
+        "value": 178316
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22927
+        "value": 21348
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26978
+        "value": 23092
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13
+        "value": 12
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2818
+        "value": 3020
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "a212698b1a9230ddc3dff0c884f22e071efe0f5f3063164924678e4176243b9b"
+  "task_content_digest": "f845c3f9aec0ec8e34ce016cf1db550017705ac77b7573579b50335d7c4d0c71"
 }

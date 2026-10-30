@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
     "base_ref": "origin/main",
-    "candidate_head": "f1adfd9810469546addbf6128d3e3a2398d1f1cb",
-    "diff_sha256": "4a46cb3f48d2f44216ccdcc22ce3267053fe169d9b2627f5226bac3348dd93c2"
+    "candidate_head": "63db46919fdc57966bebe180f1ac291d28561749",
+    "diff_sha256": "d80096ab220b1206a5f9871153e4027729f3f98be2224e3c6a2f0fbabb1e366a"
   },
   "change": "openspec/changes/remove-auto-rollout-remnants",
   "excluded_lifecycle_paths": [
+    "openspec/changes/remove-auto-rollout-remnants/independent-review-request.json",
+    "openspec/changes/remove-auto-rollout-remnants/independent-reviews/engineering-quality.json",
+    "openspec/changes/remove-auto-rollout-remnants/independent-reviews/spec-fidelity.json",
     "openspec/changes/remove-auto-rollout-remnants/verification.md"
   ],
   "fresh_context_required": true,
@@ -35,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-30T17:24:07+00:00",
+  "prepared_at": "2026-10-30T17:26:08+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/remove-auto-rollout-remnants/independent-reviews",
     "required_perspectives": [
@@ -44,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "bcbe97aa-bed6-4080-9b03-82d4ef34ca11",
+  "request_id": "5b67965e-1b11-4b33-a2dc-9e556c063e87",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,9 +60,10 @@
   "schema_version": 1,
   "task_content": {
     "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
-    "digest": "a212698b1a9230ddc3dff0c884f22e071efe0f5f3063164924678e4176243b9b",
+    "digest": "f845c3f9aec0ec8e34ce016cf1db550017705ac77b7573579b50335d7c4d0c71",
     "paths": {
       ".github/workflows/reconcile-stale-rollouts.yml": "6defde02915a5f0ae0bb5740d0e18a4746c4c4c6",
+      "docs/engineering/code-erosion.md": "a8665b849f4dba31278956b5cc9be469f756dbb7",
       "docs/managed-rollout.md": "2125fe34fc1ac42c219ffcfe5f93bb22e6743fa5",
       "docs/operator-config.example.toml": "7dc87e75e483acc7d9250e1380e0386d43f72659",
       "docs/public-cutover.md": "2eeef1910ae1678dcaaf86bf978326a0c4229588",
@@ -74,7 +78,7 @@
       "openspec/changes/remove-auto-rollout-remnants/specs/platform-config/spec.md": "937cf5264ff2598bbacd2d16779d251fa487306d",
       "openspec/changes/remove-auto-rollout-remnants/specs/platform-rollout/spec.md": "1f2710f7ba573817fa17efb0e57c489c2d8c668b",
       "openspec/changes/remove-auto-rollout-remnants/tasks.md": "d724d1b02556697259ca98455db9842fd6a24401",
-      "scripts/rollout_project.py": "855a79e8d384746af234e745cbcf72c72f414b2e",
+      "scripts/rollout_project.py": "e268eb15cc4444f341f1f3d0cef0472b0acaab48",
       "tests/test_rollout_recopy.py": "1023142add20fc8e79556973a587d355b5498969",
       "tests/test_rollout_supersession.py": "320af60860c0e5763d2d3da33a7c6ef5162e1100"
     },

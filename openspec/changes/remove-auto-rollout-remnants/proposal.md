@@ -20,5 +20,5 @@ Since 2026-10-28 a release opens no rollout PR; a project is updated on request 
 ## Impact
 
 - `.github/workflows/reconcile-stale-rollouts.yml`, `scripts/rollout_project.py`, `tests/test_rollout_recopy.py` (and any test tied to the removed items), `docs/managed-rollout.md`, `docs/public-cutover.md`, `docs/operator-config.example.toml`, `docs/engineering/code-erosion.md` if it references the removed code.
-- Specs: platform-rollout (two legacy-migration requirements removed, the conformance requirement and stale-rollout maintenance modified), platform-config (operator handoff no longer lists legacy migration values).
+- Specs: platform-rollout (two legacy-migration requirements removed; the publication-safety and terminal-reconciliation conformance requirements replaced without their legacy migration scenarios; stale-rollout maintenance modified), platform-config (operator handoff no longer lists legacy migration values).
 - Not template-visible: no file under `template/` changes, so new renders and Copier updates of existing projects are unaffected.
