@@ -10,6 +10,8 @@ Automated-Checks-Evidence: automated-checks.json
 
 ## Completeness
 
+- Review repair (head 36a17164): the accepted "Operator decisions are head-bound and attributed" required an explicit owner decision naming the PR for every `resume`/`switch-provider`, contradicting the orchestrator role. The delta now MODIFIES it: routine technical recovery needs no per-PR owner decision; material findings, exhausted rounds and disputed rejections or dispositions still do; `--expected-head`, attribution, no claim bypass and truthful reporting unchanged; both scenarios kept (the head-change scenario now names the coordinator or user). Semantically checked against the role requirement, `docs/engineering/chat-coordinator.md` *Authority* and *Rules*, and the overview eligibility function (unchanged): consistent.
+
 - Role, authority, owner decisions, red lines and the new-session scenario: chat-coordinator delta; `docs/engineering/chat-coordinator.md` sections *Authority* and *Delivery cycle (runbook)* (commands with GH_TOKEN and CLAUDE_CODE_OAUTH_TOKEN, main freeze, handover, cadence); the exception *Rules* no longer require a per-PR owner message for technical recovery.
 - `AGENTS.md` concern row names the orchestrator role and runbook.
 - Overview hint for an unclaimed post-merge job names the runner and `GH_TOKEN="$(gh auth token)" python3 scripts/lifecycle_workers.py work-next --repo <repo> --kinds <kind> --pr <N> --run`: `test_unclaimed_post_merge_job_names_the_runner_and_the_exact_local_command`; the review-job hint is unchanged (`test_overdue_claim_findings_say_a_worker_is_needed_not_a_human_decision`).
@@ -25,5 +27,7 @@ Automated-Checks-Evidence: automated-checks.json
 - Spec delta, docs, design and tasks describe the same role; the platform manifest is regenerated.
 
 ## Not verified / limits
+
+- The capability `## Purpose` still says recovery commands run "after an explicit owner decision". OpenSpec reads a delta Purpose only when it creates a capability, so an existing capability's Purpose has no supported delta path; it is left unchanged and reported as a follow-up instead of editing the accepted spec outside archive.
 
 - The "new session reconstructs state from the runbook alone" scenario is a documentation property, not exercised by a test.
