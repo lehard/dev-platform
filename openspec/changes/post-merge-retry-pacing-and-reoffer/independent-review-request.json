@@ -1,0 +1,91 @@
+{
+  "candidate": {
+    "base_head": "c9802fdaf44edfa2d12e6e5c264a2ed1a0fe0afe",
+    "base_ref": "origin/main",
+    "candidate_head": "b52e193e6f5354916483593a3c66d74a9fac03ee",
+    "diff_sha256": "9a1dda102e0af87e070e4e7dbe0b49c986510a599d72ab068d87d6bb3c59897e"
+  },
+  "change": "openspec/changes/post-merge-retry-pacing-and-reoffer",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/post-merge-retry-pacing-and-reoffer/automated-checks.json",
+    "openspec/changes/post-merge-retry-pacing-and-reoffer/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/design.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/proposal.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/chat-coordinator/spec.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/lifecycle-workers/spec.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/publication-queue/spec.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/proposal.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/design.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/tasks.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/chat-coordinator/spec.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/lifecycle-workers/spec.md",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T09:48:19+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/post-merge-retry-pacing-and-reoffer/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e488f33a-d14b-4ce7-bbfc-4ba07567a206",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c9802fdaf44edfa2d12e6e5c264a2ed1a0fe0afe",
+    "digest": "807e7291936f2aebcd489746e8e9cf50bbabb24d9d62655975f92e2da2c7d657",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "b25f724374aa34f2cf6dedd5bc7234dc7c7db294",
+      "docs/engineering/hosted-lifecycle-workers.md": "d96b0f3c25be1934f7ca1661f2ecaa96515f58ae",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/.managed-task.json": "17b676260d34fbc599af73d7ba8b41390edc4a97",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/design.md": "b47e0edd11c9ec287b9359feb7302c0f9cecdbc7",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/proposal.md": "82a7976f5927a9d8f5858ae0eaa3c2cef4c9d71e",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/chat-coordinator/spec.md": "6ff13137d385dcfcd9cd2a0a5e3db61f282c74bc",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/lifecycle-workers/spec.md": "ff8bed643bce97abc03f11eeaf98531d273a76d9",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/publication-queue/spec.md": "353b08301e7247bced0d005532d3f0024403fe9c",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/tasks.md": "9108798978d235ba2f3341973be042f25382f95d",
+      "scripts/post_merge_runner.py": "e7d9529031e3009357c1d7683854aa5a7e595419",
+      "template/scripts/candidate_lifecycle.py": "00afcea55e06ea680938a6695d466eaa4d5742f0",
+      "template/scripts/integration_contour.py": "de86025c041397bfb7776dac0062d8c6135a880a",
+      "template/scripts/lifecycle_overview.py": "f6489de82462c8478854f29c5f4247358c14ed9e",
+      "template/scripts/lifecycle_workers.py": "d51c0d352e6d5e00a1dcb67bd3f102133c827ef0",
+      "template/scripts/pr_review_gate.py": "1e2d3b31edbb9fafbe54e6b96cf63227533ac9ed",
+      "template/scripts/publication_queue.py": "159fa499d6548f23333b8e83d3514ebf8a30e900",
+      "tests/test_autonomous_integration_contour.py": "bb520d6a229d0f9121f6f936ad1434a851748aba",
+      "tests/test_lifecycle_overview.py": "2df9cddd02bf714ba89a17415651f2ca0459391c",
+      "tests/test_post_merge_runner.py": "a3cd336acf9d037af7a3dda24646b5d5757f33c9",
+      "tests/test_pr_review_gate.py": "361910aeb56405661bc90a61541bc8487b073d7d"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
