@@ -1,0 +1,150 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.127,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.867,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.129,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.157,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1681.505,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/post_merge_runner.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_lifecycle_overview.py",
+        "tests/test_post_merge_runner.py",
+        "tests/test_pr_review_gate.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_741033f031f5c7b0e615c89adc368dbb",
+    "change": "post-merge-retry-pacing-and-reoffer",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/post-merge-retry-pacing-and-reoffer",
+    "branch": "agent/br-925-t1-post-merge-retry-pacing-and-reoffer",
+    "head": "e8aa890c0878b814814712b3e5a1dc1058390126",
+    "task_content": {
+      "version": 1,
+      "digest": "659ed13bc2f7f2def9a23352442b693a279d834693cd225813be6cab2543d0de",
+      "paths": {
+        "docs/engineering/chat-coordinator.md": "b25f724374aa34f2cf6dedd5bc7234dc7c7db294",
+        "docs/engineering/hosted-lifecycle-workers.md": "d96b0f3c25be1934f7ca1661f2ecaa96515f58ae",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/.managed-task.json": "17b676260d34fbc599af73d7ba8b41390edc4a97",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/design.md": "b47e0edd11c9ec287b9359feb7302c0f9cecdbc7",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/proposal.md": "82a7976f5927a9d8f5858ae0eaa3c2cef4c9d71e",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/chat-coordinator/spec.md": "6ff13137d385dcfcd9cd2a0a5e3db61f282c74bc",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/lifecycle-workers/spec.md": "ff8bed643bce97abc03f11eeaf98531d273a76d9",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/publication-queue/spec.md": "353b08301e7247bced0d005532d3f0024403fe9c",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/tasks.md": "9108798978d235ba2f3341973be042f25382f95d",
+        "openspec/changes/post-merge-retry-pacing-and-reoffer/verification.md": "16729348cef48a13b0594e3428807489a6c7ade1",
+        "scripts/post_merge_runner.py": "e7d9529031e3009357c1d7683854aa5a7e595419",
+        "template/dev-platform/platform-manifest.json": "de85c09eee87e2be7ffc682305e68e2850b40f0d",
+        "template/scripts/candidate_lifecycle.py": "00afcea55e06ea680938a6695d466eaa4d5742f0",
+        "template/scripts/integration_contour.py": "de86025c041397bfb7776dac0062d8c6135a880a",
+        "template/scripts/lifecycle_overview.py": "f6489de82462c8478854f29c5f4247358c14ed9e",
+        "template/scripts/lifecycle_workers.py": "d51c0d352e6d5e00a1dcb67bd3f102133c827ef0",
+        "template/scripts/pr_review_gate.py": "1e2d3b31edbb9fafbe54e6b96cf63227533ac9ed",
+        "template/scripts/publication_queue.py": "159fa499d6548f23333b8e83d3514ebf8a30e900",
+        "tests/test_autonomous_integration_contour.py": "bb520d6a229d0f9121f6f936ad1434a851748aba",
+        "tests/test_lifecycle_overview.py": "2df9cddd02bf714ba89a17415651f2ca0459391c",
+        "tests/test_post_merge_runner.py": "a3cd336acf9d037af7a3dda24646b5d5757f33c9",
+        "tests/test_pr_review_gate.py": "361910aeb56405661bc90a61541bc8487b073d7d"
+      },
+      "base": "c9802fdaf44edfa2d12e6e5c264a2ed1a0fe0afe"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "807e7291936f2aebcd489746e8e9cf50bbabb24d9d62655975f92e2da2c7d657",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "b25f724374aa34f2cf6dedd5bc7234dc7c7db294",
+      "docs/engineering/hosted-lifecycle-workers.md": "d96b0f3c25be1934f7ca1661f2ecaa96515f58ae",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/.managed-task.json": "17b676260d34fbc599af73d7ba8b41390edc4a97",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/design.md": "b47e0edd11c9ec287b9359feb7302c0f9cecdbc7",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/proposal.md": "82a7976f5927a9d8f5858ae0eaa3c2cef4c9d71e",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/chat-coordinator/spec.md": "6ff13137d385dcfcd9cd2a0a5e3db61f282c74bc",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/lifecycle-workers/spec.md": "ff8bed643bce97abc03f11eeaf98531d273a76d9",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/specs/publication-queue/spec.md": "353b08301e7247bced0d005532d3f0024403fe9c",
+      "openspec/changes/post-merge-retry-pacing-and-reoffer/tasks.md": "9108798978d235ba2f3341973be042f25382f95d",
+      "scripts/post_merge_runner.py": "e7d9529031e3009357c1d7683854aa5a7e595419",
+      "template/scripts/candidate_lifecycle.py": "00afcea55e06ea680938a6695d466eaa4d5742f0",
+      "template/scripts/integration_contour.py": "de86025c041397bfb7776dac0062d8c6135a880a",
+      "template/scripts/lifecycle_overview.py": "f6489de82462c8478854f29c5f4247358c14ed9e",
+      "template/scripts/lifecycle_workers.py": "d51c0d352e6d5e00a1dcb67bd3f102133c827ef0",
+      "template/scripts/pr_review_gate.py": "1e2d3b31edbb9fafbe54e6b96cf63227533ac9ed",
+      "template/scripts/publication_queue.py": "159fa499d6548f23333b8e83d3514ebf8a30e900",
+      "tests/test_autonomous_integration_contour.py": "bb520d6a229d0f9121f6f936ad1434a851748aba",
+      "tests/test_lifecycle_overview.py": "2df9cddd02bf714ba89a17415651f2ca0459391c",
+      "tests/test_post_merge_runner.py": "a3cd336acf9d037af7a3dda24646b5d5757f33c9",
+      "tests/test_pr_review_gate.py": "361910aeb56405661bc90a61541bc8487b073d7d"
+    },
+    "base": "c9802fdaf44edfa2d12e6e5c264a2ed1a0fe0afe",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/post_merge_runner.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_lifecycle_overview.py --changed-file tests/test_post_merge_runner.py --changed-file tests/test_pr_review_gate.py",
+    "duration_seconds": 305.004,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
