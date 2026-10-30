@@ -883,7 +883,8 @@ class ManagedPackageTests(unittest.TestCase):
             scripts.mkdir()
             for name in ("agent_doctor.py", "project_sync.py"):
                 (scripts / name).write_text("#!/usr/bin/env python3\n", encoding="utf-8")
-            with patch.object(task_start, "require_fresh_task_base", return_value="a" * 40) as freshness:
+            with patch.object(task_start, "require_fresh_task_base", return_value="a" * 40) as freshness, \
+                    patch.object(task_start, "observe_platform_lag", return_value=rollout_preflight.PlatformLag(rollout_preflight.LAG_CURRENT, "platform 1.0.0 is the latest release v1.0.0")):
                 started = task_start.start_task(root, "managed-intake", "Managed task")
             freshness.assert_called_once_with(root.resolve(), "origin", "main", task_ref="main")
             self.assertEqual(started.branch, "agent/managed-intake")
@@ -914,7 +915,7 @@ class ManagedPackageTests(unittest.TestCase):
             reconciled = rollout_preflight.RolloutPreflightResult(rollout_preflight.RECONCILED, detail="merged and synchronized rollout PR #7 (v1.2.3)")
             with patch.object(task_start, "reconcile_pending_rollout", return_value=reconciled) as reconcile, patch.object(
                 task_start, "require_fresh_task_base", return_value="a" * 40
-            ):
+            ), patch.object(task_start, "observe_platform_lag", return_value=rollout_preflight.PlatformLag(rollout_preflight.LAG_CURRENT, "platform 1.0.0 is the latest release v1.0.0")):
                 started = task_start.start_task(root, "managed-intake", "Managed task")
             reconcile.assert_called_once()
             self.assertEqual(started.branch, "agent/managed-intake")
@@ -933,6 +934,7 @@ class ManagedPackageTests(unittest.TestCase):
                     patch.object(rollout_preflight, "_synchronize_local_main", return_value=(True, "")) as sync,
                     patch.object(task_start, "github_cli_env", return_value={}),
                     patch.object(task_start, "require_fresh_task_base", return_value="a" * 40),
+                    patch.object(task_start, "observe_platform_lag", return_value=rollout_preflight.PlatformLag(rollout_preflight.LAG_CURRENT, "platform 1.0.0 is the latest release v1.0.0")),
                     redirect_stdout(StringIO()) as out,
                 ):
                     if not deferral:
@@ -953,6 +955,36 @@ class ManagedPackageTests(unittest.TestCase):
                     task_start.start_task(root, "managed-intake", "Managed task")
             subprocess = __import__("subprocess")
             branches = subprocess.run(["git", "branch"], cwd=root, text=True, capture_output=True, check=True).stdout
+            self.assertNotIn("managed-intake", branches)
+
+    def test_lagging_project_reports_the_update_command_and_still_creates_the_task_branch(self) -> None:
+        command = "gh workflow run rollout.yml --repo o/dev-platform -f version=v3.0.0 -f repository=o/project"
+        behind = rollout_preflight.PlatformLag(rollout_preflight.LAG_BEHIND, f"runs v1.0.0; latest v3.0.0. {command}",
+                                               "v1.0.0", "v3.0.0", command)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._bare_platform_repo(tmp)
+            none = rollout_preflight.RolloutPreflightResult(rollout_preflight.NONE)
+            with patch.object(task_start, "reconcile_pending_rollout", return_value=none), \
+                    patch.object(task_start, "require_fresh_task_base", return_value="a" * 40), \
+                    patch.object(task_start, "github_cli_env", return_value={}), \
+                    patch.object(task_start, "observe_platform_lag", return_value=behind) as lag, \
+                    redirect_stdout(StringIO()) as out:
+                started = task_start.start_task(root, "managed-intake", "Managed task")
+            self.assertEqual(started.branch, "agent/managed-intake")
+            self.assertEqual(lag.call_args.args[1]["platform_version"], "1.0.0")  # the re-read config
+            self.assertIn(f"Dev Platform release lag: runs v1.0.0; latest v3.0.0. {command}", out.getvalue())
+
+    def test_undeterminable_release_lag_stops_task_start_before_any_branch_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._bare_platform_repo(tmp)
+            none = rollout_preflight.RolloutPreflightResult(rollout_preflight.NONE)
+            failure = rollout_preflight.PlatformLagError("cannot read the latest release of o/dev-platform: 404")
+            with patch.object(task_start, "reconcile_pending_rollout", return_value=none), \
+                    patch.object(task_start, "observe_platform_lag", side_effect=failure):
+                with self.assertRaisesRegex(RuntimeError, "cannot read the latest release of o/dev-platform: 404"):
+                    task_start.start_task(root, "managed-intake", "Managed task")
+            branches = __import__("subprocess").run(["git", "branch"], cwd=root, text=True, capture_output=True,
+                                                    check=True).stdout
             self.assertNotIn("managed-intake", branches)
 
     def test_wrong_target_stops_before_openspec_materialization(self) -> None:
