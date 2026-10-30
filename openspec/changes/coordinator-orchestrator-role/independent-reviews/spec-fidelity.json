@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e68555697fbf2206491bbd89a596b7e04edfaa89",
+    "base_ref": "origin/main",
+    "candidate_head": "b5a11125ef7d67cd8a2378e5b44f09df8539076c",
+    "diff_sha256": "8a95f9a4640c1e6f2e9f479d10649a99f5610d0513a51eeb42660796f1391a29"
+  },
+  "completed_at": "2026-10-30T21:26:17+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/specs/chat-coordinator/spec.md:130: 'The chat coordinator SHALL run these commands only after an explicit user decision naming the PR'. The delta (specs/chat-coordinator/spec.md:10) says 'Routine recovery after a technical failure (`resume`, `switch-provider`, ...) SHALL need no per-PR owner decision'. docs/engineering/chat-coordinator.md, in the diff, changes the rule to 'Run one for a technical failure once its cause is understood; no per-PR owner message is needed.' The delta has no MODIFIED entry for the 'Operator decisions are head-bound and attributed' requirement. The design.md decision 'Spec text over side agreement' is therefore only partly carried out. The scenario 'Head changed between report and decision' (spec lines 132-134) also still assumes a user saying 'continue'.",
+      "id": "operator-decisions-requirement-contradicts-delta",
+      "severity": "material",
+      "summary": "The delta leaves the accepted requirement 'Operator decisions are head-bound and attributed' unchanged. That requirement still says the coordinator runs resume and switch-provider only after an explicit user decision naming the PR. The modified role requirement and the rewritten doc say routine recovery needs no per-PR owner decision. The two contract texts now contradict each other."
+    },
+    {
+      "evidence": "openspec/specs/chat-coordinator/spec.md:4: 'applies only the existing validated recovery commands after an explicit owner decision'. The delta redefines the role as a delivery orchestrator with routine recovery authority.",
+      "id": "spec-purpose-still-observer-explicit-decision",
+      "severity": "advisory",
+      "summary": "The accepted spec Purpose still describes the coordinator as applying recovery commands 'only after an explicit owner decision'. That is inconsistent with the orchestrator role. The delta does not touch the Purpose text, which sits outside the Requirements sections."
+    }
+  ],
+  "launched_at": "2026-10-30T21:26:00+00:00",
+  "output_sha256": "c48262fdb4b5d1f64cd257cd36597f23e6919fac824d106d74e332215eb915cc",
+  "perspective": "spec-fidelity",
+  "request_id": "c74ed63f-ec2e-497a-ae62-4383c8d8fed2",
+  "reviewer": {
+    "context_id": "ed9a0459-7730-40a1-88a0-e1d74df88226",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-868b3933-ee3f-4193-a8ac-f5f764926604",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28178
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 61833
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16151
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16307
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1867
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ebfb0b9747e9839de004c687a6ae055d3230042f096faae051ed4a7f95fe9709"
+}
