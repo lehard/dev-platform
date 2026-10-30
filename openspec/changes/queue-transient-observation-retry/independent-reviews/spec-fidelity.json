@@ -3,42 +3,36 @@
   "candidate": {
     "base_head": "69c8d093bf9dddfb1214734ce471c337411d979d",
     "base_ref": "origin/main",
-    "candidate_head": "9e6523331f7cfa0b0c53784d19e57054b2134502",
-    "diff_sha256": "55f57bca685a6b15e89dae7dc239c13b1bda7f7060fdbecfad8f48de1b2561ce"
+    "candidate_head": "f56eead1e64fe7a7d03fdab1ce964711c2086006",
+    "diff_sha256": "9331d7de488cb934477a021ca3ea98731f78c46d39e5521947989c09bfad09d6"
   },
-  "completed_at": "2026-10-30T15:42:52+00:00",
+  "completed_at": "2026-10-30T15:44:57+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py `_observe_pr`: `raise TransientQueueError(f\"observation failed after {attempts} attempts: {exc}\")`. design.md line 7 specifies `#N not observable after 5 attempts: <error>`. The test asserts `#1 not observable: observation failed after 5 attempts` only via worker().",
-      "id": "exhaustion-message-differs-from-design",
+      "evidence": "tasks.md line 132: \"`_count_transient`: head-scoped counter in the record...\". template/scripts/publication_queue.py defines `_transient_wait` and `_reset_transient` and has no `_count_transient`.",
+      "id": "tasks-names-nonexistent-count-transient",
       "severity": "advisory",
-      "summary": "The exhaustion error text differs from the design. The spec says the observation must fail naming the PR, the attempts and the last error. `_observe_pr` raises `observation failed after 5 attempts: <err>` and does not name the PR itself. The PR appears only because `worker()` prefixes `#N not observable:`. The design's decision text specifies `TransientQueueError(\"#N not observable after 5 attempts: <error>\")`. The spec is met only through the caller's prefix."
+      "summary": "tasks.md item 2.1 names a helper `_count_transient`, but the candidate implements `_transient_wait` and `_reset_transient`. design.md uses the implemented names, so the task artifact is stale."
     },
     {
-      "evidence": "design.md line 8 names `_count_transient(root, repo, number, head, detail)`. The diff adds `_transient_wait(root, repo, number, detail)` and `_reset_transient`.",
-      "id": "design-names-count-transient-but-code-has-transient-wait",
+      "evidence": "`_transient_wait` catches `LifecycleOwnershipChanged` and returns waiting without `set_attempts`. The spec scenario \"Repeated transient integration failure\" has no claimed-candidate exception.",
+      "id": "counter-lost-when-claim-takes-candidate",
       "severity": "advisory",
-      "summary": "The design describes the counter helper as `_count_transient(root, repo, number, head, detail)`, and it is said to be called from `_integrate`'s two transient branches. The code has `_transient_wait(root, repo, number, detail)` with no head parameter. It re-reads the PR and the comments itself. `_reset_transient` is also not described in the design. This is artifact drift from the implementation, with no behavior difference."
-    },
-    {
-      "evidence": "template/scripts/publication_queue.py `_transient_wait`: `observed = _pr(root, repo, number)` and `_comments(...)` are called unguarded inside the `except` branches of `_integrate`, after `_label(..., ACTIVE, present=False)`.",
-      "id": "transient-counter-pr-reread-can-raise",
-      "severity": "advisory",
-      "summary": "`_transient_wait` re-reads the PR with plain `_pr` (single attempt, no observation retry) while handling a transient failure. A failure of that read propagates out of `_integrate`. The candidate is then skipped with no counter increment, so a persistent transient failure that also hits this read is never counted or blocked. This matches the spec's 'raise, no fallback' stance, but the bound is not enforced on that path. The spec does not address it."
+      "summary": "The spec says each transient run SHALL leave the candidate `waiting` with the counter visible in its record. When `_transition` refuses because a claim took the candidate, no counter is recorded and the failure is not counted. design.md documents this (\"plain waiting\"), but the spec text does not carve out the exception."
     }
   ],
-  "launched_at": "2026-10-30T15:42:33+00:00",
-  "output_sha256": "f3e0aefeb968044bc5f87199dc147978b16d344a1596e0cbce2802de3283079a",
+  "launched_at": "2026-10-30T15:44:35+00:00",
+  "output_sha256": "7975020ee7dae2189f3ace5ed6efcb88920e5f7be6607128f3f51b57365e27af",
   "perspective": "spec-fidelity",
-  "request_id": "d164ed31-2dcd-4530-837d-01937e31637f",
+  "request_id": "1af18250-d1b1-45b0-a574-994d6ba8ae17",
   "reviewer": {
-    "context_id": "7740b31e-deed-4427-a5dd-f0e755611dd1",
+    "context_id": "1082c942-4fae-456c-b076-0665a46cacd6",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8625e873-fbe2-4217-9bfd-2df8d0d9395a",
+    "launch_id": "platform-launch-56897e35-1553-4ef6-8785-e10fc386e702",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -54,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29512
+        "value": 25098
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15896
+        "value": 21074
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14176
+        "value": 18477
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15582
+        "value": 19426
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -84,11 +78,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1880
+        "value": 1302
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b5fe05e197ea9ae1af5d5b084de89237783a2211ee46bbaa882b41a4dff83344"
+  "task_content_digest": "27fc8cfe429211a231d45453dc38523cb0d61d7f41c0e8d20e9a8ca1e8b37c39"
 }

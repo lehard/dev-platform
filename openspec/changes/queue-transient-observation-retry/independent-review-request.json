@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "69c8d093bf9dddfb1214734ce471c337411d979d",
     "base_ref": "origin/main",
-    "candidate_head": "9e6523331f7cfa0b0c53784d19e57054b2134502",
-    "diff_sha256": "55f57bca685a6b15e89dae7dc239c13b1bda7f7060fdbecfad8f48de1b2561ce"
+    "candidate_head": "f56eead1e64fe7a7d03fdab1ce964711c2086006",
+    "diff_sha256": "9331d7de488cb934477a021ca3ea98731f78c46d39e5521947989c09bfad09d6"
   },
   "change": "openspec/changes/queue-transient-observation-retry",
   "excluded_lifecycle_paths": [
+    "openspec/changes/queue-transient-observation-retry/independent-review-request.json",
+    "openspec/changes/queue-transient-observation-retry/independent-reviews/engineering-quality.json",
+    "openspec/changes/queue-transient-observation-retry/independent-reviews/spec-fidelity.json",
     "openspec/changes/queue-transient-observation-retry/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-30T15:42:21+00:00",
+  "prepared_at": "2026-10-30T15:44:26+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/queue-transient-observation-retry/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "d164ed31-2dcd-4530-837d-01937e31637f",
+  "request_id": "1af18250-d1b1-45b0-a574-994d6ba8ae17",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,16 +59,16 @@
   "schema_version": 1,
   "task_content": {
     "base": "69c8d093bf9dddfb1214734ce471c337411d979d",
-    "digest": "b5fe05e197ea9ae1af5d5b084de89237783a2211ee46bbaa882b41a4dff83344",
+    "digest": "27fc8cfe429211a231d45453dc38523cb0d61d7f41c0e8d20e9a8ca1e8b37c39",
     "paths": {
       "openspec/changes/queue-transient-observation-retry/.managed-task.json": "f52b9c235876e27b95fee98abe2797837d60e9eb",
       "openspec/changes/queue-transient-observation-retry/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
-      "openspec/changes/queue-transient-observation-retry/design.md": "d35c9410e668b0744a0b3b954c08a1c925f3c571",
+      "openspec/changes/queue-transient-observation-retry/design.md": "e7621a9dae55261f5cdb4fdc3ee065a93296eec2",
       "openspec/changes/queue-transient-observation-retry/proposal.md": "3fc608d50473319da489292cb31476a88f5e25a2",
       "openspec/changes/queue-transient-observation-retry/specs/publication-queue/spec.md": "067114ea02fab356e394dc356097009fe756e92b",
       "openspec/changes/queue-transient-observation-retry/tasks.md": "1e173dd0203f131066706c93d1fdc800858dd9fc",
-      "template/scripts/publication_queue.py": "4e3e2505d1916a52c653f9f83639b93ddac906c8",
-      "tests/test_publication_queue.py": "dbdcb90bc646bb7d72064d827969e8086f31e039"
+      "template/scripts/publication_queue.py": "4524f5bcd7b7610d3ddfd5824d5636b66c45e566",
+      "tests/test_publication_queue.py": "803be409a7e7c89d8ae3d58a41cf17c94285687c"
     },
     "scope": "independent-review-v1",
     "version": 1
