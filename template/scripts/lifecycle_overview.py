@@ -39,6 +39,11 @@ FINDING_HINTS = {
     "stale-head": "Nothing to decide: the candidate is re-evaluated for its current head.",
     "provider-unavailable": "The automatic retry continues once the provider is available; switch-provider is listed when it applies.",
 }
+# Post-merge kinds never run hosted: the local post-merge runner claims them, and the coordinator can run one now.
+POST_MERGE_UNCLAIMED_HINT = (
+    "No operator command applies: the local post-merge runner (LaunchAgent dev.platform.post-merge-runner) claims "
+    "{kind} jobs every 10 minutes; to run it now from the integration checkout: "
+    'GH_TOKEN="$(gh auth token)" python3 scripts/lifecycle_workers.py work-next --repo {repo} --kinds {kind} --pr {number} --run')
 CLAIM_FINDINGS = frozenset({"unclaimed-next-job", "expired-claim"})
 EXECUTOR_NOT_CONFIRMED = "executor not confirmed"
 ACTIVITY_NOT_CONFIRMED = "executor activity: not confirmed"
@@ -292,7 +297,13 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
     else:
         plan = {"actions": [], "human_decision": None}
     if stage == "needs-intervention" and not plan["human_decision"]:
-        hints = list(dict.fromkeys(FINDING_HINTS[f["kind"]] for f in findings if f["kind"] in FINDING_HINTS))
+        from candidate_lifecycle import POST_MERGE_KINDS
+
+        def hint(kind: str) -> str:
+            if kind == "unclaimed-next-job" and job and job["kind"] in POST_MERGE_KINDS:
+                return POST_MERGE_UNCLAIMED_HINT.format(kind=job["kind"], repo=repo, number=number)
+            return FINDING_HINTS[kind]
+        hints = list(dict.fromkeys(hint(f["kind"]) for f in findings if f["kind"] in FINDING_HINTS))
         if hints:
             plan = {**plan, "human_decision": " ".join(hints)}
         elif not plan["actions"]:
