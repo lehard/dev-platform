@@ -1,6 +1,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the diff against the lifecycle-workers delta, proposal, design and tasks; targeted unit tests (test_autonomous_integration_contour, test_lifecycle_overview, test_lifecycle_workers, test_post_merge_runner, test_pr_review_gate, test_candidate_lifecycle: 368 passing including the new cases); a live read-only discovery against lehard/dev-platform; repository-owned selected checks recorded by the lifecycle
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 ## Decisions
 
