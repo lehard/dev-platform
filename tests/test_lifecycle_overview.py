@@ -209,6 +209,9 @@ class ExceptionTests(unittest.TestCase):
         item = assess([marker(record("integrating", attempts={"post-merge": 1}), 1), *outcomes], pr=pull(merged=True))
         self.assertEqual(kinds(item), ["post-merge-exhausted"])
         self.assertEqual(item["stage"], "needs-intervention")
+        self.assertEqual([a["action"] for a in item["actions"]], ["reoffer-post-merge"])
+        self.assertIn(f"reoffer-post-merge --pr 7 --expected-head {HEAD}", item["actions"][0]["command"])
+        self.assertIn("Last retrospective outcome: failed: boom", item["human_decision"])
 
     def test_malformed_marker_is_unknown_never_healthy(self):
         comments = [marker(record("review-pending", next_job=job()), 1),

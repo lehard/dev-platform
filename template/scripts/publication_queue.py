@@ -749,7 +749,8 @@ def attention_key(number: int, candidate: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(material, default=str).encode()).hexdigest()[:24]
 
 
-def attention_body(repo: str, number: int, candidate: dict[str, Any], claim: dict[str, Any] | None) -> str:
+def attention_body(repo: str, number: int, candidate: dict[str, Any], claim: dict[str, Any] | None,
+                   post_merge_plan: dict[str, Any] | None = None) -> str:
     """The human-readable comment: what stopped, the evidence, and what a human can or must decide."""
     from pr_review_gate import permitted_actions
 
@@ -757,7 +758,9 @@ def attention_body(repo: str, number: int, candidate: dict[str, Any], claim: dic
         return repair_attention_body(repo, number, candidate)
     plan = permitted_actions(candidate, claim, number=number, retry_kind=retry_job_kind(candidate))
     if candidate.get("state") == "merged":
-        plan = {"actions": [], "human_decision": candidate.get("reason") or "A post-merge obligation needs an operator."}
+        if post_merge_plan is None:
+            raise AttentionError(f"PR #{number} merged-PR attention needs the post-merge re-offer eligibility")
+        plan = post_merge_plan
     red = candidate.get("red_gate") or {}
     lines = [f"{ATTENTION_PREFIX}{attention_key(number, candidate)} -->",
              f"**Needs attention: PR #{number} is `{candidate['state']}`.**", "",
@@ -768,6 +771,8 @@ def attention_body(repo: str, number: int, candidate: dict[str, Any], claim: dic
     if plan["actions"]:
         lines.append("Permitted next action (an operator decision, not automatic):")
         lines += [f"- `{item['command']}`" for item in plan["actions"]]
+        if candidate.get("state") == "merged":
+            lines.append(plan["human_decision"])
     else:
         lines.append("No supported automatic recovery applies. " + (plan["human_decision"] or "A human decision is needed."))
     lines += ["", "This comment is posted once per exact escalation; normal progress posts nothing."]
@@ -786,11 +791,19 @@ def ensure_attention(root: Path, repo: str, number: int, candidate: dict[str, An
            and trusted_marker_comment(row, apps, writers) for row in comments):
         return False
     job = build_job(candidate)
-    claim = winning_claim(job, comments, trusted_apps=apps,
-                          trusted_writers=trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo)) if job else None
+    claim_writers = trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo)
+    claim = winning_claim(job, comments, trusted_apps=apps, trusted_writers=claim_writers) if job else None
+    post_merge_plan = None
+    if candidate.get("state") == "merged":
+        from lifecycle_workers import RESULT_PREFIX
+        from pr_review_gate import permitted_post_merge_actions
+
+        post_merge_plan = permitted_post_merge_actions(
+            candidate, comments, number=number, trusted_apps=apps,
+            trusted_writers=trusted_writers(root, comments, (CLAIM_PREFIX, RESULT_PREFIX), repo=repo))
     try:
         _gh(root, "api", "-X", "POST", f"repos/{repo}/issues/{number}/comments",
-            data={"body": attention_body(repo, number, candidate, claim)})
+            data={"body": attention_body(repo, number, candidate, claim, post_merge_plan)})
     except QueueError as exc:
         raise AttentionError(f"PR #{number} escalation was published but the attention comment failed: {exc}") from exc
     return True
@@ -2511,6 +2524,12 @@ def main() -> int:
         operator.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
         operator.add_argument("--expected-head", help="refuse, before any write, when the PR head differs (the head the decision was made for)")
         operator.add_argument("--via", help="optional label for the acting surface (for example chat-coordinator), recorded with the actor")
+    post_merge = sub.add_parser("reoffer-post-merge",
+                                help="re-offer an exhausted post-merge obligation of a merged PR with a fresh attempt budget")
+    post_merge.add_argument("--pr", type=int, required=True)
+    post_merge.add_argument("--expected-head", required=True, help="the merged head the decision was made for")
+    post_merge.add_argument("--reason", required=True, help="the operator's reason, recorded in the candidate record")
+    post_merge.add_argument("--via", help="optional label for the acting surface (for example chat-coordinator), recorded with the actor")
     restore = sub.add_parser("restore-gates", help="restore content-bound gates lost across trusted harness pushes")
     restore.add_argument("--pr", type=int, required=True)
     restore.add_argument("--expected-head", help="refuse, before any write, when the PR head differs")
@@ -2527,6 +2546,12 @@ def main() -> int:
             print(json.dumps(reoffer(root, _repo(root), args.pr, action=args.command, providers=args.provider,
                                      reason=args.reason, actor=_actor(root), via=args.via,
                                      expected_head=args.expected_head), sort_keys=True))
+            return 0
+        elif args.command == "reoffer-post-merge":
+            from pr_review_gate import reoffer_post_merge
+
+            print(json.dumps(reoffer_post_merge(root, _repo(root), args.pr, reason=args.reason, actor=_actor(root),
+                                                via=args.via, expected_head=args.expected_head), sort_keys=True))
             return 0
         elif args.command == "restore-gates":
             print(json.dumps(restore_gates(root, _repo(root), args.pr, expected_head=args.expected_head), sort_keys=True))

@@ -630,6 +630,118 @@ def permitted_actions(candidate: dict, claim: dict | None, *, number: int, retry
     return {"actions": actions, "human_decision": human_decision}
 
 
+POST_MERGE_ACTION = "reoffer-post-merge"
+
+
+def post_merge_reoffer_plan(candidate: dict, comments: list[dict], *, number: int, now=None,
+                            trusted_apps: frozenset[str] = frozenset(),
+                            trusted_writers: frozenset[str] = frozenset()) -> str:
+    """The exhausted post-merge kind ``reoffer-post-merge`` re-offers for this candidate, or ``ReofferRefused``.
+
+    Pure eligibility shared by the command, the lifecycle overview and the attention comment: the PR is
+    merged, one post-merge obligation spent its attempts under the current re-offer sequence, and no
+    unexpired claim holds one of those attempts.
+    """
+    from candidate_lifecycle import MAX_POST_MERGE_ATTEMPTS, post_merge_reoffer_seq
+    from lifecycle_workers import winning_claim
+
+    if candidate.get("state") != "merged":
+        raise ReofferRefused(f"PR #{number} is {candidate.get('state')}; {POST_MERGE_ACTION} applies only to a merged PR")
+    kind = candidate.get("post_merge_exhausted")
+    if not kind:
+        raise ReofferRefused(f"PR #{number} has no exhausted post-merge obligation; nothing to re-offer")
+    seq = post_merge_reoffer_seq(candidate)
+    for attempt in range(MAX_POST_MERGE_ATTEMPTS):
+        job = {"number": number, "kind": kind, "head": candidate["head"], "attempt": attempt,
+               **({"reoffer": {"seq": seq}} if seq else {})}
+        claim = winning_claim(job, comments, now=now, trusted_apps=trusted_apps, trusted_writers=trusted_writers)
+        if claim is not None:
+            raise ReofferRefused(f"PR #{number} {kind} job is claimed by {claim['worker']} until {claim['expires_at']}; "
+                                 "wait for the claim to expire or finish")
+    return kind
+
+
+def post_merge_command(number: int, head: str) -> str:
+    return (f"python3 scripts/publication_queue.py {POST_MERGE_ACTION} --pr {number} --expected-head {head}"
+            ' --via chat-coordinator --reason "<why>"')
+
+
+def permitted_post_merge_actions(candidate: dict, comments: list[dict], *, number: int, now=None,
+                                 trusted_apps: frozenset[str] = frozenset(),
+                                 trusted_writers: frozenset[str] = frozenset()) -> dict:
+    """The ``reoffer-post-merge`` action a merged candidate accepts, in the ``permitted_actions`` shape.
+
+    ``trusted_writers`` must cover both claim and result comments: the decision text names the last outcome.
+    """
+    from candidate_lifecycle import MAX_POST_MERGE_ATTEMPTS, job_outcomes, post_merge_reoffer_seq
+    from lifecycle_workers import job_id
+
+    try:
+        kind = post_merge_reoffer_plan(candidate, comments, number=number, now=now, trusted_apps=trusted_apps,
+                                       trusted_writers=trusted_writers)
+    except ReofferRefused as refusal:
+        return {"actions": [], "human_decision": str(refusal)}
+    seq = post_merge_reoffer_seq(candidate)
+    last = {"number": number, "kind": kind, "head": candidate["head"], "attempt": MAX_POST_MERGE_ATTEMPTS - 1,
+            **({"reoffer": {"seq": seq}} if seq else {})}
+    outcome = job_outcomes(candidate["head"], comments, trusted_apps, trusted_writers).get(job_id(last), ["unknown"])[-1]
+    return {"actions": [{"action": POST_MERGE_ACTION, "kind": kind, "command": post_merge_command(number, candidate["head"])}],
+            "human_decision": f"Last {kind} outcome: {outcome[:300]}. Fix that cause first, then re-offer the {kind} "
+                              "obligation with a fresh attempt budget."}
+
+
+def reoffer_post_merge(root: Path, repo: str, number: int, *, reason: str, actor: str, expected_head: str,
+                       via: str | None = None, adapter=None) -> dict:
+    """Re-offer the exhausted post-merge obligation of a merged PR with a fresh attempt budget.
+
+    Refuses before any write unless the PR is merged at ``expected_head``, carries a coordinator record at that
+    head, and ``post_merge_reoffer_plan`` accepts it. One appended record keeps state ``merged``, identity and
+    every attempt counter, increments ``post-merge-reoffers`` and carries the re-offer event (kind, reason, actor,
+    ``via``, head, time) in its ``next_job``; derivation then offers the obligation under the new sequence's job ids.
+    """
+    if adapter is None:
+        import publication_queue as adapter
+    from datetime import datetime, timezone
+    from candidate_lifecycle import POST_MERGE_REOFFERS, post_merge_reoffer_seq
+    from lifecycle_workers import CLAIM_PREFIX, job_record
+
+    if not reason or not reason.strip():
+        raise adapter.QueueError("a re-offer needs the operator's reason")
+    if not actor or not actor.strip():
+        raise adapter.QueueError("a re-offer needs the acting identity")
+    if not expected_head or not expected_head.strip():
+        raise adapter.QueueError(f"{POST_MERGE_ACTION} needs --expected-head (the merged head the decision was made for)")
+    pr = adapter._pr(root, repo, number)
+    if not (pr.get("merged") or pr.get("merged_at") or pr.get("mergedAt")):
+        raise adapter.QueueError(f"PR #{number} is not merged; {POST_MERGE_ACTION} applies only to a merged PR")
+    head = pr["head"]["sha"]
+    if expected_head != head:
+        raise adapter.QueueError(f"PR #{number} merged head is {head}, not the expected {expected_head}; "
+                                 "the decision was made for another head, nothing was written")
+    comments = adapter._comments(root, repo, number)
+    if adapter._latest(root, number, comments, head) is None:
+        raise adapter.QueueError(f"PR #{number} has no coordinator record for its merged head")
+    candidate = adapter._derive(root, pr, comments)
+    try:
+        kind = post_merge_reoffer_plan(
+            candidate, comments, number=number, trusted_apps=adapter.trusted_apps(root),
+            trusted_writers=adapter.trusted_writers(root, comments, (CLAIM_PREFIX,), repo=repo))
+    except ReofferRefused as refusal:
+        raise adapter.QueueError(str(refusal)) from refusal
+    seq = post_merge_reoffer_seq(candidate) + 1
+    event = {"seq": seq, "action": POST_MERGE_ACTION, "kind": kind, "reason": reason.strip()[:300],
+             "actor": actor.strip(), **({"via": via.strip()} if via and via.strip() else {}), "head": head,
+             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    record = adapter._transition(
+        root, repo, number, "merged", head, task_identity=candidate["task_identity"], inherit_identity=False,
+        set_attempts={POST_MERGE_REOFFERS: seq},
+        next_job=job_record(kind, head, candidate["task_identity"], 0, reoffer=event))
+    if record is None:
+        raise adapter.QueueError(f"PR #{number} head moved; nothing was re-offered")
+    return {"state": record["state"], "number": number, "changed": True, "kind": kind, "seq": seq,
+            "job": record["next_job"]}
+
+
 def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reason: str, actor: str,
             via: str | None = None, expected_head: str | None = None, adapter=None) -> dict:
     """Re-offer the open review or repair job of a candidate, optionally on other providers.

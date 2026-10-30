@@ -44,9 +44,9 @@ class FakeRun:
         return item
 
 
-def job(status, number=1, kind="retrospective", outcome="done"):
+def job(status, number=1, kind="retrospective", outcome="done", result="done"):
     return done(json.dumps({"status": status, "job": {"number": number, "kind": kind},
-                            "execution": {"status": "done", "outcome": outcome}}))
+                            "execution": {"status": result, "outcome": outcome}}))
 
 
 class RunnerTests(unittest.TestCase):
@@ -79,6 +79,31 @@ class RunnerTests(unittest.TestCase):
         work = [c for c in fake.calls if "work-next" in c][0]
         self.assertIn("--run", work)
         self.assertEqual(work[work.index("--kinds") + 1], runner.KINDS)
+
+    def test_blocked_obligation_waits_for_the_next_round_while_other_prs_are_served(self):
+        fake = FakeRun([job("claimed", 7, "cleanup", "blocked: active-board", "blocked"),
+                        job("claimed", 8, "retrospective"), job("claimed", 8, "cleanup", "failed: network", "failed"),
+                        done(json.dumps({"status": "idle", "job": None}))])
+        self.assertEqual(self.round(fake), 0)
+        work = [c for c in fake.calls if "work-next" in c]
+        excluded = [[c[i + 1] for i, flag in enumerate(c) if flag == "--exclude-pr"] for c in work]
+        self.assertEqual(excluded, [[], ["7"], ["7"], ["7", "8"]])
+        deferred = [(e["pr"], e["result"]) for e in self.events() if e["event"] == "deferred-to-next-round"]
+        self.assertEqual(deferred, [(7, "blocked"), (8, "failed")])
+        self.assertEqual(self.events()[-1]["outcome"], "idle")
+        # The next round offers PR 7 again: the exclusion lasts one round only.
+        fake = FakeRun([done(json.dumps({"status": "idle", "job": None}))])
+        self.assertEqual(self.round(fake), 0)
+        self.assertNotIn("--exclude-pr", [c for c in fake.calls if "work-next" in c][0])
+
+    def test_missing_process_check_tool_fails_before_any_claim(self):
+        fake = FakeRun([job("claimed")])
+        with mock.patch.object(runner.shutil, "which", side_effect=lambda name, path=None: None if name == "lsof" else "/usr/bin/gh"):
+            self.assertEqual(runner.run_round(self.args, run=fake), 1)
+        end = self.events()[-1]
+        self.assertEqual(end["outcome"], "failed")
+        self.assertIn("lsof not found on PATH", end["error"])
+        self.assertEqual(fake.calls, [])
 
     def test_max_jobs_bounds_the_round(self):
         self.args.max_jobs = 2

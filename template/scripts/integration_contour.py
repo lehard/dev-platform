@@ -43,6 +43,14 @@ class JobBlocked(RuntimeError):
     """A post-merge obligation cannot be completed truthfully; it is reported, never faked."""
 
 
+class PostMergeEnvironmentError(workers.WorkerError):
+    """The executing environment cannot run a post-merge job; it fails the run and spends no attempt."""
+
+
+# Cleanup refusals that describe the executing machine, not the obligation.
+ENVIRONMENT_CLEANUP_ERRORS = frozenset({"process-check-unavailable"})
+
+
 # ---- lineage and friction attribution ---------------------------------------
 
 def resolve_lineage(root: Path, branch: str) -> dict[str, str | None] | None:
@@ -622,6 +630,11 @@ def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: 
 
 def run_cleanup(ops: LifecycleOps, root: Path, number: int, branch: str, head: str) -> str:
     result = ops.cleanup(root, branch, number, head)
+    environment = sorted({str(item.get("error")) for item in result.get("errors", [])} & ENVIRONMENT_CLEANUP_ERRORS)
+    if environment:
+        raise PostMergeEnvironmentError(
+            f"post-merge cleanup of PR #{number} cannot run on this machine ({', '.join(environment)}): the active-process "
+            "check needs lsof on PATH; fix the environment, no attempt was recorded")
     if result.get("errors"):
         raise JobBlocked("local cleanup refused: " + json.dumps(result["errors"], sort_keys=True)[:300])
     return "cleaned" if result.get("removed") else "already-clean"
@@ -669,6 +682,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
             outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
     except JobBlocked as exc:
         outcome, status = "blocked: " + str(exc)[:200], "blocked"
+    except PostMergeEnvironmentError:
+        raise  # no receipt: the caller releases the claim and fails visibly
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal
         outcome, status = "failed: " + str(exc)[:200], "failed"
     if not claim_current():

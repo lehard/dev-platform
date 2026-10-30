@@ -913,6 +913,15 @@ class PostMergeDerivationTests(unittest.TestCase):
         rows = [receipt("retrospective", 0, "discarded: head moved", 2)]
         self.assertEqual(self.derive(*rows)["next_job"]["attempt"], 0)
 
+    def test_an_excluded_pr_is_neither_read_nor_offered(self):
+        comments = [record("merged", attempts={"post-merge": 1})]
+        read = []
+        result = workers.work_next(
+            frozenset({"retrospective"}), list_prs=lambda: [merged_pr()],
+            comments_for=lambda n: read.append(n) or comments, post_comment=lambda n, body: self.fail("no claim"),
+            worker="w", exclude_prs=frozenset({7}), trusted_apps=frozenset(), trusted_writers=frozenset())
+        self.assertEqual((result["status"], read), ("idle", []))
+
     def test_work_next_claims_a_post_merge_job_of_a_merged_candidate(self):
         comments = [record("merged", attempts={"post-merge": 1})]
         posted = []
@@ -1279,6 +1288,21 @@ class PostMergeJobTests(FrictionFixture):
         outcome, _ = self.run_job("cleanup", ops)
         self.assertEqual(outcome["status"], "blocked")
         self.assertIn("dirty", outcome["outcome"])
+
+    def test_an_unavailable_process_check_fails_the_run_without_a_receipt(self):
+        ops = FakeOps()
+        ops.cleanup_result = {"status": "blocked", "removed": [],
+                              "errors": [{"path": "/w/x", "error": "process-check-unavailable"}]}
+        merged = lifecycle.derive_candidate(merged_pr(), [record("merged", attempts={"post-merge": 1})])
+        job = {"number": 7, "kind": "cleanup", "head": HEAD, "task_identity": merged["task_identity"], "attempt": 0}
+        posted = []
+        with mock.patch.object(workers, "build_job", return_value=job):
+            with self.assertRaisesRegex(contour.PostMergeEnvironmentError,
+                                        "process-check-unavailable.*no attempt was recorded"):
+                contour.run_claimed_post_merge(ROOT, "o/r", merged, job, branch=self.branch, post_result=posted.append,
+                                               ops=ops, claim_current=lambda: True, worker="w")
+        self.assertEqual(posted, [])  # no receipt: the attempt counter is unchanged
+        self.assertTrue(issubclass(contour.PostMergeEnvironmentError, workers.WorkerError))
 
     def test_a_job_for_a_stale_candidate_is_discarded(self):
         merged = lifecycle.derive_candidate(merged_pr(), [record("merged", attempts={"post-merge": 1})])

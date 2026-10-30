@@ -3,7 +3,8 @@
 
 One *round* repeats the existing ``lifecycle_workers.py work-next --run`` for the post-merge kinds
 (retrospective, terminal-reconciliation, cleanup) until it reports ``idle`` or a bound is reached, so the
-chain retro -> terminal -> cleanup catches up without a coordinator. The runner owns no queue, claim format
+chain retro -> terminal -> cleanup catches up without a coordinator. A PR whose run ended blocked or failed is
+excluded for the rest of the round, so each obligation is attempted at most once per round. The runner owns no queue, claim format
 or job state: claims, results, the attempt limit and the attention on a spent obligation are the platform's.
 It only schedules, bounds, guards the shared GitHub REST limit and writes a run journal.
 
@@ -34,6 +35,10 @@ JOURNAL_NAME = "post-merge-runs.jsonl"
 LOCK_NAME = "post-merge-runner.lock"
 REPO_RE = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 ERROR_TAIL = 400
+# A run that ends so leaves its obligation open; it is not attempted again in the same round.
+RETRY_LATER = frozenset({"blocked", "failed"})
+# Tools the post-merge jobs need on the runner's PATH (cleanup's active-process check).
+REQUIRED_TOOLS = ("lsof",)
 
 
 class RunnerError(RuntimeError):
@@ -139,6 +144,14 @@ def validate(args: argparse.Namespace) -> None:
         raise RunnerError(f"--gh {args.gh} is not an executable gh")
 
 
+def require_tools(path: str | None) -> None:
+    """Fail before any claim when a tool the jobs need does not resolve on the runner's PATH."""
+    missing = [tool for tool in REQUIRED_TOOLS if not shutil.which(tool, path=path)]
+    if missing:
+        raise RunnerError(f"{', '.join(missing)} not found on PATH {path!r}; post-merge cleanup cannot check active "
+                          "processes, so no job is claimed (fix the runner PATH)")
+
+
 def run_round(args: argparse.Namespace, *, run: Runner = run_command, monotonic: Callable[[], float] = time.monotonic) -> int:
     validate(args)
     journal = args.journal_dir
@@ -167,7 +180,9 @@ def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[],
         append_record(journal, {"event": "interrupted-previous-round", "round": round_id, "interrupted": previous})
     append_record(journal, {"event": "round-start", "round": round_id, "repo": args.repo})
     outcome, jobs, error = "idle", 0, None
+    deferred: list[int] = []  # PRs whose obligation stays open until the next round
     try:
+        require_tools(os.environ.get("PATH"))
         token = github_token(args.gh, args.checkout, run)
         deadline = monotonic() + args.max_seconds
         env = {**os.environ, "GH_TOKEN": token}
@@ -190,7 +205,8 @@ def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[],
                 outcome = "max-seconds"  # the rate-limit read used the last of the round's time
                 break
             done = run([sys.executable, "scripts/lifecycle_workers.py", "work-next", "--kinds", KINDS,
-                        "--repo", args.repo, "--ttl", str(args.claim_ttl), "--run"],
+                        "--repo", args.repo, "--ttl", str(args.claim_ttl), "--run",
+                        *[flag for number in deferred for flag in ("--exclude-pr", str(number))]],
                        env=env, cwd=args.checkout, timeout=min(args.claim_ttl, budget))
             if done.returncode:
                 raise RunnerError(f"work-next exited {done.returncode}: {(done.stderr or '').strip()[-ERROR_TAIL:]}")
@@ -208,6 +224,10 @@ def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[],
                 outcome = "idle"
                 break
             jobs += 1
+            if execution.get("status") in RETRY_LATER and type(job.get("number")) is int:
+                deferred.append(job["number"])
+                append_record(journal, {"event": "deferred-to-next-round", "round": round_id, "pr": job["number"],
+                                        "kind": job.get("kind"), "result": execution.get("status")})
     except RunnerError as exc:
         outcome, error = "failed", str(exc)
     append_record(journal, {"event": "round-end", "round": round_id, "outcome": outcome, "jobs": jobs,
