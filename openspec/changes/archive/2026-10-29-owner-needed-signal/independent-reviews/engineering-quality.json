@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "172a623064729328e2d4ab0181d02f8a7f08173d",
+    "base_ref": "origin/main",
+    "candidate_head": "97ad9b509d4d0fd46a5123c78cd006af0edeeb6c",
+    "diff_sha256": "99a81bfd2026c456204569f88a47124a5bf26185ff0caa6169bc2032fc8de794"
+  },
+  "completed_at": "2026-10-30T07:02:34+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_signal.py:350-364 `resolve_signal` loops over every entry in `items` and takes no worktree. The docs say an agent clears its own signal, so the permissive scope may be intentional (the owner or coordinator resolves). The intent is undocumented.",
+      "id": "resolve-not-scoped-to-caller",
+      "severity": "advisory",
+      "summary": "`resolve` can close a signal on any task's board entry. The spec says a signal is accepted only for the caller's own worktree, but it doesn't scope resolution."
+    },
+    {
+      "evidence": "template/scripts/agent_signal.py:346 appends `[*signals, signal]`. Resolution at line 361 only sets `resolved_at`, and nothing prunes resolved items. The design says resolved signals are 'not shown' and doesn't give a retention bound.",
+      "id": "resolved-signals-accumulate",
+      "severity": "advisory",
+      "summary": "Resolved signals stay in the entry's `signals` list for the life of the entry. Every raise and every overview read re-validates and scans them, and the board file keeps growing."
+    },
+    {
+      "evidence": "template/scripts/agent_signal.py:389-392 return `signals: []` with an error on the first malformed item. The failure is explicit rather than silent, which matches the no-fallback constraint, but the blast radius is board-wide.",
+      "id": "overview-unreadable-board-aborts-all-signals",
+      "severity": "advisory",
+      "summary": "One malformed signal or entry makes `open_signals` hide every open signal and show only an error. A single bad record can therefore keep the owner from seeing other agents' questions."
+    }
+  ],
+  "launched_at": "2026-10-30T07:02:19+00:00",
+  "output_sha256": "c43069f790c7c3fd62da8220943dd7b8c9bc0e1c8294d65d794e3e124983a5be",
+  "perspective": "engineering-quality",
+  "request_id": "ac0d1268-d9da-46a8-bb3c-aebe2cf0d457",
+  "reviewer": {
+    "context_id": "79119cab-4891-49ad-9733-0de2bba9fc9d",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-6655c9ec-aec4-465d-ae0d-fc7a973a6541",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25019
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 74585
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13427
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13709
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1347
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "72e3a8d3517e747fc74f78032b7c421bdc8deb1be40a4d3daf8831d976c267b5"
+}

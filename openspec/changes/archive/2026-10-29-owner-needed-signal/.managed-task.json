@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "tasks.md",
+    "specs/shared-workspace-coordination/spec.md",
+    "specs/chat-coordinator/spec.md"
+  ],
+  "change": "owner-needed-signal",
+  "imported_at": "2026-10-29T21:44:36+00:00",
+  "package_revision": "61414547c3b9d5bd7aa809897126b8809d9f6613d9501cba81be7d1dd0c22050",
+  "prepared_against": "6a5ee31c8724f32ff9178c3ae944576c33249113",
+  "private_lineage_handle": "pln_927cf639a8ea72f0db6f501986ae3eb7",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "833577f3b3dc7ce85e7fd66ebbd7b4bbccbea9266e8b3b8dbc21e7415cd40dcb",
+    "updated_at": "2026-10-29T21:38:29Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-888/T1"
+}

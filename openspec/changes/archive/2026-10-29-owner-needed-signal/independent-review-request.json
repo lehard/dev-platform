@@ -1,0 +1,89 @@
+{
+  "candidate": {
+    "base_head": "172a623064729328e2d4ab0181d02f8a7f08173d",
+    "base_ref": "origin/main",
+    "candidate_head": "97ad9b509d4d0fd46a5123c78cd006af0edeeb6c",
+    "diff_sha256": "99a81bfd2026c456204569f88a47124a5bf26185ff0caa6169bc2032fc8de794"
+  },
+  "change": "openspec/changes/archive/2026-10-29-owner-needed-signal",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/automated-checks.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-review-request.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-29-owner-needed-signal/verification.md",
+    "openspec/specs/chat-coordinator/spec.md",
+    "openspec/specs/shared-workspace-coordination/spec.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/design.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/proposal.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/shared-workspace-coordination/spec.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/proposal.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/design.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/tasks.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/chat-coordinator/spec.md",
+        "openspec/changes/archive/2026-10-29-owner-needed-signal/specs/shared-workspace-coordination/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T07:02:06+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-29-owner-needed-signal/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "ac0d1268-d9da-46a8-bb3c-aebe2cf0d457",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "172a623064729328e2d4ab0181d02f8a7f08173d",
+    "digest": "72e3a8d3517e747fc74f78032b7c421bdc8deb1be40a4d3daf8831d976c267b5",
+    "paths": {
+      "dev-platform/checks.toml": "67a83a56f8ffc5c253592cfee7dc52a121d40c88",
+      "docs/engineering/chat-coordinator.md": "e4f79c62376318804487657004b8c4e66f415162",
+      "openspec/changes/owner-needed-signal/.managed-task.json": "7ecb47a2e40c38106f881c42f1460c0f346777a6",
+      "openspec/changes/owner-needed-signal/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/owner-needed-signal/design.md": "c85f6ad1c7fcf4ef9f06c70bac37e82cf995e8c3",
+      "openspec/changes/owner-needed-signal/proposal.md": "09c95c504811263e847f636d30937dc5c8ad87be",
+      "openspec/changes/owner-needed-signal/specs/chat-coordinator/spec.md": "9a60841c7fc6adf718229d92a29bf675fc6e63b7",
+      "openspec/changes/owner-needed-signal/specs/shared-workspace-coordination/spec.md": "93eacc76bd435dcff983ee90c8024ba3f9408a5f",
+      "openspec/changes/owner-needed-signal/tasks.md": "1f9497732d3abe29eb27ce105d74424f52d6a6ae",
+      "scripts/agent_signal.py": "02dacd8d2df454659710cab61d65994ef1273a02",
+      "template/dev-platform/protected-surface.toml": "fe9fbee1a94bc1861b3a480240d3b8f3a2105d87",
+      "template/scripts/agent_signal.py": "97573b86cfa80a2d32049ef33897c16f0b24cf12",
+      "template/scripts/lifecycle_overview.py": "890e12234e71865d646e7aae8f8816b710b00e1b",
+      "tests/test_agent_signal.py": "72044e6884307fbcdbd76d50101faa3f98e5e81a",
+      "tests/test_lifecycle_overview.py": "39e1d887f741cfcb564fdd8083d03dc5afbbe0c8",
+      "tests/test_overview_agent_sessions.py": "66896fa4787619752497cf2ef4dbe886fa87024c"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

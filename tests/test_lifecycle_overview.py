@@ -525,6 +525,7 @@ class ColdSessionTests(unittest.TestCase):
                 mock.patch.object(queue, "trusted_writers", return_value=frozenset()), \
                 mock.patch.object(queue, "_gh", side_effect=lambda *a, **k: writes.append(a)), \
                 mock.patch.object(overview, "_open_requirements", return_value=["o/b#5"]), \
+                mock.patch.object(overview, "read_owner_needed", return_value={"configured": False, "signals": []}), \
                 mock.patch.object(overview, "_observe_requirement", side_effect=lambda root, req, cands:
                                   overview.assess_requirement(req, aggregate, None, cands)):
             result = overview.overview(ROOT, now=AT + timedelta(minutes=10))

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "172a623064729328e2d4ab0181d02f8a7f08173d",
+    "base_ref": "origin/main",
+    "candidate_head": "97ad9b509d4d0fd46a5123c78cd006af0edeeb6c",
+    "diff_sha256": "99a81bfd2026c456204569f88a47124a5bf26185ff0caa6169bc2032fc8de794"
+  },
+  "completed_at": "2026-10-30T07:02:19+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_agent_signal.py has no test where a board entry is removed or finished and its signals disappear. No test checks that overview() puts owner_needed in the JSON output. tests/test_lifecycle_overview.py and tests/test_overview_agent_sessions.py only mock or stub owner_needed. The behavior itself follows from signals being stored on the entry, so this is a gap in evidence, not in the contract.",
+      "id": "missing-task-end-cleanup-and-json-evidence",
+      "severity": "advisory",
+      "summary": "The proposal's success evidence and tasks.md section 3 claim tests for task-end cleanup with the board entry and for the overview section in JSON. The candidate has neither test."
+    }
+  ],
+  "launched_at": "2026-10-30T07:02:09+00:00",
+  "output_sha256": "e2c348b2f0017bcd961ba54d7455fa55df54fad056e1f7b68a0a58927ac3a03c",
+  "perspective": "spec-fidelity",
+  "request_id": "ac0d1268-d9da-46a8-bb3c-aebe2cf0d457",
+  "reviewer": {
+    "context_id": "6bd9e1bb-0dac-4a3e-97c2-0f5368f311fe",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-16f0fdc4-9279-4d35-978f-33a4c26fadf1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30017
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12097
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9849
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9988
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1103
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "72e3a8d3517e747fc74f78032b7c421bdc8deb1be40a4d3daf8831d976c267b5"
+}
