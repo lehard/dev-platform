@@ -27,3 +27,4 @@ Independent-Review-Evidence: independent-review-request.json
 ## Not verified / limits
 
 - Not exercised against live GitHub. `IntegrationRepairBoundTests::test_bound_blocks_the_candidate_after_two_attempts_and_the_next_one_still_merges` failed once in a loaded combined run and passed alone (git-heavy test under machine load; untouched code path).
+- Independent review (engineering-quality) advisories accepted without change: the worker does not act on `ensure_post_merge_attention` returning False, which means either an attention for that exact state already exists (idempotent) or derivation does not see the obligation exhausted, and the two cannot be told apart from the boolean; the permitted-action text repeats the `released:` prefix of the recorded outcome (cosmetic).

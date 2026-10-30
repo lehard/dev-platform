@@ -1,0 +1,75 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "425a5916dd6f1e28e8da1505281d3dc0b47867ca",
+    "base_ref": "origin/main",
+    "candidate_head": "f96e69ee8db214124407865fe0f4baf98c3f64fb",
+    "diff_sha256": "95b3f3519beb02ac523fcae714db941c3210debdb561d34e4b6106e4eba1892e"
+  },
+  "completed_at": "2026-10-30T13:49:22+00:00",
+  "findings": [],
+  "launched_at": "2026-10-30T13:49:03+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "perspective": "spec-fidelity",
+  "request_id": "cd30be94-3ae5-4d84-bee1-ba699a1fff2a",
+  "reviewer": {
+    "context_id": "600c2d5c-4d48-435a-bd94-49c4b618d5eb",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ae957684-b8e8-4bff-9579-78e3fdbf5a5c",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31109
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43315
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14315
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15714
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1065
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b1382b9d8eace32b112062349542d4140f2dd7d2d1b68ad666acb3f61ecb00e1"
+}

@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "425a5916dd6f1e28e8da1505281d3dc0b47867ca",
+    "base_ref": "origin/main",
+    "candidate_head": "f96e69ee8db214124407865fe0f4baf98c3f64fb",
+    "diff_sha256": "95b3f3519beb02ac523fcae714db941c3210debdb561d34e4b6106e4eba1892e"
+  },
+  "completed_at": "2026-10-30T13:49:46+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py (new branch): `publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job[\"number\"])`. In publication_queue.py:812-820 the function returns False without posting when the freshly derived state is not merged or the reason does not start with 'post-merge' and contain 'exhausted'. That can happen if comments changed between release and derivation. The run then fails with only the original exception, and nothing retries the attention. The new test mocks the whole publication_queue module, so this path is not covered.",
+      "id": "attention-result-ignored",
+      "severity": "advisory",
+      "summary": "The worker ignores the boolean result of ensure_post_merge_attention, so a 'no attention posted' outcome is silent."
+    },
+    {
+      "evidence": "post_merge_release_limit stores `last` as the full outcome, which starts with 'released:'. permitted_post_merge_actions then builds 'claim released N times: {last}'. The new test asserts the result: 'claim released 3 times: released: RuntimeError: boom'. The reason string has the same duplication: '(last: released: \u2026)'.",
+      "id": "released-cause-prefix-duplicated",
+      "severity": "advisory",
+      "summary": "The permitted-action text repeats the 'released:' prefix."
+    }
+  ],
+  "launched_at": "2026-10-30T13:49:22+00:00",
+  "output_sha256": "6e1dec6d2aefc27a964d918dc8bdc0f182c69c824438ca0816a5f73e36c017c2",
+  "perspective": "engineering-quality",
+  "request_id": "cd30be94-3ae5-4d84-bee1-ba699a1fff2a",
+  "reviewer": {
+    "context_id": "d9f5ca10-58f1-4490-9d29-bbc0ba739520",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8a4e74b7-6988-4eeb-b3ba-da20e8c5d0d3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24581
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46707
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19697
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21364
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1549
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b1382b9d8eace32b112062349542d4140f2dd7d2d1b68ad666acb3f61ecb00e1"
+}
