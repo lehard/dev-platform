@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "f1adfd9810469546addbf6128d3e3a2398d1f1cb",
+    "diff_sha256": "4a46cb3f48d2f44216ccdcc22ce3267053fe169d9b2627f5226bac3348dd93c2"
+  },
+  "completed_at": "2026-10-30T17:24:45+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/rollout_project.py:4 `import ast` is the only match for `\\bast\\b` in the file. The removed `is_cli_guard` and `unique_top_level_cli_guard_offset` were the only users (candidate.diff lines 614-650).",
+      "id": "unused-ast-import",
+      "severity": "material",
+      "summary": "After the legacy-migration removal, `import ast` in scripts/rollout_project.py has no remaining user. The required `ruff check scripts` validation would fail with F401."
+    },
+    {
+      "evidence": "docs/engineering/code-erosion.md:45 `rollout_project.py:migrate_project_publication_safety` (36). The function is deleted in the candidate and the file is not in the diff.",
+      "id": "code-erosion-stale-reference",
+      "severity": "advisory",
+      "summary": "docs/engineering/code-erosion.md still lists the removed function `rollout_project.py:migrate_project_publication_safety` as a current hotspot. The proposal's Impact section names this file as one to update if it references removed code."
+    }
+  ],
+  "launched_at": "2026-10-30T17:24:16+00:00",
+  "output_sha256": "2ee81a60dd0521abb8cbebdefe3d19090616b9a49a0cfcef9af9f09fa52e50f5",
+  "perspective": "spec-fidelity",
+  "request_id": "bcbe97aa-bed6-4080-9b03-82d4ef34ca11",
+  "reviewer": {
+    "context_id": "cf51a40a-0828-43ac-b4cf-62a1be8de087",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0116b1ad-12be-44aa-afd6-4d288911856e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 59673
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 231126
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22927
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26978
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2818
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a212698b1a9230ddc3dff0c884f22e071efe0f5f3063164924678e4176243b9b"
+}

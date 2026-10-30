@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "f1adfd9810469546addbf6128d3e3a2398d1f1cb",
+    "diff_sha256": "4a46cb3f48d2f44216ccdcc22ce3267053fe169d9b2627f5226bac3348dd93c2"
+  },
+  "completed_at": "2026-10-30T17:25:13+00:00",
+  "findings": [
+    {
+      "evidence": "docs/engineering/code-erosion.md:45: `rollout_project.py:migrate_project_publication_safety` (36). The diff removes that function from scripts/rollout_project.py.",
+      "id": "code-erosion-doc-stale-reference",
+      "severity": "advisory",
+      "summary": "docs/engineering/code-erosion.md still lists the deleted function `rollout_project.py:migrate_project_publication_safety` as a largest existing hotspot. The proposal's Impact section says to update this doc if it references removed code, but the diff leaves it unchanged."
+    }
+  ],
+  "launched_at": "2026-10-30T17:24:45+00:00",
+  "output_sha256": "60dc99613d2bf13ad5335570884677a034d898df6f6a6435c36d2f0f690dc3b6",
+  "perspective": "engineering-quality",
+  "request_id": "bcbe97aa-bed6-4080-9b03-82d4ef34ca11",
+  "reviewer": {
+    "context_id": "c26463d6-fee5-4859-8f5f-90a2d3e1b3c1",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-2d88acc6-4b53-4c79-83e3-cb5b41236371",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53374
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 171247
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22835
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24912
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1421
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a212698b1a9230ddc3dff0c884f22e071efe0f5f3063164924678e4176243b9b"
+}

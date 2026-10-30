@@ -23,5 +23,5 @@ Independent-Review-Evidence: independent-review-request.json
 
 ## Not verified / limits
 
-- `docs/engineering/code-erosion.md` keeps its dated baseline that names `rollout_project.py:migrate_project_publication_safety` as a hotspot (historical measurement, not a live reference).
 - `docs/decisions/0005-managed-rollout-on-demand.md` is a dated decision record and is unchanged.
+- Independent review round 1: material `unused-ast-import` fixed (`import ast` removed; ruff's configured rule set did not flag it); advisory: `docs/engineering/code-erosion.md` baseline now notes the hotspot function was removed after that measurement.
