@@ -1,0 +1,90 @@
+{
+  "candidate": {
+    "base_head": "425a5916dd6f1e28e8da1505281d3dc0b47867ca",
+    "base_ref": "origin/main",
+    "candidate_head": "a65da44aa51a674de03e32d190c2f6ead1cfeb54",
+    "diff_sha256": "cb5fb587395f574cb5819c0eaa43bdadb3015e8a00164c3ff4d92304b32dfb66"
+  },
+  "change": "openspec/changes/fail-fast-task-gitdir-and-stale-evidence",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/automated-checks.json",
+    "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/design.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/proposal.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/completion-lifecycle/spec.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/shared-workspace/spec.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/proposal.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/design.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/tasks.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/completion-lifecycle/spec.md",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/shared-workspace/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T13:51:51+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "be6c4cea-0cb7-4cb2-990c-39576ec14ce7",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+    "digest": "30ab0c29e57cc568c0b72ad7513943c079434bc50b23cafd9b390ae0e30d761a",
+    "paths": {
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/.managed-task.json": "75f581ee5c1d3f7c29dc047c9ea21109ded5e3b4",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/design.md": "56aa28024cadc95f88c3659a6725469b47816f81",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/proposal.md": "97e48d7cc9823363fddeefe3a552319940389638",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/completion-lifecycle/spec.md": "f0df685514adcdb76c87f89219f529ca3d6113f4",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/shared-workspace/spec.md": "b731bd4a959f015c1f5a7547e6d030d56f9ab2b7",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/tasks.md": "78b17b0e66cc5ed36ff59237f57e986c6918c3b2",
+      "template/dev-platform/blocking-gates.toml": "7b486b29c76cec49c549bcbe61da43b18885d144",
+      "template/scripts/lifecycle_preflight.py": "302fa04a9e86c455b35cf8adbb5e9b462dba10c8",
+      "template/scripts/local_workspace.py": "0d76fe6ff969cf43784f7939784a91c9a37d4f95",
+      "template/scripts/openspec_lifecycle.py": "cbce106a4b0dcdd6307657e5a3fc2e4cfac82f61",
+      "template/scripts/select_checks.py": "82e5031db4d377ba2850b8ab431f15ddeee8acaa",
+      "template/scripts/shared_workspace.py": "f2df02fa3f0016f0c98d8648deefe2f074a510f2",
+      "template/scripts/start_worktree.py": "731a9912b004b0a199a42a23adfcdf36472d6a32",
+      "template/scripts/task_content_identity.py": "a35371d59dcbe80da85b70d7e229f55729f4436e",
+      "template/scripts/task_reconciliation.py": "8e0b70307747a59d1d661b6ed975bc83b5cb57be",
+      "tests/test_lifecycle_preflight.py": "4e154088494123a1b4582e056dc18c583dfdde41",
+      "tests/test_local_workspace.py": "8d6882bb4e684d4f74e7f90f19ee35212aa2231b",
+      "tests/test_managed_intake_project_harness_isolation.py": "cf2b2b840e6d1598f829188b99ea3cbf44f86a05",
+      "tests/test_select_checks.py": "98ddf7d26d6de00ae6705e7ce11bab7e3877ce2f",
+      "tests/test_shared_writer_guard.py": "9f0387c3b662dca80e98f4342f0b813e128d887e",
+      "tests/test_task_reconciliation.py": "76fdee256331abc03fde8c8f6771624ac3a52ff1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
