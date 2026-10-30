@@ -1112,6 +1112,18 @@ READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-ret
 # Waiting states a developer fix on top of the proven head answers directly: the local head is
 # handed off again (fresh review) instead of waiting for the coordinator job of the proven head.
 DEVELOPER_FIX_STATES = frozenset({"integration-repair-pending", "repair-pending", "blocked-escalation"})
+
+
+def _awaits_developer_fix(lineage: dict[str, Any]) -> bool:
+    """Whether this lineage record lets a developer fix supersede its head.
+
+    It waits in one of ``DEVELOPER_FIX_STATES``, or stopped ``blocked-retryable`` on the
+    ``semantic-verification`` red gate, which only a fresh developer handoff clears.
+    """
+    if lineage.get("state") in DEVELOPER_FIX_STATES:
+        return True
+    return (lineage.get("state") == "blocked-retryable"
+            and (lineage.get("red_gate") or {}).get("name") == "semantic-verification")
 _SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
 
 
@@ -1601,10 +1613,11 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
             if observed.get("owner") == "developer re-admission" and observed.get("head") == local_head:
                 return {**observed, "state": "readmission"}
             # A developer fix on top of the proven head of a candidate waiting for repair or
-            # escalation: finish pushes it and admission supersedes the waiting job.
+            # escalation, or stopped on semantic verification: finish pushes it and admission
+            # supersedes the waiting job.
             proven = _proven_head(events, admission)
             lineage = _latest(root, data["number"], _comments(root, repo, data["number"]))
-            if (lineage is not None and lineage.get("state") in DEVELOPER_FIX_STATES
+            if (lineage is not None and _awaits_developer_fix(lineage)
                     and lineage.get("head") == proven and _is_ancestor(root, proven, local_head)):
                 return {**observed, "state": "readmission", "number": data["number"],
                         "proven_head": proven, "head": local_head}
@@ -1626,9 +1639,7 @@ def semantic_readmission(root: Path, branch: str) -> dict[str, Any] | None:
     lineage = _latest(root, number, _comments(root, _repo(root), number), observed["proven_head"])
     if lineage is None:
         return None
-    semantic = (lineage.get("state") == "blocked-retryable"
-                and (lineage.get("red_gate") or {}).get("name") == "semantic-verification")
-    if not semantic and lineage.get("state") not in DEVELOPER_FIX_STATES:
+    if not _awaits_developer_fix(lineage):
         return None
     return {**observed, "lineage": lineage}
 
