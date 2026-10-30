@@ -12,4 +12,4 @@
 - [x] 3.1 Tests: evidence dir/file conform after start and after an evidence write under a non-inheriting parent; preflight admission repairs own and refuses foreign paths; stale evidence after a base move refused by reconcile and preflight with the command; current evidence passes; portable active change and quick task not applicable; regenerate the platform manifest.
 
 ## 4. Verification
-- [ ] 4.1 Full validation and semantic OpenSpec verification.
+- [x] 4.1 Full validation and semantic OpenSpec verification.
