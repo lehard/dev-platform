@@ -23,6 +23,37 @@ platform_bootstrap = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(platform_bootstrap)
 
 
+class RemovedDeepSeekSectionTests(unittest.TestCase):
+    """BR-845: an update's bootstrap removes the shipped DeepSeek section; any other form fails on read."""
+
+    SHIPPED = platform_bootstrap.SHIPPED_DEEPSEEK_COMMENT + platform_bootstrap.SHIPPED_DEEPSEEK_SECTION
+
+    def config(self, root: Path, section: str) -> Path:
+        return write_platform_config(root, extra="[independent_review]\nenabled = false\n\n" + section + "\n[other]\nkey = 1\n")
+
+    def test_shipped_section_is_removed_and_the_rest_kept(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = self.config(root, self.SHIPPED)
+            platform_bootstrap.remove_shipped_deepseek_section(root)
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("deepseek", text.lower())
+            self.assertIn("[independent_review]\nenabled = false\n\n[other]\nkey = 1\n", text)
+            platform_bootstrap.load_config(root)  # valid after the removal
+            platform_bootstrap.remove_shipped_deepseek_section(root)  # idempotent
+            self.assertEqual(path.read_text(encoding="utf-8"), text)
+
+    def test_modified_section_is_kept_and_fails_on_read(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = self.config(root, self.SHIPPED.replace("enabled = false", "enabled = true"))
+            before = path.read_text(encoding="utf-8")
+            platform_bootstrap.remove_shipped_deepseek_section(root)
+            self.assertEqual(path.read_text(encoding="utf-8"), before)
+            with self.assertRaisesRegex(Exception, r"still has \[experimental_runtime\.deepseek_harness\].*delete that section"):
+                platform_bootstrap.load_config(root)
+
+
 class PlatformBootstrapTests(unittest.TestCase):
     def test_sync_platform_version_from_stable_copier_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

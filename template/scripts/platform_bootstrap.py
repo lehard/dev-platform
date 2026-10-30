@@ -109,6 +109,36 @@ def sync_platform_version(root: Path) -> None:
         print(f"Synchronized .dev-platform.toml platform_version to {commit[1:]}")
 
 
+# The one form of the DeepSeek Harness section every release from v1.5.0 rendered (BR-845 removed the harness).
+SHIPPED_DEEPSEEK_COMMENT = (
+    "# Optional developer-preview backend. Merely rendering this configuration does\n"
+    "# not install or select DeepSeek Harness; the separate adapter entrypoint still\n"
+    "# requires an explicit opt-in for every experimental run.\n"
+)
+SHIPPED_DEEPSEEK_SECTION = (
+    "[experimental_runtime.deepseek_harness]\n"
+    "enabled = false\n"
+    'sdk_version = "0.1.1rc1"\n'
+    'profile = "observation"\n'
+)
+
+
+def remove_shipped_deepseek_section(root: Path) -> None:
+    """Delete the exact shipped DeepSeek section from the skip-if-exists project config.
+
+    Copier never updates ``.dev-platform.toml``, so the update's own bootstrap removes the section it shipped. Any
+    other form is left in place and the configuration reader fails naming it.
+    """
+    config_path = root / ".dev-platform.toml"
+    text = config_path.read_text(encoding="utf-8")
+    for block in (SHIPPED_DEEPSEEK_COMMENT + SHIPPED_DEEPSEEK_SECTION + "\n", SHIPPED_DEEPSEEK_COMMENT + SHIPPED_DEEPSEEK_SECTION,
+                  SHIPPED_DEEPSEEK_SECTION + "\n", SHIPPED_DEEPSEEK_SECTION):
+        if text.count(block) == 1:
+            config_path.write_text(text.replace(block, ""), encoding="utf-8")
+            print("Removed the shipped [experimental_runtime.deepseek_harness] section from .dev-platform.toml")
+            return
+
+
 def operator_integration_selected(root: Path) -> bool:
     answers = root / ".copier-answers.yml"
     if not answers.exists():
@@ -168,6 +198,7 @@ def initialize_openspec(root: Path, executable: str, tools: str) -> None:
 
 def main() -> int:
     root = Path.cwd().resolve()
+    remove_shipped_deepseek_section(root)  # before any validated read of the configuration
     sync_platform_version(root)
     sync_operator_integration(root)
     ensure_project_context_map(root)
