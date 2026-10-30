@@ -5,8 +5,39 @@
     "command_count": 5,
     "check_count": 1
   },
-  "outcome": "failure",
-  "executed_commands": [],
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.172,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.492,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.146,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.133,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1149.526,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
   "selected_checks": [
     {
       "id": "full-trigger",
@@ -44,10 +75,10 @@
     "change": "copier-9-19-1",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/copier-9-19-1",
     "branch": "agent/br-800-t1-copier-9-19-1",
-    "head": "df7aea10fd44e6db060726f658b48cc7397fb252",
+    "head": "bc355167358ba1ba35693a31a00373fe94e19fa1",
     "task_content": {
       "version": 1,
-      "digest": "8ce3728ebad75ac84df0647b0316a748ef80de50a99b4924be7aca45c96dd43b",
+      "digest": "bfeb8c1138483084d43401b3edf3d88b28b2fad9f259e38fc845b668fc9f4210",
       "paths": {
         ".github/workflows/adopt-project.yml": "e177da1c502fa0ab1c8138106e41a96de761eaa6",
         ".github/workflows/ci.yml": "3118146f13de3c0acd70ab242a7f915f87164e3f",
@@ -64,6 +95,7 @@
         "explorer/nodes/platform-releases.toml": "8322d681982e924cbe88a43039625902024e71d4",
         "openspec/changes/copier-9-19-1/.managed-task.json": "3e998305f04ab0b58496d23d4054a9ba71bcc220",
         "openspec/changes/copier-9-19-1/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/copier-9-19-1/automated-checks.json": "8257d35eac8056d818b82568462d0d43f5dadf23",
         "openspec/changes/copier-9-19-1/design.md": "645241c4b0808601cae8369644877e44a2d258da",
         "openspec/changes/copier-9-19-1/independent-review-request.json": "783ba8750dfa3d2f9652fcb3db1c7a5aa91bb3c0",
         "openspec/changes/copier-9-19-1/independent-reviews/engineering-quality.json": "53feb70215ae2c30f3321a30b98acdbd90b93315",
@@ -71,7 +103,7 @@
         "openspec/changes/copier-9-19-1/proposal.md": "82ef1f3eb20cd46ef951e2c7d46ed4a5d87cebb7",
         "openspec/changes/copier-9-19-1/specs/platform-config/spec.md": "1029e9691d8635f5cff95bced3a21a8ba021953d",
         "openspec/changes/copier-9-19-1/tasks.md": "1babe09947c962c09c3d3488e34fc1662d93b483",
-        "openspec/changes/copier-9-19-1/verification.md": "8a5d3a817d7e8c2410dbb0b951beb8115721fe9b",
+        "openspec/changes/copier-9-19-1/verification.md": "f0d4ba2d7ce713d0c736b10b88ef5747400d31c8",
         "template/.dev-platform.toml.jinja": "43128b3c3e106c1d1eb6ed42e1a941d3ec74b2e7",
         "template/dev-platform/platform-manifest.json": "2a6315adbc6db3b26e175081b5fc9e7487f7a2ec",
         "template/scripts/platform_doctor.py": "b155aa5dfd5a717cebb705a31cfeb97f36cde39d",
@@ -112,9 +144,9 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/platform_doctor.py --changed-file tests/test_template_contract.py",
-    "duration_seconds": 254.288,
-    "outcome": "failure",
-    "exit_code": 1,
+    "duration_seconds": 870.806,
+    "outcome": "success",
+    "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
   },
   "task_base": {
