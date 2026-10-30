@@ -21,3 +21,16 @@ The repository SHALL define the chat coordinator role in `docs/engineering/chat-
 - **WHEN** an item is escalated for a material finding
 - **THEN** the session shows the finding with options and a recommendation and asks the owner for the decision
 - **AND** it does not run `resume`
+
+### Requirement: Operator decisions are head-bound and attributed
+
+`publication_queue.py resume` and `switch-provider` SHALL accept `--expected-head` and, when it differs from the PR's current head, SHALL refuse before any write. Every re-offer SHALL record, in the existing candidate record, the reason, the acting authenticated GitHub identity, the `via` label when one is given, the PR and the exact head. An actor that cannot be resolved SHALL fail the command. The chat coordinator MAY run these commands for routine recovery after a technical failure once its cause is understood, without a per-PR owner decision; for material findings, exhausted review or repair rounds and disputed rejections or dispositions it SHALL run them only after an explicit owner decision naming the PR. It SHALL NOT bypass an unexpired claim and SHALL report the command result truthfully.
+
+#### Scenario: Head changed between report and decision
+- **WHEN** the coordinator or user continues and the PR head differs from the head in the report
+- **THEN** the command refuses naming both heads and nothing is written
+
+#### Scenario: Attributed resume
+- **WHEN** an operator resumes an operationally escalated candidate
+- **THEN** the candidate record shows reason, actor, the given via, PR and exact head
+- **AND** the same round is offered again without spending budget
