@@ -417,7 +417,7 @@ the developer friction checkpoint at that exact head. Finish publishes an exact-
 `review-pending`, and releases the developer board claim without waiting for CI,
 review or merge; finish fails unless the exact head reached `review-pending` with its published review job (or later
 lifecycle progress). A new developer head pushed to the same PR while it is `review-pending` (unclaimed),
-`repair-pending`, `blocked-retryable`, `blocked-escalation` or `integration-repair-pending` (its job unclaimed) is re-admitted by the next finish on that PR: the v1
+`repair-pending`, `blocked-retryable`, `blocked-escalation`, `integration-repair-pending` or `finalize-pending` (its job unclaimed) is re-admitted by the next finish on that PR: the v1
 admission comment records `supersedes` (the previously admitted head, its state and the reason) and a fresh review job
 is published for the new head; until then the coordinator skips the pushed head instead of integrating or blocking it,
 and `status` reports "new head awaits developer re-admission" with the proven and the pushed head.
@@ -432,7 +432,9 @@ integrated head and left it `integration-repair-pending` (the developer fix is c
 and needs no push before `finish`), that task's own PR alone reopens the developer handoff for its archived change: the task re-runs semantic verification and commits a changed receipt (an
 unchanged receipt since the proven head is refused as stale), refreshes the selected-check evidence and the friction
 checkpoint for the exact head, and `finish` re-admits it under the canonical change name from managed provenance; the
-change is never unarchived or archived again. A `finalize-pending` candidate is not re-admitted; when it lost content-bound gates across the
+change is never unarchived or archived again. A `finalize-pending` candidate whose finalize job holds no live claim
+is re-admitted the same way, for example after a finalize push followed by a merge-only reconcile. When a
+`finalize-pending` candidate lost content-bound gates across the
 harness's own review-evidence pushes, `python3 scripts/publication_queue.py restore-gates --pr N --expected-head <head>`
 restores the proven gates on the current head (it refuses, naming the head, when any head move was not a trusted harness
 push with unchanged task content) and re-offers finalize under a fresh job id when that head's finalize job already
@@ -447,7 +449,7 @@ writer's final argument, commits edits the writer left uncommitted (see the writ
 validates the result and pushes it; changed content repeats review. Material
 rejection proposals or three unsuccessful review rounds require human escalation.
 Unavailable reviewer runtimes publish a new retryable review attempt automatically.
-The same `work-next` contract can run on GitHub-hosted runners for the `review` and `finalize` kinds; enabling it is an owner step documented in [hosted-lifecycle-workers.md](hosted-lifecycle-workers.md).
+The same `work-next` contract can run on GitHub-hosted runners for the `review`, `finalize` and `integration-merge` kinds; enabling it is an owner step documented in [hosted-lifecycle-workers.md](hosted-lifecycle-workers.md).
 
 Review and repair provider operations. A candidate's review/repair job keeps the provider it
 was first published with. A worker selects only what it can run:
