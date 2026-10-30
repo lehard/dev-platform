@@ -21,3 +21,4 @@ PyPI latest `copier` 9.19.1. CHANGELOG: v9.19.1 (2026-10-13) restores Git older 
 - #528 (local hotfix preservation) is untouched.
 - Existing fallback reported, not changed: `platform_doctor.py` defaults `[tools.copier]` for a project without that table, as the accepted requirement specifies.
 - Independent review: ready; one spec-fidelity advisory, listed in its review file.
+- The selected checks ran with `copier` 9.19.1 resolved from the isolated virtualenv through a PATH entry holding only that executable (Python unchanged); with the machine-wide Copier 9.18.2 the template-rendering tests fail as intended ("This template requires Copier version >= 9.19.1"). CI installs 9.19.1 itself; a local machine needs the owner's install.

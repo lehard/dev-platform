@@ -1,0 +1,129 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "failure",
+  "executed_commands": [],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/adopt-project.yml",
+        ".github/workflows/ci.yml",
+        ".github/workflows/lifecycle-workers.yml",
+        ".github/workflows/publish-version.yml",
+        ".github/workflows/rollout.yml",
+        "template/scripts/platform_doctor.py",
+        "tests/test_template_contract.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_176fd03a5f5b4ac8b3bad8816669eb2f",
+    "change": "copier-9-19-1",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/copier-9-19-1",
+    "branch": "agent/br-800-t1-copier-9-19-1",
+    "head": "df7aea10fd44e6db060726f658b48cc7397fb252",
+    "task_content": {
+      "version": 1,
+      "digest": "8ce3728ebad75ac84df0647b0316a748ef80de50a99b4924be7aca45c96dd43b",
+      "paths": {
+        ".github/workflows/adopt-project.yml": "e177da1c502fa0ab1c8138106e41a96de761eaa6",
+        ".github/workflows/ci.yml": "3118146f13de3c0acd70ab242a7f915f87164e3f",
+        ".github/workflows/lifecycle-workers.yml": "8201d719ee862fa30f0f2598672851b51684582b",
+        ".github/workflows/publish-version.yml": "e4c1842d661519f4a0d9b6bff5825d22b0ec63b4",
+        ".github/workflows/rollout.yml": "b28ee26bd42f0ddc894622abc01e06b6d17ea61d",
+        "README.md": "b71b44b9862d93df512ea4e3b87ae6a2f3208e87",
+        "copier.yml": "627d3d45943b6c11eca5c82b368e75042d5ebeeb",
+        "docs/managed-rollout.md": "c70490b4b4d6fc12bb0ebf72bde73b6432499074",
+        "docs/release-policy.md": "00bdb1054deb1473907d7ec95d571bc4e4165386",
+        "explorer/editorial-review.json": "fd7f0fda3a684c3ef7493c8ac5bff0fbf815092a",
+        "explorer/nodes/copier-rollout.toml": "0e419d0497abf9f2dde66cd68e7f079c11f557e1",
+        "explorer/nodes/copier.toml": "2133976eac752a7f38ff17c41829465bc7385a40",
+        "explorer/nodes/platform-releases.toml": "8322d681982e924cbe88a43039625902024e71d4",
+        "openspec/changes/copier-9-19-1/.managed-task.json": "3e998305f04ab0b58496d23d4054a9ba71bcc220",
+        "openspec/changes/copier-9-19-1/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/copier-9-19-1/design.md": "645241c4b0808601cae8369644877e44a2d258da",
+        "openspec/changes/copier-9-19-1/independent-review-request.json": "783ba8750dfa3d2f9652fcb3db1c7a5aa91bb3c0",
+        "openspec/changes/copier-9-19-1/independent-reviews/engineering-quality.json": "53feb70215ae2c30f3321a30b98acdbd90b93315",
+        "openspec/changes/copier-9-19-1/independent-reviews/spec-fidelity.json": "2bcba2116c304d902249228b34c05420f9359938",
+        "openspec/changes/copier-9-19-1/proposal.md": "82ef1f3eb20cd46ef951e2c7d46ed4a5d87cebb7",
+        "openspec/changes/copier-9-19-1/specs/platform-config/spec.md": "1029e9691d8635f5cff95bced3a21a8ba021953d",
+        "openspec/changes/copier-9-19-1/tasks.md": "1babe09947c962c09c3d3488e34fc1662d93b483",
+        "openspec/changes/copier-9-19-1/verification.md": "8a5d3a817d7e8c2410dbb0b951beb8115721fe9b",
+        "template/.dev-platform.toml.jinja": "43128b3c3e106c1d1eb6ed42e1a941d3ec74b2e7",
+        "template/dev-platform/platform-manifest.json": "2a6315adbc6db3b26e175081b5fc9e7487f7a2ec",
+        "template/scripts/platform_doctor.py": "b155aa5dfd5a717cebb705a31cfeb97f36cde39d",
+        "tests/test_template_contract.py": "593d42dae84ff2b45794aecd741d3ad222879caf"
+      },
+      "base": "f125b375487ba6bdc914638274e88ed39c96d600"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "1debe2d6e877b0e10fd24c3c8fe3e0b7e684ae1dc4205100b7db657677efa203",
+    "paths": {
+      ".github/workflows/adopt-project.yml": "e177da1c502fa0ab1c8138106e41a96de761eaa6",
+      ".github/workflows/ci.yml": "3118146f13de3c0acd70ab242a7f915f87164e3f",
+      ".github/workflows/lifecycle-workers.yml": "8201d719ee862fa30f0f2598672851b51684582b",
+      ".github/workflows/publish-version.yml": "e4c1842d661519f4a0d9b6bff5825d22b0ec63b4",
+      ".github/workflows/rollout.yml": "b28ee26bd42f0ddc894622abc01e06b6d17ea61d",
+      "README.md": "b71b44b9862d93df512ea4e3b87ae6a2f3208e87",
+      "copier.yml": "627d3d45943b6c11eca5c82b368e75042d5ebeeb",
+      "docs/managed-rollout.md": "c70490b4b4d6fc12bb0ebf72bde73b6432499074",
+      "docs/release-policy.md": "00bdb1054deb1473907d7ec95d571bc4e4165386",
+      "explorer/editorial-review.json": "fd7f0fda3a684c3ef7493c8ac5bff0fbf815092a",
+      "explorer/nodes/copier-rollout.toml": "0e419d0497abf9f2dde66cd68e7f079c11f557e1",
+      "explorer/nodes/copier.toml": "2133976eac752a7f38ff17c41829465bc7385a40",
+      "explorer/nodes/platform-releases.toml": "8322d681982e924cbe88a43039625902024e71d4",
+      "openspec/changes/copier-9-19-1/.managed-task.json": "3e998305f04ab0b58496d23d4054a9ba71bcc220",
+      "openspec/changes/copier-9-19-1/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/copier-9-19-1/design.md": "645241c4b0808601cae8369644877e44a2d258da",
+      "openspec/changes/copier-9-19-1/proposal.md": "82ef1f3eb20cd46ef951e2c7d46ed4a5d87cebb7",
+      "openspec/changes/copier-9-19-1/specs/platform-config/spec.md": "1029e9691d8635f5cff95bced3a21a8ba021953d",
+      "openspec/changes/copier-9-19-1/tasks.md": "1babe09947c962c09c3d3488e34fc1662d93b483",
+      "template/.dev-platform.toml.jinja": "43128b3c3e106c1d1eb6ed42e1a941d3ec74b2e7",
+      "template/scripts/platform_doctor.py": "b155aa5dfd5a717cebb705a31cfeb97f36cde39d",
+      "tests/test_template_contract.py": "593d42dae84ff2b45794aecd741d3ad222879caf"
+    },
+    "base": "f125b375487ba6bdc914638274e88ed39c96d600",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/platform_doctor.py --changed-file tests/test_template_contract.py",
+    "duration_seconds": 254.288,
+    "outcome": "failure",
+    "exit_code": 1,
+    "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "e68555697fbf2206491bbd89a596b7e04edfaa89",
+    "base": "f125b375487ba6bdc914638274e88ed39c96d600",
+    "overlapping": [
+      "template/dev-platform/platform-manifest.json"
+    ],
+    "generated_conflicts": []
+  }
+}
