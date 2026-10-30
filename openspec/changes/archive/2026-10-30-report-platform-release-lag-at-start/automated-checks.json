@@ -1,0 +1,127 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.263,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 3.068,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.152,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.199,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1839.858,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/rollout_preflight.py",
+        "template/scripts/start_task.py",
+        "tests/test_managed_intake_project_harness_isolation.py",
+        "tests/test_managed_task.py",
+        "tests/test_rollout_preflight.py",
+        "tests/test_standard_profile_lifecycle_compatibility.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_779ec0887161145b477ec4493ea6c45b",
+    "change": "report-platform-release-lag-at-start",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/report-platform-release-lag-at-start",
+    "branch": "agent/br-843-t1-report-platform-release-lag-at-start",
+    "head": "0abd083211414938f305044efb2fe743fc5a0020",
+    "task_content": {
+      "version": 1,
+      "digest": "4779312e5ff8f167abd965878731296a793c6b9565d274bde887b1beb758fffb",
+      "paths": {
+        "openspec/changes/report-platform-release-lag-at-start/.managed-task.json": "d6201db2cd477143f0e51d2b9ef56ee4284816fc",
+        "openspec/changes/report-platform-release-lag-at-start/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/report-platform-release-lag-at-start/design.md": "758a4da70b572ca1467cbe07e8ca6e79b732fdb3",
+        "openspec/changes/report-platform-release-lag-at-start/proposal.md": "ee84004b6a9238305141dc780797d51d64e9c34c",
+        "openspec/changes/report-platform-release-lag-at-start/specs/platform-lifecycle/spec.md": "8ea3126a4d1407ce066ffc64d3b8db11db923924",
+        "openspec/changes/report-platform-release-lag-at-start/tasks.md": "7a42aaf2824ff5eb4dd51fcf7c275c5c66606166",
+        "openspec/changes/report-platform-release-lag-at-start/verification.md": "3b76af2d54464635e0a2e3371fe9324e53356553",
+        "template/dev-platform/platform-manifest.json": "f17fa1be6bffca3807a7bb7b95f9e76f285079c1",
+        "template/scripts/rollout_preflight.py": "211e4bfe777f3102e54df9e3746ab8546984d6e5",
+        "template/scripts/start_task.py": "61da6e5c86ded50ac1dbb39bcbaf632ac80c2426",
+        "tests/test_managed_intake_project_harness_isolation.py": "fab6f6c2793e985aa6f4ce4b5673aa36cfba57e2",
+        "tests/test_managed_task.py": "545e8bd53dd05ed2de08c42afd1fe8f02c31ff2f",
+        "tests/test_rollout_preflight.py": "b74a8bc6badca33bb457378f31b9006440c5837e",
+        "tests/test_standard_profile_lifecycle_compatibility.py": "5aba790246dee936560bf3c3a89134675605d5b9"
+      },
+      "base": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "6ae24b770396d6a47c27d2ee3f0818f7f36e30a299d7b1d294b6884433135207",
+    "paths": {
+      "openspec/changes/report-platform-release-lag-at-start/.managed-task.json": "d6201db2cd477143f0e51d2b9ef56ee4284816fc",
+      "openspec/changes/report-platform-release-lag-at-start/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/report-platform-release-lag-at-start/design.md": "758a4da70b572ca1467cbe07e8ca6e79b732fdb3",
+      "openspec/changes/report-platform-release-lag-at-start/proposal.md": "ee84004b6a9238305141dc780797d51d64e9c34c",
+      "openspec/changes/report-platform-release-lag-at-start/specs/platform-lifecycle/spec.md": "8ea3126a4d1407ce066ffc64d3b8db11db923924",
+      "openspec/changes/report-platform-release-lag-at-start/tasks.md": "7a42aaf2824ff5eb4dd51fcf7c275c5c66606166",
+      "template/scripts/rollout_preflight.py": "211e4bfe777f3102e54df9e3746ab8546984d6e5",
+      "template/scripts/start_task.py": "61da6e5c86ded50ac1dbb39bcbaf632ac80c2426",
+      "tests/test_managed_intake_project_harness_isolation.py": "fab6f6c2793e985aa6f4ce4b5673aa36cfba57e2",
+      "tests/test_managed_task.py": "545e8bd53dd05ed2de08c42afd1fe8f02c31ff2f",
+      "tests/test_rollout_preflight.py": "b74a8bc6badca33bb457378f31b9006440c5837e",
+      "tests/test_standard_profile_lifecycle_compatibility.py": "5aba790246dee936560bf3c3a89134675605d5b9"
+    },
+    "base": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/rollout_preflight.py --changed-file template/scripts/start_task.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_managed_task.py --changed-file tests/test_rollout_preflight.py --changed-file tests/test_standard_profile_lifecycle_compatibility.py",
+    "duration_seconds": 84.539,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

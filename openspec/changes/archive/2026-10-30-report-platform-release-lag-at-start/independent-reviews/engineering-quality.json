@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74",
+    "base_ref": "origin/main",
+    "candidate_head": "12d3e4ea3efadfb5f20c7e81712085a345e606d7",
+    "diff_sha256": "b96b1ff27a9a638e40958fbeecaea653153348fcb6bfcefb228bd419ecea253f"
+  },
+  "completed_at": "2026-10-30T20:11:57+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/start_task.py:123 calls `observe_platform_lag` unconditionally after `reconcile_pending_rollout(..., defer=defer_rollout)`. A `PlatformLagError` (a RuntimeError) aborts the start with no bypass. design.md lists this as a deliberate risk, but it also affects projects whose `_src_path` is a local or non-GitHub source (the regex only accepts gh:/github.com forms).",
+      "id": "lag-check-ignores-rollout-deferral",
+      "severity": "advisory",
+      "summary": "The lag check is a hard failure on any GitHub, auth or metadata problem. It is not gated by the existing `--defer-rollout` escape hatch, so deferral no longer lets a task start when GitHub is unreachable or unreadable."
+    },
+    {
+      "evidence": "tests/test_rollout_preflight.py diff: the class is added after lines 415-416 (`if __name__ == \"__main__\": unittest.main()`). It still runs under discovery or pytest.",
+      "id": "tests-appended-after-main-guard",
+      "severity": "advisory",
+      "summary": "`PlatformLagTests` is defined after the `if __name__ == \"__main__\": unittest.main()` block. Running the file directly as a script never runs these tests."
+    },
+    {
+      "evidence": "template/scripts/rollout_preflight.py `latest_platform_release`: `except ValueError` only. `gh_api` in rollout_identity.py:50 calls `subprocess.run([\"gh\", ...])` without handling OSError.",
+      "id": "gh-missing-not-wrapped",
+      "severity": "advisory",
+      "summary": "`latest_platform_release` only converts `ValueError` into `PlatformLagError`. If the `gh` binary is missing or cannot be executed, `gh_api` raises OSError/FileNotFoundError from `subprocess.run`, which escapes with a raw traceback instead of the explicit cause the spec requires."
+    }
+  ],
+  "launched_at": "2026-10-30T20:11:38+00:00",
+  "output_sha256": "2df2ba4bd7ba83dab1d8cb4c36238fbf1ce0b205ba261c2563e5a20a2bee3675",
+  "perspective": "engineering-quality",
+  "request_id": "a3747905-b7f4-4b86-8098-c43d3816c027",
+  "reviewer": {
+    "context_id": "b8dafa2c-74c5-45e8-906d-ea580dc6b784",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9f65efa5-f790-4c08-8db9-161af5a7767b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23506
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43873
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15398
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16597
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1521
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6ae24b770396d6a47c27d2ee3f0818f7f36e30a299d7b1d294b6884433135207"
+}
