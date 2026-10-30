@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agent-runtime/spec.md",
+    "specs/model-routing/spec.md",
+    "specs/platform-config/spec.md",
+    "tasks.md"
+  ],
+  "change": "remove-deepseek-harness",
+  "imported_at": "2026-10-30T18:22:04+00:00",
+  "package_revision": "7a438fc4e44645202339b4e8725fc8ca9114114017890e47ee3fcfb9b399ced9",
+  "prepared_against": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+  "private_lineage_handle": "pln_0987c962e3f5c0c021c63e04da64acf7",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "b679f7e0b4b8a21025da3df321f74fc79861435e01de299de72d778da3ed704d",
+    "updated_at": "2026-10-30T17:34:23Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-845/T1"
+}

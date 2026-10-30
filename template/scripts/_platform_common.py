@@ -321,6 +321,11 @@ def _require_config_value(path: Path, table: dict[str, Any], key: str, label: st
 
 def validate_platform_config(config: dict[str, Any], path: Path) -> dict[str, Any]:
     """Validate a project configuration against the schema and fill documented optional defaults."""
+    experimental = config.get("experimental_runtime")
+    if isinstance(experimental, dict) and "deepseek_harness" in experimental:
+        # BR-845: the DeepSeek harness was removed; a leftover section is never ignored silently.
+        raise PlatformConfigError(f"{path} still has [experimental_runtime.deepseek_harness]; DeepSeek Harness was "
+                                  "removed from Dev Platform: delete that section")
     for key, expected in PLATFORM_CONFIG_REQUIRED.items():
         _require_config_value(path, config, key, key, expected)
     for section, fields in PLATFORM_CONFIG_REQUIRED_TABLES.items():

@@ -687,7 +687,8 @@ class DriftBaseTests(EditorialFixture):
         self.assertIn("git merge-base no-such-ref HEAD failed", message)
 
 
-# Every path the pre-editorial build produced under lifecycle/ and e/ for the committed map.
+# Every path the pre-editorial build produced under lifecycle/ and e/ for the committed map, except
+# e/deepseek-harness-runtime/, retired deliberately with the DeepSeek harness (BR-845).
 LEGACY_STAGE_IDS = (
     "requirement-intent", "specification", "routing", "isolated-implementation",
     "verification", "publication-integration", "release-rollout", "feedback-learning",
@@ -699,7 +700,7 @@ LEGACY_ELEMENT_IDS = (
     "agent-process", "task-intake", "agent-workflow", "openspec-workflow", "model-routing", "agent-instructions",
     "chatgpt-project-protocol", "local-workspace", "verification-area", "engineering-capabilities",
     "browser-verification", "frontend-design-capabilities", "code-erosion", "upstream-substitution",
-    "harness-replay-lab", "deepseek-harness-runtime", "process-improvement", "promotion-loop",
+    "harness-replay-lab", "process-improvement", "promotion-loop",
     "platform-health-review", "agentic-workflows", "explorer", "contracts", "specs", "capabilities", "decisions",
 )
 

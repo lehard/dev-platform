@@ -16,8 +16,7 @@ providing analytics dashboards.
 
 It does not apply to agent execution runtimes. Runtime backends stay under the
 `agent-runtime` capability (`openspec/specs/agent-runtime/spec.md`) and its
-compatibility pilots; see
-[deepseek-harness-runtime.md](deepseek-harness-runtime.md) for that precedent.
+compatibility pilots.
 Both gates share one decision vocabulary: `adopt-next-step`, `watch-only`, or
 `reject-for-now`.
 
