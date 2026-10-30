@@ -20,3 +20,4 @@ PyPI latest `copier` 9.19.1. CHANGELOG: v9.19.1 (2026-10-13) restores Git older 
 - `docs/engineering/upstream-evaluations/teamai.md` keeps its dated evaluation note naming Copier 9.18.2.
 - #528 (local hotfix preservation) is untouched.
 - Existing fallback reported, not changed: `platform_doctor.py` defaults `[tools.copier]` for a project without that table, as the accepted requirement specifies.
+- Independent review: ready; one spec-fidelity advisory, listed in its review file.

@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e68555697fbf2206491bbd89a596b7e04edfaa89",
+    "base_ref": "origin/main",
+    "candidate_head": "6a32fa609bd0f7c28e13028a27b4c67c20c8a6c5",
+    "diff_sha256": "c5891d54b7ff68f26946c3fe2361127e1521b9e3525a5343771b9ec0e4d3b673"
+  },
+  "completed_at": "2026-10-30T20:37:31+00:00",
+  "findings": [
+    {
+      "evidence": "specs/platform-config/spec.md:5 and :11 list `.dev-platform.toml` among the copies that must reference the new version. The diff changes only `template/.dev-platform.toml.jinja`. proposal.md Impact lists updating the operator `.dev-platform.toml` as an out-of-repo operator step.",
+      "id": "root-dev-platform-toml-not-in-candidate",
+      "severity": "advisory",
+      "summary": "The spec requires the root `.dev-platform.toml` to agree with the new tested Copier version. The candidate diff doesn't update it, because it is an untracked, machine-local file. Agreement for that copy is not verifiable from the candidate."
+    }
+  ],
+  "launched_at": "2026-10-30T20:37:18+00:00",
+  "output_sha256": "8870f9d2b4710028c3de0d518f1992d7280aa0cb996d3872681d544f0484f949",
+  "perspective": "spec-fidelity",
+  "request_id": "d6e3f552-d1ee-4cfe-8872-7c5d1ee3aaa3",
+  "reviewer": {
+    "context_id": "b52c45dd-a96f-4a0e-b086-742c3e7b3b85",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-20666a86-7d93-4300-bda4-3dfa55fbcbc5",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24757
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46297
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7909
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9328
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 866
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1debe2d6e877b0e10fd24c3c8fe3e0b7e684ae1dc4205100b7db657677efa203"
+}
