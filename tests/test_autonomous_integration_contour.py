@@ -1462,5 +1462,85 @@ class LineageTests(unittest.TestCase):
                 contour.resolve_lineage(ROOT, "agent/br-7-t6-change")
 
 
+
+def released(job_kind, attempt, row_id, cause="RuntimeError: boom"):
+    job = {"number": 7, "kind": job_kind, "head": HEAD, "attempt": attempt}
+    return {"id": row_id, "author_association": "OWNER",
+            "body": workers.result_body(job, f"w{row_id}", f"{workers.RELEASED}: {cause}")}
+
+
+class PostMergeReleaseLimitTests(unittest.TestCase):
+    """BR-775: a post-merge job released MAX_RELEASES times raises attention instead of stopping silently."""
+
+    def derive(self, *rows):
+        return lifecycle.derive_candidate(merged_pr(), [record("merged", attempts={"post-merge": 1}), *rows])
+
+    def test_job_is_offered_until_the_release_limit_then_counts_as_exhausted(self):
+        rows = [released("retrospective", 0, 10 + n) for n in range(workers.MAX_RELEASES - 1)]
+        self.assertEqual(self.derive(*rows)["next_job"]["kind"], "retrospective")
+        rows.append(released("retrospective", 0, 20, cause="RuntimeError: last cause"))
+        spent = self.derive(*rows)
+        self.assertIsNone(spent["next_job"])
+        self.assertEqual(spent["post_merge_exhausted"], "retrospective")
+        self.assertEqual(spent["post_merge_released"], {"kind": "retrospective", "attempt": 0,
+                                                        "releases": workers.MAX_RELEASES,
+                                                        "last": "released: RuntimeError: last cause"})
+        self.assertTrue(spent["reason"].startswith("post-merge retrospective exhausted 3 claim releases"))
+        self.assertIn("last cause", spent["reason"])
+        self.assertEqual(lifecycle.post_merge_job(spent, [record("merged", attempts={"post-merge": 1}), *rows])[0], None)
+
+    def test_attention_names_the_releases_and_the_reoffer_command(self):
+        rows = [released("cleanup", 0, 10 + n) for n in range(workers.MAX_RELEASES)]
+        done = [receipt("retrospective", 0, "task-recorded", 2), receipt("terminal-reconciliation", 0, "ok", 3)]
+        comments = [record("merged", attempts={"post-merge": 1}), *done, *rows]
+        candidate = lifecycle.derive_candidate(merged_pr(), comments)
+        plan = gate.permitted_post_merge_actions(candidate, comments, number=7)
+        self.assertEqual([item["action"] for item in plan["actions"]], ["reoffer-post-merge"])
+        self.assertIn("claim released 3 times: released: RuntimeError: boom", plan["human_decision"])
+        body = queue.attention_body("o/r", 7, candidate, None, plan)
+        self.assertIn("exhausted 3 claim releases", body)
+        self.assertIn("reoffer-post-merge --pr 7", body)
+
+    def test_reoffer_gives_a_released_job_a_fresh_budget(self):
+        rows = [released("retrospective", 0, 10 + n) for n in range(workers.MAX_RELEASES)]
+        event = {"seq": 1, "action": "reoffer-post-merge", "kind": "retrospective", "reason": "fixed",
+                 "actor": "o", "head": HEAD, "at": "2026-10-30T00:00:00Z"}
+        reoffered = lifecycle.marker_body(lifecycle.build_handoff_record(
+            number=7, state="merged", head=HEAD, task_identity={"branch": "agent/br-7-t8-task", "head": HEAD},
+            gates={}, red_gate=None, not_reverified=[], attempts={"post-merge": 1, "post-merge-reoffers": 1},
+            next_job=workers.job_record("retrospective", HEAD, {"branch": "agent/br-7-t8-task", "head": HEAD}, 0,
+                                        reoffer=event),
+            at="2026-10-30T00:00:00+00:00"))
+        candidate = lifecycle.derive_candidate(merged_pr(), [record("merged", attempts={"post-merge": 1}), *rows,
+                                                             {"id": 90, "author_association": "OWNER", "body": reoffered}])
+        self.assertEqual((candidate["next_job"]["kind"], candidate["next_job"]["reoffer"]["seq"]), ("retrospective", 1))
+        self.assertNotIn("post_merge_exhausted", candidate)
+
+    def test_third_release_of_a_post_merge_run_posts_the_attention(self):
+        store = [record("merged", attempts={"post-merge": 1})]
+
+        def gh(*args):
+            if args[1] == "repos/o/r/issues/7/comments" and "-f" in args:
+                store.append({"id": 100 + len(store), "author_association": "OWNER", "body": args[-1][len("body="):]})
+                return {}
+            if "issues/7/comments" in args[-1]:
+                return list(store)
+            if args[-1] == "repos/o/r/pulls/7":
+                return {"head": {"sha": HEAD, "ref": "agent/br-7-t8-task"}, "merged": True}
+            raise AssertionError(args)
+        fake_queue = mock.Mock()
+        argv = ["work-next", "--kinds", "retrospective", "--repo", "o/r", "--run", "--worker", "w"]
+        with mock.patch.object(workers, "_gh_json", side_effect=gh), \
+                mock.patch.object(workers, "candidate_prs", return_value=[merged_pr()]), \
+                mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(), "trusted_writers": frozenset()}), \
+                mock.patch.object(contour, "run_claimed_post_merge", side_effect=RuntimeError("boom")), \
+                mock.patch.dict(sys.modules, {"publication_queue": fake_queue, "integration_contour": contour}):
+            for attempt in range(1, workers.MAX_RELEASES + 1):
+                with self.assertRaisesRegex(RuntimeError, "boom"):
+                    workers.main(argv)
+                self.assertEqual(fake_queue.ensure_post_merge_attention.called, attempt == workers.MAX_RELEASES)
+        fake_queue.ensure_post_merge_attention.assert_called_once_with(mock.ANY, "o/r", 7)
+        fake_queue._transition.assert_not_called()  # a merged PR never moves to blocked-escalation
+
 if __name__ == "__main__":
     unittest.main()

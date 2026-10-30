@@ -1504,7 +1504,15 @@ def main(argv: list[str] | None = None) -> int:
                 # A failed run releases its claim at once (counted per job) instead of holding it until expiry.
                 trust = _coordinator_trust(Path.cwd(), repo)
                 releases = release_claim(job, args.worker, exc, comments_for=comments_for, post_comment=post_comment, **trust)
-                if releases is not None and releases >= MAX_RELEASES and job["kind"] not in POST_MERGE_KINDS:
+                if releases is not None and releases >= MAX_RELEASES and job["kind"] in POST_MERGE_KINDS:
+                    import publication_queue
+
+                    # The merged PR has no escalation state: its spent job raises the post-merge attention.
+                    try:
+                        publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
+                    except publication_queue.AttentionError as attention:
+                        raise WorkerError(f"{attention}; the run itself failed with {type(exc).__name__}: {exc}") from exc
+                elif releases is not None and releases >= MAX_RELEASES:
                     import publication_queue
 
                     publication_queue._transition(

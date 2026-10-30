@@ -684,7 +684,9 @@ def permitted_post_merge_actions(candidate: dict, comments: list[dict], *, numbe
     seq = post_merge_reoffer_seq(candidate)
     last = {"number": number, "kind": kind, "head": candidate["head"], "attempt": MAX_POST_MERGE_ATTEMPTS - 1,
             **({"reoffer": {"seq": seq}} if seq else {})}
-    outcome = job_outcomes(candidate["head"], comments, trusted_apps, trusted_writers).get(job_id(last), ["unknown"])[-1]
+    released = candidate.get("post_merge_released")
+    outcome = (f"claim released {released['releases']} times: {released['last']}" if released
+               else job_outcomes(candidate["head"], comments, trusted_apps, trusted_writers).get(job_id(last), ["unknown"])[-1])
     return {"actions": [{"action": POST_MERGE_ACTION, "kind": kind, "command": post_merge_command(number, candidate["head"])}],
             "human_decision": f"Last {kind} outcome: {outcome[:300]}. Fix that cause first, then re-offer the {kind} "
                               "obligation with a fresh attempt budget."}
