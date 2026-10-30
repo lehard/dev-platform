@@ -931,6 +931,96 @@ class PostMergeDerivationTests(unittest.TestCase):
             worker="w", trusted_apps=frozenset(), trusted_writers=frozenset())
         self.assertEqual((result["status"], result["job"]["kind"]), ("claimed", "retrospective"))
 
+    def settle_run(self, *rows, dry_run=False, labels=()):
+        comments = [record("merged", attempts={"post-merge": 1}), *rows]
+        settled = []
+        workers.work_next(
+            frozenset({"retrospective", "terminal-reconciliation", "cleanup"}),
+            list_prs=lambda: [{**merged_pr(), "labels": [{"name": name} for name in labels]}],
+            comments_for=lambda n: comments, post_comment=lambda n, body: None, worker="w", dry_run=True,
+            settle=None if dry_run else settled.append, trusted_apps=frozenset(), trusted_writers=frozenset())
+        return settled
+
+    def test_only_a_settled_chain_is_marked_settled(self):
+        done = [receipt("retrospective", 0, "task-recorded", 2), receipt("terminal-reconciliation", 0, "ok", 3),
+                receipt("cleanup", 0, "cleaned", 4)]
+        self.assertEqual(self.settle_run(*done), [7])
+        self.assertEqual(self.settle_run(*done, labels=(workers.SETTLED_LABEL,)), [])
+        self.assertEqual(self.settle_run(*done, dry_run=True), [])
+        self.assertEqual(self.settle_run(*done[:2]), [])  # cleanup still open
+        exhausted = [receipt("retrospective", attempt, "failed: x", 2 + attempt) for attempt in range(3)]
+        self.assertEqual(self.settle_run(*exhausted), [])
+
+    def test_a_failed_settle_label_fails_the_run(self):
+        done = [receipt("retrospective", 0, "task-recorded", 2), receipt("terminal-reconciliation", 0, "ok", 3),
+                receipt("cleanup", 0, "cleaned", 4)]
+
+        def refuse(number):
+            raise workers.WorkerError("label write refused")
+        with self.assertRaisesRegex(workers.WorkerError, "label write refused"):
+            workers.work_next(
+                frozenset({"cleanup"}), list_prs=lambda: [merged_pr()],
+                comments_for=lambda n: [record("merged", attempts={"post-merge": 1}), *done],
+                post_comment=lambda n, body: None, worker="w", settle=refuse,
+                trusted_apps=frozenset(), trusted_writers=frozenset())
+
+
+class CandidateDiscoveryTests(unittest.TestCase):
+    """BR-882: a merged PR with an open post-merge obligation never ages out of discovery."""
+
+    def reader(self, *, window=(), labeled=(), fail=None):
+        calls = []
+
+        def read(*args):
+            calls.append(args)
+            path = args[-1]
+            if fail and fail in path:
+                raise workers.WorkerError(f"gh failed: {path}")
+            if "state=open" in path:
+                return [{"number": 1, "state": "open"}]
+            if "pulls?state=closed" in path:
+                return [{"number": n, "state": "closed", "merged_at": "t"} for n in window]
+            if "issues?state=closed" in path:
+                return list(labeled)
+            number = int(path.rsplit("/", 1)[1])
+            return {"number": number, "state": "closed" if number != 1 else "open", "merged": number != 1,
+                    "head": {"sha": HEAD}}
+        return read, calls
+
+    def test_labeled_merged_pr_outside_the_window_is_a_candidate(self):
+        labeled = [{"number": 678, "pull_request": {}, "labels": [{"name": workers.MERGED_LABEL}]},
+                   {"number": 600, "pull_request": {}, "labels": [{"name": workers.SETTLED_LABEL}]},
+                   {"number": 900, "pull_request": {}, "labels": []},
+                   {"number": 5, "labels": []}]  # an Issue, not a PR
+        read, calls = self.reader(window=(900,), labeled=labeled)
+        found = workers.candidate_prs("o/r", include_merged=True, gh_json=read)
+        self.assertEqual([pr["number"] for pr in found], [1, 900, 678])
+        self.assertIn(("api", "--paginate", "repos/o/r/issues?state=closed&labels=lifecycle%3Amerged&per_page=100"), calls)
+        self.assertEqual([c for c in calls if c[-1].startswith("repos/o/r/pulls/")], [("api", "repos/o/r/pulls/678")])
+
+    def test_open_obligation_outside_the_window_is_offered(self):
+        read, _ = self.reader(labeled=[{"number": 7, "pull_request": {}, "labels": [{"name": workers.MERGED_LABEL}]}])
+        posted = []
+        result = workers.work_next(
+            frozenset({"retrospective"}), list_prs=lambda: workers.candidate_prs("o/r", include_merged=True, gh_json=read),
+            comments_for=lambda n: [record("merged", attempts={"post-merge": 1})] + posted if n == 7 else [],
+            post_comment=lambda n, body: posted.append({"id": 50, "author_association": "OWNER", "body": body}),
+            worker="w", trusted_apps=frozenset(), trusted_writers=frozenset())
+        self.assertEqual((result["status"], result["job"]["number"]), ("claimed", 7))
+
+    def test_unreadable_label_listing_fails_instead_of_a_partial_set(self):
+        read, _ = self.reader(fail="issues?state=closed")
+        with self.assertRaisesRegex(workers.WorkerError, "issues"):
+            workers.candidate_prs("o/r", include_merged=True, gh_json=read)
+
+    def test_selected_prs_are_read_directly(self):
+        read, calls = self.reader()
+        found = workers.candidate_prs("o/r", include_merged=True, only_prs=frozenset({681, 1}), gh_json=read)
+        self.assertEqual([pr["number"] for pr in found], [1, 681])
+        self.assertEqual([c[-1] for c in calls], ["repos/o/r/pulls/1", "repos/o/r/pulls/681"])
+        self.assertEqual([pr["number"] for pr in workers.candidate_prs(
+            "o/r", include_merged=False, only_prs=frozenset({681, 1}), gh_json=read)], [1])
+
 
 LIFECYCLE_START = "2000-01-01T00:00:00+00:00"
 

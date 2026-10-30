@@ -252,7 +252,10 @@ class ProviderSelectionTests(unittest.TestCase):
                 workers.provider_readiness(ROOT, ["gemini"], workdir=scratch, probe=probe)
 
     def test_cli_requires_repair_provider_and_reports_unready_providers(self):
-        with mock.patch.object(workers, "_gh_json", return_value=[]):
+        # ``--pr 7`` reads PR 7 directly (BR-882); a closed unmerged PR offers nothing.
+        def gh(*args):
+            return {"number": 7, "state": "closed", "merged": False} if args[-1].endswith("/pulls/7") else []
+        with mock.patch.object(workers, "_gh_json", side_effect=gh):
             self.assertEqual(workers.main(["work-next", "--kinds", "repair", "--repo", "o/r", "--run",
                                            "--llm-command", "x", "--allow", "src/"]), 2)
             with mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(),
