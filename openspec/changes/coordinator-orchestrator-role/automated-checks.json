@@ -1,0 +1,121 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.129,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.532,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.097,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.151,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1574.287,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/lifecycle_overview.py",
+        "tests/test_lifecycle_overview.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_8fa16c3849ed4bf088b8a848dd7cb129",
+    "change": "coordinator-orchestrator-role",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/coordinator-orchestrator-role",
+    "branch": "agent/br-883-t1-coordinator-orchestrator-role",
+    "head": "132439d160d84e04c738c9997a815a0d3d4cffcd",
+    "task_content": {
+      "version": 1,
+      "digest": "fc2a55d76355d3ef6fc96aaaf5c2b76b99364570a00ed4a305c95733bf54d05c",
+      "paths": {
+        "AGENTS.md": "97770398074869d5d5845c4d722e010a9597cb16",
+        "docs/engineering/agent-workflow.md": "0b331e64416001a1e679f329eeffad4da1f28604",
+        "docs/engineering/chat-coordinator.md": "ba7746bc5be8a08708696f7f25fffa3771f9ea42",
+        "openspec/changes/coordinator-orchestrator-role/.managed-task.json": "7f71c96304efdc90c6f3d0fb6412d157713b3095",
+        "openspec/changes/coordinator-orchestrator-role/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/coordinator-orchestrator-role/design.md": "fb4f9edd0d2df24e1b61b361dbf39f7640c67df5",
+        "openspec/changes/coordinator-orchestrator-role/proposal.md": "59f654cd7b5ceb37586d8fa54ac2797a35ce043f",
+        "openspec/changes/coordinator-orchestrator-role/specs/chat-coordinator/spec.md": "2ff3569ab4dc39b4d6d77c9b05aa28f1db039fb3",
+        "openspec/changes/coordinator-orchestrator-role/tasks.md": "fea7d872773a8922acf7e9d3ba02251784b25a4f",
+        "openspec/changes/coordinator-orchestrator-role/verification.md": "b195ac7a76d292bafb85ff0078fe8991ab3ae42b",
+        "template/dev-platform/platform-manifest.json": "8f786273bc2ffb6a51c0d0d84fffdf216956ad12",
+        "template/scripts/lifecycle_overview.py": "73a0b5f6bd80f0221dd3702f4f5ab1916b30b77c",
+        "tests/test_lifecycle_overview.py": "a0468749ae79c9c728d2b91ba47cdb6122db3745"
+      },
+      "base": "e68555697fbf2206491bbd89a596b7e04edfaa89"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "ebfb0b9747e9839de004c687a6ae055d3230042f096faae051ed4a7f95fe9709",
+    "paths": {
+      "AGENTS.md": "97770398074869d5d5845c4d722e010a9597cb16",
+      "docs/engineering/agent-workflow.md": "0b331e64416001a1e679f329eeffad4da1f28604",
+      "docs/engineering/chat-coordinator.md": "ba7746bc5be8a08708696f7f25fffa3771f9ea42",
+      "openspec/changes/coordinator-orchestrator-role/.managed-task.json": "7f71c96304efdc90c6f3d0fb6412d157713b3095",
+      "openspec/changes/coordinator-orchestrator-role/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/coordinator-orchestrator-role/design.md": "fb4f9edd0d2df24e1b61b361dbf39f7640c67df5",
+      "openspec/changes/coordinator-orchestrator-role/proposal.md": "59f654cd7b5ceb37586d8fa54ac2797a35ce043f",
+      "openspec/changes/coordinator-orchestrator-role/specs/chat-coordinator/spec.md": "2ff3569ab4dc39b4d6d77c9b05aa28f1db039fb3",
+      "openspec/changes/coordinator-orchestrator-role/tasks.md": "fea7d872773a8922acf7e9d3ba02251784b25a4f",
+      "template/scripts/lifecycle_overview.py": "73a0b5f6bd80f0221dd3702f4f5ab1916b30b77c",
+      "tests/test_lifecycle_overview.py": "a0468749ae79c9c728d2b91ba47cdb6122db3745"
+    },
+    "base": "e68555697fbf2206491bbd89a596b7e04edfaa89",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_overview.py --changed-file tests/test_lifecycle_overview.py",
+    "duration_seconds": 5.419,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
