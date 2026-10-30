@@ -2,7 +2,8 @@
 
 After a coordinator finalize archived the change, a developer fix on top of the proven head
 is accepted for re-admission while the candidate waits in ``integration-repair-pending``,
-``repair-pending`` or ``blocked-escalation``; a head that does not continue the proven head is
+``repair-pending`` or ``blocked-escalation``, or when its proven head stopped ``blocked-retryable``
+on the ``semantic-verification`` red gate; a head that does not continue the proven head is
 still refused.
 """
 from __future__ import annotations
@@ -72,6 +73,27 @@ class LocalStatusDeveloperFixTests(unittest.TestCase):
                 self.observe(lineage)
 
 
+    def test_semantic_blocked_retryable_proven_head_is_observed_for_readmission(self) -> None:
+        observed = self.observe({"state": "blocked-retryable", "head": PROVEN,
+                                 "red_gate": {"name": "semantic-verification"}})
+        self.descends.assert_called_once_with(ROOT_PATH, PROVEN, FIX)
+        self.assertEqual((observed["state"], observed["proven_head"], observed["head"]),
+                         ("readmission", PROVEN, FIX))
+
+    def test_other_blocked_retryable_red_gates_still_refuse(self) -> None:
+        for red_gate in ({"name": "review"}, {"name": "selected-checks"}, {}, None):
+            with self.subTest(red_gate=red_gate), \
+                 self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+                self.observe({"state": "blocked-retryable", "head": PROVEN, "red_gate": red_gate})
+
+    def test_semantic_blocked_retryable_off_the_proven_head_still_refuses(self) -> None:
+        semantic = {"state": "blocked-retryable", "red_gate": {"name": "semantic-verification"}}
+        for lineage, descends in (({**semantic, "head": HEAD}, True), ({**semantic, "head": PROVEN}, False)):
+            with self.subTest(lineage=lineage, descends=descends), \
+                 self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+                self.observe(lineage, descends=descends)
+
+
 class SemanticReadmissionTests(unittest.TestCase):
     def run_with(self, lineage: dict | None) -> dict | None:
         observed = {"state": "readmission", "number": 7, "proven_head": PROVEN, "head": FIX}
@@ -80,6 +102,10 @@ class SemanticReadmissionTests(unittest.TestCase):
              patch.object(queue, "_comments", return_value=[]), \
              patch.object(queue, "_latest", return_value=lineage):
             return queue.semantic_readmission(ROOT_PATH, "agent/example")
+
+    def test_semantic_blocked_retryable_reopens_the_archived_handoff(self) -> None:
+        lineage = {"state": "blocked-retryable", "head": PROVEN, "red_gate": {"name": "semantic-verification"}}
+        self.assertEqual(self.run_with(lineage)["lineage"], lineage)
 
     def test_waiting_states_reopen_the_archived_handoff(self) -> None:
         for state in WAITING_STATES:
