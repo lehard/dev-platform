@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "69c8d093bf9dddfb1214734ce471c337411d979d",
+    "base_ref": "origin/main",
+    "candidate_head": "9e6523331f7cfa0b0c53784d19e57054b2134502",
+    "diff_sha256": "55f57bca685a6b15e89dae7dc239c13b1bda7f7060fdbecfad8f48de1b2561ce"
+  },
+  "completed_at": "2026-10-30T15:42:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py `_observe_pr`: `raise TransientQueueError(f\"observation failed after {attempts} attempts: {exc}\")`. design.md line 7 specifies `#N not observable after 5 attempts: <error>`. The test asserts `#1 not observable: observation failed after 5 attempts` only via worker().",
+      "id": "exhaustion-message-differs-from-design",
+      "severity": "advisory",
+      "summary": "The exhaustion error text differs from the design. The spec says the observation must fail naming the PR, the attempts and the last error. `_observe_pr` raises `observation failed after 5 attempts: <err>` and does not name the PR itself. The PR appears only because `worker()` prefixes `#N not observable:`. The design's decision text specifies `TransientQueueError(\"#N not observable after 5 attempts: <error>\")`. The spec is met only through the caller's prefix."
+    },
+    {
+      "evidence": "design.md line 8 names `_count_transient(root, repo, number, head, detail)`. The diff adds `_transient_wait(root, repo, number, detail)` and `_reset_transient`.",
+      "id": "design-names-count-transient-but-code-has-transient-wait",
+      "severity": "advisory",
+      "summary": "The design describes the counter helper as `_count_transient(root, repo, number, head, detail)`, and it is said to be called from `_integrate`'s two transient branches. The code has `_transient_wait(root, repo, number, detail)` with no head parameter. It re-reads the PR and the comments itself. `_reset_transient` is also not described in the design. This is artifact drift from the implementation, with no behavior difference."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py `_transient_wait`: `observed = _pr(root, repo, number)` and `_comments(...)` are called unguarded inside the `except` branches of `_integrate`, after `_label(..., ACTIVE, present=False)`.",
+      "id": "transient-counter-pr-reread-can-raise",
+      "severity": "advisory",
+      "summary": "`_transient_wait` re-reads the PR with plain `_pr` (single attempt, no observation retry) while handling a transient failure. A failure of that read propagates out of `_integrate`. The candidate is then skipped with no counter increment, so a persistent transient failure that also hits this read is never counted or blocked. This matches the spec's 'raise, no fallback' stance, but the bound is not enforced on that path. The spec does not address it."
+    }
+  ],
+  "launched_at": "2026-10-30T15:42:33+00:00",
+  "output_sha256": "f3e0aefeb968044bc5f87199dc147978b16d344a1596e0cbce2802de3283079a",
+  "perspective": "spec-fidelity",
+  "request_id": "d164ed31-2dcd-4530-837d-01937e31637f",
+  "reviewer": {
+    "context_id": "7740b31e-deed-4427-a5dd-f0e755611dd1",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8625e873-fbe2-4217-9bfd-2df8d0d9395a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29512
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15896
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14176
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15582
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1880
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b5fe05e197ea9ae1af5d5b084de89237783a2211ee46bbaa882b41a4dff83344"
+}

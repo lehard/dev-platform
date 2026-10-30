@@ -1,5 +1,5 @@
 OpenSpec-Verify: PASS
-Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the diff against the publication-queue delta, proposal, design and tasks; targeted unit tests (test_publication_queue, test_autonomous_integration_contour, test_pr_review_gate, test_finish_merged_queue, test_requirement_contribution_composition); repository-owned selected checks recorded by the lifecycle
+Verification-Method: supervisor semantic OpenSpec review (completeness, correctness, coherence) of the diff against the publication-queue delta, proposal, design and tasks; targeted unit tests (test_publication_queue, test_autonomous_integration_contour, test_pr_review_gate, test_finish_merged_queue, test_requirement_contribution_composition; test_publication_queue 139 passing); repository-owned selected checks recorded by the lifecycle
 Automated-Checks-Evidence: automated-checks.json
 Independent-Review-Evidence: independent-review-request.json
 
@@ -30,3 +30,4 @@ Independent-Review-Evidence: independent-review-request.json
 - Not exercised against live GitHub; the 422's transience rests on the 2026-10-27 observation recorded in the Requirement (same read succeeded minutes later).
 - `ComposeGeneratedManifestConflictTests::test_composition_conflicting_only_in_the_platform_manifest_merges_without_an_operator` fails when run in one process after `tests/test_publication_queue.py`; it fails identically on the unchanged base code and passes alone (pre-existing test-order dependence).
 - Existing fallback reported, not changed: `_block` swallows a `QueueError` from its v2 `_transition` (`except QueueError: pass`).
+- Independent review round 1: material `transient-block-ignores-claims` fixed (`_transient_wait` checks `_raise_if_owned_elsewhere` before blocking; `test_a_claimed_candidate_is_not_blocked_at_the_limit`); the exhaustion error now names the PR and the design names `_transient_wait`/`_reset_transient`. Advisory accepted: the counter and reset paths re-read the PR and comments with a single attempt, and a failure there raises (the candidate is skipped and named) rather than being counted; this follows the no-fallback rule and leaves the observation retry as the bounded recovery.

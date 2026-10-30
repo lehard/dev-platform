@@ -1126,7 +1126,7 @@ class TransientObservationTests(unittest.TestCase):
     def test_persistent_transient_failure_fails_naming_attempts_and_error(self):
         result, calls, sleeps, _ = self.observe([queue.QueueError(TOO_MANY_FILES)] * 5)
         self.assertIsInstance(result, queue.TransientQueueError)
-        self.assertIn("observation failed after 5 attempts: " + TOO_MANY_FILES, str(result))
+        self.assertIn("#1 observation failed after 5 attempts: " + TOO_MANY_FILES, str(result))
         self.assertEqual((len(calls), sleeps), (5, list(queue.OBSERVATION_BACKOFF)))
 
     def test_non_transient_failure_is_not_retried(self):
@@ -1138,7 +1138,7 @@ class TransientObservationTests(unittest.TestCase):
              patch.object(queue, "_queued", return_value=[(17, 1, admission(1, 17))]), \
              patch.object(queue, "_pr", side_effect=queue.QueueError(TOO_MANY_FILES)), \
              patch.object(queue.time, "sleep") as sleep, contextlib.redirect_stderr(io.StringIO()):
-            with self.assertRaisesRegex(queue.QueueError, "#1 not observable: observation failed after 5 attempts"):
+            with self.assertRaisesRegex(queue.QueueError, "#1 not observable: #1 observation failed after 5 attempts"):
                 queue.worker(ROOT_PATH)
         self.assertEqual([call.args[0] for call in sleep.call_args_list], list(queue.OBSERVATION_BACKOFF))
 
@@ -1152,8 +1152,9 @@ class TransientObservationTests(unittest.TestCase):
             red_gate=None, not_reverified=[], attempts=attempts, next_job=None, at="2026-10-30T08:00:00Z"))
         return [{"id": 50, "author_association": "OWNER", "body": body}]
 
-    def wait(self, comments, head=HEAD):
+    def wait(self, comments, head=HEAD, owned=None):
         with patch.object(queue, "_pr", return_value=pr(1, head)), patch.object(queue, "_comments", return_value=comments), \
+             patch.object(queue, "_raise_if_owned_elsewhere", side_effect=owned), \
              patch.object(queue, "trusted_apps", return_value=frozenset()), \
              patch.object(queue, "trusted_writers", return_value=frozenset()), \
              patch.object(queue, "_transition") as transition, \
@@ -1173,6 +1174,13 @@ class TransientObservationTests(unittest.TestCase):
         transition.assert_not_called()
         self.assertEqual(result["state"], "blocked")
         self.assertIn(f"transient failure repeated 3 times on head {HEAD}: HTTP 503", result["reason"])
+
+    def test_a_claimed_candidate_is_not_blocked_at_the_limit(self):
+        result, transition, block = self.wait(self.record(HEAD, 2), owned=queue.LifecycleOwnershipChanged("candidate is now repairing"))
+        block.assert_not_called()
+        transition.assert_not_called()
+        self.assertEqual(result["state"], "waiting")
+        self.assertIn("candidate is now repairing", result["reason"])
 
     def test_a_new_head_counts_from_one(self):
         other = "e" * 40

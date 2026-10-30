@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "69c8d093bf9dddfb1214734ce471c337411d979d",
+    "base_ref": "origin/main",
+    "candidate_head": "9e6523331f7cfa0b0c53784d19e57054b2134502",
+    "diff_sha256": "55f57bca685a6b15e89dae7dc239c13b1bda7f7060fdbecfad8f48de1b2561ce"
+  },
+  "completed_at": "2026-10-30T15:43:19+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py `_transient_wait`: `if spent >= MAX_TRANSIENT_FAILURES: return _block(...)` runs before any ownership check. `_block` (line ~1755) calls `_transition(..., 'blocked-escalation', ...)` with no `refuse_from`. Compare `_integrate` lines ~2447-2454 (`_raise_if_owned_elsewhere`). No test covers a claimed candidate at the limit.",
+      "id": "transient-block-ignores-claims",
+      "severity": "material",
+      "summary": "At the transient limit `_transient_wait` calls `_block` unconditionally. It does not check whether review or repair claimed the candidate meanwhile. The counter-increment path refuses claims (`refuse_from=CLAIM_STATES`), but the block path does not, so the queue can block a claimed candidate and write `blocked-escalation` over it. The other `_integrate` error path avoids this with `_raise_if_owned_elsewhere`, whose comment reads 'Never block a candidate that review or repair claimed meanwhile'. The design says a claim wins, but only for the counter publish."
+    },
+    {
+      "evidence": "`_transient_wait` and `_reset_transient` call `_pr` and `_comments` unguarded. `_reset_transient` is called from `_worker_candidate` after `_integrate` has already returned an outcome. No test covers a read failure in either function.",
+      "id": "transient-wait-extra-reads-can-raise",
+      "severity": "advisory",
+      "summary": "`_transient_wait` runs inside the `except` handlers of `_integrate` and makes fresh `_pr` and `_comments` reads, then `_latest` and `_transition`. `_transient_wait` runs when GitHub is already failing transiently, so any of these can raise (`QueueError`, `MalformedRecord`). The exception then replaces the intended `waiting` outcome with an error that skips or fails the candidate. `_reset_transient` has the same exposure after a successful evaluation: a read failure there turns a good `waiting` or other outcome into an exception. The design's 'No fallback' clause covers the counter publish, not these added reads."
+    },
+    {
+      "evidence": "design.md Decisions bullet 1 versus `_observe_pr`: `raise TransientQueueError(f\"observation failed after {attempts} attempts: {exc}\")`.",
+      "id": "design-error-text-mismatch",
+      "severity": "advisory",
+      "summary": "The design text and the implementation disagree on the exhaustion error. The design says `#N not observable after 5 attempts: <error>`. The code raises `observation failed after 5 attempts: <error>` without the PR number. The worker prefixes `#N not observable:` only on its skip path, so a direct `_observe_pr` caller gets an error that does not name the PR. The delta spec requires the exhaustion error to name the PR."
+    }
+  ],
+  "launched_at": "2026-10-30T15:42:52+00:00",
+  "output_sha256": "5ca3d9872c5d8c8bedcc0b5d0b1fa7355d4309fdf0ed029d9e38f0e17290930e",
+  "perspective": "engineering-quality",
+  "request_id": "d164ed31-2dcd-4530-837d-01937e31637f",
+  "reviewer": {
+    "context_id": "08571e35-bc4a-4c5d-a7c2-8ad968633e12",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-49c2d86b-a206-4d5f-be30-b0c917bd1c03",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27678
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 79128
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20771
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23134
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2773
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "b5fe05e197ea9ae1af5d5b084de89237783a2211ee46bbaa882b41a4dff83344"
+}

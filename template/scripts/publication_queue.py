@@ -1006,7 +1006,7 @@ def _observe_pr(root: Path, repo: str, number: int, *, sleep: Callable[[float], 
                 raise
             print(f"publication queue: #{number} observation attempt {attempt}/{attempts} failed: {exc}", file=sys.stderr)
             if attempt == attempts:
-                raise TransientQueueError(f"observation failed after {attempts} attempts: {exc}") from exc
+                raise TransientQueueError(f"#{number} observation failed after {attempts} attempts: {exc}") from exc
             sleep(OBSERVATION_BACKOFF[attempt - 1])
     raise AssertionError("unreachable")
 
@@ -1025,6 +1025,10 @@ def _transient_wait(root: Path, repo: str, number: int, detail: str) -> dict[str
     key = TRANSIENT_COUNTER_PREFIX + str(head)
     spent = previous.get("attempts", {}).get(key, 0) + 1
     if spent >= MAX_TRANSIENT_FAILURES:
+        try:
+            _raise_if_owned_elsewhere(root, repo, number, head)  # never block a candidate review or repair claimed
+        except LifecycleOwnershipChanged as owned:
+            return {"state": "waiting", "number": number, "reason": f"transient failure; {owned}"[:500], "transient": True}
         return _block(root, repo, number, f"transient failure repeated {spent} times on head {head}: {detail}"[:500],
                       head=head)
     try:
