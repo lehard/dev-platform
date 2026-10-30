@@ -155,6 +155,15 @@ class ExceptionTests(unittest.TestCase):
         self.assertIn("lifecycle worker", item["human_decision"])
         self.assertTrue(item["expected_automation"].startswith("overdue"))
 
+    def test_unclaimed_post_merge_job_names_the_runner_and_the_exact_local_command(self):
+        comments = [marker(record("integrating", attempts={"post-merge": 1}), 1)]
+        item = assess(comments, pr=pull(merged=True), minutes_after=95)
+        self.assertEqual((kinds(item), item["job"]["kind"]), (["unclaimed-next-job"], "retrospective"))
+        self.assertIn("post-merge runner", item["human_decision"])
+        self.assertIn('GH_TOKEN="$(gh auth token)" python3 scripts/lifecycle_workers.py work-next --repo o/r '
+                      "--kinds retrospective --pr 7 --run", item["human_decision"])
+        self.assertNotIn("hosted run", item["human_decision"])
+
     def test_merged_contribution_awaits_its_requirement_composition(self):
         contribution = {"kind": "contribution", "requirement": "o/b#5", "target_branch": "requirement/br-5",
                         "contribution_base": "b" * 40, "task_content": IDENTITY["task_content"]}
