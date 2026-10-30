@@ -72,7 +72,7 @@
     "scripts/agent_doctor.py": "9126de064e12cc8605e3fe37a4b75f41189f03198dc429ef6d9fd79941dad75d",
     "scripts/agent_friction.py": "2e77c6b57c32abdae1b0af5b955a7ece4a620185389924211410c98ffb052281",
     "scripts/agent_sessions.py": "5c3dc9a16adb5296c354e7b9f0fd0c5eddd611d5c0fbcccd59216b2c404c75dd",
-    "scripts/agent_signal.py": "6cc6920681ba849f3be74b5b0f0b756549d3c9387962471b04b0f8e913909e44",
+    "scripts/agent_signal.py": "468c5ae500a0563f101c45b759f4012fc24a7bc7a29c7d84163d03218b4038ca",
     "scripts/browser_verification.py": "24dd49549b7bd9976ec548c78fa8ea6b2930d48eac6750bda9e52c9156c20b92",
     "scripts/candidate_lifecycle.py": "a2953e7e7b0a678eaf0395d344253bc53ea529fe3c8f78b623e0183b0e62bf92",
     "scripts/capability_evals.py": "d5526d3570f8381142b7536fd548151045c87b2c6450261a3b2d0d123afbd988",

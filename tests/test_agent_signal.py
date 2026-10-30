@@ -165,6 +165,8 @@ class SignalTests(unittest.TestCase):
         self.assertIn("malformed entry", signal.open_signals(self.root, now=NOW)["error"])
         with self.assertRaisesRegex(signal.SignalError, "malformed entry"):
             signal.resolve_signal("x1", "owner", root=self.root)
+        with self.assertRaisesRegex(signal.SignalError, "malformed entry"):
+            self.raise_()
 
     def test_open_signal_without_count_cannot_be_raised_again(self):
         self.raise_()

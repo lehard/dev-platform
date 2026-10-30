@@ -60,6 +60,9 @@ def _require_board(root: Path) -> Path:
 
 
 def _own_entry(items: list[dict], worktree: Path) -> dict:
+    for item in items:
+        if not isinstance(item, dict):
+            raise SignalError(f"agent board has a malformed entry: {item!r}")
     branch = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=worktree).stdout.strip()
     entry = _find_item(items, worktree, branch)
     if entry is None:

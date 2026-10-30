@@ -28,6 +28,12 @@ Automated-Checks-Evidence: automated-checks.json
 - An unclassified `[capabilities]` stops with `SignalError` / an overview error line instead of exiting the process (`test_unclassified_capabilities_is_an_explicit_error_not_an_exit`).
 - Spec deltas and design are unchanged: the behavior still matches them; the change tightens failure handling only.
 
+## Re-verification after integration repair (head 36a19da)
+
+- Re-read the delta specs, design and the current code against each other after the integration repair changed `tests/test_agent_signal.py`: behavior still matches the contract (store/collapse/resolve on the task's own board entry, "Owner needed" section, named errors, no fallbacks).
+- Advisory review finding closed: a non-dict board item reaching `_own_entry` is now a named `SignalError` ("malformed entry") instead of an `AttributeError` from the board lookup (`test_malformed_entry_or_signal_is_an_error_in_the_cli_and_in_the_overview`, raise path).
+- Method: manual OpenSpec review of completeness, correctness and coherence plus the automated selected checks of this handoff.
+
 ## Not verified / limits
 
 - Not exercised from a real agent session against the live board; covered by tests over a temporary git repository with worktrees and a temporary board file.
