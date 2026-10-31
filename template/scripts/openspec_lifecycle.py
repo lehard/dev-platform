@@ -853,6 +853,17 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     composition = os.environ.get("DEV_PLATFORM_COMPOSITION_FINALIZATION") if finalize else None
     if composition and mode != "coordinator":
         raise SystemExit("composition finalization requires a coordinator source contract")
+    if not finalize and mode == "coordinator":
+        from pr_review_gate import managed_candidate
+
+        if managed_candidate(root):
+            # A candidate is handed off with its change active; an archived task is no
+            # longer a candidate and would publish through the strict terminal path (BR-940).
+            raise SystemExit(
+                f"{name}: a developer does not archive a coordinator candidate; the coordinator's finalize archives it. "
+                "Hand off the active change: `python3 scripts/execute_requirement.py advance --requirement <owner/repo#N>` "
+                "for a Requirement child, otherwise `python3 scripts/dogfood_task.py finish`."
+            )
     # Cheap privacy gate before review, checks, evidence writes or OpenSpec mutation.
     import private_lineage
     try:
@@ -887,20 +898,8 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
         # Required independent review runs after the cheap deterministic gates and
         # before expensive validation: a missing or stale review is launched now,
         # and blocking findings stop archive with exact next commands.
-        if mode == "coordinator":
-            from pr_review_gate import managed_candidate
-
-            coordinator_managed = managed_candidate(root)
-        else:
-            coordinator_managed = False
-        if coordinator_managed:
-            require_review_evidence(root, change)
-        else:
-            ensure_review_evidence(root, change)
-        if platform_owned and coordinator_managed:
-            # Validate content-bound selected checks; never rerun unchanged evidence.
-            require_automated_evidence(change, root=root)
-        elif platform_owned:
+        ensure_review_evidence(root, change)
+        if platform_owned:
             evidence = change / AUTOMATED_EVIDENCE_FILE
             # One receipt for archive and finish: evidence that proves this task content is not run again.
             reused = False

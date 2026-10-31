@@ -89,6 +89,7 @@ REVIEW_EXCLUDED_FILES = (
 REVIEW_EXCLUDED_DIRS = ("evidence/", "independent-reviews/")
 REVIEW_SCOPE = "independent-review-v1"
 QUICK_SCOPE = "quick-task-v1"
+CHECKPOINT_SCOPE = "friction-checkpoint-v1"
 QUICK_EVIDENCE_GIT_PATH = "dev-platform/check-evidence.json"
 
 
@@ -110,6 +111,17 @@ def quick_content_identity(root: Path, base_ref: str = "origin/main") -> dict[st
     """Content proof of a quick task (no OpenSpec change): its own diff, declared generated files excluded."""
     generated = _declared_generated_at_base(root)
     return content_identity(root, [], base_ref, exclude=lambda canonical, raw: canonical in generated, scope=QUICK_SCOPE)
+
+
+def checkpoint_content_identity(root: Path, change: str, base_ref: str = "origin/main") -> dict[str, object] | None:
+    """Content proof binding a managed task's friction checkpoint: declared generated files excluded (BR-940).
+
+    A merge-only reconcile that changes only a generated file keeps the proof equivalent;
+    any other task-owned change still alters it.
+    """
+    generated = _declared_generated_at_base(root)
+    return content_identity(root, change, base_ref, exclude=lambda canonical, raw: canonical in generated,
+                            scope=CHECKPOINT_SCOPE)
 
 
 def quick_task_evidence_path(root: Path) -> Path:

@@ -64,6 +64,38 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 review.assert_called_once_with(root, root / "openspec/changes/work")
                 validate.assert_not_called()
 
+    def test_developer_archive_of_a_coordinator_candidate_is_refused_before_any_work(self):
+        # BR-940: the candidate is handed off active; only the coordinator's finalize archives it.
+        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "work", "- [x] done\n")
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
+                    mock.patch.object(gate, "managed_candidate", return_value=True), \
+                    mock.patch.object(lifecycle, "require_static_archive_readiness") as readiness, \
+                    mock.patch.object(lifecycle, "ensure_review_evidence") as review, \
+                    mock.patch.object(lifecycle, "run_checked") as validate:
+                with self.assertRaisesRegex(SystemExit, r"does not archive a coordinator candidate.*finalize archives it.*"
+                                                        r"execute_requirement\.py advance.*dogfood_task\.py finish"):
+                    lifecycle.archive_change(root, "work")
+            readiness.assert_not_called()
+            review.assert_not_called()
+            validate.assert_not_called()
+            self.assertTrue((root / "openspec/changes/work/tasks.md").is_file())
+
+    def test_finalize_archive_of_a_coordinator_candidate_is_not_refused(self):
+        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.make_change(root, "work", "- [x] done\n")
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
+                    mock.patch.object(gate, "managed_candidate", return_value=True) as candidate, \
+                    mock.patch.object(lifecycle, "require_static_archive_readiness"), \
+                    mock.patch.object(lifecycle, "require_review_evidence", side_effect=SystemExit("finalize reached review")):
+                with self.assertRaisesRegex(SystemExit, "finalize reached review"):
+                    lifecycle.archive_change(root, "work", finalize=True)
+            candidate.assert_not_called()
+
     def _portable_archive_checks(self, decision: dict | None) -> tuple[mock.Mock, mock.Mock, str]:
         """Drive portable archive to its selected-check step; stop at require_ready."""
         import io
