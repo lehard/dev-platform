@@ -1,0 +1,45 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agent-runtime/spec.md",
+    "specs/agent-sessions/spec.md",
+    "specs/architecture-health/spec.md",
+    "specs/blocking-check-recovery/spec.md",
+    "specs/ci-safety/spec.md",
+    "specs/decision-layer-evaluation/spec.md",
+    "specs/decision-registry/spec.md",
+    "specs/engineering-capabilities/spec.md",
+    "specs/goal-definition/spec.md",
+    "specs/local-platform-hotfix/spec.md",
+    "specs/managed-rollout/spec.md",
+    "specs/managed-work-identity/spec.md",
+    "specs/model-routing/spec.md",
+    "specs/openspec-authoring/spec.md",
+    "specs/project-factory/spec.md",
+    "specs/public-distribution/spec.md",
+    "specs/shared-workspace/spec.md",
+    "specs/shared-workspace-coordination/spec.md",
+    "tasks.md"
+  ],
+  "change": "split-long-requirements-part-1",
+  "imported_at": "2026-10-31T06:32:12+00:00",
+  "package_revision": "a0cc569cf07f59b686cd66e848851323ba80852cb711e43d09e826f465626623",
+  "prepared_against": "9390a100eaae7e143c66dfe8fd54847a2a68b17b",
+  "private_lineage_handle": "pln_29f155acc9e3b170a7673343316c8a3f",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "0035d971fac08becad24852660477df03c05e1f143f3144ee46d8051de86ee83",
+    "updated_at": "2026-10-31T06:28:55Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
