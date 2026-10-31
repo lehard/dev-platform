@@ -23,6 +23,13 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Spec delta, proposal, design, tasks, docs and explorer describe the same flag; the platform manifest is regenerated for the engine hint.
 
+## Review repair (developer fix after reconcile with main)
+
+- Material `model-routing-doc-says-profile-still-works`: the freshness paragraph now says an explicit `--tier` routes as the former explicit profile and `--profile` is refused naming `--tier`.
+- Advisory `model-routing-doc-profile-names-remain`: the route-command paragraphs name `R1`/`R2`/`R3` (authored or `--tier`) instead of profile names.
+- Advisory `template-hint-references-source-only-script`: the shipped engine hint no longer names the source-only `dogfood_task.py`; it says "or an explicit --tier on the command that wraps this one" (test updated).
+- Branch reconciled with `main` by merge (`template/dev-platform/platform-manifest.json` regenerated, not hand-edited); targeted tests (227) pass.
+
 ## Not verified / limits
 
 - Engine-internal profile names in routing records, help texts of `model_routing.py` and downstream template docs are unchanged by design.

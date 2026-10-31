@@ -101,7 +101,7 @@
     "scripts/managed_task.py": "c40edee7b6bbb960ada60c607e54d7147c5d7855773188bcdfc2713886e141e5",
     "scripts/managed_work_identity.py": "7dd16aaa2f5fda3c5ee48a7de86c713d4f82b3294d12b9ac9fcdf9a3bc480e28",
     "scripts/merge_to_main.py": "f2cc4d03923da2fc86402fbb4bc8558d14789a8c694db37606c6cb677e44cb1f",
-    "scripts/model_routing.py": "6a7dba434da7eac5d9513af7d865ff1227499abcde49413c5fd96cbed3b37588",
+    "scripts/model_routing.py": "4f75201c4abdb9a80007301fd0b043f7b12747c137732e27c7d410beac6f0580",
     "scripts/openspec_lifecycle.py": "284c9709f86386bd95d497c4378eb51f86291c1adbeeb4154fef3f914c5d1ad2",
     "scripts/orchestrate_pre_authoring.py": "d2d7e15a308578f6c2971b8d548bd43e54c36dff1067e67bf67e3fd36963ff79",
     "scripts/parallel_lifecycle_acceptance.py": "bd0343f7863d53e99b95164f8056f1b5c1286b16c44b29aeb59d0b9693ca0223",

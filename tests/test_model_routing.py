@@ -162,7 +162,7 @@ class ModelRoutingTests(unittest.TestCase):
 
     def test_prepare_without_profile_and_without_receipt_requires_explicit_profile(self) -> None:
         with patch.object(routing, "main_root", return_value=self.integration):
-            with self.assertRaisesRegex(routing.RoutingError, r"pass an explicit --profile \(dogfood_task.py route-\*: --tier R1\|R2\|R3\)"):
+            with self.assertRaisesRegex(routing.RoutingError, r"pass an explicit --profile \(or an explicit --tier on the command that wraps this one\)"):
                 routing.prepare(self.task, provider="codex", profile=None, rationale="no receipt available", evidence=[], delegate=True)
 
     def test_explicit_profile_override_still_records_authored_tier(self) -> None:
