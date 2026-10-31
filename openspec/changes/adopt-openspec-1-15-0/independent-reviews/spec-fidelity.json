@@ -1,32 +1,29 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
+    "base_head": "6b6af16159b9d3f7abbf3c3831b21f876ffb203b",
     "base_ref": "origin/main",
-    "candidate_head": "84c592fa8d601a1005fda79fc24297f9ca1370da",
-    "diff_sha256": "f92ddf16bb7b2788cb718bb7a973cfed55f4f0650935efae8adf403918cdff8c"
+    "candidate_head": "eb39ba65d3127a41dc0f72813bd98c13db88a4ad",
+    "diff_sha256": "5c5c1c3a04fcb2adb64be1d5a77e88b3ed85d3688ff4fa2ec6e4b2af1d8e302c"
   },
-  "completed_at": "2026-10-31T11:03:39+00:00",
+  "completed_at": "2026-10-31T11:53:25+00:00",
   "findings": [],
-  "launched_at": "2026-10-31T11:02:58+00:00",
+  "launched_at": "2026-10-31T11:53:09+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "27b62d72-e646-4db9-9b03-5eba47a55c7e",
+  "request_id": "86bde108-a720-497d-912b-3f24c1320cb8",
   "reviewer": {
-    "context_id": "8c7b4671-7b0e-4aac-8395-b003ca4cc84c",
+    "context_id": "462e58bc-3d79-4c6a-a5b0-e16e55214463",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-21ea000c-2f2a-47b4-9b86-c3b8898e49b2",
+    "launch_id": "platform-launch-fb91eb04-1f4f-4ff4-914f-ba6c746e9467",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -35,37 +32,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 60119
+        "value": 40441
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 265459
+        "value": 178221
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32398
+        "value": 15353
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37571
+        "value": 15690
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3663
+        "value": 1576
       }
     },
     "runtime": "claude-code-print"
