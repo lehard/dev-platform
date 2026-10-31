@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_ref": "origin/main",
+    "candidate_head": "38396f413b51533705fd32192955a5e09af8430c",
+    "diff_sha256": "3b0a59d23fb35cd2193a52499950eb5dd768f381cd19b410f3c530328bb223ec"
+  },
+  "completed_at": "2026-10-31T14:49:34+00:00",
+  "findings": [
+    {
+      "evidence": "Spec worktree-coordination: \"kept as a handed-off record with its identity, overlap acknowledgments, handed-off head and PR\". design.md: \"`agent_board.py hand-off --id <id> --head <sha> --pr <N>` sets `handed_off: {head, pr, at}`\". Code: template/scripts/agent_board.py `cmd_hand_off` sets `item[\"handed_off\"] = {\"head\": args.head, \"at\": utc_now()}`. The parser (build_parser) defines no `--pr` option. `finish_task.hand_off_board` passes only `--id` and `--head`. `rehandoff_refusal` resolves the PR with `gh pr view <branch>` and never compares it to a recorded PR number. design.md also says acceptance applies \"only when the PR it names is open\".",
+      "id": "handed-off-record-omits-pr",
+      "severity": "material",
+      "summary": "The handed-off board record stores only the head and a timestamp, not the PR. The worktree-coordination spec requires the record to keep the handed-off PR, and design.md describes `hand-off --id --head --pr` writing `{head, pr, at}`. Preflight acceptance is also supposed to check that exact PR. It instead looks up whatever PR `gh pr view <branch>` returns."
+    }
+  ],
+  "launched_at": "2026-10-31T14:49:20+00:00",
+  "output_sha256": "13d5263598578b1bd1810514d201b695a5ec269c415f8004dcc2fcc0b727e648",
+  "perspective": "spec-fidelity",
+  "request_id": "74102729-1549-401d-845f-ceb1e4eb29e8",
+  "reviewer": {
+    "context_id": "78570f0f-6a2e-4b14-9bed-e8954655f042",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-91f9c49a-a81f-4905-a9b7-28cafbfe41a0",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37801
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16146
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11024
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11834
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1323
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "60705744a9ce261a6635fe8c88c8aec1a84ad929076f02c8a2a37281200359db"
+}

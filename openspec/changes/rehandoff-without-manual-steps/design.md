@@ -9,7 +9,7 @@
 - **Cleanup.** `worktree_cleanup._active_board_paths` skips handed-off records, so an admitted task's worktree is not `active-board` for post-merge cleanup (friction #802 stays fixed); a record whose worktree is gone is removed by `agent_board.py doctor --fix` as before.
 - **Reactivation.** `finish_developer_handoff` (advance calls `finish_task.py`), and the terminal-path finish right before `project_publish.py`, run `agent_board.py reactivate --id <id>` after the preflight passed; admission then hands it off at the new head.
 - **Checkpoint.** `handoff_gates` runs `assert-checkpoint` without `--exact-head`: the managed task-content proof (BR-940) decides; changed task content still fails.
-- **Routing.** `handoff_gates` calls `require_managed_routing_evidence(change)` for an active change before the checkpoint; its SystemExit becomes a `WorkerError` with the same text.
+- **Routing.** `handoff_gates` calls `require_managed_routing_evidence(change)` for an active change before the checkpoint (an archived re-admission passed it at its first handoff); its SystemExit becomes a `WorkerError` with the same text.
 
 ## Risks
 

@@ -691,7 +691,7 @@ def cmd_hand_off(args: argparse.Namespace) -> int:
             if not args.quiet:
                 print(f"Board id not found: {args.id}")
             return 0
-        item["handed_off"] = {"head": args.head, "at": utc_now()}
+        item["handed_off"] = {"head": args.head, "pr": args.pr, "at": utc_now()}
     return 0
 
 
@@ -847,7 +847,7 @@ def _required_scope_inputs(root: Path, worktree: Path, branch: str, config: dict
 def rehandoff_refusal(worktree: Path, item: dict) -> str | None:
     """Why a handed-off claim cannot serve a re-handoff now, or ``None`` when it can (read-only).
 
-    It can while the branch's open PR has a latest coordinator record in
+    It can while the exact handed-off PR (of this branch) is open, has a latest coordinator record in
     ``READMISSION_STATES`` and HEAD descends from the handed-off head. A failed read stops.
     """
     import publication_queue as queue
@@ -855,10 +855,11 @@ def rehandoff_refusal(worktree: Path, item: dict) -> str | None:
 
     handed = item.get("handed_off")
     head = handed.get("head") if isinstance(handed, dict) else None
-    if not isinstance(head, str) or not head:
-        raise _scope_gate_unavailable(f"the handed-off board claim {item.get('id')} records no handed-off head")
+    recorded = handed.get("pr") if isinstance(handed, dict) else None
+    if not isinstance(head, str) or not head or not isinstance(recorded, int):
+        raise _scope_gate_unavailable(f"the handed-off board claim {item.get('id')} records no handed-off head and PR")
     branch = str(item.get("branch", ""))
-    result = run_github_with_retry(["gh", "pr", "view", branch, "--json", "number,state,headRefName"], cwd=worktree)
+    result = run_github_with_retry(["gh", "pr", "view", str(recorded), "--json", "number,state,headRefName"], cwd=worktree)
     if result.returncode:
         raise _scope_gate_unavailable(f"cannot read the PR of handed-off branch {branch}: "
                                       + (result.stderr or result.stdout).strip()[:300])
@@ -866,8 +867,8 @@ def rehandoff_refusal(worktree: Path, item: dict) -> str | None:
         pr = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         raise _scope_gate_unavailable(f"the PR lookup for {branch} returned invalid JSON: {exc}") from exc
-    if pr.get("headRefName") != branch or not isinstance(pr.get("number"), int):
-        return f"no PR of branch {branch} is known"
+    if pr.get("headRefName") != branch or pr.get("number") != recorded:
+        return f"the handed-off PR #{recorded} is not a PR of branch {branch}"
     number = pr["number"]
     if pr.get("state") != "OPEN":
         return f"its PR #{number} is {str(pr.get('state')).lower()}"
@@ -978,6 +979,7 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("hand-off", help="keep a claim admitted to the coordinator as a handed-off record")
     p.add_argument("--id", required=True)
     p.add_argument("--head", required=True)
+    p.add_argument("--pr", required=True, type=int)
     p.add_argument("--quiet", action="store_true")
     p.set_defaults(func=cmd_hand_off)
 

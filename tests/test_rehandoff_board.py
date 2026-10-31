@@ -41,15 +41,15 @@ class HandedOffRecordTests(unittest.TestCase):
         return json.loads(self.board.read_text())["items"][0]
 
     def test_hand_off_keeps_the_record_and_its_acknowledgments(self) -> None:
-        agent_board.cmd_hand_off(argparse.Namespace(id="mine", head=HEAD, quiet=True))
+        agent_board.cmd_hand_off(argparse.Namespace(id="mine", head=HEAD, pr=7, quiet=True))
         item = self.item()
-        self.assertEqual(item["handed_off"]["head"], HEAD)
+        self.assertEqual((item["handed_off"]["head"], item["handed_off"]["pr"]), (HEAD, 7))
         self.assertEqual(item["acknowledgments"], [ACK])
 
     def test_reactivate_makes_only_a_handed_off_claim_active(self) -> None:
         with self.assertRaisesRegex(SystemExit, "mine is not a handed-off claim"):
             agent_board.cmd_reactivate(argparse.Namespace(id="mine"))
-        agent_board.cmd_hand_off(argparse.Namespace(id="mine", head=HEAD, quiet=True))
+        agent_board.cmd_hand_off(argparse.Namespace(id="mine", head=HEAD, pr=7, quiet=True))
         agent_board.cmd_reactivate(argparse.Namespace(id="mine"))
         item = self.item()
         self.assertNotIn("handed_off", item)
@@ -83,10 +83,11 @@ class CleanupTests(unittest.TestCase):
 
 
 class RehandoffAcceptanceTests(unittest.TestCase):
-    ITEM = {"id": "mine", "branch": "agent/x", "handed_off": {"head": HEAD}}
+    ITEM = {"id": "mine", "branch": "agent/x", "handed_off": {"head": HEAD, "pr": 7}}
 
-    def refusal(self, *, state: str = "repair-pending", pr_state: str = "OPEN", descends: bool = True) -> str | None:
-        pr = subprocess.CompletedProcess("gh", 0, stdout=json.dumps({"number": 7, "state": pr_state, "headRefName": "agent/x"}), stderr="")
+    def refusal(self, *, state: str = "repair-pending", pr_state: str = "OPEN", descends: bool = True,
+                number: int = 7) -> str | None:
+        pr = subprocess.CompletedProcess("gh", 0, stdout=json.dumps({"number": number, "state": pr_state, "headRefName": "agent/x"}), stderr="")
         with mock.patch("_platform_common.run_github_with_retry", return_value=pr), \
                 mock.patch.object(publication_queue, "_repo", return_value="o/r"), \
                 mock.patch.object(publication_queue, "_comments", return_value=[]), \
@@ -103,6 +104,7 @@ class RehandoffAcceptanceTests(unittest.TestCase):
         self.assertIn("PR #7 is integrating", self.refusal(state="integrating"))
         self.assertIn("PR #7 is merged", self.refusal(pr_state="MERGED"))
         self.assertIn("does not descend from the handed-off head", self.refusal(descends=False))
+        self.assertIn("handed-off PR #7 is not a PR of branch agent/x", self.refusal(number=8))
 
     def test_the_scope_gate_refuses_a_handed_off_claim_naming_the_command(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -148,10 +150,13 @@ class FinishBoardTests(unittest.TestCase):
     def test_admission_hands_the_claim_off_at_head(self) -> None:
         self.write({})
         done = subprocess.CompletedProcess("board", 0)
+        pr = subprocess.CompletedProcess("gh", 0, stdout=json.dumps({"number": 7, "headRefName": "agent/x"}), stderr="")
         with mock.patch.object(finish_task, "run_git", return_value=mock.Mock(stdout=HEAD + "\n")), \
+                mock.patch.object(finish_task, "current_branch", return_value="agent/x"), \
+                mock.patch("_platform_common.run_github_with_retry", return_value=pr), \
                 mock.patch.object(finish_task.subprocess, "run", return_value=done) as run:
             finish_task.hand_off_board(self.main, self.main, self.config)
-        self.assertEqual(run.call_args.args[0][2:], ["hand-off", "--id", "mine", "--head", HEAD, "--quiet"])
+        self.assertEqual(run.call_args.args[0][2:], ["hand-off", "--id", "mine", "--head", HEAD, "--pr", "7", "--quiet"])
 
 
 class HandoffGateTests(unittest.TestCase):
@@ -181,6 +186,13 @@ class HandoffGateTests(unittest.TestCase):
     def test_a_missing_retained_outcome_fails_at_handoff(self) -> None:
         with self.assertRaisesRegex(lifecycle_workers.WorkerError, "routing archive gate blocked"):
             self.gates(routing=SystemExit("work: routing archive gate blocked: retained execution outcome missing"))
+
+    def test_an_archived_re_admission_is_not_routed_again(self) -> None:
+        self.change = Path(self.tmp.name) / "openspec/changes/archive/2026-10-31-work"
+        self.change.mkdir(parents=True)
+        with mock.patch.object(pr_review_gate, "_archived_handoff_change", return_value="work"):
+            route, _ = self.gates()
+        route.assert_not_called()
 
     def test_the_checkpoint_is_asserted_by_task_content_not_exact_head(self) -> None:
         route, run = self.gates()

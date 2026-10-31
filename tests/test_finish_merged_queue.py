@@ -202,6 +202,8 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
             mock.patch.object(finish_task, "enforce_scope_gate"),
             mock.patch.object(finish_task, "resume_from_scope_conflict"),
             mock.patch.object(finish_task.subprocess, "run", side_effect=run),
+            mock.patch("_platform_common.run_github_with_retry", return_value=types.SimpleNamespace(
+                returncode=0, stdout=json.dumps({"number": 7, "headRefName": "agent/task"}), stderr="")),
         ]
         for patch in patches:
             patch.start()
@@ -217,7 +219,7 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertEqual(self.releases(commands),
                          [["python3", str(Path(work) / "scripts" / "agent_board.py"), "hand-off", "--id", "claim-1",
-                           "--head", HANDED_HEAD, "--quiet"]])
+                           "--head", HANDED_HEAD, "--pr", "7", "--quiet"]])
 
     def test_rerun_while_admitted_releases_a_claim_still_held(self) -> None:
         code, commands, _ = self.run_queued(claimed=True, early=True)

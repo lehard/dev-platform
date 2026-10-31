@@ -158,11 +158,13 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     if not verification_passed(change):
         raise workers.WorkerError("developer handoff requires successful semantic verification and its method")
     require_automated_evidence(change, root=root)
-    try:
-        # The archive routing gate, at every handoff: a missing route or retained outcome fails now (BR-965).
-        require_managed_routing_evidence(change)
-    except SystemExit as exc:
-        raise workers.WorkerError(str(exc)) from exc
+    if change.parent.name != "archive":
+        # The archive routing gate, at every handoff of an active change: a missing route or retained
+        # outcome fails now (BR-965). An archived re-admission passed it at the change's first handoff.
+        try:
+            require_managed_routing_evidence(change)
+        except SystemExit as exc:
+            raise workers.WorkerError(str(exc)) from exc
     identity = task_identity(root, name)
     helper = root / "scripts/agent_friction.py"
     if not helper.is_file():

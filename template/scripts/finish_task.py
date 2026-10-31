@@ -114,7 +114,18 @@ def hand_off_board(main: Path, worktree: Path, config: dict) -> None:
     board_id = find_board_id(main, worktree, config)
     if board_id:
         head = run_git(["rev-parse", "HEAD"], cwd=worktree).stdout.strip()
-        _board_command(main, "hand-off", "--id", board_id, "--head", head, "--quiet")
+        branch = current_branch(worktree)
+        from _platform_common import run_github_with_retry
+
+        result = run_github_with_retry(["gh", "pr", "view", branch, "--json", "number,headRefName"], cwd=worktree)
+        try:
+            pr = json.loads(result.stdout) if not result.returncode else None
+        except json.JSONDecodeError:
+            pr = None
+        if not isinstance(pr, dict) or pr.get("headRefName") != branch or not isinstance(pr.get("number"), int):
+            raise SystemExit(f"PR was published, but its number for branch {branch} cannot be read to hand the board "
+                             f"claim {board_id} off: " + (result.stderr or result.stdout).strip()[:300])
+        _board_command(main, "hand-off", "--id", board_id, "--head", head, "--pr", str(pr["number"]), "--quiet")
 
 
 def reactivate_handed_off_board(main: Path, worktree: Path, config: dict) -> None:

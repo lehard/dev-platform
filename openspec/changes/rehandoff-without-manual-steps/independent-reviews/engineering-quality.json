@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_ref": "origin/main",
+    "candidate_head": "38396f413b51533705fd32192955a5e09af8430c",
+    "diff_sha256": "3b0a59d23fb35cd2193a52499950eb5dd768f381cd19b410f3c530328bb223ec"
+  },
+  "completed_at": "2026-10-31T14:50:00+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/pr_review_gate.py:152-165: the `change.parent.name == \"archive\"` branch resolves `name`, but line 163 still passes `change`, the archived path. openspec_lifecycle.py:679-688 reads `.managed-task.json`, uses `change.parents[2]` as the repo root, and requires `managed_change == change.name`. For `openspec/changes/archive/<date>-<name>` the `payload[\"change\"]` is the canonical name, not the dated directory name, so it exits with 'routing archive gate found invalid managed-task provenance'. `parents[2]` is also `openspec/`, not the repo root. The new tests only use an active change directory, so this is not covered.",
+      "id": "routing-gate-runs-on-archived-change",
+      "severity": "material",
+      "summary": "handoff_gates calls require_managed_routing_evidence(change) unconditionally, including the archived-change re-admission branch (integration-repair reopen). The design says the gate applies to an active change only. For an archived change the gate looks in the wrong place and refuses, so that supported re-handoff path fails."
+    },
+    {
+      "evidence": "template/scripts/agent_board.py:259 sets `item[\"handed_off\"] = {\"head\": args.head, \"at\": utc_now()}`, and the parser (around lines 342-346) has no `--pr`. rehandoff_refusal (lines 308-317) looks the PR up by branch. A closed PR followed by a new PR on the same branch could be matched to the wrong handoff. The artifacts and the code disagree.",
+      "id": "handed-off-record-omits-pr",
+      "severity": "advisory",
+      "summary": "The handed-off record stores only head and timestamp. The design and spec say it records the PR (`hand-off --id --head --pr`, `handed_off: {head, pr, at}`). The acceptance check instead re-resolves the PR by branch name via `gh pr view <branch>`."
+    }
+  ],
+  "launched_at": "2026-10-31T14:49:34+00:00",
+  "output_sha256": "cfe82503c9992eba3c7d6778294fc85dd22eacb9f65c8e60ef13d73aaf2a2164",
+  "perspective": "engineering-quality",
+  "request_id": "74102729-1549-401d-845f-ceb1e4eb29e8",
+  "reviewer": {
+    "context_id": "d466b327-104f-4625-b5a4-6ab9bdb9db01",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-720c8e3e-c0e1-41a7-9967-0d9366eece78",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33660
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57500
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20484
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22582
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1983
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "60705744a9ce261a6635fe8c88c8aec1a84ad929076f02c8a2a37281200359db"
+}
