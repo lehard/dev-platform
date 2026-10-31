@@ -634,7 +634,10 @@ def rebind(root: Path, *, requirement_id: str, base_dir: Path | None = None,
     blocker = report.get("blocker") or {}
     reapprove = (f"rebuild the snapshot, re-approve the ADD and re-prepare intents and handoffs "
                  f"(orchestrate_pre_authoring.py --id {requirement_id} status)")
-    if stage not in REBINDABLE_STAGES or (stage == "snapshot" and blocker.get("state") != "stale"):
+    stale = blocker.get("state") == "stale" or (
+        stage == "handoff" and blocker.get("state") == "needs-handoff"
+        and bool(blocker.get("stale_intent_ids")) and not blocker.get("missing_intent_ids"))
+    if stage not in REBINDABLE_STAGES or not stale:
         raise RebindStop(f"{requirement_id}: pre-authoring stage {stage} is {blocker.get('state')}, not a stale "
                          f"approved chain; {blocker.get('action') or reapprove}")
     snapshot = _load_json(snapshot_path(directory), "snapshot")
