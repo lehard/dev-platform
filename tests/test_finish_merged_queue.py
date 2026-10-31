@@ -136,9 +136,13 @@ class QueueMergedFinishTests(unittest.TestCase):
         reconcile.assert_not_called()
 
 
+HANDED_HEAD = "b" * 40
+
+
 class QueueAdmissionReleasesClaimTests(unittest.TestCase):
-    """Admission releases the developer claim: a queued quick task must not keep its
-    board claim, or post-merge cleanup refuses with ``active-board`` (friction #802)."""
+    """Admission hands the developer claim off: a queued quick task keeps no active board
+    claim, or post-merge cleanup refuses with ``active-board`` (friction #802); the handed-off
+    record keeps its acknowledgments for a re-handoff (BR-965)."""
 
     def run_queued(self, *, claimed: bool, early: bool, release_code: int = 0) -> tuple[int | None, list, str]:
         import finish_task
@@ -161,7 +165,9 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
             commands.append(command)
             if "project_publish.py" in str(command[1]):
                 return types.SimpleNamespace(returncode=1)  # publish stops at queue admission
-            return types.SimpleNamespace(returncode=release_code)
+            if command[0] == "git":
+                return types.SimpleNamespace(returncode=0, stdout=HANDED_HEAD + "\n", stderr="")
+            return types.SimpleNamespace(returncode=release_code, stdout="", stderr="")
 
         patches = [
             mock.patch.object(sys, "argv", ["finish_task.py"]),
@@ -196,6 +202,8 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
             mock.patch.object(finish_task, "enforce_scope_gate"),
             mock.patch.object(finish_task, "resume_from_scope_conflict"),
             mock.patch.object(finish_task.subprocess, "run", side_effect=run),
+            mock.patch("_platform_common.run_github_with_retry", return_value=types.SimpleNamespace(
+                returncode=0, stdout=json.dumps({"number": 7, "headRefName": "agent/task"}), stderr="")),
         ]
         for patch in patches:
             patch.start()
@@ -210,12 +218,13 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
         code, commands, work = self.run_queued(claimed=True, early=False)
         self.assertEqual(code, 2)
         self.assertEqual(self.releases(commands),
-                         [["python3", str(Path(work) / "scripts" / "agent_board.py"), "finish", "--id", "claim-1", "--quiet"]])
+                         [["python3", str(Path(work) / "scripts" / "agent_board.py"), "hand-off", "--id", "claim-1",
+                           "--head", HANDED_HEAD, "--pr", "7", "--quiet"]])
 
     def test_rerun_while_admitted_releases_a_claim_still_held(self) -> None:
         code, commands, _ = self.run_queued(claimed=True, early=True)
         self.assertEqual(code, 2)
-        self.assertEqual([command[3:5] for command in self.releases(commands)], [["--id", "claim-1"]])
+        self.assertEqual([command[2:5] for command in self.releases(commands)], [["hand-off", "--id", "claim-1"]])
 
     def test_rerun_after_release_needs_no_claim(self) -> None:
         for early in (True, False):
@@ -227,7 +236,7 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
     def test_a_failed_release_stops_with_the_rerun_command(self) -> None:
         for early in (True, False):
             with self.subTest(early=early):
-                with self.assertRaisesRegex(SystemExit, "releasing board claim claim-1 failed; rerun scripts/agent_board.py finish --id claim-1"):
+                with self.assertRaisesRegex(SystemExit, "scripts/agent_board.py hand-off --id claim-1 .* failed; rerun it"):
                     self.run_queued(claimed=True, early=early, release_code=1)
 
 

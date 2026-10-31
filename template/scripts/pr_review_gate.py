@@ -145,7 +145,8 @@ def repair_brief(running: dict) -> dict:
 def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     """Validate developer evidence before publication; never manufacture a receipt."""
     import lifecycle_workers as workers
-    from openspec_lifecycle import archive_content_problems, require_automated_evidence, verification_passed
+    from openspec_lifecycle import (archive_content_problems, require_automated_evidence,
+                                    require_managed_routing_evidence, verification_passed)
 
     name = change.name
     if change.parent.name == "archive":
@@ -157,13 +158,21 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
     if not verification_passed(change):
         raise workers.WorkerError("developer handoff requires successful semantic verification and its method")
     require_automated_evidence(change, root=root)
+    if change.parent.name != "archive":
+        # The archive routing gate, at every handoff of an active change: a missing route or retained
+        # outcome fails now (BR-965). An archived re-admission passed it at the change's first handoff.
+        try:
+            require_managed_routing_evidence(change)
+        except SystemExit as exc:
+            raise workers.WorkerError(str(exc)) from exc
     identity = task_identity(root, name)
     helper = root / "scripts/agent_friction.py"
     if not helper.is_file():
         raise workers.WorkerError("developer handoff requires the friction checkpoint helper")
     import subprocess
 
-    command = ["python3", str(helper), "assert-checkpoint", "--exact-head"]
+    # Bound to the task content (BR-965): a merge-only reconcile keeps the checkpoint, changed content does not.
+    command = ["python3", str(helper), "assert-checkpoint"]
     checkpoint = subprocess.run(command, cwd=root, stdin=subprocess.DEVNULL,
                                 text=True, capture_output=True, check=False)
     if checkpoint.returncode:

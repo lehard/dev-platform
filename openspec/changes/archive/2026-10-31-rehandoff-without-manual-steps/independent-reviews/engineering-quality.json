@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5fa6b1800e87bc6cdc319910a4c6b4d39a7bf9f3",
+    "base_ref": "origin/main",
+    "candidate_head": "a52f0015a297ff98d9e512b6e8d0502662aed33a",
+    "diff_sha256": "c82248c7665d55cfdaffaa5bce91f9cc7dec7e3567a2da1bb4f2db2d375b1ba2"
+  },
+  "completed_at": "2026-10-31T21:48:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_board.py in rehandoff_refusal calls queue._latest(worktree, number, queue._comments(worktree, queue._repo(worktree), number)) and queue._is_ancestor(...). A rename or signature change in publication_queue would break the scope gate for every handed-off claim. Only the tests that mock these names would see it. A public observation function in publication_queue would be safer.",
+      "id": "board-reader-uses-queue-private-api",
+      "severity": "advisory",
+      "summary": "agent_board.rehandoff_refusal reaches into publication_queue's underscore-prefixed helpers, so the board script now depends on the queue's internal API."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py reactivate_handed_off_board does json.loads((main / config['paths']['agent_board']).read_text()) directly and then subprocess.run(... 'reactivate' ...). cmd_reactivate re-checks under locked_json and fails explicitly, so a concurrent change is detected rather than corrupting state. The unlocked read can still fail on a partially written file or give a spurious 'disappeared' error.",
+      "id": "reactivate-reads-board-unlocked",
+      "severity": "advisory",
+      "summary": "reactivate_handed_off_board reads the board JSON without the board lock and then runs a separate reactivate subprocess, leaving a gap between the check and the write."
+    }
+  ],
+  "launched_at": "2026-10-31T21:47:59+00:00",
+  "output_sha256": "ba2e177d3a832174dc43ce118965ea9ac84fa3e41d074c84d6d65f19be4e68c7",
+  "perspective": "engineering-quality",
+  "request_id": "2c8141f9-f9a5-467e-8f64-cb777ac360a6",
+  "reviewer": {
+    "context_id": "12ddf628-202c-4a7a-a6b1-0dce54868e5f",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-82186b2c-715d-46bb-94dd-6fb5b01c2695",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29301
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17101
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15022
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15278
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1739
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "1be97137cba5c0776f38436efb66401115ff03cab6c49b4c175d52fc764a6e2c"
+}
