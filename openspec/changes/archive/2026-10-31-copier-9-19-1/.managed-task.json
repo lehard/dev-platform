@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-config/spec.md",
+    "tasks.md"
+  ],
+  "change": "copier-9-19-1",
+  "imported_at": "2026-10-30T20:30:03+00:00",
+  "package_revision": "3f090c5934f163af842c1dabeb9bdef76aff9c3dfa6ab3a6606849dbdc7dfa1a",
+  "prepared_against": "8f027d549b5133dcb02e00a2dd3ec8783fb25a74",
+  "private_lineage_handle": "pln_176fd03a5f5b4ac8b3bad8816669eb2f",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "dc401b6ca7c97342d17554c1a3abb5b4f565666cb5d025eaf6a00843a68cf8c7",
+    "updated_at": "2026-10-30T20:23:09Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-800/T1"
+}

@@ -155,6 +155,12 @@ The platform SHALL record one explicit tested Copier version and SHALL keep ever
 - **WHEN** the platform doctor checks the installed Copier version
 - **THEN** it falls back to the platform's currently tested version, not an earlier one left over from a prior bump
 
+#### Scenario: A new tested version is proven before it is recorded
+
+- **WHEN** a platform change raises the tested Copier version
+- **THEN** a render, an update of a project rendered by the previous release, and a rollback check run with the new version before the change is published
+- **AND** the evidence names the upstream release source that confirmed the version as stable
+
 ### Requirement: Platform configuration is validated once against one schema
 
 `read_platform_config` SHALL fail explicitly when `.dev-platform.toml` is absent. It SHALL validate the project configuration once, at read time, against one platform configuration schema: the keys present in every managed project's rendered configuration are required, and a missing required key or a value of the wrong type SHALL fail with a diagnostic naming the file, the key and the line to add. Defaults SHALL exist only for documented optional keys defined in that schema; the only optional key in this schema is `paths.pending_completed_worktree_cleanup`. Platform scripts SHALL read required keys directly and SHALL NOT supply per-call-site defaults for them, and configuration accessors SHALL NOT substitute values for required keys.
