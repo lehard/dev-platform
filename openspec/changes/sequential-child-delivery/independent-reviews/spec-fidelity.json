@@ -3,46 +3,28 @@
   "candidate": {
     "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
     "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
-    "candidate_head": "e744635665d7252d789e45a3a49eaa0d865f54f3",
-    "diff_sha256": "029858c75655ba41c2e247f9a90d3338ca1778b5b891e33046ccf0b1f3512b7a"
+    "candidate_head": "b81deae12b0a0f2c147fc73dd4ec15b18b097b1c",
+    "diff_sha256": "5005573981b62e7265e123ec98e9d35f5020e2e5baa662d1e692a3bc49b1bc58"
   },
-  "completed_at": "2026-10-31T22:57:55+00:00",
+  "completed_at": "2026-10-31T23:08:05+00:00",
   "findings": [
     {
-      "evidence": "proposal.md: \"only the first not-Done child is materialized, started or handed off through the single-child path\". execute_requirement.py `_sequential_round` docstring: \"Materialize every child once...\", with a loop that calls `requirement_intake.materialize_handoff` for every `change not in linked_by_change`. task-intake.md: \"`advance` then materializes every child once, delivers only the first not-Done child\". design.md does not mention up-front materialization either.",
-      "id": "proposal-vs-code-materialize-all-children",
-      "severity": "material",
-      "summary": "The proposal says only the first not-Done child is materialized, started or handed off. The implementation and the task-intake docs materialize and link every child on the first pass. The artifacts and the code disagree, and the AGENTS.md no-silent-divergence rule requires the artifact to be updated first."
-    },
-    {
-      "evidence": "execute_requirement.py: `if sequence is not None and report.get(\"current_stage\") != \"complete\": rebound = _rebind_sequential(...)`. orchestrate_pre_authoring.rebind only checks staleness when stage == \"snapshot\" (`stage == \"snapshot\" and blocker.get(\"state\") != \"stale\"`). The stage \"handoff\" is in REBINDABLE_STAGES whatever its blocker state, so a missing-handoff stage proceeds to rebuild the snapshot and re-approve the ADD. An unapproved ADD raises \"changed since its approval\". design.md says: \"Rebind trigger. Only for a sequential Requirement whose pre-authoring status is stale...\".",
-      "id": "rebind-runs-on-non-stale-incomplete-chain",
-      "severity": "material",
-      "summary": "For any sequential Requirement whose pre-authoring is not complete, `_rebind_sequential` runs unconditionally. The spec limits rebind to stale pre-authoring with an unchanged approved chain. An ordinary incomplete chain, such as handoffs not yet prepared or an unapproved ADD, either raises RebindStop instead of reporting the next pre-authoring step, or is rewritten and re-approved without being stale."
-    },
-    {
-      "evidence": "`rank()` in `_sequential_round`: `json.loads(entry[1].read_text(encoding=\"utf-8\")).get(\"intents\", [])`, with no exception handling. The explicit error was added only to the later owner_intents loop, which is reached after the sequential branch has already run.",
-      "id": "sequential-round-unreadable-handoff-not-explicit",
+      "evidence": "template/scripts/execute_requirement.py, `rank` in `_sequential_round`, calls `json.loads(entry[1].read_text(...))` with no handling. An unreadable or malformed handoff raises a raw OSError or JSONDecodeError instead of a `RequirementExecutionError` that names the file. Only the later `owner_intents` read was changed to raise explicitly, and sequential Requirements return before reaching it in the normal flow. The new tests do not cover an unreadable handoff on the sequential path. The task 3.2 list names an \"unreadable handoff fails\" test.",
+      "id": "sequential-round-unreadable-handoff-unwrapped",
       "severity": "advisory",
-      "summary": "The proposal requires `advance` to fail explicitly on an unreadable handoff. The sequential path reads handoffs in `_sequential_round.rank` with a bare `json.loads(read_text)`, before the guarded loop. A corrupt or missing handoff there surfaces as a raw JSONDecodeError or OSError, not a RequirementExecutionError naming the file."
-    },
-    {
-      "evidence": "tasks.md 3.2: \"...changed ADD stops; unreadable handoff fails.\" tests/test_requirement_sequential_delivery.py has `test_unreadable_intent_set_fails_naming_it`, which covers intents.json only. Nothing covers an unreadable handoff file.",
-      "id": "tasks-claim-unreadable-handoff-test",
-      "severity": "advisory",
-      "summary": "tasks.md 3.2 is marked done and lists a test that an unreadable handoff fails. No test in the candidate exercises an unreadable handoff."
+      "summary": "The proposal says `advance` reading a handoff's intents fails explicitly on an unreadable file. `_sequential_round.rank` does not do this."
     }
   ],
-  "launched_at": "2026-10-31T22:57:30+00:00",
-  "output_sha256": "170826fb3bb2dbdc657d3f1574db3f87a76cf2400cbf68d4aa5903416e8aa26c",
+  "launched_at": "2026-10-31T23:07:51+00:00",
+  "output_sha256": "07a86cecad0b59a73fd08beb3911a675b877604845d69c6ecec1151640105be7",
   "perspective": "spec-fidelity",
-  "request_id": "12e6db04-3572-42b8-ad92-3835eba24ac2",
+  "request_id": "e9bfc45d-01cd-4b19-9c04-518f6474307c",
   "reviewer": {
-    "context_id": "405c932d-a4aa-4034-b8b2-6b4f26cd842c",
+    "context_id": "2c3a5e3b-1f7e-4578-9518-8f79cfa4cfef",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5e6933b3-e2a6-4806-9fbf-7749bb74e032",
+    "launch_id": "platform-launch-a06f0460-aa44-4d47-ba07-8f63eca4c540",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40180
+        "value": 35857
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11951
+        "value": 15288
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23683
+        "value": 13092
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23828
+        "value": 13242
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -82,16 +64,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3237
+        "value": 1474
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "9314ae7b1b6c77ebc9c10f109c4081ff5067b58cff55b586cc28b5733050d8b3"
+  "task_content_digest": "ee3b8bf243a40b4dc24885f655501dd4381d7852091a9d8dc75b84077dd24afe"
 }

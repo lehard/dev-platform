@@ -3,46 +3,40 @@
   "candidate": {
     "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
     "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
-    "candidate_head": "e744635665d7252d789e45a3a49eaa0d865f54f3",
-    "diff_sha256": "029858c75655ba41c2e247f9a90d3338ca1778b5b891e33046ccf0b1f3512b7a"
+    "candidate_head": "b81deae12b0a0f2c147fc73dd4ec15b18b097b1c",
+    "diff_sha256": "5005573981b62e7265e123ec98e9d35f5020e2e5baa662d1e692a3bc49b1bc58"
   },
-  "completed_at": "2026-10-31T22:58:27+00:00",
+  "completed_at": "2026-10-31T23:08:26+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/orchestrate_pre_authoring.py `_own_commit`: `any(re.fullmatch(...archive/...) for path in paths for change in own_changes)`. The `paths` come from `git diff --name-only commit^1 commit`. Attribution is per commit, not per path, so the only protection is the single-purpose-commit assumption.",
-      "id": "rebind-own-commit-overattribution",
+      "evidence": "template/scripts/orchestrate_pre_authoring.py: the `with tempfile.TemporaryDirectory()` backup block ends after `status()` succeeds, and `_write_json(receipt_file, receipt)` runs after it. `receipt_file` is computed from a glob count before the writes.",
+      "id": "rebind-receipt-written-after-state-mutation",
       "severity": "advisory",
-      "summary": "A commit counts as the Requirement's own when it touches any file in an own child's archive directory. This holds even if the same commit also changes an affected source for unrelated reasons. A squash or merge commit that bundles foreign edits to a remaining child's spec would be classed own, and the approval would be carried without a stop."
+      "summary": "The rebind receipt is written only after the snapshot, ADD, intents and handoffs have been rewritten and the rollback scope has closed. If writing the receipt fails, the chain stays re-anchored with a carried approval and no audit record. The carried `approved_by` string also names a `rebind-<n>.json` that would not exist."
     },
     {
-      "evidence": "orchestrate_pre_authoring.py `rebind`: `_write_json(receipt_file, receipt)` comes after the `with tempfile.TemporaryDirectory()` block. The receipt number comes from a glob count of existing `rebind-*.json` files, so it is not reserved. `approved_by` refers to `receipt_file.name` before that file exists.",
-      "id": "rebind-receipt-written-after-rollback-window",
+      "evidence": "template/scripts/execute_requirement.py, `_sequential_round`, nested `rank()`. Compare with the owner-intents read in `advance`, which now wraps errors in `RequirementExecutionError`.",
+      "id": "sequential-rank-unguarded-handoff-read",
       "severity": "advisory",
-      "summary": "The `rebind-<n>.json` receipt is written after the backup/rollback block ends. If writing the receipt fails (or the process dies between the two steps), the snapshot, ADD, intents and handoffs stay rebound with the approval carried and no audit receipt. The docs and design promise that every carried approval has a receipt."
+      "summary": "`_sequential_round.rank` reads each handoff with a bare `json.loads(entry[1].read_text())`. A missing or corrupt handoff raises a raw `FileNotFoundError` or `JSONDecodeError` instead of the explicit `RequirementExecutionError`. This is inconsistent with the explicit-failure handling this change adds elsewhere in `advance`."
     },
     {
-      "evidence": "orchestrate_pre_authoring.py: `if not commits: blocked.append(f\"{path} (changed without a commit on main)\"); continue` runs before the `path in affected` check.",
-      "id": "rebind-unaffected-source-without-commit-blocks",
+      "evidence": "template/scripts/orchestrate_pre_authoring.py `_own_commit` uses `any(re.fullmatch(...archive/...) for path in paths for change in own_changes)`. `rebind` then applies `foreign = [... if not item['own']]` as the only gate for affected sources.",
+      "id": "own-commit-classification-by-archive-path-only",
       "severity": "advisory",
-      "summary": "A changed source with no first-parent commit on main is added to `blocked` even when it is not an affected source. A local or uncommitted change to an unrelated bound source therefore stops the rebind, which is stricter than the documented rule that only affected sources matter."
-    },
-    {
-      "evidence": "execute_requirement.py `if not ordered:` block returns `_retrospective_pending(...)` and `reconcile_parent(...)` directly, while the `_await_post_merge` call alone gets `rebind=rebound`.",
-      "id": "sequential-final-path-drops-rebind-audit",
-      "severity": "advisory",
-      "summary": "When every sequential child is already Done and the queue is not in use, the early returns omit the `rebind` audit. Only the coordinator branch passes `rebind=rebound`. The `audited()` wrapper is defined later and is not used on this path."
+      "summary": "A commit counts as 'own' if its diff against the first parent touches any file under `openspec/changes/archive/<date>-<own change>/`. It does not check that the commit contains only that child's changes. A merge or mixed commit that also changes an affected source would be classified as own, so the stop gate would be skipped and the approval carried. `git diff <commit>^1` also errors on a root commit."
     }
   ],
-  "launched_at": "2026-10-31T22:57:55+00:00",
-  "output_sha256": "2cc2a918be57ed38d3b4737b69b9bb436e671097c1c1ff2f93af1173d64e7af7",
+  "launched_at": "2026-10-31T23:08:05+00:00",
+  "output_sha256": "31636362d5fb52f83f2c103f7f292e329ea834b1ec721855db5362d508e888c3",
   "perspective": "engineering-quality",
-  "request_id": "12e6db04-3572-42b8-ad92-3835eba24ac2",
+  "request_id": "e9bfc45d-01cd-4b19-9c04-518f6474307c",
   "reviewer": {
-    "context_id": "34ccd39d-2fff-4edf-83ed-e0496d261f7a",
+    "context_id": "c7f6cddc-c68f-4900-9ba1-826b8e658522",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b62ae7de-72aa-40f1-9bb6-52ed3f9a4d81",
+    "launch_id": "platform-launch-8a53d214-3c6b-46f3-8558-458a2655c2d9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,22 +51,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 39332
+        "value": 36046
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 98192
+        "value": 95145
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31837
+        "value": 21107
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32084
+        "value": 21376
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -87,11 +81,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3694
+        "value": 2368
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "9314ae7b1b6c77ebc9c10f109c4081ff5067b58cff55b586cc28b5733050d8b3"
+  "task_content_digest": "ee3b8bf243a40b4dc24885f655501dd4381d7852091a9d8dc75b84077dd24afe"
 }
