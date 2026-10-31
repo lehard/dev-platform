@@ -42,13 +42,6 @@ The multi-agent lifecycle SHALL compare a task's declared and factual changed-fi
 
 For a platform-owned `multi-agent` workflow, the lifecycle SHALL use the canonical task identity and normalized repository-relative scope information from the existing worktree-coordination mechanism to make a race-safe admission decision before the task performs its first implementation change. Admission and recording of a concrete-path claim SHALL be atomic relative to the machine-local coordination state.
 
-Only a valid active board entry with a proven canonical worktree/branch identity may contribute a blocking concrete-file claim. A degraded or terminal sibling entry MAY produce a bounded hygiene diagnostic, but SHALL NOT by itself make an otherwise independent task wait or fail to start. An unreadable or un-lockable coordination store remains an admission error and SHALL fail closed.
-
-The admission result SHALL be:
-
-- `RUN` when no conflicting valid active concrete-file claim is present and the current task has atomically acquired its concrete claims; or
-- `WAIT` when a valid active task already owns a hard-overlapping concrete path.
-
 #### Scenario: Two tasks race to claim the same concrete file
 
 - **GIVEN** tasks A and B concurrently attempt to claim the same currently free repository-relative file path
@@ -88,9 +81,7 @@ The admission result SHALL be:
 
 ### Requirement: Hard and soft overlap are classified deterministically
 
-The coordination mechanism SHALL distinguish a hard overlap from a soft or potential overlap using normalized repository-relative scope evidence. Except for a declared generated path, an exact concrete file path present in the current task's claim and another active task's concrete claimed or factual scope SHALL be a hard overlap. A shared directory, subsystem, broad glob, or other non-concrete proximity SHALL remain advisory by itself. A path the project declares generated in the committed check configuration at the observed remote integration branch SHALL NOT be a hard overlap and SHALL remain reported as a soft overlap; a declaration present only on a task branch SHALL NOT change the classification, and an unreadable declaration SHALL stop the scope gate instead of being treated as empty.
-
-When an active task has factual changed-file scope, that concrete evidence SHALL take precedence over a broader declared scope for determining hard overlap; the broader declaration MAY still contribute a warning.
+The coordination mechanism SHALL distinguish a hard overlap from a soft or potential overlap using normalized repository-relative scope evidence. Except for a declared generated path, an exact concrete file path present in the current task's claim and another active task's concrete claimed or factual scope SHALL be a hard overlap.
 
 #### Scenario: Active task already changes the same file
 
@@ -209,8 +200,6 @@ Before a managed sibling claim blocks hard scope gating, the platform SHALL be a
 
 Before executing mandatory managed validation or lifecycle work that creates or consumes completion evidence, the platform SHALL prove that the invocation is bound to the expected managed task checkout using existing canonical managed-task and worktree identity. The proof SHALL include the expected task/change identity, canonical worktree/branch context and current HEAD and SHALL NOT rely on inherited shell cwd or directory naming alone.
 
-The identity preflight SHALL compose with the existing factual-scope pre-validation gate and SHALL run early enough that a wrong checkout cannot begin expensive validation or emit successful task evidence.
-
 #### Scenario: Validation runs from the correct managed worktree
 
 - **GIVEN** a managed task has an isolated canonically registered task worktree and branch
@@ -240,7 +229,7 @@ The identity preflight SHALL compose with the existing factual-scope pre-validat
 
 ### Requirement: Managed validation evidence is bound to the validated checkout
 
-Successful automated validation evidence used for terminal managed completion SHALL identify the managed task/change, validated branch and HEAD, and checkout identity strongly enough to reject evidence produced for a different checkout. A green result for integration `main`, a sibling worktree or an earlier/mismatched implementation HEAD SHALL NOT satisfy the managed task. A commit that only materializes that exact change's already-validated OpenSpec archive and its accepted spec delta MAY follow the validated HEAD before publication.
+Successful automated validation evidence used for terminal managed completion SHALL identify the managed task/change, validated branch and HEAD, and checkout identity strongly enough to reject evidence produced for a different checkout.
 
 #### Scenario: Green evidence came from the wrong checkout
 
@@ -290,7 +279,7 @@ When managed preflight observes dirty or untracked integration-checkout paths wh
 
 ### Requirement: Worktree cleanup eligibility uses authoritative managed completion state when squash merge removes branch ancestry
 
-Before classifying a registered worktree as `not-merged`, the sanctioned cleanup scanner SHALL be able to reconcile that worktree's branch/head against the exact task's authoritative GitHub publication state. An exact merged PR SHALL be sufficient evidence that the worktree is terminally integrated for cleanup eligibility even when squash merge means the feature branch is not an ancestor of `main`. This proof SHALL reuse the platform's existing exact-PR/exact-head publication primitive and SHALL NOT introduce a second completion state model. Every other existing eligibility check (clean, inactive, not locked, no active board/cwd claim, sufficient age) SHALL still apply unchanged regardless of merge proof.
+Before classifying a registered worktree as `not-merged`, the sanctioned cleanup scanner SHALL be able to reconcile that worktree's branch/head against the exact task's authoritative GitHub publication state. An exact merged PR SHALL be sufficient evidence that the worktree is terminally integrated for cleanup eligibility even when squash merge means the feature branch is not an ancestor of `main`.
 
 #### Scenario: Exact worktree PR was squash-merged
 
@@ -319,7 +308,7 @@ Before classifying a registered worktree as `not-merged`, the sanctioned cleanup
 
 ### Requirement: Worktree cleanup reports failures truthfully
 
-`worktree_cleanup.py cleanup` SHALL NOT report success for a cleanup that recorded an error or was refused. A targeted cleanup that recorded an error SHALL have status `failed`; a global cleanup that recorded an error SHALL keep status `completed-with-errors`. The command SHALL exit non-zero whenever the cleanup result carries an error or has status `refused` or `failed`, for a targeted and for a global cleanup, and SHALL exit zero only for a successful, already-cleaned or previewed cleanup without errors.
+`worktree_cleanup.py cleanup` SHALL NOT report success for a cleanup that recorded an error or was refused. A targeted cleanup that recorded an error SHALL have status `failed`; a global cleanup that recorded an error SHALL keep status `completed-with-errors`.
 
 #### Scenario: Targeted cleanup fails
 
@@ -343,7 +332,7 @@ Before classifying a registered worktree as `not-merged`, the sanctioned cleanup
 
 ### Requirement: Board doctor removes only entries whose merge is proven
 
-Board registration SHALL record the registered branch head as the entry's registration base. When a registered branch is an ancestor of `main`, the board doctor SHALL classify the entry as merged only with proof: either the branch moved on from its registration base and its head is not on main's first-parent line since that base, or the exact task PR is reported merged by GitHub. A branch that still points at its registration base has no own commits and SHALL NOT be classified merged. When the merge cannot be proven, because the entry has no registration base, its base is not a known commit, or the moved branch head lies on main's first-parent line (for example after a fast-forward to a newer `main`) or no longer descends from its base, without an exact merged PR, the doctor SHALL classify the entry as degraded with a named reason and SHALL NOT remove it under `--fix`.
+When a registered branch is an ancestor of `main`, the board doctor SHALL classify the entry as merged only with proof: either the branch moved on from its registration base and its head is not on main's first-parent line since that base, or the exact task PR is reported merged by GitHub.
 
 #### Scenario: Freshly registered task without commits survives doctor --fix
 
@@ -373,7 +362,7 @@ Board registration SHALL record the registered branch head as the entry's regist
 
 ### Requirement: An abandoned candidate worktree is removed only with exact closed-PR proof
 
-Worktree cleanup SHALL provide an explicit operation that removes one exact task worktree, identified by path, branch and head, together with its local branch and its exact agent-board claim, when the candidate was abandoned. Abandonment SHALL be proven from GitHub: a pull request of that branch into main whose head is exactly that head is closed without merge, and no merged pull request with that head and no open pull request exists for the branch. The head SHALL NOT be contained in main. The worktree SHALL be registered with that branch and head, inside the managed worktree directory, unlocked, clean and not in use. Any unmet condition, unavailable GitHub evidence or ambiguous board claim SHALL refuse with a named reason and a non-zero exit, removing nothing. Scan and global cleanup SHALL NOT infer abandonment, and the board doctor's merge-proof rules are unchanged.
+Worktree cleanup SHALL provide an explicit operation that removes one exact task worktree, identified by path, branch and head, together with its local branch and its exact agent-board claim, when the candidate was abandoned.
 
 #### Scenario: Closed exact PR
 
@@ -396,3 +385,231 @@ Worktree cleanup SHALL provide an explicit operation that removes one exact task
 
 - **WHEN** GitHub authentication or the PR list is unavailable
 - **THEN** cleanup refuses and removes nothing
+
+### Requirement: Only a valid active board entry with proven identity contributes a blocking concrete-file claim
+
+For a platform-owned `multi-agent` workflow, only a valid active board entry with a proven canonical worktree/branch identity may contribute a blocking concrete-file claim. A degraded or terminal sibling entry MAY produce a bounded hygiene diagnostic, but SHALL NOT by itself make an otherwise independent task wait or fail to start.
+
+#### Scenario: A degraded sibling entry does not block an independent task
+
+- **GIVEN** a platform-owned `multi-agent` workflow and a degraded or terminal sibling board entry
+- **WHEN** an otherwise independent task requests admission of its concrete-file claims
+- **THEN** the sibling entry contributes no blocking concrete-file claim
+- **AND** the sibling entry by itself does not make the task wait or fail to start; at most a bounded hygiene diagnostic is produced
+
+### Requirement: An unreadable or un-lockable coordination store fails admission closed
+
+For a platform-owned `multi-agent` workflow, an unreadable or un-lockable coordination store remains an admission error and SHALL fail closed.
+
+#### Scenario: Coordination store cannot be read or locked
+
+- **GIVEN** a platform-owned `multi-agent` workflow
+- **WHEN** the coordination store is unreadable or cannot be locked during admission
+- **THEN** admission fails closed as an admission error
+
+### Requirement: The race-safe admission decision results in RUN or WAIT
+
+For a platform-owned `multi-agent` workflow, the admission result of the race-safe admission decision SHALL be:
+
+- `RUN` when no conflicting valid active concrete-file claim is present and the current task has atomically acquired its concrete claims; or
+- `WAIT` when a valid active task already owns a hard-overlapping concrete path.
+
+#### Scenario: No conflicting valid active claim
+
+- **GIVEN** a platform-owned `multi-agent` workflow
+- **WHEN** no conflicting valid active concrete-file claim is present and the current task has atomically acquired its concrete claims
+- **THEN** the admission result is `RUN`
+
+#### Scenario: A valid active task owns a hard-overlapping path
+
+- **GIVEN** a platform-owned `multi-agent` workflow
+- **WHEN** a valid active task already owns a hard-overlapping concrete path
+- **THEN** the admission result is `WAIT`
+
+### Requirement: Non-concrete scope proximity remains advisory
+
+A shared directory, subsystem, broad glob, or other non-concrete proximity SHALL remain advisory by itself.
+
+#### Scenario: Only non-concrete proximity is shared
+
+- **WHEN** two active tasks share only a directory, subsystem, broad glob or other non-concrete proximity
+- **THEN** that proximity by itself is advisory and is not a hard overlap
+
+### Requirement: A path declared generated at the integration branch is a soft overlap
+
+A path the project declares generated in the committed check configuration at the observed remote integration branch SHALL NOT be a hard overlap and SHALL remain reported as a soft overlap.
+
+#### Scenario: Shared path is declared generated at the integration branch
+
+- **GIVEN** a path the project declares generated in the committed check configuration at the observed remote integration branch
+- **WHEN** two active tasks share that path
+- **THEN** the path is not a hard overlap
+- **AND** it is reported as a soft overlap
+
+### Requirement: A generated-path declaration only on a task branch does not change overlap classification
+
+A generated-path declaration present only on a task branch SHALL NOT change the overlap classification.
+
+#### Scenario: Generated declaration exists only on a task branch
+
+- **GIVEN** a path declared generated only on a task branch and not in the committed check configuration at the observed remote integration branch
+- **WHEN** overlap is classified for that path
+- **THEN** the classification is the same as without the declaration
+
+### Requirement: An unreadable generated-path declaration stops the scope gate
+
+An unreadable generated-path declaration SHALL stop the scope gate instead of being treated as empty.
+
+#### Scenario: Generated declaration cannot be read
+
+- **WHEN** the generated-path declaration cannot be read
+- **THEN** the scope gate stops
+- **AND** the declaration is not treated as empty
+
+### Requirement: Factual changed-file scope takes precedence over broader declared scope
+
+When an active task has factual changed-file scope, that concrete evidence SHALL take precedence over a broader declared scope for determining hard overlap; the broader declaration MAY still contribute a warning.
+
+#### Scenario: Factual scope is narrower than declared scope
+
+- **GIVEN** an active task with factual changed-file scope and a broader declared scope
+- **WHEN** hard overlap is determined against that task
+- **THEN** the factual changed-file scope takes precedence over the broader declared scope
+- **AND** the broader declaration may still contribute a warning
+
+### Requirement: The managed checkout identity preflight composes with the factual-scope gate and runs early
+
+The managed task checkout identity preflight SHALL compose with the existing factual-scope pre-validation gate and SHALL run early enough that a wrong checkout cannot begin expensive validation or emit successful task evidence.
+
+#### Scenario: Wrong checkout is caught before validation starts
+
+- **WHEN** mandatory managed validation is invoked from a wrong checkout
+- **THEN** the managed task checkout identity preflight, composed with the existing factual-scope pre-validation gate, stops it before expensive validation begins
+- **AND** no successful task evidence is emitted
+
+### Requirement: Validation evidence from another checkout or HEAD does not satisfy the managed task
+
+For terminal managed completion, a green result for integration `main`, a sibling worktree or an earlier/mismatched implementation HEAD SHALL NOT satisfy the managed task. A commit that only materializes the managed change's exact already-validated OpenSpec archive and its accepted spec delta MAY follow the validated HEAD before publication.
+
+#### Scenario: Green result for a mismatched checkout or HEAD
+
+- **WHEN** a green automated validation result was produced for integration `main`, a sibling worktree or an earlier/mismatched implementation HEAD
+- **THEN** it does not satisfy the managed task for terminal managed completion
+
+#### Scenario: Only the archive commit follows the validated HEAD
+
+- **WHEN** the only commit after the validated HEAD materializes the managed change's exact already-validated OpenSpec archive and its accepted spec delta
+- **THEN** the validation evidence may still be used before publication
+
+### Requirement: Worktree cleanup merge proof reuses the exact-PR publication primitive
+
+The exact merged PR proof of worktree cleanup eligibility SHALL reuse the platform's existing exact-PR/exact-head publication primitive and SHALL NOT introduce a second completion state model.
+
+#### Scenario: Cleanup scanner proves a squash merge
+
+- **WHEN** the sanctioned cleanup scanner proves that a worktree's exact task PR is merged
+- **THEN** it uses the platform's existing exact-PR/exact-head publication primitive
+- **AND** no second completion state model is introduced
+
+### Requirement: Merge proof does not bypass the other worktree cleanup eligibility checks
+
+Every other existing worktree cleanup eligibility check (clean, inactive, not locked, no active board/cwd claim, sufficient age) SHALL still apply unchanged regardless of merge proof.
+
+#### Scenario: Merged worktree fails another eligibility check
+
+- **GIVEN** a worktree whose exact task PR is proven merged
+- **WHEN** the worktree is not clean, is active, is locked, has an active board/cwd claim or is not old enough
+- **THEN** it is not eligible for cleanup
+
+### Requirement: Worktree cleanup exit status reflects errors and refusals
+
+The `worktree_cleanup.py cleanup` command SHALL exit non-zero whenever the cleanup result carries an error or has status `refused` or `failed`, for a targeted and for a global cleanup, and SHALL exit zero only for a successful, already-cleaned or previewed cleanup without errors.
+
+#### Scenario: Cleanup result carries an error or refusal
+
+- **WHEN** a targeted or global `worktree_cleanup.py cleanup` result carries an error or has status `refused` or `failed`
+- **THEN** the command exits non-zero
+
+#### Scenario: Cleanup without errors
+
+- **WHEN** `worktree_cleanup.py cleanup` is successful, already cleaned or a preview, without errors
+- **THEN** the command exits zero
+
+### Requirement: Board registration records the registration base
+
+Board registration SHALL record the registered branch head as the entry's registration base.
+
+#### Scenario: A branch is registered on the board
+
+- **WHEN** a branch is registered on the board
+- **THEN** the registered branch head is recorded as the entry's registration base
+
+### Requirement: A branch still at its registration base is not classified merged
+
+A registered branch that still points at its board registration base has no own commits and SHALL NOT be classified merged by the board doctor.
+
+#### Scenario: Registered branch has no own commits
+
+- **GIVEN** a registered branch that still points at its registration base
+- **WHEN** the board doctor classifies its entry
+- **THEN** the entry is not classified merged
+
+### Requirement: A board entry whose merge cannot be proven is degraded and kept
+
+When the merge of a board entry cannot be proven, because the entry has no registration base, its base is not a known commit, or the moved branch head lies on main's first-parent line (for example after a fast-forward to a newer `main`) or no longer descends from its base, without an exact merged PR, the board doctor SHALL classify the entry as degraded with a named reason and SHALL NOT remove the entry under `--fix`.
+
+#### Scenario: Merge of a board entry is unprovable
+
+- **GIVEN** a board entry with no registration base, a base that is not a known commit, or a moved branch head on main's first-parent line or no longer descending from its base
+- **AND** no exact merged PR
+- **WHEN** the board doctor runs with `--fix`
+- **THEN** the entry is classified degraded with a named reason
+- **AND** it is not removed
+
+### Requirement: Candidate abandonment is proven from GitHub
+
+For the explicit worktree cleanup operation that removes an abandoned candidate's exact task worktree, abandonment SHALL be proven from GitHub: a pull request of the worktree's branch into main whose head is exactly the worktree's head is closed without merge, and no merged pull request with that head and no open pull request exists for the branch.
+
+#### Scenario: Exact pull request closed without merge
+
+- **WHEN** a pull request of the worktree's branch into main whose head is exactly the worktree's head is closed without merge
+- **AND** no merged pull request with that head and no open pull request exists for the branch
+- **THEN** abandonment is proven
+
+### Requirement: An abandoned candidate head is not contained in main
+
+For the explicit worktree cleanup operation that removes an abandoned candidate's exact task worktree, the worktree's head SHALL NOT be contained in main.
+
+#### Scenario: Candidate head is contained in main
+
+- **WHEN** the worktree's head is contained in main
+- **THEN** the abandoned-candidate removal does not remove the worktree
+
+### Requirement: An abandoned candidate worktree is in a safe local state
+
+For the explicit worktree cleanup operation that removes an abandoned candidate's exact task worktree, the worktree SHALL be registered with its identified branch and head, inside the managed worktree directory, unlocked, clean and not in use.
+
+#### Scenario: Candidate worktree local state is unsafe
+
+- **WHEN** the worktree is not registered with its identified branch and head, is outside the managed worktree directory, locked, dirty or in use
+- **THEN** the abandoned-candidate removal does not remove the worktree
+
+### Requirement: Abandoned candidate removal refuses on any unmet condition
+
+For the explicit worktree cleanup operation that removes an abandoned candidate's exact task worktree, any unmet condition, unavailable GitHub evidence or ambiguous board claim SHALL refuse with a named reason and a non-zero exit, removing nothing.
+
+#### Scenario: A removal condition is not met
+
+- **WHEN** a condition is unmet, GitHub evidence is unavailable or the board claim is ambiguous
+- **THEN** the operation refuses with a named reason and a non-zero exit
+- **AND** nothing is removed
+
+### Requirement: Scan and global cleanup do not infer abandonment
+
+Worktree cleanup scan and global cleanup SHALL NOT infer abandonment, and the board doctor's merge-proof rules are unchanged.
+
+#### Scenario: Scan or global cleanup meets a closed-PR worktree
+
+- **WHEN** worktree cleanup scan or global cleanup meets a worktree whose pull request was closed without merge
+- **THEN** it does not infer abandonment
+- **AND** the board doctor's merge-proof rules are unchanged

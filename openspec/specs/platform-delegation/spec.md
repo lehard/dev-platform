@@ -7,9 +7,7 @@ Define the safety contract for delegating bounded platform work while preserving
 
 ### Requirement: Write-capable delegation carries an assigned worktree
 
-Every platform-supported write-capable subagent/subprocess delegation SHALL carry an absolute `assigned_worktree` path that resolves to a registered git worktree of the integration repository and is distinct from the integration copy itself. The platform SHALL validate that assignment before launching a write-capable child.
-
-The containment contract SHALL NOT require one specific custom launch helper when the current runtime provides a proven native filesystem/worktree boundary that enforces the same assignment. Where native containment cannot be proven sufficient, the platform SHALL use the minimal supported guarded fallback or fail closed/retain execution on the parent.
+Every platform-supported write-capable subagent/subprocess delegation SHALL carry an absolute `assigned_worktree` path that resolves to a registered git worktree of the integration repository and is distinct from the integration copy itself.
 
 #### Scenario: Delegation bypasses the supported guard
 
@@ -24,9 +22,9 @@ The containment contract SHALL NOT require one specific custom launch helper whe
 
 ### Requirement: Delegated writes are contained to the assigned worktree
 
-The platform SHALL apply the strongest proven enforcement available for the selected runtime/mode, SHALL execute or bind the child to the assigned task worktree, and SHALL perform a content-aware post-delegation integration comparison before reporting successful platform-contained execution.
+The platform SHALL apply the strongest proven enforcement available for the selected runtime/mode and SHALL execute or bind the child to the assigned task worktree.
 
-For supported runtimes with proven native OS-level writable-root sandboxing or native worktree isolation, that native mechanism SHOULD be the primary prevention layer. The platform SHALL reason over resolved filesystem topology and runtime-known additional writable roots before claiming hard containment. Provider-specific custom hooks/wrappers MAY remain only where they close a demonstrated gap that native containment does not cover. Detection-only mode MAY remain as a bounded compatibility fallback but SHALL never be mislabeled as hard prevention.
+For supported runtimes with proven native OS-level writable-root sandboxing or native worktree isolation, that native mechanism SHOULD be the primary prevention layer. Provider-specific custom hooks/wrappers MAY remain only where they close a demonstrated gap that native containment does not cover.
 
 #### Scenario: Platform-controlled Codex supports hard writable-root sandboxing
 
@@ -242,7 +240,7 @@ Dev Platform SHALL persist an abnormal route outcome that distinguishes external
 
 ### Requirement: Sandboxed Claude writers work in a disposable copy and return a patch
 
-A platform-launched sandboxed Claude writer SHALL run in a disposable copy of the assigned task worktree containing its HEAD and current uncommitted task state, never in the task worktree or integration checkout. The harness SHALL build the result in its own staging clone without executing Git in the writer checkout, SHALL apply the lifecycle write rules, and SHALL apply the resulting patch to the assigned task worktree only when task content still equals the route pre-snapshot; otherwise it SHALL refuse and retain the patch. Integration `main` moving during the run SHALL NOT be classified as a containment violation of this writer.
+A platform-launched sandboxed Claude writer SHALL run in a disposable copy of the assigned task worktree containing its HEAD and current uncommitted task state, never in the task worktree or integration checkout.
 
 #### Scenario: Sibling session advances integration main during the run
 - **GIVEN** a sandboxed Claude writer is running
@@ -255,7 +253,7 @@ A platform-launched sandboxed Claude writer SHALL run in a disposable copy of th
 
 ### Requirement: Sandboxed writer containment is proven by reproducible negative probes
 
-The platform SHALL provide a reproducible probe command that launches a real sandboxed Claude writer against a synthetic integration repository, linked worktree and bare remote, has it attempt to write into the integration checkout, move its refs through the shared Git directory, push to the remote, call the GitHub API and read SSH, GitHub CLI and keychain credentials, and then verifies from the harness that the integration content, refs and remote are unchanged. The command SHALL never print the writer credential and SHALL exit non-zero when any probe succeeded or any harness-side check changed.
+The platform SHALL provide a reproducible probe command that launches a real sandboxed Claude writer against a synthetic integration repository, linked worktree and bare remote, has it attempt to write into the integration checkout, move its refs through the shared Git directory, push to the remote, call the GitHub API and read SSH, GitHub CLI and keychain credentials, and then verifies from the harness that the integration content, refs and remote are unchanged.
 
 #### Scenario: All probes refused
 - **WHEN** the probe command runs on macOS with the sandboxed writer launch
@@ -264,3 +262,105 @@ The platform SHALL provide a reproducible probe command that launches a real san
 #### Scenario: A probe succeeds
 - **WHEN** any probe action succeeds or the integration or remote changed
 - **THEN** the command exits non-zero naming that probe
+
+### Requirement: The assigned worktree is validated before a write-capable child launches
+
+The platform SHALL validate the `assigned_worktree` assignment of a write-capable subagent/subprocess delegation before launching a write-capable child.
+
+#### Scenario: Write-capable child is about to launch
+
+- **WHEN** the platform launches a write-capable child
+- **THEN** it validates the delegation's `assigned_worktree` assignment first
+
+### Requirement: Delegation containment does not require a custom launch helper under proven native containment
+
+The delegation containment contract SHALL NOT require one specific custom launch helper when the current runtime provides a proven native filesystem/worktree boundary that enforces the same `assigned_worktree` assignment.
+
+#### Scenario: Runtime enforces the assignment natively
+
+- **GIVEN** the current runtime provides a proven native filesystem/worktree boundary that enforces the `assigned_worktree` assignment
+- **WHEN** a write-capable delegation launches
+- **THEN** the containment contract does not require one specific custom launch helper
+
+### Requirement: Unproven native delegation containment uses a guarded fallback or fails closed
+
+Where native containment of a write-capable delegation cannot be proven sufficient, the platform SHALL use the minimal supported guarded fallback or fail closed/retain execution on the parent.
+
+#### Scenario: Native containment is not proven sufficient
+
+- **WHEN** native containment of a write-capable delegation cannot be proven sufficient
+- **THEN** the platform uses the minimal supported guarded fallback or fails closed/retains execution on the parent
+
+### Requirement: Delegated execution is reported contained only after an integration comparison
+
+The platform SHALL perform a content-aware post-delegation integration comparison before reporting successful platform-contained execution of a delegated writer.
+
+#### Scenario: Delegated writer finishes
+
+- **WHEN** a delegated writer finishes
+- **THEN** the platform performs a content-aware post-delegation integration comparison
+- **AND** only then reports successful platform-contained execution
+
+### Requirement: Hard delegated write containment is claimed only over resolved topology
+
+The platform SHALL reason over resolved filesystem topology and runtime-known additional writable roots before claiming hard containment of delegated writes.
+
+#### Scenario: Platform claims hard containment
+
+- **WHEN** the platform claims hard containment of delegated writes
+- **THEN** it has reasoned over resolved filesystem topology and runtime-known additional writable roots
+
+### Requirement: Detection-only delegated write mode is never labeled hard prevention
+
+For delegated writes, detection-only mode MAY remain as a bounded compatibility fallback but SHALL never be mislabeled as hard prevention.
+
+#### Scenario: Delegated writer runs in detection-only mode
+
+- **WHEN** a delegated writer runs in detection-only mode
+- **THEN** the mode is not labeled as hard prevention
+
+### Requirement: The sandboxed Claude writer harness builds the result in its own staging clone
+
+The harness of a platform-launched sandboxed Claude writer SHALL build the result in its own staging clone without executing Git in the writer checkout, and SHALL apply the lifecycle write rules.
+
+#### Scenario: Sandboxed writer run ends
+
+- **WHEN** a platform-launched sandboxed Claude writer run ends
+- **THEN** the harness builds the result in its own staging clone without executing Git in the writer checkout
+- **AND** it applies the lifecycle write rules
+
+### Requirement: The sandboxed Claude writer patch is applied only to unchanged task content
+
+The harness of a platform-launched sandboxed Claude writer SHALL apply the resulting patch to the assigned task worktree only when task content still equals the route pre-snapshot; otherwise the harness SHALL refuse and retain the patch.
+
+#### Scenario: Task content still equals the pre-snapshot
+
+- **WHEN** the assigned task worktree's task content still equals the route pre-snapshot
+- **THEN** the harness applies the resulting patch to the assigned task worktree
+
+### Requirement: Integration main moving is not a sandboxed Claude writer containment violation
+
+Integration `main` moving during the run of a platform-launched sandboxed Claude writer SHALL NOT be classified as a containment violation of that writer.
+
+#### Scenario: Integration main moves during the writer run
+
+- **WHEN** integration `main` moves during the run of a platform-launched sandboxed Claude writer
+- **THEN** it is not classified as a containment violation of that writer
+
+### Requirement: The sandboxed writer probe command never prints the writer credential
+
+The sandboxed writer containment probe command SHALL never print the writer credential.
+
+#### Scenario: Probe command runs
+
+- **WHEN** the sandboxed writer containment probe command runs
+- **THEN** its output never contains the writer credential
+
+### Requirement: The sandboxed writer probe command fails when a probe succeeds
+
+The sandboxed writer containment probe command SHALL exit non-zero when any probe succeeded or any harness-side check changed.
+
+#### Scenario: A probe succeeds or a harness-side check changed
+
+- **WHEN** any probe succeeded or any harness-side check changed
+- **THEN** the sandboxed writer containment probe command exits non-zero

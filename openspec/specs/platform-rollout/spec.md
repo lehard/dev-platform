@@ -10,8 +10,6 @@ Platform rollout SHALL keep shared workflow releases and downstream upgrades rep
 
 Before a platform release is published, CI SHALL exercise a real Copier update from the latest stable platform template or an explicit bootstrap baseline to the candidate template. The smoke project SHALL contain project-owned modifications before update and SHALL fail validation if those modifications are lost or unresolved conflicts remain.
 
-When no local stable version tag exists, CI SHALL fall back to a bootstrap baseline commit. If neither a stable tag nor a resolvable bootstrap baseline exists in the current checkout's own history (for example a fresh-history public-distribution snapshot with no prior commits), the smoke test SHALL skip cleanly instead of failing, since there is no meaningful prior platform state to upgrade from in that checkout.
-
 #### Scenario: Candidate platform is tested against existing project state
 
 - **WHEN** platform CI evaluates an update from the stable baseline
@@ -55,8 +53,6 @@ GitHub-owned Actions used by platform-managed workflows SHALL use full commit SH
 ### Requirement: Platform releases use stable immutable versions
 
 Published Project Factory versions SHALL use stable SemVer Git tags. A published version tag SHALL NOT be moved or reused, and automated publication SHALL fail closed when an existing tag points elsewhere.
-
-Release automation SHALL first determine whether the current commit actually establishes publishable release intent before creating or confirming any tag or release. A commit with no Git parent (a repository root/bootstrap commit) SHALL NEVER establish release intent, regardless of what its `VERSION` file contains: a fresh-history bootstrap commit and a genuine first version bump are structurally identical by file content alone, so parentage is the fact that distinguishes them. A non-root commit SHALL establish release intent only when its `VERSION` value differs from its first parent's; an unchanged `VERSION` SHALL NOT trigger publication.
 
 #### Scenario: Existing release tag points to another commit
 
@@ -111,11 +107,7 @@ The platform SHALL keep an explicit central registry of known downstream project
 
 ### Requirement: Successful releases dispatch reviewed downstream rollout
 
-Publishing an immutable platform release is a core Dev Platform capability available to any checkout. Managed fleet rollout is a distinct, optional operator capability that requires a private managed-projects registry and dedicated GitHub App credentials. Publishing a release SHALL NEVER by itself require or imply operator fleet configuration.
-
-After publishing an immutable platform version, the central release workflow SHALL dispatch the managed-project rollout for that exact SemVer tag only when the repository has explicitly opted in via a repository variable (never a secret, since a secret's mere presence SHALL NOT double as a feature flag). Absent or non-affirmative opt-in SHALL leave the release published but SHALL NOT dispatch rollout, and the run SHALL explicitly report that managed rollout is disabled or not configured. Rollout SHALL also support an explicit manual retry path and SHALL reject versions that are not actually published platform releases.
-
-Rollout dispatch from the release workflow SHALL occur only when the current run itself established publishable release intent (an actual version bump) AND the repository has opted in to managed rollout. A run that determines it has no release intent (including a fresh-history root/bootstrap commit or an unchanged `VERSION`) SHALL NOT dispatch rollout regardless of opt-in.
+After publishing an immutable platform version, the central release workflow SHALL dispatch the managed-project rollout for that exact SemVer tag only when the repository has explicitly opted in via a repository variable (never a secret, since a secret's mere presence SHALL NOT double as a feature flag).
 
 #### Scenario: New platform version is published
 
@@ -169,7 +161,7 @@ Automated rollout SHALL run Copier against the exact published SemVer tag suppli
 
 ### Requirement: Rollout fails closed on project ambiguity or conflicts
 
-Automatic rollout SHALL leave the downstream default branch untouched when Copier metadata is missing or unexpected, a downgrade is requested, an unresolved Copier/Git conflict remains, project validation fails, or an unexpected rollout branch collision exists. Detection of an already-pending rollout PR SHALL be performed by a testable, platform-owned helper that filters structured GitHub API JSON by the exact reserved branch, configured base branch, and expected rollout automation identity -- not by ad hoc shell/`jq` argument combinations, human-readable `gh` command output parsing, or PR title/body text matching.
+Automatic rollout SHALL leave the downstream default branch untouched when Copier metadata is missing or unexpected, a downgrade is requested, an unresolved Copier/Git conflict remains, project validation fails, or an unexpected rollout branch collision exists.
 
 #### Scenario: Copier produces a rejected patch
 
@@ -314,8 +306,6 @@ Central managed rollout SHALL execute only Dev Platform-owned validation of the 
 
 For every failed managed-project rollout attempt, the workflow SHALL emit one canonical machine-readable diagnostic envelope derived from structured rollout state. The envelope SHALL be available without requiring arbitrary full-log scraping and SHALL NOT alter rollout safety or outcome.
 
-The envelope SHALL include at least: schema version, terminal status, target project, target immutable release, failure stage, failure category, stable reason, exit code, selected command when known, same-input retry advisory, and structured evidence already known to rollout such as conflict paths. It SHALL exclude credentials, unrestricted environment dumps, tokens, and raw logs.
-
 #### Scenario: Safety guard blocks rollout
 - **WHEN** a managed safety invariant fails deterministically
 - **THEN** the diagnostic category is `safety_guard` or another more specific stable safety category
@@ -367,9 +357,7 @@ The envelope SHALL include at least: schema version, terminal status, target pro
 
 ### Requirement: Repeated managed rollout failures against the same project are surfaced to a human
 
-The platform SHALL maintain a durable, cross-run record of consecutive terminal `blocked` managed-rollout attempts per project, independent of any single ephemeral workflow run. When that count reaches a fixed threshold, the platform SHALL escalate beyond the existing per-attempt annotation into a distinct, labeled, human-discoverable alert. The record SHALL reset the next time that project's rollout preparation succeeds. Before either the tracking label or the alert label is referenced, the platform SHALL idempotently ensure both exist on the tracker repository, using only the least-privilege permission already granted to the rollout job.
-
-This tracking layer SHALL NOT retry, push, merge, or affect PR-creation, and SHALL NOT modify any existing safety guard, recovery eligibility, or credential scope. A failure inside it, including a failure to bootstrap its own labels or a missing required input, SHALL fail the tracking step explicitly with a message naming what failed; it SHALL NOT be converted into a warning. The failure record is written exactly when rollout preparation itself failed; failures before preparation are covered by the release-level rollout alarm.
+The platform SHALL maintain a durable, cross-run record of consecutive terminal `blocked` managed-rollout attempts per project, independent of any single ephemeral workflow run. When that count reaches a fixed threshold, the platform SHALL escalate beyond the existing per-attempt annotation into a distinct, labeled, human-discoverable alert.
 
 #### Scenario: First failure against a project opens a tracking record
 - **GIVEN** a project has no open rollout-failure tracking record
@@ -543,7 +531,7 @@ Every platform-owned Python helper invoked from a workflow job that checks out p
 
 ### Requirement: Historical Copier replay may recover only proven platform-owned state
 
-Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict on a platform-owned harness only when every conflicted path is proven safe from immutable pre-update state. A conflict is safe when either (a) an explicitly reclaimed migration path already matches the exact target immutable template, (b) the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`, or (c) the committed downstream path is a regular file byte-identical to the target immutable template rendered with the recorded answers, re-proven from committed `HEAD` after the reset and matched again after recopy. Missing/missing SHALL count as baseline equivalence. Any currently divergent or otherwise unproven path SHALL remain fail-closed.
+Managed rollout MAY use guarded Copier recopy to recover a smart-update conflict on a platform-owned harness only when every conflicted path is proven safe from immutable pre-update state. Any currently divergent or otherwise unproven path SHALL remain fail-closed.
 
 #### Scenario: Platform-owned file already equals target but historical replay conflicts
 - **GIVEN** a managed repository uses `harness_mode=platform`
@@ -916,8 +904,6 @@ The private managed-project registry MAY record `operator_integration` as a bool
 
 The platform SHALL offer a bounded reconciliation of open rollout failure issues against the managed project's authoritative current platform state. It SHALL close an existing issue with a resolution note only when recovery after its last failed release is proven. Unreadable or ambiguous evidence SHALL leave the alert open. The existing issue SHALL remain the sole durable alert record.
 
-Reconciliation SHALL run periodically without requiring a later automated rollout or a manual stale-rollout supersession apply action.
-
 #### Scenario: Project recovered outside rollout
 
 - **GIVEN** an open rollout failure issue for a managed project
@@ -937,7 +923,7 @@ Reconciliation SHALL run periodically without requiring a later automated rollou
 
 ### Requirement: Failed managed rollout runs raise a release-level alarm
 
-Every `Roll Out Platform` run, whether dispatched by the release workflow or manually for all managed projects or one repository, SHALL end with an always-running alarm job that runs reviewed workflow-ref code and inspects the current run attempt's own jobs. When the plan job or any per-project job did not succeed (failed, cancelled, timed out or never finished), the platform SHALL open one durable alert per release tag in the platform repository, or add to the open one, naming the release tag, each failed stage or target repository, its failed step and its error text, together with the run link and dispatch context. A fully successful run SHALL raise no alarm. The alarm SHALL NOT retry, repair, push or merge anything. When the alarm cannot be delivered, the alarm job SHALL fail with a message naming what failed.
+When the plan job or any per-project job of a `Roll Out Platform` run did not succeed (failed, cancelled, timed out or never finished), the platform SHALL open one durable alert per release tag in the platform repository, or add to the open one, naming the release tag, each failed stage or target repository, its failed step and its error text, together with the run link and dispatch context.
 
 #### Scenario: Plan stage fails
 - **GIVEN** a rollout run whose plan job fails, for example because the operator registry checkout reports the repository not found
@@ -977,9 +963,7 @@ Every `Roll Out Platform` run, whether dispatched by the release workflow or man
 
 ### Requirement: Managed project-owned publication harnesses prove exact-head merge safety without platform rewrites
 
-A managed repository with `harness_mode=project` SHALL retain ownership of its repository-specific task/worktree/integration harness, but that ownership SHALL NOT weaken the platform-owned merge-safety invariant. Managed rollout SHALL treat exact-head publication safety as a conformance requirement for project-owned publication code and SHALL NOT rewrite project-owned harness bytes to obtain it. A project-owned harness that does not prove conformance SHALL fail closed with an actionable diagnostic and SHALL be preserved rather than overwritten.
-
-Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadata alone SHALL NOT count as successful safety adoption for a project-owned harness whose publication surface is known to require conformance.
+Managed rollout SHALL treat exact-head publication safety as a conformance requirement for project-owned publication code and SHALL NOT rewrite project-owned harness bytes to obtain it.
 
 #### Scenario: Project-owned publication harness does not prove conformance
 
@@ -1012,3 +996,283 @@ For a managed project-owned harness whose lifecycle requires terminal status pro
 - **GIVEN** a managed `harness_mode=project` repository with `scripts/finish_task.py` whose publication surface lacks the terminal-reconciliation conformance signals
 - **WHEN** rollout runs
 - **THEN** rollout fails before advancing version metadata or modifying harness bytes
+
+### Requirement: The Copier upgrade test falls back to a bootstrap baseline without a stable tag
+
+For the pre-release Copier update test, when no local stable version tag exists, CI SHALL fall back to a bootstrap baseline commit.
+
+#### Scenario: No local stable version tag exists
+
+- **GIVEN** the current checkout has no local stable version tag
+- **WHEN** CI runs the pre-release Copier update test
+- **THEN** CI falls back to a bootstrap baseline commit
+
+### Requirement: The Copier upgrade smoke test skips cleanly without a prior baseline
+
+If neither a stable tag nor a resolvable bootstrap baseline exists in the current checkout's own history (for example a fresh-history public-distribution snapshot with no prior commits), the Copier upgrade smoke test SHALL skip cleanly instead of failing, since there is no meaningful prior platform state to upgrade from in that checkout.
+
+#### Scenario: Fresh-history checkout has no stable tag and no bootstrap baseline
+
+- **GIVEN** neither a stable tag nor a resolvable bootstrap baseline exists in the current checkout's own history
+- **WHEN** the Copier upgrade smoke test runs
+- **THEN** the smoke test skips cleanly instead of failing
+
+### Requirement: Release automation determines release intent before tagging
+
+Release automation SHALL first determine whether the current commit actually establishes publishable release intent before creating or confirming any tag or release.
+
+#### Scenario: Release automation runs on a commit
+
+- **WHEN** release automation runs on the current commit
+- **THEN** it first determines whether the commit establishes publishable release intent
+- **AND** only then creates or confirms any tag or release
+
+### Requirement: A root commit never establishes release intent
+
+A commit with no Git parent (a repository root/bootstrap commit) SHALL NEVER establish release intent, regardless of what its `VERSION` file contains: a fresh-history bootstrap commit and a genuine first version bump are structurally identical by file content alone, so parentage is the fact that distinguishes them.
+
+#### Scenario: Root commit contains a VERSION file
+
+- **GIVEN** a commit with no Git parent whose `VERSION` file contains a valid version
+- **WHEN** release intent is determined for that commit
+- **THEN** the commit does not establish release intent
+
+### Requirement: A non-root commit establishes release intent only by changing VERSION
+
+A non-root commit SHALL establish release intent only when its `VERSION` value differs from its first parent's; an unchanged `VERSION` SHALL NOT trigger publication.
+
+#### Scenario: Non-root commit changes VERSION
+
+- **WHEN** a non-root commit's `VERSION` value differs from its first parent's
+- **THEN** the commit establishes release intent
+
+#### Scenario: Non-root commit keeps VERSION unchanged
+
+- **WHEN** a non-root commit's `VERSION` value equals its first parent's
+- **THEN** the unchanged `VERSION` does not trigger publication
+
+### Requirement: Release publication does not require operator fleet configuration
+
+Publishing an immutable platform release is a core Dev Platform capability available to any checkout. Managed fleet rollout is a distinct, optional operator capability that requires a private managed-projects registry and dedicated GitHub App credentials. Publishing a release SHALL NEVER by itself require or imply operator fleet configuration.
+
+#### Scenario: Checkout without fleet configuration publishes a release
+
+- **GIVEN** a checkout has no private managed-projects registry and no dedicated GitHub App credentials
+- **WHEN** it publishes an immutable platform release
+- **THEN** publishing the release does not require or imply operator fleet configuration
+
+### Requirement: A release without managed rollout opt-in stays published and reports rollout disabled
+
+After publishing an immutable platform version, absent or non-affirmative repository opt-in to managed rollout SHALL leave the release published but SHALL NOT dispatch rollout, and the run SHALL explicitly report that managed rollout is disabled or not configured.
+
+#### Scenario: Release published with non-affirmative opt-in
+
+- **GIVEN** the repository's managed rollout opt-in is absent or non-affirmative
+- **WHEN** the central release workflow publishes an immutable platform version
+- **THEN** the release stays published
+- **AND** rollout is not dispatched
+- **AND** the run explicitly reports that managed rollout is disabled or not configured
+
+### Requirement: Managed rollout supports manual retry and rejects unpublished versions
+
+Managed-project rollout SHALL also support an explicit manual retry path and SHALL reject versions that are not actually published platform releases.
+
+#### Scenario: Operator retries rollout manually for a published release
+
+- **WHEN** an operator manually retries managed-project rollout for a published platform release
+- **THEN** rollout accepts the explicit manual retry
+
+#### Scenario: Requested rollout version is not a published release
+
+- **WHEN** managed-project rollout is requested for a version that is not actually a published platform release
+- **THEN** rollout rejects that version
+
+### Requirement: Release workflow dispatches rollout only for established release intent
+
+Rollout dispatch from the release workflow SHALL occur only when the current run itself established publishable release intent (an actual version bump) AND the repository has opted in to managed rollout. A run that determines it has no release intent (including a fresh-history root/bootstrap commit or an unchanged `VERSION`) SHALL NOT dispatch rollout regardless of opt-in.
+
+#### Scenario: Opted-in run has no release intent
+
+- **GIVEN** the repository has opted in to managed rollout
+- **WHEN** a release workflow run determines it has no release intent because `VERSION` is unchanged
+- **THEN** the run does not dispatch rollout
+
+#### Scenario: Opted-in run established release intent
+
+- **GIVEN** the repository has opted in to managed rollout
+- **WHEN** the current release workflow run itself established publishable release intent through an actual version bump
+- **THEN** the run may dispatch rollout
+
+### Requirement: Pending rollout PR detection uses a platform-owned structured helper
+
+Detection of an already-pending rollout PR SHALL be performed by a testable, platform-owned helper that filters structured GitHub API JSON by the exact reserved branch, configured base branch, and expected rollout automation identity -- not by ad hoc shell/`jq` argument combinations, human-readable `gh` command output parsing, or PR title/body text matching.
+
+#### Scenario: Rollout checks for an already-pending rollout PR
+
+- **WHEN** automatic rollout checks whether a rollout PR is already pending
+- **THEN** a testable, platform-owned helper filters structured GitHub API JSON by the exact reserved branch, configured base branch and expected rollout automation identity
+- **AND** the detection does not rely on ad hoc shell/`jq` argument combinations, human-readable `gh` command output parsing, or PR title/body text matching
+
+### Requirement: The managed rollout diagnostic envelope carries the required fields
+
+The managed rollout diagnostic envelope SHALL include at least: schema version, terminal status, target project, target immutable release, failure stage, failure category, stable reason, exit code, selected command when known, same-input retry advisory, and structured evidence already known to rollout such as conflict paths.
+
+#### Scenario: Diagnostic envelope is emitted for a failed rollout with known conflict paths
+
+- **GIVEN** a managed-project rollout attempt failed with conflict paths known to rollout
+- **WHEN** the diagnostic envelope is emitted
+- **THEN** it includes schema version, terminal status, target project, target immutable release, failure stage, failure category, stable reason, exit code and same-input retry advisory
+- **AND** it includes the selected command when known
+- **AND** it includes the known conflict paths as structured evidence
+
+### Requirement: The managed rollout diagnostic envelope excludes secrets and raw logs
+
+The managed rollout diagnostic envelope SHALL exclude credentials, unrestricted environment dumps, tokens, and raw logs.
+
+#### Scenario: Diagnostic envelope is emitted from a run with credentials and logs
+
+- **WHEN** the managed rollout diagnostic envelope is emitted
+- **THEN** it contains no credentials, unrestricted environment dumps, tokens, or raw logs
+
+### Requirement: The repeated rollout failure record is written on failed preparation and reset on success
+
+The durable, cross-run record of consecutive terminal `blocked` managed-rollout attempts per project SHALL reset the next time that project's rollout preparation succeeds. The failure record is written exactly when rollout preparation itself failed; failures before preparation are covered by the release-level rollout alarm.
+
+#### Scenario: Project rollout preparation succeeds after recorded failures
+
+- **GIVEN** a project has a record of consecutive terminal `blocked` managed-rollout attempts
+- **WHEN** that project's rollout preparation next succeeds
+- **THEN** the record resets
+
+#### Scenario: Rollout fails before preparation
+
+- **WHEN** a managed rollout fails before rollout preparation
+- **THEN** no failure record is written for that attempt
+- **AND** the failure is covered by the release-level rollout alarm
+
+### Requirement: Repeated rollout failure tracking ensures its labels exist
+
+For repeated managed-rollout failure tracking, before either the tracking label or the alert label is referenced, the platform SHALL idempotently ensure both exist on the tracker repository, using only the least-privilege permission already granted to the rollout job.
+
+#### Scenario: Tracking references its labels
+
+- **WHEN** repeated managed-rollout failure tracking is about to reference the tracking label or the alert label
+- **THEN** the platform first idempotently ensures both labels exist on the tracker repository
+- **AND** it uses only the least-privilege permission already granted to the rollout job
+
+### Requirement: Repeated rollout failure tracking does not affect rollout behavior
+
+The repeated managed-rollout failure tracking layer SHALL NOT retry, push, merge, or affect PR-creation, and SHALL NOT modify any existing safety guard, recovery eligibility, or credential scope.
+
+#### Scenario: Tracking records a blocked attempt
+
+- **WHEN** the repeated managed-rollout failure tracking layer records a terminal `blocked` attempt
+- **THEN** it does not retry, push, merge, or affect PR-creation
+- **AND** it does not modify any existing safety guard, recovery eligibility, or credential scope
+
+### Requirement: A repeated rollout failure tracking error fails the tracking step explicitly
+
+A failure inside the repeated managed-rollout failure tracking layer, including a failure to bootstrap its own labels or a missing required input, SHALL fail the tracking step explicitly with a message naming what failed; the failure SHALL NOT be converted into a warning.
+
+#### Scenario: Tracking cannot bootstrap its labels
+
+- **WHEN** the repeated managed-rollout failure tracking layer fails to bootstrap its own labels or lacks a required input
+- **THEN** the tracking step fails explicitly with a message naming what failed
+- **AND** the failure is not converted into a warning
+
+### Requirement: A guarded Copier recopy conflict is safe only under the recorded conditions
+
+A conflict SHALL count as safe when either (a) an explicitly reclaimed migration path already matches the exact target immutable template, (b) the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`, or (c) the committed downstream path is a regular file byte-identical to the target immutable template rendered with the recorded answers, re-proven from committed `HEAD` after the reset and matched again after recopy.
+
+#### Scenario: A conflicted path meets one of the safe conditions
+
+- **WHEN** a conflicted path of a guarded Copier recopy is an explicitly reclaimed migration path matching the exact target immutable template, matches the same path in the recorded immutable platform template version, or is a regular file byte-identical to the target immutable template rendered with the recorded answers and re-proven from committed `HEAD`
+- **THEN** the conflict counts as safe
+
+### Requirement: Missing paths count as baseline equivalence for guarded Copier recopy
+
+For guarded Copier recopy, missing/missing SHALL count as baseline equivalence.
+
+#### Scenario: A conflicted path is missing in both states
+
+- **WHEN** a conflicted path is missing in both compared states of a guarded Copier recopy
+- **THEN** the path counts as baseline equivalence
+
+### Requirement: Rollout alert reconciliation runs periodically
+
+Reconciliation of open rollout failure issues SHALL run periodically without requiring a later automated rollout or a manual stale-rollout supersession apply action.
+
+#### Scenario: No later rollout or supersession apply happens
+
+- **GIVEN** an open rollout failure issue exists
+- **AND** no later automated rollout and no manual stale-rollout supersession apply action runs
+- **WHEN** the periodic schedule fires
+- **THEN** reconciliation of open rollout failure issues runs
+
+### Requirement: Every Roll Out Platform run ends with an alarm job
+
+Every `Roll Out Platform` run, whether dispatched by the release workflow or manually for all managed projects or one repository, SHALL end with an always-running alarm job that runs reviewed workflow-ref code and inspects the current run attempt's own jobs.
+
+#### Scenario: Roll Out Platform is dispatched manually for one repository
+
+- **WHEN** a `Roll Out Platform` run is dispatched manually for one repository
+- **THEN** the run ends with an always-running alarm job
+- **AND** the alarm job runs reviewed workflow-ref code and inspects the current run attempt's own jobs
+
+### Requirement: A fully successful Roll Out Platform run raises no alarm
+
+A fully successful `Roll Out Platform` run SHALL raise no alarm.
+
+#### Scenario: Every job of the rollout run succeeds
+
+- **WHEN** the plan job and every per-project job of a `Roll Out Platform` run succeed
+- **THEN** the run raises no alarm
+
+### Requirement: The release-level rollout alarm does not change rollout state
+
+The release-level rollout alarm SHALL NOT retry, repair, push or merge anything.
+
+#### Scenario: Alarm is raised for a failed rollout
+
+- **WHEN** the release-level rollout alarm is raised
+- **THEN** it does not retry, repair, push or merge anything
+
+### Requirement: An undeliverable release-level rollout alarm fails the alarm job
+
+When the release-level rollout alarm cannot be delivered, the alarm job SHALL fail with a message naming what failed.
+
+#### Scenario: Alarm delivery fails
+
+- **WHEN** the release-level rollout alarm cannot be delivered
+- **THEN** the alarm job fails with a message naming what failed
+
+### Requirement: Project-owned harness ownership does not weaken platform merge safety
+
+A managed repository with `harness_mode=project` SHALL retain ownership of its repository-specific task/worktree/integration harness, but that ownership SHALL NOT weaken the platform-owned merge-safety invariant.
+
+#### Scenario: Managed repository owns its harness
+
+- **GIVEN** a managed repository with `harness_mode=project`
+- **WHEN** managed rollout runs
+- **THEN** the repository retains ownership of its repository-specific task/worktree/integration harness
+- **AND** the platform-owned merge-safety invariant still applies
+
+### Requirement: A non-conforming project-owned harness fails closed and is preserved
+
+A project-owned harness that does not prove exact-head publication safety conformance SHALL fail closed with an actionable diagnostic and SHALL be preserved rather than overwritten.
+
+#### Scenario: Project-owned harness does not prove conformance
+
+- **WHEN** a project-owned harness does not prove exact-head publication safety conformance
+- **THEN** managed rollout fails closed with an actionable diagnostic
+- **AND** the harness is preserved rather than overwritten
+
+### Requirement: Version metadata alone is not safety adoption for a project-owned harness
+
+Advancing `.copier-answers.yml` or `.dev-platform.toml` platform version metadata alone SHALL NOT count as successful safety adoption for a project-owned harness whose publication surface is known to require conformance.
+
+#### Scenario: Only platform version metadata advances
+
+- **GIVEN** a project-owned harness whose publication surface is known to require conformance
+- **WHEN** only the `.copier-answers.yml` or `.dev-platform.toml` platform version metadata advances
+- **THEN** that advance does not count as successful safety adoption
