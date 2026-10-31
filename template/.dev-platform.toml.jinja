@@ -66,14 +66,6 @@ enabled = false
 # (or an explicit `provider = "codex"|"claude"`) and finish re-validates it.
 enabled = false
 
-# Optional developer-preview backend. Merely rendering this configuration does
-# not install or select DeepSeek Harness; the separate adapter entrypoint still
-# requires an explicit opt-in for every experimental run.
-[experimental_runtime.deepseek_harness]
-enabled = false
-sdk_version = "0.1.1rc1"
-profile = "observation"
-
 {% if operator_config_path %}
 [operator]
 enabled = true

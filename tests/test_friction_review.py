@@ -19,6 +19,9 @@ SCRIPT_ROOT = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPT_ROOT))
 
 agent_friction = load_platform_module("agent_friction_under_test", SCRIPT_ROOT / "agent_friction.py")
+# agent_friction imports ``model_routing`` lazily; bind the template module so later test modules that put
+# the root ``scripts/`` shim first on sys.path cannot run that shim as ``__main__`` (BR-845).
+load_platform_module("model_routing", SCRIPT_ROOT / "model_routing.py")
 
 
 class FrictionReviewTests(unittest.TestCase):

@@ -26,6 +26,9 @@ finish = load_platform_module("finish_task", SCRIPTS / "finish_task.py")
 checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
 openspec = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
 managed = load_platform_module("managed_task", SCRIPTS / "managed_task.py")
+# The queue imports ``model_routing`` lazily; bind the template module so a test order that put the
+# root ``scripts/`` shim first on sys.path cannot run that shim as ``__main__`` (BR-845 precheck).
+load_platform_module("model_routing", SCRIPTS / "model_routing.py")
 
 HEAD = "a" * 40
 IDENTITY = {"change": "example", "task_content": {"version": 1, "digest": "proof", "paths": {}, "base": HEAD,

@@ -109,6 +109,25 @@ class SelectorTests(unittest.TestCase):
                     common.lifecycle_mode(config)
 
 
+class RemovedDeepSeekConfigTests(unittest.TestCase):
+    """BR-845: a leftover DeepSeek Harness section fails explicitly instead of being ignored."""
+
+    def read(self, extra: str) -> dict:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(platform_config_text(extra=extra), encoding="utf-8")
+            return common.read_project_config(root)
+
+    def test_leftover_deepseek_section_names_the_file_and_the_fix(self) -> None:
+        with self.assertRaisesRegex(common.PlatformConfigError,
+                                    r"\.dev-platform\.toml still has \[experimental_runtime\.deepseek_harness\].*delete that section"):
+            self.read("[experimental_runtime.deepseek_harness]\nenabled = false\n")
+
+    def test_configuration_without_the_section_is_read(self) -> None:
+        self.assertEqual(self.read("")["harness_mode"], "platform")
+        self.assertEqual(self.read("[experimental_runtime]\n")["experimental_runtime"], {})
+
+
 class DownstreamCheckoutTests(unittest.TestCase):
     def add_operator_overlay(self, root: Path, toml: str) -> None:
         with (root / ".dev-platform.toml").open("a", encoding="utf-8") as handle:

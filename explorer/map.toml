@@ -259,13 +259,6 @@ parent = "verification-area"
 order = 60
 sources = ["docs/engineering/harness-replay-lab.md"]
 
-[[element]]
-id = "deepseek-harness-runtime"
-title = "Experimental DeepSeek Harness runtime adapter"
-parent = "verification-area"
-order = 70
-sources = ["docs/engineering/deepseek-harness-runtime.md"]
-
 # --- Process improvement ------------------------------------------------------------
 
 [[element]]
