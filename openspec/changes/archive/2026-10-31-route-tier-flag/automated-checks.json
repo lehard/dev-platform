@@ -1,0 +1,135 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.426,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.013,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.184,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.327,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1669.343,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/dogfood_task.py",
+        "template/scripts/model_routing.py",
+        "tests/test_central_dogfood_lifecycle.py",
+        "tests/test_model_routing.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_3e92bb29f6206c4d43fd01277362a4c8",
+    "change": "route-tier-flag",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/route-tier-flag",
+    "branch": "agent/br-953-t1-route-tier-flag",
+    "head": "aab56c87fd4cdeee64701936ec35f6e2f581473e",
+    "task_content": {
+      "version": 1,
+      "digest": "c9c1a6391a6bfff81360f3ec1bc79c305e70caa7305e0cb1863775fe85732b8e",
+      "paths": {
+        "AGENTS.md": "d160e9090ec86dab3bb055d6cd627ea3713b8a46",
+        "docs/engineering/lifecycle-map.md": "872fd678c2f106dd3acb5ae240482d9067907e08",
+        "docs/engineering/model-routing.md": "817127eb5a295a0a970717d1708d60a1ab907cdc",
+        "explorer/nodes/executor-routing.toml": "8ccc7afbef72fe72296411ca7a175290c2735993",
+        "explorer/nodes/routing.toml": "e444bced5699d799b6b32a7ccae0753822c7bda1",
+        "openspec/changes/route-tier-flag/.managed-task.json": "22896b0e33fb3285b010d9013315f995193598ea",
+        "openspec/changes/route-tier-flag/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/route-tier-flag/automated-checks.json": "22256759de37adf04614f8215076b2ee6eabdd7b",
+        "openspec/changes/route-tier-flag/design.md": "e3e4e09b6f0d241c81ea22e9f3ae67f3a73b79dd",
+        "openspec/changes/route-tier-flag/independent-review-request.json": "fceb6602ce5b313aa9cc20747ed3e786ba96238c",
+        "openspec/changes/route-tier-flag/independent-reviews/engineering-quality.json": "aa5050a0db3b142b2230355e2584b5f749683ab8",
+        "openspec/changes/route-tier-flag/independent-reviews/spec-fidelity.json": "be2f8803813b99ee58c5a0ac981a41e8ec7ac211",
+        "openspec/changes/route-tier-flag/proposal.md": "547a0b1ca5ed0c83352ecba3a9b9532357bc87f2",
+        "openspec/changes/route-tier-flag/specs/model-routing/spec.md": "f43b13a93b5997ac34c226ddb38384677c651719",
+        "openspec/changes/route-tier-flag/tasks.md": "472a5ea532b92ed006b3adcfcbd3e38422bdb9fb",
+        "openspec/changes/route-tier-flag/verification.md": "ecf3d4a2710c74d6488f0b18e3f568af85289395",
+        "scripts/dogfood_task.py": "927f4aec6b8275c80ab5cbce145a92f4740a45c5",
+        "template/dev-platform/platform-manifest.json": "17670a0dd3efa51a2efa6fc2f89eaaaec2e06d4e",
+        "template/scripts/model_routing.py": "ff53ea0fa8dc685c7a5c7f1f36bbfe1b0a17c469",
+        "tests/test_central_dogfood_lifecycle.py": "33ff86b3be28d4440b141c8c960630e34e03f726",
+        "tests/test_model_routing.py": "23a6f12c58aa633099c22aaab5426b1fc2b5dd97"
+      },
+      "base": "a26decb866e52661d29aaa8b1351490b60c9b81c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "274f1455b13e8cbd97e5639056c49bf52ff1a37f22cc8f8f600936e2e18ce0cf",
+    "paths": {
+      "AGENTS.md": "d160e9090ec86dab3bb055d6cd627ea3713b8a46",
+      "docs/engineering/lifecycle-map.md": "872fd678c2f106dd3acb5ae240482d9067907e08",
+      "docs/engineering/model-routing.md": "817127eb5a295a0a970717d1708d60a1ab907cdc",
+      "explorer/nodes/executor-routing.toml": "8ccc7afbef72fe72296411ca7a175290c2735993",
+      "explorer/nodes/routing.toml": "e444bced5699d799b6b32a7ccae0753822c7bda1",
+      "openspec/changes/route-tier-flag/.managed-task.json": "22896b0e33fb3285b010d9013315f995193598ea",
+      "openspec/changes/route-tier-flag/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/route-tier-flag/design.md": "e3e4e09b6f0d241c81ea22e9f3ae67f3a73b79dd",
+      "openspec/changes/route-tier-flag/proposal.md": "547a0b1ca5ed0c83352ecba3a9b9532357bc87f2",
+      "openspec/changes/route-tier-flag/specs/model-routing/spec.md": "f43b13a93b5997ac34c226ddb38384677c651719",
+      "openspec/changes/route-tier-flag/tasks.md": "472a5ea532b92ed006b3adcfcbd3e38422bdb9fb",
+      "scripts/dogfood_task.py": "927f4aec6b8275c80ab5cbce145a92f4740a45c5",
+      "template/scripts/model_routing.py": "ff53ea0fa8dc685c7a5c7f1f36bbfe1b0a17c469",
+      "tests/test_central_dogfood_lifecycle.py": "33ff86b3be28d4440b141c8c960630e34e03f726",
+      "tests/test_model_routing.py": "23a6f12c58aa633099c22aaab5426b1fc2b5dd97"
+    },
+    "base": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/dogfood_task.py --changed-file template/scripts/model_routing.py --changed-file tests/test_central_dogfood_lifecycle.py --changed-file tests/test_model_routing.py",
+    "duration_seconds": 398.27,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

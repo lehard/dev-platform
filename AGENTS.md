@@ -61,7 +61,7 @@ python3 scripts/execute_requirement.py advance --requirement owner/repo#N
 python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/execute_managed_task.py --bundle <directory>
-python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex> --rationale "..." --evidence "..."
+python3 scripts/dogfood_task.py route-claude --tier <R1|R2|R3> --rationale "..." --evidence "..."
 python3 scripts/dogfood_task.py status
 python3 scripts/dogfood_task.py reconcile
 python3 template/scripts/openspec_lifecycle.py archive <change>

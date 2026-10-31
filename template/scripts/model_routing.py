@@ -1274,7 +1274,7 @@ def prepare(root: Path, *, provider: str, profile: str | None, rationale: str, e
     if profile is None:
         if start_tier is None:
             raise RoutingError(
-                "no authored start-tier routing receipt is available for this managed task; pass --profile explicitly"
+                "no authored start-tier routing receipt is available for this managed task; pass an explicit --profile (or an explicit --tier on the command that wraps this one)"
             )
         profile = tier_to_profile(start_tier)
     if profile not in PROFILES:

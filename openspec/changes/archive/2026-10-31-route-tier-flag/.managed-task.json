@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/model-routing/spec.md",
+    "tasks.md"
+  ],
+  "change": "route-tier-flag",
+  "imported_at": "2026-10-31T09:06:43+00:00",
+  "package_revision": "91ae6cbf53932e4f1f664d1d3b63b2f3e46b52f1709767a702f31a42f4919e05",
+  "prepared_against": "a102413f006f350e8884509f96b8d1265d2bec1c",
+  "private_lineage_handle": "pln_3e92bb29f6206c4d43fd01277362a4c8",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "9b83bc46b14ea54742f86eaa5b53ce9802d15d0b1f3d1a8825bc51975a96bda6",
+    "updated_at": "2026-10-31T08:53:53Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-953/T1"
+}

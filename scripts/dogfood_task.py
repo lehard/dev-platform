@@ -21,6 +21,9 @@ from pathlib import Path
 
 
 CHANGE_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# Routing tiers of the route-* commands and the engine execution profile each one routes as.
+# An explicit tier keeps the explicit-profile outcome (R1 is not refused here as an authored R1 is).
+TIER_PROFILES = {"R1": "routine", "R2": "standard", "R3": "complex"}
 CODEX_EXECUTOR_PROMPT = (
     "You are the delegated Codex executor for this managed dev-platform task. "
     "Read the materialized canonical OpenSpec and relevant current repository context, "
@@ -269,18 +272,35 @@ def require_routing_gate(root: Path) -> None:
         ) from exc
 
 
+class _RemovedProfile(argparse.Action):
+    """``--profile`` was replaced by ``--tier``; it fails instead of being mapped."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        parser.error("--profile was replaced by --tier R1|R2|R3 (R1 routine, R2 standard, R3 complex)")
+
+
+def _tier_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--tier",
+        choices=tuple(TIER_PROFILES),
+        default=None,
+        help="routing tier; omit to confirm the tier already authored with the managed task (bounded freshness check)",
+    )
+    parser.add_argument("--profile", action=_RemovedProfile, help=argparse.SUPPRESS)
+
+
 def route_codex(args: argparse.Namespace) -> int:
     """Run the mandatory dogfood routing hand-off after supervisor preflight.
 
     This command is intentionally source-only: it keeps the user entrypoint
-    simple while making the supervisor's chosen standard/routine profile launch
+    simple while making the supervisor's chosen R1/R2 tier launch
     the configured Codex executor through the existing native containment path.
     """
     root = current_root()
     verify_source_contract(root)
     command = ["python3", "scripts/model_routing.py", "dispatch-codex"]
-    if args.profile:
-        command += ["--profile", args.profile]
+    if args.tier:
+        command += ["--profile", TIER_PROFILES[args.tier]]
     command += [
         "--rationale",
         args.rationale,
@@ -308,8 +328,8 @@ def route_claude(args: argparse.Namespace) -> int:
     command = ["python3", "scripts/model_routing.py", "dispatch-claude"]
     if args.delegate:
         command += ["--delegate"]
-    if args.profile:
-        command += ["--profile", args.profile]
+    if args.tier:
+        command += ["--profile", TIER_PROFILES[args.tier]]
     command += ["--rationale", args.rationale]
     for item in args.evidence:
         command += ["--evidence", item]
@@ -364,14 +384,9 @@ def main() -> int:
     reconcile_parser.set_defaults(func=reconcile)
     route_parser = sub.add_parser(
         "route-codex",
-        help="Record the Sol supervisor's semantic route and dispatch routine/standard work.",
+        help="Record the Sol supervisor's semantic route and dispatch R1/R2 work.",
     )
-    route_parser.add_argument(
-        "--profile",
-        choices=("routine", "standard", "complex"),
-        default=None,
-        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
-    )
+    _tier_arguments(route_parser)
     route_parser.add_argument("--rationale", required=True)
     route_parser.add_argument("--evidence", action="append", default=[])
     route_parser.add_argument("--prompt")
@@ -380,15 +395,10 @@ def main() -> int:
         "route-claude",
         help="Record the strong Claude parent's semantic route for the Claude Code path; prints the hand-off to invoke.",
     )
-    route_claude_parser.add_argument(
-        "--profile",
-        choices=("routine", "standard", "complex"),
-        default=None,
-        help="omit to confirm the tier already authored with the managed task (bounded freshness check)",
-    )
+    _tier_arguments(route_claude_parser)
     route_claude_parser.add_argument("--rationale", required=True)
     route_claude_parser.add_argument("--evidence", action="append", default=[])
-    route_claude_parser.add_argument("--delegate", action="store_true", help="explicitly request a delegated child executor for a routine/standard route")
+    route_claude_parser.add_argument("--delegate", action="store_true", help="explicitly request a delegated child executor for an R1/R2 route")
     route_claude_parser.set_defaults(func=route_claude)
     begin_claude_parser = sub.add_parser(
         "begin-claude-delegation",
