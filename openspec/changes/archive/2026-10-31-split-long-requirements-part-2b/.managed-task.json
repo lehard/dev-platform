@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/gate-fail-explicit/spec.md",
+    "specs/platform-delegation/spec.md",
+    "specs/platform-rollout/spec.md",
+    "specs/publication-recovery/spec.md",
+    "specs/worktree-coordination/spec.md",
+    "tasks.md"
+  ],
+  "change": "split-long-requirements-part-2b",
+  "imported_at": "2026-10-31T07:51:19+00:00",
+  "package_revision": "e20ccffb0a7e7dfd2d59669d9cb6af7edd82e2b74ae2e36b854433a6b1dfe4b5",
+  "prepared_against": "63681ebd42c1407b4968031f39480db74dd3cffd",
+  "private_lineage_handle": "pln_84a99d655fe2eed28bb9d4e7a226d705",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "38445c132d72bcb5f6db4b2683bc0782e617ce867a270581108d47d6130da98e",
+    "updated_at": "2026-10-31T07:48:18Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
