@@ -1,0 +1,32 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/chat-coordinator/spec.md",
+    "specs/lifecycle-workers/spec.md",
+    "specs/openspec-authoring/spec.md",
+    "specs/publication-queue/spec.md",
+    "tasks.md"
+  ],
+  "change": "adopt-openspec-1-15-0",
+  "imported_at": "2026-10-31T10:56:18+00:00",
+  "package_revision": "c62ee197589f6f2136dc8be7dfe876c146a4fd4541d7207cac63d3b7b2899a0a",
+  "prepared_against": "d603a6dbafc0c72875634f04fb3a09500d86c116",
+  "private_lineage_handle": "pln_2743589c1a6a8728f0f3e87a92a34ed3",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "af46eccacd857aa47afe4bfdf797d070ae39a039360afe849f7b5c8c1c00a01f",
+    "updated_at": "2026-10-31T10:50:15Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-799/T1"
+}
