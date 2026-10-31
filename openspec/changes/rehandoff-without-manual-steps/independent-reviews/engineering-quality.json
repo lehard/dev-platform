@@ -3,42 +3,30 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "70e844842e9083e4e03da38f8c5bd869bd6928d6",
-    "diff_sha256": "1c32839306b8b48a3614d1007258cd0570644d4355533cac50d54e40b8ed2825"
+    "candidate_head": "acbd1e0ff4a1413890530803e3e73c71f78308e2",
+    "diff_sha256": "acd3cc895d7b0426e5eb2b6d8e8ba1133d0a666cf2a5e527f6e05bc594487a07"
   },
-  "completed_at": "2026-10-31T14:57:03+00:00",
+  "completed_at": "2026-10-31T14:59:01+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_board.py claim_eligibility (diff lines 236-239) filters out `stale-heartbeat` for handed-off items. The only cleanup route is the `finish --id` command named in the `_required_scope_inputs` refusal message (diff 285-289). design.md Risks does not mention abandoned PRs.",
-      "id": "handed-off-record-never-expires",
+      "evidence": "template/scripts/agent_board.py claim_eligibility: for a handed_off item it returns \"handed-off\" and drops \"stale-heartbeat\", and only TERMINAL_BOARD_PROBLEMS (e.g. merged-pr, worktree-missing) classify it terminal. tests/test_rehandoff_board.py asserts \"doctor reports no problem for an aged handed-off record\". Nothing in the diff detects a PR that was closed without merging. The only remedy is the manual command named in the _required_scope_inputs refusal message.",
+      "id": "handed-off-record-orphan-no-cleanup",
       "severity": "advisory",
-      "summary": "A handed-off board record is exempt from the stale-heartbeat problem. It is removed only on a terminal problem (merged PR, missing worktree) or by the manual `finish --id` command. If its PR is closed without merging, or the task is abandoned while the worktree stays, the record lives forever. Doctor reports nothing for it, and worktree cleanup no longer treats it as active."
-    },
-    {
-      "evidence": "tests/test_rehandoff_board.py lines 777-782: `except Exception:  # noqa: BLE001 - later gates are out of scope here: pass`. This also conflicts with the repository's no-swallowed-exceptions rule.",
-      "id": "handoff-gate-test-swallows-exceptions",
-      "severity": "advisory",
-      "summary": "`HandoffGateTests.gates` catches every non-WorkerError exception raised by `handoff_gates`. A regression after the routing or checkpoint step, such as a TypeError, would pass silently. The assertions also depend on call order that this catch-all hides."
-    },
-    {
-      "evidence": "template/scripts/finish_task.py lines 398-400 (diff): `data = json.loads(...read_text())`, then `item = next(item for item in data[\"items\"] if item.get(\"id\") == board_id)`.",
-      "id": "reactivate-unlocked-read-stopiteration",
-      "severity": "advisory",
-      "summary": "`reactivate_handed_off_board` reads the board JSON without the lock and then calls `next(...)` with no default. If the item disappears between `find_board_id` and this read, for example because doctor removed it, the result is a bare StopIteration instead of an explicit message. The check and the `reactivate` command are also not atomic."
+      "summary": "A handed-off board record whose PR is closed unmerged or abandoned never becomes a doctor problem and has no automatic cleanup. It stays on the board indefinitely and only a manual `agent_board.py finish` removes it."
     }
   ],
-  "launched_at": "2026-10-31T14:56:42+00:00",
-  "output_sha256": "e13374a21576041d746cc92f32fc6106aad4601d25604084ccf0a19c08894fe6",
+  "launched_at": "2026-10-31T14:58:40+00:00",
+  "output_sha256": "e737725aa7120db7e682172e34335c2b583963452745a3a41da7217e386a520e",
   "perspective": "engineering-quality",
-  "request_id": "eed0a393-1d0b-485a-add9-c5acce12a588",
+  "request_id": "a8a49424-9b3c-4d93-9498-b90c97f7ef54",
   "reviewer": {
-    "context_id": "615fa24e-f0ff-423d-8f28-3e031cb9592d",
+    "context_id": "d341f016-74fe-4929-94e3-eeac37e05911",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1fedca88-2ccf-4942-a41c-21feb2814bbe",
+    "launch_id": "platform-launch-2f572e4f-c291-4e71-a31b-3b304b0ed31f",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -54,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32775
+        "value": 32834
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21405
+        "value": 21409
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16078
+        "value": 16119
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17440
+        "value": 17331
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -84,11 +72,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1685
+        "value": 1618
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "60d6d66db871abf9790ba00ad6941987effedbeb9d38a53be3e6d241c01d494e"
+  "task_content_digest": "ce8bfe36728091dfc63170e49dd70f7f60418331b0c1b559b6b7ed1870cc719e"
 }
