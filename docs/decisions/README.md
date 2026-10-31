@@ -10,6 +10,7 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | [DEC-0004](0004-main-advance-revalidation.md) | Main advance and repeated validation: one task-base classifier for every gate | Freshness gates and queue integration | Current |
 | [DEC-0005](0005-managed-rollout-on-demand.md) | Managed rollout on demand, not on every release | Releases and downstream updates | Current |
 | [DEC-0006](0006-claude-lifecycle-provider.md) | Claude as the provider for review, repair and finalize | Central lifecycle jobs | Current |
+| [DEC-0007](0007-openspec-requirement-length.md) | Meet the OpenSpec requirement-length limit by splitting requirements | OpenSpec version and requirement form | Current |
 
 ## Record contract
 

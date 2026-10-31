@@ -7,7 +7,7 @@ Let the platform know, honestly and from one source, which Claude Code and Codex
 
 ### Requirement: The platform computes the status of live agent sessions
 
-The platform SHALL maintain, on the operator machine, a registry of agent sessions (Claude Code and Codex) and SHALL compute each session's status itself from hook events: `working`, `idle`, `waiting-input`, `waiting-permission`, `limit-or-error`, `ended` or `unknown`, together with its project, branch, task, root process id and the time of the last event. Viewers SHALL read the registry and SHALL NOT compute status. A state that cannot be established SHALL be `unknown` and SHALL NOT be presented as `working`.
+The platform SHALL maintain, on the operator machine, a registry of agent sessions (Claude Code and Codex) and SHALL compute each session's status itself from hook events: `working`, `idle`, `waiting-input`, `waiting-permission`, `limit-or-error`, `ended` or `unknown`, together with its project, branch, task, root process id and the time of the last event.
 
 #### Scenario: Permission wait is not cleared by another tool
 - **GIVEN** a session in `waiting-permission` for tool A
@@ -43,3 +43,23 @@ For Codex the platform SHALL record only the turn-complete notification as `idle
 #### Scenario: Codex turn completes
 - **WHEN** an `agent-turn-complete` notification arrives
 - **THEN** the Codex session is `idle`
+
+### Requirement: Viewers read agent session status from the registry
+
+Viewers of agent sessions SHALL read the session registry and SHALL NOT compute session status.
+
+#### Scenario: A viewer shows a session's status
+
+- **WHEN** a viewer shows the status of an agent session
+- **THEN** it shows the status recorded in the session registry
+- **AND** it does not derive the status itself
+
+### Requirement: An undetermined agent session state is unknown
+
+An agent session state that cannot be established SHALL be `unknown` and SHALL NOT be presented as `working`.
+
+#### Scenario: Session state cannot be established
+
+- **WHEN** the registry cannot establish a session's state from its hook events
+- **THEN** the session status is `unknown`
+- **AND** it is not presented as `working`

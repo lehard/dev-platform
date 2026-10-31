@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the portable public distribution boundary, sanitization checks, and non-destructive cutover requirements for Dev Platform.
+
 ## Requirements
+
 ### Requirement: Public distribution is sanitized from operator-specific state
 
 A canonical public Dev Platform release/source snapshot SHALL be validated to exclude live operator inventory, account-specific defaults and private installation state that are not part of the generic product. The validation SHALL distinguish ordinary owner/project references that require product cleanup from actual secrets or sensitive payload that require security remediation.
@@ -37,21 +39,7 @@ The ordinary productization path SHALL create the new canonical public repositor
 
 ### Requirement: Public audit covers the exact public snapshot candidate set
 
-The public-distribution lifecycle SHALL derive one deterministic candidate
-file set from the Git-tracked files of the current checkout (for example via
-`git ls-files`) and SHALL use that same set for sanitization and snapshot
-packaging, after applying the existing exclusion policy
-(`EXCLUDED_PARTS`/`EXCLUDED_PATHS`) and any supplied external cutover-policy
-exclusions. A successful audit SHALL NOT permit a file into the fresh-history
-snapshot that was outside the sanitization decision. Untracked local files
-(for example scratch notes, generated output, or other working-tree state
-never committed to Git) SHALL NOT enter the candidate set, SHALL NOT
-influence the candidate digest, and SHALL NOT produce audit findings, because
-they are not part of the repository source the fresh public history is built
-from. The command SHALL fail closed with an actionable error when it cannot
-enumerate Git-tracked files (for example when run outside a Git checkout or
-when `git` itself fails), rather than silently falling back to a full
-filesystem walk.
+The public-distribution lifecycle SHALL derive one deterministic candidate file set from the Git-tracked files of the current checkout (for example via `git ls-files`) and SHALL use that same set for sanitization and snapshot packaging, after applying the existing exclusion policy (`EXCLUDED_PARTS`/`EXCLUDED_PATHS`) and any supplied external cutover-policy exclusions.
 
 #### Scenario: Candidate file contains prohibited owner/project state
 - **GIVEN** a file is part of the public snapshot candidate set
@@ -257,3 +245,34 @@ The platform SHALL prevent supported references to private managed task Issues f
 - **WHEN** current public source and outputs pass the privacy guard
 - **THEN** the receipt identifies the checked current surfaces and does not claim that old Git commits were erased
 
+### Requirement: A successful public audit admits no file outside the sanitization decision
+
+A successful public-distribution audit SHALL NOT permit a file into the fresh-history snapshot that was outside the sanitization decision.
+
+#### Scenario: File outside the sanitization decision
+
+- **GIVEN** a file that was outside the sanitization decision
+- **WHEN** the public-distribution audit succeeds
+- **THEN** that file is not permitted into the fresh-history snapshot
+
+### Requirement: Untracked local files stay out of the public candidate set
+
+Untracked local files (for example scratch notes, generated output, or other working-tree state never committed to Git) SHALL NOT enter the candidate set, SHALL NOT influence the candidate digest, and SHALL NOT produce audit findings, because they are not part of the repository source the fresh public history is built from.
+
+#### Scenario: Untracked local file is ignored
+
+- **GIVEN** an untracked local file, such as scratch notes, generated output, or other working-tree state never committed to Git
+- **WHEN** the public-distribution candidate set is derived
+- **THEN** the file does not enter the candidate set
+- **AND** it does not influence the candidate digest
+- **AND** it produces no audit finding
+
+### Requirement: The public-distribution command fails closed without Git-tracked files
+
+The public-distribution command SHALL fail closed with an actionable error when it cannot enumerate Git-tracked files (for example when run outside a Git checkout or when `git` itself fails), rather than silently falling back to a full filesystem walk.
+
+#### Scenario: Git-tracked files cannot be enumerated
+
+- **WHEN** the public-distribution command cannot enumerate Git-tracked files, for example outside a Git checkout or when `git` itself fails
+- **THEN** it fails closed with an actionable error
+- **AND** it does not silently fall back to a full filesystem walk

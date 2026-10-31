@@ -1,0 +1,7 @@
+## 1. Split
+- [x] 1.1 Split the long requirements of the 18 specs by the upstream procedure (MODIFIED keeps header and all scenarios; removed behaviors ADDED with own scenarios).
+- [x] 1.2 Record DEC-0007 in `docs/decisions/` and the index.
+
+## 2. Verification
+- [x] 2.1 Mechanical split check per spec; `openspec validate <change> --strict` on 1.13.2 and 1.15.0.
+- [x] 2.2 After archive, the 18 specs pass `openspec validate --strict` on 1.15.0; full validation; semantic review of meaning preservation.
