@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the evidence-based decision layer that evaluates candidate approaches for platform work.
+
 ## Requirements
+
 ### Requirement: Atomic-judgment pilots do not gain gating or write authority
 
 Dev Platform SHALL NOT let a candidate decision-layer pilot, or any of its backends (including System One/Jev), gate, block, or auto-approve a managed-task action, gain write access to any repository or worktree, or become a required Dev Platform runtime dependency, solely from the pilot's own evaluation output.
@@ -22,7 +24,7 @@ Dev Platform SHALL NOT let a candidate decision-layer pilot, or any of its backe
 
 ### Requirement: Judgment evaluation separates deterministic ground truth from model judgment
 
-For each judgment in the taxonomy, the pilot SHALL classify it as deterministic-checkable (established directly, for example by tests, file existence, exit status, exact version, or changed paths) or model-judged (a genuinely ambiguous semantic property). A deterministic-checkable judgment SHALL NOT be scored using any model backend's output as its source of truth. Reference verdicts SHALL be recorded independently of the backend under evaluation, and an unlabelable case SHALL be recorded as `unknown/not-labelable` rather than a fabricated ground truth.
+For each judgment in the taxonomy, the pilot SHALL classify it as deterministic-checkable (established directly, for example by tests, file existence, exit status, exact version, or changed paths) or model-judged (a genuinely ambiguous semantic property).
 
 #### Scenario: Deterministic judgment reuses existing evidence
 
@@ -56,3 +58,31 @@ A completed atomic-judgment decision-layer pilot SHALL record exactly one curren
 - **WHEN** the decision is recorded
 - **THEN** the decision SHALL NOT be `proceed-to-shadow` unless that error class is explicitly evaluated and found acceptable
 - **AND** the report identifies the concrete false-allow cases observed
+
+### Requirement: A deterministic-checkable judgment is not scored from model output
+
+A deterministic-checkable judgment SHALL NOT be scored using any model backend's output as its source of truth.
+
+#### Scenario: Deterministic-checkable judgment is scored
+
+- **WHEN** the pilot scores a deterministic-checkable judgment
+- **THEN** no model backend's output is used as its source of truth
+
+### Requirement: Reference verdicts are recorded independently of the evaluated backend
+
+Reference verdicts SHALL be recorded independently of the backend under evaluation.
+
+#### Scenario: Reference verdict is recorded
+
+- **WHEN** the pilot records a reference verdict
+- **THEN** it is recorded independently of the backend under evaluation
+
+### Requirement: An unlabelable judgment case is recorded as not labelable
+
+An unlabelable case SHALL be recorded as `unknown/not-labelable` rather than a fabricated ground truth.
+
+#### Scenario: Case cannot be labeled
+
+- **WHEN** the pilot records an unlabelable case
+- **THEN** it is recorded as `unknown/not-labelable`
+- **AND** no fabricated ground truth is recorded for it

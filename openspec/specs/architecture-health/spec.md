@@ -35,7 +35,7 @@ Dev Platform SHALL permit bounded comparison of materially different design/inte
 
 ### Requirement: Architecture Health Review can run as a bounded cloud/scheduled job
 
-Dev Platform SHALL support running Architecture Health Review as an optional GitHub Agentic Workflows job, triggerable by a configured schedule and by manual dispatch, independent of any running local developer computer. The job SHALL remain read-only over repository/issue content, SHALL declare a bounded runtime and per-run AI-credit budget, and SHALL be enabled and validated only in `lehard/dev-platform` until a separate, explicitly approved change extends it to managed downstream repositories.
+Dev Platform SHALL support running Architecture Health Review as an optional GitHub Agentic Workflows job, triggerable by a configured schedule and by manual dispatch, independent of any running local developer computer.
 
 #### Scenario: Scheduled cloud run
 
@@ -60,3 +60,31 @@ Dev Platform SHALL support running Architecture Health Review as an optional Git
 
 - **WHEN** the cloud execution surface is validated in `lehard/dev-platform`
 - **THEN** managed consumer repositories do not receive the workflow until a separate follow-up change is approved
+
+### Requirement: The Architecture Health Review cloud job stays read-only
+
+The Architecture Health Review GitHub Agentic Workflows job SHALL remain read-only over repository/issue content.
+
+#### Scenario: Cloud job reads content
+
+- **WHEN** the Architecture Health Review GitHub Agentic Workflows job runs
+- **THEN** it remains read-only over repository/issue content
+
+### Requirement: The Architecture Health Review cloud job declares its bounds
+
+The Architecture Health Review GitHub Agentic Workflows job SHALL declare a bounded runtime and per-run AI-credit budget.
+
+#### Scenario: Cloud job is configured
+
+- **WHEN** the Architecture Health Review GitHub Agentic Workflows job is configured
+- **THEN** it declares a bounded runtime and per-run AI-credit budget
+
+### Requirement: The Architecture Health Review cloud job is enabled only centrally
+
+The Architecture Health Review GitHub Agentic Workflows job SHALL be enabled and validated only in `lehard/dev-platform` until a separate, explicitly approved change extends it to managed downstream repositories.
+
+#### Scenario: Downstream repository without an approved extension
+
+- **GIVEN** no separate, explicitly approved change has extended the job to managed downstream repositories
+- **WHEN** the Architecture Health Review GitHub Agentic Workflows job is enabled and validated
+- **THEN** it is enabled and validated only in `lehard/dev-platform`

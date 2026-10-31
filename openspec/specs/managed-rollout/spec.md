@@ -52,7 +52,7 @@ Every workflow job that invokes `rollout_supersession.py reconcile` SHALL indepe
 
 ### Requirement: Rollout to a runner-aware release migrates or stops on a hand-edited platform runner
 
-When a managed rollout targets a release whose template asks `ci_runner` for a GitHub project whose recorded answers lack `ci_runner`, the rollout SHALL inspect the committed `runs-on` of the platform-rendered `platform-ci` and `provision` jobs before updating, for both `harness_mode=platform` and `harness_mode=project`. It SHALL either carry the project's current runner into the recorded Copier answers and produce a result that passes `platform_doctor` with no unresolved `.rej`, or stop before publishing anything, with a message naming the repository, the file and the exact next action. It SHALL NOT record `ci_runner=github-hosted` for a project whose committed runner is not `ubuntu-latest`. A project whose committed runners are all `ubuntu-latest` SHALL update with no new manual step. The protected default branch SHALL NOT change in any case.
+When a managed rollout targets a release whose template asks `ci_runner` for a GitHub project whose recorded answers lack `ci_runner`, the rollout SHALL inspect the committed `runs-on` of the platform-rendered `platform-ci` and `provision` jobs before updating, for both `harness_mode=platform` and `harness_mode=project`.
 
 #### Scenario: Simple self-hosted runner is migrated in platform mode
 - **GIVEN** a project on an earlier release whose `platform-ci` and `provision` `runs-on` were hand-edited to the same simple label(s), and whose workflows otherwise equal the baseline render
@@ -84,3 +84,44 @@ When a managed rollout targets a release whose template asks `ci_runner` for a G
 #### Scenario: Migration path is documented
 - **WHEN** a maintainer reads `docs/managed-rollout.md`
 - **THEN** it explains the automatic migration, each stop condition and the action to take after a stop
+
+### Requirement: A runner-aware rollout either carries the current runner or stops before publishing
+
+When a managed rollout targets a release whose template asks `ci_runner` for a GitHub project whose recorded answers lack `ci_runner`, the rollout SHALL either carry the project's current runner into the recorded Copier answers and produce a result that passes `platform_doctor` with no unresolved `.rej`, or stop before publishing anything, with a message naming the repository, the file and the exact next action.
+
+#### Scenario: Runner is carried or the rollout stops
+
+- **GIVEN** a GitHub project whose recorded answers lack `ci_runner`
+- **WHEN** a managed rollout targets a release whose template asks `ci_runner`
+- **THEN** the rollout either carries the project's current runner into the recorded Copier answers with a result that passes `platform_doctor` and no unresolved `.rej`
+- **AND** otherwise it stops before publishing anything with a message naming the repository, the file and the exact next action
+
+### Requirement: A runner-aware rollout records github-hosted only for ubuntu-latest runners
+
+When a managed rollout targets a release whose template asks `ci_runner` for a GitHub project whose recorded answers lack `ci_runner`, the rollout SHALL NOT record `ci_runner=github-hosted` for a project whose committed runner is not `ubuntu-latest`.
+
+#### Scenario: Committed runner is not ubuntu-latest
+
+- **GIVEN** a GitHub project whose recorded answers lack `ci_runner` and whose committed runner is not `ubuntu-latest`
+- **WHEN** a managed rollout targets a release whose template asks `ci_runner`
+- **THEN** the rollout does not record `ci_runner=github-hosted`
+
+### Requirement: A runner-aware rollout of an ubuntu-latest project adds no manual step
+
+When a managed rollout targets a release whose template asks `ci_runner` for a GitHub project whose recorded answers lack `ci_runner`, a project whose committed runners are all `ubuntu-latest` SHALL update with no new manual step.
+
+#### Scenario: All committed runners are ubuntu-latest
+
+- **GIVEN** a GitHub project whose recorded answers lack `ci_runner` and whose committed runners are all `ubuntu-latest`
+- **WHEN** a managed rollout targets a release whose template asks `ci_runner`
+- **THEN** the project updates with no new manual step
+
+### Requirement: A runner-aware rollout never changes the protected default branch
+
+When a managed rollout targets a release whose template asks `ci_runner` for a GitHub project whose recorded answers lack `ci_runner`, the protected default branch SHALL NOT change in any case.
+
+#### Scenario: Protected default branch is untouched
+
+- **GIVEN** a GitHub project whose recorded answers lack `ci_runner`
+- **WHEN** a managed rollout targets a release whose template asks `ci_runner`, whatever its outcome
+- **THEN** the protected default branch does not change

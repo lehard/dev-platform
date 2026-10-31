@@ -1,0 +1,170 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 4,
+    "check_count": 2
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.036,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 1.093,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.16,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/build_explorer.py check",
+      "duration_seconds": 3.954,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "docs/decisions/0007-openspec-requirement-length.md",
+        "docs/decisions/README.md",
+        "openspec/changes/split-long-requirements-part-1/.managed-task.json",
+        "openspec/changes/split-long-requirements-part-1/.openspec.yaml",
+        "openspec/changes/split-long-requirements-part-1/design.md",
+        "openspec/changes/split-long-requirements-part-1/independent-review-request.json",
+        "openspec/changes/split-long-requirements-part-1/independent-reviews/engineering-quality.json",
+        "openspec/changes/split-long-requirements-part-1/independent-reviews/spec-fidelity.json",
+        "openspec/changes/split-long-requirements-part-1/proposal.md",
+        "openspec/changes/split-long-requirements-part-1/specs/agent-runtime/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/agent-sessions/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/architecture-health/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/blocking-check-recovery/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/ci-safety/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/decision-layer-evaluation/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/decision-registry/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/engineering-capabilities/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/goal-definition/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/local-platform-hotfix/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/managed-rollout/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/managed-work-identity/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/model-routing/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/openspec-authoring/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/project-factory/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/public-distribution/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/shared-workspace-coordination/spec.md",
+        "openspec/changes/split-long-requirements-part-1/specs/shared-workspace/spec.md",
+        "openspec/changes/split-long-requirements-part-1/tasks.md",
+        "openspec/changes/split-long-requirements-part-1/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration",
+        "configuration"
+      ]
+    },
+    {
+      "id": "explorer",
+      "paths": [
+        "docs/decisions/0007-openspec-requirement-length.md",
+        "docs/decisions/README.md"
+      ],
+      "commands": [
+        "python3 scripts/build_explorer.py check"
+      ],
+      "evidence_types": [
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_29f155acc9e3b170a7673343316c8a3f",
+    "change": "split-long-requirements-part-1",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/split-long-requirements-part-1",
+    "branch": "agent/split-long-requirements-part-1",
+    "head": "1ccaf2168a2f05cb65b58b440235098dc7689b89",
+    "task_content": {
+      "version": 1,
+      "digest": "fe271a77a7d0fcffe712938ae955d82af18abc4515732dfa2ae632a10fa1d4d7",
+      "paths": {
+        "docs/decisions/0007-openspec-requirement-length.md": "77d436ceaa548461d4b34b70a2f706d2332a863a",
+        "docs/decisions/README.md": "164d47f5aa90c8c8335bd46b0b9655d2e4524c18",
+        "openspec/changes/split-long-requirements-part-1/.managed-task.json": "eeba108f88f9030db5867d67728752213a98957c",
+        "openspec/changes/split-long-requirements-part-1/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/split-long-requirements-part-1/design.md": "9db3b9a34ad5f51fee3dccb46f5b015035002422",
+        "openspec/changes/split-long-requirements-part-1/independent-review-request.json": "6c30b8af74f13032906e8a9da423bfba87754e5f",
+        "openspec/changes/split-long-requirements-part-1/independent-reviews/engineering-quality.json": "2817e60e8772a184db411068128c9bdd9ea8d438",
+        "openspec/changes/split-long-requirements-part-1/independent-reviews/spec-fidelity.json": "c4f069bb1fa9ae952a6c41a793bba09f4f2b54b3",
+        "openspec/changes/split-long-requirements-part-1/proposal.md": "92733fbecc789a39f293c00b4c6ae92a83af6b71",
+        "openspec/changes/split-long-requirements-part-1/specs/agent-runtime/spec.md": "560d50fac0d9f1494c6be9512314caa36c39286a",
+        "openspec/changes/split-long-requirements-part-1/specs/agent-sessions/spec.md": "593afc37d76238b6bc7c12476227229c2e4404f8",
+        "openspec/changes/split-long-requirements-part-1/specs/architecture-health/spec.md": "4ffdb4a36947fc271760f0e62dc446c8cc9aacdd",
+        "openspec/changes/split-long-requirements-part-1/specs/blocking-check-recovery/spec.md": "88225f8832431ac49769859286a4cb7718e1590c",
+        "openspec/changes/split-long-requirements-part-1/specs/ci-safety/spec.md": "8b502411f0a44564a318094dd9b998c9e98d3d1f",
+        "openspec/changes/split-long-requirements-part-1/specs/decision-layer-evaluation/spec.md": "666ef8840e4f4b87a486f4e36b3ca22e21184488",
+        "openspec/changes/split-long-requirements-part-1/specs/decision-registry/spec.md": "13816557a803679f5d8988e3ebad7149671e43e9",
+        "openspec/changes/split-long-requirements-part-1/specs/engineering-capabilities/spec.md": "ccda8ef3aa28c7670ea08c0a1d1370698e7e0897",
+        "openspec/changes/split-long-requirements-part-1/specs/goal-definition/spec.md": "ef4b152324203e7314e097e17390ed2eb636329a",
+        "openspec/changes/split-long-requirements-part-1/specs/local-platform-hotfix/spec.md": "b4b5d37b5c2a6cccee52e5ee97b59a69f179c045",
+        "openspec/changes/split-long-requirements-part-1/specs/managed-rollout/spec.md": "693064211bd19c5c83a568a2cbd83f2d24c55c27",
+        "openspec/changes/split-long-requirements-part-1/specs/managed-work-identity/spec.md": "cb5cb8cd1df7c74287221869f68ef03551843111",
+        "openspec/changes/split-long-requirements-part-1/specs/model-routing/spec.md": "b58974ab2995d6955320b36bcf0a6c5acdc0f0a2",
+        "openspec/changes/split-long-requirements-part-1/specs/openspec-authoring/spec.md": "b5c7f2d41a3b211f2260a8f57a9ce7ec8691bcdd",
+        "openspec/changes/split-long-requirements-part-1/specs/project-factory/spec.md": "6a73fc68faadffecc53b9f2847dbda8d0d7c97f9",
+        "openspec/changes/split-long-requirements-part-1/specs/public-distribution/spec.md": "4f2bbea2f1c8298c5bbbde186f613157295cfdd0",
+        "openspec/changes/split-long-requirements-part-1/specs/shared-workspace-coordination/spec.md": "ba6f733ac523c5224bd46e054120492feeccbb7e",
+        "openspec/changes/split-long-requirements-part-1/specs/shared-workspace/spec.md": "941436fa303d73f5e62c9284d0e4a1271b921c70",
+        "openspec/changes/split-long-requirements-part-1/tasks.md": "b27dec7797a66463acdba8194b8a74c5636c1b42",
+        "openspec/changes/split-long-requirements-part-1/verification.md": "3c4adf3aec02a178ce818cc98b0cdc53769fdcba"
+      },
+      "base": "9390a100eaae7e143c66dfe8fd54847a2a68b17b"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "c95427be1d6df240b9ebddc27d7f9df1ba2429ef02b8b50ec8e99ef2674f45ac",
+    "paths": {
+      "docs/decisions/0007-openspec-requirement-length.md": "77d436ceaa548461d4b34b70a2f706d2332a863a",
+      "docs/decisions/README.md": "164d47f5aa90c8c8335bd46b0b9655d2e4524c18",
+      "openspec/changes/split-long-requirements-part-1/.managed-task.json": "eeba108f88f9030db5867d67728752213a98957c",
+      "openspec/changes/split-long-requirements-part-1/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/split-long-requirements-part-1/design.md": "9db3b9a34ad5f51fee3dccb46f5b015035002422",
+      "openspec/changes/split-long-requirements-part-1/proposal.md": "92733fbecc789a39f293c00b4c6ae92a83af6b71",
+      "openspec/changes/split-long-requirements-part-1/specs/agent-runtime/spec.md": "560d50fac0d9f1494c6be9512314caa36c39286a",
+      "openspec/changes/split-long-requirements-part-1/specs/agent-sessions/spec.md": "593afc37d76238b6bc7c12476227229c2e4404f8",
+      "openspec/changes/split-long-requirements-part-1/specs/architecture-health/spec.md": "4ffdb4a36947fc271760f0e62dc446c8cc9aacdd",
+      "openspec/changes/split-long-requirements-part-1/specs/blocking-check-recovery/spec.md": "88225f8832431ac49769859286a4cb7718e1590c",
+      "openspec/changes/split-long-requirements-part-1/specs/ci-safety/spec.md": "8b502411f0a44564a318094dd9b998c9e98d3d1f",
+      "openspec/changes/split-long-requirements-part-1/specs/decision-layer-evaluation/spec.md": "666ef8840e4f4b87a486f4e36b3ca22e21184488",
+      "openspec/changes/split-long-requirements-part-1/specs/decision-registry/spec.md": "13816557a803679f5d8988e3ebad7149671e43e9",
+      "openspec/changes/split-long-requirements-part-1/specs/engineering-capabilities/spec.md": "ccda8ef3aa28c7670ea08c0a1d1370698e7e0897",
+      "openspec/changes/split-long-requirements-part-1/specs/goal-definition/spec.md": "ef4b152324203e7314e097e17390ed2eb636329a",
+      "openspec/changes/split-long-requirements-part-1/specs/local-platform-hotfix/spec.md": "b4b5d37b5c2a6cccee52e5ee97b59a69f179c045",
+      "openspec/changes/split-long-requirements-part-1/specs/managed-rollout/spec.md": "693064211bd19c5c83a568a2cbd83f2d24c55c27",
+      "openspec/changes/split-long-requirements-part-1/specs/managed-work-identity/spec.md": "cb5cb8cd1df7c74287221869f68ef03551843111",
+      "openspec/changes/split-long-requirements-part-1/specs/model-routing/spec.md": "b58974ab2995d6955320b36bcf0a6c5acdc0f0a2",
+      "openspec/changes/split-long-requirements-part-1/specs/openspec-authoring/spec.md": "b5c7f2d41a3b211f2260a8f57a9ce7ec8691bcdd",
+      "openspec/changes/split-long-requirements-part-1/specs/project-factory/spec.md": "6a73fc68faadffecc53b9f2847dbda8d0d7c97f9",
+      "openspec/changes/split-long-requirements-part-1/specs/public-distribution/spec.md": "4f2bbea2f1c8298c5bbbde186f613157295cfdd0",
+      "openspec/changes/split-long-requirements-part-1/specs/shared-workspace-coordination/spec.md": "ba6f733ac523c5224bd46e054120492feeccbb7e",
+      "openspec/changes/split-long-requirements-part-1/specs/shared-workspace/spec.md": "941436fa303d73f5e62c9284d0e4a1271b921c70",
+      "openspec/changes/split-long-requirements-part-1/tasks.md": "b27dec7797a66463acdba8194b8a74c5636c1b42"
+    },
+    "base": "9390a100eaae7e143c66dfe8fd54847a2a68b17b",
+    "scope": "independent-review-v1"
+  }
+}

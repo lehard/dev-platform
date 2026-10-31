@@ -5,7 +5,7 @@ Independent-Review-Evidence: independent-review-request.json
 
 ## Decisions
 
-- Split procedure from the OpenSpec 1.15.0 specs instruction (Fission-AI/OpenSpec#2020): every requirement with a description over 500 UTF-16 units is MODIFIED under its header with all scenarios kept and its description cut to one behavior; each removed behavior is ADDED with its own scenario. 57 long requirements in 18 specs became 57 MODIFIED and 181 ADDED requirements.
+- Split procedure from the OpenSpec 1.15.0 specs instruction (Fission-AI/OpenSpec#2020): every requirement with a description over 500 UTF-16 units is MODIFIED under its header with all scenarios kept and its description cut to one behavior; each removed behavior is ADDED with its own scenario. 55 long requirements in 18 specs became 55 MODIFIED and 183 ADDED requirements; after archive 174 long requirements remain, all in the 19 specs of portions 2 and 3.
 - Wording is reused verbatim. Edits beyond splitting: a pronoun or demonstrative replaced by its noun, a subject or condition repeated so a sentence stands alone, and a few connectives dropped ("More broadly", "Instead", "such"). Single sentences over 500 were split at clause boundaries; in model-routing "Verified concurrent integration advancement is distinct from a delegated escape" the condition list moved into the ADDED "Qualifying conditions for a verified concurrent integration advance", referenced from the MODIFIED text. In local-platform-hotfix the divergence-check condition list was regrouped into three sentences with the same subject.
 - DEC-0007 records the owner decision (upstream path; B, C and D rejected).
 

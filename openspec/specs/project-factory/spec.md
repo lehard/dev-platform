@@ -367,13 +367,7 @@ The platform SHALL report the type of configured check evidence truthfully and S
 
 ### Requirement: Generated agent guidance exposes one compact cross-agent task protocol
 
-The Project Factory SHALL render one canonical vendor-neutral repository-wide entrypoint in `AGENTS.md` for discovering and safely entering the shared cross-agent task protocol. Root `AGENTS.md` SHALL be a bounded always-on navigation and invariant layer rather than a complete duplicate of detailed workflow documentation. It SHALL contain the source-of-truth model, task-intent boundaries, safety/stop invariants required before further context can be loaded, canonical lifecycle entrypoints, platform/project ownership boundaries and stable repository-relative navigation to detailed guidance.
-
-Detailed managed-task, OpenSpec, worktree/publication, provider-routing, release, friction and other specialized workflow instructions SHALL live in canonical thematic repository docs or executable mechanisms and be loaded when relevant. Moving detail out of root guidance SHALL NOT weaken or remove the underlying process, safety, verification or completion contracts.
-
-Tool-specific instruction files SHALL reference/import the canonical repository-wide entrypoint rather than fork its semantics. The platform SHALL NOT require a Hermes-specific or other vendor-specific parallel process contract merely to support an additional agent shell.
-
-Semantic-preserving compaction of this guidance SHALL be verified with focused structural, navigation, destination/link, render and semantic-preservation evidence. It SHALL NOT require an unrelated full software regression suite solely because instruction, documentation or template text changed. Where compaction intentionally changes directive meaning rather than only shortening or relocating it, the change SHALL be reconciled with OpenSpec first and SHALL carry targeted behavioral evidence for the affected surface.
+The Project Factory SHALL render one canonical vendor-neutral repository-wide entrypoint in `AGENTS.md` for discovering and safely entering the shared cross-agent task protocol.
 
 #### Scenario: Repository supports Codex and Claude
 
@@ -533,3 +527,89 @@ Templates SHALL NOT render a trailing blank line at end-of-file, so that a Copie
 
 - **WHEN** a template fix removes an unwanted rendered blank line
 - **THEN** it SHALL NOT rely on a Jinja environment-wide whitespace-trimming setting unless every template using inline control or escape tags (such as `{% raw %}...{% endraw %}` guarding literal `${{ }}` expressions) has been verified unaffected
+
+### Requirement: Root AGENTS.md is a bounded navigation and invariant layer
+
+Root `AGENTS.md` SHALL be a bounded always-on navigation and invariant layer rather than a complete duplicate of detailed workflow documentation.
+
+#### Scenario: Root AGENTS.md is rendered
+
+- **WHEN** the Project Factory renders root `AGENTS.md`
+- **THEN** it is a bounded always-on navigation and invariant layer
+- **AND** it is not a complete duplicate of detailed workflow documentation
+
+### Requirement: Root AGENTS.md contains the always-on map and invariants
+
+Root `AGENTS.md` SHALL contain the source-of-truth model, task-intent boundaries, safety/stop invariants required before further context can be loaded, canonical lifecycle entrypoints, platform/project ownership boundaries and stable repository-relative navigation to detailed guidance.
+
+#### Scenario: Root AGENTS.md content
+
+- **WHEN** the Project Factory renders root `AGENTS.md`
+- **THEN** it contains the source-of-truth model, task-intent boundaries and safety/stop invariants required before further context can be loaded
+- **AND** it contains canonical lifecycle entrypoints, platform/project ownership boundaries and stable repository-relative navigation to detailed guidance
+
+### Requirement: Detailed workflow instructions live in thematic docs or mechanisms
+
+Detailed managed-task, OpenSpec, worktree/publication, provider-routing, release, friction and other specialized workflow instructions SHALL live in canonical thematic repository docs or executable mechanisms and be loaded when relevant.
+
+#### Scenario: Specialized workflow instructions are placed
+
+- **WHEN** detailed managed-task, OpenSpec, worktree/publication, provider-routing, release, friction or other specialized workflow instructions are rendered
+- **THEN** they live in canonical thematic repository docs or executable mechanisms
+- **AND** they are loaded when relevant
+
+### Requirement: Moving guidance detail keeps the underlying contracts
+
+Moving detail out of root guidance SHALL NOT weaken or remove the underlying process, safety, verification or completion contracts.
+
+#### Scenario: Detail is moved out of root guidance
+
+- **WHEN** detail is moved out of root guidance
+- **THEN** the underlying process, safety, verification and completion contracts are neither weakened nor removed
+
+### Requirement: Tool-specific instruction files reference the canonical entrypoint
+
+Tool-specific instruction files SHALL reference/import the canonical repository-wide entrypoint rather than fork its semantics.
+
+#### Scenario: Tool-specific instruction file is rendered
+
+- **WHEN** a tool-specific instruction file is rendered
+- **THEN** it references/imports the canonical repository-wide entrypoint
+- **AND** it does not fork the entrypoint's semantics
+
+### Requirement: An additional agent shell needs no vendor-specific process contract
+
+The platform SHALL NOT require a Hermes-specific or other vendor-specific parallel process contract merely to support an additional agent shell.
+
+#### Scenario: Additional agent shell is supported
+
+- **WHEN** the platform supports an additional agent shell such as Hermes
+- **THEN** no Hermes-specific or other vendor-specific parallel process contract is required for that support
+
+### Requirement: Guidance compaction is verified with focused evidence
+
+Semantic-preserving compaction of the generated agent guidance SHALL be verified with focused structural, navigation, destination/link, render and semantic-preservation evidence.
+
+#### Scenario: Semantic-preserving compaction is verified
+
+- **WHEN** the generated agent guidance is compacted without changing its meaning
+- **THEN** the compaction is verified with focused structural, navigation, destination/link, render and semantic-preservation evidence
+
+### Requirement: Guidance compaction needs no unrelated full regression suite
+
+Semantic-preserving compaction of the generated agent guidance SHALL NOT require an unrelated full software regression suite solely because instruction, documentation or template text changed.
+
+#### Scenario: Only instruction text changed
+
+- **WHEN** a semantic-preserving compaction changes only instruction, documentation or template text
+- **THEN** an unrelated full software regression suite is not required solely because that text changed
+
+### Requirement: Meaning-changing guidance compaction is reconciled with OpenSpec first
+
+Where compaction intentionally changes directive meaning rather than only shortening or relocating it, the change SHALL be reconciled with OpenSpec first and SHALL carry targeted behavioral evidence for the affected surface.
+
+#### Scenario: Compaction changes directive meaning
+
+- **WHEN** a compaction intentionally changes directive meaning rather than only shortening or relocating it
+- **THEN** the change is reconciled with OpenSpec first
+- **AND** it carries targeted behavioral evidence for the affected surface
