@@ -2,16 +2,18 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "a0d2bdcd55df2aa71ef55cca0b87b334ef894f1c",
-    "diff_sha256": "73f4799e3503539a17c6cf2c22a074592072af5aa4a56bd26549a78d32508a29"
+    "candidate_head": "918c3ea7971bd3aeb867a72957ac367b4f0acfff",
+    "diff_sha256": "76213cce5268c966d773e9a0a17007ade24bf3d29e44c13ae8a78987304788bf"
   },
-  "change": "openspec/changes/rehandoff-without-manual-steps",
+  "change": "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps",
   "excluded_lifecycle_paths": [
-    "openspec/changes/rehandoff-without-manual-steps/automated-checks.json",
-    "openspec/changes/rehandoff-without-manual-steps/independent-review-request.json",
-    "openspec/changes/rehandoff-without-manual-steps/independent-reviews/engineering-quality.json",
-    "openspec/changes/rehandoff-without-manual-steps/independent-reviews/spec-fidelity.json",
-    "openspec/changes/rehandoff-without-manual-steps/verification.md",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/automated-checks.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-review-request.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/verification.md",
+    "openspec/specs/completion-lifecycle/spec.md",
+    "openspec/specs/worktree-coordination/spec.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -22,34 +24,34 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/rehandoff-without-manual-steps/design.md",
-        "openspec/changes/rehandoff-without-manual-steps/proposal.md",
-        "openspec/changes/rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md",
-        "openspec/changes/rehandoff-without-manual-steps/specs/worktree-coordination/spec.md",
-        "openspec/changes/rehandoff-without-manual-steps/tasks.md"
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/design.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/proposal.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/worktree-coordination/spec.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/rehandoff-without-manual-steps/proposal.md",
-        "openspec/changes/rehandoff-without-manual-steps/design.md",
-        "openspec/changes/rehandoff-without-manual-steps/tasks.md",
-        "openspec/changes/rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md",
-        "openspec/changes/rehandoff-without-manual-steps/specs/worktree-coordination/spec.md"
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/proposal.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/design.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/tasks.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/worktree-coordination/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-10-31T16:11:44+00:00",
+  "prepared_at": "2026-10-31T19:28:11+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/rehandoff-without-manual-steps/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "5af58dc3-3dbf-4e17-a1c3-4ccc0a3f739f",
+  "request_id": "cb53c574-69b1-4723-8d5a-79902184533a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -62,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
-    "digest": "1325236b3dbf96301f29e8349c75fc1c7b58d94a8a8a506bd74a87b17455e9aa",
+    "digest": "b206423e295e0030c6b149d636488b7db2508bcf6d9f0007cca7260aa582643a",
     "paths": {
       "dev-platform/checks.toml": "327c75660bcebd8a61a3a21623410b84363da388",
       "docs/engineering/agent-workflow.md": "bfc2eb863f5858c57c90f8c7a99912815f924020",
@@ -79,7 +81,7 @@
       "template/scripts/worktree_cleanup.py": "77085d3c6651de95b9243e00e70ea0a84b7361c7",
       "tests/test_finish_merged_queue.py": "e5eacd7252a4693f5a53c34527aa63dafca431d4",
       "tests/test_pr_review_gate.py": "ecdb9799582c347c7905e1c25126ea10fedee0a8",
-      "tests/test_rehandoff_board.py": "d488fc9647597e7fc1a7ce89bf1c6232c9587e42"
+      "tests/test_rehandoff_board.py": "2917ed6ad84927f2a8d67f13bc38ed73d0e791c7"
     },
     "scope": "independent-review-v1",
     "version": 1

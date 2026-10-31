@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "a0d2bdcd55df2aa71ef55cca0b87b334ef894f1c",
-    "diff_sha256": "73f4799e3503539a17c6cf2c22a074592072af5aa4a56bd26549a78d32508a29"
+    "candidate_head": "918c3ea7971bd3aeb867a72957ac367b4f0acfff",
+    "diff_sha256": "76213cce5268c966d773e9a0a17007ade24bf3d29e44c13ae8a78987304788bf"
   },
-  "completed_at": "2026-10-31T16:12:29+00:00",
+  "completed_at": "2026-10-31T19:28:44+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_board.py claim_eligibility (~l.237-240) drops `stale-heartbeat` for handed-off items. `doctor` therefore reports nothing for them. `--fix` removes only terminal problems (merged PR, missing worktree). The scope gate refusal at ~l.286-290 tells the operator to run `agent_board.py finish` by hand. The same sibling-overlap blind spot is already noted in design.md Risks.",
+      "evidence": "template/scripts/agent_board.py:512-515 removes `stale-heartbeat` from the problems of a handed-off item. `doctor` only reports or removes items that have problems (agent_board.py:739-743), so an aged record in an open abandoned PR is reported as `ok` and `--fix` never removes it. `cmd_start` (lines 549-551) still rejects the same worktree or branch with 'already registered'. The only recovery is the manual `agent_board.py finish --id` command named in the refusal message at line 838.",
       "id": "handed-off-record-never-ages-out",
       "severity": "advisory",
-      "summary": "A handed-off board record whose PR is closed without merging, or abandoned, is never reclaimed automatically. It stays on the board indefinitely."
-    },
-    {
-      "evidence": "agent_board.py ~l.323-324 calls `queue._latest`, `queue._comments`, `queue._repo` and `queue._is_ancestor`. The test (tests/test_rehandoff_board.py RehandoffAcceptanceTests.refusal) patches those same private names, so any rename in publication_queue breaks both the code and the tests together. A public wrapper in publication_queue would make the contract explicit.",
-      "id": "scope-gate-depends-on-private-queue-internals",
-      "severity": "advisory",
-      "summary": "agent_board.rehandoff_refusal calls underscore-private helpers of publication_queue and adds network and `gh` calls to a previously local, read-only scope gate. This couples two modules through private APIs."
+      "summary": "A handed-off board record that is never re-handed-off, for example because its PR was abandoned while still open, is never flagged or cleaned up."
     }
   ],
-  "launched_at": "2026-10-31T16:12:05+00:00",
-  "output_sha256": "a3bb08bb70acaab647b2ac780c552241d5d0223c40d86ada8de27f2f6f6174b3",
+  "launched_at": "2026-10-31T19:28:28+00:00",
+  "output_sha256": "6894e3f8dff5f0e329985e329e889b120a0fc778c4adcfcabce24cac61e11068",
   "perspective": "engineering-quality",
-  "request_id": "5af58dc3-3dbf-4e17-a1c3-4ccc0a3f739f",
+  "request_id": "cb53c574-69b1-4723-8d5a-79902184533a",
   "reviewer": {
-    "context_id": "de80441e-438f-43a2-88ba-f986cf963836",
+    "context_id": "8a2d6b9c-f685-40bd-9d8d-e8a5b956b681",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-902ac093-a110-4275-94b4-2d9e596f06a7",
+    "launch_id": "platform-launch-19da6184-dc00-4bfe-bb02-2d001f4cf7ad",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,27 +39,27 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34674
+        "value": 33752
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 85665
+        "value": 126214
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22727
+        "value": 14698
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22956
+        "value": 14987
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
@@ -75,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2440
+        "value": 1565
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "1325236b3dbf96301f29e8349c75fc1c7b58d94a8a8a506bd74a87b17455e9aa"
+  "task_content_digest": "b206423e295e0030c6b149d636488b7db2508bcf6d9f0007cca7260aa582643a"
 }
