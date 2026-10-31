@@ -1107,6 +1107,33 @@ class FreshFirstSelectionTests(unittest.TestCase):
         self.assertEqual([pr["number"] for pr in sorted(prs, key=order)], [3, 9])
 
 
+class CompositionPostMergeRetrospectiveTests(unittest.TestCase):
+    """BR-950: the merged composition's post-merge retrospective job is the only Requirement checkpoint."""
+
+    def test_composition_retrospective_records_the_requirement_checkpoint_after_every_child(self):
+        identity = {"kind": "requirement-composition", "requirement": "pln_x", "task_content": {"digest": "d"},
+                    "children": [{"change": "first"}]}
+        job = {"kind": "retrospective", "number": 11, "head": HEAD, "task_identity": identity, "attempt": 0}
+        candidate = {"number": 11, "head": HEAD, "state": "merged", "task_identity": identity}
+        manifest = {"children": [{"pr_number": 5, "source_branch": "agent/br-7-t1-first", "head": "b" * 40}]}
+        exact = {"requirement": "acme/backlog#7", "children": [{"source_issue": "acme/backlog#8"}]}
+        calls, posted = [], []
+        import requirement_composition
+        import requirement_contributions
+        with mock.patch.object(workers, "build_job", return_value=job), \
+                mock.patch.object(workers, "prepare_checkout", return_value=Path("/c")), \
+                mock.patch.object(requirement_composition, "candidate_manifest", return_value=manifest), \
+                mock.patch.object(requirement_contributions, "private_manifest", return_value=exact), \
+                mock.patch.object(contour, "run_retrospective", side_effect=lambda ops, root, n, b, h: calls.append(n) or "task-recorded"), \
+                mock.patch.object(contour, "ensure_requirement_checkpoint") as checkpoint:
+            ops = mock.Mock()
+            result = contour.run_claimed_post_merge(Path("/root"), "o/r", candidate, job, branch="requirement/BR-7",
+                                                    post_result=posted.append, ops=ops, worker="w", claim_current=lambda: True)
+        self.assertEqual(calls, [5, 11])
+        checkpoint.assert_called_once_with(ops, Path("/root"), "acme/backlog#7", ["acme/backlog#8"])
+        self.assertEqual(result, {"status": "done", "outcome": "task-and-requirement-recorded"})
+
+
 LIFECYCLE_START = "2000-01-01T00:00:00+00:00"
 
 

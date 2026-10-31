@@ -678,6 +678,14 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
                         return {"status": "discarded"}
                     run(ops, root, child["pr_number"], child["source_branch"], child["head"])
                 outcome = run(ops, root, job["number"], branch, job["head"])
+                if kind == "retrospective":
+                    # The merged composition delivered every mandatory child: this job is the only place the
+                    # Requirement retrospective is recorded (BR-950), before terminal reconciliation closes it.
+                    from requirement_contributions import private_manifest
+                    exact = private_manifest(root, manifest)
+                    ensure_requirement_checkpoint(ops, root, exact["requirement"],
+                                                  [c["source_issue"] for c in exact["children"]])
+                    outcome = "task-and-requirement-recorded"
             status = "done"
         else:
             outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"

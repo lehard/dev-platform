@@ -874,7 +874,7 @@ def _repair_route(candidate: dict[str, Any], observed: dict[str, Any], number: i
 
 def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                 task_identity: str | dict[str, Any], attempt: int | None = None,
-                providers=None, target_head=None, phase=None, reoffer=None) -> dict[str, Any] | None:
+                providers=None, target_head=None, reoffer=None) -> dict[str, Any] | None:
     """Publish a head-bound job record for the candidate's current state (no new state)."""
     from lifecycle_workers import WorkerError, authorized_repair_providers, job_record
 
@@ -905,7 +905,7 @@ def publish_job(root: Path, repo: str, number: int, kind: str, head: str, *,
                        red_gate=current.get("red_gate") if kind in {"repair", "integration-repair", "integration-merge"} else None,
                        route=recorded_route,
                        next_job=job_record(kind, head, current.get("task_identity") or task_identity, attempt,
-                                           providers=providers, target_head=target_head, phase=phase, reoffer=reoffer))
+                                           providers=providers, target_head=target_head, reoffer=reoffer))
 
 
 def _raise_if_owned_elsewhere(root: Path, repo: str, number: int, head: str) -> None:

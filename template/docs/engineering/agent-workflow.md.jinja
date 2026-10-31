@@ -110,12 +110,14 @@ A direct deterministic or bounded-evidence handoff is one executable child.
 One child finishes through its normal managed PR and exact merge; two or more
 children use shared integration only when joint delivery is required. After
 every mandatory child is delivered, terminal reconciliation marks the parent
-Project card `Done` and closes its Issue. The operation is idempotent for older
-delivered Requirements:
-`python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
+Project card `Done` and closes its Issue. With the coordinator queue only the
+post-merge retrospective and terminal-reconciliation jobs do this and `advance`
+reports `await-post-merge`; the idempotent
+`python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`
+is a recovery command.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
-Before terminal publication, run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the full Requirement path from accepted
+Without the coordinator queue, before terminal publication run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the full Requirement path from accepted
 intent through pre-authoring, decomposition, children and delivery. Include successful overrides, manual workarounds and state changes, recurrences of open process issues, and material drift observed in state owned by another operator or lifecycle. Record each meaningful new occurrence with the existing friction command using `--task owner/repo#N` and a matching `--trigger`; a clean child review does not erase parent evidence. Record new
 meaningful findings with `scripts/agent_friction.py record --task
 owner/repo#N`, then use `scripts/requirement_retrospective.py checkpoint

@@ -1516,5 +1516,40 @@ class PreparationTests(unittest.TestCase):
             del fixture
 
 
+
+class CompositionFinalizeTests(unittest.TestCase):
+    """BR-950: a finalized composition goes to its full final-head checks; no pre-merge retrospective job."""
+
+    def test_finalized_composition_drives_final_publication_without_a_retrospective_job(self):
+        head = "a" * 40
+        identity = {"kind": "requirement-composition", "requirement": "pln_x", "task_content": {"digest": "d"},
+                    "children": [{"change": "first"}]}
+        job = {"kind": "finalize", "number": 11, "head": head, "task_identity": identity, "attempt": 0}
+        adapter = mock.Mock()
+        adapter._derive.return_value = {"gates": {}}
+        posted = []
+        import requirement_composition
+        with mock.patch.object(workers, "build_job", return_value=job), \
+                mock.patch.object(workers, "prepare_checkout", return_value=Path("/c")), \
+                mock.patch.object(workers, "own_result_landed", return_value=True), \
+                mock.patch.object(final, "execute_finalize", return_value={"status": "finalized", "identity": identity,
+                                                                           "gates": {}}), \
+                mock.patch.object(requirement_composition, "candidate_manifest", return_value={"children": []}) as manifest, \
+                mock.patch.object(requirement_composition, "advance_final_publication",
+                                  return_value={"status": "queued"}) as publish:
+            with tempfile.TemporaryDirectory() as workdir:
+                outcome = final.run_claimed_finalize(
+                    Path("/root"), "o/r", {}, job, source_repo="https://example.test/o/r.git", branch="requirement/BR-7",
+                    current_head=lambda: head, post_result=posted.append, workdir=workdir, worker="w", adapter=adapter,
+                    claim_current=lambda: True)
+        self.assertEqual(outcome, {"status": "finalized", "pushed_head": None, "publication": {"status": "queued"}})
+        adapter.publish_job.assert_not_called()
+        manifest.assert_called_once_with(Path("/c"), "pln_x")
+        publish.assert_called_once_with(Path("/root"), "o/r", {"children": []}, head, 11, adapter=adapter,
+                                        source_repo="https://example.test/o/r.git")
+        self.assertEqual(adapter._transition.call_args.args[3], "blocked-retryable")
+        self.assertIn('"finalized"', posted[-1])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -324,11 +324,9 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
 
 
 def _contribution_publication_supported(root: Path) -> bool:
-    from _platform_common import lifecycle_mode, read_platform_config
-    if lifecycle_mode(read_platform_config(root)) != "coordinator":
-        return False
-    import publication_queue
-    return publication_queue.enabled(root)
+    """Coordinator lifecycle with the queue: contributions, and post-merge jobs own retrospective and close."""
+    from requirement_terminal import post_merge_closes
+    return post_merge_closes(root)
 
 
 def _single_child_in_flight(worktree: Path, *, adapter=None) -> bool:
@@ -670,27 +668,39 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                 f"Check reviewer runtime readiness after routing with: python3 scripts/independent_review.py preflight {change}"
             ),
         })
+    # With the coordinator queue the post-merge jobs alone record the Requirement retrospective and close
+    # the Requirement (BR-950); without it the same functions run here, in the developer session.
+    coordinator = _contribution_publication_supported(integration)
     if len(ordered) == 1:
         if ready:
-            requirement_retrospective.require_checkpoint(integration, requirement=requirement)
+            if not coordinator:
+                requirement_retrospective.require_checkpoint(integration, requirement=requirement)
             change = ordered[0][0]
             child = linked_by_change[change]
             worktree = machine_path("worktrees", integration) / change
             result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree, stdin=subprocess.DEVNULL)
             if result.returncode:
                 raise RequirementExecutionError(f"single-child managed finish did not complete (exit {result.returncode})")
+            if coordinator:
+                return audited({"status": "await-child-review", "requirement": requirement, "child": child,
+                                "change": change, "reason": "child handed off; coordinator work is in flight"})
+        if coordinator:
+            return audited(_await_post_merge(parent, requirement, completed))
         from requirement_terminal import reconcile_parent
         return audited(reconcile_parent(integration, requirement=requirement))
     if len(ready) < 2:
         if not ready and completed:
             if len(completed) == len(ordered) and str(parent.get("state", "")).upper() != "CLOSED":
+                if coordinator:
+                    return audited(_await_post_merge(parent, requirement, completed))
                 # Every mandatory child is delivered: finish the parent (idempotent),
                 # e.g. after shared delivery was interrupted before reconciliation.
                 from requirement_terminal import reconcile_parent
                 return audited(reconcile_parent(integration, requirement=requirement))
             return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
-    requirement_retrospective.require_checkpoint(integration, requirement=requirement)
+    if not coordinator:
+        requirement_retrospective.require_checkpoint(integration, requirement=requirement)
     expected = _expected_changes(ordered, linked_by_change, completed)
     manifest, candidate, branch = _candidate_for(integration, requirement, ready, expected)
     requirement_integration.compose_candidate(
@@ -698,6 +708,15 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     )
     result = requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
     return audited({**result, "completed_before_shared_integration": completed})
+
+
+def _await_post_merge(parent: dict[str, Any], requirement: str, children: list[str], **details: Any) -> dict[str, Any]:
+    """Every mandatory child is merged: the post-merge jobs record the retrospective and close the Requirement."""
+    if str(parent.get("state", "")).upper() == "CLOSED":
+        return {"status": "done", "requirement": requirement, "children": children, **details}
+    return {"status": "await-post-merge", "requirement": requirement, "children": children, **details,
+            "reason": "every mandatory child is merged; the post-merge runner records the Requirement "
+                      "retrospective and closes the Requirement"}
 
 
 def main() -> int:
@@ -737,11 +756,11 @@ def _handoff_dependencies(ordered: list[tuple[str, Path]]) -> dict[str, list[str
             for change, envelope in envelopes.items()}
 
 
-def _require_no_merged_composition(integration: Path, requirement: str, repository: str, *, adapter=None) -> None:
-    """Stop before any integration-branch work once the Requirement's composition PR is merged (BR-771).
+def _merged_composition(integration: Path, requirement: str, repository: str, *, adapter=None) -> list[int]:
+    """The merged composition PRs of the Requirement; advance stops before any integration-branch work when any exist.
 
     After the merge the queue deletes ``requirement/BR-N``; recreating it on the new main breaks the
-    post-merge jobs, which check out the composition head. Those jobs own terminal delivery from here.
+    post-merge jobs, which check out the composition head. Those jobs own the Requirement from here (BR-771, BR-950).
     """
     if adapter is None:
         import publication_queue as adapter
@@ -754,16 +773,7 @@ def _require_no_merged_composition(integration: Path, requirement: str, reposito
     if not isinstance(rows, list) or len(rows) >= 100 or not all(isinstance(row, dict) and isinstance(row.get("number"), int)
                                                                  for row in rows):
         raise RequirementExecutionError(f"composition PR inventory of {branch} is unavailable or exceeds its bound")
-    if rows:
-        numbers = sorted(row["number"] for row in rows)
-        shown = ", ".join(f"#{number}" for number in numbers)
-        first = numbers[-1]
-        raise RequirementExecutionError(
-            f"composition PR {shown} of {branch} is already merged; advance would recreate {branch} on the new main "
-            "and break the post-merge jobs. Leave retrospective, terminal-reconciliation and cleanup to the coordinator "
-            f"(or run: python3 scripts/lifecycle_workers.py work-next --repo {repository} "
-            f"--kinds retrospective,terminal-reconciliation,cleanup --pr {first} --run) and observe with: "
-            f"python3 scripts/publication_queue.py status --pr {first}")
+    return sorted(row["number"] for row in rows)
 
 
 def _advance_contributions(integration: Path, requirement: str, ordered: list[tuple[str, Path]],
@@ -781,7 +791,12 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
                 confirm_distinct=confirm_distinct)["child"]
     config = read_platform_config(integration)
     repository = str(config.get("repository") or managed_task.origin_repository(integration))
-    _require_no_merged_composition(integration, requirement, repository)
+    merged = _merged_composition(integration, requirement, repository)
+    if merged:
+        parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
+        return _await_post_merge(parent, requirement, [linked[change] for change, _ in ordered],
+                                 composition_pr=merged[-1],
+                                 status_command=f"python3 scripts/publication_queue.py status --pr {merged[-1]}")
     graph = _handoff_dependencies(ordered)
     boundary = ensure_integration_branch(integration, requirement=requirement, repository=repository,
                                          expected_changes=[c for c, _ in ordered], dependencies=graph)
@@ -817,7 +832,7 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
                         "next": "Perform routed implementation and developer handoff; rerun advance after contribution integration."})
     requirement_board.reconcile_nonterminal(integration, requirement=requirement)
     draft = publish_composition(integration, repository, manifest, head)
-    return {"status": draft["status"] if draft["status"] == "merged-and-reconciled" else
+    return {"status": draft["status"] if draft["status"] == "await-post-merge" else
             "implement-children" if actions else "await-contributions", "requirement": requirement,
             "actions": actions, "waiting": waiting, "shared_draft": draft}
 

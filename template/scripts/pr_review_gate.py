@@ -577,13 +577,6 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
         # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
         # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
         kind = "finalize"
-    elif (state == "blocked-retryable" and job_completed and action == "resume"
-          and (candidate.get("next_job") or {}).get("kind") == "retrospective"
-          and (candidate.get("next_job") or {}).get("phase") == "pre-merge"):
-        # The pre-merge Requirement retrospective stopped on a human decision (for example ambiguous
-        # friction attribution); once the operator records it, the next bounded attempt re-runs the
-        # whole retrospective at the exact head, so the resume decides nothing the retrospective checks.
-        kind = "retrospective"
     elif state == "finalize-pending" and job_completed and action == "resume":
         # The finalize job of this head already holds a result (for example it stopped on gates that
         # restore-gates later restored), so it is never claimed again; the re-offer gives it a fresh id
@@ -750,8 +743,7 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
 
     ``resume`` also re-offers the finalize job of a finalize escalation, or of a finalize-pending candidate
     whose job already holds a result, at the same head; the job re-verifies every gate itself, so the
-    resume decides nothing a finding needs. A composition whose pre-merge retrospective stopped with a
-    result is re-offered at its next bounded attempt, never past the attempt limit.
+    resume decides nothing a finding needs.
 
     One appended record keeps identity, gates, findings and every attempt counter, so the same round is
     offered again and no budget is spent; the distinct job id comes from the ``reoffers`` sequence.
@@ -813,28 +805,6 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
             root, repo, number, "finalize-pending", head, task_identity=identity, inherit_identity=False,
             set_attempts={"reoffers": seq},
             next_job=job_record("finalize", head, identity, attempts.get("finalize", 0), reoffer=event))
-        if record is None:
-            raise adapter.QueueError(f"PR #{number} head moved; rerun")
-        return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}
-    if kind == "retrospective":
-        from candidate_lifecycle import premerge_retrospective_attempt
-
-        if providers is not None:
-            raise adapter.QueueError(f"PR #{number} retrospective job runs in the trusted harness; omit --provider")
-        if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
-            raise adapter.QueueError(f"PR #{number} pre-merge retrospective carries no composition identity")
-        try:
-            attempt = premerge_retrospective_attempt(number, head, comments, adapter.trusted_apps(root),
-                                                     adapter.trusted_writers(root, comments))
-        except ValueError as exc:
-            raise adapter.QueueError(str(exc)) from exc
-        seq = attempts.get("reoffers", 0) + 1
-        event = {"seq": seq, "action": action, "reason": reason.strip()[:300], **identity_event, "head": head,
-                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-        record = adapter._transition(
-            root, repo, number, "blocked-retryable", head, task_identity=identity, inherit_identity=False,
-            set_attempts={"reoffers": seq},
-            next_job=job_record("retrospective", head, identity, attempt, phase="pre-merge", reoffer=event))
         if record is None:
             raise adapter.QueueError(f"PR #{number} head moved; rerun")
         return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}

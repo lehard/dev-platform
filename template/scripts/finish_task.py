@@ -648,11 +648,14 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
 def reconcile_linked_parent(integration: Path, identity: object | None) -> None:
     if identity is None:
         return
-    from requirement_terminal import parent_for_child, reconcile_parent
+    from requirement_terminal import parent_for_child, post_merge_closes, reconcile_parent
     import requirement_intake
     child = identity.source_issue
     try:
         parent = parent_for_child(integration, child)
+        if parent is not None and post_merge_closes(integration):
+            print(f"Parent Requirement {parent} is closed by its post-merge jobs, not by finish.")
+            return
         if parent is not None:
             parent_issue = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(parent))
             children = requirement_intake.parse_requirement_body(str(parent_issue.get("body") or ""))["children"]
