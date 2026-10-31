@@ -8,8 +8,8 @@
 
 ## Decisions
 
-- **Note.** `_note_environment_error(root, repo, number, head, detail)` posts a v1 event `{"kind": "environment-error", "head", "reason"}` through `_comment`. It skips the post when the latest environment-error event already names the same head and reason, and it raises `QueueError` when the head is unavailable. `_integrate` calls it in its `QueueEnvironmentError` handler before re-raising.
-- **Derivation.** `derive_candidate` remembers the position of the last environment-error event for the current head. If that event is newer than the latest exact-head v2 record and the state is ready, integrating or blocked-retryable, the reason becomes "coordinator environment error on this head: <reason>". Nothing else changes. The v1-only fallback ignores environment-error events, so the note never stands in for an admission or a block.
+- **Note.** `_note_environment_error(root, repo, number, head, detail)` posts a v1 event `{"kind": "environment-error", "head", "reason"}` through `_comment`. It skips the post only while the derived candidate already shows that reason for the head (a later record supersedes a note, so a recurrence is posted again), and it raises `QueueError` when the head is unavailable. `_integrate` calls it in its `QueueEnvironmentError` handler before re-raising; a failed note raises `QueueEnvironmentError` naming both failures.
+- **Derivation.** `derive_candidate` remembers the position of the last environment-error event for the current head. The reason text comes from that same head's note (`environment_reason`). If that event is newer than the latest exact-head v2 record and the state is ready, integrating or blocked-retryable, the reason becomes "coordinator environment error on this head: <reason>". Nothing else changes. The v1-only fallback ignores environment-error events, so the note never stands in for an admission or a block.
 - **No mergeability.** The conflict signal stays `merge-tree` in `_prepare`. GitHub `mergeable` is not read.
 
 ## Risks

@@ -699,19 +699,29 @@ class DerivedMergeEnvironmentTests(unittest.TestCase):
         # BR-969: only a visible note on the exact head; no state, block or attempt.
         note.assert_called_once_with(ROOT_PATH, REPO, 1, HEAD, "PR #1 derived merge cannot run")
 
-    def test_environment_note_is_posted_once_per_head_and_reason(self) -> None:
+    def test_environment_note_is_posted_only_while_not_already_the_reason(self) -> None:
+        import candidate_lifecycle
+
         posted: list[dict] = []
-        events: list[dict] = [admission(1, 20)]
-        with patch.object(queue, "_events", side_effect=lambda *_a: list(events)), \
-             patch.object(queue, "_comment", side_effect=lambda _r, _repo, _n, payload: (posted.append(payload),
-                                                                                       events.append(payload))):
+        shown = {"head": HEAD, "reason": "required checks not yet reported on head: validate"}
+        with patch.object(queue, "_pr", return_value=pr(1)), patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_derive", side_effect=lambda *_a: dict(shown)), \
+             patch.object(queue, "_comment", side_effect=lambda _r, _repo, _n, payload: posted.append(payload)):
             queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+            shown["reason"] = candidate_lifecycle.environment_reason("OpenSpec CLI is required")
             queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
-            queue._note_environment_error(ROOT_PATH, REPO, 1, NEW_HEAD, "OpenSpec CLI is required")
-        self.assertEqual([(p["kind"], p["head"]) for p in posted],
-                         [(queue.ENVIRONMENT_ERROR_KIND, HEAD), (queue.ENVIRONMENT_ERROR_KIND, NEW_HEAD)])
+            shown["reason"] = "superseded by a later record"
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+        self.assertEqual([(p["kind"], p["head"]) for p in posted], [(queue.ENVIRONMENT_ERROR_KIND, HEAD)] * 2)
         with self.assertRaisesRegex(queue.QueueError, "head is unavailable"):
             queue._note_environment_error(ROOT_PATH, REPO, 1, None, "x")
+
+    def test_a_failed_note_keeps_the_environment_error_and_names_both(self) -> None:
+        with patch.object(queue, "_label"), patch.object(queue, "_require_finalized"), \
+             patch.object(queue, "_prepare", side_effect=queue.QueueEnvironmentError("no OpenSpec CLI")), \
+             patch.object(queue, "_note_environment_error", side_effect=queue.QueueError("comment API down")):
+            with self.assertRaisesRegex(queue.QueueEnvironmentError, "no OpenSpec CLI; .*comment API down"):
+                queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
 
     def test_conflict_outside_generated_files_needs_integration_repair(self) -> None:
         # BR-969 regression: a real conflict of a waiting candidate is detected by merge-tree, not GitHub mergeability.

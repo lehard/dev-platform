@@ -4,7 +4,7 @@ PR #837 hung in blocked-retryable with the stale reason "required checks not yet
 
 ## What Changes
 
-- On a coordinator environment failure during integration, the queue posts a v1 `environment-error` note naming the exact head and the failure. The note changes no state, posts no block and spends no attempt. The run still fails with environment-error. The same failure on the same head is not posted again.
+- On a coordinator environment failure during integration, the queue posts a v1 `environment-error` note naming the exact head and the failure. The note changes no state, posts no block and spends no attempt. The run still fails with environment-error. A note is not posted again while it is still the shown reason, and a failed note is named together with the environment error.
 - Lifecycle derivation shows that note as the candidate's reason while no later record for that head supersedes it. State, gates and attempts stay as they are.
 - Regression tests pin the existing conflict paths. A waiting candidate without a red gate is integrable. A real conflict outside generated files becomes counted integration repair. A conflict only in declared generated files takes the derived merge.
 - GitHub mergeability is not read. The queue's own `merge-tree` stays the conflict signal.

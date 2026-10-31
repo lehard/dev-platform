@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "5369c2c7243ac66d7c4bc26766c839e65041fd2c",
+    "diff_sha256": "9564197b17ffbabd3159d78d992ae5230aa70dc2107b7418ac460970c2fbc333"
+  },
+  "completed_at": "2026-10-31T23:42:35+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/publication_queue.py `_note_environment_error`: `latest.get(\"head\") == head and latest.get(\"reason\") == reason` returns early. It never compares the note's position with the newest v2 record. candidate_lifecycle.py: `if environment_at > matched_at` shows the note only while it is newer than the latest record.",
+      "id": "env-note-dedup-ignores-supersession",
+      "severity": "advisory",
+      "summary": "The dedup in `_note_environment_error` compares only with the latest environment-error event. It does not check whether a later record for the head superseded that note. If the same failure recurs after a newer record on the same head, no new note is posted. Derivation then hides the old note, because `environment_at` is not greater than `matched_at`. The stale reason (for example 'required checks not yet reported') comes back, which is the problem this change set out to fix."
+    },
+    {
+      "evidence": "candidate_lifecycle.py: `note = next(event for event in reversed(legacy) if event.get(\"kind\") == \"environment-error\")` has no `event.get(\"head\") == head` filter, while the `environment_at` assignment does filter on head.",
+      "id": "env-note-reason-picks-other-head",
+      "severity": "advisory",
+      "summary": "`environment_at` is tracked only for notes naming the current head. The reason text is taken from the newest environment-error event of any head. If a note for another head sits after the current head's note in the comment order, the reason shown is the wrong head's."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py in `_integrate`: `_label(... present=False)`, then `_note_environment_error(...)`, then `raise`. The helper raises `QueueError` on a missing head and calls `_comment` unguarded.",
+      "id": "env-note-failure-masks-original-error",
+      "severity": "advisory",
+      "summary": "`_note_environment_error` runs inside the `except QueueEnvironmentError` handler, before the bare `raise`. If it fails (comment API error, or an unavailable head), its exception replaces the original environment error. The run then fails with a different message, and the ACTIVE label has already been removed. The root cause is only visible through exception chaining."
+    }
+  ],
+  "launched_at": "2026-10-31T23:42:13+00:00",
+  "output_sha256": "478500efd4d6b03c306c9cadf524c700c2acfd8b9173208b6466d6732fb24ff2",
+  "perspective": "engineering-quality",
+  "request_id": "9b915867-d22c-470c-8235-9666de984b3c",
+  "reviewer": {
+    "context_id": "7192ca3d-d734-477b-a508-5fd1a06d6d79",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b4dc3d21-303a-4675-a045-053d9d70fcd2",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21956
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46646
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16894
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18492
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1738
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a34894ff4426d6c5256ae3dea27ec16d1d1386e9c7dbf18b49fe47b4ee8b7712"
+}

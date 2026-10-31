@@ -158,8 +158,10 @@ class CandidateLifecycleTests(unittest.TestCase):
         self.assertEqual(result["reason"], "coordinator environment error on this head: OpenSpec CLI is required")
         later = comment(handoff("ready"), ident=3)
         self.assertNotIn("environment", lifecycle.derive_candidate(pr(), [comment(record), note, later], checks)["reason"])
-        other = {**note, "body": note["body"].replace(HEAD, NEW_HEAD)}
+        other = {**note, "id": 4, "body": note["body"].replace(HEAD, NEW_HEAD).replace("OpenSpec", "Other")}
         self.assertNotIn("environment", lifecycle.derive_candidate(pr(), [comment(record), other], checks)["reason"])
+        # A later note for another head never replaces this head's reason text.
+        self.assertIn("OpenSpec CLI", lifecycle.derive_candidate(pr(), [comment(record), note, other], checks)["reason"])
 
     def test_pending_checks_and_merged_pr(self):
         rows = [comment(handoff("ready"))]

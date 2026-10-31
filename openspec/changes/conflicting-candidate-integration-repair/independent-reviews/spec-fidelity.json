@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "5369c2c7243ac66d7c4bc26766c839e65041fd2c",
+    "diff_sha256": "9564197b17ffbabd3159d78d992ae5230aa70dc2107b7418ac460970c2fbc333"
+  },
+  "completed_at": "2026-10-31T23:42:13+00:00",
+  "findings": [
+    {
+      "evidence": "publication_queue.py `_note_environment_error` returns early when `latest.get(\"head\") == head and latest.get(\"reason\") == reason`, without checking for a newer v2 record. candidate_lifecycle.py shows the note only while `environment_at > matched_at`. The spec says 'The same failure on the same head SHALL NOT be posted again' and also 'until a later record for the head supersedes it'. The design's own risk note expects a new integration record to supersede the note. No test covers a repeat failure after a supersession.",
+      "id": "env-note-dedupe-ignores-supersession",
+      "severity": "advisory",
+      "summary": "The dedupe compares only with the latest environment-error event. It ignores whether a later record has already superseded that note. If a new record for the same head is written and the same failure recurs, no new note is posted. The reason is then no longer shown, although the spec says the note is the reason until superseded."
+    }
+  ],
+  "launched_at": "2026-10-31T23:41:54+00:00",
+  "output_sha256": "50c404baf0b742e069ac1eaa95a973b7a75e5a285ca75cc89902e26e3d943933",
+  "perspective": "spec-fidelity",
+  "request_id": "9b915867-d22c-470c-8235-9666de984b3c",
+  "reviewer": {
+    "context_id": "ca11eda7-b0ad-4969-bf85-78ec6755883d",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a7448ad0-c139-4c78-8707-7fa02150f806",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28577
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42877
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13975
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15528
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1419
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a34894ff4426d6c5256ae3dea27ec16d1d1386e9c7dbf18b49fe47b4ee8b7712"
+}

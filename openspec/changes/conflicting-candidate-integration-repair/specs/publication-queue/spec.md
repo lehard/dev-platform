@@ -2,7 +2,7 @@
 
 ### Requirement: A coordinator environment failure is visible on the candidate
 
-When integration of a candidate stops on a coordinator environment failure, the queue SHALL post a note naming the exact head and the failure, and SHALL NOT change its state, post a block or spend an attempt; the run still fails with environment-error. Lifecycle status SHALL show that note as the reason until a later record for the head supersedes it. The same failure on the same head SHALL NOT be posted again.
+When integration of a candidate stops on a coordinator environment failure, the queue SHALL post a note naming the exact head and the failure, and SHALL NOT change its state, post a block or spend an attempt; the run still fails with environment-error. Lifecycle status SHALL show that note as the reason until a later record for the head supersedes it. A note SHALL NOT be posted again while it is still the shown reason.
 
 #### Scenario: Derived merge without OpenSpec CLI
 

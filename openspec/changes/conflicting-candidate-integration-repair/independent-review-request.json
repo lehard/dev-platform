@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "5369c2c7243ac66d7c4bc26766c839e65041fd2c",
+    "diff_sha256": "9564197b17ffbabd3159d78d992ae5230aa70dc2107b7418ac460970c2fbc333"
+  },
+  "change": "openspec/changes/conflicting-candidate-integration-repair",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/conflicting-candidate-integration-repair/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/conflicting-candidate-integration-repair/design.md",
+        "openspec/changes/conflicting-candidate-integration-repair/proposal.md",
+        "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md",
+        "openspec/changes/conflicting-candidate-integration-repair/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/conflicting-candidate-integration-repair/proposal.md",
+        "openspec/changes/conflicting-candidate-integration-repair/design.md",
+        "openspec/changes/conflicting-candidate-integration-repair/tasks.md",
+        "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T23:41:46+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/conflicting-candidate-integration-repair/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "9b915867-d22c-470c-8235-9666de984b3c",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "digest": "a34894ff4426d6c5256ae3dea27ec16d1d1386e9c7dbf18b49fe47b4ee8b7712",
+    "paths": {
+      "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+      "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/conflicting-candidate-integration-repair/design.md": "01615431747ee90c064b4568d00d067295c85c4b",
+      "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "dce8f58556df8943f08257d1d526d69c89cb28b4",
+      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "e76e3dac1c50c1417cdb30a96bbcb659ace7a3df",
+      "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+      "template/scripts/candidate_lifecycle.py": "c78d55575c1329a60b23ccc576464c95cdf44a4c",
+      "template/scripts/publication_queue.py": "868f2d3aed5733d6088ca5d0a3b4bda8a1692a16",
+      "tests/test_candidate_lifecycle.py": "66dde12fd3e3b0dd4c3c886f277f6529ced2f362",
+      "tests/test_publication_queue.py": "600733872a435921480d66d773aef3b3d621d76a"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

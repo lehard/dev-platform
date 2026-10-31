@@ -307,6 +307,11 @@ def restorable_gates(pr: dict, comments: list[dict], *, trusted_apps: frozenset[
     raise ValueError(f"no content-bound gates found within {MAX_RESTORE_HOPS} trusted harness pushes")
 
 
+def environment_reason(detail: str) -> str:
+    """The derived reason of a candidate whose latest exact-head event is a coordinator environment failure."""
+    return f"coordinator environment error on this head: {detail}"[:500]
+
+
 def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None, *,
                      trusted_apps: frozenset[str] = frozenset(), trusted_writers: frozenset[str] = frozenset()) -> dict:
     """Derive from the latest exact-head handoff; labels never grant v2 gates.
@@ -531,8 +536,9 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         result.update(state="blocked-retryable", reason="checks do not match candidate head", gates={}, next_job=None)
     if environment_at > matched_at and result["state"] in {"ready", "integrating", "blocked-retryable"}:
         # A coordinator environment failure noted after the latest record is the honest reason; the state stays.
-        note = next(event for event in reversed(legacy) if event.get("kind") == "environment-error")
-        result["reason"] = f"coordinator environment error on this head: {note.get('reason', '')}"[:500]
+        note = next(event for event in reversed(legacy)
+                    if event.get("kind") == "environment-error" and event.get("head") == head)
+        result["reason"] = environment_reason(note.get("reason", ""))
     return _action(result)
 
 
