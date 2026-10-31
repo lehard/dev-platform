@@ -324,9 +324,15 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
 
 
 def _contribution_publication_supported(root: Path) -> bool:
-    """Coordinator lifecycle with the queue: contributions, and post-merge jobs own retrospective and close."""
-    from requirement_terminal import post_merge_closes
-    return post_merge_closes(root)
+    """Coordinator lifecycle with the queue: contributions, and post-merge jobs own retrospective and close.
+
+    The same condition as ``requirement_terminal.post_merge_closes``, which finish and the shared publisher use.
+    """
+    from _platform_common import lifecycle_mode, read_platform_config
+    if lifecycle_mode(read_platform_config(root)) != "coordinator":
+        return False
+    import publication_queue
+    return publication_queue.enabled(root)
 
 
 def _single_child_in_flight(worktree: Path, *, adapter=None) -> bool:
