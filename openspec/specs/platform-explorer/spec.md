@@ -7,7 +7,7 @@ Define the platform-owned Dev Platform Explorer: a static, source-derived, publi
 
 ### Requirement: Explorer is a build-time view of canonical repository sources
 
-The platform SHALL provide a repository-owned build entrypoint that generates a static Explorer from an allowlisted set of git-tracked canonical sources and one repository-owned editorial layer. The editorial layer SHALL hold one explanatory description per semantic node (overview, lifecycle stage, mechanism, mechanism part, cross-cutting topic, glossary term), written for the reader, and every node SHALL bind at least one canonical source section. The editorial layer SHALL NOT define normative rules; those remain in `AGENTS.md`, OpenSpec specifications and `docs/`. Engineering-source pages SHALL keep rendering explanations from referenced source files and headings.
+The platform SHALL provide a repository-owned build entrypoint that generates a static Explorer from an allowlisted set of git-tracked canonical sources and one repository-owned editorial layer.
 
 #### Scenario: Clean build
 - **WHEN** the build runs in a git checkout whose map, editorial nodes and sources are valid
@@ -37,7 +37,7 @@ The platform SHALL provide a repository-owned build entrypoint that generates a 
 
 ### Requirement: Explorer pages provide navigation beside content and stable direct links
 
-Each page SHALL show a persistent, collapsible navigation tree with the current node selected beside a node panel that states the node's role, its place (breadcrumb), what comes into it, what happens in it, where its results go and who uses them, and its child nodes with complete short descriptions. Engineering sources SHALL be reachable from a node only through an explicit step. Each node SHALL have a stable relative URL that works without JavaScript and under a project-site subpath, and previously published lifecycle stage and engineering-source URLs SHALL keep resolving.
+Each page SHALL show a persistent, collapsible navigation tree with the current node selected beside a node panel that states the node's role, its place (breadcrumb), what comes into it, what happens in it, where its results go and who uses them, and its child nodes with complete short descriptions.
 
 #### Scenario: Reader opens an element by direct link
 - **WHEN** a reader opens the URL of an overview, stage, mechanism, topic or engineering-source page
@@ -85,7 +85,7 @@ The Explorer map, build entrypoint, assets and generated output SHALL live outsi
 
 ### Requirement: Explorer presents an ordered end-to-end lifecycle journey
 
-The Explorer SHALL present the Dev Platform lifecycle as eight ordered stages from request and requirements through change design, routing, execution, verification and independent review, publication and integration, release and rollout, to feedback and improvement. Each stage SHALL declare typed transitions (main, conditional or return) with a reason, and the overview SHALL show them as one schema so that shortened paths, returns after review and the conditional release stage are visible as such. Each stage page SHALL state its purpose, inputs, action, outputs and their consumers, forks, conditional and error paths, an example and its mechanisms, from its editorial node.
+The Explorer SHALL present the Dev Platform lifecycle as eight ordered stages from request and requirements through change design, routing, execution, verification and independent review, publication and integration, release and rollout, to feedback and improvement.
 
 #### Scenario: Reader follows the lifecycle
 - **WHEN** a reader opens the overview
@@ -140,3 +140,96 @@ Every node of the Explorer semantic map at levels 0 to 2 SHALL have a complete R
 #### Scenario: Coverage page is built
 - **WHEN** the site is built
 - **THEN** the coverage page lists every level 0 to 2 node with its kind, level, the stages it participates in and its bound sources, derived from node data
+
+### Requirement: The Explorer editorial layer holds one description per semantic node
+
+The Explorer editorial layer SHALL hold one explanatory description per semantic node (overview, lifecycle stage, mechanism, mechanism part, cross-cutting topic, glossary term), written for the reader.
+
+#### Scenario: Editorial layer is read
+
+- **WHEN** the Explorer editorial layer is read
+- **THEN** it holds one explanatory description written for the reader per semantic node
+- **AND** the semantic nodes are overview, lifecycle stage, mechanism, mechanism part, cross-cutting topic and glossary term
+
+### Requirement: Every Explorer node binds a canonical source section
+
+Every Explorer semantic node SHALL bind at least one canonical source section.
+
+#### Scenario: Explorer node is defined
+
+- **WHEN** an Explorer semantic node is defined
+- **THEN** it binds at least one canonical source section
+
+### Requirement: The Explorer editorial layer defines no normative rules
+
+The Explorer editorial layer SHALL NOT define normative rules; normative rules remain in `AGENTS.md`, OpenSpec specifications and `docs/`.
+
+#### Scenario: A normative rule is needed
+
+- **WHEN** a normative rule is expressed
+- **THEN** it is defined in `AGENTS.md`, OpenSpec specifications or `docs/`
+- **AND** not in the Explorer editorial layer
+
+### Requirement: Explorer engineering-source pages render explanations from referenced sources
+
+Explorer engineering-source pages SHALL keep rendering explanations from referenced source files and headings.
+
+#### Scenario: Engineering-source page is built
+
+- **WHEN** an Explorer engineering-source page is built
+- **THEN** its explanations are rendered from referenced source files and headings
+
+### Requirement: Explorer engineering sources are reached only through an explicit step
+
+Explorer engineering sources SHALL be reachable from a node only through an explicit step.
+
+#### Scenario: Reader moves from a node to engineering sources
+
+- **WHEN** a reader reaches an engineering source from an Explorer node
+- **THEN** the reader got there only through an explicit step
+
+### Requirement: Each Explorer node has a stable relative URL
+
+Each Explorer node SHALL have a stable relative URL that works without JavaScript and under a project-site subpath.
+
+#### Scenario: Node URL is opened
+
+- **WHEN** an Explorer node's URL is opened without JavaScript or under a project-site subpath
+- **THEN** the stable relative URL resolves to that node
+
+### Requirement: Previously published Explorer URLs keep resolving
+
+Previously published Explorer lifecycle stage and engineering-source URLs SHALL keep resolving.
+
+#### Scenario: Old lifecycle or engineering-source URL is opened
+
+- **WHEN** a previously published Explorer lifecycle stage or engineering-source URL is opened
+- **THEN** it resolves
+
+### Requirement: Explorer lifecycle stages declare typed transitions
+
+Each Explorer lifecycle stage SHALL declare typed transitions (main, conditional or return) with a reason.
+
+#### Scenario: Lifecycle stage is defined
+
+- **WHEN** an Explorer lifecycle stage is defined
+- **THEN** it declares its typed transitions, each main, conditional or return, with a reason
+
+### Requirement: The Explorer overview shows lifecycle transitions as one schema
+
+The Explorer overview SHALL show the typed transitions of the Explorer lifecycle stages as one schema so that shortened paths, returns after review and the conditional release stage are visible as such.
+
+#### Scenario: Reader opens the overview
+
+- **WHEN** a reader opens the Explorer overview
+- **THEN** the typed lifecycle stage transitions are shown as one schema
+- **AND** shortened paths, returns after review and the conditional release stage are visible as such
+
+### Requirement: Explorer lifecycle stage pages state their full stage description
+
+Each Explorer lifecycle stage page SHALL state its purpose, inputs, action, outputs and their consumers, forks, conditional and error paths, an example and its mechanisms, from its editorial node.
+
+#### Scenario: Reader opens a lifecycle stage page
+
+- **WHEN** a reader opens an Explorer lifecycle stage page
+- **THEN** it states, from its editorial node, its purpose, inputs, action, outputs and their consumers, forks, conditional and error paths, an example and its mechanisms

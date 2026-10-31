@@ -29,7 +29,7 @@ Tool-specific instruction files SHALL reference shared Dev Platform rules rather
 
 ### Requirement: Managed-task semantics are consistent across conversation surfaces
 
-For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claude SHALL preserve the same Discuss, generic Fix, non-trivial Execute, and explicit direct technical managed intent boundaries. Generic fixation SHALL create or reuse one human-facing Business Requirement without OpenSpec authoring; technical package publication belongs to subsequent Requirement execution or explicit direct technical intent. Supported transport mechanics MAY differ without changing these meanings. A portable project that does not select operator integration SHALL retain its self-contained local OpenSpec workflow.
+For an explicitly operator-integrated project, ChatGPT Project, Codex, and Claude SHALL preserve the same Discuss, generic Fix, non-trivial Execute, and explicit direct technical managed intent boundaries. Supported transport mechanics MAY differ without changing these meanings.
 
 #### Scenario: ChatGPT Project fixes accepted work to Backlog
 
@@ -99,7 +99,7 @@ Every `orchestrate_pre_authoring.py` command line shown in the canonical and tem
 
 ### Requirement: Delivered documentation is navigable and self-contained for agents
 
-A project rendered from the Dev Platform template SHALL include a documentation map reachable from its root `AGENTS.md` that states the roles of `AGENTS.md`, `docs/`, accepted OpenSpec specs, active OpenSpec changes and code and points to the canonical document for each concern. The delivered OpenSpec guidance SHALL describe the artifact roles, accepted specs versus active delta, requirements and scenarios, contract change during implementation, semantic verification, archive, and the boundary between upstream OpenSpec and Dev Platform entrypoints, so that the standard lifecycle can be completed without external OpenSpec documentation. Root `AGENTS.md` SHALL remain a bounded map.
+A project rendered from the Dev Platform template SHALL include a documentation map reachable from its root `AGENTS.md` that states the roles of `AGENTS.md`, `docs/`, accepted OpenSpec specs, active OpenSpec changes and code and points to the canonical document for each concern.
 
 #### Scenario: Agent looks for the right document
 
@@ -112,3 +112,43 @@ A project rendered from the Dev Platform template SHALL include a documentation 
 - **WHEN** an agent reads the delivered OpenSpec guidance
 - **THEN** it can identify each artifact's role and the Dev Platform entrypoints for start, verify and archive
 - **AND** upstream OpenSpec documentation is described as supplementary, not required
+
+### Requirement: Generic fixation creates only a Business Requirement
+
+Generic fixation SHALL create or reuse one human-facing Business Requirement without OpenSpec authoring; technical package publication belongs to subsequent Requirement execution or explicit direct technical intent.
+
+#### Scenario: Accepted work is fixed
+
+- **WHEN** generic fixation is requested
+- **THEN** one human-facing Business Requirement is created or reused without OpenSpec authoring
+- **AND** technical package publication is left to subsequent Requirement execution or explicit direct technical intent
+
+### Requirement: Portable projects keep their local OpenSpec workflow
+
+A portable project that does not select operator integration SHALL retain its self-contained local OpenSpec workflow.
+
+#### Scenario: Project does not select operator integration
+
+- **GIVEN** a portable project that does not select operator integration
+- **WHEN** work is executed in it
+- **THEN** it uses its self-contained local OpenSpec workflow
+
+### Requirement: Delivered OpenSpec guidance is self-contained
+
+The OpenSpec guidance delivered to a project rendered from the Dev Platform template SHALL describe the artifact roles, accepted specs versus active delta, requirements and scenarios, contract change during implementation, semantic verification, archive, and the boundary between upstream OpenSpec and Dev Platform entrypoints, so that the standard lifecycle can be completed without external OpenSpec documentation.
+
+#### Scenario: Agent completes the lifecycle from delivered guidance
+
+- **GIVEN** a project rendered from the Dev Platform template
+- **WHEN** an agent completes the standard OpenSpec lifecycle
+- **THEN** the delivered OpenSpec guidance describes the artifact roles, accepted specs versus active delta, requirements and scenarios, contract change during implementation, semantic verification, archive, and the boundary between upstream OpenSpec and Dev Platform entrypoints
+- **AND** no external OpenSpec documentation is required
+
+### Requirement: Delivered root AGENTS.md remains a bounded map
+
+The root `AGENTS.md` of a project rendered from the Dev Platform template SHALL remain a bounded map.
+
+#### Scenario: Root AGENTS.md is rendered
+
+- **WHEN** a project is rendered from the Dev Platform template
+- **THEN** its root `AGENTS.md` is a bounded map
