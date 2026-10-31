@@ -415,14 +415,15 @@ For coordinator-managed source candidates, `finish` ends at developer handoff,
 with the change still active. Do not archive the candidate yourself: `openspec_lifecycle.py archive` without `--finalize` refuses for a coordinator candidate and names the handoff command, because an archived task is no longer a candidate and would publish through the strict terminal path; the coordinator's finalize archives it. A Requirement child is handed off the same way through `execute_requirement.py advance`, so a child behind a cleanly mergeable `main` gets the behind-mergeable contract. Before finish, run selected checks with
 `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json`. While the managed change is active, `select_checks.py --execute` refuses before any command when `--evidence` is missing or the change is not archive-ready (an open `tasks.md` box, a new capability without `## Purpose`), so tick the last box and commit before the only full run. An evidence-producing run (`--evidence`, `--task-evidence`) whose recorded evidence already proves the current task content by the reuse rule below is refused with the evidence path and reason, and a portable `archive` reuses that evidence instead of running the checks again, so evidence, archive and `finish` share one receipt. With private lineage enabled, `select_checks.py --execute` also runs the private-reference guard before any command. Then
 record semantic verification, commit the candidate and evidence, then record
-the developer friction checkpoint at that exact head. Finish publishes an exact-head PR, admits it as
-`review-pending`, and releases the developer board claim without waiting for CI,
-review or merge; finish fails unless the exact head reached `review-pending` with its published review job (or later
+the developer friction checkpoint (it is bound to the task content, so a later merge-only reconcile keeps it). Finish runs the routing gate (a missing route or retained execution outcome fails here, before publication), publishes an exact-head PR, admits it as
+`review-pending`, and hands the developer board claim off without waiting for CI,
+review or merge: the claim stays on the board with its overlap acknowledgments and handed-off head but claims no scope; finish fails unless the exact head reached `review-pending` with its published review job (or later
 lifecycle progress). A new developer head pushed to the same PR while it is `review-pending` (unclaimed),
 `repair-pending`, `blocked-retryable`, `blocked-escalation`, `integration-repair-pending` or `finalize-pending` (its job unclaimed) is re-admitted by the next finish on that PR: the v1
 admission comment records `supersedes` (the previously admitted head, its state and the reason) and a fresh review job
 is published for the new head; until then the coordinator skips the pushed head instead of integrating or blocking it,
 and `status` reports "new head awaits developer re-admission" with the proven and the pushed head.
+During such a re-handoff the scope gate (`select_checks.py --execute`, `finish`) accepts the worktree's handed-off claim, writing nothing, only while its PR is in one of those states and HEAD descends from the handed-off head; `finish` reactivates it for publication and admission hands it off again. Any other case refuses with the command, so no manual `agent_board.py start` or repeated `acknowledge` is needed.
 Re-admission is refused while a job holds a live claim or the candidate is in any other state, for another task, when
 a finding-level escalation (rejected review, proposed rejection, exhausted repair rounds) or a candidate carrying
 material review findings (for example `repair-pending`) would be superseded by unchanged task content (operational
@@ -433,7 +434,7 @@ the next finalize `blocked-retryable` on the `semantic-verification` red gate, o
 integrated head and left it `integration-repair-pending` (the developer fix is committed on top of the integrated head
 and needs no push before `finish`), that task's own PR alone reopens the developer handoff for its archived change: the task re-runs semantic verification and commits a changed receipt (an
 unchanged receipt since the proven head is refused as stale), refreshes the selected-check evidence and the friction
-checkpoint for the exact head, and `finish` re-admits it under the canonical change name from managed provenance; the
+checkpoint, and `finish` re-admits it under the canonical change name from managed provenance; the
 change is never unarchived or archived again. A `finalize-pending` candidate whose finalize job holds no live claim
 is re-admitted the same way, for example after a finalize push followed by a merge-only reconcile. When a
 `finalize-pending` candidate lost content-bound gates across the

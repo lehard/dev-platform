@@ -369,7 +369,8 @@ class GateTests(unittest.TestCase):
             stack.enter_context(mock.patch.object(finish, "enforce_scope_gate"))
             stack.enter_context(mock.patch.object(finish, "observe_private_reference_blocker", return_value=None))
             publish = stack.enter_context(mock.patch.object(publication, "publish_pr", return_value=0))
-            release = stack.enter_context(mock.patch.object(finish, "finish_board"))
+            stack.enter_context(mock.patch.object(finish, "reactivate_handed_off_board"))
+            release = stack.enter_context(mock.patch.object(finish, "hand_off_board"))
             config = {"pr_merge_mode": "auto", "main_branch": "main"}
             self.assertEqual(finish.finish_developer_handoff(ROOT, ROOT, config, "agent/example", None, None), 0)
             self.assertTrue(publish.call_args.kwargs["developer_handoff"])

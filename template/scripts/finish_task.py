@@ -99,6 +99,39 @@ def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
     return None
 
 
+def _board_command(main: Path, *args: str) -> None:
+    result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), *args],
+                            cwd=main, check=False, stdin=subprocess.DEVNULL)
+    if result.returncode != 0:
+        raise SystemExit(f"PR was published, but scripts/agent_board.py {' '.join(args)} failed; rerun it")
+
+
+def hand_off_board(main: Path, worktree: Path, config: dict) -> None:
+    """Keep the board claim of ``worktree`` as a handed-off record at HEAD on admission (BR-965).
+
+    The record keeps its acknowledgments for a later developer re-handoff and claims no scope.
+    """
+    board_id = find_board_id(main, worktree, config)
+    if board_id:
+        head = run_git(["rev-parse", "HEAD"], cwd=worktree).stdout.strip()
+        _board_command(main, "hand-off", "--id", board_id, "--head", head, "--quiet")
+
+
+def reactivate_handed_off_board(main: Path, worktree: Path, config: dict) -> None:
+    """At a re-handoff, make this worktree's handed-off claim active again; a first handoff has none."""
+    board_id = find_board_id(main, worktree, config)
+    if not board_id:
+        return
+    data = json.loads((main / config["paths"]["agent_board"]).read_text(encoding="utf-8"))
+    item = next(item for item in data["items"] if item.get("id") == board_id)
+    if item.get("handed_off"):
+        result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "reactivate", "--id", board_id],
+                                cwd=main, check=False, stdin=subprocess.DEVNULL)
+        if result.returncode != 0:
+            raise SystemExit(f"re-handoff blocked: reactivating board claim {board_id} failed; "
+                             f"rerun scripts/agent_board.py reactivate --id {board_id}")
+
+
 def finish_board(main: Path, worktree: Path, config: dict) -> None:
     """Release the board claim of ``worktree``; a failed release stops finish with the rerun command."""
     board_id = find_board_id(main, worktree, config)
@@ -872,10 +905,11 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
     privacy = observe_private_reference_blocker(work, title, body)
     if privacy:
         raise SystemExit(privacy)
+    reactivate_handed_off_board(integration, work, config)
     result = publish_pr(work, "origin", config["main_branch"], title, body,
                         pr_merge_mode(config), config=config, developer_handoff=True)
     if result == 0:
-        finish_board(integration, work, config)
+        hand_off_board(integration, work, config)
     return result
 
 
@@ -998,10 +1032,10 @@ def main() -> int:
                 raise SystemExit("Publication queue observation blocked: " + str(exc)) from exc
             if queued is not None:
                 if queued["state"] in {"active", "waiting"}:
-                    # Admission of this exact head releases the developer claim;
-                    # the coordinator, not a finish rerun, drives the merge.
+                    # Admission of this exact head hands the developer claim off (kept for a
+                    # re-handoff, no scope); the coordinator, not a finish rerun, drives the merge.
                     if prof == "multi-agent":
-                        finish_board(integration, work, config)
+                        hand_off_board(integration, work, config)
                     print(f"Publication queue position {queued.get('position')}: {queued['state']}; coordinator owns final integration.")
                     return 2
                 if queued["state"] == "blocked":
@@ -1146,6 +1180,8 @@ def main() -> int:
             command += ["--title", args.title]
         if args.body:
             command += ["--body", args.body]
+        if prof == "multi-agent":
+            reactivate_handed_off_board(integration, work, config)
         published = subprocess.run(command, cwd=work, check=False, stdin=subprocess.DEVNULL)
         if published.returncode:
             if config.get("platform_version") == "source":
@@ -1155,7 +1191,7 @@ def main() -> int:
                     queued = queue_local_status(work, branch)
                     if queued is not None and queued["state"] in {"active", "waiting"}:
                         if prof == "multi-agent":
-                            finish_board(integration, work, config)
+                            hand_off_board(integration, work, config)
                         print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
                         return 2
                     if queued is not None and queued["state"] == "blocked":

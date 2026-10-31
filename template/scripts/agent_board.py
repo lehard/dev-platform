@@ -507,10 +507,13 @@ def claim_eligibility(item: dict, root: Path, *, main_branch: str, stale_hours: 
     they never assert that their declared paths are safe to share.
     """
     problems = _status(item, root, main_branch=main_branch, stale_hours=stale_hours)
-    if not problems:
-        return "valid-active", problems
     if TERMINAL_BOARD_PROBLEMS.intersection(problems):
         return "terminal", problems
+    if item.get("handed_off"):
+        # Admitted to the coordinator (BR-965): kept for its re-handoff, it claims no scope.
+        return "handed-off", problems
+    if not problems:
+        return "valid-active", problems
     return "degraded", problems
 
 
@@ -677,6 +680,33 @@ def cmd_finish(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_hand_off(args: argparse.Namespace) -> int:
+    """Keep ``--id`` as a handed-off record at ``--head`` instead of deleting it (BR-965)."""
+    path = board_path()
+    if not path.exists():
+        return 0
+    with locked_json(path) as data:
+        item = next((item for item in data.setdefault("items", []) if item.get("id") == args.id), None)
+        if item is None:
+            if not args.quiet:
+                print(f"Board id not found: {args.id}")
+            return 0
+        item["handed_off"] = {"head": args.head, "at": utc_now()}
+    return 0
+
+
+def cmd_reactivate(args: argparse.Namespace) -> int:
+    """Make the handed-off record ``--id`` an active claim again; only the re-handoff entry calls this."""
+    path = board_path()
+    with locked_json(path) as data:
+        item = next((item for item in data.setdefault("items", []) if item.get("id") == args.id), None)
+        if item is None or not item.get("handed_off"):
+            raise SystemExit(f"Agent board reactivation blocked: {args.id} is not a handed-off claim.")
+        item.pop("handed_off")
+        item["heartbeat"] = utc_now()
+    return 0
+
+
 def _safe_to_remove(item: dict, problems: list[str]) -> bool:
     if "worktree-missing" in problems:
         return True
@@ -802,7 +832,57 @@ def _required_scope_inputs(root: Path, worktree: Path, branch: str, config: dict
             f"agent_board is enabled but the board {path} has no claim for worktree {worktree} "
             f"and branch {branch}"
         )
+    if current.get("handed_off"):
+        refusal = rehandoff_refusal(worktree, current)
+        if refusal is not None:
+            raise _scope_gate_unavailable(
+                f"the board claim {current.get('id')} for {branch} was handed off to the coordinator and {refusal}; "
+                "it serves only a developer re-handoff of that PR. Wait until the coordinator asks for a re-handoff; "
+                "if that PR was abandoned, remove the record with "
+                f"python3 scripts/agent_board.py finish --id {current.get('id')} and register a new claim"
+            )
     return items, current, main_branch
+
+
+def rehandoff_refusal(worktree: Path, item: dict) -> str | None:
+    """Why a handed-off claim cannot serve a re-handoff now, or ``None`` when it can (read-only).
+
+    It can while the branch's open PR has a latest coordinator record in
+    ``READMISSION_STATES`` and HEAD descends from the handed-off head. A failed read stops.
+    """
+    import publication_queue as queue
+    from _platform_common import run_github_with_retry
+
+    handed = item.get("handed_off")
+    head = handed.get("head") if isinstance(handed, dict) else None
+    if not isinstance(head, str) or not head:
+        raise _scope_gate_unavailable(f"the handed-off board claim {item.get('id')} records no handed-off head")
+    branch = str(item.get("branch", ""))
+    result = run_github_with_retry(["gh", "pr", "view", branch, "--json", "number,state,headRefName"], cwd=worktree)
+    if result.returncode:
+        raise _scope_gate_unavailable(f"cannot read the PR of handed-off branch {branch}: "
+                                      + (result.stderr or result.stdout).strip()[:300])
+    try:
+        pr = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise _scope_gate_unavailable(f"the PR lookup for {branch} returned invalid JSON: {exc}") from exc
+    if pr.get("headRefName") != branch or not isinstance(pr.get("number"), int):
+        return f"no PR of branch {branch} is known"
+    number = pr["number"]
+    if pr.get("state") != "OPEN":
+        return f"its PR #{number} is {str(pr.get('state')).lower()}"
+    try:
+        lineage = queue._latest(worktree, number, queue._comments(worktree, queue._repo(worktree), number))
+        descends = queue._is_ancestor(worktree, head, "HEAD")
+    except queue.QueueError as exc:
+        raise _scope_gate_unavailable(f"cannot observe PR #{number} for a re-handoff: {exc}") from exc
+    state = lineage.get("state") if isinstance(lineage, dict) else None
+    if state not in queue.READMISSION_STATES:
+        return (f"PR #{number} is {state or 'without a coordinator record'}; only "
+                f"{', '.join(sorted(queue.READMISSION_STATES))} await a re-handoff")
+    if not descends:
+        return f"HEAD does not descend from the handed-off head {head[:12]}"
+    return None
 
 
 def warn_current_worktree_scope_overlap(root: Path, worktree: Path, branch: str) -> None:
@@ -894,6 +974,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--path", action="append", default=[], help="exact repository-relative conflicting path (repeatable)")
     p.add_argument("--reason", required=True)
     p.set_defaults(func=cmd_acknowledge)
+
+    p = sub.add_parser("hand-off", help="keep a claim admitted to the coordinator as a handed-off record")
+    p.add_argument("--id", required=True)
+    p.add_argument("--head", required=True)
+    p.add_argument("--quiet", action="store_true")
+    p.set_defaults(func=cmd_hand_off)
+
+    p = sub.add_parser("reactivate", help="make a handed-off claim active again for its re-handoff")
+    p.add_argument("--id", required=True)
+    p.set_defaults(func=cmd_reactivate)
 
     p = sub.add_parser("finish")
     p.add_argument("--id", required=True)

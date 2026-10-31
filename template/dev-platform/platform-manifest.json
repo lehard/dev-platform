@@ -65,7 +65,7 @@
     "scripts/_platform_common.py": "da72cd97bcb019da1dd1d45d14e0149da3f576b9ee22af1cb66658ccae0f3c7f",
     "scripts/add_intents.py": "89bee5980a5ad09f912d267da8b30f35cf5001d9f750f83e70e3583410e5b2c8",
     "scripts/affected_test_groups.py": "e4ae3bff616d0b83a9771c842d4db0422f5918b9579b8c3a3f8dd42c6766b196",
-    "scripts/agent_board.py": "592b5c2c119cf9973d65a39bec302f1e58b58fdfa6dd4413f2b8935e8c022e24",
+    "scripts/agent_board.py": "5641cc7d07ae53d4dd264ace4a0d8c3c3a1a5d610de1a04253ea1464a6dcad96",
     "scripts/agent_doctor.py": "9126de064e12cc8605e3fe37a4b75f41189f03198dc429ef6d9fd79941dad75d",
     "scripts/agent_friction.py": "f7c8a1093272907a047942e25885d4e0f031aa83641745bd03b6c73f807b3de8",
     "scripts/agent_sessions.py": "5c3dc9a16adb5296c354e7b9f0fd0c5eddd611d5c0fbcccd59216b2c404c75dd",
@@ -81,7 +81,7 @@
     "scripts/disposable_repository_sandbox.py": "290b29ff670fb03f4bc84282a7e3f780d5fdda642611f7423dec550fa8afe1e3",
     "scripts/execute_managed_task.py": "0b1ac8f76e401278e35d44aead20758728f95ed2d6ff80b1ea21e9f09cc60ca1",
     "scripts/execute_requirement.py": "b299b260268c8bf625698e1d2c58f34383ed121fe2c0f092b19245b885a86823",
-    "scripts/finish_task.py": "815239c21fe9f285cfa578bfc8e386726ab156566eb70fbeb7397240beae0691",
+    "scripts/finish_task.py": "efd1c1f14ace59c475857bf4ef5421f3fb22131c6ca7efcf5a6dd900825191aa",
     "scripts/git_hooks/pre-commit": "b2719741841aa0fa5f3f73b57a10f7527158680f99c0e5fa4ff0b156babacbd2",
     "scripts/git_hooks/pre-merge-commit": "ed8eb55f1d71ecaa1a0f9a7ba8a763e9371e7f28cd650b272a7a9be802feca2e",
     "scripts/github_read_cache.py": "7094fbe8dbf4df6fa1ef18c7e28446e499ebcb05af2e040d74d1771d57eb15c1",
@@ -109,7 +109,7 @@
     "scripts/platform_divergence.py": "8b722a148468ae79ce7ebab7fe0c250fa609c7688ca18a21aa545aff1d330a98",
     "scripts/platform_doctor.py": "4317aa326d848bf9c31488abf4e0838201d3874db5572b8459334ca7962dc987",
     "scripts/post_review_finalization.py": "e619a333cd1686c89d6929c97bf63ac6754a4b4523876d94851f9bf52447e7ce",
-    "scripts/pr_review_gate.py": "8d5325cb670773577a8a1c91f08ac10eb48b562d102123d8480f3bba2f14fab1",
+    "scripts/pr_review_gate.py": "8a1b41ae91fc1dd69b741f3181b14247b91d8f2abdf69f8cc2d23b6ae27f65aa",
     "scripts/private_lineage.py": "b04df3af7dcaab45b04086f72ed54828e3de58f5d4c856e51d057724b8e987c6",
     "scripts/project_context.py": "a527ef8f015c7cf5e64e35597242ee62a4f7c7421b1f00c8cfce9e6a0c7eb2b2",
     "scripts/project_evidence.py": "99c82b6f2d52e11929c6c77caf946828e266d8e5fd3b443231e2478bea0db59d",
@@ -144,7 +144,7 @@
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
     "scripts/task_content_identity.py": "98a8dd9413dbcd6dd527e1180ffb142e948f651128ebdc1b95c9a7f3f0a89ee9",
     "scripts/task_reconciliation.py": "d49d7e934628f6ef31731775e1ece7923baeb5fcc2c55ec1c6d2e7ad6d121f2e",
-    "scripts/worktree_cleanup.py": "1dbbc761be8a330a913ce8d08fe01e496ee7220cbd6c219814365c0bdbdeba99"
+    "scripts/worktree_cleanup.py": "92e7fc2c3811ed1963cca598f38dd2b8bafd8a51dd784717545e03bb4f25ee8a"
   },
   "project_harness_owned": [
     "docs/engineering/openspec-workflow.md",
