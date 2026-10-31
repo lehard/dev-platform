@@ -3,30 +3,23 @@
   "candidate": {
     "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
     "base_ref": "origin/main",
-    "candidate_head": "0bb011edbe2e639bba37cb5ecd27d4fbc363019f",
-    "diff_sha256": "0c41bb08cd81b26d8b0eb93a8a5ad7a4900390f99fa4b62af926e00b7eb6c022"
+    "candidate_head": "47b48c4ae37dbd364c08ef27a80165dc679466ee",
+    "diff_sha256": "bf6684789a91d654a813df6da3a05d9f48b65df227f75a752719b2a31e49e6b9"
   },
-  "completed_at": "2026-10-31T13:03:39+00:00",
-  "findings": [
-    {
-      "evidence": "tests/test_orchestrate_pre_authoring.py CheckBundleTests only covers status hint, incomplete stage, valid, rejected (mocked validate_authoring_bundle) and missing bundle. execute_requirement.py is not in the diff, so advance is unchanged by construction. The MODIFIED-scenario rejection by real OpenSpec is pinned separately in tests/openspec_1_13_regression.py.",
-      "id": "advance-unchanged-untested",
-      "severity": "advisory",
-      "summary": "tasks.md 1.3 is marked done and claims a test that advance is unchanged and ignores any check result. The spec also requires \"no child Issue exists\" after a failed check. The diff has no test for either point."
-    }
-  ],
-  "launched_at": "2026-10-31T13:03:23+00:00",
-  "output_sha256": "a2aacf8078182afb2a823283b51948aa378aa7fc16812e4815e4b84e44f5c4eb",
+  "completed_at": "2026-10-31T13:05:40+00:00",
+  "findings": [],
+  "launched_at": "2026-10-31T13:05:24+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "f91fd928-78ad-4bae-8911-baa9e1f418eb",
+  "request_id": "e5628484-36bc-4512-9d81-64a0243bd749",
   "reviewer": {
-    "context_id": "ffff9d59-b36b-40a1-999e-e305fa523bd8",
+    "context_id": "3d796900-9b5d-40e4-a08f-7f609da4d713",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-11526976-3022-4447-8caa-90a26e3ea1bb",
+    "launch_id": "platform-launch-ecd79f30-4c48-475c-9cd4-ded774ca1af5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23401
+        "value": 25295
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48788
+        "value": 49231
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10146
+        "value": 10113
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12029
+        "value": 12160
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,11 +65,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1100
+        "value": 825
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "dc6e72a6a9a858f271e3ca9b0eae2aed3720d62032078c6fe9e1bf315e58f2ba"
+  "task_content_digest": "3aa36ae89be01afe3f2c1a0b5aee509c7a983a4da2d443d682fdfe0dcdcdc66c"
 }

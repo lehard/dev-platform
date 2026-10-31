@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
     "base_ref": "origin/main",
-    "candidate_head": "0bb011edbe2e639bba37cb5ecd27d4fbc363019f",
-    "diff_sha256": "0c41bb08cd81b26d8b0eb93a8a5ad7a4900390f99fa4b62af926e00b7eb6c022"
+    "candidate_head": "47b48c4ae37dbd364c08ef27a80165dc679466ee",
+    "diff_sha256": "bf6684789a91d654a813df6da3a05d9f48b65df227f75a752719b2a31e49e6b9"
   },
   "change": "openspec/changes/pre-authoring-check-bundle",
   "excluded_lifecycle_paths": [
@@ -37,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T13:03:12+00:00",
+  "prepared_at": "2026-10-31T13:05:15+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/pre-authoring-check-bundle/independent-reviews",
     "required_perspectives": [
@@ -46,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "f91fd928-78ad-4bae-8911-baa9e1f418eb",
+  "request_id": "e5628484-36bc-4512-9d81-64a0243bd749",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -59,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "e25e6c5a8aade0460787528d6845795d0d74b245",
-    "digest": "dc6e72a6a9a858f271e3ca9b0eae2aed3720d62032078c6fe9e1bf315e58f2ba",
+    "digest": "3aa36ae89be01afe3f2c1a0b5aee509c7a983a4da2d443d682fdfe0dcdcdc66c",
     "paths": {
       "docs/engineering/task-intake.md": "ac223b3e6b450c87ad0f1ceb68436ef813f2c4dd",
       "openspec/changes/pre-authoring-check-bundle/.managed-task.json": "aaaa1358d0e86fc16b43f65245c3de5a3f82dfa3",
@@ -71,7 +71,7 @@
       "template/docs/engineering/task-intake.md.jinja": "20845fbeb8401e7bd4ab97d48ca1206b4c05acfa",
       "template/scripts/orchestrate_pre_authoring.py": "79fd0a318d0bfb570203f86d921ed44d90e4a284",
       "tests/openspec_1_13_regression.py": "57e0c60c33b778f7dcc192ad183a9d9e9bd6f7c8",
-      "tests/test_orchestrate_pre_authoring.py": "6339b0a0afff75c9190dc94491d288ffda1b5481"
+      "tests/test_orchestrate_pre_authoring.py": "9a5003f239021ef956716249defe29a23c159a35"
     },
     "scope": "independent-review-v1",
     "version": 1

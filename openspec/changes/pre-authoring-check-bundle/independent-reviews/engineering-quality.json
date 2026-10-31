@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
     "base_ref": "origin/main",
-    "candidate_head": "0bb011edbe2e639bba37cb5ecd27d4fbc363019f",
-    "diff_sha256": "0c41bb08cd81b26d8b0eb93a8a5ad7a4900390f99fa4b62af926e00b7eb6c022"
+    "candidate_head": "47b48c4ae37dbd364c08ef27a80165dc679466ee",
+    "diff_sha256": "bf6684789a91d654a813df6da3a05d9f48b65df227f75a752719b2a31e49e6b9"
   },
-  "completed_at": "2026-10-31T13:03:56+00:00",
+  "completed_at": "2026-10-31T13:06:02+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/orchestrate_pre_authoring.py in the candidate diff: `execute_requirement._ordered_handoffs(report, requirement)` and `execute_requirement._bundle(base_dir, requirement, handoff)`. Both are defined in template/scripts/execute_requirement.py (lines 45 and 294). Making them public, or sharing a helper, would pin the 'same rule as advance' guarantee.",
+      "evidence": "template/scripts/orchestrate_pre_authoring.py check_bundles calls execute_requirement._ordered_handoffs(report, requirement) and execute_requirement._bundle(base_dir, requirement, handoff). The tests mock managed_task.validate_authoring_bundle and managed_task.target_main, so the real OpenSpec validation path is never run end to end. The regression in tests/openspec_1_13_regression.py checks only the OpenSpec CLI, not check_bundles.",
       "id": "private-api-coupling",
       "severity": "advisory",
-      "summary": "check_bundles calls the underscore-private helpers execute_requirement._ordered_handoffs and execute_requirement._bundle. A later refactor of advance could change their signatures or semantics and silently break check-bundle. Only the tests would catch that."
+      "summary": "check_bundles depends on underscore-private helpers of execute_requirement (_ordered_handoffs, _bundle) to stay in sync with advance. A rename or signature change there will break check-bundle, and only the mock-based unit tests would catch it."
     }
   ],
-  "launched_at": "2026-10-31T13:03:39+00:00",
-  "output_sha256": "8c2287055d6d71337be3172f29913b271dc616695146097236797415e87bf015",
+  "launched_at": "2026-10-31T13:05:40+00:00",
+  "output_sha256": "3875fd6bcc6c5e14be728bc2fe48bec747589b47746c96f3477e2d66bdbd1c23",
   "perspective": "engineering-quality",
-  "request_id": "f91fd928-78ad-4bae-8911-baa9e1f418eb",
+  "request_id": "e5628484-36bc-4512-9d81-64a0243bd749",
   "reviewer": {
-    "context_id": "ead3df3f-a90c-4b55-861d-f6ac7ad76e51",
+    "context_id": "0bc7f249-f299-4021-b1b1-b9771c560ada",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-abf5e117-1ac3-4a8a-a32e-3d5d30b8784f",
+    "launch_id": "platform-launch-e212e0ed-9181-4dd5-a3e0-2c7766d4a966",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24060
+        "value": 24118
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 74644
+        "value": 75442
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11301
+        "value": 15605
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13641
+        "value": 18005
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,11 +72,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1179
+        "value": 1197
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "dc6e72a6a9a858f271e3ca9b0eae2aed3720d62032078c6fe9e1bf315e58f2ba"
+  "task_content_digest": "3aa36ae89be01afe3f2c1a0b5aee509c7a983a4da2d443d682fdfe0dcdcdc66c"
 }
