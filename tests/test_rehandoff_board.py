@@ -33,9 +33,10 @@ class HandedOffRecordTests(unittest.TestCase):
         self.board = Path(self.tmp.name) / "agents-board.json"
         self.board.write_text(json.dumps({"items": [
             {"id": "mine", "task": "t", "branch": "agent/x", "worktree": self.tmp.name, "acknowledgments": [ACK]}]}))
-        patcher = mock.patch.object(agent_board, "board_path", return_value=self.board)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for patcher in (mock.patch.object(agent_board, "board_path", return_value=self.board),
+                        mock.patch.dict(agent_board.locked_json.__wrapped__.__globals__, {"ensure_shared_path": lambda *a, **k: None})):
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def item(self) -> dict:
         return json.loads(self.board.read_text())["items"][0]
