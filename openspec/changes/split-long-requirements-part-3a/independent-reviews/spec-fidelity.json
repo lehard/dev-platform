@@ -3,30 +3,27 @@
   "candidate": {
     "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
     "base_ref": "origin/main",
-    "candidate_head": "162fd0b80c1e77cc117087ecd2f3782bcd77ee17",
-    "diff_sha256": "f04578d375c55d4e40ce1bc66f47f77d6332f44b00a039a9c1a352e7f55b5323"
+    "candidate_head": "12c953edea12343030b9d6774d096c19f4f36ac2",
+    "diff_sha256": "9bcba2205050141be95df32513e7d8dee48a72fbae5c32858ad327a7eaa51db5"
   },
-  "completed_at": "2026-10-31T10:17:18+00:00",
+  "completed_at": "2026-10-31T10:31:57+00:00",
   "findings": [],
-  "launched_at": "2026-10-31T10:16:21+00:00",
+  "launched_at": "2026-10-31T10:29:45+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "3fbc2b12-fe71-4efa-afd1-e93c89f10a12",
+  "request_id": "c9468300-e311-4639-ad8b-f96da8ff8019",
   "reviewer": {
-    "context_id": "3b0550b0-105e-400b-9492-6ace95acd13b",
+    "context_id": "1b681185-2aea-46d3-9142-044716ad321a",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e032dc5d-75c1-4561-ae20-d1ba7e79d78c",
+    "launch_id": "platform-launch-70f68b80-db4d-4a99-b0fe-24b57900bb00",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -35,37 +32,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 57108
+        "value": 124779
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 309264
+        "value": 1472553
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41217
+        "value": 131272
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 50168
+        "value": 131839
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16
+        "value": 40
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22
+        "value": 72
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5206
+        "value": 18148
       }
     },
     "runtime": "claude-code-print"

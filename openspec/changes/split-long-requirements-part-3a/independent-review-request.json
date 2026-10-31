@@ -2,11 +2,15 @@
   "candidate": {
     "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
     "base_ref": "origin/main",
-    "candidate_head": "162fd0b80c1e77cc117087ecd2f3782bcd77ee17",
-    "diff_sha256": "f04578d375c55d4e40ce1bc66f47f77d6332f44b00a039a9c1a352e7f55b5323"
+    "candidate_head": "12c953edea12343030b9d6774d096c19f4f36ac2",
+    "diff_sha256": "9bcba2205050141be95df32513e7d8dee48a72fbae5c32858ad327a7eaa51db5"
   },
   "change": "openspec/changes/split-long-requirements-part-3a",
   "excluded_lifecycle_paths": [
+    "openspec/changes/split-long-requirements-part-3a/automated-checks.json",
+    "openspec/changes/split-long-requirements-part-3a/independent-review-request.json",
+    "openspec/changes/split-long-requirements-part-3a/independent-reviews/engineering-quality.json",
+    "openspec/changes/split-long-requirements-part-3a/independent-reviews/spec-fidelity.json",
     "openspec/changes/split-long-requirements-part-3a/verification.md"
   ],
   "fresh_context_required": true,
@@ -35,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T10:16:09+00:00",
+  "prepared_at": "2026-10-31T10:29:42+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/split-long-requirements-part-3a/independent-reviews",
     "required_perspectives": [
@@ -44,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "3fbc2b12-fe71-4efa-afd1-e93c89f10a12",
+  "request_id": "c9468300-e311-4639-ad8b-f96da8ff8019",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
