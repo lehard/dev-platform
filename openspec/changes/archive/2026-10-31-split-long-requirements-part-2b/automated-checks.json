@@ -1,0 +1,106 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.045,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 1.019,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.2,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "openspec/changes/split-long-requirements-part-2b/.managed-task.json",
+        "openspec/changes/split-long-requirements-part-2b/.openspec.yaml",
+        "openspec/changes/split-long-requirements-part-2b/design.md",
+        "openspec/changes/split-long-requirements-part-2b/independent-review-request.json",
+        "openspec/changes/split-long-requirements-part-2b/independent-reviews/engineering-quality.json",
+        "openspec/changes/split-long-requirements-part-2b/independent-reviews/spec-fidelity.json",
+        "openspec/changes/split-long-requirements-part-2b/proposal.md",
+        "openspec/changes/split-long-requirements-part-2b/specs/gate-fail-explicit/spec.md",
+        "openspec/changes/split-long-requirements-part-2b/specs/platform-delegation/spec.md",
+        "openspec/changes/split-long-requirements-part-2b/specs/platform-rollout/spec.md",
+        "openspec/changes/split-long-requirements-part-2b/specs/publication-recovery/spec.md",
+        "openspec/changes/split-long-requirements-part-2b/specs/worktree-coordination/spec.md",
+        "openspec/changes/split-long-requirements-part-2b/tasks.md",
+        "openspec/changes/split-long-requirements-part-2b/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration",
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_84a99d655fe2eed28bb9d4e7a226d705",
+    "change": "split-long-requirements-part-2b",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/split-long-requirements-part-2b",
+    "branch": "agent/split-long-requirements-part-2b",
+    "head": "b209a4472b7e816437ca72b93dea0eecf495ccd9",
+    "task_content": {
+      "version": 1,
+      "digest": "82a0cccb3fac473434f77caeb9762e806f491519a62ca8b1f61c03a6ba680b3f",
+      "paths": {
+        "openspec/changes/split-long-requirements-part-2b/.managed-task.json": "043d72d545ec2b53c6465e84d7af2f24e5c557d5",
+        "openspec/changes/split-long-requirements-part-2b/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/split-long-requirements-part-2b/design.md": "748b9b9ab10543cae9a7729f30ea79e699dfe584",
+        "openspec/changes/split-long-requirements-part-2b/independent-review-request.json": "46227d74e0caab5a8440bd0b05aa9827e511cc8e",
+        "openspec/changes/split-long-requirements-part-2b/independent-reviews/engineering-quality.json": "44a3965e8f9446b9c2922dc6719027004765c0ee",
+        "openspec/changes/split-long-requirements-part-2b/independent-reviews/spec-fidelity.json": "c87e438abd13e2047675518073eaa0524a436b28",
+        "openspec/changes/split-long-requirements-part-2b/proposal.md": "788460cc356698cb655896afb11f2a82526bada1",
+        "openspec/changes/split-long-requirements-part-2b/specs/gate-fail-explicit/spec.md": "ca681b04395fa529e55319d9906c939e3e7e09d6",
+        "openspec/changes/split-long-requirements-part-2b/specs/platform-delegation/spec.md": "2a88172b6bf770728a1d0347931dfc5fbaaf959b",
+        "openspec/changes/split-long-requirements-part-2b/specs/platform-rollout/spec.md": "656cb5f7591e2ad08ed5f6cf122185a0cf25f529",
+        "openspec/changes/split-long-requirements-part-2b/specs/publication-recovery/spec.md": "2a376e932ef85ff7ad637f4e106ad0753e254c4f",
+        "openspec/changes/split-long-requirements-part-2b/specs/worktree-coordination/spec.md": "7ee57fff0c428794554618391849b687c9d54fbe",
+        "openspec/changes/split-long-requirements-part-2b/tasks.md": "cd650fab91671fa942d291092c994cf68062bac7",
+        "openspec/changes/split-long-requirements-part-2b/verification.md": "cea6fdd74f5f41824a87f786c14ce90eeff371d4"
+      },
+      "base": "63681ebd42c1407b4968031f39480db74dd3cffd"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "205bfe555ad71ea8739301eb6d1c26a70850b1771970d41a7f544e09631a51e9",
+    "paths": {
+      "openspec/changes/split-long-requirements-part-2b/.managed-task.json": "043d72d545ec2b53c6465e84d7af2f24e5c557d5",
+      "openspec/changes/split-long-requirements-part-2b/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/split-long-requirements-part-2b/design.md": "748b9b9ab10543cae9a7729f30ea79e699dfe584",
+      "openspec/changes/split-long-requirements-part-2b/proposal.md": "788460cc356698cb655896afb11f2a82526bada1",
+      "openspec/changes/split-long-requirements-part-2b/specs/gate-fail-explicit/spec.md": "ca681b04395fa529e55319d9906c939e3e7e09d6",
+      "openspec/changes/split-long-requirements-part-2b/specs/platform-delegation/spec.md": "2a88172b6bf770728a1d0347931dfc5fbaaf959b",
+      "openspec/changes/split-long-requirements-part-2b/specs/platform-rollout/spec.md": "656cb5f7591e2ad08ed5f6cf122185a0cf25f529",
+      "openspec/changes/split-long-requirements-part-2b/specs/publication-recovery/spec.md": "2a376e932ef85ff7ad637f4e106ad0753e254c4f",
+      "openspec/changes/split-long-requirements-part-2b/specs/worktree-coordination/spec.md": "7ee57fff0c428794554618391849b687c9d54fbe",
+      "openspec/changes/split-long-requirements-part-2b/tasks.md": "cd650fab91671fa942d291092c994cf68062bac7"
+    },
+    "base": "63681ebd42c1407b4968031f39480db74dd3cffd",
+    "scope": "independent-review-v1"
+  }
+}
