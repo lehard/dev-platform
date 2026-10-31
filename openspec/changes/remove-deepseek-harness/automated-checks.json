@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "failure",
+  "executed_commands": [],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/deepseek_harness_adapter.py",
+        "template/scripts/_platform_common.py",
+        "template/scripts/deepseek_harness_adapter.py",
+        "template/scripts/platform_bootstrap.py",
+        "tests/test_build_explorer_editorial.py",
+        "tests/test_deepseek_harness_runtime.py",
+        "tests/test_downstream_boundary.py",
+        "tests/test_platform_bootstrap.py",
+        "tests/test_shared_writer_guard.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_0987c962e3f5c0c021c63e04da64acf7",
+    "change": "remove-deepseek-harness",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/remove-deepseek-harness",
+    "branch": "agent/br-845-t1-remove-deepseek-harness",
+    "head": "f7722a1655466ba1df762c01672bc6d0b6a6430e",
+    "task_content": {
+      "version": 1,
+      "digest": "7fe9f664d15c5cab4503c9d7e4597b13f62d4c9900b881e255e413bc8f10da3e",
+      "paths": {
+        "dev-platform/checks.toml": "b373f50fd10f602d21770f09d4f723bc3efa920b",
+        "docs/engineering/deepseek-harness-runtime.md": null,
+        "docs/engineering/upstream-substitution.md": "c4e9526622afa9b6c7de967e1cd4bf4cd0c5fa3b",
+        "explorer/map.toml": "bae4837c8506893a8fad353c222f4101417a9174",
+        "openspec/changes/remove-deepseek-harness/.managed-task.json": "1a6c7cb759b0a4d40e0863be57a7c2c28197c149",
+        "openspec/changes/remove-deepseek-harness/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/remove-deepseek-harness/design.md": "bd9aae0418f118a8b24a6470067f84eaa8dec012",
+        "openspec/changes/remove-deepseek-harness/independent-review-request.json": "4dd7314045e41acd8c06c89800266a6ff57a8712",
+        "openspec/changes/remove-deepseek-harness/independent-reviews/engineering-quality.json": "fd5539bd749eacd9e8f9d79a4b8211435dfcca86",
+        "openspec/changes/remove-deepseek-harness/independent-reviews/spec-fidelity.json": "11cd9ef6c52fa3f2fe3bdf1c1d06ef9dc471d3d0",
+        "openspec/changes/remove-deepseek-harness/proposal.md": "e364866b0af2044c1934979fa26bd35a145b2155",
+        "openspec/changes/remove-deepseek-harness/specs/agent-runtime/spec.md": "3466567f38610b074952470f2eafc3a4e5ffb019",
+        "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md": "c9d94a8c95ba118a5d4d367f402773c5e05c1a64",
+        "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md": "6520f042efd9759bcd65171668fd61371c55e5e6",
+        "openspec/changes/remove-deepseek-harness/tasks.md": "d402b5d3f2906e4c8a157f79031c56e0537b31ed",
+        "openspec/changes/remove-deepseek-harness/verification.md": "8333221edb9bc3a0b33abfe791ff35a12e4bbfd8",
+        "scripts/deepseek_harness_adapter.py": null,
+        "template/.dev-platform.toml.jinja": "857de5f413373394057efc4f6658e69d94ccf276",
+        "template/dev-platform/deepseek-harness-observation.cordis.yml": null,
+        "template/dev-platform/platform-manifest.json": "312f37920bce59248a5ef4233e262639c77a637e",
+        "template/dev-platform/protected-surface.toml": "46a05dac7971172cc1fc74b6fa85d63607122d06",
+        "template/docs/engineering/deepseek-harness-runtime.md": null,
+        "template/requirements/deepseek-harness.txt": null,
+        "template/scripts/_platform_common.py": "992906e920591b9e73ceabdc99ec7589115f6a26",
+        "template/scripts/deepseek_harness_adapter.py": null,
+        "template/scripts/platform_bootstrap.py": "589cac87ac32b800edf2984a1e8203387af49ab0",
+        "tests/test_build_explorer_editorial.py": "b1134bc7c137dee05a9d6efccd2ad7adb57a211a",
+        "tests/test_deepseek_harness_runtime.py": null,
+        "tests/test_downstream_boundary.py": "014d3e6acd08bce27727ef58934cbe19e1db5167",
+        "tests/test_platform_bootstrap.py": "e35f8f62d4178c6c1d3ca8cd9e369d530794e102",
+        "tests/test_shared_writer_guard.py": "515a393dd8cd0af4a599972314cd0ac2ef266a5e"
+      },
+      "base": "4982d61e8bddcf660a8e8a09098d58ed6fa56156"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "16c6952857b952bbabb23295aded5e2ed76f9c93d2a8455da4a2ac7eb6ae996e",
+    "paths": {
+      "dev-platform/checks.toml": "b373f50fd10f602d21770f09d4f723bc3efa920b",
+      "docs/engineering/deepseek-harness-runtime.md": null,
+      "docs/engineering/upstream-substitution.md": "c4e9526622afa9b6c7de967e1cd4bf4cd0c5fa3b",
+      "explorer/map.toml": "bae4837c8506893a8fad353c222f4101417a9174",
+      "openspec/changes/remove-deepseek-harness/.managed-task.json": "1a6c7cb759b0a4d40e0863be57a7c2c28197c149",
+      "openspec/changes/remove-deepseek-harness/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/remove-deepseek-harness/design.md": "bd9aae0418f118a8b24a6470067f84eaa8dec012",
+      "openspec/changes/remove-deepseek-harness/proposal.md": "e364866b0af2044c1934979fa26bd35a145b2155",
+      "openspec/changes/remove-deepseek-harness/specs/agent-runtime/spec.md": "3466567f38610b074952470f2eafc3a4e5ffb019",
+      "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md": "c9d94a8c95ba118a5d4d367f402773c5e05c1a64",
+      "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md": "6520f042efd9759bcd65171668fd61371c55e5e6",
+      "openspec/changes/remove-deepseek-harness/tasks.md": "d402b5d3f2906e4c8a157f79031c56e0537b31ed",
+      "scripts/deepseek_harness_adapter.py": null,
+      "template/.dev-platform.toml.jinja": "857de5f413373394057efc4f6658e69d94ccf276",
+      "template/dev-platform/deepseek-harness-observation.cordis.yml": null,
+      "template/dev-platform/protected-surface.toml": "46a05dac7971172cc1fc74b6fa85d63607122d06",
+      "template/docs/engineering/deepseek-harness-runtime.md": null,
+      "template/requirements/deepseek-harness.txt": null,
+      "template/scripts/_platform_common.py": "992906e920591b9e73ceabdc99ec7589115f6a26",
+      "template/scripts/deepseek_harness_adapter.py": null,
+      "template/scripts/platform_bootstrap.py": "589cac87ac32b800edf2984a1e8203387af49ab0",
+      "tests/test_build_explorer_editorial.py": "b1134bc7c137dee05a9d6efccd2ad7adb57a211a",
+      "tests/test_deepseek_harness_runtime.py": null,
+      "tests/test_downstream_boundary.py": "014d3e6acd08bce27727ef58934cbe19e1db5167",
+      "tests/test_platform_bootstrap.py": "e35f8f62d4178c6c1d3ca8cd9e369d530794e102",
+      "tests/test_shared_writer_guard.py": "515a393dd8cd0af4a599972314cd0ac2ef266a5e"
+    },
+    "base": "4982d61e8bddcf660a8e8a09098d58ed6fa56156",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/deepseek_harness_adapter.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/deepseek_harness_adapter.py --changed-file template/scripts/platform_bootstrap.py --changed-file tests/test_build_explorer_editorial.py --changed-file tests/test_deepseek_harness_runtime.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_platform_bootstrap.py --changed-file tests/test_shared_writer_guard.py",
+    "duration_seconds": 260.542,
+    "outcome": "failure",
+    "exit_code": 1,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
