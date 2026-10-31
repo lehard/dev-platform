@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import shutil
 import subprocess
@@ -153,9 +154,9 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             self.assertEqual(dogfood_task.reconcile(dogfood_task.argparse.Namespace()), 0)
         self.assertEqual(run.call_args.args[0], ["python3", "scripts/finish_task.py", "--reconcile"])
 
-    def test_route_codex_dispatches_the_supervisor_selected_profile(self) -> None:
+    def test_route_codex_dispatches_the_profile_of_the_selected_tier(self) -> None:
         args = dogfood_task.argparse.Namespace(
-            profile="standard",
+            tier="R2",
             rationale="Sol supervisor completed semantic preflight",
             evidence=["openspec/changes/central-task"],
             prompt=None,
@@ -172,9 +173,9 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertIn(dogfood_task.CODEX_EXECUTOR_PROMPT, command)
         self.assertEqual(run.call_args.args[1], self.root)
 
-    def test_route_codex_omits_profile_when_confirming_authored_tier(self) -> None:
+    def test_route_codex_omits_tier_when_confirming_authored_tier(self) -> None:
         args = dogfood_task.argparse.Namespace(
-            profile=None,
+            tier=None,
             rationale="freshness check: no new hard trigger found",
             evidence=[],
             prompt=None,
@@ -188,6 +189,28 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertEqual(command[:3], ["python3", "scripts/model_routing.py", "dispatch-codex"])
         self.assertNotIn("--profile", command)
         self.assertIn("--rationale", command)
+
+    def test_each_tier_routes_as_its_former_profile_on_both_commands(self) -> None:
+        for tier, profile in (("R1", "routine"), ("R2", "standard"), ("R3", "complex")):
+            for command_name, route in (("dispatch-codex", dogfood_task.route_codex), ("dispatch-claude", dogfood_task.route_claude)):
+                with self.subTest(tier=tier, command=command_name):
+                    args = dogfood_task.argparse.Namespace(tier=tier, rationale="r", evidence=[], prompt=None, delegate=False)
+                    with mock.patch.object(dogfood_task, "current_root", return_value=self.root), \
+                            mock.patch.object(dogfood_task, "run") as run:
+                        self.assertEqual(route(args), 0)
+                    self.assertEqual(run.call_args.args[0][2:5], [command_name, "--profile", profile])
+
+    def test_removed_profile_flag_fails_naming_tier_and_routes_nothing(self) -> None:
+        for command_name in ("route-claude", "route-codex"):
+            with self.subTest(command=command_name):
+                stderr = io.StringIO()
+                with mock.patch.object(sys, "argv", ["dogfood_task.py", command_name, "--profile", "standard", "--rationale", "r"]), \
+                        mock.patch.object(dogfood_task, "run") as run, mock.patch("sys.stderr", stderr), \
+                        self.assertRaises(SystemExit) as raised:
+                    dogfood_task.main()
+                self.assertEqual(raised.exception.code, 2)
+                self.assertIn("--profile was replaced by --tier R1|R2|R3", stderr.getvalue())
+                run.assert_not_called()
 
     def test_route_codex_points_to_exact_bounded_child_context(self) -> None:
         change = self.add_managed_change()
@@ -212,7 +235,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
 
     def test_route_claude_records_route_and_cannot_itself_launch(self) -> None:
         args = dogfood_task.argparse.Namespace(
-            profile="standard",
+            tier="R2",
             rationale="Sol supervisor completed semantic preflight",
             evidence=["openspec/changes/central-task"],
             delegate=False,
@@ -231,7 +254,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         self.assertEqual(run.call_args.args[1], self.root)
 
     def test_route_claude_passes_explicit_delegate_through(self) -> None:
-        args = dogfood_task.argparse.Namespace(profile="standard", rationale="child required", evidence=[], delegate=True)
+        args = dogfood_task.argparse.Namespace(tier="R2", rationale="child required", evidence=[], delegate=True)
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
             dogfood_task, "run"
         ) as run:
@@ -251,16 +274,16 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             **state, "managed_package": "openspec/changes/central-task", "repository_head": head,
             "managed_provenance_sha256": digest,
         }), encoding="utf-8")
-        args = dogfood_task.argparse.Namespace(profile="complex", rationale="R3 retained", evidence=[], delegate=False)
+        args = dogfood_task.argparse.Namespace(tier="R3", rationale="R3 retained", evidence=[], delegate=False)
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(
             dogfood_task, "run"
         ), mock.patch("builtins.print") as printed:
             self.assertEqual(dogfood_task.route_claude(args), 0)
         self.assertIn(str(context_path), printed.call_args.args[0])
 
-    def test_route_claude_omits_profile_when_confirming_authored_tier(self) -> None:
+    def test_route_claude_omits_tier_when_confirming_authored_tier(self) -> None:
         args = dogfood_task.argparse.Namespace(
-            profile=None,
+            tier=None,
             rationale="freshness check: no new hard trigger found",
             evidence=[],
             delegate=False,

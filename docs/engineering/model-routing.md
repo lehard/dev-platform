@@ -19,11 +19,11 @@ The routing decision is made twice, at two different times, for two different re
 
 The authored recommendation is one abstract tier plus a small provider-neutral routing receipt (`rubric_version`, `task_family`, `routing_confidence`, `assurance`, `effort_hint`, `strong_trigger`) embedded in the managed package. Tier, reasoning effort and assurance are independent: a task can be `R2` with high effort/assurance without becoming `R3`. Mapping an abstract tier to a concrete provider-local model stays two steps — tier → profile (`start_tier_routing.tier_to_profile`, fixed in code) and profile → model (`.dev-platform.toml`'s `[model_routing]`, replaceable) — so the model lineup can change without touching any Issue or OpenSpec.
 
-A managed package authored before this rubric existed simply carries no routing receipt; it stays importable, and execution falls back to requiring an explicit `--profile`.
+A managed package authored before this rubric existed simply carries no routing receipt; it stays importable, and execution requires an explicit tier (`route-codex`/`route-claude --tier R1|R2|R3`; the engine's own `--profile` downstream).
 
 ## Execution-time freshness check
 
-Immediately after the canonical OpenSpec is materialized and before implementation, the executor runs the routing command below. When the managed package carries an authored routing receipt, omitting `--profile` performs the freshness check: it maps the authored tier to a profile (`R2` → `standard`, `R3` → `complex`) and records that as a **confirmed** route without redoing a full semantic assessment. Passing `--profile` explicitly still works exactly as before (useful for a legacy package with no receipt, or for a deliberate override) and is recorded alongside whatever tier was authored, if any.
+Immediately after the canonical OpenSpec is materialized and before implementation, the executor runs the routing command below. When the managed package carries an authored routing receipt, omitting `--tier` performs the freshness check: it maps the authored tier to a profile (`R2` → `standard`, `R3` → `complex`) and records that as a **confirmed** route without redoing a full semantic assessment. Passing `--profile` explicitly still works exactly as before (useful for a legacy package with no receipt, or for a deliberate override) and is recorded alongside whatever tier was authored, if any.
 
 Confirming does **not** require a strong parent/supervisor session: a task authored `R2` can start directly on the configured balanced Codex/Claude model. A strong parent remains available and is still exactly how `R3`/`complex` work is retained or how a confirmed `R2` route later escalates — it is a supported path, not a mandatory entrypoint for every routing-enabled task.
 
@@ -36,7 +36,7 @@ From the assigned task worktree:
 ```bash
 python3 scripts/dogfood_task.py route-codex --rationale "..." --evidence "..."
 # or, to override the authored tier or route a legacy/receipt-less package explicitly:
-python3 scripts/dogfood_task.py route-codex --profile <routine|standard|complex> --rationale "..." --evidence "..."
+python3 scripts/dogfood_task.py route-codex --tier <R1|R2|R3> --rationale "..." --evidence "..."
 ```
 
 The command records the decision through `scripts/model_routing.py`. `routine` and `standard` (whether derived from an authored `R2` tier or passed explicitly) immediately launch the configured lower-cost Codex executor through native `workspace-write` containment, while `complex` (derived from `R3`, or passed explicitly) records the route and remains on the current session without a cheap-model attempt.
@@ -57,7 +57,7 @@ When work is entered through Claude Code instead:
 ```bash
 python3 scripts/dogfood_task.py route-claude --rationale "..." --evidence "..."
 # or, to override the authored tier or route a legacy/receipt-less package explicitly:
-python3 scripts/dogfood_task.py route-claude --profile <routine|standard|complex> --rationale "..." --evidence "..."
+python3 scripts/dogfood_task.py route-claude --tier <R1|R2|R3> --rationale "..." --evidence "..."
 ```
 
 `complex` (derived from `R3`, or passed explicitly) records the route and remains on the current strong Claude session (Opus, per the configured `[model_routing.claude]` complex profile) without a mandatory cheap-model attempt.

@@ -21,7 +21,7 @@ This document maps how one unit of work moves from a Business Requirement to mer
 | 2 | Pre-authoring | `requirement_intake.py start`, then `orchestrate_pre_authoring.py` and `add_intents.py` | developer; owner approves the ADD | snapshot, ADD, intents, handoffs under `.claude/pre-authoring/` |
 | 3 | Child creation | `requirement_intake.py materialize-handoff` / `link-child` | developer | `type:internal-change` Issue with an R2/R3 start tier |
 | 4 | Start | six entries: `execute_requirement.py advance`, `start_managed_task.py`, `execute_managed_task.py`, `dogfood_task.py start --change`, `start_task.py`, `start_worktree.py` (plus `agent_board.py start`) | developer | worktree, board claim, `.managed-task-state.json` |
-| 5 | Routing | `dogfood_task.py route-claude --profile routine/standard/complex` | developer | routing receipt |
+| 5 | Routing | `dogfood_task.py route-claude --tier R1/R2/R3` | developer | routing receipt |
 | 6 | Implementation and checks | `select_checks.py --execute --evidence`, then `verification.md` | developer | content-bound evidence |
 | 7 | Handoff | `dogfood_task.py finish` → `finish_developer_handoff` → `publication_queue.py admit`; friction checkpoint | developer | exact-head PR, v2 record, `lifecycle:review-pending`; claim released |
 | 8 | Review | `lifecycle_workers.py work-next --kinds review` | hosted worker | disposition or `repair-pending` |
@@ -43,7 +43,7 @@ A quick task runs `start_task.py` → `finish` → queue → post-merge and skip
 - **Recovery** is spread over five tools: `publication_queue.py` (`resume`, `switch-provider`, `reoffer-post-merge`, `restore-gates`), `requirement_integration.py recover`, `requirement_merge_recovery.py`, `dogfood_task.py reconcile` and `finish_task.py --reconcile`.
 - **Candidate state** is held in Issue and PR labels, the Project card, v1 admission comments and v2 records, the `publication:*` and `lifecycle:*` labels, local JSON, the board and journals.
 - **The coordinator role** is documented as starting review and post-merge workers. In practice those run automatically and only repair is coordinator-started.
-- **Routing tiers** have two names: R1/R2/R3 in tasks and documents, and `routine/standard/complex` in the `--profile` flag.
+- **Routing tiers** had two names until BR-953 made `--tier R1/R2/R3` the route commands' only one.
 - **Accepted specs** overlap: four lifecycle specs (`platform-`, `completion-`, `central-dogfood-` and `standard-profile-lifecycle`), three shared-workspace specs, and `publication-queue` beside `publication-recovery`.
 
 ## Target lifecycle
