@@ -152,7 +152,7 @@ jobs:
 
       - name: Install tested onboarding tools
         run: |
-          python3 -m pip install "copier==9.18.2"
+          python3 -m pip install "copier==9.19.1"
           npm install --global @fission-ai/openspec@1.13.2
 
       - name: Configure target bot identity
