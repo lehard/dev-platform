@@ -1011,6 +1011,14 @@ def _observe_pr(root: Path, repo: str, number: int, *, sleep: Callable[[float], 
     raise AssertionError("unreachable")
 
 
+def _observed_head(observed: dict[str, Any], number: int) -> str:
+    """The observed PR's head SHA, or an explicit failure naming the PR."""
+    head = observed.get("head", {}).get("sha") if isinstance(observed.get("head"), dict) else None
+    if not isinstance(head, str) or len(head) != 40:
+        raise QueueError(f"PR #{number} observation has no head SHA")
+    return head
+
+
 def _transient_wait(root: Path, repo: str, number: int, detail: str) -> dict[str, Any]:
     """Count one transient integration failure on the candidate's current head; block at the limit.
 
@@ -1018,7 +1026,7 @@ def _transient_wait(root: Path, repo: str, number: int, detail: str) -> dict[str
     keeps it and the result is a plain wait.
     """
     observed = _pr(root, repo, number)
-    head = observed.get("head", {}).get("sha")
+    head = _observed_head(observed, number)
     comments = _comments(root, repo, number)
     current = _derive(root, observed, comments)
     previous = _latest(root, number, comments, head) or {}  # legitimate absence: no record at this head yet
@@ -1043,7 +1051,7 @@ def _transient_wait(root: Path, repo: str, number: int, detail: str) -> dict[str
 def _reset_transient(root: Path, repo: str, number: int) -> None:
     """Reset a non-zero transient counter of the current head after an evaluation without a transient failure."""
     observed = _pr(root, repo, number)
-    head = observed.get("head", {}).get("sha")
+    head = _observed_head(observed, number)
     comments = _comments(root, repo, number)
     key = TRANSIENT_COUNTER_PREFIX + str(head)
     if not (_latest(root, number, comments, head) or {}).get("attempts", {}).get(key):
@@ -1766,17 +1774,20 @@ def _block(root: Path, repo: str, number: int, reason: str, *, head: str | None 
     _label(root, repo, number, ACTIVE, present=False)
     _label(root, repo, number, QUEUE, present=False)
     if head is None:
-        observed = _pr(root, repo, number).get("head", {})
-        head = observed.get("sha") if isinstance(observed, dict) else None
-    if isinstance(head, str) and len(head) == 40:
-        try:
-            # The blocked head may be unproven (changed outside the coordinator), so
-            # it never inherits the previous candidate's task-content identity.
-            _transition(root, repo, number, "blocked-escalation", head, task_identity={"head": head},
-                        inherit_identity=False,
-                        red_gate={"name": "publication", "identity": head, "evidence": reason[:500]})
-        except QueueError:
-            pass  # status still derives the block from the v1 marker written above
+        head = _observed_head(_pr(root, repo, number), number)
+    if not (isinstance(head, str) and len(head) == 40):
+        raise QueueError(f"PR #{number} block was recorded (v1 marker and labels) but its head {head!r} is not a "
+                         "commit SHA, so no blocked-escalation record was written")
+    try:
+        # The blocked head may be unproven (changed outside the coordinator), so
+        # it never inherits the previous candidate's task-content identity.
+        _transition(root, repo, number, "blocked-escalation", head, task_identity={"head": head},
+                    inherit_identity=False,
+                    red_gate={"name": "publication", "identity": head, "evidence": reason[:500]})
+    except QueueError as exc:
+        # The v1 block marker and labels above are published; the missing v2 record must not be hidden.
+        raise QueueError(f"PR #{number} block was recorded (v1 marker and labels) but its blocked-escalation "
+                         f"record failed: {exc}") from exc
     return {"state": "blocked", "number": number, "reason": reason}
 
 
