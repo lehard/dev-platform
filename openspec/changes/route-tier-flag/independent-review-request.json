@@ -1,13 +1,16 @@
 {
   "candidate": {
-    "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
     "base_ref": "origin/main",
-    "candidate_head": "00ee8d48d79f0eb0e621ef22aa6f90ea3a4fc303",
-    "diff_sha256": "d007e17d493e7f6ff13c0b69005f2b3241e7b8b741ba64360f112214aebfe0d9"
+    "candidate_head": "c88656204f7fbcd4c0a09472a85bcf6144012467",
+    "diff_sha256": "82bf6cd315ebc3c7634da1df36f98a0c5c6547b1d111b85443142092fd1afa20"
   },
   "change": "openspec/changes/route-tier-flag",
   "excluded_lifecycle_paths": [
     "openspec/changes/route-tier-flag/automated-checks.json",
+    "openspec/changes/route-tier-flag/independent-review-request.json",
+    "openspec/changes/route-tier-flag/independent-reviews/engineering-quality.json",
+    "openspec/changes/route-tier-flag/independent-reviews/spec-fidelity.json",
     "openspec/changes/route-tier-flag/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -35,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T10:01:55+00:00",
+  "prepared_at": "2026-10-31T10:58:59+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/route-tier-flag/independent-reviews",
     "required_perspectives": [
@@ -44,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e89f5066-a6be-4e01-a94b-9907dd964f7b",
+  "request_id": "93e6c1f6-85d9-4744-88fa-49203a1acac9",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,12 +59,12 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "a102413f006f350e8884509f96b8d1265d2bec1c",
-    "digest": "543f73dc6cbc6db96a38457aedea6ce36c58570d076d85ba8acb282ecb770261",
+    "base": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "digest": "274f1455b13e8cbd97e5639056c49bf52ff1a37f22cc8f8f600936e2e18ce0cf",
     "paths": {
       "AGENTS.md": "d160e9090ec86dab3bb055d6cd627ea3713b8a46",
       "docs/engineering/lifecycle-map.md": "872fd678c2f106dd3acb5ae240482d9067907e08",
-      "docs/engineering/model-routing.md": "a1afad95e9e8128b98bf0f443e881925d6288afb",
+      "docs/engineering/model-routing.md": "817127eb5a295a0a970717d1708d60a1ab907cdc",
       "explorer/nodes/executor-routing.toml": "8ccc7afbef72fe72296411ca7a175290c2735993",
       "explorer/nodes/routing.toml": "e444bced5699d799b6b32a7ccae0753822c7bda1",
       "openspec/changes/route-tier-flag/.managed-task.json": "22896b0e33fb3285b010d9013315f995193598ea",
@@ -71,9 +74,9 @@
       "openspec/changes/route-tier-flag/specs/model-routing/spec.md": "f43b13a93b5997ac34c226ddb38384677c651719",
       "openspec/changes/route-tier-flag/tasks.md": "472a5ea532b92ed006b3adcfcbd3e38422bdb9fb",
       "scripts/dogfood_task.py": "927f4aec6b8275c80ab5cbce145a92f4740a45c5",
-      "template/scripts/model_routing.py": "7131f36aa643ae10b75a92342c9eb413e71606a9",
+      "template/scripts/model_routing.py": "ff53ea0fa8dc685c7a5c7f1f36bbfe1b0a17c469",
       "tests/test_central_dogfood_lifecycle.py": "33ff86b3be28d4440b141c8c960630e34e03f726",
-      "tests/test_model_routing.py": "5e62f323a297b99c03e0f722493f19a08ebe0340"
+      "tests/test_model_routing.py": "23a6f12c58aa633099c22aaab5426b1fc2b5dd97"
     },
     "scope": "independent-review-v1",
     "version": 1

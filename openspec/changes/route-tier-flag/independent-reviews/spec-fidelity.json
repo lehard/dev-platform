@@ -1,36 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
     "base_ref": "origin/main",
-    "candidate_head": "00ee8d48d79f0eb0e621ef22aa6f90ea3a4fc303",
-    "diff_sha256": "d007e17d493e7f6ff13c0b69005f2b3241e7b8b741ba64360f112214aebfe0d9"
+    "candidate_head": "c88656204f7fbcd4c0a09472a85bcf6144012467",
+    "diff_sha256": "82bf6cd315ebc3c7634da1df36f98a0c5c6547b1d111b85443142092fd1afa20"
   },
-  "completed_at": "2026-10-31T10:02:10+00:00",
+  "completed_at": "2026-10-31T10:59:12+00:00",
   "findings": [
     {
-      "evidence": "The candidate edits the freshness-check paragraph (diff line 49) to say omitting `--tier` confirms the authored tier. It leaves the next sentence unchanged: \"Passing `--profile` explicitly still works exactly as before (useful for a legacy package with no receipt, or for a deliberate override)\". `_RemovedProfile` makes `route-claude --profile` and `route-codex --profile` exit with a parser error. The spec requirement says \"`--profile` SHALL be refused ... Source docs and hints SHALL name only R1/R2/R3 for these commands.\"",
-      "id": "model-routing-doc-says-profile-still-works",
-      "severity": "material",
-      "summary": "docs/engineering/model-routing.md still tells readers that `--profile` works on the route commands. The new requirement says `--profile` is refused and that source docs name only R1/R2/R3 for these commands."
-    },
-    {
-      "evidence": "The text after the codex example (diff line 62) reads \"`routine` and `standard` (... passed explicitly) immediately launch ... while `complex` (derived from `R3`, or passed explicitly) records the route\". The claude paragraph (diff line 71) reads \"`complex` (derived from `R3`, or passed explicitly)\". Both are about the route commands, which now take only tiers.",
-      "id": "model-routing-doc-profile-names-remain",
+      "evidence": "scripts/dogfood_task.py in the diff: `parser.add_argument(\"--profile\", action=_RemovedProfile, help=argparse.SUPPRESS)`. It has no `nargs=0` or `nargs='?'`, so the action's `parser.error(...)` only runs when a value is supplied. The test only covers `--profile standard`. The spec scenario only covers the valued form, so this is a minor edge case.",
+      "id": "profile-flag-bare-error-not-naming-tier",
       "severity": "advisory",
-      "summary": "The model-routing.md prose around the route commands still uses the profile names routine/standard/complex as if they were the operator-facing vocabulary. This leaves the dual naming the change was meant to remove."
+      "summary": "A bare `--profile` with no value fails with argparse's generic 'expected one argument' error, not the error naming `--tier`. The spec says `--profile` SHALL be refused with an error naming `--tier`."
     }
   ],
-  "launched_at": "2026-10-31T10:01:57+00:00",
-  "output_sha256": "29efb3b7cecb92de70ed36d831438e87424b03e3974b8361e18aa359c9330441",
+  "launched_at": "2026-10-31T10:59:02+00:00",
+  "output_sha256": "9b967a03d8aaf76b95a42978661983bdb6a11b4570af75bb15a3e759fd3aac6f",
   "perspective": "spec-fidelity",
-  "request_id": "e89f5066-a6be-4e01-a94b-9907dd964f7b",
+  "request_id": "93e6c1f6-85d9-4744-88fa-49203a1acac9",
   "reviewer": {
-    "context_id": "0970e39e-a577-43d4-a2e7-6d645ab67e64",
+    "context_id": "0521b5d7-9867-45dd-8352-ca78e12e988c",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e7230ca8-7547-49d0-b472-9211ffe6e0bc",
+    "launch_id": "platform-launch-4b07c10a-4fd2-488b-8727-50aa7abb4ee5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24689
+        "value": 26924
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42047
+        "value": 43771
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11703
+        "value": 8902
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11860
+        "value": 9062
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1256
+        "value": 1073
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "543f73dc6cbc6db96a38457aedea6ce36c58570d076d85ba8acb282ecb770261"
+  "task_content_digest": "274f1455b13e8cbd97e5639056c49bf52ff1a37f22cc8f8f600936e2e18ce0cf"
 }

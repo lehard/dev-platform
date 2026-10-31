@@ -1,36 +1,30 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
     "base_ref": "origin/main",
-    "candidate_head": "00ee8d48d79f0eb0e621ef22aa6f90ea3a4fc303",
-    "diff_sha256": "d007e17d493e7f6ff13c0b69005f2b3241e7b8b741ba64360f112214aebfe0d9"
+    "candidate_head": "c88656204f7fbcd4c0a09472a85bcf6144012467",
+    "diff_sha256": "82bf6cd315ebc3c7634da1df36f98a0c5c6547b1d111b85443142092fd1afa20"
   },
-  "completed_at": "2026-10-31T10:02:21+00:00",
+  "completed_at": "2026-10-31T10:59:23+00:00",
   "findings": [
     {
-      "evidence": "The diff edits the 'Execution-time freshness check' paragraph in docs/engineering/model-routing.md to say 'omitting `--tier`', but leaves the next sentence unchanged: 'Passing `--profile` explicitly still works exactly as before (useful for a legacy package with no receipt, or for a deliberate override)'. The new `_RemovedProfile` action in scripts/dogfood_task.py raises a parser error for `--profile`. The spec requires 'Source docs and hints SHALL name only R1/R2/R3 for these commands'. The same section still describes `routine`/`standard`/`complex` as the profiles of `route-codex`.",
-      "id": "model-routing-doc-stale-profile-claim",
+      "evidence": "scripts/dogfood_task.py:280-294. `_RemovedProfile` is registered with the default `nargs=None`, so the parser requires a value before `__call__` runs. Adding `nargs=\"?\"` or `nargs=\"*\"` would make every `--profile` use hit the `--tier` message. The test at tests/test_central_dogfood_lifecycle.py:424-434 only covers the `--profile standard` form.",
+      "id": "removed-profile-flag-needs-value",
       "severity": "advisory",
-      "summary": "docs/engineering/model-routing.md still says that passing `--profile` explicitly works as before. The change makes `dogfood_task.py route-*` refuse `--profile`."
-    },
-    {
-      "evidence": "The diff changes the RoutingError in model_routing.py `prepare` to 'pass an explicit --profile (dogfood_task.py route-*: --tier R1|R2|R3)'. The comment in scripts/dogfood_task.py says it is 'source-only'. The proposal says the engine keeps `--profile` for downstream callers, so downstream users would see a hint naming a command they don't have.",
-      "id": "template-hint-references-source-only-script",
-      "severity": "advisory",
-      "summary": "The shipped engine error text in template/scripts/model_routing.py now points to `dogfood_task.py route-*: --tier`. That script is source-only, so downstream projects may not have it."
+      "summary": "The refusal of `--profile` only names `--tier` when `--profile` is given a value. A bare `--profile` fails with argparse's generic 'expected one argument' error, which doesn't mention `--tier`."
     }
   ],
-  "launched_at": "2026-10-31T10:02:10+00:00",
-  "output_sha256": "7ed477810433f8801d4d6e0dd031b9cabf91225a9d48272be166c7b99e0cbebd",
+  "launched_at": "2026-10-31T10:59:12+00:00",
+  "output_sha256": "c120f6466bf084db1b675a548ff1ed3c9d1eb003c8e2f99424ced824f5619b05",
   "perspective": "engineering-quality",
-  "request_id": "e89f5066-a6be-4e01-a94b-9907dd964f7b",
+  "request_id": "93e6c1f6-85d9-4744-88fa-49203a1acac9",
   "reviewer": {
-    "context_id": "87bdb43b-dd3a-47b8-b5e0-ec46110f867a",
+    "context_id": "68477b93-339e-495b-b489-95916ddcbf35",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5d0fba1f-15de-4009-bad5-2779a6ad71c7",
+    "launch_id": "platform-launch-c9a69228-79e9-48e8-9f81-ec01103d4349",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22540
+        "value": 24325
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42749
+        "value": 73358
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9981
+        "value": 10080
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10265
+        "value": 10394
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1011
+        "value": 889
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "543f73dc6cbc6db96a38457aedea6ce36c58570d076d85ba8acb282ecb770261"
+  "task_content_digest": "274f1455b13e8cbd97e5639056c49bf52ff1a37f22cc8f8f600936e2e18ce0cf"
 }
