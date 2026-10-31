@@ -116,15 +116,11 @@ def _parse_time(value: Any) -> datetime | None:
 
 def job_id(job: dict) -> str:
     suffix = ":t" + job["target_head"] if job.get("target_head") else ""
-    # A re-offered pre-merge retrospective moves to its next bounded attempt, which already makes the
-    # id distinct; its operator event stays audit-only so the attempt bound keeps counting results.
-    reoffer = (f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) and job.get("phase") != "pre-merge"
-               else "")
-    return (f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + suffix
-            + (":pre-merge" if job.get("phase") == "pre-merge" else ""))
+    reoffer = f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) else ""
+    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + suffix
 
 
-def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None, target_head=None, phase=None,
+def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None, target_head=None,
                reoffer=None) -> dict:
     """The explicit ``next_job`` a coordinator publishes in a handoff record."""
     if kind not in JOB_KINDS or not HEAD.fullmatch(str(head)) or type(attempt) is not int or attempt < 0:
@@ -133,13 +129,10 @@ def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *,
         raise ValueError("missing task identity")
     if kind == "contribution-integration" and not HEAD.fullmatch(str(target_head)):
         raise ValueError("contribution integration job requires exact target head")
-    if phase is not None and (phase != "pre-merge" or kind != "retrospective"):
-        raise ValueError("invalid job phase")
     if reoffer is not None and (not isinstance(reoffer, dict) or type(reoffer.get("seq")) is not int or reoffer["seq"] < 1
-                                or not (kind in {"review", "repair", "finalize"} | POST_MERGE_KINDS or phase == "pre-merge")):
+                                or kind not in {"review", "repair", "finalize"} | POST_MERGE_KINDS):
         raise ValueError("invalid job re-offer")
     return {"kind": kind, "head": head, "task_identity": task_identity, "attempt": attempt,
-            **({"phase": phase} if phase else {}),
             **({"providers": list(providers)} if providers is not None else {}),
             **({"reoffer": dict(reoffer)} if reoffer is not None else {}),
             **({"target_head": target_head} if target_head is not None else {})}
@@ -171,7 +164,7 @@ def build_job(candidate: dict) -> dict | None:
         attempt = candidate.get("attempts", {}).get(kind, 0)
     return {"kind": kind, "number": candidate["number"], "head": job_head,
             "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt,
-            **{key: explicit[key] for key in ("provider", "providers", "target_head", "phase", "reoffer") if key in explicit}}
+            **{key: explicit[key] for key in ("provider", "providers", "target_head", "reoffer") if key in explicit}}
 
 
 def job_providers(job: dict) -> list[str]:
@@ -786,7 +779,7 @@ def push_validated(repo: Path, branch: str, expected_head: str, result_head: str
 def offer_order(kinds: frozenset[str]) -> Callable[[dict], tuple]:
     """Sort key of the listed PRs whose jobs ``work-next`` offers.
 
-    Post-merge kinds only: open PRs first (a pre-merge composition retrospective), then merged PRs newest merge
+    Post-merge kinds only: open PRs first, then merged PRs newest merge
     first, so a fresh obligation never waits behind the historical tail. Any other kind set: ascending PR number.
     A merged PR without a readable ``merged_at`` cannot be placed and fails the run.
     """
@@ -1517,15 +1510,6 @@ def main(argv: list[str] | None = None) -> int:
                             post_result=lambda body: post_comment(job["number"], body),
                             workdir=workdir, home_files=args.llm_home_file, worker=args.worker,
                             provider=None if merge_only else args.provider, launch=None if merge_only else writer_launch)
-                    elif (job["kind"] == "retrospective" and isinstance(job["task_identity"], dict) and job["task_identity"].get("kind") == "requirement-composition"
-                          and job.get("phase") == "pre-merge" and not pr_info(job["number"]).get("merged")):
-                        from requirement_composition import run_claimed_retrospective
-                        import publication_queue
-
-                        candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
-                        outcome = run_claimed_retrospective(
-                            Path.cwd(), repo, candidate, job, source_repo=args.source or f"https://github.com/{repo}.git",
-                            post_result=lambda body: post_comment(job["number"], body), worker=args.worker)
                     elif job["kind"] in POST_MERGE_KINDS:
                         from integration_contour import run_claimed_post_merge
                         import publication_queue

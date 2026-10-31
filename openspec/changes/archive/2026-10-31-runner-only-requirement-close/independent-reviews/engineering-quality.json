@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "base_ref": "origin/main",
+    "candidate_head": "7e40cefdd0a9c93da2b28764de00eb83f0999c0f",
+    "diff_sha256": "6d9687a2c4bbbdb08fb0365cccd3cb8e36df4d8fa646dc9680f2f362a96c77e5"
+  },
+  "completed_at": "2026-10-31T13:32:20+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/post_review_finalization.py:363-373. post_result(... \"finalized\") runs at line 363, then prepare_checkout, candidate_manifest and advance_final_publication run at 369-372 with no exception handling. The deleted run_claimed_retrospective caught JobBlocked/WorkerError and posted a bounded blocked result so the step could be retried.",
+      "id": "finalize-publication-not-retried",
+      "severity": "advisory",
+      "summary": "For a composition, the finalize job posts its \"finalized\" result before calling advance_final_publication. If that call raises (checkout, manifest or full-checks failure), the job is already complete and the candidate stays blocked-retryable. The removed pre-merge retrospective job used to be the retried step that drove this publication, and nothing in the diff replaces that retry."
+    },
+    {
+      "evidence": "template/scripts/execute_requirement.py:~700-705 (`if coordinator: return audited(_await_post_merge(...))` for the ready-less single-child and the legacy multi-child completed branch). The old code called reconcile_parent here, which was the stated 'idempotent for older delivered Requirements' path. The spec and design describe recovery only as 'reoffer-post-merge or the recovery command'.",
+      "id": "await-post-merge-without-runner-obligation",
+      "severity": "advisory",
+      "summary": "In coordinator mode, advance returns await-post-merge whenever every mandatory child is Done and the parent is open. It does not check that a post-merge retrospective or terminal job exists or is pending. A Requirement delivered before this change, or one whose runner obligation is exhausted, then reports a wait that nothing will resolve. The only unblock is the recovery command in the docs."
+    }
+  ],
+  "launched_at": "2026-10-31T13:31:53+00:00",
+  "output_sha256": "fbf91dc1d05f0c426f6d7edfddd2182188a1ed3e68f4a275958ae668baa62ea7",
+  "perspective": "engineering-quality",
+  "request_id": "f868a071-839f-4902-b06b-8474c4a7195c",
+  "reviewer": {
+    "context_id": "d30b1efd-ae61-4bde-9d27-925dedeac98c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-fec3e9c2-4618-48ba-b7a6-9ef303d22fa8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47170
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 148921
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25553
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25979
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2326
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "08a968d42f88cb70dbc339b5aabd778ced512ae66da182b78c4815606b46bfd9"
+}

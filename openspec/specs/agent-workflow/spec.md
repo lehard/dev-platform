@@ -644,7 +644,8 @@ An explicit Execute Requirement request SHALL drive every ready internal child t
 #### Scenario: Terminal completion is authoritative
 
 - **WHEN** all required children have verified ready receipts and their ordinary or shared candidate has merged through protected publication
-- **THEN** the supervisor reconciles child and local main state before reporting the Requirement complete
+- **THEN** with the coordinator queue the supervisor reports that the Requirement awaits its post-merge jobs and does not close it
+- **AND** without the queue it reconciles child and local main state before reporting the Requirement complete
 - **AND** a missing child, failed check, unmerged PR or uncertain external state prevents a Done claim
 
 #### Scenario: A direct handoff enters child execution
@@ -657,7 +658,7 @@ An explicit Execute Requirement request SHALL drive every ready internal child t
 
 - **GIVEN** exactly one mandatory child is ready
 - **WHEN** the supervisor advances after archive
-- **THEN** it uses that child's ordinary exact managed PR and terminal reconciliation
+- **THEN** it uses that child's ordinary exact managed PR, and terminal reconciliation follows as a post-merge job
 - **AND** no shared candidate or special integration exception is required
 
 ### Requirement: Requirement board status is derived from terminal authority
@@ -1023,14 +1024,14 @@ The Requirement retrospective checkpoint SHALL accept a Requirement with no link
 
 ### Requirement: Execute Requirement refuses advance after a merged composition
 
-When a Requirement's composition pull request from its integration branch into `main` is already merged, `execute_requirement.py advance` SHALL stop before it creates, fetches or pushes the integration branch. The refusal SHALL name the merged pull request, state that advancing would recreate the integration branch and break the post-merge jobs, and name the supported next steps: the coordinator's post-merge jobs for that pull request and the read-only publication status.
+When a Requirement's composition pull request into `main` is already merged, `execute_requirement.py advance` SHALL stop before it creates, fetches or pushes the integration branch, and SHALL report that the Requirement awaits its post-merge jobs, naming the merged pull request and the read-only publication status command. It SHALL NOT close the Requirement.
 
 #### Scenario: Composition already merged
 
 - **GIVEN** the composition PR #N of `requirement/BR-R` is merged and the branch was deleted
 - **WHEN** `advance` runs for the Requirement
-- **THEN** it fails naming PR #N and the post-merge job and status commands
-- **AND** no `requirement/BR-R` branch is created or pushed
+- **THEN** it reports `await-post-merge` naming PR #N and the status command
+- **AND** no `requirement/BR-R` branch is created or pushed and the Requirement stays open
 
 #### Scenario: Composition still open
 

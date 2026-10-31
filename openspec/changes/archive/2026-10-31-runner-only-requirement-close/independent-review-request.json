@@ -1,0 +1,100 @@
+{
+  "candidate": {
+    "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "base_ref": "origin/main",
+    "candidate_head": "7e40cefdd0a9c93da2b28764de00eb83f0999c0f",
+    "diff_sha256": "6d9687a2c4bbbdb08fb0365cccd3cb8e36df4d8fa646dc9680f2f362a96c77e5"
+  },
+  "change": "openspec/changes/runner-only-requirement-close",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/runner-only-requirement-close/automated-checks.json",
+    "openspec/changes/runner-only-requirement-close/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/runner-only-requirement-close/design.md",
+        "openspec/changes/runner-only-requirement-close/proposal.md",
+        "openspec/changes/runner-only-requirement-close/specs/agent-workflow/spec.md",
+        "openspec/changes/runner-only-requirement-close/specs/platform-lifecycle/spec.md",
+        "openspec/changes/runner-only-requirement-close/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/runner-only-requirement-close/proposal.md",
+        "openspec/changes/runner-only-requirement-close/design.md",
+        "openspec/changes/runner-only-requirement-close/tasks.md",
+        "openspec/changes/runner-only-requirement-close/specs/agent-workflow/spec.md",
+        "openspec/changes/runner-only-requirement-close/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T13:31:12+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/runner-only-requirement-close/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "f868a071-839f-4902-b06b-8474c4a7195c",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6b6af16159b9d3f7abbf3c3831b21f876ffb203b",
+    "digest": "08a968d42f88cb70dbc339b5aabd778ced512ae66da182b78c4815606b46bfd9",
+    "paths": {
+      "AGENTS.md": "4230f7ec4c411731f8989c201ff762879936a795",
+      "docs/engineering/agent-workflow.md": "b1edf51d74b0209434fe7741942b156043b39ba5",
+      "docs/engineering/chat-coordinator.md": "a52900447455bbacb18cddee2c6a89828caf9256",
+      "docs/engineering/task-intake.md": "4b5aea34fdc768a811c5ace3bd1c3584b5b093d1",
+      "explorer/nodes/feedback-learning.toml": "90e58941bea2498460963483a4ef44c1c7fb4199",
+      "explorer/nodes/requirement-intake.toml": "efa40d14c21cd1718f9d1a7a48713e6cb23ff6d8",
+      "openspec/changes/runner-only-requirement-close/.managed-task.json": "1d019a6ec1b81069e465b07e4519e09be0d22fde",
+      "openspec/changes/runner-only-requirement-close/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/runner-only-requirement-close/design.md": "2273c83f0515b4d343e7e993f53b19eacc65e3a5",
+      "openspec/changes/runner-only-requirement-close/proposal.md": "7c9e3ba4edc25147f287f9b12e92d2205c226116",
+      "openspec/changes/runner-only-requirement-close/specs/agent-workflow/spec.md": "6c802f0ef1fcb11d2276479bfd868aa9411d6f2e",
+      "openspec/changes/runner-only-requirement-close/specs/platform-lifecycle/spec.md": "2472b981889636d4273a18e934efb706b01fec12",
+      "openspec/changes/runner-only-requirement-close/tasks.md": "4961bbb90e77ef438047462c136967234368cfb5",
+      "template/docs/engineering/agent-workflow.md.jinja": "bf37f34e12e344e047909d9601abd29c3fb8c2fe",
+      "template/docs/engineering/task-intake.md.jinja": "2096ba6482e63d094d44d60dcf0fd80113793624",
+      "template/scripts/candidate_lifecycle.py": "13516830c189e78275cd9ecd483ed18726297c96",
+      "template/scripts/execute_requirement.py": "99c0476a40fc0b738190d7f309c2bd2e618757f5",
+      "template/scripts/finish_task.py": "6f18d4a0b2814573b0aac3fd4811bec1bdee9f43",
+      "template/scripts/integration_contour.py": "6d05882b9ff0c24d984158926f98dee86d17e214",
+      "template/scripts/lifecycle_workers.py": "a0621cbbfc109cd25de26550a6c466c3c69644a7",
+      "template/scripts/post_review_finalization.py": "c7c31123029b7f190afe11b9a0636dbba629d44b",
+      "template/scripts/pr_review_gate.py": "36721ff638f580d16478c3964dca0b40de5e1e12",
+      "template/scripts/publication_queue.py": "732105d7bf89fbfff48386fb3015273ae5b99828",
+      "template/scripts/requirement_composition.py": "81647c9de2a1806cb822f90a4301f25ad823c504",
+      "template/scripts/requirement_integration.py": "d2b111e84ffcd9b37677c874ffffdac1e8d217b5",
+      "template/scripts/requirement_terminal.py": "1578a445436edab7f33f96b8424dafc932bd7142",
+      "tests/test_autonomous_integration_contour.py": "5c86d8111744aeadbd07fd1cc5890592f5e6f868",
+      "tests/test_finish_merged_queue.py": "8733a9a97d236c967f10785a4f8f6efefe3bf847",
+      "tests/test_post_review_finalization.py": "51f9f5228674480e098dec1031ece30a501f10ec",
+      "tests/test_pr_review_gate.py": "4024d6f90dad13eb201ac8008881bf4e6c204e04",
+      "tests/test_requirement_contribution_composition.py": "df5431a48432253594f29d8afef3e165c470eafc",
+      "tests/test_requirement_flow_e2e.py": "bbd59e9356cbbb1b3eb370f4bd3920005ae2aece"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

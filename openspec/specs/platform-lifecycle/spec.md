@@ -1783,8 +1783,8 @@ The Requirement candidate SHALL receive a composition review covering cross-chil
 
 #### Scenario: A finalized composition receives its parent retrospective
 - **WHEN** composition finalization completes
-- **THEN** the coordinator offers an exact-head pre-merge retrospective job
-- **AND** that job records the Requirement checkpoint before full checks and admission without a manual happy-path checkpoint
+- **THEN** no pre-merge retrospective job is offered and full checks and admission do not wait for a Requirement checkpoint
+- **AND** the parent retrospective is recorded by the post-merge retrospective job after the composition PR merges
 
 #### Scenario: Archived composition artifacts remain reviewable
 - **WHEN** composition review runs after children have been archived
@@ -2801,3 +2801,28 @@ When the project version, the platform source, the project repository or the lat
 - **WHEN** task start cannot determine the latest release of the platform source
 - **THEN** task start fails with the cause
 - **AND** the comparison is not skipped
+
+### Requirement: Only post-merge jobs record the Requirement retrospective and close the Requirement
+
+With the coordinator queue enabled, the Requirement retrospective checkpoint and the terminal close of a Requirement SHALL be recorded only by the post-merge retrospective and terminal-reconciliation jobs, after the last mandatory child or the composition PR merged. Developer commands SHALL NOT require that checkpoint or close the parent. Without the queue, the same functions run in the developer session.
+
+#### Scenario: One child merged
+- **WHEN** the only child PR of a Requirement merges
+- **THEN** its post-merge retrospective job records the task and Requirement checkpoints
+- **AND** its terminal-reconciliation job closes the child and the Requirement without a developer action
+
+#### Scenario: Several children merged through a composition
+- **WHEN** the composition PR merges
+- **THEN** the post-merge jobs record the Requirement checkpoint and then close the Requirement
+
+#### Scenario: Developer publication
+- **WHEN** a developer publishes a child or a composition
+- **THEN** no Requirement checkpoint is required and the parent stays open
+
+### Requirement: A stored pre-merge retrospective job fails explicitly
+
+A lifecycle record or job of kind `retrospective` with phase `pre-merge` SHALL NOT be derived or offered as work. Deriving such a record SHALL fail naming the PR, so a candidate created before this change is noticed instead of silently skipped.
+
+#### Scenario: Old pre-merge job on an open composition
+- **WHEN** a worker or the overview derives a composition PR whose record carries a pre-merge retrospective job
+- **THEN** derivation fails naming the PR and no job is offered

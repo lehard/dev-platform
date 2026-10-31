@@ -46,7 +46,8 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def _run_with_linked(self, linked: dict[str, str], ready: list[tuple[Path, object] | None], *, publish: bool = False):
+    def _run_with_linked(self, linked: dict[str, str], ready: list[tuple[Path, object] | None], *, publish: bool = False,
+                         status: str = "In progress", parent_state: str = "OPEN"):
         source_config = {"platform_version": "source", "harness_mode": "platform", "publish_mode": "pr", "scm_provider": "github",
                          "paths": {"worktrees": ".claude/worktrees"}}
         # The collaborators that only need replacing go on an ExitStack: Python 3.11 allows at most 20
@@ -55,22 +56,23 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
             for target, name in ((execution.requirement_target_lifecycle, "require_local_target_support"),
                                  (execution.requirement_board, "reconcile_nonterminal"),
                                  (execution.requirement_integration, "compose_candidate"),
-                                 (execution.requirement_retrospective, "require_checkpoint"),
-                                 (execution, "_require_no_merged_composition")):
+                                 (execution.requirement_retrospective, "require_checkpoint")):
                 stubs.enter_context(mock.patch.object(target, name))
+            stubs.enter_context(mock.patch.object(execution, "_merged_composition", return_value=[]))
             stubs.enter_context(mock.patch.object(requirement_contributions, "in_flight_children", return_value={}))
-            return self._advance_with(linked, ready, publish, source_config)
+            stubs.enter_context(mock.patch.object(execution, "_done_child_is_delivered"))
+            return self._advance_with(linked, ready, publish, source_config, status, parent_state)
 
-    def _advance_with(self, linked, ready, publish, source_config):
+    def _advance_with(self, linked, ready, publish, source_config, status="In progress", parent_state="OPEN"):
         with mock.patch.object(_platform_common, "read_platform_config", return_value=source_config), \
                 mock.patch.object(execution, "_contribution_publication_supported", return_value=publish), \
                 mock.patch.object(execution, "current_worktree_root", return_value=self.root), \
                 mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={
-                    "labels": [{"name": "type:requirement"}],
+                    "labels": [{"name": "type:requirement"}], "state": parent_state,
                     "body": "## Outcome\n\nChange billing\n\n## Target repository\n\n`acme/billing`\n",
                 }), \
                 mock.patch.object(execution, "_linked_children_by_change", return_value=linked), \
-                mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="In progress")), \
+                mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status=status)), \
                 mock.patch.object(execution, "_ready_receipt", side_effect=ready), \
                 mock.patch.object(execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=self.root / "child"), "head", False)), \
                 mock.patch.object(execution.requirement_integration, "assemble_candidate", return_value={"digest": "exact"}) as assemble, \
@@ -105,6 +107,21 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
         )
         self.assertEqual(result["status"], "done")
         self.assertEqual((assembled, terminal), (0, 1))
+
+    def test_coordinator_mode_leaves_retrospective_and_close_to_post_merge_jobs(self) -> None:
+        orch.select_depth(self.root, requirement_id="requirement-7", depth=orch.DEPTH_DETERMINISTIC,
+                          reason="Mechanical correction", base_dir=self.base)
+        with mock.patch.object(execution.requirement_retrospective, "require_checkpoint",
+                               side_effect=AssertionError("no Requirement checkpoint in coordinator mode")):
+            result, _, terminal = self._run_with_linked({"single": "acme/backlog#8"}, [], publish=True, status="Done")
+            self.assertEqual((result["status"], result["children"], terminal), ("await-post-merge", ["acme/backlog#8"], 0))
+            self.assertIn("post-merge runner", result["reason"])
+            result, _, terminal = self._run_with_linked({"single": "acme/backlog#8"}, [], publish=True, status="Done",
+                                                        parent_state="CLOSED")
+            self.assertEqual((result["status"], terminal), ("done", 0))
+        # Without the coordinator queue the same delivered child still closes the parent in session.
+        result, _, terminal = self._run_with_linked({"single": "acme/backlog#8"}, [], status="Done")
+        self.assertEqual((result["status"], terminal), ("done", 1))
 
     def test_bounded_evidence_direct_handoff_enters_single_child_execution(self) -> None:
         orch.select_depth(self.root, requirement_id="requirement-7", depth=orch.DEPTH_BOUNDED_EVIDENCE,

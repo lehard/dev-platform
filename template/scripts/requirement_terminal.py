@@ -21,6 +21,18 @@ class RequirementTerminalError(RuntimeError):
     pass
 
 
+def post_merge_closes(root: Path) -> bool:
+    """With the coordinator queue only the post-merge jobs record the Requirement retrospective and close it (BR-950).
+
+    Without the queue (portable lifecycle) no runner exists, so the developer session closes through the same
+    ``reconcile_parent``.
+    """
+    if lifecycle_mode(read_platform_config(root)) != "coordinator":
+        return False
+    import publication_queue
+    return publication_queue.enabled(root)
+
+
 def parent_for_child(root: Path, child: str) -> str | None:
     issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(child))
     parents = re.findall(r"^Requirement: (\S+/\S+#\d+)\s*$", str(issue.get("body") or ""), re.MULTILINE)

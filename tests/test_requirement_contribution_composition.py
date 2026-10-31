@@ -750,7 +750,7 @@ class CompositionTests(unittest.TestCase):
             with self.assertRaises(contributions.ContributionError):
                 composition.composition_identity(fixture.root, fixture.manifest)
 
-    def test_final_gates_require_archive_retrospective_and_exact_checks(self):
+    def test_final_gates_require_archive_and_exact_checks_but_no_retrospective(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = self.fixture(Path(tmp))
             # Archive is fixture bookkeeping; no actual platform archive command is run.
@@ -763,7 +763,7 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             head = git(fixture.root, "rev-parse", "HEAD")
             gates = {g: {"result": "passed", "identity": identity, "evidence": {"head": head}}
-                     for g in ("review", "finalization", "requirement-retrospective", "full-checks")}
+                     for g in ("review", "finalization", "full-checks")}
             candidate = {"head": head, "task_identity": identity, "gates": gates}
             composition.require_final_gates(fixture.root, fixture.manifest, candidate, head)
             for name in gates:
@@ -1037,8 +1037,16 @@ class CompositionTests(unittest.TestCase):
         with self.assertRaisesRegex(workers.WorkerError, "section is empty"):
             composition.requirement_outcome("## Outcome\n\n## Context\nx\n")
 
-    def test_finalized_composition_offers_and_runs_premerge_parent_retrospective(self):
-        import integration_contour as contour
+    def finalized_adapter(self, head, candidate, events):
+        pr = {"head": {"sha": head}, "merged": False, "draft": True, "html_url": "https://example.test/pr/11"}
+        return SimpleNamespace(_pr=lambda *a: pr, _comments=lambda *a: [], _derive=lambda *a: candidate,
+            publish_job=mock.Mock(side_effect=AssertionError("no pre-merge job is published")),
+            _transition=lambda *a, **kw: (events.append("ready"), candidate.update(gates=kw["gates"])),
+            github_cli_env=lambda root: {}, set_pr_draft=lambda *a, **kw: events.append("undraft"),
+            admit=lambda *a: events.append("admit"),
+            trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
+
+    def test_finalized_composition_goes_to_full_checks_without_a_requirement_retrospective(self):
         import requirement_retrospective as retrospective
         with tempfile.TemporaryDirectory() as tmp:
             fixture = self.fixture(Path(tmp))
@@ -1047,47 +1055,30 @@ class CompositionTests(unittest.TestCase):
             gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
             candidate = {"number": 11, "head": head, "task_identity": identity,
                          "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
-            adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
-                _comments=lambda *a: [], _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock(),
-                trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
+            events = []
+            adapter = self.finalized_adapter(head, candidate, events)
             original_checkout = workers.prepare_checkout
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
-                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
-                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, adapter=adapter)
-                self.assertEqual(result["status"], "await-requirement-retrospective")
-                self.assertEqual(adapter.publish_job.call_args.args[3], "retrospective")
-                self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 0)
-                candidate["next_job"] = workers.job_record("retrospective", head, identity, 0, phase="pre-merge")
-                job = workers.build_job(candidate)
-                ops, post = mock.Mock(), mock.Mock()
-                with mock.patch.object(contour, "ensure_requirement_checkpoint") as checkpoint, mock.patch.object(
-                    retrospective, "require_checkpoint", return_value={"result": "none"}
-                ), mock.patch.object(composition, "advance_final_publication", return_value={"status": "queued"}) as publish:
-                    outcome = composition.run_claimed_retrospective(fixture.root, "acme/project", candidate, job,
-                        source_repo=str(fixture.root), adapter=adapter, ops=ops, post_result=post, claim_current=lambda: True, worker="w")
-                self.assertEqual(outcome["status"], "queued")
-                checkpoint.assert_called_once_with(ops, fixture.root, REQUIREMENT, ["acme/backlog#8", "acme/backlog#9"])
-                self.assertIn("requirement-retrospective", adapter._transition.call_args.kwargs["gates"])
-                publish.assert_called_once()
-                post.assert_called_once()
-                merged = {**candidate, "attempts": {"post-merge": 1}}
-                postmerge, _ = lifecycle.post_merge_job(merged, [{"id": 1, "body": post.call_args.args[0],
-                    "user": {"login": "owner"}, "author_association": "OWNER"}])
-                self.assertEqual(postmerge["kind"], "retrospective")
-                self.assertNotEqual(workers.job_id({**postmerge, "number": 11}), workers.job_id(job))
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
+                    mock.patch.object(composition, "require_final_gates"), \
+                    mock.patch.object(retrospective, "require_checkpoint",
+                                      side_effect=AssertionError("no Requirement checkpoint before the merge")):
+                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                               adapter=adapter, full_checks=lambda *a: events.append("checks"))
+            self.assertEqual(result["status"], "queued")
+            self.assertEqual(events, ["checks", "ready", "undraft", "admit"])
+            self.assertNotIn("requirement-retrospective", candidate["gates"])
 
-    def test_carried_composition_reuses_its_recorded_retrospective_receipt_without_the_local_file(self):
+    def test_carried_composition_is_ready_without_the_local_receipt_file(self):
         import requirement_retrospective as retrospective
         with tempfile.TemporaryDirectory() as tmp:
             fixture = self.fixture(Path(tmp))
             head = git(fixture.root, "rev-parse", "HEAD")
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
-            receipt = {"version": 1, "result": "none", "event_ids": [], "review_note": "Reviewed actual Requirement path"}
             original_checkout = workers.prepare_checkout
             carried = {"number": 11, "head": "f" * 40, "task_identity": identity, "state": "ready",
-                       "gates": {"review": gate, "finalization": gate,
-                                 "requirement-retrospective": {"result": "passed", "identity": identity, "evidence": receipt}}}
+                       "gates": {"review": gate, "finalization": gate}}
             adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False, "draft": False},
                 _comments=lambda *a: [], _derive=mock.Mock(side_effect=AssertionError("carried record must be used")),
                 publish_job=mock.Mock(), _transition=mock.Mock(), github_cli_env=lambda root: {},
@@ -1102,91 +1093,21 @@ class CompositionTests(unittest.TestCase):
             self.assertEqual(result["status"], "ready")
             adapter.publish_job.assert_not_called()
             gates = adapter._transition.call_args.kwargs["gates"]
-            self.assertEqual(gates["requirement-retrospective"]["evidence"], receipt)
+            self.assertNotIn("requirement-retrospective", gates)
             self.assertEqual(gates["full-checks"]["evidence"], {"head": head})
-
-    def test_carried_composition_without_a_reusable_retrospective_offers_it_again(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            fixture = self.fixture(Path(tmp))
-            head = git(fixture.root, "rev-parse", "HEAD")
-            identity = composition.composition_identity(fixture.root, fixture.manifest)
-            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
-            original_checkout = workers.prepare_checkout
-            carried = {"number": 11, "head": "f" * 40, "task_identity": identity, "state": "ready",
-                       "gates": {"review": gate, "finalization": gate}}
-            adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
-                _comments=lambda *a: [], _derive=lambda *a: carried, publish_job=mock.Mock(), _transition=mock.Mock(),
-                trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
-            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options: original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
-                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
-                                                               adapter=adapter, enqueue=False, candidate=carried)
-            self.assertEqual(result["status"], "await-requirement-retrospective")
-
-    def premerge_retrospective_receipts(self, head, outcomes):
-        rows = []
-        for attempt, outcome in enumerate(outcomes):
-            job = {"number": 11, "kind": "retrospective", "head": head, "attempt": attempt, "phase": "pre-merge"}
-            body = workers.RESULT_PREFIX + json.dumps({"job": workers.job_id(job), "head": head, "outcome": outcome})
-            rows.append({"id": attempt + 1, "body": body, "user": {"login": "owner"}, "author_association": "OWNER"})
-        return rows
-
-    def offer_premerge_retrospective_after(self, tmp, outcomes):
-        fixture = self.fixture(tmp)
-        head = git(fixture.root, "rev-parse", "HEAD")
-        identity = composition.composition_identity(fixture.root, fixture.manifest)
-        gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
-        candidate = {"number": 11, "head": head, "task_identity": identity,
-                     "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
-        receipts = self.premerge_retrospective_receipts(head, outcomes)
-        adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False},
-            _comments=lambda *a: receipts, _derive=lambda *a: candidate, publish_job=mock.Mock(), _transition=mock.Mock(),
-            trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
-        original_checkout = workers.prepare_checkout
-        with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
-                               original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
-            result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, adapter=adapter)
-        return result, adapter
-
-    def test_blocked_premerge_retrospective_is_offered_again_at_the_next_attempt(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            result, adapter = self.offer_premerge_retrospective_after(Path(tmp), ["blocked: ambiguous friction attribution"])
-            self.assertEqual(result["status"], "await-requirement-retrospective")
-            self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 1)
-            self.assertEqual(adapter.publish_job.call_args.kwargs["phase"], "pre-merge")
-
-    def test_unanswered_premerge_retrospective_attempt_is_offered_unchanged(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            _, adapter = self.offer_premerge_retrospective_after(Path(tmp), ["failed: transport"])
-            self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 1)
-        with tempfile.TemporaryDirectory() as tmp:
-            _, adapter = self.offer_premerge_retrospective_after(Path(tmp), [])
-            self.assertEqual(adapter.publish_job.call_args.kwargs["attempt"], 0)
-
-    def test_premerge_retrospective_attempts_are_bounded(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(workers.WorkerError, "exhausted 3 attempts; operator action required"):
-                self.offer_premerge_retrospective_after(Path(tmp), ["blocked: a", "blocked: b", "failed: c"])
-
-    def test_completed_premerge_retrospective_without_a_gate_fails_explicitly(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(workers.WorkerError, "completed with 'passed' but the candidate has no current retrospective gate"):
-                self.offer_premerge_retrospective_after(Path(tmp), ["passed"])
 
     def test_malformed_trusted_result_receipt_fails_explicitly(self):
         head = "a" * 40
         broken = {"id": 7, "body": workers.RESULT_PREFIX + "{not json", "user": {"login": "owner"}, "author_association": "OWNER"}
-        listed = {"id": 8, "body": workers.RESULT_PREFIX + "[1]", "user": {"login": "owner"}, "author_association": "OWNER"}
         untrusted = {"id": 9, "body": workers.RESULT_PREFIX + "{not json", "user": {"login": "someone"}, "author_association": "NONE"}
         self.assertEqual(lifecycle.job_outcomes(head, [untrusted]), {})
         with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "malformed trusted job result comment 7"):
             lifecycle.job_outcomes(head, [broken])
-        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "comment 8 is not an object"):
-            lifecycle.premerge_retrospective_attempt(11, head, [listed])
         merged = {"number": 11, "head": head, "task_identity": {"change": "x"}, "attempts": {"post-merge": 1}}
         with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "comment 7"):
             lifecycle.post_merge_job(merged, [broken])
 
-    def test_full_final_head_checks_and_checkpoint_precede_ready_and_admission(self):
+    def test_full_final_head_checks_precede_ready_and_admission(self):
         with tempfile.TemporaryDirectory() as tmp:
             fixture = self.fixture(Path(tmp))
             for name in ("first", "second"):
@@ -1203,14 +1124,13 @@ class CompositionTests(unittest.TestCase):
                 _transition=lambda *args, **kw: (events.append("ready"), candidate.update(gates=kw["gates"])),
                 github_cli_env=lambda root: {}, set_pr_draft=lambda *args, **kw: events.append("undraft"),
                 admit=lambda *args: events.append("admit"))
-            kwargs = {"adapter": adapter, "checkpoint": lambda *a, **kw: (events.append("checkpoint") or {"result": "none"}),
-                      "full_checks": lambda *args: events.append("checks")}
+            kwargs = {"adapter": adapter, "full_checks": lambda *args: events.append("checks")}
             original_checkout = workers.prepare_checkout
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
                                    original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertEqual(result["status"], "queued")
-                self.assertEqual(events, ["checkpoint", "checks", "ready", "undraft", "admit"])
+                self.assertEqual(events, ["checks", "ready", "undraft", "admit"])
                 self.assertEqual(candidate["gates"]["full-checks"]["evidence"], {"head": head})
                 events.clear()
                 composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
@@ -1232,7 +1152,7 @@ class SupervisorTests(unittest.TestCase):
             ordered.append((change, path))
         boundary = {"branch": "requirement/BR-7", "head": "a" * 40,
                     "manifest": {"children": children}}
-        with mock.patch.object(execution, "_require_no_merged_composition"), \
+        with mock.patch.object(execution, "_merged_composition", return_value=[]), \
                 mock.patch.object(contributions, "in_flight_children", return_value={} if in_flight is None else in_flight), mock.patch.object(contributions, "ensure_integration_branch", return_value=boundary), mock.patch.object(
             execution, "_git"
         ), mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), mock.patch.object(
@@ -1244,44 +1164,44 @@ class SupervisorTests(unittest.TestCase):
                 {c: f"acme/backlog#{8 + i}" for i, c in enumerate(graph)}, root, False)
         return result, start
 
-    def test_merged_composition_refuses_before_the_integration_branch_is_touched(self):
-        adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[{"number": 556}]))
+    def test_merged_composition_is_listed_before_the_integration_branch_is_touched(self):
+        adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[{"number": 556}, {"number": 540}]))
         with mock.patch.object(contributions, "ensure_integration_branch") as ensure:
-            with self.assertRaisesRegex(execution.RequirementExecutionError,
-                                        r"composition PR #556 of requirement/BR-7 is already merged.*"
-                                        r"--kinds retrospective,terminal-reconciliation,cleanup --pr 556 --run.*"
-                                        r"publication_queue.py status --pr 556"):
-                execution._require_no_merged_composition(Path("/unused"), REQUIREMENT, "acme/project", adapter=adapter)
+            self.assertEqual(execution._merged_composition(Path("/unused"), REQUIREMENT, "acme/project", adapter=adapter),
+                             [540, 556])
         ensure.assert_not_called()
         self.assertEqual(adapter._gh.call_args.args[1:9],
                          ("pr", "list", "--state", "merged", "--head", "requirement/BR-7", "--base", "main"))
 
     def test_open_or_absent_composition_lets_advance_proceed(self):
         adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[]))
-        self.assertIsNone(execution._require_no_merged_composition(Path("/unused"), REQUIREMENT, "acme/project", adapter=adapter))
+        self.assertEqual(execution._merged_composition(Path("/unused"), REQUIREMENT, "acme/project", adapter=adapter), [])
 
     def test_unreadable_composition_inventory_refuses(self):
         for gh in (mock.Mock(side_effect=RuntimeError("gh exit 1")), mock.Mock(return_value={"bad": 1}),
                    mock.Mock(return_value=[{"number": n} for n in range(100)])):
             with self.subTest(gh=gh), self.assertRaisesRegex(execution.RequirementExecutionError, "inventory of requirement/BR-7"):
-                execution._require_no_merged_composition(Path("/unused"), REQUIREMENT, "acme/project",
-                                                         adapter=SimpleNamespace(QueueError=RuntimeError, _gh=gh))
+                execution._merged_composition(Path("/unused"), REQUIREMENT, "acme/project",
+                                              adapter=SimpleNamespace(QueueError=RuntimeError, _gh=gh))
 
-    def test_advance_contributions_runs_the_check_before_the_branch(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
-            path = root / "first.json"
-            path.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
-            with mock.patch.object(execution, "_require_no_merged_composition",
-                                   side_effect=execution.RequirementExecutionError("already merged")) as check, \
-                    mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
-                    mock.patch.object(contributions, "ensure_integration_branch") as ensure:
-                with self.assertRaisesRegex(execution.RequirementExecutionError, "already merged"):
-                    execution._advance_contributions(root, REQUIREMENT, [("first", path)], {"first": "acme/backlog#8"},
-                                                     root, False)
-            check.assert_called_once_with(root, REQUIREMENT, "acme/project")
-            ensure.assert_not_called()
+    def test_merged_composition_awaits_post_merge_without_touching_the_branch(self):
+        for state, status in (("OPEN", "await-post-merge"), ("CLOSED", "done")):
+            with self.subTest(state=state), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
+                path = root / "first.json"
+                path.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
+                with mock.patch.object(execution, "_merged_composition", return_value=[556]) as check, \
+                        mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"state": state}), \
+                        mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
+                        mock.patch.object(contributions, "ensure_integration_branch") as ensure:
+                    result = execution._advance_contributions(root, REQUIREMENT, [("first", path)],
+                                                              {"first": "acme/backlog#8"}, root, False)
+                check.assert_called_once_with(root, REQUIREMENT, "acme/project")
+                ensure.assert_not_called()
+                self.assertEqual((result["status"], result["composition_pr"], result["children"]),
+                                 (status, 556, ["acme/backlog#8"]))
+                self.assertEqual(result["status_command"], "python3 scripts/publication_queue.py status --pr 556")
 
     def test_resume_never_reclaims_coordinator_owned_children(self):
         with tempfile.TemporaryDirectory() as tmp:
