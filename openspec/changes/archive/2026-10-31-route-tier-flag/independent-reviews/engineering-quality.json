@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
+    "base_ref": "origin/main",
+    "candidate_head": "c88656204f7fbcd4c0a09472a85bcf6144012467",
+    "diff_sha256": "82bf6cd315ebc3c7634da1df36f98a0c5c6547b1d111b85443142092fd1afa20"
+  },
+  "completed_at": "2026-10-31T10:59:23+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/dogfood_task.py:280-294. `_RemovedProfile` is registered with the default `nargs=None`, so the parser requires a value before `__call__` runs. Adding `nargs=\"?\"` or `nargs=\"*\"` would make every `--profile` use hit the `--tier` message. The test at tests/test_central_dogfood_lifecycle.py:424-434 only covers the `--profile standard` form.",
+      "id": "removed-profile-flag-needs-value",
+      "severity": "advisory",
+      "summary": "The refusal of `--profile` only names `--tier` when `--profile` is given a value. A bare `--profile` fails with argparse's generic 'expected one argument' error, which doesn't mention `--tier`."
+    }
+  ],
+  "launched_at": "2026-10-31T10:59:12+00:00",
+  "output_sha256": "c120f6466bf084db1b675a548ff1ed3c9d1eb003c8e2f99424ced824f5619b05",
+  "perspective": "engineering-quality",
+  "request_id": "93e6c1f6-85d9-4744-88fa-49203a1acac9",
+  "reviewer": {
+    "context_id": "68477b93-339e-495b-b489-95916ddcbf35",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c9a69228-79e9-48e8-9f81-ec01103d4349",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24325
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 73358
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10080
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10394
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 889
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "274f1455b13e8cbd97e5639056c49bf52ff1a37f22cc8f8f600936e2e18ce0cf"
+}

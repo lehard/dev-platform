@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
+    "base_ref": "origin/main",
+    "candidate_head": "c88656204f7fbcd4c0a09472a85bcf6144012467",
+    "diff_sha256": "82bf6cd315ebc3c7634da1df36f98a0c5c6547b1d111b85443142092fd1afa20"
+  },
+  "completed_at": "2026-10-31T10:59:12+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/dogfood_task.py in the diff: `parser.add_argument(\"--profile\", action=_RemovedProfile, help=argparse.SUPPRESS)`. It has no `nargs=0` or `nargs='?'`, so the action's `parser.error(...)` only runs when a value is supplied. The test only covers `--profile standard`. The spec scenario only covers the valued form, so this is a minor edge case.",
+      "id": "profile-flag-bare-error-not-naming-tier",
+      "severity": "advisory",
+      "summary": "A bare `--profile` with no value fails with argparse's generic 'expected one argument' error, not the error naming `--tier`. The spec says `--profile` SHALL be refused with an error naming `--tier`."
+    }
+  ],
+  "launched_at": "2026-10-31T10:59:02+00:00",
+  "output_sha256": "9b967a03d8aaf76b95a42978661983bdb6a11b4570af75bb15a3e759fd3aac6f",
+  "perspective": "spec-fidelity",
+  "request_id": "93e6c1f6-85d9-4744-88fa-49203a1acac9",
+  "reviewer": {
+    "context_id": "0521b5d7-9867-45dd-8352-ca78e12e988c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4b07c10a-4fd2-488b-8727-50aa7abb4ee5",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26924
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43771
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8902
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9062
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1073
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "274f1455b13e8cbd97e5639056c49bf52ff1a37f22cc8f8f600936e2e18ce0cf"
+}
