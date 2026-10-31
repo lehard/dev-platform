@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Exercise the OpenSpec 1.13.x archive/delta/verify regressions against an exact CLI.
+"""Exercise the OpenSpec archive/delta/verify regressions against an exact CLI.
 
 The fixtures pin the correctness fixes that motivated adopting each tested
-release; the 1.13.1/1.13.2 fixtures fail against the previously tested release.
+release: the 1.13.1/1.13.2 fixtures fail against 1.13.0, and the 1.14.1-1.15.0
+fixtures (strict requirement length, dropped delta text) fail against 1.13.2.
 """
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ import argparse
 import json
 import os
 import shlex
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -140,6 +142,48 @@ def check_new_capability_purpose(root: Path, cli: list[str]) -> None:
     (root / "openspec" / "specs" / "purpose-missing" / "spec.md").unlink()
 
 
+def check_requirement_length_and_dropped_text(root: Path, cli: list[str]) -> None:
+    """1.14.1-1.15.0: strict requirement length and archive text-drop warnings (BR-799, DEC-0007)."""
+    write(
+        root / "openspec" / "specs" / "length-fixture" / "spec.md",
+        "# Length fixture\n\n## Purpose\nExercise the strict requirement length limit and dropped delta text.\n\n"
+        "## Requirements\n\n### Requirement: Kept requirement\nThe fixture SHALL keep its requirement.\n\n"
+        "#### Scenario: Kept\n- **WHEN** the fixture is read\n- **THEN** its requirement remains.\n",
+    )
+
+    def added(change: str, length: int, extra: str = "") -> None:
+        prefix = "The fixture SHALL hold a requirement description of exactly the tested length"
+        text = (prefix + " " + "x" * length)[:length]
+        run(cli + ["new", "change", change, "--json"], root)
+        write(change_artifacts(root, change) / "specs" / "length-fixture" / "spec.md",
+              f"{extra}## ADDED Requirements\n\n### Requirement: {change} requirement\n{text}\n\n"
+              "#### Scenario: Holds\n- **WHEN** the fixture is validated\n- **THEN** its length is checked.\n")
+
+    def strict_ok(change: str) -> bool:
+        return not run(cli + ["validate", change, "--strict", "--no-interactive"], root, check=False).returncode
+
+    added("length-at-limit", 500)
+    if not strict_ok("length-at-limit"):
+        raise SystemExit("strict validation rejected an ADDED requirement of exactly 500 characters")
+    added("length-over-limit", 501)
+    run(cli + ["validate", "length-over-limit", "--no-interactive"], root)
+    if strict_ok("length-over-limit"):
+        raise SystemExit("strict validation accepted an ADDED requirement over 500 characters")
+
+    added("dropped-text", 60, extra="Prose above the first section.\n\n")
+    with_notes = root / "openspec" / "changes" / "dropped-text" / "specs" / "length-fixture" / "spec.md"
+    with_notes.write_text(with_notes.read_text(encoding="utf-8") + "\n## Notes\nAn extra section.\n", encoding="utf-8")
+    result = run(cli + ["validate", "dropped-text", "--no-interactive"], root)
+    output = result.stdout + result.stderr
+    for required in ('Text above the first "## " section is not carried', 'Section "## Notes" is not carried'):
+        if required not in output:
+            raise SystemExit(f"validate no longer warns that archive drops delta text: {required}")
+    if strict_ok("dropped-text"):
+        raise SystemExit("strict validation accepted delta text that archive drops")
+    for change in ("length-at-limit", "length-over-limit", "dropped-text"):
+        shutil.rmtree(root / "openspec" / "changes" / change)
+
+
 def check_verify_workflow(cli: list[str]) -> None:
     # 1.13.2: generated verify guidance must not pass skipped checks, must invert
     # REMOVED checks and check RENAMED against original behavior, and stays
@@ -246,10 +290,11 @@ def main() -> int:
 
         check_rename_remove_case_and_tasks(root, cli)
         check_new_capability_purpose(root, cli)
+        check_requirement_length_and_dropped_text(root, cli)
 
     check_verify_workflow(cli)
 
-    print("OpenSpec 1.13.x archive/delta/verify regression fixtures passed")
+    print("OpenSpec archive/delta/verify regression fixtures passed")
     return 0
 
 
