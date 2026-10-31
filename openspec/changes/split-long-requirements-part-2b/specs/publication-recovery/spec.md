@@ -273,7 +273,7 @@ Task publication status SHALL also expose task-vs-authoritative-main freshness a
 
 ### Requirement: Selected exact PR operations use a stable PR identity and the expected head
 
-For `harness_mode=platform` and `publish_mode=pr`, once an exact pull request is selected or created, required-check reads, merge requests, merge-state reads, recovery, and terminal reconciliation SHALL use a stable PR number or URL together with the same expected head SHA that identified the current publication object.
+Once an exact pull request is selected or created, required-check reads, merge requests, merge-state reads, recovery, and terminal reconciliation SHALL use a stable PR number or URL together with the same expected head SHA that identified the current publication object.
 
 #### Scenario: Lifecycle reads checks for a selected exact PR
 
@@ -284,7 +284,7 @@ For `harness_mode=platform` and `publish_mode=pr`, once an exact pull request is
 
 ### Requirement: Branch-name lookups and exit codes do not authorize cleanup or success
 
-For `harness_mode=platform` and `publish_mode=pr`, a branch-name-only lookup, command exit code, or stale merged PR SHALL NOT authorize destructive cleanup or terminal success.
+A branch-name-only lookup, command exit code, or stale merged PR SHALL NOT authorize destructive cleanup or terminal success.
 
 #### Scenario: Stale merged PR shares the head branch name
 

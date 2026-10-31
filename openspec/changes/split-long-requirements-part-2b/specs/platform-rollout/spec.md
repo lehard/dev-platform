@@ -537,41 +537,23 @@ A failure inside the repeated managed-rollout failure tracking layer, including 
 - **THEN** the tracking step fails explicitly with a message naming what failed
 - **AND** the failure is not converted into a warning
 
-### Requirement: A reclaimed migration path matching the target template is a safe replay conflict
+### Requirement: A guarded Copier recopy conflict is safe only under the recorded conditions
 
-For guarded Copier recopy of a smart-update conflict on a platform-owned harness, a conflict SHALL count as safe when an explicitly reclaimed migration path already matches the exact target immutable template.
+A conflict SHALL count as safe when either (a) an explicitly reclaimed migration path already matches the exact target immutable template, (b) the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`, or (c) the committed downstream path is a regular file byte-identical to the target immutable template rendered with the recorded answers, re-proven from committed `HEAD` after the reset and matched again after recopy.
 
-#### Scenario: Reclaimed migration path already matches the target
+#### Scenario: A conflicted path meets one of the safe conditions
 
-- **GIVEN** an explicitly reclaimed migration path already matches the exact target immutable template
-- **WHEN** a smart-update conflict is reported on that path
-- **THEN** the conflict counts as safe for guarded Copier recopy
+- **WHEN** a conflicted path of a guarded Copier recopy is an explicitly reclaimed migration path matching the exact target immutable template, matches the same path in the recorded immutable platform template version, or is a regular file byte-identical to the target immutable template rendered with the recorded answers and re-proven from committed `HEAD`
+- **THEN** the conflict counts as safe
 
-### Requirement: A path matching the recorded platform template version is a safe replay conflict
+### Requirement: Missing paths count as baseline equivalence for guarded Copier recopy
 
-For guarded Copier recopy of a smart-update conflict on a platform-owned harness, a conflict SHALL count as safe when the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`. Missing/missing SHALL count as baseline equivalence.
+For guarded Copier recopy, missing/missing SHALL count as baseline equivalence.
 
-#### Scenario: Committed path equals the recorded platform template version
+#### Scenario: A conflicted path is missing in both states
 
-- **GIVEN** the committed downstream path exactly matches the same path in the immutable platform template version recorded by `.copier-answers.yml`
-- **WHEN** a smart-update conflict is reported on that path
-- **THEN** the conflict counts as safe for guarded Copier recopy
-
-#### Scenario: Path is missing on both sides
-
-- **GIVEN** a conflicted path is missing both downstream and in the recorded immutable platform template version
-- **THEN** the missing/missing state counts as baseline equivalence
-
-### Requirement: A path byte-identical to the target render is a safe replay conflict
-
-For guarded Copier recopy of a smart-update conflict on a platform-owned harness, a conflict SHALL count as safe when the committed downstream path is a regular file byte-identical to the target immutable template rendered with the recorded answers, re-proven from committed `HEAD` after the reset and matched again after recopy.
-
-#### Scenario: Committed file equals the target render
-
-- **GIVEN** the committed downstream path is a regular file byte-identical to the target immutable template rendered with the recorded answers
-- **WHEN** a smart-update conflict is reported on that path
-- **THEN** the conflict counts as safe for guarded Copier recopy only when the byte identity is re-proven from committed `HEAD` after the reset
-- **AND** the path is matched again after recopy
+- **WHEN** a conflicted path is missing in both compared states of a guarded Copier recopy
+- **THEN** the path counts as baseline equivalence
 
 ### Requirement: Rollout alert reconciliation runs periodically
 

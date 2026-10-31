@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "63681ebd42c1407b4968031f39480db74dd3cffd",
+    "base_ref": "origin/main",
+    "candidate_head": "69e7bc57981e45a5a41ee94b1069d9a9a3a013ea",
+    "diff_sha256": "d1d999934023ae123f97a82a652af995a6c85559a130b9c4ce27567346975fc8"
+  },
+  "completed_at": "2026-10-31T07:54:45+00:00",
+  "findings": [
+    {
+      "evidence": "specs/platform-rollout/spec.md:964-972 (ADDED \"The Copier upgrade test falls back to a bootstrap baseline without a stable tag\") and :974-982 (smoke test skips when there is no baseline). specs/publication-recovery/spec.md:1314-1320 (\"retains the existing bounded foreground check/merge fallback\"). specs/platform-delegation/spec.md:548-555 (detection-only \"bounded compatibility fallback\"). Also :520-527 (guarded fallback for unproven native containment).",
+      "id": "existing-fallbacks-carried-in-specs",
+      "severity": "advisory",
+      "summary": "The split carries over several fallback behaviors that already existed in the specs. The user's no-fallbacks rule asks for these to be reported, not extended. The split does not add or widen any of them."
+    },
+    {
+      "evidence": "specs/platform-rollout/spec.md:636-649 (MODIFIED scenarios on a root commit and an unchanged VERSION) against :994-1016 (ADDED root-commit and non-root release-intent requirements). :675-679 (bootstrap run does not dispatch rollout) against :1054-1068. specs/gate-fail-explicit/spec.md:184-200 (MODIFIED scenarios for main without --base and for git diff failing) against :305-321 (ADDED requirements for the same behaviors). specs/worktree-coordination/spec.md:1597-1602 and 1630-1650 against :1862-1902.",
+      "id": "duplicate-scenario-coverage-across-split",
+      "severity": "advisory",
+      "summary": "Several ADDED requirements restate behavior that the kept MODIFIED scenarios already assert, so one behavior is now specified in two places. A later edit to one copy can leave the other stale. The design's own mechanical guard (word coverage) does not detect such drift."
+    }
+  ],
+  "launched_at": "2026-10-31T07:54:16+00:00",
+  "output_sha256": "17dfdce47bb77b5930b0eb9877515d95de65b027d86d6c8732aeeecae16263a8",
+  "perspective": "engineering-quality",
+  "request_id": "d60c462a-d385-44aa-aa85-f5b2ba0743c2",
+  "reviewer": {
+    "context_id": "da62277b-8935-4b38-8e34-5d6361b5de1b",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-cd5ffb64-46f0-4346-b4a6-dd4f6ed41a21",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 61866
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 162659
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24330
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26810
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2734
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0c7a2c64bebb20f0a87c877ac97836adfcc26c9cd3b09dbc39829ad3f1e3efd1"
+}
