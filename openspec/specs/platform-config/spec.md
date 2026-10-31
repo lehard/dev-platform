@@ -140,7 +140,7 @@ The Project Factory SHALL offer a default-off `operator_integration` selection f
 
 ### Requirement: Platform tests one explicit, current-stable Copier version
 
-The platform SHALL record one explicit tested Copier version and SHALL keep every recorded copy of it -- `.dev-platform.toml`, `template/.dev-platform.toml.jinja`, `copier.yml`'s `_min_copier_version`, every CI workflow that installs Copier, and `template/scripts/platform_doctor.py`'s fallback default -- in agreement. Changing the tested version SHALL be an explicit platform change, made only after confirming the target version against the primary upstream release source, not adopted merely because a newer number exists or via a prerelease.
+The platform SHALL record one explicit tested Copier version and SHALL keep every recorded copy of it -- `.dev-platform.toml`, `template/.dev-platform.toml.jinja`, `copier.yml`'s `_min_copier_version`, every CI workflow that installs Copier, and `template/scripts/platform_doctor.py`'s fallback default -- in agreement.
 
 #### Scenario: Tested Copier version is bumped
 
@@ -163,7 +163,7 @@ The platform SHALL record one explicit tested Copier version and SHALL keep ever
 
 ### Requirement: Platform configuration is validated once against one schema
 
-`read_platform_config` SHALL fail explicitly when `.dev-platform.toml` is absent. It SHALL validate the project configuration once, at read time, against one platform configuration schema: the keys present in every managed project's rendered configuration are required, and a missing required key or a value of the wrong type SHALL fail with a diagnostic naming the file, the key and the line to add. Defaults SHALL exist only for documented optional keys defined in that schema; the only optional key in this schema is `paths.pending_completed_worktree_cleanup`. Platform scripts SHALL read required keys directly and SHALL NOT supply per-call-site defaults for them, and configuration accessors SHALL NOT substitute values for required keys.
+`read_platform_config` SHALL validate the project configuration once, at read time, against one platform configuration schema: the keys present in every managed project's rendered configuration are required, and a missing required key or a value of the wrong type SHALL fail with a diagnostic naming the file, the key and the line to add.
 
 #### Scenario: Configuration file is absent
 
@@ -206,7 +206,7 @@ The platform SHALL read `DEV_PLATFORM_GITHUB_RETRY_ATTEMPTS` as the bound on Git
 
 ### Requirement: A removed DeepSeek Harness configuration fails explicitly
 
-Reading a project configuration that still contains `[experimental_runtime.deepseek_harness]` SHALL fail with an error naming the file and stating that the section must be deleted because DeepSeek Harness was removed. The section SHALL NOT be ignored silently. Because Copier never updates `.dev-platform.toml`, the platform bootstrap that a Copier update runs SHALL first delete the exact section form the platform shipped (with or without its shipped comment) and SHALL leave any other form in place for the reader to reject.
+Reading a project configuration that still contains `[experimental_runtime.deepseek_harness]` SHALL fail with an error naming the file and stating that the section must be deleted because DeepSeek Harness was removed. The section SHALL NOT be ignored silently.
 
 #### Scenario: Leftover DeepSeek section
 - **GIVEN** a `.dev-platform.toml` with `[experimental_runtime.deepseek_harness]`
@@ -226,3 +226,58 @@ Reading a project configuration that still contains `[experimental_runtime.deeps
 #### Scenario: Locally modified section
 - **WHEN** the section differs from the shipped form
 - **THEN** the bootstrap leaves it unchanged and reading the configuration fails naming the section to delete
+
+### Requirement: Changing the tested Copier version is an explicit confirmed platform change
+
+Changing the tested Copier version SHALL be an explicit platform change, made only after confirming the target version against the primary upstream release source, not adopted merely because a newer number exists or via a prerelease.
+
+#### Scenario: A newer Copier version is published
+
+- **GIVEN** a newer Copier version or prerelease exists
+- **WHEN** the tested Copier version would change
+- **THEN** the change is an explicit platform change
+- **AND** it is made only after confirming the target version against the primary upstream release source
+
+### Requirement: Reading platform configuration fails when the file is absent
+
+`read_platform_config` SHALL fail explicitly when `.dev-platform.toml` is absent.
+
+#### Scenario: Platform configuration file is missing
+
+- **WHEN** `read_platform_config` runs and `.dev-platform.toml` is absent
+- **THEN** it fails explicitly
+
+### Requirement: Platform configuration defaults exist only for documented optional keys
+
+Defaults SHALL exist only for documented optional keys defined in the platform configuration schema; the only optional key in the platform configuration schema is `paths.pending_completed_worktree_cleanup`.
+
+#### Scenario: A key without a documented default is absent
+
+- **WHEN** a platform configuration key other than `paths.pending_completed_worktree_cleanup` is absent
+- **THEN** no default is supplied for it
+
+### Requirement: Required platform configuration keys are read without substitute defaults
+
+Platform scripts SHALL read required platform configuration keys directly and SHALL NOT supply per-call-site defaults for them, and configuration accessors SHALL NOT substitute values for required platform configuration keys.
+
+#### Scenario: A platform script reads a required key
+
+- **WHEN** a platform script or configuration accessor reads a required platform configuration key
+- **THEN** the key is read directly
+- **AND** no per-call-site default or substitute value is supplied
+
+### Requirement: Copier update bootstrap deletes only the shipped DeepSeek Harness section
+
+Because Copier never updates `.dev-platform.toml`, the platform bootstrap that a Copier update runs SHALL first delete the exact `[experimental_runtime.deepseek_harness]` section form the platform shipped (with or without its shipped comment) and SHALL leave any other form of that section in place for the reader to reject.
+
+#### Scenario: Shipped section form is present
+
+- **GIVEN** `.dev-platform.toml` contains the exact shipped `[experimental_runtime.deepseek_harness]` section form, with or without its shipped comment
+- **WHEN** the platform bootstrap that a Copier update runs executes
+- **THEN** it first deletes that section
+
+#### Scenario: Another section form is present
+
+- **GIVEN** `.dev-platform.toml` contains another form of the `[experimental_runtime.deepseek_harness]` section
+- **WHEN** the platform bootstrap that a Copier update runs executes
+- **THEN** it leaves the section in place for the reader to reject
