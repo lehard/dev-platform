@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "base_ref": "origin/main",
+    "candidate_head": "7e40cefdd0a9c93da2b28764de00eb83f0999c0f",
+    "diff_sha256": "6d9687a2c4bbbdb08fb0365cccd3cb8e36df4d8fa646dc9680f2f362a96c77e5"
+  },
+  "completed_at": "2026-10-31T13:31:53+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/candidate_lifecycle.py:88-91 `if isinstance(record[\"next_job\"], dict) and \"phase\" in record[\"next_job\"]: raise ValueError(...)`. The spec scenario requires failure for a `retrospective` job with phase `pre-merge`, and design.md names MalformedMarkerError.",
+      "id": "stored-premerge-job-check-too-broad",
+      "severity": "advisory",
+      "summary": "The derivation guard rejects any dict `next_job` that has a `phase` key. It doesn't check kind=`retrospective` with phase=`pre-merge`, which is what the spec says. It also raises a plain ValueError, but design.md says MalformedMarkerError."
+    },
+    {
+      "evidence": "template/scripts/post_review_finalization.py:363-373. `post_result(... \"finalized\" ...)` comes first, then `candidate_manifest` and `advance_final_publication`. The removed `run_claimed_retrospective` used to call `advance_final_publication` from a retryable job.",
+      "id": "finalize-publication-after-result-not-recoverable",
+      "severity": "advisory",
+      "summary": "For a composition, the finalize job posts its \"finalized\" result before it calls `advance_final_publication`. The full-checks and admission step now runs inside that same job, after the result is posted. If the step raises or is interrupted, the finalize job already holds a result and the pre-merge retrospective job that used to drive admission is gone. The spec doesn't define a recovery path for this case."
+    },
+    {
+      "evidence": "proposal.md Impact lists `requirement_merge_recovery.py` and \"Docs: ... hosted-lifecycle-workers\". `git diff --name-only` shows no such files. A grep of `requirement_merge_recovery.py` for `reconcile_parent|reconcile_composition` returns nothing. docs/engineering/hosted-lifecycle-workers.md:20 and :111 are unchanged.",
+      "id": "declared-doc-and-recovery-files-not-in-diff",
+      "severity": "advisory",
+      "summary": "proposal.md and tasks 1.2 and 3.1 claim changes to `requirement_merge_recovery.py` and `hosted-lifecycle-workers` docs. The candidate diff contains neither. `requirement_merge_recovery.py` has no call to `reconcile_parent` or `reconcile_composition`, so there may be nothing to change there. The hosted-lifecycle-workers doc still describes the retrospective job without the new post-merge-only ownership."
+    },
+    {
+      "evidence": "template/scripts/execute_requirement.py:520-522 returns status \"await-child-review\". The delta's \"Terminal completion is authoritative\" and \"One child uses ordinary publication\" scenarios mention no such state.",
+      "id": "portable-single-child-await-semantics",
+      "severity": "advisory",
+      "summary": "In coordinator mode, when the single child is ready, `advance` runs `finish_task` and then returns a new status, `await-child-review`. The agent-workflow delta doesn't define this status. The spec only names `await-post-merge` and `done`."
+    }
+  ],
+  "launched_at": "2026-10-31T13:31:17+00:00",
+  "output_sha256": "c8b903c48ce87c99e8547ea9196830f044ce39a097674162be382eba394f046d",
+  "perspective": "spec-fidelity",
+  "request_id": "f868a071-839f-4902-b06b-8474c4a7195c",
+  "reviewer": {
+    "context_id": "415db06a-1def-4602-9a10-3ed0bd4e2347",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-7ce63e88-496c-479a-981a-5ae9b6432a4f",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 59731
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 390783
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35162
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35526
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4002
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "08a968d42f88cb70dbc339b5aabd778ced512ae66da182b78c4815606b46bfd9"
+}

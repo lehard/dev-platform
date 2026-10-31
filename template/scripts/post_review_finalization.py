@@ -22,6 +22,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import sys
 from pathlib import Path
 from typing import Callable, Iterable
@@ -359,9 +360,17 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
     if fresh.get("kind") == "contribution":
         adapter.publish_job(root, repo, number, "contribution-integration", head, task_identity=fresh,
                             target_head=adapter.branch_head(root, fresh["target_branch"]))
-    elif fresh.get("kind") == "requirement-composition":
-        adapter.publish_job(root, repo, number, "retrospective", head, task_identity=fresh, phase="pre-merge")
     post_result(workers.result_body(job, worker, "finalized", outcome.get("pushed_head")))
+    if fresh.get("kind") == "requirement-composition":
+        # No pre-merge retrospective: the finalized composition goes straight to its full final-head checks and
+        # queue admission; the post-merge jobs record the Requirement retrospective after the merge.
+        from requirement_composition import advance_final_publication, candidate_manifest
+
+        with tempfile.TemporaryDirectory(prefix="composition-final-") as temporary:
+            final = workers.prepare_checkout(source_repo, temporary, "harness", head)
+            manifest = candidate_manifest(final, fresh["requirement"])
+        published = advance_final_publication(root, repo, manifest, head, number, adapter=adapter, source_repo=source_repo)
+        return {"status": "finalized", "pushed_head": outcome.get("pushed_head"), "publication": published}
     return {"status": "finalized", "pushed_head": outcome.get("pushed_head")}
 
 

@@ -160,7 +160,7 @@ title = "Родитель доставлен ранее"
 tag = "повторная сверка"
 role = "actor"
 when = "Requirement был доставлен до того, как прошла терминальная сверка."
-outcome = "`requirement_terminal.py reconcile` повторяет сверку; операция идемпотентна"
+outcome = "`requirement_terminal.py reconcile` повторяет сверку как команда восстановления координатора; штатно родителя закрывает post-merge задание"
 
 [example]
 title = "Пример: от записи до Done"

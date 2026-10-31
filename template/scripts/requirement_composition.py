@@ -264,7 +264,7 @@ def require_final_gates(checkout: Path, manifest: dict, candidate: dict, head: s
     identity = composition_identity(checkout, manifest)
     if candidate.get("head") != head or candidate.get("task_identity") != identity:
         raise contributions.ContributionError("Requirement final gates are not bound to exact head")
-    for name in ("review", "finalization", "requirement-retrospective", "full-checks"):
+    for name in ("review", "finalization", "full-checks"):
         gate = candidate.get("gates", {}).get(name)
         if not reusable(checkout, gate, identity):
             raise contributions.ContributionError(f"Requirement readiness lacks {name}")
@@ -314,7 +314,8 @@ def publish_composition(root: Path, repo: str, manifest: dict, head: str, *, ada
     pr = getattr(adapter, "ensure_pr", ensure_pr)(root, env, branch, "main", f"Compose {manifest['work_identity']}",
                    f"Reviewed contributions for {manifest['work_identity']}", head, lookup=lookup, draft=True)
     if pr.already_merged:
-        return reconcile_composition(root, repo, manifest, head, pr.number, adapter=adapter, source_repo=source_repo)
+        # The post-merge retrospective and terminal-reconciliation jobs own the Requirement from here.
+        return {"status": "await-post-merge", "branch": branch, "head": head, "pr": pr.url, "number": pr.number}
     if integration.manifest_complete(manifest) and not pr.already_merged:
         current = adapter._derive(root, adapter._pr(root, repo, pr.number), adapter._comments(root, repo, pr.number))
         with tempfile.TemporaryDirectory(prefix="composition-offer-") as temporary:
@@ -418,36 +419,18 @@ def execute_composition_finalize(checkout: Path, job: dict, gates: dict, *, sour
                 "evidence": {"head": head, "changes": manifest["expected_changes"]}}}}
 
 
-def _offer_premerge_retrospective(root: Path, repo: str, number: int, head: str, identity: dict, adapter) -> None:
-    """Offer the pre-merge retrospective at the next bounded attempt, so a blocked result is retried."""
-    from candidate_lifecycle import premerge_retrospective_attempt
-
-    comments = adapter._comments(root, repo, number)
-    try:
-        attempt = premerge_retrospective_attempt(number, head, comments, adapter.trusted_apps(root),
-                                                 adapter.trusted_writers(root, comments))
-    except ValueError as exc:
-        raise workers.WorkerError(str(exc)) from exc
-    adapter.publish_job(root, repo, number, "retrospective", head, task_identity=identity, attempt=attempt,
-                        phase="pre-merge")
-
-
 def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, number: int, *, adapter,
-                              source_repo=None, full_checks=None, checkpoint=None, enqueue=True,
-                              candidate=None) -> dict:
-    """Check the parent retrospective and full final head before readiness and queue admission.
+                              source_repo=None, full_checks=None, enqueue=True, candidate=None) -> dict:
+    """Run the full final-head checks of a finalized composition before readiness and queue admission.
 
     ``candidate`` is the record whose gates are re-established on ``head``; the
-    queue passes the record of the head its own ``main`` update replaced. Such a
-    carried record already proved the Requirement retrospective (the receipt is
-    a file on the Requirement owner's machine, absent in CI), so its reusable
-    ``requirement-retrospective`` gate evidence is the receipt.
+    queue passes the record of the head its own ``main`` update replaced. The
+    Requirement retrospective is not a readiness gate: the post-merge
+    retrospective job records it after the merge.
     """
-    carried = candidate is not None
     from project_publish import _set_pr_draft
     from publication_state import PrRef
     from _platform_common import github_cli_env
-    from requirement_retrospective import require_checkpoint, RequirementRetrospectiveError
     from pr_review_gate import reusable
 
     if candidate is None:
@@ -457,20 +440,6 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
         identity = composition_identity(checkout, manifest)
         if not all(reusable(checkout, candidate.get("gates", {}).get(g), identity) for g in ("review", "finalization")):
             return {"status": "await-composition-finalization", "head": head}
-        retrospective = candidate.get("gates", {}).get("requirement-retrospective")
-        if checkpoint is None and not reusable(checkout, retrospective, identity):
-            _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
-            return {"status": "await-requirement-retrospective", "head": head}
-        try:
-            if checkpoint is None and carried:
-                receipt = retrospective["evidence"]
-                if not isinstance(receipt, dict):
-                    raise RequirementRetrospectiveError("carried Requirement retrospective gate has no receipt evidence")
-            else:
-                receipt = (checkpoint or require_checkpoint)(root, requirement=contributions.private_requirement(root, manifest))
-        except RequirementRetrospectiveError:
-            _offer_premerge_retrospective(root, repo, number, head, identity, adapter)
-            return {"status": "await-requirement-retrospective", "head": head}
         full = candidate.get("gates", {}).get("full-checks", {})
         if full.get("evidence", {}).get("head") != head or not reusable(checkout, full, identity):
             if full_checks is not None:
@@ -481,7 +450,6 @@ def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, 
         if adapter._pr(root, repo, number).get("head", {}).get("sha") != head:
             return {"status": "discarded"}
         gates = {**candidate["gates"],
-                 "requirement-retrospective": {"result": "passed", "identity": identity, "evidence": receipt},
                  "full-checks": {"result": "passed", "identity": identity, "evidence": {"head": head}}}
         exact = {**candidate, "head": head, "task_identity": identity, "gates": gates}
         require_final_gates(checkout, manifest, exact, head)
@@ -557,53 +525,3 @@ def reconcile_composition(root: Path, repo: str, manifest: dict, head: str, numb
         (getattr(ops, "reconcile_parent", None) or requirement_terminal.reconcile_parent)(
             root, requirement=exact["requirement"], merged_children={c["source_issue"] for c in exact["children"]})
     return {"status": "merged-and-reconciled", "requirement": manifest["requirement"], "head": head, "number": number}
-
-
-def run_claimed_retrospective(root: Path, repo: str, candidate: dict, job: dict, *, source_repo: str,
-                             post_result, worker: str, adapter=None, ops=None, claim_current=None,
-                             checkpoint=None, resolve_manifest=None) -> dict:
-    """Complete the parent retrospective before readiness, under an exact-head claim."""
-    if adapter is None:
-        import publication_queue as adapter
-    from integration_contour import LifecycleOps, ensure_requirement_checkpoint, JobBlocked
-    from pr_review_gate import reusable
-    from requirement_retrospective import require_checkpoint, RequirementRetrospectiveError
-
-    number, head, identity = job["number"], job["head"], job["task_identity"]
-    if claim_current is None:
-        def claim_current():
-            comments = adapter._comments(root, repo, number)
-            return workers.i_won(job, worker, comments, trusted_apps=adapter.trusted_apps(root),
-                                 trusted_writers=adapter.trusted_writers(root, comments, (workers.CLAIM_PREFIX,), repo=repo))
-    def current():
-        return claim_current() and adapter._pr(root, repo, number).get("head", {}).get("sha") == head
-    candidate = adapter._derive(root, adapter._pr(root, repo, number), adapter._comments(root, repo, number))
-    if job.get("phase") != "pre-merge" or workers.build_job(candidate) != job or not current():
-        return {"status": "discarded"}
-    try:
-        with tempfile.TemporaryDirectory(prefix="composition-retrospective-") as temporary:
-            checkout = workers.prepare_checkout(source_repo, temporary, "harness", head)
-            manifest = candidate_manifest(checkout, identity["requirement"])
-            if composition_identity(checkout, manifest) != identity:
-                raise JobBlocked("Requirement retrospective identity changed")
-            if not all(reusable(checkout, candidate.get("gates", {}).get(g), identity)
-                       for g in ("review", "finalization")):
-                raise JobBlocked("Requirement retrospective requires review and finalization")
-            private = (resolve_manifest or contributions.private_manifest)(root, manifest)
-            requirement = private["requirement"]
-            ensure_requirement_checkpoint(ops or LifecycleOps(), root, requirement,
-                                          [c["source_issue"] for c in private["children"]])
-            receipt = (checkpoint or require_checkpoint)(root, requirement=requirement)
-            if not current():
-                return {"status": "discarded"}
-            adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
-                                inherit_identity=False, gates={**candidate["gates"], "requirement-retrospective": {
-                                    "result": "passed", "identity": identity, "evidence": receipt}})
-        outcome = advance_final_publication(root, repo, manifest, head, number, adapter=adapter, source_repo=source_repo)
-    except (JobBlocked, workers.WorkerError, contributions.ContributionError, RequirementRetrospectiveError) as exc:
-        if not current():
-            return {"status": "discarded"}
-        post_result(workers.result_body(job, worker, "blocked: " + str(exc)[:200]))
-        return {"status": "blocked", "reason": str(exc)}
-    post_result(workers.result_body(job, worker, "Requirement retrospective recorded"))
-    return outcome

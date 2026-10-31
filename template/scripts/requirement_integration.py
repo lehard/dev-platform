@@ -905,13 +905,16 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
         _verify_parent_links(integration, manifest)
         for child in manifest["children"]:
             reconcile_project(integration, "Done", source_issue=child["source_issue"])
-        from requirement_terminal import reconcile_parent
-        reconcile_parent(integration, requirement=manifest["requirement"], merged_children={item["source_issue"] for item in manifest["children"]})
+        from requirement_terminal import post_merge_closes, reconcile_parent
+        deferred = post_merge_closes(integration)
+        if not deferred:
+            reconcile_parent(integration, requirement=manifest["requirement"],
+                             merged_children={item["source_issue"] for item in manifest["children"]})
         from worktree_cleanup import defer_completed_task, targeted_cleanup_command
         _, cleanup_target = defer_completed_task(integration, root, branch)
         print("Completed integration worktree cleanup: " + targeted_cleanup_command(cleanup_target))
     return {"requirement": manifest["requirement"], "branch": branch, "head": head,
-            "pr": lookup.exact_merged.get("url"), "status": "merged-and-reconciled",
+            "pr": lookup.exact_merged.get("url"), "status": "await-post-merge" if deferred else "merged-and-reconciled",
             "children": [child["source_issue"] for child in manifest["children"]]}
 
 

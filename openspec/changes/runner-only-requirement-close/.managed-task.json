@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agent-workflow/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "runner-only-requirement-close",
+  "imported_at": "2026-10-31T11:38:37+00:00",
+  "package_revision": "7832fdae761ab1e6a2c932b00a27ce66d374b7d4e154e3b975109315b32e895f",
+  "prepared_against": "6b6af16159b9d3f7abbf3c3831b21f876ffb203b",
+  "private_lineage_handle": "pln_e822424d30621c4554cfdb7835d95ffe",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "408fc1a359530b457ee7cb8d93bd0eff95a656e6ede367f7bd3ac170ec41fab0",
+    "updated_at": "2026-10-31T11:27:53Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-950/T1"
+}

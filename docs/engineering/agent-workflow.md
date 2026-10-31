@@ -75,12 +75,14 @@ A direct deterministic or bounded-evidence handoff is one executable child.
 One child finishes through its normal managed PR and exact merge; two or more
 children use shared integration only when joint delivery is required. After
 every mandatory child is delivered, terminal reconciliation marks the parent
-Project card `Done` and closes its Issue. The operation is idempotent for older
-delivered Requirements:
-`python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
+Project card `Done` and closes its Issue. With the coordinator queue only the
+post-merge retrospective and terminal-reconciliation jobs do this, and `advance`
+reports `await-post-merge`; the idempotent
+`python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`
+is a coordinator recovery command.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
-Before terminal publication, run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the whole Requirement path including successful overrides, manual workarounds and state changes, known issue recurrences, and material drift in other owners' state, and record its
+Without the coordinator queue, before terminal publication run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the whole Requirement path including successful overrides, manual workarounds and state changes, known issue recurrences, and material drift in other owners' state, and record its
 bounded parent retrospective through `scripts/requirement_retrospective.py`.
 Use `--result none` only after checking accepted intent, pre-authoring,
 decomposition, child interaction and delivery and finding no new meaningful

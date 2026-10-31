@@ -85,6 +85,10 @@ def validate_marker(record: dict) -> None:
         raise ValueError("invalid operator provider switch")
     if "next_job" not in record or (record["next_job"] is not None and not isinstance(record["next_job"], (str, dict))):
         raise ValueError("invalid next job")
+    if isinstance(record["next_job"], dict) and "phase" in record["next_job"]:
+        # BR-950 removed the pre-merge composition retrospective; such a job is never derived as work.
+        raise ValueError(f"PR #{record['number']} carries a removed pre-merge retrospective job; the post-merge jobs "
+                         "record the Requirement retrospective, so re-offer finalization or recover the candidate")
     try:
         if datetime.fromisoformat(record["at"].replace("Z", "+00:00")).tzinfo is None:
             raise ValueError("timestamp needs timezone")
@@ -555,31 +559,6 @@ def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] =
                 and outcome != "validated-push" and not outcome.startswith(("discarded", "released"))):
             outcomes.setdefault(str(receipt.get("job")), []).append(outcome)
     return outcomes
-
-
-def premerge_retrospective_attempt(number: int, head: str, comments: list[dict],
-                                   trusted_apps: frozenset[str] = frozenset(),
-                                   trusted_writers: frozenset[str] = frozenset()) -> int:
-    """The attempt to offer for the exact-head pre-merge Requirement retrospective.
-
-    Same bounded rule as a post-merge obligation: an attempt without a trusted result is offered
-    (again); one whose last outcome starts with ``failed`` or ``blocked`` moves to the next attempt,
-    up to ``MAX_POST_MERGE_ATTEMPTS``. Exhaustion, or a completed attempt the caller still needs,
-    is an explicit error naming the operator action.
-    """
-    from lifecycle_workers import job_id
-
-    outcomes = job_outcomes(head, comments, trusted_apps, trusted_writers)
-    for attempt in range(MAX_POST_MERGE_ATTEMPTS):
-        job = {"number": number, "kind": "retrospective", "head": head, "attempt": attempt, "phase": "pre-merge"}
-        seen = outcomes.get(job_id(job))
-        if not seen:
-            return attempt
-        if not seen[-1].startswith(("failed", "blocked")):
-            raise ValueError(f"pre-merge retrospective {job_id(job)} completed with {seen[-1]!r} but the candidate "
-                             "has no current retrospective gate; inspect its result and the candidate record")
-    raise ValueError(f"pre-merge retrospective of PR #{number} at {head} exhausted {MAX_POST_MERGE_ATTEMPTS} "
-                     "attempts; operator action required")
 
 
 def exhausted_reason(kind: str) -> str:
