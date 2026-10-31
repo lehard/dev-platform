@@ -26,8 +26,18 @@ Independent-Review-Evidence: independent-review-request.json
   - "Integration changed own content" by the own-edit and return-to-review tests;
   - "No trusted record" by the `main_only_reason` test.
 
+## Independent review
+
+- Material `in-repo-receipt-not-rebound` was rejected with a recorded disposition. On the integration-repair path a proven main-only candidate goes to ready and merges. The in-repo receipt checks run only for active-change archive readiness, developer handoff and composition. The in-repo receipt cannot carry the trusted old head, so it is not rebound.
+- Kept advisories:
+  - the end-to-end wiring is covered piecewise: the proof on a real repository, and the contour with the proof mocked;
+  - the queue's derived merge keeps its existing coordinator-update gate carry-over and does not use this proof;
+  - differences in declared generated files are excluded by design, because their content is checked by their own `--check`;
+  - the reset reason goes to the worker log.
+
 ## Not verified / limits
 
 - No live hosted integration repair run; the contour tests use the queue fixture.
 - The derived merge in the queue's `_prepare` keeps its existing gate handling. This change covers the integration-repair path, which reset the receipts of #836 and #837.
 - The reset reason goes to the worker log, not to a PR record.
+- Requirement composition still checks each archived child's in-repo receipt with `equivalent_proofs`. A main merge into a Requirement branch that touches a child's task path is outside this slice.

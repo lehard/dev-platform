@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
+    "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
+  },
+  "change": "openspec/changes/receipt-main-only-integration",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/receipt-main-only-integration/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/receipt-main-only-integration/design.md",
+        "openspec/changes/receipt-main-only-integration/proposal.md",
+        "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md",
+        "openspec/changes/receipt-main-only-integration/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/receipt-main-only-integration/proposal.md",
+        "openspec/changes/receipt-main-only-integration/design.md",
+        "openspec/changes/receipt-main-only-integration/tasks.md",
+        "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T23:50:17+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/receipt-main-only-integration/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "digest": "746cc622162167d37449bab0c9daaf3092686058ea522f82cf7ea4ffd10b62c8",
+    "paths": {
+      "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+      "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/receipt-main-only-integration/design.md": "4f5c7fc2f7fa62c1d0ed9766852f298c69d29ce5",
+      "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+      "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+      "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+      "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+      "template/scripts/task_content_identity.py": "e7df15cce3e992ca5ce778de8a96254f4691aaa9",
+      "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+      "tests/test_task_content_identity.py": "1f2188dccdda6e4c8095f665827a5af22574479e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

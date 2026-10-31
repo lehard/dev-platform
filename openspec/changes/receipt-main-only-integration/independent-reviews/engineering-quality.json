@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
+    "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
+  },
+  "completed_at": "2026-10-31T23:51:24+00:00",
+  "findings": [
+    {
+      "evidence": "tests/test_autonomous_integration_contour.py patches `contour.main_only_reason` in both advance tests. `test_main_only_reason_needs_a_trusted_gated_head` only covers the two early-return reasons. The real `generated_files` call and the choice of `harness or root` for the Git objects are not tested. A wrong repository (the root checkout versus the harness checkout) or a failing declaration read would only show up in production.",
+      "id": "main-only-reason-wiring-untested",
+      "severity": "advisory",
+      "summary": "The wiring from `advance_after_repair` into `main_only_reason`, and from there into `generated_files(root, \"HEAD\")` and `main_only_integration`, is never run end to end. Tests only cover each piece in isolation."
+    }
+  ],
+  "launched_at": "2026-10-31T23:51:04+00:00",
+  "output_sha256": "8cd9df5fe1c447fa499449047f9c6c283addb69f19edc486488fe84e7fd78781",
+  "perspective": "engineering-quality",
+  "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+  "reviewer": {
+    "context_id": "f2d71500-2605-457d-963e-dba2db074a46",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3b439e79-adc6-4843-9653-d7621f5b89f9",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21411
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21179
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15556
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16551
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1623
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "746cc622162167d37449bab0c9daaf3092686058ea522f82cf7ea4ffd10b62c8"
+}

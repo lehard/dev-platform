@@ -1,0 +1,14 @@
+{
+  "dispositions": [
+    {
+      "finding": "in-repo-receipt-not-rebound",
+      "perspective": "spec-fidelity",
+      "rationale": "On the integration-repair path a proven main-only candidate moves to ready and merges without finalize or archive: _require_finalized only refuses still-active completed changes, and the in-repo receipt checks (archive_content_problems, require_automated_evidence) run only for active-change archive readiness, developer handoff and composition, never for an archived ready candidate. A later finalize or handoff follows a content change that needs fresh evidence anyway. The in-repo receipt cannot carry the trusted old head the proof requires, so rebinding it would trust candidate files.",
+      "recorded_at": "2026-10-31T23:52:30+00:00",
+      "report_sha256": "6d4a4d6134528159b64b10de2510ee84db25a38169cdd7159aabda62f616796b",
+      "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+      "status": "rejected"
+    }
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,100 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
+    "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
+  },
+  "completed_at": "2026-10-31T23:51:04+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/openspec_lifecycle.py:197-201 and :273-277 (`recorded_content_is_current`) check `gate_task_content` in automated-checks.json against `review_content_identity` with `equivalent_proofs`. `equivalent_proofs` fails when main changed a task path between the bases, which is the BR-969 scenario 'Main touched a task path'. `execute_finalize` runs the archiver, which calls `archive_content_problems` and `require_automated_evidence`, so finalize can still reject the receipt. The diff touches only integration_contour.py and task_content_identity.py. No test exercises finalize or archive after a main-only merge. The tests mock `main_only_reason` and `return_to_review`.",
+      "id": "in-repo-receipt-not-rebound",
+      "severity": "material",
+      "summary": "The spec says the developer receipt and its gates stay valid after a main-only integration. The candidate rebinds only the queue gate identities. The committed receipt evidence is still checked with strict equivalent_proofs against the current content, and the candidate does not change that check."
+    },
+    {
+      "evidence": "spec.md line 5: 'After an integration repair or derived merge'. The diff changes only `advance_after_repair` and its caller `run_claimed_integration_repair`. The other `equivalent_proofs` callers are unchanged: post_review_finalization.py:229/267/583, pr_review_gate.py:93 and requirement_composition.py:380/409. design.md and proposal.md mention only integration repair.",
+      "id": "derived-merge-path-not-covered",
+      "severity": "advisory",
+      "summary": "The spec requirement covers 'an integration repair or derived merge', but only `advance_after_repair` (integration repair) uses the new proof."
+    },
+    {
+      "evidence": "task_content_identity.py:252: `differing = {path ...} - generated`. The new head may carry any content in a generated path and still count as proven. design.md defers this to the generated file's own `--check`, but nothing in the candidate enforces that check at this point. The spec says only that the tree equals the merge, 'conflicting only in generated files'.",
+      "id": "generated-diff-unconstrained",
+      "severity": "advisory",
+      "summary": "The proof ignores all differences in declared generated files between the new head and the merge, even when the merge did not conflict there. The spec's 'byte for byte' wording is therefore not literal for those files."
+    },
+    {
+      "evidence": "integration_contour.py:182 prints to `sys.stderr`. The `return_to_review` path passes no reason to the queue record. The 'No trusted record' scenario is tested only at the `main_only_reason` return value, not as a queue-visible reset.",
+      "id": "reset-reason-only-logged",
+      "severity": "advisory",
+      "summary": "The spec says a missing or malformed trusted record resets the receipt with a reason. The reason is only printed to the worker's stderr, and the transition records no reason."
+    }
+  ],
+  "launched_at": "2026-10-31T23:50:25+00:00",
+  "output_sha256": "c39415978c4b1b708f5effbf1907dab99a01601706c8dd3b57835a70d90bbac9",
+  "perspective": "spec-fidelity",
+  "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+  "reviewer": {
+    "context_id": "da911620-a5e7-41ed-a7a1-d740dc55c0eb",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ef83b497-9161-4d92-821c-384693575126",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35047
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 149484
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33056
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36262
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3755
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "746cc622162167d37449bab0c9daaf3092686058ea522f82cf7ea4ffd10b62c8"
+}
