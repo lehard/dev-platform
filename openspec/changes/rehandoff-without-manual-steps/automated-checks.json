@@ -1,0 +1,140 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 2.716,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 3.002,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.321,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.28,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 2706.498,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/agent_board.py",
+        "template/scripts/finish_task.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/worktree_cleanup.py",
+        "tests/test_finish_merged_queue.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_rehandoff_board.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_fe452c1fe34086d1f6443476cb6e886c",
+    "change": "rehandoff-without-manual-steps",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/rehandoff-without-manual-steps",
+    "branch": "agent/br-965-t1-rehandoff-without-manual-steps",
+    "head": "29b26abd490bf36bd0af71272d84c31e54848cae",
+    "task_content": {
+      "version": 1,
+      "digest": "6099a378b4bc4118b8dbcfde2dc21074ecbb4b99c719afe6b2d4e6172f3bf882",
+      "paths": {
+        "dev-platform/checks.toml": "327c75660bcebd8a61a3a21623410b84363da388",
+        "docs/engineering/agent-workflow.md": "bfc2eb863f5858c57c90f8c7a99912815f924020",
+        "openspec/changes/rehandoff-without-manual-steps/.managed-task.json": "590e2672d863a8069528b391994cd519dc3d801e",
+        "openspec/changes/rehandoff-without-manual-steps/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/rehandoff-without-manual-steps/design.md": "e2ad953a3cce57f73e9acb0de1e1c95c800589f9",
+        "openspec/changes/rehandoff-without-manual-steps/independent-review-request.json": "dcd8743193ee0d9855fcc2f52542e6377fe6c071",
+        "openspec/changes/rehandoff-without-manual-steps/independent-reviews/engineering-quality.json": "871f013a9d550d16fd47ff6eb7959bb05fa54e15",
+        "openspec/changes/rehandoff-without-manual-steps/independent-reviews/spec-fidelity.json": "871164a4b68ca679890e21d1d231488f289faebf",
+        "openspec/changes/rehandoff-without-manual-steps/proposal.md": "a4c3d1aa8d40cb01810a4dc677118dd58604f238",
+        "openspec/changes/rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md": "ea7a1635e13bd75b090efe32e9b885351cb9a007",
+        "openspec/changes/rehandoff-without-manual-steps/specs/worktree-coordination/spec.md": "cd2bcc48008d9f7aed0eceef42291e78b3875e5a",
+        "openspec/changes/rehandoff-without-manual-steps/tasks.md": "e82a6fa3d0df61b2205097cae49a5da6bd0b49fe",
+        "openspec/changes/rehandoff-without-manual-steps/verification.md": "e69748d7b12a5d1dbea8e02eb1b5e31e20527f81",
+        "template/dev-platform/platform-manifest.json": "aaf1e017e9fb9be5811b49fe9fe7800c47dbd751",
+        "template/scripts/agent_board.py": "0f2a9292b98e96253502302f4ba25b28d5daaaba",
+        "template/scripts/finish_task.py": "9df45dbc9bb8ee1ef567bfd9e05e71bc4e4ac869",
+        "template/scripts/pr_review_gate.py": "a5bc5df25508c9db75af34558d68363d33cdbd34",
+        "template/scripts/worktree_cleanup.py": "77085d3c6651de95b9243e00e70ea0a84b7361c7",
+        "tests/test_finish_merged_queue.py": "e5eacd7252a4693f5a53c34527aa63dafca431d4",
+        "tests/test_pr_review_gate.py": "ecdb9799582c347c7905e1c25126ea10fedee0a8",
+        "tests/test_rehandoff_board.py": "d488fc9647597e7fc1a7ce89bf1c6232c9587e42"
+      },
+      "base": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "1325236b3dbf96301f29e8349c75fc1c7b58d94a8a8a506bd74a87b17455e9aa",
+    "paths": {
+      "dev-platform/checks.toml": "327c75660bcebd8a61a3a21623410b84363da388",
+      "docs/engineering/agent-workflow.md": "bfc2eb863f5858c57c90f8c7a99912815f924020",
+      "openspec/changes/rehandoff-without-manual-steps/.managed-task.json": "590e2672d863a8069528b391994cd519dc3d801e",
+      "openspec/changes/rehandoff-without-manual-steps/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/rehandoff-without-manual-steps/design.md": "e2ad953a3cce57f73e9acb0de1e1c95c800589f9",
+      "openspec/changes/rehandoff-without-manual-steps/proposal.md": "a4c3d1aa8d40cb01810a4dc677118dd58604f238",
+      "openspec/changes/rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md": "ea7a1635e13bd75b090efe32e9b885351cb9a007",
+      "openspec/changes/rehandoff-without-manual-steps/specs/worktree-coordination/spec.md": "cd2bcc48008d9f7aed0eceef42291e78b3875e5a",
+      "openspec/changes/rehandoff-without-manual-steps/tasks.md": "e82a6fa3d0df61b2205097cae49a5da6bd0b49fe",
+      "template/scripts/agent_board.py": "0f2a9292b98e96253502302f4ba25b28d5daaaba",
+      "template/scripts/finish_task.py": "9df45dbc9bb8ee1ef567bfd9e05e71bc4e4ac869",
+      "template/scripts/pr_review_gate.py": "a5bc5df25508c9db75af34558d68363d33cdbd34",
+      "template/scripts/worktree_cleanup.py": "77085d3c6651de95b9243e00e70ea0a84b7361c7",
+      "tests/test_finish_merged_queue.py": "e5eacd7252a4693f5a53c34527aa63dafca431d4",
+      "tests/test_pr_review_gate.py": "ecdb9799582c347c7905e1c25126ea10fedee0a8",
+      "tests/test_rehandoff_board.py": "d488fc9647597e7fc1a7ce89bf1c6232c9587e42"
+    },
+    "base": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_board.py --changed-file template/scripts/finish_task.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/worktree_cleanup.py --changed-file tests/test_finish_merged_queue.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_rehandoff_board.py",
+    "duration_seconds": 603.436,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
