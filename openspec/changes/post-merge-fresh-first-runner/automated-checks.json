@@ -1,0 +1,137 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.949,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.895,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.132,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.151,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1417.336,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "scripts/post_merge_runner.py",
+        "template/scripts/github_read_cache.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/requirement_composition.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_github_read_cache.py",
+        "tests/test_post_merge_runner.py",
+        "tests/test_requirement_contribution_composition.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6fb0b329e12c82529ab11db34d1b6739",
+    "change": "post-merge-fresh-first-runner",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/post-merge-fresh-first-runner",
+    "branch": "agent/br-939-t1-post-merge-fresh-first-runner",
+    "head": "f247d38757f530b56b2d89969cf4aa8d8ecb8a6a",
+    "task_content": {
+      "version": 1,
+      "digest": "8521edbd6bbb46692a6890396717dda7d4ff4be2047698534b5c47ba4bb8dcec",
+      "paths": {
+        "docs/engineering/hosted-lifecycle-workers.md": "e79f0dbe96cccacde26a3ad93210b0994c601b60",
+        "openspec/changes/post-merge-fresh-first-runner/.managed-task.json": "aadfe78aedcba4b62facf0a276f61ca51c10d7a3",
+        "openspec/changes/post-merge-fresh-first-runner/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/post-merge-fresh-first-runner/design.md": "04c65bc251cf883db7d1765308099e7a2173f95f",
+        "openspec/changes/post-merge-fresh-first-runner/proposal.md": "cb819c8a41f82b938e4b90a7f1dfbfcebd94c0f7",
+        "openspec/changes/post-merge-fresh-first-runner/specs/lifecycle-workers/spec.md": "b94adcd22aafa1f43dbef2af385c3a026dfd7254",
+        "openspec/changes/post-merge-fresh-first-runner/tasks.md": "9efc26d70cb480e33daf92ab351bd16c4a738f9d",
+        "scripts/post_merge_runner.py": "616b82231c22fe510f624efbe4934b8e47e1fabc",
+        "template/dev-platform/platform-manifest.json": "530d888bf21e62f2faa29aa6a016d109db80d7f9",
+        "template/scripts/github_read_cache.py": "62190ed071df2577dd7f08315234748db9744f27",
+        "template/scripts/integration_contour.py": "d64e681698d725b71496be5965e6f58d80070dc2",
+        "template/scripts/lifecycle_workers.py": "61074122750d5aec7a2c768ec2fd5761c9a8b766",
+        "template/scripts/requirement_composition.py": "c82420b85daf57de2b987f331e56b9832ee301d8",
+        "tests/test_autonomous_integration_contour.py": "e1ff02c0e2b6ae969099e6c6dd2b91a690b2d353",
+        "tests/test_github_read_cache.py": "de06eb95a831e46a75bdf72a00209ab43e301fbe",
+        "tests/test_post_merge_runner.py": "00296b6494c190dc267f34bd1c35f1809afdd174",
+        "tests/test_requirement_contribution_composition.py": "52c31e29059e5b81c5c3c954d734915271382b10"
+      },
+      "base": "63681ebd42c1407b4968031f39480db74dd3cffd"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "9d9a2894fae4ae48a3966243ac1ea105bdd62f2a92a4af046de5d0cb89f73849",
+    "paths": {
+      "docs/engineering/hosted-lifecycle-workers.md": "e79f0dbe96cccacde26a3ad93210b0994c601b60",
+      "openspec/changes/post-merge-fresh-first-runner/.managed-task.json": "aadfe78aedcba4b62facf0a276f61ca51c10d7a3",
+      "openspec/changes/post-merge-fresh-first-runner/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/post-merge-fresh-first-runner/design.md": "04c65bc251cf883db7d1765308099e7a2173f95f",
+      "openspec/changes/post-merge-fresh-first-runner/proposal.md": "cb819c8a41f82b938e4b90a7f1dfbfcebd94c0f7",
+      "openspec/changes/post-merge-fresh-first-runner/specs/lifecycle-workers/spec.md": "b94adcd22aafa1f43dbef2af385c3a026dfd7254",
+      "openspec/changes/post-merge-fresh-first-runner/tasks.md": "9efc26d70cb480e33daf92ab351bd16c4a738f9d",
+      "scripts/post_merge_runner.py": "616b82231c22fe510f624efbe4934b8e47e1fabc",
+      "template/scripts/github_read_cache.py": "62190ed071df2577dd7f08315234748db9744f27",
+      "template/scripts/integration_contour.py": "d64e681698d725b71496be5965e6f58d80070dc2",
+      "template/scripts/lifecycle_workers.py": "61074122750d5aec7a2c768ec2fd5761c9a8b766",
+      "template/scripts/requirement_composition.py": "c82420b85daf57de2b987f331e56b9832ee301d8",
+      "tests/test_autonomous_integration_contour.py": "e1ff02c0e2b6ae969099e6c6dd2b91a690b2d353",
+      "tests/test_github_read_cache.py": "de06eb95a831e46a75bdf72a00209ab43e301fbe",
+      "tests/test_post_merge_runner.py": "00296b6494c190dc267f34bd1c35f1809afdd174",
+      "tests/test_requirement_contribution_composition.py": "52c31e29059e5b81c5c3c954d734915271382b10"
+    },
+    "base": "63681ebd42c1407b4968031f39480db74dd3cffd",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/post_merge_runner.py --changed-file template/scripts/github_read_cache.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/requirement_composition.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_github_read_cache.py --changed-file tests/test_post_merge_runner.py --changed-file tests/test_requirement_contribution_composition.py",
+    "duration_seconds": 188.713,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
