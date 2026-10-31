@@ -149,6 +149,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     'model_routing.py:prepare_sandboxed_checkout:copy2': 1,
     'platform_bootstrap.py:ensure_project_context_map:write_text': 1,
     'platform_bootstrap.py:initialize_openspec:write_text': 1,
+    'platform_bootstrap.py:remove_shipped_deepseek_section:write_text': 1,
     'platform_bootstrap.py:sync_operator_integration:write_text': 1,
     'platform_bootstrap.py:sync_platform_version:write_text': 1,
     'repository_goal_scan.py:_write:write_text': 1,
