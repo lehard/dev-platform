@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "base_ref": "origin/main",
+    "candidate_head": "00ee8d48d79f0eb0e621ef22aa6f90ea3a4fc303",
+    "diff_sha256": "d007e17d493e7f6ff13c0b69005f2b3241e7b8b741ba64360f112214aebfe0d9"
+  },
+  "completed_at": "2026-10-31T10:02:10+00:00",
+  "findings": [
+    {
+      "evidence": "The candidate edits the freshness-check paragraph (diff line 49) to say omitting `--tier` confirms the authored tier. It leaves the next sentence unchanged: \"Passing `--profile` explicitly still works exactly as before (useful for a legacy package with no receipt, or for a deliberate override)\". `_RemovedProfile` makes `route-claude --profile` and `route-codex --profile` exit with a parser error. The spec requirement says \"`--profile` SHALL be refused ... Source docs and hints SHALL name only R1/R2/R3 for these commands.\"",
+      "id": "model-routing-doc-says-profile-still-works",
+      "severity": "material",
+      "summary": "docs/engineering/model-routing.md still tells readers that `--profile` works on the route commands. The new requirement says `--profile` is refused and that source docs name only R1/R2/R3 for these commands."
+    },
+    {
+      "evidence": "The text after the codex example (diff line 62) reads \"`routine` and `standard` (... passed explicitly) immediately launch ... while `complex` (derived from `R3`, or passed explicitly) records the route\". The claude paragraph (diff line 71) reads \"`complex` (derived from `R3`, or passed explicitly)\". Both are about the route commands, which now take only tiers.",
+      "id": "model-routing-doc-profile-names-remain",
+      "severity": "advisory",
+      "summary": "The model-routing.md prose around the route commands still uses the profile names routine/standard/complex as if they were the operator-facing vocabulary. This leaves the dual naming the change was meant to remove."
+    }
+  ],
+  "launched_at": "2026-10-31T10:01:57+00:00",
+  "output_sha256": "29efb3b7cecb92de70ed36d831438e87424b03e3974b8361e18aa359c9330441",
+  "perspective": "spec-fidelity",
+  "request_id": "e89f5066-a6be-4e01-a94b-9907dd964f7b",
+  "reviewer": {
+    "context_id": "0970e39e-a577-43d4-a2e7-6d645ab67e64",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e7230ca8-7547-49d0-b472-9211ffe6e0bc",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24689
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42047
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11703
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11860
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1256
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "543f73dc6cbc6db96a38457aedea6ce36c58570d076d85ba8acb282ecb770261"
+}
