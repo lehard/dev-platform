@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -567,6 +568,83 @@ def parse_documented(command: str) -> None:
     index = next(i for i, token in enumerate(tokens) if token.endswith(SCRIPT_NAME))
     with contextlib.redirect_stderr(io.StringIO()):
         orch.build_parser().parse_args(tokens[index + 1:])
+
+
+class CheckBundleTests(unittest.TestCase):
+    """BR-944: an optional early check of authored bundles with the validation advance uses."""
+
+    REQUIREMENT_ID = "requirement-7"
+
+    def setUp(self) -> None:
+        self.tmp = init_repo()
+        self.root = Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+        requirement = self.root / "requirement.md"
+        requirement.write_text("Correct a typo in billing.\n", encoding="utf-8")
+        self.base_dir = self.root / ".claude" / "pre-authoring"
+        orch.init(self.root, requirement_id=self.REQUIREMENT_ID, requirement_file=requirement,
+                  target_repository="acme/billing", base_dir=self.base_dir)
+
+    def _complete(self) -> Path:
+        orch.select_depth(self.root, requirement_id=self.REQUIREMENT_ID, depth=orch.DEPTH_DETERMINISTIC,
+                          reason="Mechanical correction", base_dir=self.base_dir)
+        bundle = orch.requirement_dir(self.base_dir, self.REQUIREMENT_ID) / "bundles" / "direct"
+        (bundle / "specs" / "billing").mkdir(parents=True)
+        (bundle / "manifest.json").write_text(json.dumps(
+            {"title": "Fix typo", "change": "fix-typo", "handoff": "direct",
+             "artifacts": ["proposal.md", "specs/billing/spec.md"]}), encoding="utf-8")
+        (bundle / "issue.md").write_text("Fix a typo.\n", encoding="utf-8")
+        (bundle / "proposal.md").write_text("## Why\nTypo.\n", encoding="utf-8")
+        (bundle / "specs" / "billing" / "spec.md").write_text("## MODIFIED Requirements\n", encoding="utf-8")
+        return bundle
+
+    def _check(self) -> list[dict]:
+        return orch.check_bundles(self.root, requirement_id=self.REQUIREMENT_ID, base_dir=self.base_dir)
+
+    def test_status_names_the_optional_command_only_when_complete(self) -> None:
+        before = orch.status(self.root, requirement_id=self.REQUIREMENT_ID, base_dir=self.base_dir)
+        self.assertNotIn("bundle_check", before)
+        self._complete()
+        after = orch.status(self.root, requirement_id=self.REQUIREMENT_ID, base_dir=self.base_dir)
+        self.assertEqual(after["current_stage"], "complete")
+        self.assertIn(f"--id {self.REQUIREMENT_ID} check-bundle", after["bundle_check"])
+
+    def test_check_before_complete_pre_authoring_fails_naming_the_stage(self) -> None:
+        with self.assertRaisesRegex(orch.OrchestratorError, "current stage is selection"):
+            self._check()
+
+    def test_a_valid_bundle_is_reported_valid_with_the_validation_advance_uses(self) -> None:
+        import managed_task
+
+        self._complete()
+        with mock.patch.object(managed_task, "target_main", return_value="a" * 40), \
+                mock.patch.object(managed_task, "validate_authoring_bundle") as validate:
+            results = self._check()
+        self.assertEqual([(r["handoff"], r["change"], r["state"]) for r in results], [("direct", "fix-typo", "valid")])
+        root, bundle, target, prepared = validate.call_args.args
+        self.assertEqual((root, bundle.change, target, prepared), (self.root, "fix-typo", "acme/billing", "a" * 40))
+
+    def test_a_bundle_that_drops_a_modified_scenario_is_rejected_with_the_openspec_message(self) -> None:
+        import managed_task
+
+        self._complete()
+        message = ('openspec validate failed: MODIFIED "Invoice totals" omits scenario(s) the current spec '
+                   'still has: "Rounded total"')
+        with mock.patch.object(managed_task, "target_main", return_value="a" * 40), \
+                mock.patch.object(managed_task, "validate_authoring_bundle", side_effect=managed_task.ManagedTaskError(message)):
+            with self.assertRaisesRegex(orch.OrchestratorError, r'handoff direct is invalid: .*"Invoice totals".*"Rounded total"'):
+                self._check()
+
+    def test_a_missing_bundle_fails_explicitly(self) -> None:
+        import managed_task
+
+        bundle = self._complete()
+        for path in sorted(bundle.rglob("*"), reverse=True):
+            path.unlink() if path.is_file() else path.rmdir()
+        bundle.rmdir()
+        with mock.patch.object(managed_task, "target_main", return_value="a" * 40):
+            with self.assertRaisesRegex(orch.OrchestratorError, "authored bundle is unavailable for handoff direct"):
+                self._check()
 
 
 class DocumentedCommandTests(unittest.TestCase):
