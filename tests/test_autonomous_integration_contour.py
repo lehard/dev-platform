@@ -864,20 +864,20 @@ class IntegrationRepairTests(RepairFixture):
                          ["other.py", "src.py"])
 
 
-def merged_pr(head=HEAD):
-    return {"number": 7, "state": "closed", "merged": True, "head": {"sha": head}}
+def merged_pr(head=HEAD, number=7, merged_at="2026-10-30T10:00:00Z"):
+    return {"number": number, "state": "closed", "merged": True, "merged_at": merged_at, "head": {"sha": head}}
 
 
-def record(state, *, attempts=None, head=HEAD, identity=None):
+def record(state, *, attempts=None, head=HEAD, identity=None, number=7):
     body = lifecycle.marker_body(lifecycle.build_handoff_record(
-        number=7, state=state, head=head, task_identity=identity or {"branch": "agent/br-7-t8-task", "head": head},
+        number=number, state=state, head=head, task_identity=identity or {"branch": "agent/br-7-t8-task", "head": head},
         gates={}, red_gate=None, not_reverified=[], attempts=attempts or {}, next_job=None,
         at="2026-10-06T00:00:00+00:00"))
     return {"id": 1, "author_association": "OWNER", "body": body}
 
 
-def receipt(job_kind, attempt, outcome, row_id, head=HEAD):
-    job = {"number": 7, "kind": job_kind, "head": head, "attempt": attempt}
+def receipt(job_kind, attempt, outcome, row_id, head=HEAD, number=7):
+    job = {"number": number, "kind": job_kind, "head": head, "attempt": attempt}
     return {"id": row_id, "author_association": "OWNER", "body": workers.result_body(job, "w", outcome)}
 
 
@@ -979,12 +979,12 @@ class CandidateDiscoveryTests(unittest.TestCase):
             if "state=open" in path:
                 return [{"number": 1, "state": "open"}]
             if "pulls?state=closed" in path:
-                return [{"number": n, "state": "closed", "merged_at": "t"} for n in window]
+                return [{"number": n, "state": "closed", "merged_at": "2026-10-30T10:00:00Z", "labels": []} for n in window]
             if "issues?state=closed" in path:
                 return list(labeled)
             number = int(path.rsplit("/", 1)[1])
             return {"number": number, "state": "closed" if number != 1 else "open", "merged": number != 1,
-                    "head": {"sha": HEAD}}
+                    "merged_at": None if number == 1 else "2026-10-29T10:00:00Z", "head": {"sha": HEAD}}
         return read, calls
 
     def test_labeled_merged_pr_outside_the_window_is_a_candidate(self):
@@ -1020,6 +1020,91 @@ class CandidateDiscoveryTests(unittest.TestCase):
         self.assertEqual([c[-1] for c in calls], ["repos/o/r/pulls/1", "repos/o/r/pulls/681"])
         self.assertEqual([pr["number"] for pr in workers.candidate_prs(
             "o/r", include_merged=False, only_prs=frozenset({681, 1}), gh_json=read)], [1])
+
+    def test_settled_pr_in_the_recent_page_is_not_a_candidate(self):
+        read, calls = self.reader(window=(900, 901))
+        settled = lambda *args: [{**pr, "labels": [{"name": workers.SETTLED_LABEL}] if pr["number"] == 901 else []}
+                                 for pr in read(*args)] if "pulls?state=closed" in args[-1] else read(*args)
+        found = workers.candidate_prs("o/r", include_merged=True, gh_json=settled)
+        self.assertEqual([pr["number"] for pr in found], [1, 900])
+
+    def test_lazy_listing_returns_unread_stubs_for_the_label_tail(self):
+        labeled = [{"number": 678, "pull_request": {"merged_at": "2026-10-01T10:00:00Z"},
+                    "labels": [{"name": workers.MERGED_LABEL}]}]
+        read, calls = self.reader(labeled=labeled)
+        found = workers.candidate_prs("o/r", include_merged=True, gh_json=read, lazy=True)
+        self.assertEqual(found[-1], {"number": 678, "state": "closed", "merged": True, "unread": True,
+                                     "labels": [{"name": workers.MERGED_LABEL}], "merged_at": "2026-10-01T10:00:00Z"})
+        self.assertFalse([c for c in calls if c[-1].startswith("repos/o/r/pulls/")])
+        self.assertEqual(workers.resolve_candidate("o/r", found[-1], gh_json=read)["head"]["sha"], HEAD)
+
+
+class FreshFirstSelectionTests(unittest.TestCase):
+    """BR-939: a fresh merged PR is served before the historical tail, reading only what it needs."""
+
+    KINDS = frozenset({"retrospective", "terminal-reconciliation", "cleanup"})
+
+    def run_next(self, prs, *, resolve=None, settle=None, kinds=KINDS):
+        read = []
+        result = workers.work_next(
+            kinds, list_prs=lambda: prs,
+            comments_for=lambda n: read.append(n) or [record("merged", attempts={"post-merge": 1}, number=n)],
+            post_comment=lambda n, body: self.fail("dry run claims nothing"), worker="w", dry_run=True,
+            settle=settle, resolve_pr=resolve, trusted_apps=frozenset(), trusted_writers=frozenset())
+        return result, read
+
+    def test_newest_merge_is_offered_first_without_reading_older_prs(self):
+        old = [merged_pr(number=n, merged_at=f"2026-10-0{n % 9 + 1}T10:00:00Z") for n in range(324, 330)]
+        fresh = merged_pr(number=808, merged_at="2026-10-30T12:00:00Z")
+        result, read = self.run_next([*old, fresh])
+        self.assertEqual((result["status"], result["job"]["number"], read), ("dry-run", 808, [808]))
+
+    def test_merge_time_not_number_decides(self):
+        late = merged_pr(number=700, merged_at="2026-10-31T09:00:00Z")
+        result, read = self.run_next([merged_pr(number=810, merged_at="2026-10-30T09:00:00Z"), late])
+        self.assertEqual((result["job"]["number"], read), (700, [700]))
+
+    def test_open_pr_comes_before_merged(self):
+        opened = {"number": 950, "state": "open", "head": {"sha": HEAD}}
+        _, read = self.run_next([merged_pr(number=808, merged_at="2026-10-30T12:00:00Z"), opened])
+        self.assertEqual(read[0], 950)
+
+    def test_unread_stub_is_resolved_only_when_reached(self):
+        resolved = []
+        stub = {"number": 400, "state": "closed", "merged": True, "unread": True, "labels": [],
+                "merged_at": "2026-10-01T10:00:00Z"}
+        fresh = merged_pr(number=808, merged_at="2026-10-30T12:00:00Z")
+        result, _ = self.run_next([stub, fresh], resolve=lambda pr: resolved.append(pr["number"]) or merged_pr(number=400))
+        self.assertEqual((result["job"]["number"], resolved), (808, []))
+        _, read = self.run_next([stub], resolve=lambda pr: resolved.append(pr["number"]) or merged_pr(number=400))
+        self.assertEqual((resolved, read), ([400], [400]))
+
+    def test_unread_stub_without_resolver_is_skipped_and_named(self):
+        stub = {"number": 400, "state": "closed", "merged": True, "unread": True, "merged_at": "2026-10-01T10:00:00Z"}
+        with self.assertRaisesRegex(workers.WorkerError, "PR #400.*no resolve_pr"):
+            self.run_next([stub])
+
+    def test_idle_run_derives_and_settles_every_candidate(self):
+        def done(n):
+            return [record("merged", attempts={"post-merge": 1}, number=n),
+                    receipt("retrospective", 0, "task-recorded", 2, number=n),
+                    receipt("terminal-reconciliation", 0, "ok", 3, number=n), receipt("cleanup", 0, "cleaned", 4, number=n)]
+        settled, read = [], []
+        result = workers.work_next(
+            self.KINDS, list_prs=lambda: [merged_pr(number=n, merged_at=f"2026-10-2{n}T10:00:00Z") for n in (1, 2, 3)],
+            comments_for=lambda n: read.append(n) or done(n),
+            post_comment=lambda n, body: None, worker="w", settle=settled.append,
+            trusted_apps=frozenset(), trusted_writers=frozenset())
+        self.assertEqual((result["status"], read, settled), ("idle", [3, 2, 1], [3, 2, 1]))
+
+    def test_merged_pr_without_merged_at_fails_the_run(self):
+        with self.assertRaisesRegex(workers.WorkerError, "PR #7 has no readable merged_at"):
+            self.run_next([{**merged_pr(), "merged_at": None}])
+
+    def test_other_kinds_keep_ascending_order(self):
+        order = workers.offer_order(frozenset({"review"}))
+        prs = [{"number": 9, "state": "open"}, {"number": 3, "state": "open"}]
+        self.assertEqual([pr["number"] for pr in sorted(prs, key=order)], [3, 9])
 
 
 LIFECYCLE_START = "2000-01-01T00:00:00+00:00"

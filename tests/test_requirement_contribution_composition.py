@@ -796,6 +796,17 @@ class CompositionTests(unittest.TestCase):
         with self.assertRaises(contributions.ContributionError):
             composition.reconcile_composition(Path("/unused"), "acme/project", {}, "a" * 40, 1, adapter=adapter)
 
+    def test_terminal_gate_checkout_gets_the_trusted_integration_contract(self):
+        head = "a" * 40
+        pr = {"merged": True, "head": {"sha": head}, "base": {"ref": "main"}}
+        adapter = SimpleNamespace(_pr=lambda *args: pr, _comments=lambda *args: [], _derive=lambda *args: {})
+        stop = contributions.ContributionError("stop after the gate checkout")
+        with mock.patch.object(composition.workers, "prepare_checkout", return_value=Path("/c")) as checkout, \
+                mock.patch.object(composition, "require_final_gates", side_effect=stop):
+            with self.assertRaises(contributions.ContributionError):
+                composition.reconcile_composition(Path("/integration"), "acme/project", {}, head, 1, adapter=adapter)
+        self.assertEqual(checkout.call_args.kwargs["contract_from"], Path("/integration/.dev-platform.toml"))
+
     def test_archived_contract_content_is_in_composition_review_diff(self):
         import independent_review_runner as reviewer
         with tempfile.TemporaryDirectory() as tmp:

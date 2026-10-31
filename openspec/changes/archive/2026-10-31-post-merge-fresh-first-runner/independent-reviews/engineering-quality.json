@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e386ea3cb151a08c4211ab3d5d7b9e32d9fcc8f3",
+    "base_ref": "origin/main",
+    "candidate_head": "72b7106f3e417c554d62e52e8709f9f7f67a65f1",
+    "diff_sha256": "742a4dba3589f8e580338981ec8dc4715eea2bf54f78b63315b1e07bb8f81df2"
+  },
+  "completed_at": "2026-10-31T08:35:42+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py (diff ~L357 and offer_order L322-324). `for pr in sorted(list_prs(), key=offer_order(kinds))` runs before the `only_prs`/`exclude_prs` `continue`. The runner's `--exclude-pr` and `--pr` (candidate_prs only_prs path, which returns a closed unmerged PR via pulls/N) both reach the sort. Before this change, such PRs were skipped or tolerated. The failure also bypasses the per-PR try/except that names and skips a bad PR. A lazy stub whose Issues `pull_request.merged_at` is null fails the same way.",
+      "id": "offer-order-sort-fails-on-excluded-prs",
+      "severity": "advisory",
+      "summary": "work_next sorts the whole listing with offer_order before applying only_prs/exclude_prs, and offer_order raises WorkerError for any non-open PR without merged_at. One such PR in the listing therefore aborts the run, even when it is excluded or not targeted."
+    },
+    {
+      "evidence": "template/scripts/github_read_cache.py: `_page` returns `entry[\"body\"]` and `parsed`, both of which now live in `_memo`. The `_load` docstring only says \"Callers never mutate the result\", and nothing enforces it. `_page` still recomputes `_digest(entry[\"body\"])` on every read, but the memo was populated before that check, so a mutated body would be seen as corrupt. The cost of that per-read digest also remains and is not discussed in the design.",
+      "id": "read-cache-memo-aliases-returned-bodies",
+      "severity": "advisory",
+      "summary": "The process-wide memo hands out the same parsed objects to every caller, and _store memoizes the very `parsed` object it also returns. A caller that mutates a result from get_json/get_pages silently corrupts later reads in that process. Digest validation happens only on load, so the corruption is never detected."
+    }
+  ],
+  "launched_at": "2026-10-31T08:35:23+00:00",
+  "output_sha256": "61ebf7d83c856887e05686d876b325d3e1e432e12acaeaac0e2ca85fd7e6496f",
+  "perspective": "engineering-quality",
+  "request_id": "b1022e32-3da8-4566-aa25-8c8674258060",
+  "reviewer": {
+    "context_id": "6c375ee9-ba7b-43d1-a64d-2437aa8fa120",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bcb84ba7-7efe-48d4-8e5f-56ae8b31f6ab",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31170
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 84350
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17677
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17974
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1900
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9d9a2894fae4ae48a3966243ac1ea105bdd62f2a92a4af046de5d0cb89f73849"
+}

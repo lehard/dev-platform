@@ -542,7 +542,10 @@ def reconcile_composition(root: Path, repo: str, manifest: dict, head: str, numb
         raise contributions.ContributionError("terminal delivery lacks exact Requirement merge to main")
     candidate = adapter._derive(root, pr, adapter._comments(root, repo, number))
     with tempfile.TemporaryDirectory(prefix="composition-terminal-") as temporary:
-        checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head)
+        # The merged head's own public contract may predate keys the current schema requires: install the
+        # integration checkout's trusted contract instead (a missing one fails; nothing is defaulted).
+        checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head,
+                                            contract_from=root / ".dev-platform.toml")
         require_final_gates(checkout, manifest, candidate, head)
     config = read_platform_config(root)
     with serialized_integration(root, config, 60.0):
