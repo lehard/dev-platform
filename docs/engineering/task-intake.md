@@ -141,7 +141,11 @@ reconciliation checks the target again before marking the parent Done.
    pausing for a genuinely consequential open choice.
 4. On the material path, decompose approved ADD elements into intents and
    prepare OpenSpec handoff envelopes.
-5. For every ready handoff, author its managed bundle and run
+5. For every ready handoff, author its managed bundle. Optionally check it at once with
+   `python3 scripts/orchestrate_pre_authoring.py --id requirement-N check-bundle`, which runs the
+   same bundle validation as materialization against current main and names the failing
+   requirement and scenario (for example a MODIFIED requirement that dropped a scenario);
+   it records nothing, and materialization validates again on its own. Then run
    `python3 scripts/requirement_intake.py materialize-handoff --requirement owner/repo#N --handoff <ready-envelope.json> --bundle <authored-bundle-directory>`.
    The adapter validates current handoff readiness, creates or exactly reuses
    one managed Issue, repairs an interrupted parent/child link on retry, and

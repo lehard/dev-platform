@@ -184,6 +184,26 @@ def check_requirement_length_and_dropped_text(root: Path, cli: list[str]) -> Non
         shutil.rmtree(root / "openspec" / "changes" / change)
 
 
+def check_modified_dropped_scenario(root: Path, cli: list[str]) -> None:
+    """A MODIFIED block that drops a scenario fails validation naming both (relied on by check-bundle, BR-944)."""
+    write(
+        root / "openspec" / "specs" / "dropped-scenario-fixture" / "spec.md",
+        "# Dropped scenario fixture\n\n## Purpose\nExercise validation of a MODIFIED block that drops a scenario.\n\n"
+        "## Requirements\n\n### Requirement: Two scenario requirement\nThe fixture SHALL keep both scenarios.\n\n"
+        "#### Scenario: First kept scenario\n- **WHEN** the fixture is read\n- **THEN** the first scenario holds.\n\n"
+        "#### Scenario: Second kept scenario\n- **WHEN** the fixture is reread\n- **THEN** the second scenario holds.\n",
+    )
+    run(cli + ["new", "change", "dropped-scenario", "--json"], root)
+    write(change_artifacts(root, "dropped-scenario") / "specs" / "dropped-scenario-fixture" / "spec.md",
+          "## MODIFIED Requirements\n\n### Requirement: Two scenario requirement\nThe fixture SHALL keep its scenarios.\n\n"
+          "#### Scenario: First kept scenario\n- **WHEN** the fixture is read\n- **THEN** the first scenario holds.\n")
+    result = run(cli + ["validate", "dropped-scenario", "--strict", "--no-interactive"], root, check=False)
+    output = result.stdout + result.stderr
+    if not result.returncode or '"Two scenario requirement"' not in output or '"Second kept scenario"' not in output:
+        raise SystemExit("validate no longer rejects a MODIFIED block that drops a scenario, naming the requirement and scenario")
+    shutil.rmtree(root / "openspec" / "changes" / "dropped-scenario")
+
+
 def check_verify_workflow(cli: list[str]) -> None:
     # 1.13.2: generated verify guidance must not pass skipped checks, must invert
     # REMOVED checks and check RENAMED against original behavior, and stays
@@ -291,6 +311,7 @@ def main() -> int:
         check_rename_remove_case_and_tasks(root, cli)
         check_new_capability_purpose(root, cli)
         check_requirement_length_and_dropped_text(root, cli)
+        check_modified_dropped_scenario(root, cli)
 
     check_verify_workflow(cli)
 

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "16918a29ff8936b6cc6293f01cf398e4aef3bbed",
+    "base_ref": "origin/main",
+    "candidate_head": "e218277ab015049562f2bcc38cd9c9a780b604a3",
+    "diff_sha256": "fedfa708377b62d6c528cc7c4f40b6e306676b3caf1e687b8eaab6c2403a8f43"
+  },
+  "completed_at": "2026-10-31T14:06:06+00:00",
+  "findings": [
+    {
+      "evidence": "design.md line 9, against CHECK_BUNDLE_HINT in template/scripts/orchestrate_pre_authoring.py (candidate.diff line 191). No test or spec asserts the exact wording.",
+      "id": "design-status-hint-text-drift",
+      "severity": "advisory",
+      "summary": "The design records the status hint as `orchestrate_pre_authoring.py --id <id> check-bundle (optional)`. The implementation emits `... check-bundle (optional, before advance)`. The meaning is the same, but the design text is stale."
+    }
+  ],
+  "launched_at": "2026-10-31T14:05:57+00:00",
+  "output_sha256": "56197f9516dfe5e8b68d3404ae0f056115ed35000b769b026368cbd0b6daa03c",
+  "perspective": "spec-fidelity",
+  "request_id": "79bfffe0-79ca-43bd-a3ec-009c57142b8e",
+  "reviewer": {
+    "context_id": "83add21d-eb96-415c-9356-5f2023069030",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5c2b55b3-8c46-4441-a99d-09f957a752fd",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23751
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39014
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8188
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8484
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 973
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3aa36ae89be01afe3f2c1a0b5aee509c7a983a4da2d443d682fdfe0dcdcdc66c"
+}

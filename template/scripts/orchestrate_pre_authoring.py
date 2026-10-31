@@ -33,6 +33,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -537,6 +538,7 @@ def status(root: Path, *, requirement_id: str, base_dir: Path | None = None) -> 
 
     result["current_stage"] = "complete"
     result["blocker"] = None
+    result["bundle_check"] = CHECK_BUNDLE_HINT.format(id=result["id"])
     result["handoffs"] = handoff_report["envelopes"]
     _write_receipt(directory, result)
     return result
@@ -568,9 +570,50 @@ def _finish_skip(
     result["stages"]["skip"] = {"stage": "skip", "state": "ready", "receipt": str(skip_path(directory))}
     result["current_stage"] = "complete"
     result["blocker"] = None
+    result["bundle_check"] = CHECK_BUNDLE_HINT.format(id=result["id"])
     result["handoffs"] = {"direct": str(direct_handoff_path(directory))}
     _write_receipt(directory, result)
     return result
+
+
+CHECK_BUNDLE_HINT = "orchestrate_pre_authoring.py --id {id} check-bundle (optional, before advance)"
+
+
+def check_bundles(root: Path, *, requirement_id: str, base_dir: Path | None = None) -> list[dict[str, str]]:
+    """Optionally validate every authored bundle before advance, with the validation advance uses (BR-944).
+
+    Not a pre-authoring stage: nothing is recorded, and advance validates again on its own and
+    never reads this result. A bundle whose deltas fail OpenSpec validation (for example a
+    MODIFIED requirement that drops a scenario) stops with the OpenSpec message.
+    """
+    import execute_requirement
+    import managed_task
+
+    report = status(root, requirement_id=requirement_id, base_dir=base_dir)
+    if report["current_stage"] != "complete":
+        raise OrchestratorError(
+            f"check-bundle needs complete pre-authoring; current stage is {report['current_stage']}")
+    number = re.fullmatch(r"requirement-(\d+)", requirement_id)
+    if number is None:
+        raise OrchestratorError(f"check-bundle needs a requirement-<N> id, not {requirement_id!r}")
+    target = report["target_repository"]
+    base_dir = base_dir or default_base_dir(root)
+    requirement = f"{target}#{number.group(1)}"
+    results: list[dict[str, str]] = []
+    try:
+        prepared_against = managed_task.target_main(root)
+        # The same handoff order and grouping advance materializes, so each bundle is checked once.
+        for handoff, _ in execute_requirement._ordered_handoffs(report, requirement):
+            path = execute_requirement._bundle(base_dir, requirement, handoff)
+            bundle = managed_task.load_authoring_bundle(str(path))
+            try:
+                managed_task.validate_authoring_bundle(root, bundle, target, prepared_against)
+            except managed_task.ManagedTaskError as exc:
+                raise OrchestratorError(f"authored bundle {path} for handoff {handoff} is invalid: {exc}") from exc
+            results.append({"handoff": handoff, "change": bundle.change, "bundle": str(path), "state": "valid"})
+    except (execute_requirement.RequirementExecutionError, managed_task.ManagedTaskError) as exc:
+        raise OrchestratorError(str(exc)) from exc
+    return results
 
 
 def _write_receipt(directory: Path, result: dict[str, Any]) -> None:
@@ -635,6 +678,8 @@ def build_parser() -> argparse.ArgumentParser:
     decision_parser = sub.add_parser("record-decision", help="apply an accepted human answer to one open ADD decision")
     decision_parser.add_argument("--index", required=True, type=int)
     decision_parser.add_argument("--resolution", required=True)
+
+    sub.add_parser("check-bundle", help="optionally validate every authored bundle before advance (advance validates again)")
     return parser
 
 
@@ -670,6 +715,10 @@ def main() -> int:
                 base_dir=args.base_dir,
             )
             print(json.dumps({"ok": True, "add_id": document.get("add_id")}, ensure_ascii=False, indent=2))
+            return 0
+        if args.command == "check-bundle":
+            for item in check_bundles(root, requirement_id=args.requirement_id, base_dir=args.base_dir):
+                print(f"check-bundle: {item['handoff']} {item['change']}: {item['state']}")
             return 0
         raise OrchestratorError(f"unsupported command: {args.command}")  # pragma: no cover - argparse enforces the choice set
     except OrchestratorError as exc:

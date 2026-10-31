@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "16918a29ff8936b6cc6293f01cf398e4aef3bbed",
+    "base_ref": "origin/main",
+    "candidate_head": "e218277ab015049562f2bcc38cd9c9a780b604a3",
+    "diff_sha256": "fedfa708377b62d6c528cc7c4f40b6e306676b3caf1e687b8eaab6c2403a8f43"
+  },
+  "change": "openspec/changes/pre-authoring-check-bundle",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/pre-authoring-check-bundle/automated-checks.json",
+    "openspec/changes/pre-authoring-check-bundle/independent-review-request.json",
+    "openspec/changes/pre-authoring-check-bundle/independent-reviews/engineering-quality.json",
+    "openspec/changes/pre-authoring-check-bundle/independent-reviews/spec-fidelity.json",
+    "openspec/changes/pre-authoring-check-bundle/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/pre-authoring-check-bundle/design.md",
+        "openspec/changes/pre-authoring-check-bundle/proposal.md",
+        "openspec/changes/pre-authoring-check-bundle/specs/agent-workflow/spec.md",
+        "openspec/changes/pre-authoring-check-bundle/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/pre-authoring-check-bundle/proposal.md",
+        "openspec/changes/pre-authoring-check-bundle/design.md",
+        "openspec/changes/pre-authoring-check-bundle/tasks.md",
+        "openspec/changes/pre-authoring-check-bundle/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T14:05:51+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/pre-authoring-check-bundle/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "79bfffe0-79ca-43bd-a3ec-009c57142b8e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "digest": "3aa36ae89be01afe3f2c1a0b5aee509c7a983a4da2d443d682fdfe0dcdcdc66c",
+    "paths": {
+      "docs/engineering/task-intake.md": "ac223b3e6b450c87ad0f1ceb68436ef813f2c4dd",
+      "openspec/changes/pre-authoring-check-bundle/.managed-task.json": "aaaa1358d0e86fc16b43f65245c3de5a3f82dfa3",
+      "openspec/changes/pre-authoring-check-bundle/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/pre-authoring-check-bundle/design.md": "4deeaaede1b678c53b3a2cc0f60551684a15124a",
+      "openspec/changes/pre-authoring-check-bundle/proposal.md": "af2a307727d84304772795f3b6a4674aac82f493",
+      "openspec/changes/pre-authoring-check-bundle/specs/agent-workflow/spec.md": "04865250a013ffce8786ed8a28e260648931c9dd",
+      "openspec/changes/pre-authoring-check-bundle/tasks.md": "7494654cf0b428f54b6f7fdaec788ee16ed81c63",
+      "template/docs/engineering/task-intake.md.jinja": "20845fbeb8401e7bd4ab97d48ca1206b4c05acfa",
+      "template/scripts/orchestrate_pre_authoring.py": "79fd0a318d0bfb570203f86d921ed44d90e4a284",
+      "tests/openspec_1_13_regression.py": "57e0c60c33b778f7dcc192ad183a9d9e9bd6f7c8",
+      "tests/test_orchestrate_pre_authoring.py": "9a5003f239021ef956716249defe29a23c159a35"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "16918a29ff8936b6cc6293f01cf398e4aef3bbed",
+    "base_ref": "origin/main",
+    "candidate_head": "e218277ab015049562f2bcc38cd9c9a780b604a3",
+    "diff_sha256": "fedfa708377b62d6c528cc7c4f40b6e306676b3caf1e687b8eaab6c2403a8f43"
+  },
+  "completed_at": "2026-10-31T14:06:21+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/orchestrate_pre_authoring.py check_bundles calls execute_requirement._ordered_handoffs and execute_requirement._bundle (candidate.diff lines 218-219). The design says these are the rules advance uses. If either is renamed or changed, the check breaks or drifts without a clear signal. The tests mock validate_authoring_bundle, so they would not catch handoff-ordering drift. Promoting the helpers to a public name would make the shared contract explicit.",
+      "id": "private-helper-coupling",
+      "severity": "advisory",
+      "summary": "check_bundles calls underscore-prefixed helpers of execute_requirement, so it depends on that module's internal API to stay in step with advance."
+    }
+  ],
+  "launched_at": "2026-10-31T14:06:06+00:00",
+  "output_sha256": "5138819e7fd052bf12c1e04a68edaf655f9467e2cc45d703c500826a170ab032",
+  "perspective": "engineering-quality",
+  "request_id": "79bfffe0-79ca-43bd-a3ec-009c57142b8e",
+  "reviewer": {
+    "context_id": "b6f0672f-b616-4d35-861a-7c0299a7dc10",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8faddf61-e725-4030-823d-9889ecca6dd8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20127
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39391
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14218
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14650
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 815
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3aa36ae89be01afe3f2c1a0b5aee509c7a983a4da2d443d682fdfe0dcdcdc66c"
+}
