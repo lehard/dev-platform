@@ -25,6 +25,11 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Spec delta, proposal, design, tasks, task-intake and chat-coordinator docs describe one declaration format, one decision record and one closer.
 
+## Re-verification after main integration
+
+- Integration repair merged main `e1b00fd8` into the candidate (head `edf00264`). Re-reviewed the merged content: the only changed task path, `docs/engineering/task-intake.md`, gained main's independent `check-bundle` hunk in step 5; the operator acceptance paragraph is unchanged. `openspec/specs/agent-workflow/spec.md` carries both operator acceptance requirements with their scenarios next to main's bundle-check requirement; no conflict markers remain.
+- Re-ran `tests/test_requirement_operator_acceptance.py` and `tests/test_orchestrate_pre_authoring.py` on the merged head: 41 passed.
+
 ## Not verified / limits
 
 - Not exercised against a live Requirement; BR-730-style acceptance is the first field case.
