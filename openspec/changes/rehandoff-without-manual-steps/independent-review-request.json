@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "38396f413b51533705fd32192955a5e09af8430c",
-    "diff_sha256": "3b0a59d23fb35cd2193a52499950eb5dd768f381cd19b410f3c530328bb223ec"
+    "candidate_head": "472e393ec3ad1df72425e5b33ddfd8776beecb5d",
+    "diff_sha256": "a7d68fe27ba454a5cb1b21e17c6416a002fbf9bc4cef07cf8950547367833375"
   },
   "change": "openspec/changes/rehandoff-without-manual-steps",
   "excluded_lifecycle_paths": [
+    "openspec/changes/rehandoff-without-manual-steps/independent-review-request.json",
+    "openspec/changes/rehandoff-without-manual-steps/independent-reviews/engineering-quality.json",
+    "openspec/changes/rehandoff-without-manual-steps/independent-reviews/spec-fidelity.json",
     "openspec/changes/rehandoff-without-manual-steps/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -36,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T14:49:10+00:00",
+  "prepared_at": "2026-10-31T14:52:22+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/rehandoff-without-manual-steps/independent-reviews",
     "required_perspectives": [
@@ -45,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "74102729-1549-401d-845f-ceb1e4eb29e8",
+  "request_id": "4234d1e7-09df-473c-b2c5-a8fe2093479f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -58,24 +61,24 @@
   "schema_version": 1,
   "task_content": {
     "base": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
-    "digest": "60705744a9ce261a6635fe8c88c8aec1a84ad929076f02c8a2a37281200359db",
+    "digest": "6329c43995a206b2435408c75e8643d63392daad945821f1bedb671c8e835655",
     "paths": {
       "dev-platform/checks.toml": "2f8c913481f580e292fc464df023969a22325d38",
       "docs/engineering/agent-workflow.md": "bfc2eb863f5858c57c90f8c7a99912815f924020",
       "openspec/changes/rehandoff-without-manual-steps/.managed-task.json": "590e2672d863a8069528b391994cd519dc3d801e",
       "openspec/changes/rehandoff-without-manual-steps/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
-      "openspec/changes/rehandoff-without-manual-steps/design.md": "e81fabf2d43cde3447487085db2ebed39c7fd0fb",
+      "openspec/changes/rehandoff-without-manual-steps/design.md": "e2ad953a3cce57f73e9acb0de1e1c95c800589f9",
       "openspec/changes/rehandoff-without-manual-steps/proposal.md": "a4c3d1aa8d40cb01810a4dc677118dd58604f238",
       "openspec/changes/rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md": "2f4b1537bc6ca75191588e63b6607d9fc7217a3e",
       "openspec/changes/rehandoff-without-manual-steps/specs/worktree-coordination/spec.md": "cd2bcc48008d9f7aed0eceef42291e78b3875e5a",
       "openspec/changes/rehandoff-without-manual-steps/tasks.md": "e82a6fa3d0df61b2205097cae49a5da6bd0b49fe",
-      "template/scripts/agent_board.py": "9f9a9c0e707411029290ed3a29bbabb42fba16b9",
-      "template/scripts/finish_task.py": "959572360f80d358b9a978e8d7dbba2fe8230f73",
-      "template/scripts/pr_review_gate.py": "fe9c2e0626fdee118bebc16766c9872637cf6f02",
+      "template/scripts/agent_board.py": "45c778fd516bc3eb954a293ce638e8bdbffca865",
+      "template/scripts/finish_task.py": "981a4b901d5dbbc2e95003d78e41bb220ab1f8b8",
+      "template/scripts/pr_review_gate.py": "a5bc5df25508c9db75af34558d68363d33cdbd34",
       "template/scripts/worktree_cleanup.py": "77085d3c6651de95b9243e00e70ea0a84b7361c7",
-      "tests/test_finish_merged_queue.py": "49f290f19843199f76174afc72e859d58d9957a3",
+      "tests/test_finish_merged_queue.py": "e5eacd7252a4693f5a53c34527aa63dafca431d4",
       "tests/test_pr_review_gate.py": "ecdb9799582c347c7905e1c25126ea10fedee0a8",
-      "tests/test_rehandoff_board.py": "0931a4a59cc7f6cbac407c448f46c14f4a4169d0"
+      "tests/test_rehandoff_board.py": "962e393beff2461aeeba96ea55ee498ad457191a"
     },
     "scope": "independent-review-v1",
     "version": 1

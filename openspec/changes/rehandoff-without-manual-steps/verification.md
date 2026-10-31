@@ -18,6 +18,7 @@ Independent-Review-Evidence: independent-review-request.json
 - Docs: agent-workflow describes the handed-off claim, the routing gate at handoff and the content-bound checkpoint.
 
 - Independent review: two material findings fixed — the handed-off record now stores the PR and acceptance reads that exact PR; the routing gate is not applied to an archived re-admission, whose archived path it cannot resolve.
+- Re-review advisories fixed: `hand-off` of a missing entry fails explicitly; an aged handed-off record is no doctor problem. Kept: `rehandoff_refusal` reuses the queue's own `_latest` / `_comments` / `_is_ancestor` so the re-admission rule is the queue's, not a copy; a handed-off record of a PR closed without merge is refused with the explicit `agent_board.py finish --id` command (not reclaimed silently).
 
 ## Not verified / limits
 

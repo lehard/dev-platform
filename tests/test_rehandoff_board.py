@@ -46,6 +46,10 @@ class HandedOffRecordTests(unittest.TestCase):
         self.assertEqual((item["handed_off"]["head"], item["handed_off"]["pr"]), (HEAD, 7))
         self.assertEqual(item["acknowledgments"], [ACK])
 
+    def test_hand_off_of_an_unknown_entry_fails_explicitly(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "no board entry ghost"):
+            agent_board.cmd_hand_off(argparse.Namespace(id="ghost", head=HEAD, pr=7, quiet=True))
+
     def test_reactivate_makes_only_a_handed_off_claim_active(self) -> None:
         with self.assertRaisesRegex(SystemExit, "mine is not a handed-off claim"):
             agent_board.cmd_reactivate(argparse.Namespace(id="mine"))
@@ -65,6 +69,10 @@ class EligibilityTests(unittest.TestCase):
     def test_a_handed_off_record_claims_no_scope_and_a_merged_one_is_terminal(self) -> None:
         self.assertEqual(self.classify([], True), "handed-off")
         self.assertEqual(self.classify(["stale-heartbeat"], True), "handed-off")
+        item = {"id": "x", "handed_off": {"head": HEAD}}
+        with mock.patch.object(agent_board, "_status", return_value=["stale-heartbeat"]):
+            self.assertEqual(agent_board.claim_eligibility(item, ROOT, main_branch="main", stale_hours=1)[1], [],
+                             "doctor reports no problem for an aged handed-off record")
         self.assertEqual(self.classify(["merged-pr"], True), "terminal")
         self.assertEqual(self.classify([], False), "valid-active")
 

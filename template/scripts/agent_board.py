@@ -510,8 +510,9 @@ def claim_eligibility(item: dict, root: Path, *, main_branch: str, stale_hours: 
     if TERMINAL_BOARD_PROBLEMS.intersection(problems):
         return "terminal", problems
     if item.get("handed_off"):
-        # Admitted to the coordinator (BR-965): kept for its re-handoff, it claims no scope.
-        return "handed-off", problems
+        # Admitted to the coordinator (BR-965): kept for its re-handoff, it claims no scope; no
+        # session heartbeats a handed-off record, so its age is not a problem.
+        return "handed-off", [problem for problem in problems if problem != "stale-heartbeat"]
     if not problems:
         return "valid-active", problems
     return "degraded", problems
@@ -684,13 +685,11 @@ def cmd_hand_off(args: argparse.Namespace) -> int:
     """Keep ``--id`` as a handed-off record at ``--head`` instead of deleting it (BR-965)."""
     path = board_path()
     if not path.exists():
-        return 0
+        raise SystemExit(f"Agent board hand-off blocked: the board {path} does not exist.")
     with locked_json(path) as data:
         item = next((item for item in data.setdefault("items", []) if item.get("id") == args.id), None)
         if item is None:
-            if not args.quiet:
-                print(f"Board id not found: {args.id}")
-            return 0
+            raise SystemExit(f"Agent board hand-off blocked: no board entry {args.id}.")
         item["handed_off"] = {"head": args.head, "pr": args.pr, "at": utc_now()}
     return 0
 

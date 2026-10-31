@@ -65,7 +65,7 @@
     "scripts/_platform_common.py": "da72cd97bcb019da1dd1d45d14e0149da3f576b9ee22af1cb66658ccae0f3c7f",
     "scripts/add_intents.py": "89bee5980a5ad09f912d267da8b30f35cf5001d9f750f83e70e3583410e5b2c8",
     "scripts/affected_test_groups.py": "e4ae3bff616d0b83a9771c842d4db0422f5918b9579b8c3a3f8dd42c6766b196",
-    "scripts/agent_board.py": "aef25be1b2129071072031d4e93279303b3745141fa9c65ed25d4b1c0072d3b5",
+    "scripts/agent_board.py": "777c463e049535f8ca1ca85b19d92f7732db391cc1b04e9e3f1956c09485558d",
     "scripts/agent_doctor.py": "9126de064e12cc8605e3fe37a4b75f41189f03198dc429ef6d9fd79941dad75d",
     "scripts/agent_friction.py": "f7c8a1093272907a047942e25885d4e0f031aa83641745bd03b6c73f807b3de8",
     "scripts/agent_sessions.py": "5c3dc9a16adb5296c354e7b9f0fd0c5eddd611d5c0fbcccd59216b2c404c75dd",

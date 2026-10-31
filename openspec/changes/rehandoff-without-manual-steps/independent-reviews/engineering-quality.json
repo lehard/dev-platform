@@ -3,36 +3,42 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "38396f413b51533705fd32192955a5e09af8430c",
-    "diff_sha256": "3b0a59d23fb35cd2193a52499950eb5dd768f381cd19b410f3c530328bb223ec"
+    "candidate_head": "472e393ec3ad1df72425e5b33ddfd8776beecb5d",
+    "diff_sha256": "a7d68fe27ba454a5cb1b21e17c6416a002fbf9bc4cef07cf8950547367833375"
   },
-  "completed_at": "2026-10-31T14:50:00+00:00",
+  "completed_at": "2026-10-31T14:53:18+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/pr_review_gate.py:152-165: the `change.parent.name == \"archive\"` branch resolves `name`, but line 163 still passes `change`, the archived path. openspec_lifecycle.py:679-688 reads `.managed-task.json`, uses `change.parents[2]` as the repo root, and requires `managed_change == change.name`. For `openspec/changes/archive/<date>-<name>` the `payload[\"change\"]` is the canonical name, not the dated directory name, so it exits with 'routing archive gate found invalid managed-task provenance'. `parents[2]` is also `openspec/`, not the repo root. The new tests only use an active change directory, so this is not covered.",
-      "id": "routing-gate-runs-on-archived-change",
-      "severity": "material",
-      "summary": "handoff_gates calls require_managed_routing_evidence(change) unconditionally, including the archived-change re-admission branch (integration-repair reopen). The design says the gate applies to an active change only. For an archived change the gate looks in the wrong place and refuses, so that supported re-handoff path fails."
+      "evidence": "template/scripts/agent_board.py cmd_hand_off: `if not path.exists(): return 0` and `if item is None: ... return 0`. The caller passes `--quiet`, so the missing-item message is also suppressed. `cmd_reactivate`, by contrast, fails explicitly.",
+      "id": "hand-off-silent-noop",
+      "severity": "advisory",
+      "summary": "`agent_board.py hand-off` returns 0 when the board file or item is missing. `finish_task.hand_off_board` then reports a successful handoff, but no handed-off record exists, so the next re-handoff still needs a manual `start`. This is the failure the change is meant to remove, and it is silent, which the no-fallback rule discourages."
     },
     {
-      "evidence": "template/scripts/agent_board.py:259 sets `item[\"handed_off\"] = {\"head\": args.head, \"at\": utc_now()}`, and the parser (around lines 342-346) has no `--pr`. rehandoff_refusal (lines 308-317) looks the PR up by branch. A closed PR followed by a new PR on the same branch could be matched to the wrong handoff. The artifacts and the code disagree.",
-      "id": "handed-off-record-omits-pr",
+      "evidence": "template/scripts/agent_board.py rehandoff_refusal: `queue._latest(worktree, number, queue._comments(worktree, queue._repo(worktree), number))` and `queue._is_ancestor(...)`. tests/test_rehandoff_board.py mocks all of them, so no test exercises the real signatures.",
+      "id": "rehandoff-private-queue-coupling",
       "severity": "advisory",
-      "summary": "The handed-off record stores only head and timestamp. The design and spec say it records the PR (`hand-off --id --head --pr`, `handed_off: {head, pr, at}`). The acceptance check instead re-resolves the PR by branch name via `gh pr view <branch>`."
+      "summary": "The board module's scope gate now depends on private helpers of `publication_queue`: `_latest`, `_comments`, `_repo`, `_is_ancestor`. It makes a network `gh` call on every preflight of a handed-off claim. A rename in the queue module would break the preflight, and nothing but mocked tests guards that."
+    },
+    {
+      "evidence": "agent_board.py claim_eligibility: the handed-off branch precedes the `degraded` return, and `TERMINAL_BOARD_PROBLEMS = frozenset({\"merged-branch\", \"merged-pr\"})`. The refusal text in `_required_scope_inputs` says \"remove the record with ... agent_board.py finish --id\".",
+      "id": "handed-off-abandoned-record-lingers",
+      "severity": "advisory",
+      "summary": "A handed-off record whose PR is closed without merging is classified `handed-off`, not `degraded`. Only merged-branch and merged-pr problems make it terminal, so nothing reclaims such a record automatically. The scope gate then refuses with a manual `agent_board.py finish` instruction, which is a manual step for the abandoned-PR case."
     }
   ],
-  "launched_at": "2026-10-31T14:49:34+00:00",
-  "output_sha256": "cfe82503c9992eba3c7d6778294fc85dd22eacb9f65c8e60ef13d73aaf2a2164",
+  "launched_at": "2026-10-31T14:52:55+00:00",
+  "output_sha256": "3a8e684c500b40b4a6abb4929933df19c60d502c16ac57b51f09710c17992d78",
   "perspective": "engineering-quality",
-  "request_id": "74102729-1549-401d-845f-ceb1e4eb29e8",
+  "request_id": "4234d1e7-09df-473c-b2c5-a8fe2093479f",
   "reviewer": {
-    "context_id": "d466b327-104f-4625-b5a4-6ab9bdb9db01",
+    "context_id": "14410e21-c46c-40c6-933a-bf1d8827d857",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-720c8e3e-c0e1-41a7-9967-0d9366eece78",
+    "launch_id": "platform-launch-1095d606-0fc1-43b9-9add-9fc3b2f30e27",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +54,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33660
+        "value": 33770
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 57500
+        "value": 58835
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20484
+        "value": 18789
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22582
+        "value": 20298
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -73,16 +79,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1983
+        "value": 2178
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "60705744a9ce261a6635fe8c88c8aec1a84ad929076f02c8a2a37281200359db"
+  "task_content_digest": "6329c43995a206b2435408c75e8643d63392daad945821f1bedb671c8e835655"
 }
