@@ -3,7 +3,8 @@
 
 One *round* repeats the existing ``lifecycle_workers.py work-next --run`` for the post-merge kinds
 (retrospective, terminal-reconciliation, cleanup) until it reports ``idle`` or a bound is reached, so the
-chain retro -> terminal -> cleanup catches up without a coordinator. A PR whose run ended blocked or failed is
+chain retro -> terminal -> cleanup catches up without a coordinator. The round duration bounds only when a run may start; a started
+run is bounded by the claim TTL alone. A PR whose run ended blocked or failed is
 excluded for the rest of the round, so each obligation is attempted at most once per round. The runner owns no queue, claim format
 or job state: claims, results, the attempt limit and the attention on a spent obligation are the platform's.
 It only schedules, bounds, guards the shared GitHub REST limit and writes a run journal.
@@ -200,14 +201,15 @@ def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[],
                                         "threshold": args.min_rest_remaining, "reset": reset})
                 break
             started = monotonic()
-            budget = deadline - started
-            if budget <= 0:
+            if started >= deadline:
                 outcome = "max-seconds"  # the rate-limit read used the last of the round's time
                 break
+            # The round budget only bounds when a run may start; a started run is bounded by its claim TTL alone,
+            # so the budget never kills an action mid-way (the single-instance lock skips an overlapping round).
             done = run([sys.executable, "scripts/lifecycle_workers.py", "work-next", "--kinds", KINDS,
                         "--repo", args.repo, "--ttl", str(args.claim_ttl), "--run",
                         *[flag for number in deferred for flag in ("--exclude-pr", str(number))]],
-                       env=env, cwd=args.checkout, timeout=min(args.claim_ttl, budget))
+                       env=env, cwd=args.checkout, timeout=args.claim_ttl)
             if done.returncode:
                 raise RunnerError(f"work-next exited {done.returncode}: {(done.stderr or '').strip()[-ERROR_TAIL:]}")
             try:

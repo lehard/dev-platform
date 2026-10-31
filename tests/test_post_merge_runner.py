@@ -158,15 +158,32 @@ class RunnerTests(unittest.TestCase):
             with self.assertRaisesRegex(runner.RunnerError, f"--{field.replace('_', '-')} must be an absolute path"):
                 runner.validate(args)
 
-    def test_run_timeout_is_bounded_by_the_round_deadline(self):
+    def test_round_budget_bounds_starts_and_a_run_is_bounded_by_the_claim_ttl(self):
         clock = [0.0]
         self.args.max_seconds, self.args.claim_ttl = 100, 900
-        fake = FakeRun([job("claimed"), done(json.dumps({"status": "idle", "job": None}))],
-                       on_rate=lambda: clock.__setitem__(0, clock[0] + 40))
+        fake = FakeRun([job("claimed"), job("claimed", number=2)],
+                       on_rate=lambda: clock.__setitem__(0, clock[0] + 60))
         with mock.patch.object(runner.shutil, "which", return_value="/usr/bin/gh"):
-            runner.run_round(self.args, run=fake, monotonic=lambda: clock[0])
+            self.assertEqual(runner.run_round(self.args, run=fake, monotonic=lambda: clock[0]), 0)
         work_timeouts = [t for c, t in zip(fake.calls, fake.timeouts) if "work-next" in c]
-        self.assertEqual(work_timeouts[0], 60)
+        self.assertEqual(work_timeouts, [900])  # started before the deadline, never cut to the remaining budget
+        events = self.events()
+        self.assertEqual([e["pr"] for e in events if e["event"] == "work-next"], [1])
+        self.assertEqual(events[-1]["outcome"], "max-seconds")
+        self.assertNotIn("error", events[-1])
+
+    def test_run_killed_at_the_claim_ttl_fails_the_round(self):
+        self.args.claim_ttl = 900
+
+        def fake(argv, *, env, cwd, timeout):
+            if "work-next" in argv:
+                raise runner.RunnerError(f"scripts/lifecycle_workers.py exceeded {timeout:.0f}s and was killed")
+            return FakeRun([])(argv, env=env, cwd=cwd, timeout=timeout)
+        with mock.patch.object(runner.shutil, "which", return_value="/usr/bin/gh"):
+            self.assertEqual(runner.run_round(self.args, run=fake), 1)
+        end = self.events()[-1]
+        self.assertEqual(end["outcome"], "failed")
+        self.assertIn("exceeded 900s", end["error"])
 
     def test_no_time_left_ends_the_round_without_a_run(self):
         clock = [0.0]

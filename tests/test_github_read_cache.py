@@ -142,6 +142,19 @@ class ReadCacheTests(unittest.TestCase):
                 self.assertIn(f"rm {self.path}", str(raised.exception))
                 self.assertEqual(self.gh.counted, before, "a corrupt cache must not be replaced by a silent re-read")
 
+    def test_unchanged_file_is_parsed_once_per_process_and_reloaded_after_a_change(self) -> None:
+        cache._memo.clear()
+        self.read()
+        with mock.patch.object(cache.json, "loads", wraps=json.loads) as parsed:
+            self.read()
+            self.read()
+            self.assertFalse([c for c in parsed.call_args_list if c.args[0].startswith('{"version"')])
+            other = json.loads(self.path.read_text())  # another process rewrites the file
+            other["pages"][URL]["etag"] = '"elsewhere"'
+            self.path.write_text(json.dumps(other, separators=(",", ":")))
+            self.assertEqual(self.read(), [{"id": 1}, {"id": 2}, {"id": 3}])
+            self.assertTrue([c for c in parsed.call_args_list if c.args[0].startswith('{"version"')])
+
     def test_non_array_page_cannot_be_paginated(self) -> None:
         self.gh.pages[URL] = {"id": 1}
         with self.assertRaises(cache.GithubReadError):

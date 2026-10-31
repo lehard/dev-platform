@@ -30,6 +30,8 @@ CACHE_NAME = "github-read-cache.json"
 _LINK_NEXT = re.compile(r'<([^>]+)>;\s*rel="next"')
 _STATUS = re.compile(r"^HTTP/\S+\s+(\d{3})")
 _lock = threading.Lock()
+# Parsed cache file per path, keyed by the file identity it was read from: a process parses an unchanged file once.
+_memo: dict[str, tuple[tuple[int, int, int], dict[str, Any]]] = {}
 
 
 class GithubReadError(RuntimeError):
@@ -55,8 +57,28 @@ def _corrupt(path: Path, cause: str) -> GithubReadCacheError:
     return GithubReadCacheError(f"GitHub read cache {path} is corrupt ({cause}); delete it to reset: rm {path}")
 
 
+def _identity(path: Path) -> tuple[int, int, int] | None:
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise _corrupt(path, f"unreadable: {exc}") from exc
+    return stat.st_ino, stat.st_mtime_ns, stat.st_size
+
+
 def _load(path: Path) -> dict[str, Any]:
-    """The validated file content; an absent file is an empty cache."""
+    """The validated file content; an absent file is an empty cache.
+
+    The parsed content is reused while the file keeps the identity (inode, mtime, size) it was read with; a write by
+    any process replaces the file, so the next load parses and validates it again. Callers never mutate the result.
+    """
+    identity = _identity(path)
+    if identity is None:
+        return {"version": VERSION, "pages": {}}
+    memo = _memo.get(str(path))
+    if memo is not None and memo[0] == identity:
+        return memo[1]
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -76,6 +98,7 @@ def _load(path: Path) -> dict[str, Any]:
         for key, entry in entries.items():
             if not isinstance(entry, dict) or set(entry) != set(fields):
                 raise _corrupt(path, f"{section} entry {key!r} has unexpected fields")
+    _memo[str(path)] = (identity, data)
     return data
 
 
@@ -84,13 +107,16 @@ def _store(path: Path, section: str, key: str, entry: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path.with_suffix(".lock"), "a") as lock_file:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
-        data = _load(path)
-        data[section][key] = entry
+        loaded = _load(path)
+        data = {**loaded, section: {**loaded[section], key: entry}}
         fd, temp = tempfile.mkstemp(dir=path.parent, prefix=CACHE_NAME + ".")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 json.dump(data, handle, separators=(",", ":"))
             os.replace(temp, path)
+            identity = _identity(path)
+            if identity is not None:
+                _memo[str(path)] = (identity, data)
         except BaseException:
             with contextlib.suppress(FileNotFoundError):
                 os.unlink(temp)

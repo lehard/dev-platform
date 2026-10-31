@@ -665,7 +665,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
             import tempfile
             from requirement_composition import candidate_manifest, reconcile_composition
             with tempfile.TemporaryDirectory(prefix="composition-terminal-job-") as temporary:
-                checkout = workers.prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", job["head"])
+                checkout = workers.prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", job["head"],
+                                                    contract_from=root / ".dev-platform.toml")
                 manifest = candidate_manifest(checkout, job["task_identity"]["requirement"])
             if kind == "terminal-reconciliation":
                 outcome = reconcile_composition(root, repo, manifest, job["head"], job["number"], adapter=adapter)["status"]

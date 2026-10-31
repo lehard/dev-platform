@@ -783,6 +783,26 @@ def push_validated(repo: Path, branch: str, expected_head: str, result_head: str
 
 # ---- work-next ------------------------------------------------------------
 
+def offer_order(kinds: frozenset[str]) -> Callable[[dict], tuple]:
+    """Sort key of the listed PRs whose jobs ``work-next`` offers.
+
+    Post-merge kinds only: open PRs first (a pre-merge composition retrospective), then merged PRs newest merge
+    first, so a fresh obligation never waits behind the historical tail. Any other kind set: ascending PR number.
+    A merged PR without a readable ``merged_at`` cannot be placed and fails the run.
+    """
+    if not kinds or not kinds <= POST_MERGE_KINDS:
+        return lambda pr: (0, 0.0, pr["number"])
+
+    def key(pr: dict) -> tuple:
+        if pr.get("state") == "open":
+            return (0, 0.0, pr["number"])
+        merged = _parse_time(pr.get("merged_at"))
+        if merged is None:
+            raise WorkerError(f"PR #{pr.get('number')} has no readable merged_at; cannot order its post-merge jobs")
+        return (1, -merged.timestamp(), -pr["number"])
+    return key
+
+
 def select_job(candidates: list[dict], kinds: frozenset[str], claims_by_pr: dict[int, list[dict]], *,
                now: datetime | None = None, trusted_apps=frozenset(), trusted_writers=frozenset(),
                only_prs: frozenset[int] | None = None, exclude_prs: frozenset[int] = frozenset(),
@@ -831,8 +851,13 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
               trusted_apps=frozenset(), trusted_writers=frozenset(),
               only_prs: frozenset[int] | None = None, exclude_prs: frozenset[int] = frozenset(),
               eligible: Callable[[dict], bool] | None = None,
-              settle: Callable[[int], None] | None = None) -> dict:
+              settle: Callable[[int], None] | None = None,
+              resolve_pr: Callable[[dict], dict] | None = None) -> dict:
     """Select, claim, re-read and confirm one job; abandon if another worker won.
+
+    PRs are derived in ``offer_order``. With post-merge kinds only, derivation stops at the first claimable job, so
+    a fresh obligation costs a few reads whatever the historical tail; a listed PR marked ``unread`` (known only
+    from the label listing) is read through ``resolve_pr`` when reached. A run with no job derives every PR.
 
     ``exclude_prs`` are not read or offered in this run (the post-merge runner paces a blocked obligation to one
     attempt per round this way).
@@ -854,10 +879,18 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
 
     candidates, claims, all_writers = [], {}, set()
     skipped: list[dict] = []
-    for pr in list_prs():
+    unauthorized: list[dict] = []
+    skipped_jobs: list[dict] = []
+    early_stop = kinds <= POST_MERGE_KINDS
+    job = None
+    for pr in sorted(list_prs(), key=offer_order(kinds)):
         if (only_prs is not None and pr["number"] not in only_prs) or pr["number"] in exclude_prs:
             continue
         try:
+            if pr.get("unread"):
+                if resolve_pr is None:
+                    raise WorkerError(f"PR #{pr['number']} is listed unread and no resolve_pr was given")
+                pr = resolve_pr(pr)
             comments = comments_for(pr["number"])
             proven = writers(comments)
             candidate = derive_candidate(pr, comments, trusted_apps=trusted_apps, trusted_writers=proven)
@@ -871,11 +904,16 @@ def work_next(kinds: frozenset[str], *, list_prs: Callable[[], list[dict]],
         candidates.append(candidate)
         if settle is not None and SETTLED_LABEL not in _label_names(pr) and post_merge_settled(candidate):
             settle(pr["number"])
+        if early_stop:
+            job = select_job([candidate], kinds, claims, only_prs=only_prs, exclude_prs=exclude_prs, eligible=eligible,
+                             executor_provider=provider, unauthorized=unauthorized, invalid=skipped_jobs,
+                             now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
+            if job is not None:
+                break
     trust = dict(now=current, trusted_apps=trusted_apps, trusted_writers=frozenset(all_writers))
-    unauthorized: list[dict] = []
-    skipped_jobs: list[dict] = []
-    job = select_job(candidates, kinds, claims, only_prs=only_prs, exclude_prs=exclude_prs, eligible=eligible,
-                     executor_provider=provider, unauthorized=unauthorized, invalid=skipped_jobs, **trust)
+    if not early_stop:
+        job = select_job(candidates, kinds, claims, only_prs=only_prs, exclude_prs=exclude_prs, eligible=eligible,
+                         executor_provider=provider, unauthorized=unauthorized, invalid=skipped_jobs, **trust)
     skipped += skipped_jobs
     report = {**({"unauthorized": unauthorized} if unauthorized else {}), **({"skipped": skipped} if skipped else {})}
     if job is None:
@@ -1252,14 +1290,16 @@ def _label_names(item: dict) -> set[str]:
 
 
 def candidate_prs(repo: str, *, include_merged: bool, only_prs: frozenset[int] | None = None,
-                  gh_json: Callable[..., Any] | None = None) -> list[dict]:
+                  gh_json: Callable[..., Any] | None = None, lazy: bool = False) -> list[dict]:
     """The pull requests lifecycle workers consider: every open PR, plus the merged ones when asked.
 
     Merged candidates are one bounded page (``MERGED_DISCOVERY_PAGE``) of the most recently updated closed
     PRs plus every closed PR labeled ``MERGED_LABEL`` and not ``SETTLED_LABEL``, read from a complete
     listing, so an open post-merge obligation never ages out of discovery. ``only_prs`` reads each named PR
-    directly instead. Every read raises on failure; nothing returns a partial set. The read-only lifecycle
-    overview uses this same function so it shows exactly the candidates workers can act on.
+    directly instead. A closed PR already labeled ``SETTLED_LABEL`` is never a candidate. With ``lazy`` a PR known
+    only from the label listing is returned as an ``unread`` stub (number, labels, ``merged_at``) for
+    ``resolve_candidate`` instead of being read now. Every read raises on failure; nothing returns a partial set. The
+    read-only lifecycle overview uses this same function so it shows exactly the candidates workers can act on.
     """
     read = gh_json or _gh_json
     if only_prs is not None:
@@ -1269,15 +1309,24 @@ def candidate_prs(repo: str, *, include_merged: bool, only_prs: frozenset[int] |
     listed = read("api", "--paginate", f"repos/{repo}/pulls?state=open&per_page=100")
     if include_merged:
         closed = read("api", f"repos/{repo}/pulls?state=closed&sort=updated&direction=desc&per_page={MERGED_DISCOVERY_PAGE}")
-        merged = [{**pr, "merged": True} for pr in closed if pr.get("merged_at")]
-        seen = {pr["number"] for pr in merged}
+        merged = [{**pr, "merged": True} for pr in closed if pr.get("merged_at") and SETTLED_LABEL not in _label_names(pr)]
+        seen = {pr["number"] for pr in closed}
         labeled = read("api", "--paginate",
                        f"repos/{repo}/issues?state=closed&labels={quote(MERGED_LABEL)}&per_page=100")
         for issue in labeled:  # an Issue (no ``pull_request``) is never a PR candidate
             if "pull_request" in issue and issue["number"] not in seen and SETTLED_LABEL not in _label_names(issue):
-                merged.append(read("api", f"repos/{repo}/pulls/{issue['number']}"))
+                if lazy:
+                    merged.append({"number": issue["number"], "state": "closed", "merged": True, "unread": True,
+                                   "labels": issue.get("labels", []), "merged_at": issue["pull_request"].get("merged_at")})
+                else:
+                    merged.append(read("api", f"repos/{repo}/pulls/{issue['number']}"))
         listed = [*listed, *merged]
     return listed
+
+
+def resolve_candidate(repo: str, pr: dict, *, gh_json: Callable[..., Any] | None = None) -> dict:
+    """The full pull request of an ``unread`` stub from ``candidate_prs(lazy=True)``."""
+    return (gh_json or _gh_json)("api", f"repos/{repo}/pulls/{pr['number']}")
 
 
 def post_merge_settled(candidate: dict) -> bool:
@@ -1331,7 +1380,8 @@ def main(argv: list[str] | None = None) -> int:
     include_merged = bool(set(args.kinds.split(",")) & (POST_MERGE_KINDS | {"contribution-integration"}))
 
     def list_prs() -> list[dict]:
-        return candidate_prs(repo, include_merged=include_merged, only_prs=frozenset(args.pr) if args.pr else None)
+        return candidate_prs(repo, include_merged=include_merged, only_prs=frozenset(args.pr) if args.pr else None,
+                             lazy=True)
 
     def settle(number: int) -> None:
         _gh_json("api", "-X", "POST", f"repos/{repo}/issues/{number}/labels", "-f", f"labels[]={SETTLED_LABEL}")
@@ -1399,6 +1449,7 @@ def main(argv: list[str] | None = None) -> int:
                            ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                            current_head=lambda n: pr_info(n)["head"]["sha"],
                            settle=settle if include_merged and not args.dry_run else None,
+                           resolve_pr=lambda pr: resolve_candidate(repo, pr),
                            **_coordinator_trust(Path.cwd(), repo))
         if args.run and result["status"] == "claimed":
             job = result["job"]
