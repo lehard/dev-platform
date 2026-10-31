@@ -87,6 +87,7 @@ python3 template/scripts/openspec_lifecycle.py check
 | Concern | Canonical document |
 | --- | --- |
 | Maintaining agent-facing instructions, pointers and surface ownership | [docs/engineering/agent-instructions.md](docs/engineering/agent-instructions.md) |
+| End-to-end task lifecycle map: stages, actors, entries, state owners and the approved target | [docs/engineering/lifecycle-map.md](docs/engineering/lifecycle-map.md) |
 | Task intake and intent transitions | [docs/engineering/task-intake.md](docs/engineering/task-intake.md) |
 | Writing or materially changing a Business Requirement body | [dev-platform/capabilities/requirement-authoring.md](dev-platform/capabilities/requirement-authoring.md) |
 | Preparing, presenting or approving an ADD (BR/ADD/OpenSpec boundary, standard Russian presentation) | [dev-platform/capabilities/add-intents.md](dev-platform/capabilities/add-intents.md) |
