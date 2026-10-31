@@ -25,6 +25,7 @@ Independent-Review-Evidence: independent-review-request.json
 
 - Integration repair 918c3ea7 changed only `tests/test_rehandoff_board.py`: `HandedOffRecordTests` now patch `ensure_shared_path` the same way as `tests/test_agent_signal.py`, because on Linux CI a temporary directory with mode 0700 fails the shared-workspace check. That is test isolation only. No product code, spec or scenario changed, so the semantic review above still holds for the integrated head.
 - Re-checked: `tests.test_rehandoff_board`, `tests.test_finish_merged_queue` and `tests.test_pr_review_gate` pass locally on the integrated candidate. The selected checks are recorded again by the lifecycle for this content.
+- Integration repair a52f0015 merged main 5fa6b180 (BR-943 operator acceptance gate, #840 queue OpenSpec CLI). The candidate's own diff against main stayed the same as at 091e09a3: `dev-platform/checks.toml` keeps only the `test_rehandoff_board` entry, and the generated manifest was regenerated. The incoming main changes touch requirement_terminal, execute_requirement, integration_contour, lifecycle_overview, requirement_intake and the queue workflow, and none of them reach the board hand-off, reactivation, the re-handoff scope acceptance or the handoff gates, so the semantic review holds. `test_rehandoff_board`, `test_finish_merged_queue`, `test_pr_review_gate`, `test_requirement_operator_acceptance` and `test_publication_queue_workflow` pass on the integrated head.
 
 ## Not verified / limits
 
