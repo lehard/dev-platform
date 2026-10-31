@@ -24,7 +24,7 @@ The central source lifecycle SHALL admit an exact, locally verified and archived
 
 ### Requirement: Coordinator verifies the actual current-base candidate
 
-One repository-owned coordinator SHALL process the next eligible PR after the prior merge, prepare its exact head on current main without rewriting task-owned content, require protected GitHub checks on that actual candidate, and request merge with an expected-head guard. An ordinary unrelated preceding queue merge SHALL NOT require each waiting task agent to manually reconcile and repeat a full local validation pass. Required CI and branch protection SHALL NOT be bypassed. Base actualization SHALL belong to this integration contour alone, after finalization: the coordinator SHALL merge a clean result with current main automatically, SHALL run required CI on the actual merged head, and SHALL offer integration repair on a real conflict or a failing required check. Neither candidate finalization nor an advance of `main` by other PRs between review and finalization SHALL require developer involvement for a reviewed candidate whose task content is unchanged.
+One repository-owned coordinator SHALL process the next eligible PR after the prior merge, prepare its exact head on current main without rewriting task-owned content, require protected GitHub checks on that actual candidate, and request merge with an expected-head guard.
 
 #### Scenario: Earlier queued PR advances main
 
@@ -69,7 +69,7 @@ The queue SHALL survive loss of an agent or coordinator process. A later coordin
 
 ### Requirement: Queue coordinator runs trusted code with a least-privilege token
 
-The publication queue workflow SHALL execute only code from the protected default branch for every trigger, including the `publication:queued` label event, and SHALL NOT check out or execute pull-request-controlled content while holding the Dev Platform GitHub App token. The App token SHALL be scoped to the current repository and to only the permissions the coordinator uses (contents write and pull requests write). Protected publication, required checks, the expected-head merge guard and the absence of bypass or force semantics SHALL be unchanged.
+The publication queue workflow SHALL execute only code from the protected default branch for every trigger, including the `publication:queued` label event, and SHALL NOT check out or execute pull-request-controlled content while holding the Dev Platform GitHub App token.
 
 #### Scenario: Pull request is labeled for the queue
 
@@ -123,7 +123,7 @@ When preparing a candidate on current main, conflicts confined to archive-derive
 
 ### Requirement: Integration repairs real conflicts within a bound
 
-The coordinator SHALL integrate ready candidates one at a time against current main using a clean deterministic merge and required checks on the actual candidate. Path overlap alone SHALL NOT block. A real merge conflict or failing integration check SHALL create an integration-repair job; if repair changes task-content identity, prior review, finalization and archive evidence become stale and the candidate returns through review and finalization; otherwise existing evidence is reused. After a bounded number of attempts the candidate SHALL become blocked.
+The coordinator SHALL integrate ready candidates one at a time against current main using a clean deterministic merge and required checks on the actual candidate. Path overlap alone SHALL NOT block.
 
 #### Scenario: Overlapping but clean candidate
 - **WHEN** main changed paths the candidate also changed and the merge is clean
@@ -152,7 +152,7 @@ A candidate in a blocked state SHALL NOT prevent later independent ready candida
 
 ### Requirement: Operators re-offer review and repair jobs on another provider
 
-The coordinator SHALL provide a supported operator command that re-offers an open candidate's review or repair job on an explicit ordered list of supported providers. It SHALL append one head-bound record that preserves task identity, gates, findings and every attempt counter, offers the job as a distinct re-offer of the same attempt, and records the previous and new providers, the reason and the time. It SHALL spend no retry or repair round and SHALL NOT require closing the PR or a new developer handoff. It SHALL refuse a candidate whose job holds an unexpired claim, a state that is not an unfinished review or repair, a merged or closed PR, and an unsupported or duplicated provider. Switching an unfinished pending job to the providers it already names SHALL change nothing. Later retries, repair and review jobs of the candidate SHALL follow the new providers.
+The coordinator SHALL provide a supported operator command that re-offers an open candidate's review or repair job on an explicit ordered list of supported providers.
 
 #### Scenario: Switch an open candidate
 - **GIVEN** a review-pending candidate whose job names codex and has no live claim
@@ -171,7 +171,7 @@ The coordinator SHALL provide a supported operator command that re-offers an ope
 
 ### Requirement: Operational escalation has a supported exit
 
-The coordinator SHALL provide a supported operator command that resumes a blocked-retryable review or repair candidate (typically one whose automatic retries are exhausted), and a blocked-escalation candidate whose escalation is an operational repair outcome (worker failure, harness rejection or no change), after a human decision. The command SHALL require a reason, SHALL accept a provider list, SHALL restore the findings-bearing red gate from the failed review or required-checks gate, and SHALL re-offer the same round without spending budget. It SHALL refuse finding-level escalation (proposed rejection, exhausted rounds, rejected review), malformed records and closed PRs with a message naming the human actions available. A candidate escalated before its providers were recorded SHALL require an explicit provider.
+The coordinator SHALL provide a supported operator command that resumes a blocked-retryable review or repair candidate (typically one whose automatic retries are exhausted), and a blocked-escalation candidate whose escalation is an operational repair outcome (worker failure, harness rejection or no change), after a human decision.
 
 #### Scenario: Repair worker failed
 - **GIVEN** a candidate escalated after a failed repair writer
@@ -184,7 +184,7 @@ The coordinator SHALL provide a supported operator command that resumes a blocke
 
 ### Requirement: Coordinator configuration preflight
 
-The publication coordinator SHALL validate its required configuration through one repository-owned preflight entrypoint before it observes any candidate. The preflight SHALL be run in an explicit mode (CI or local) and phase (inputs, runtime or all), SHALL prove the coordinator App identity, trust configuration, token scope, write permission and runtime inputs, and SHALL stop at the first failed check with a non-zero exit and a diagnostic naming the missing or contradictory input. Its output SHALL NOT contain credential values, and a missing or invalid required input SHALL NOT be replaced by a default or alternate strategy. The `publication-queue` workflow SHALL run the inputs phase before minting the App token without passing secret values to the preflight, and the runtime phase before candidate work; the worker command SHALL run the full preflight itself.
+The publication coordinator SHALL validate its required configuration through one repository-owned preflight entrypoint before it observes any candidate.
 
 #### Scenario: Valid configuration
 
@@ -216,7 +216,7 @@ The publication coordinator SHALL validate its required configuration through on
 
 ### Requirement: Coordinator friction evidence is durable on the candidate pull request
 
-Meaningful lifecycle and friction events recorded by the coordinator SHALL be persisted as a trusted, versioned evidence comment on the candidate pull request through the existing authenticated lifecycle comment channel, before the transition that produced them is published. Each record SHALL bind the Requirement through its public work identity derived from the managed candidate branch (or prove none for an unmanaged branch), SHALL NOT contain a private Development Backlog reference, and SHALL bind the pull request number, exact head, lifecycle stage and the worker run identity, SHALL be idempotent per dedupe key, and SHALL be authenticated by the same trust rules as other lifecycle markers. A persistence failure SHALL fail the transition and the run visibly; the coordinator SHALL NOT proceed with machine-local-only evidence.
+Meaningful lifecycle and friction events recorded by the coordinator SHALL be persisted as a trusted, versioned evidence comment on the candidate pull request through the existing authenticated lifecycle comment channel, before the transition that produced them is published.
 
 #### Scenario: Ephemeral runner ends
 
@@ -244,7 +244,7 @@ Meaningful lifecycle and friction events recorded by the coordinator SHALL be pe
 
 ### Requirement: Handoff records the originating task route
 
-The developer handoff that admits a candidate SHALL record the originating task's executor route (provider, profile and change) in the authenticated handoff record, resolved from the task's durable routing evidence in the developer checkout. Later lifecycle jobs for the candidate SHALL take their provider from that record rather than from the coordinator checkout, and a missing, unreadable, mismatched or unsupported route SHALL fail explicitly instead of publishing a job for a default or unresolved provider.
+The developer handoff that admits a candidate SHALL record the originating task's executor route (provider, profile and change) in the authenticated handoff record, resolved from the task's durable routing evidence in the developer checkout.
 
 #### Scenario: Coordinator publishes repair from another checkout
 
@@ -302,7 +302,7 @@ The platform SHALL read the complete ordered PR comment history needed for lifec
 
 ### Requirement: Exact-head required-check observation
 
-The platform SHALL derive the required-check state of a pull request from valid structured GitHub check output, SHALL resolve the required set from the pull request's final protected target (the main branch for main-targeted pull requests and for Requirement contribution pull requests targeting a `requirement/BR-<n>` integration branch), and SHALL bind the snapshot to the expected PR head both before and after reading the checks. Passed, pending, failed and not-registered observations SHALL remain distinct from unusable observations, which SHALL carry an explicit cause (transport failure, malformed output, head mismatch or unsupported state) and SHALL NOT authorize publication. The no-required-checks condition SHALL be resolved from the base branch's protection, not from CLI wording. A required context that the protected target requires but that is not yet reported on the observed head SHALL be pending (`EXPECTED`), not unusable; the coordinator's integration wait for such checks SHALL be bounded and SHALL end in an explicit block naming the unreported checks. A pending check or a repairable failed check SHALL NOT terminally block a candidate; an unusable observation SHALL be reported with its cause and SHALL NOT be substituted by an assumed state.
+The platform SHALL derive the required-check state of a pull request from valid structured GitHub check output.
 
 #### Scenario: Successful check snapshot
 
@@ -406,7 +406,7 @@ The platform SHALL require valid exact task-content provenance, bound to the adm
 
 ### Requirement: Local coordinator run is observe-only
 
-Only the CI `publication-queue` workflow, acting as the coordinator GitHub App, SHALL integrate or merge candidates into `main`. `publication_queue.py worker --mode local` SHALL NOT observe, prepare, integrate or merge any candidate: it SHALL exit non-zero before any GitHub read with a diagnostic that names the CI coordinator as the only integrator and points to `publication_queue.py status` and `publication_queue.py preflight --mode local`. `status` and `preflight --mode local` SHALL work without an App token. The local preflight SHALL NOT require repository push permission.
+Only the CI `publication-queue` workflow, acting as the coordinator GitHub App, SHALL integrate or merge candidates into `main`.
 
 #### Scenario: Local run does not integrate
 
@@ -440,7 +440,7 @@ The coordinator SHALL request the protected merge of a candidate through the Git
 
 ### Requirement: Declared generated files are regenerated on integration
 
-When preparing a candidate on current main, the coordinator SHALL treat files that its default branch declares generated in the committed check configuration as derived. When a merge of current main conflicts only in declared generated files and archive-derived current-spec paths, or a declared generated file changed both in main since the admission base and in the candidate, the coordinator SHALL merge in a disposable checkout, re-derive archive-derived specs as before, regenerate each such file by running its declared command from the default-branch code over the merged tree, and push the result as a recorded coordinator update whose parents are the claimed head and main. Required checks SHALL run on that head and gate the merge unchanged. A remaining conflict, a conflict in any other file, or a regeneration that fails on the merged tree while the same command succeeds on a pristine checkout of main SHALL become integration repair. A failure of the coordinator's own environment — the OpenSpec CLI is unavailable, a declared regeneration command cannot start, or the command fails on the pristine checkout of main as well — SHALL NOT become integration repair: the coordinator SHALL leave the candidate's state unchanged, publish no job, still evaluate the other candidates, and end the run as a failure naming each cause. The coordinator SHALL NOT execute pull-request-controlled code while holding the App token. Recovery of an unrecorded update SHALL accept a merge that differs from both parents only in archive-derived specs and declared generated files.
+When preparing a candidate on current main, the coordinator SHALL treat files that its default branch declares generated in the committed check configuration as derived.
 
 #### Scenario: Candidate conflicts with main only in the generated manifest
 - **GIVEN** a ready candidate and a main that both changed neighbouring entries of the declared platform manifest
@@ -472,7 +472,7 @@ When preparing a candidate on current main, the coordinator SHALL treat files th
 
 ### Requirement: A writer-needing repair is escalated to the operator
 
-A candidate that enters `repair-pending` or `integration-repair-pending` needs a writer, and no writer SHALL be launched automatically for it. The coordinator SHALL post one human-readable attention comment per exact repair round on the pull request, titled as a needed repair of that pull request, naming the reason, the head, the attempts and the worker command an operator runs to execute the published job. The published job SHALL stay claimable. An `integration-merge` round needs no writer and SHALL NOT post this comment. A lost attention comment SHALL be posted on the next observation of the same round; an unchanged round SHALL NOT post another.
+A candidate that enters `repair-pending` or `integration-repair-pending` needs a writer, and no writer SHALL be launched automatically for it.
 
 #### Scenario: Integration repair is offered
 - **WHEN** a real conflict makes the coordinator offer an integration-repair job for PR #N
@@ -492,7 +492,7 @@ A candidate that enters `repair-pending` or `integration-repair-pending` needs a
 
 ### Requirement: A clean merge after a failed derived merge is integrated without a writer
 
-When integration of a candidate fails on the `integration` gate and a trial merge of the candidate head with current main has no conflict, the coordinator SHALL offer an `integration-merge` job instead of an integration-repair job. The job SHALL name no provider and no route, SHALL count against the same bounded integration-repair attempts, and SHALL record on the candidate that the round is merge-only so a re-published job and a recovered push keep the kind. Its executor SHALL merge current main in a disposable harness checkout without starting any writer, validate the result like an integration repair, push it under the claim and advance the candidate like an integration repair. When the merge conflicts or a required check is red at execution time, the job SHALL fail naming the conflicts and the coordinator SHALL offer an integration-repair job in the next attempt, never a writer inside the integration-merge job. A conflict, a red required check or a failed GitHub branch update SHALL keep offering integration repair as before.
+When integration of a candidate fails on the `integration` gate and a trial merge of the candidate head with current main has no conflict, the coordinator SHALL offer an `integration-merge` job instead of an integration-repair job.
 
 #### Scenario: Derived merge failed but the plain merge is clean
 - **GIVEN** a candidate whose derived merge failed for a candidate reason and whose trial merge with main has no conflict
@@ -514,7 +514,7 @@ When integration of a candidate fails on the `integration` gate and a trial merg
 
 ### Requirement: A developer fix re-admits a candidate waiting for integration repair
 
-The coordinator SHALL accept a fresh developer handoff for a candidate whose latest record is `integration-repair-pending` when the record is bound to the proven integrated head, the handoff names the same task, the offered integration-repair job holds no live claim, and the new head descends from the proven head. The accepted handoff SHALL supersede the published integration-repair job. An archived managed task whose admitted PR waits in `integration-repair-pending` SHALL be re-opened for that handoff when the local head strictly descends from the proven head. A live claim, a different task or a head that does not descend from the proven head SHALL be refused with a message naming the reason.
+The coordinator SHALL accept a fresh developer handoff for a candidate whose latest record is `integration-repair-pending` when the record is bound to the proven integrated head, the handoff names the same task, the offered integration-repair job holds no live claim, and the new head descends from the proven head.
 
 #### Scenario: Developer fix of a red integrated check is re-admitted
 - **GIVEN** a candidate in `integration-repair-pending` after a required check failed on its integrated head, with no live claim on its integration-repair job
@@ -533,7 +533,7 @@ The coordinator SHALL accept a fresh developer handoff for a candidate whose lat
 
 ### Requirement: An integration-repair writer receives the failed check's evidence
 
-When integration repair is needed because a required check failed on the integrated candidate, the red gate SHALL record the identity of each failed required check, including its name and log link. The integration-repair writer brief SHALL carry, for each failed check, its identity and a bounded excerpt of its failed log. A writer brief for a failed required check without that identity or with an unreadable log SHALL be refused before any writer starts, naming the cause, and SHALL NOT spend an integration-repair attempt.
+When integration repair is needed because a required check failed on the integrated candidate, the red gate SHALL record the identity of each failed required check, including its name and log link.
 
 #### Scenario: Writer brief carries the failed log
 - **GIVEN** an integration-repair job for a failed required check whose log is readable
@@ -547,7 +547,7 @@ When integration repair is needed because a required check failed on the integra
 
 ### Requirement: Operator re-offers an exhausted post-merge obligation
 
-The coordinator SHALL provide `publication_queue.py reoffer-post-merge --pr N --expected-head H --reason TEXT [--via LABEL]`. It SHALL refuse before any write when the reason or the acting authenticated GitHub identity is missing, the PR is not merged, `H` differs from the merged head, there is no coordinator record at the merged head, no post-merge obligation of the PR is exhausted, or an unexpired claim holds a job of the exhausted obligation. Otherwise it SHALL append one coordinator record at the merged head that keeps state `merged`, task identity and attempt counters, increments `post-merge-reoffers`, and carries a re-offer event naming the obligation kind, reason, actor, `via` label when given, head and time. Eligibility SHALL be one function shared with the lifecycle overview and the attention comment.
+The coordinator SHALL provide `publication_queue.py reoffer-post-merge --pr N --expected-head H --reason TEXT [--via LABEL]`.
 
 #### Scenario: Exhausted cleanup re-offered
 - **GIVEN** a merged PR whose cleanup obligation exhausted its attempts
@@ -561,7 +561,7 @@ The coordinator SHALL provide `publication_queue.py reoffer-post-merge --pr N --
 
 ### Requirement: Transient queue failures are retried within a bound
 
-The queue worker SHALL retry a transient failure of its candidate observation (`GET` of the candidate pull request) within a bounded backoff, logging each failed attempt with the PR, attempt number and error. Inside the queue's candidate observation only, HTTP 422 "too many files changed" SHALL count as transient. When the bound is spent the observation SHALL fail naming the PR, the attempts and the last error, and a run in which no candidate could be evaluated SHALL exit non-zero. A non-transient observation failure SHALL NOT be retried. A transient failure while integrating a candidate SHALL leave it `waiting` and SHALL record a consecutive-failure counter for its exact head in the candidate record; when the counter reaches the limit the candidate SHALL be blocked with a reason naming the head, the count and the error. A later evaluation of the same head without a transient failure SHALL reset the counter, and a new head SHALL start with no count.
+The queue worker SHALL retry a transient failure of its candidate observation (`GET` of the candidate pull request) within a bounded backoff, logging each failed attempt with the PR, attempt number and error.
 
 #### Scenario: Transient observation then success
 - **WHEN** reading an admitted PR fails with HTTP 422 "too many files changed" and a later attempt of the same read succeeds within the bound
@@ -589,7 +589,7 @@ The queue worker SHALL retry a transient failure of its candidate observation (`
 
 ### Requirement: A developer re-handoff supersedes an unclaimed finalize-pending candidate
 
-The coordinator SHALL accept a fresh developer handoff for a candidate whose latest record is `finalize-pending` when the record is bound to the proven head, the handoff names the same task, the offered finalize job holds no live claim, and the new head descends from the proven head. The accepted handoff SHALL supersede the finalize-pending admission, and an archived managed task whose admitted PR waits in `finalize-pending` SHALL be re-opened for that handoff when the local head strictly descends from the proven head. A live finalize claim, a different task or a head that does not descend from the proven head SHALL be refused with a message naming the reason.
+The coordinator SHALL accept a fresh developer handoff for a candidate whose latest record is `finalize-pending` when the record is bound to the proven head, the handoff names the same task, the offered finalize job holds no live claim, and the new head descends from the proven head.
 
 #### Scenario: Reconciled finalize-pending candidate is re-admitted
 - **GIVEN** a candidate in `finalize-pending` at its proven head whose finalize job holds no live claim
@@ -605,3 +605,733 @@ The coordinator SHALL accept a fresh developer handoff for a candidate whose lat
 - **GIVEN** a candidate in `finalize-pending`
 - **WHEN** the developer hands off a head that does not descend from the proven head
 - **THEN** the handoff is refused naming the missing ancestry
+
+### Requirement: Waiting task agents do not reconcile after an unrelated queue merge
+
+An ordinary unrelated preceding queue merge SHALL NOT require each waiting task agent to manually reconcile and repeat a full local validation pass.
+
+#### Scenario: An unrelated queue merge precedes a waiting candidate
+
+- **GIVEN** a task agent's candidate waits in the queue
+- **WHEN** an ordinary unrelated preceding queue merge lands
+- **THEN** the task agent is not required to manually reconcile or repeat a full local validation pass
+
+### Requirement: Queue integration bypasses no required CI or branch protection
+
+Required CI and branch protection SHALL NOT be bypassed.
+
+#### Scenario: The coordinator merges a candidate
+
+- **WHEN** the coordinator merges a candidate
+- **THEN** required CI and branch protection are not bypassed
+
+### Requirement: Base actualization belongs to the coordinator's integration contour
+
+Base actualization SHALL belong to the coordinator's integration contour alone, after finalization: the coordinator SHALL merge a clean result with current main automatically, SHALL run required CI on the actual merged head, and SHALL offer integration repair on a real conflict or a failing required check.
+
+#### Scenario: A finalized candidate merges cleanly with current main
+
+- **GIVEN** a finalized candidate
+- **WHEN** it merges cleanly with current main
+- **THEN** the coordinator merges it automatically and runs required CI on the actual merged head
+
+#### Scenario: A finalized candidate conflicts with current main
+
+- **GIVEN** a finalized candidate
+- **WHEN** merging current main has a real conflict or a required check fails
+- **THEN** the coordinator offers integration repair
+
+### Requirement: A reviewed unchanged candidate needs no developer for finalization or base advance
+
+Neither candidate finalization nor an advance of `main` by other PRs between review and finalization SHALL require developer involvement for a reviewed candidate whose task content is unchanged.
+
+#### Scenario: Main advances between review and finalization
+
+- **GIVEN** a reviewed candidate whose task content is unchanged
+- **WHEN** other PRs advance `main` between review and finalization, and the candidate is finalized
+- **THEN** no developer involvement is required
+
+### Requirement: The queue App token is scoped to the coordinator's permissions
+
+The Dev Platform GitHub App token SHALL be scoped to the current repository and to only the permissions the coordinator uses (contents write and pull requests write).
+
+#### Scenario: The publication queue workflow mints the App token
+
+- **WHEN** the publication queue workflow mints the Dev Platform GitHub App token
+- **THEN** the token is scoped to the current repository
+- **AND** it carries only contents write and pull requests write
+
+### Requirement: Queue publication protections stay unchanged
+
+Protected publication, required checks, the expected-head merge guard and the absence of bypass or force semantics SHALL be unchanged.
+
+#### Scenario: The publication queue workflow publishes a candidate
+
+- **WHEN** the publication queue workflow publishes a candidate
+- **THEN** protected publication, required checks and the expected-head merge guard apply unchanged
+- **AND** no bypass or force semantics are used
+
+### Requirement: A real integration conflict creates an integration-repair job
+
+A real merge conflict or failing integration check SHALL create an integration-repair job; if repair changes task-content identity, prior review, finalization and archive evidence become stale and the candidate returns through review and finalization; otherwise existing evidence is reused.
+
+#### Scenario: Integration repair changes task content
+
+- **GIVEN** a real merge conflict created an integration-repair job
+- **WHEN** the repair changes task-content identity
+- **THEN** prior review, finalization and archive evidence become stale
+- **AND** the candidate returns through review and finalization
+
+#### Scenario: Integration repair keeps task content
+
+- **GIVEN** a failing integration check created an integration-repair job
+- **WHEN** the repair keeps task-content identity
+- **THEN** existing evidence is reused
+
+### Requirement: Integration repair is bounded
+
+After a bounded number of integration-repair attempts the candidate SHALL become blocked.
+
+#### Scenario: Integration-repair attempts are exhausted
+
+- **WHEN** a candidate spends the bounded number of integration-repair attempts
+- **THEN** the candidate becomes blocked
+
+### Requirement: A provider re-offer appends one head-bound record
+
+The provider re-offer operator command SHALL append one head-bound record that preserves task identity, gates, findings and every attempt counter, offers the job as a distinct re-offer of the same attempt, and records the previous and new providers, the reason and the time.
+
+#### Scenario: An operator re-offers a review job on another provider
+
+- **WHEN** the provider re-offer operator command runs for an eligible review job
+- **THEN** one head-bound record is appended preserving task identity, gates, findings and every attempt counter
+- **AND** the job is offered as a distinct re-offer of the same attempt
+- **AND** the record names the previous and new providers, the reason and the time
+
+### Requirement: A provider re-offer spends no round
+
+The provider re-offer operator command SHALL spend no retry or repair round and SHALL NOT require closing the PR or a new developer handoff.
+
+#### Scenario: A repair job is re-offered on another provider
+
+- **WHEN** the provider re-offer operator command re-offers a repair job
+- **THEN** no retry or repair round is spent
+- **AND** the PR is not closed and no new developer handoff is required
+
+### Requirement: A provider re-offer refuses ineligible candidates
+
+The provider re-offer operator command SHALL refuse a candidate whose job holds an unexpired claim, a state that is not an unfinished review or repair, a merged or closed PR, and an unsupported or duplicated provider.
+
+#### Scenario: The job to re-offer holds an unexpired claim
+
+- **WHEN** the provider re-offer operator command targets a candidate whose job holds an unexpired claim
+- **THEN** the command refuses
+
+#### Scenario: The provider list is unsupported or duplicated
+
+- **WHEN** the provider re-offer operator command is given an unsupported or duplicated provider
+- **THEN** the command refuses
+
+### Requirement: Switching a pending job to its current providers changes nothing
+
+Switching an unfinished pending job to the providers it already names SHALL change nothing.
+
+#### Scenario: A pending job is switched to the same providers
+
+- **GIVEN** an unfinished pending job naming providers A and B
+- **WHEN** it is switched to providers A and B
+- **THEN** nothing changes
+
+### Requirement: Later jobs of a re-offered candidate follow the new providers
+
+Later retries, repair and review jobs of the re-offered candidate SHALL follow the new providers.
+
+#### Scenario: A re-offered candidate needs a later job
+
+- **GIVEN** a candidate whose job was re-offered on new providers
+- **WHEN** a later retry, repair or review job is offered for it
+- **THEN** that job follows the new providers
+
+### Requirement: The operator resume command restores the red gate and re-offers the same round
+
+The operator resume command SHALL require a reason, SHALL accept a provider list, SHALL restore the findings-bearing red gate from the failed review or required-checks gate, and SHALL re-offer the same round without spending budget.
+
+#### Scenario: An operator resumes a blocked-retryable candidate
+
+- **WHEN** the operator resume command runs with a reason and a provider list
+- **THEN** the findings-bearing red gate is restored from the failed review or required-checks gate
+- **AND** the same round is re-offered without spending budget
+
+#### Scenario: The operator resume command has no reason
+
+- **WHEN** the operator resume command runs without a reason
+- **THEN** the command refuses
+
+### Requirement: The operator resume command refuses finding-level escalation
+
+The operator resume command SHALL refuse finding-level escalation (proposed rejection, exhausted rounds, rejected review), malformed records and closed PRs with a message naming the human actions available.
+
+#### Scenario: An operator resumes a finding-level escalation
+
+- **GIVEN** a candidate escalated for exhausted rounds
+- **WHEN** the operator resume command runs for it
+- **THEN** the command refuses with a message naming the human actions available
+
+### Requirement: Resuming a candidate escalated without recorded providers needs an explicit provider
+
+A candidate escalated before its providers were recorded SHALL require an explicit provider when resumed.
+
+#### Scenario: A candidate without recorded providers is resumed
+
+- **GIVEN** a candidate escalated before its providers were recorded
+- **WHEN** the operator resume command runs for it without a provider
+- **THEN** the command refuses and requires an explicit provider
+
+### Requirement: The coordinator preflight proves identity, trust, scope, permission and inputs
+
+The coordinator preflight SHALL be run in an explicit mode (CI or local) and phase (inputs, runtime or all), and SHALL prove the coordinator App identity, trust configuration, token scope, write permission and runtime inputs.
+
+#### Scenario: The coordinator preflight runs
+
+- **WHEN** the coordinator preflight runs in an explicit mode and phase
+- **THEN** it proves the coordinator App identity, trust configuration, token scope, write permission and runtime inputs
+
+### Requirement: The coordinator preflight stops at the first failed check
+
+The coordinator preflight SHALL stop at the first failed check with a non-zero exit and a diagnostic naming the missing or contradictory input.
+
+#### Scenario: A coordinator preflight check fails
+
+- **WHEN** a coordinator preflight check fails
+- **THEN** the preflight stops with a non-zero exit
+- **AND** the diagnostic names the missing or contradictory input
+
+### Requirement: The coordinator preflight output contains no credential values
+
+The coordinator preflight output SHALL NOT contain credential values.
+
+#### Scenario: The coordinator preflight reports its result
+
+- **WHEN** the coordinator preflight prints its output
+- **THEN** the output contains no credential values
+
+### Requirement: A missing coordinator input is not replaced by a default
+
+A missing or invalid required coordinator input SHALL NOT be replaced by a default or alternate strategy.
+
+#### Scenario: A required coordinator input is missing
+
+- **WHEN** a required coordinator input is missing or invalid
+- **THEN** no default or alternate strategy replaces it
+
+### Requirement: The publication-queue workflow runs the preflight phases before token and candidate work
+
+The `publication-queue` workflow SHALL run the inputs phase of the coordinator preflight before minting the App token without passing secret values to the preflight, and the runtime phase before candidate work.
+
+#### Scenario: The publication-queue workflow starts
+
+- **WHEN** the `publication-queue` workflow starts
+- **THEN** it runs the inputs phase before minting the App token without passing secret values to the preflight
+- **AND** it runs the runtime phase before candidate work
+
+### Requirement: The coordinator worker command runs the full preflight
+
+The worker command SHALL run the full coordinator preflight itself.
+
+#### Scenario: The coordinator worker command starts
+
+- **WHEN** the worker command starts
+- **THEN** it runs the full coordinator preflight itself
+
+### Requirement: A coordinator evidence record binds the Requirement by public work identity
+
+Each coordinator evidence record SHALL bind the Requirement through its public work identity derived from the managed candidate branch (or prove none for an unmanaged branch), and SHALL NOT contain a private Development Backlog reference.
+
+#### Scenario: Evidence is recorded for a managed candidate branch
+
+- **WHEN** the coordinator records evidence for a managed candidate branch
+- **THEN** the record binds the Requirement through its public work identity derived from the branch
+- **AND** it contains no private Development Backlog reference
+
+#### Scenario: Evidence is recorded for an unmanaged branch
+
+- **WHEN** the coordinator records evidence for an unmanaged branch
+- **THEN** the record proves that no Requirement is bound
+
+### Requirement: A coordinator evidence record binds the pull request, head, stage and run
+
+Each coordinator evidence record SHALL bind the pull request number, exact head, lifecycle stage and the worker run identity.
+
+#### Scenario: A coordinator evidence record is written
+
+- **WHEN** a coordinator evidence record is written
+- **THEN** it binds the pull request number, exact head, lifecycle stage and the worker run identity
+
+### Requirement: A coordinator evidence record is idempotent and authenticated
+
+Each coordinator evidence record SHALL be idempotent per dedupe key, and SHALL be authenticated by the same trust rules as other lifecycle markers.
+
+#### Scenario: The same coordinator evidence is recorded twice
+
+- **WHEN** a coordinator evidence record with an existing dedupe key is recorded again
+- **THEN** no second record is created
+- **AND** records are authenticated by the same trust rules as other lifecycle markers
+
+### Requirement: A coordinator evidence persistence failure fails the transition
+
+A persistence failure of coordinator evidence SHALL fail the transition and the run visibly; the coordinator SHALL NOT proceed with machine-local-only evidence.
+
+#### Scenario: Coordinator evidence cannot be persisted
+
+- **WHEN** persisting coordinator evidence on the pull request fails
+- **THEN** the transition and the run fail visibly
+- **AND** the coordinator does not proceed with machine-local-only evidence
+
+### Requirement: Later lifecycle jobs take their provider from the handoff route
+
+Later lifecycle jobs for the candidate SHALL take their provider from the authenticated handoff record rather than from the coordinator checkout, and a missing, unreadable, mismatched or unsupported route SHALL fail explicitly instead of publishing a job for a default or unresolved provider.
+
+#### Scenario: A later lifecycle job is published
+
+- **GIVEN** an admitted candidate whose authenticated handoff record names a route
+- **WHEN** a later lifecycle job is published for it
+- **THEN** its provider comes from the handoff record, not from the coordinator checkout
+
+#### Scenario: The handoff route is unsupported
+
+- **WHEN** the recorded route is missing, unreadable, mismatched or unsupported
+- **THEN** publishing the job fails explicitly
+- **AND** no job is published for a default or unresolved provider
+
+### Requirement: The required-check set comes from the final protected target
+
+The platform SHALL resolve the required-check set of a pull request from the pull request's final protected target (the main branch for main-targeted pull requests and for Requirement contribution pull requests targeting a `requirement/BR-<n>` integration branch).
+
+#### Scenario: A Requirement contribution pull request is observed
+
+- **GIVEN** a Requirement contribution pull request targeting a `requirement/BR-<n>` integration branch
+- **WHEN** its required checks are resolved
+- **THEN** the required set comes from the main branch
+
+### Requirement: A required-check snapshot is bound to the expected head
+
+The platform SHALL bind the required-check snapshot to the expected PR head both before and after reading the checks.
+
+#### Scenario: Required checks are read for an expected head
+
+- **WHEN** the platform reads the required checks of a pull request
+- **THEN** it binds the snapshot to the expected PR head both before and after reading the checks
+
+### Requirement: Unusable required-check observations carry a cause
+
+Passed, pending, failed and not-registered observations SHALL remain distinct from unusable observations, which SHALL carry an explicit cause (transport failure, malformed output, head mismatch or unsupported state) and SHALL NOT authorize publication.
+
+#### Scenario: Check output is malformed
+
+- **WHEN** the check output is malformed
+- **THEN** the observation is unusable with cause malformed output, distinct from passed, pending, failed and not-registered
+- **AND** it does not authorize publication
+
+### Requirement: The no-required-checks condition comes from base branch protection
+
+The no-required-checks condition SHALL be resolved from the base branch's protection, not from CLI wording.
+
+#### Scenario: A pull request may have no required checks
+
+- **WHEN** the platform decides whether a pull request has no required checks
+- **THEN** it resolves this from the base branch's protection, not from CLI wording
+
+### Requirement: An unreported required context is pending
+
+A required context that the protected target requires but that is not yet reported on the observed head SHALL be pending (`EXPECTED`), not unusable.
+
+#### Scenario: A required context is not yet reported
+
+- **GIVEN** a context the protected target requires
+- **WHEN** it is not yet reported on the observed head
+- **THEN** it is pending (`EXPECTED`), not unusable
+
+### Requirement: The integration wait for unreported required checks is bounded
+
+The coordinator's integration wait for required checks not yet reported on the observed head SHALL be bounded and SHALL end in an explicit block naming the unreported checks.
+
+#### Scenario: Required checks stay unreported during integration
+
+- **WHEN** required checks stay unreported on the observed head beyond the coordinator's bounded integration wait
+- **THEN** the wait ends in an explicit block naming the unreported checks
+
+### Requirement: Pending or repairable failed checks do not terminally block
+
+A pending check or a repairable failed check SHALL NOT terminally block a candidate.
+
+#### Scenario: A candidate has a pending check
+
+- **WHEN** a candidate has a pending check or a repairable failed check
+- **THEN** the candidate is not terminally blocked
+
+### Requirement: An unusable check observation is reported with its cause
+
+An unusable check observation SHALL be reported with its cause and SHALL NOT be substituted by an assumed state.
+
+#### Scenario: A check observation is unusable
+
+- **WHEN** a check observation is unusable
+- **THEN** it is reported with its cause
+- **AND** no assumed state replaces it
+
+### Requirement: A local coordinator worker exits before any GitHub read
+
+`publication_queue.py worker --mode local` SHALL NOT observe, prepare, integrate or merge any candidate: it SHALL exit non-zero before any GitHub read with a diagnostic that names the CI coordinator as the only integrator and points to `publication_queue.py status` and `publication_queue.py preflight --mode local`.
+
+#### Scenario: An operator runs the worker locally
+
+- **WHEN** `publication_queue.py worker --mode local` runs
+- **THEN** it exits non-zero before any GitHub read
+- **AND** the diagnostic names the CI coordinator as the only integrator and points to `publication_queue.py status` and `publication_queue.py preflight --mode local`
+
+### Requirement: Queue status and local preflight need no App token
+
+`status` and `preflight --mode local` of `publication_queue.py` SHALL work without an App token.
+
+#### Scenario: Status runs without an App token
+
+- **GIVEN** no App token is available
+- **WHEN** `publication_queue.py status` or `publication_queue.py preflight --mode local` runs
+- **THEN** it works
+
+### Requirement: The local coordinator preflight needs no push permission
+
+The local coordinator preflight SHALL NOT require repository push permission.
+
+#### Scenario: The local preflight runs without push permission
+
+- **GIVEN** the operator has no repository push permission
+- **WHEN** `publication_queue.py preflight --mode local` runs
+- **THEN** it does not fail for missing push permission
+
+### Requirement: The coordinator regenerates conflicting declared generated files
+
+When a merge of current main conflicts only in declared generated files and archive-derived current-spec paths, or a declared generated file changed both in main since the admission base and in the candidate, the coordinator SHALL merge in a disposable checkout, re-derive archive-derived specs as before, and regenerate each such file by running its declared command from the default-branch code over the merged tree.
+
+#### Scenario: A merge conflicts only in a declared generated file
+
+- **GIVEN** a merge of current main conflicts only in declared generated files and archive-derived current-spec paths
+- **WHEN** the coordinator prepares the candidate
+- **THEN** it merges in a disposable checkout, re-derives archive-derived specs and regenerates each such file with its declared command from the default-branch code over the merged tree
+
+### Requirement: The coordinator pushes regenerated declared files as a recorded update
+
+When a merge of current main conflicts only in declared generated files and archive-derived current-spec paths, or a declared generated file changed both in main since the admission base and in the candidate, the coordinator SHALL push the result of the regeneration as a recorded coordinator update whose parents are the claimed head and main.
+
+#### Scenario: Declared generated files were regenerated on integration
+
+- **GIVEN** a declared generated file changed both in main since the admission base and in the candidate
+- **WHEN** the coordinator has regenerated it over the merged tree
+- **THEN** it pushes the result as a recorded coordinator update whose parents are the claimed head and main
+
+### Requirement: Required checks gate a regenerated coordinator update
+
+Required checks SHALL run on the recorded coordinator update head and gate the merge unchanged.
+
+#### Scenario: The coordinator pushed a regenerated update
+
+- **WHEN** the coordinator pushes a recorded coordinator update
+- **THEN** required checks run on that head and gate the merge unchanged
+
+### Requirement: Unresolved generated-file integration becomes integration repair
+
+A remaining conflict, a conflict in any file other than declared generated files and archive-derived current-spec paths, or a regeneration that fails on the merged tree while the same command succeeds on a pristine checkout of main SHALL become integration repair.
+
+#### Scenario: Regeneration fails only on the merged tree
+
+- **WHEN** a declared regeneration command fails on the merged tree but succeeds on a pristine checkout of main
+- **THEN** the candidate becomes integration repair
+
+#### Scenario: A merge conflicts in an ordinary file
+
+- **WHEN** a merge of current main conflicts in a file that is neither declared generated nor an archive-derived current-spec path
+- **THEN** the candidate becomes integration repair
+
+### Requirement: A coordinator environment failure is not integration repair
+
+A failure of the coordinator's own environment — the OpenSpec CLI is unavailable, a declared regeneration command cannot start, or the command fails on the pristine checkout of main as well — SHALL NOT become integration repair: the coordinator SHALL leave the candidate's state unchanged, publish no job, still evaluate the other candidates, and end the run as a failure naming each cause.
+
+#### Scenario: The OpenSpec CLI is unavailable during regeneration
+
+- **WHEN** the OpenSpec CLI is unavailable while preparing a candidate
+- **THEN** the candidate's state is unchanged and no job is published
+- **AND** the other candidates are still evaluated
+- **AND** the run ends as a failure naming the cause
+
+### Requirement: Regeneration runs no pull-request-controlled code under the App token
+
+The coordinator SHALL NOT execute pull-request-controlled code while holding the App token.
+
+#### Scenario: The coordinator regenerates a declared file
+
+- **WHEN** the coordinator regenerates a declared generated file while holding the App token
+- **THEN** it executes no pull-request-controlled code
+
+### Requirement: Recovery accepts an unrecorded regenerated update
+
+Recovery of an unrecorded coordinator update SHALL accept a merge that differs from both parents only in archive-derived specs and declared generated files.
+
+#### Scenario: A coordinator update was pushed but not recorded
+
+- **GIVEN** an unrecorded coordinator update that differs from both parents only in archive-derived specs and declared generated files
+- **WHEN** the coordinator recovers it
+- **THEN** the merge is accepted
+
+### Requirement: A writer-needing repair round posts one attention comment
+
+For a candidate in `repair-pending` or `integration-repair-pending`, the coordinator SHALL post one human-readable attention comment per exact repair round on the pull request, titled as a needed repair of that pull request, naming the reason, the head, the attempts and the worker command an operator runs to execute the published job. The published job SHALL stay claimable.
+
+#### Scenario: A candidate enters repair-pending
+
+- **WHEN** a candidate enters `repair-pending`
+- **THEN** one human-readable attention comment titled as a needed repair of the pull request is posted for that round
+- **AND** it names the reason, the head, the attempts and the worker command an operator runs
+- **AND** the published job stays claimable
+
+### Requirement: An integration-merge round posts no repair attention comment
+
+An `integration-merge` round needs no writer and SHALL NOT post the repair attention comment.
+
+#### Scenario: An integration-merge round is published
+
+- **WHEN** an `integration-merge` round is published
+- **THEN** no repair attention comment is posted
+
+### Requirement: A lost repair attention comment is posted once on the next observation
+
+A lost repair attention comment SHALL be posted on the next observation of the same round; an unchanged round SHALL NOT post another repair attention comment.
+
+#### Scenario: The repair attention comment was lost
+
+- **GIVEN** a repair round whose attention comment was lost
+- **WHEN** the coordinator next observes the same round
+- **THEN** the attention comment is posted
+
+#### Scenario: The repair round is unchanged
+
+- **GIVEN** a repair round whose attention comment exists
+- **WHEN** the coordinator observes the unchanged round again
+- **THEN** no other attention comment is posted
+
+### Requirement: An integration-merge job names no provider and keeps its kind
+
+The `integration-merge` job SHALL name no provider and no route, SHALL count against the same bounded integration-repair attempts, and SHALL record on the candidate that the round is merge-only so a re-published job and a recovered push keep the kind.
+
+#### Scenario: An integration-merge job is re-published
+
+- **GIVEN** an `integration-merge` job that names no provider and no route and counts against the integration-repair attempts
+- **WHEN** the job is re-published or its push is recovered
+- **THEN** it keeps the merge-only kind recorded on the candidate
+
+### Requirement: The integration-merge executor merges main without a writer
+
+The executor of an `integration-merge` job SHALL merge current main in a disposable harness checkout without starting any writer, validate the result like an integration repair, push it under the claim and advance the candidate like an integration repair.
+
+#### Scenario: An integration-merge job is executed
+
+- **WHEN** an `integration-merge` job is executed
+- **THEN** current main is merged in a disposable harness checkout without starting any writer
+- **AND** the result is validated, pushed under the claim and the candidate advanced like an integration repair
+
+### Requirement: A failing integration-merge job leads to integration repair
+
+When the merge conflicts or a required check is red at execution time of an `integration-merge` job, the `integration-merge` job SHALL fail naming the conflicts and the coordinator SHALL offer an integration-repair job in the next attempt, never a writer inside the integration-merge job.
+
+#### Scenario: An integration-merge job meets a conflict
+
+- **WHEN** an `integration-merge` job's merge conflicts at execution time
+- **THEN** the job fails naming the conflicts
+- **AND** the coordinator offers an integration-repair job in the next attempt, never a writer inside the integration-merge job
+
+### Requirement: Conflicts and red checks keep offering integration repair
+
+A conflict, a red required check or a failed GitHub branch update SHALL keep offering integration repair as before.
+
+#### Scenario: A failed GitHub branch update blocks integration
+
+- **WHEN** integration meets a conflict, a red required check or a failed GitHub branch update
+- **THEN** the coordinator offers integration repair as before
+
+### Requirement: An accepted developer fix supersedes the integration-repair job
+
+A fresh developer handoff accepted for a candidate whose latest record is `integration-repair-pending` SHALL supersede the published integration-repair job.
+
+#### Scenario: A developer fix is accepted during integration repair
+
+- **WHEN** a fresh developer handoff is accepted for a candidate in `integration-repair-pending`
+- **THEN** the published integration-repair job is superseded
+
+### Requirement: An archived task is re-opened for a developer fix during integration repair
+
+An archived managed task whose admitted PR waits in `integration-repair-pending` SHALL be re-opened for a fresh developer handoff when the local head strictly descends from the proven head.
+
+#### Scenario: The task of a waiting PR is already archived
+
+- **GIVEN** an archived managed task whose admitted PR waits in `integration-repair-pending`
+- **WHEN** the local head strictly descends from the proven head
+- **THEN** the task is re-opened for a fresh developer handoff
+
+### Requirement: An ineligible developer fix during integration repair is refused
+
+For a fresh developer handoff of a candidate whose latest record is `integration-repair-pending`, a live claim, a different task or a head that does not descend from the proven head SHALL be refused with a message naming the reason.
+
+#### Scenario: The integration-repair job holds a live claim
+
+- **GIVEN** a candidate in `integration-repair-pending` whose integration-repair job holds a live claim
+- **WHEN** a fresh developer handoff arrives
+- **THEN** it is refused with a message naming the live claim
+
+### Requirement: The integration-repair writer brief carries failed check logs
+
+The integration-repair writer brief SHALL carry, for each failed check, its identity and a bounded excerpt of its failed log.
+
+#### Scenario: An integration-repair writer is briefed
+
+- **GIVEN** integration repair is needed because required checks failed
+- **WHEN** the integration-repair writer brief is built
+- **THEN** it carries each failed check's identity and a bounded excerpt of its failed log
+
+### Requirement: An integration-repair brief without failed check evidence is refused
+
+An integration-repair writer brief for a failed required check without that check's identity or with an unreadable log SHALL be refused before any writer starts, naming the cause, and SHALL NOT spend an integration-repair attempt.
+
+#### Scenario: The failed check's log is unreadable
+
+- **WHEN** the integration-repair writer brief is built for a failed required check whose log is unreadable
+- **THEN** the brief is refused before any writer starts, naming the cause
+- **AND** no integration-repair attempt is spent
+
+### Requirement: reoffer-post-merge refuses an ineligible obligation before any write
+
+`publication_queue.py reoffer-post-merge` SHALL refuse before any write when the reason or the acting authenticated GitHub identity is missing, the PR is not merged, `H` differs from the merged head, there is no coordinator record at the merged head, no post-merge obligation of the PR is exhausted, or an unexpired claim holds a job of the exhausted obligation.
+
+#### Scenario: The expected head differs from the merged head
+
+- **WHEN** `publication_queue.py reoffer-post-merge` runs with `H` different from the merged head
+- **THEN** it refuses before any write
+
+#### Scenario: An unexpired claim holds the exhausted obligation's job
+
+- **WHEN** an unexpired claim holds a job of the exhausted obligation
+- **THEN** `publication_queue.py reoffer-post-merge` refuses before any write
+
+### Requirement: reoffer-post-merge appends one record at the merged head
+
+When `publication_queue.py reoffer-post-merge` does not refuse, the command SHALL append one coordinator record at the merged head that keeps state `merged`, task identity and attempt counters, increments `post-merge-reoffers`, and carries a re-offer event naming the obligation kind, reason, actor, `via` label when given, head and time.
+
+#### Scenario: An exhausted post-merge obligation is re-offered
+
+- **WHEN** `publication_queue.py reoffer-post-merge` accepts an exhausted post-merge obligation
+- **THEN** one coordinator record is appended at the merged head keeping state `merged`, task identity and attempt counters
+- **AND** `post-merge-reoffers` is incremented
+- **AND** the re-offer event names the obligation kind, reason, actor, `via` label when given, head and time
+
+### Requirement: Post-merge re-offer eligibility is one shared function
+
+Post-merge re-offer eligibility SHALL be one function shared with the lifecycle overview and the attention comment.
+
+#### Scenario: The overview and the attention comment show post-merge re-offer
+
+- **WHEN** the lifecycle overview or the attention comment decides whether `reoffer-post-merge` is permitted
+- **THEN** it uses the same eligibility function as `publication_queue.py reoffer-post-merge`
+
+### Requirement: HTTP 422 too many files changed is transient in candidate observation
+
+Inside the queue's candidate observation only, HTTP 422 "too many files changed" SHALL count as transient.
+
+#### Scenario: Candidate observation returns too many files changed
+
+- **WHEN** the queue's candidate observation receives HTTP 422 "too many files changed"
+- **THEN** the failure counts as transient and is retried
+
+#### Scenario: Another queue step returns too many files changed
+
+- **WHEN** a request outside the queue's candidate observation receives HTTP 422 "too many files changed"
+- **THEN** the failure does not count as transient
+
+### Requirement: Exhausted candidate observation retries fail visibly
+
+When the candidate observation retry bound is spent the observation SHALL fail naming the PR, the attempts and the last error, and a run in which no candidate could be evaluated SHALL exit non-zero.
+
+#### Scenario: Candidate observation retries are exhausted
+
+- **WHEN** the candidate observation retry bound is spent
+- **THEN** the observation fails naming the PR, the attempts and the last error
+
+#### Scenario: No candidate could be evaluated
+
+- **WHEN** no candidate could be evaluated in a queue worker run
+- **THEN** the run exits non-zero
+
+### Requirement: A non-transient candidate observation failure is not retried
+
+A non-transient candidate observation failure SHALL NOT be retried.
+
+#### Scenario: Candidate observation fails non-transiently
+
+- **WHEN** the candidate observation fails with a non-transient error
+- **THEN** it is not retried
+
+### Requirement: A transient integration failure is counted per head
+
+A transient failure while integrating a candidate SHALL leave the candidate `waiting` and SHALL record a consecutive-failure counter for its exact head in the candidate record; when the counter reaches the limit the candidate SHALL be blocked with a reason naming the head, the count and the error.
+
+#### Scenario: Integration fails transiently
+
+- **WHEN** integrating a candidate fails transiently
+- **THEN** the candidate stays `waiting`
+- **AND** the candidate record holds a consecutive-failure counter for its exact head
+
+#### Scenario: The consecutive-failure counter reaches the limit
+
+- **WHEN** the consecutive-failure counter for the candidate's head reaches the limit
+- **THEN** the candidate is blocked with a reason naming the head, the count and the error
+
+### Requirement: The transient integration failure counter resets
+
+A later evaluation of the same head without a transient failure SHALL reset the consecutive-failure counter, and a new head SHALL start with no count.
+
+#### Scenario: The same head is evaluated without a transient failure
+
+- **GIVEN** a candidate head with a consecutive-failure counter
+- **WHEN** a later evaluation of that head has no transient failure
+- **THEN** the counter is reset
+
+#### Scenario: The candidate gets a new head
+
+- **WHEN** the candidate gets a new head
+- **THEN** the new head starts with no count
+
+### Requirement: An accepted re-handoff supersedes the finalize-pending admission
+
+A fresh developer handoff accepted for a candidate whose latest record is `finalize-pending` SHALL supersede the finalize-pending admission.
+
+#### Scenario: A re-handoff is accepted while finalize is pending
+
+- **WHEN** a fresh developer handoff is accepted for a candidate in `finalize-pending`
+- **THEN** the finalize-pending admission is superseded
+
+### Requirement: An archived task is re-opened for a finalize-pending re-handoff
+
+An archived managed task whose admitted PR waits in `finalize-pending` SHALL be re-opened for a fresh developer handoff when the local head strictly descends from the proven head.
+
+#### Scenario: The task of a finalize-pending PR is already archived
+
+- **GIVEN** an archived managed task whose admitted PR waits in `finalize-pending`
+- **WHEN** the local head strictly descends from the proven head
+- **THEN** the task is re-opened for a fresh developer handoff
+
+### Requirement: An ineligible finalize-pending re-handoff is refused
+
+For a fresh developer handoff of a candidate whose latest record is `finalize-pending`, a live finalize claim, a different task or a head that does not descend from the proven head SHALL be refused with a message naming the reason.
+
+#### Scenario: The finalize job holds a live claim
+
+- **GIVEN** a candidate in `finalize-pending` whose finalize job holds a live claim
+- **WHEN** a fresh developer handoff arrives
+- **THEN** it is refused with a message naming the live finalize claim
