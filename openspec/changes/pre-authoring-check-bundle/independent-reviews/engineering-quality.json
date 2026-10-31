@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "base_ref": "origin/main",
+    "candidate_head": "f172da5b1c5e2abd1957afd8eedbb50386366a10",
+    "diff_sha256": "24b237d9ed5466aff35e88f9ccdf42e4f5d4d6b11069b252ba2dba93d09e528b"
+  },
+  "completed_at": "2026-10-31T12:59:49+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/orchestrate_pre_authoring.py check_bundles loops `for handoff in sorted(report[\"handoffs\"])` and calls `execute_requirement._bundle`. execute_requirement.py:244-247 (\"one cohesive group recorded under several intent names\") shows advance's rekeying, which check-bundle does not reproduce. The code and tests only cover the `direct` handoff.",
+      "id": "check-bundle-grouped-handoff-keys",
+      "severity": "advisory",
+      "summary": "check-bundle looks up a bundle for every handoff id from status. execute_requirement rekeys handoffs by change when one cohesive bundle is recorded under several intent names, so check-bundle may report a missing bundle, or validate the same bundle twice, where advance would accept the group."
+    },
+    {
+      "evidence": "tests/test_orchestrate_pre_authoring.py CheckBundleTests: `mock.patch.object(managed_task, \"validate_authoring_bundle\", side_effect=managed_task.ManagedTaskError(message))`. The test fixture's spec.md is just `## MODIFIED Requirements`, which no test validates for real.",
+      "id": "check-bundle-tests-mock-validation",
+      "severity": "advisory",
+      "summary": "Every check-bundle test mocks `validate_authoring_bundle`. Nothing exercises the real `openspec validate --strict` path, which is the behavior the spec scenario \"A bundle lost a MODIFIED scenario\" describes (failing naming the requirement and scenario). The test only checks that a mocked error message passes through."
+    }
+  ],
+  "launched_at": "2026-10-31T12:59:27+00:00",
+  "output_sha256": "90c76edcd0e0af302ea4c88c6e21c42d365615b792d7c7413c08ca874bcfdc9b",
+  "perspective": "engineering-quality",
+  "request_id": "12659a4c-da04-4242-aac0-531b7f5a9a08",
+  "reviewer": {
+    "context_id": "6097ffd9-60b6-4d20-af20-22773736e1aa",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d9fc2adf-c5f1-4895-bf03-abb1d5e643b8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24559
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 74364
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13261
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15932
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1495
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "af1aee01eee4b63c2a4f004751a1fcd419daeef0ea0cad0012195120c377a799"
+}

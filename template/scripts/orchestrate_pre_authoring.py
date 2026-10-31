@@ -598,11 +598,13 @@ def check_bundles(root: Path, *, requirement_id: str, base_dir: Path | None = No
         raise OrchestratorError(f"check-bundle needs a requirement-<N> id, not {requirement_id!r}")
     target = report["target_repository"]
     base_dir = base_dir or default_base_dir(root)
+    requirement = f"{target}#{number.group(1)}"
     results: list[dict[str, str]] = []
     try:
         prepared_against = managed_task.target_main(root)
-        for handoff in sorted(report["handoffs"]):
-            path = execute_requirement._bundle(base_dir, f"{target}#{number.group(1)}", handoff)
+        # The same handoff order and grouping advance materializes, so each bundle is checked once.
+        for handoff, _ in execute_requirement._ordered_handoffs(report, requirement):
+            path = execute_requirement._bundle(base_dir, requirement, handoff)
             bundle = managed_task.load_authoring_bundle(str(path))
             try:
                 managed_task.validate_authoring_bundle(root, bundle, target, prepared_against)
