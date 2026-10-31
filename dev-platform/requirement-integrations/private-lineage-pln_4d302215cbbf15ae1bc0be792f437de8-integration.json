@@ -1,0 +1,24 @@
+{
+  "base": "551062d9163983e6556d61b18b41ec14178423cc",
+  "children": [],
+  "dependencies": {
+    "composition-finalize": [
+      "finalize-function"
+    ],
+    "finalize-function": [],
+    "portable-finish-finalize": [
+      "composition-finalize"
+    ]
+  },
+  "digest": "da13cd2c0ab8239021fcf480dfbe40da31656dc88857f22c60285bff85d9bc43",
+  "expected_changes": [
+    "finalize-function",
+    "composition-finalize",
+    "portable-finish-finalize"
+  ],
+  "integration_branch": "requirement/BR-949",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+  "version": 2,
+  "work_identity": "BR-949"
+}
