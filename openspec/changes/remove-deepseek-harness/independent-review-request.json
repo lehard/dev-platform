@@ -1,12 +1,13 @@
 {
   "candidate": {
-    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_head": "3963541f967bc697a25ca5ca8b7b48cba5737018",
     "base_ref": "origin/main",
-    "candidate_head": "ec096f095eb462cd47a3549df6ed9e557f153504",
-    "diff_sha256": "a4348c8fe0c7c41db46ec386a6a3110ef746c52d218839c2a75a489a1a2b3f34"
+    "candidate_head": "2c6f0967ac8b5f2056687caea1e9b4cc69edb3ee",
+    "diff_sha256": "28ae018166863343708da0644a79fe81b87275217e9b795337fbbffdc72330d5"
   },
   "change": "openspec/changes/remove-deepseek-harness",
   "excluded_lifecycle_paths": [
+    "openspec/changes/remove-deepseek-harness/automated-checks.json",
     "openspec/changes/remove-deepseek-harness/independent-review-request.json",
     "openspec/changes/remove-deepseek-harness/independent-reviews/engineering-quality.json",
     "openspec/changes/remove-deepseek-harness/independent-reviews/spec-fidelity.json",
@@ -41,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-30T18:38:53+00:00",
+  "prepared_at": "2026-10-31T01:51:44+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/remove-deepseek-harness/independent-reviews",
     "required_perspectives": [
@@ -50,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "d8b4df5f-d688-4501-acd9-3203dfe9fe50",
+  "request_id": "205acdfc-d47f-497c-a8a2-964813ab35ca",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -62,8 +63,8 @@
   },
   "schema_version": 1,
   "task_content": {
-    "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
-    "digest": "61d84afc22add2f6d5a44cb8246d9297a0db296e978ed7226eee04fd79df3957",
+    "base": "4982d61e8bddcf660a8e8a09098d58ed6fa56156",
+    "digest": "f1306f104bfd7e969412b68226f3892c4dd375b37f9d08701aea5dfd14318309",
     "paths": {
       "dev-platform/checks.toml": "b373f50fd10f602d21770f09d4f723bc3efa920b",
       "docs/engineering/deepseek-harness-runtime.md": null,
@@ -78,7 +79,7 @@
       "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md": "6520f042efd9759bcd65171668fd61371c55e5e6",
       "openspec/changes/remove-deepseek-harness/tasks.md": "d402b5d3f2906e4c8a157f79031c56e0537b31ed",
       "scripts/deepseek_harness_adapter.py": null,
-      "template/.dev-platform.toml.jinja": "f28fc78b53ca0f7fb8e9977dfc6b74705a91d1c6",
+      "template/.dev-platform.toml.jinja": "857de5f413373394057efc4f6658e69d94ccf276",
       "template/dev-platform/deepseek-harness-observation.cordis.yml": null,
       "template/dev-platform/protected-surface.toml": "46a05dac7971172cc1fc74b6fa85d63607122d06",
       "template/docs/engineering/deepseek-harness-runtime.md": null,
@@ -89,7 +90,10 @@
       "tests/test_build_explorer_editorial.py": "b1134bc7c137dee05a9d6efccd2ad7adb57a211a",
       "tests/test_deepseek_harness_runtime.py": null,
       "tests/test_downstream_boundary.py": "014d3e6acd08bce27727ef58934cbe19e1db5167",
-      "tests/test_platform_bootstrap.py": "e35f8f62d4178c6c1d3ca8cd9e369d530794e102"
+      "tests/test_friction_review.py": "7d2f08d544ccb63d6129b40d91f8a921c434a621",
+      "tests/test_platform_bootstrap.py": "e35f8f62d4178c6c1d3ca8cd9e369d530794e102",
+      "tests/test_pr_review_gate.py": "af3cd449773a56a13b9ea25fdbe397ddb223ae7e",
+      "tests/test_shared_writer_guard.py": "515a393dd8cd0af4a599972314cd0ac2ef266a5e"
     },
     "scope": "independent-review-v1",
     "version": 1

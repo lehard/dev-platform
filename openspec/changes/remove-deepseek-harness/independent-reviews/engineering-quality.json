@@ -1,25 +1,25 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_head": "3963541f967bc697a25ca5ca8b7b48cba5737018",
     "base_ref": "origin/main",
-    "candidate_head": "ec096f095eb462cd47a3549df6ed9e557f153504",
-    "diff_sha256": "a4348c8fe0c7c41db46ec386a6a3110ef746c52d218839c2a75a489a1a2b3f34"
+    "candidate_head": "2c6f0967ac8b5f2056687caea1e9b4cc69edb3ee",
+    "diff_sha256": "28ae018166863343708da0644a79fe81b87275217e9b795337fbbffdc72330d5"
   },
-  "completed_at": "2026-10-30T18:40:47+00:00",
+  "completed_at": "2026-10-31T01:52:41+00:00",
   "findings": [],
-  "launched_at": "2026-10-30T18:40:15+00:00",
+  "launched_at": "2026-10-31T01:52:22+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "d8b4df5f-d688-4501-acd9-3203dfe9fe50",
+  "request_id": "205acdfc-d47f-497c-a8a2-964813ab35ca",
   "reviewer": {
-    "context_id": "16917d08-601d-4eba-8d46-273f79fc9587",
+    "context_id": "751ffee1-05ca-4bf0-9a76-201b5d593aad",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-586d6067-0a3a-45b9-ab1d-1ae4c4148f26",
+    "launch_id": "platform-launch-39609932-9c75-48e0-98dd-0d6090860309",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42275
+        "value": 39529
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 197175
+        "value": 121095
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25132
+        "value": 15262
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29775
+        "value": 17054
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1475
+        "value": 1488
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "61d84afc22add2f6d5a44cb8246d9297a0db296e978ed7226eee04fd79df3957"
+  "task_content_digest": "f1306f104bfd7e969412b68226f3892c4dd375b37f9d08701aea5dfd14318309"
 }
