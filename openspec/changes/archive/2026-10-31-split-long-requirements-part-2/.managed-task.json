@@ -1,0 +1,36 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agent-instructions/spec.md",
+    "specs/agent-workflow/spec.md",
+    "specs/managed-task-intake/spec.md",
+    "specs/platform-ci/spec.md",
+    "specs/platform-config/spec.md",
+    "specs/platform-explorer/spec.md",
+    "specs/platform-health-review/spec.md",
+    "specs/requirement-metrics/spec.md",
+    "specs/upstream-substitution/spec.md",
+    "tasks.md"
+  ],
+  "change": "split-long-requirements-part-2",
+  "imported_at": "2026-10-31T07:12:26+00:00",
+  "package_revision": "282512afd2d1552f399ccd88af4f71d3a3224d9bb7a5384c7e7f04eed1fbe94e",
+  "prepared_against": "f1d36b2a29883ecb8ab08e6e9e05f4139f391f86",
+  "private_lineage_handle": "pln_8a67438dc6d9f9ba601b5fac27acb34b",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "462ce5627f7aca2d1f79c7cd111ae2b81203488fbc7962d0d19523a9557f4553",
+    "updated_at": "2026-10-31T07:05:59Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}

@@ -2,7 +2,9 @@
 
 ## Purpose
 Define the automated, cloud-native "Platform Health Review" that runs Dev Platform's existing advisory review capabilities together on one combined trigger and durable reporting/notification surface, without requiring a running local computer or a standing server.
+
 ## Requirements
+
 ### Requirement: Process and Architecture Health Review run together on one combined trigger
 
 Dev Platform SHALL run the combined scheduled and manually dispatched Platform Health Review in the private caller repository. The review SHALL read only the bounded public platform and private Backlog evidence needed by its existing process and architecture lenses. The public `lehard/dev-platform` repository SHALL NOT run a complete combined review that reads private Backlog data. The combined review remains advisory and does not create managed work or mutate source evidence.
@@ -58,7 +60,7 @@ Each run SHALL publish exactly one dated, combined, human-readable Issue in the 
 
 ### Requirement: Platform Health Review supports optional external notification
 
-Dev Platform SHALL support notifying a human when a new Platform Health Review report is published, through GitHub (the report Issue itself, always present) and, optionally, Telegram and a generic outbound webhook. Notification content SHALL be limited to a short summary and a link to the report Issue, and SHALL NOT duplicate the full report. Any external channel secret SHALL be supplied only through GitHub Actions repository secrets and SHALL NOT be written into `dev-platform/capabilities.toml`, `.dev-platform.toml`, or any other portable or public project configuration file. Notification delivery SHALL run as a separate, deterministic, non-agentic step outside the sandboxed review job.
+Dev Platform SHALL support notifying a human when a new Platform Health Review report is published, through GitHub (the report Issue itself, always present) and, optionally, Telegram and a generic outbound webhook.
 
 #### Scenario: Configured channel receives a notification
 
@@ -104,9 +106,7 @@ The private workflow SHALL mint a short-lived GitHub App installation token for 
 
 ### Requirement: Platform Health Review findings are classified in Russian
 
-Each finding in the existing Platform Health Review outputs SHALL have exactly one primary category: «Подтверждённый дефект», «Риск надёжности», «Возможность упрощения», «Техническая гигиена» or «Наблюдение». Its confidence SHALL be «высокая», «средняя» or «низкая» and its status SHALL be «новый», «сохраняется», «уже в работе», «вероятно устранён» or «наблюдать». The report SHALL stay concise and SHALL NOT introduce a single health score.
-
-The existing combined report Issue SHALL show a bounded excerpt of classified findings from each available private source report and link to the full source reports. Missing or malformed excerpts SHALL be shown as unavailable, rather than silently treated as no findings.
+Each finding in the existing Platform Health Review outputs SHALL have exactly one primary category: «Подтверждённый дефект», «Риск надёжности», «Возможность упрощения», «Техническая гигиена» or «Наблюдение».
 
 #### Scenario: Review reports a finding
 
@@ -137,7 +137,7 @@ Before recommending new work, each review SHALL inspect the relevant existing Ba
 
 ### Requirement: Process Health Review includes the full Requirement-first path
 
-The existing advisory Process Health Review SHALL inspect bounded relevant process evidence from Business Requirement, pre-authoring, handoff/decomposition, mandatory children, and delivery, including Requirement-level retrospective findings. It SHALL group related symptoms with managed task, PR/lifecycle and open process issue context by likely root cause. Specialized review findings SHALL use the same process evidence mechanism and SHALL not create parallel improvement backlogs. The review SHALL remain read-only and SHALL not create accepted work until a human explicitly decides to fix it.
+The existing advisory Process Health Review SHALL inspect bounded relevant process evidence from Business Requirement, pre-authoring, handoff/decomposition, mandatory children, and delivery, including Requirement-level retrospective findings.
 
 #### Scenario: Early or cross-child finding with clean technical children
 
@@ -153,3 +153,100 @@ The existing advisory Process Health Review SHALL inspect bounded relevant proce
 - **THEN** that evidence may enter the existing friction/process-issue mechanism
 - **AND** Process Health Review does not create a second improvement lifecycle
 
+### Requirement: Platform Health Review notification content is a summary and a link
+
+Platform Health Review notification content SHALL be limited to a short summary and a link to the report Issue, and SHALL NOT duplicate the full report.
+
+#### Scenario: Notification is composed
+
+- **WHEN** a Platform Health Review notification is composed
+- **THEN** its content is a short summary and a link to the report Issue
+- **AND** it does not duplicate the full report
+
+### Requirement: Platform Health Review notification secrets stay in repository secrets
+
+Any Platform Health Review external notification channel secret SHALL be supplied only through GitHub Actions repository secrets and SHALL NOT be written into `dev-platform/capabilities.toml`, `.dev-platform.toml`, or any other portable or public project configuration file.
+
+#### Scenario: External channel is configured
+
+- **WHEN** a Platform Health Review external notification channel needs a secret
+- **THEN** the secret is supplied only through GitHub Actions repository secrets
+- **AND** it is not written into `dev-platform/capabilities.toml`, `.dev-platform.toml`, or any other portable or public project configuration file
+
+### Requirement: Platform Health Review notification delivery runs outside the review job
+
+Platform Health Review notification delivery SHALL run as a separate, deterministic, non-agentic step outside the sandboxed review job.
+
+#### Scenario: Notification is delivered
+
+- **WHEN** a Platform Health Review notification is delivered
+- **THEN** delivery runs as a separate, deterministic, non-agentic step outside the sandboxed review job
+
+### Requirement: Platform Health Review findings carry a Russian confidence and status
+
+The confidence of each finding in the existing Platform Health Review outputs SHALL be «высокая», «средняя» or «низкая» and its status SHALL be «новый», «сохраняется», «уже в работе», «вероятно устранён» or «наблюдать».
+
+#### Scenario: Finding is reported with confidence and status
+
+- **WHEN** a Platform Health Review output reports a finding
+- **THEN** its confidence is «высокая», «средняя» or «низкая»
+- **AND** its status is «новый», «сохраняется», «уже в работе», «вероятно устранён» or «наблюдать»
+
+### Requirement: The Platform Health Review report stays concise without a health score
+
+The Platform Health Review report SHALL stay concise and SHALL NOT introduce a single health score.
+
+#### Scenario: Report is produced
+
+- **WHEN** a Platform Health Review report is produced
+- **THEN** it stays concise
+- **AND** it introduces no single health score
+
+### Requirement: The combined Platform Health Review report Issue shows bounded excerpts
+
+The existing combined Platform Health Review report Issue SHALL show a bounded excerpt of classified findings from each available private source report and link to the full source reports.
+
+#### Scenario: Combined report Issue is published
+
+- **WHEN** the combined Platform Health Review report Issue is published
+- **THEN** it shows a bounded excerpt of classified findings from each available private source report
+- **AND** it links to the full source reports
+
+### Requirement: Missing Platform Health Review excerpts are shown as unavailable
+
+Missing or malformed classified-finding excerpts in the existing combined Platform Health Review report Issue SHALL be shown as unavailable, rather than silently treated as no findings.
+
+#### Scenario: Excerpt is missing or malformed
+
+- **WHEN** a source report's excerpt for the combined Platform Health Review report Issue is missing or malformed
+- **THEN** the excerpt is shown as unavailable
+- **AND** it is not silently treated as no findings
+
+### Requirement: Process Health Review groups symptoms by likely root cause
+
+The existing advisory Process Health Review SHALL group related symptoms with managed task, PR/lifecycle and open process issue context by likely root cause.
+
+#### Scenario: Related symptoms are found
+
+- **WHEN** the Process Health Review finds related symptoms
+- **THEN** it groups them with managed task, PR/lifecycle and open process issue context by likely root cause
+
+### Requirement: Specialized review findings use the Process Health Review evidence mechanism
+
+Specialized review findings SHALL use the same process evidence mechanism as the existing advisory Process Health Review and SHALL not create parallel improvement backlogs.
+
+#### Scenario: Specialized review reports findings
+
+- **WHEN** a specialized review produces findings
+- **THEN** they use the same process evidence mechanism as the Process Health Review
+- **AND** they create no parallel improvement backlog
+
+### Requirement: Process Health Review stays read-only
+
+The existing advisory Process Health Review SHALL remain read-only and SHALL not create accepted work until a human explicitly decides to fix it.
+
+#### Scenario: Review identifies a problem
+
+- **WHEN** the Process Health Review identifies a problem
+- **THEN** it remains read-only
+- **AND** no accepted work exists until a human explicitly decides to fix it

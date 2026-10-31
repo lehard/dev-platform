@@ -1,0 +1,112 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 3,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "git diff --check",
+      "duration_seconds": 0.032,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_docs_links.py",
+      "duration_seconds": 0.778,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.165,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "docs",
+      "paths": [
+        "openspec/changes/split-long-requirements-part-2/.managed-task.json",
+        "openspec/changes/split-long-requirements-part-2/.openspec.yaml",
+        "openspec/changes/split-long-requirements-part-2/design.md",
+        "openspec/changes/split-long-requirements-part-2/proposal.md",
+        "openspec/changes/split-long-requirements-part-2/specs/agent-instructions/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/agent-workflow/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/managed-task-intake/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-ci/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-config/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-explorer/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-health-review/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/requirement-metrics/spec.md",
+        "openspec/changes/split-long-requirements-part-2/specs/upstream-substitution/spec.md",
+        "openspec/changes/split-long-requirements-part-2/tasks.md",
+        "openspec/changes/split-long-requirements-part-2/verification.md"
+      ],
+      "commands": [
+        "git diff --check",
+        "python3 scripts/check_docs_links.py",
+        "python3 scripts/generate_platform_manifest.py --check"
+      ],
+      "evidence_types": [
+        "configuration",
+        "configuration",
+        "configuration"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_8a67438dc6d9f9ba601b5fac27acb34b",
+    "change": "split-long-requirements-part-2",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/split-long-requirements-part-2",
+    "branch": "agent/split-long-requirements-part-2",
+    "head": "6b1109c54b83cabcbd0e2d084d0e5b6c1e51540e",
+    "task_content": {
+      "version": 1,
+      "digest": "c89a1efe3a39b70aa0594773edd199a4cf1bf5e4edda3b0a2fcb1bb42aa5fe38",
+      "paths": {
+        "openspec/changes/split-long-requirements-part-2/.managed-task.json": "26671fa545fc32388f709219e30548a6bd2e8928",
+        "openspec/changes/split-long-requirements-part-2/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/split-long-requirements-part-2/design.md": "e8136f1ca2d3803dfdcf96569dffea8a62ad07d6",
+        "openspec/changes/split-long-requirements-part-2/proposal.md": "4f22dd4695eeddeb7d5a7e05d066ac82a49c7923",
+        "openspec/changes/split-long-requirements-part-2/specs/agent-instructions/spec.md": "14ae4effa9145f40f34dc74f251152375184fe50",
+        "openspec/changes/split-long-requirements-part-2/specs/agent-workflow/spec.md": "9cc3360a857f0b48cb99971c9c306870f464ba37",
+        "openspec/changes/split-long-requirements-part-2/specs/managed-task-intake/spec.md": "550d18448c4ebc44c149673bc22c9398d2b5fea0",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-ci/spec.md": "c04030fd028c92576bdafc21bb67dda654a1072b",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-config/spec.md": "f41191a027bf784f4f455dbd2419158fef35ed46",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-explorer/spec.md": "c11780f379fab0c2966fe4b118487e6fa3a7b32f",
+        "openspec/changes/split-long-requirements-part-2/specs/platform-health-review/spec.md": "1182cec1f54bb3799d752d75eb2d2b2f1a54d5d3",
+        "openspec/changes/split-long-requirements-part-2/specs/requirement-metrics/spec.md": "dad4877caaef33d5e317f0146a8931b00201d4dd",
+        "openspec/changes/split-long-requirements-part-2/specs/upstream-substitution/spec.md": "0eda115937144304e9a968dfe57939c33a1d1f80",
+        "openspec/changes/split-long-requirements-part-2/tasks.md": "0501997d36e75327ba3fe34cef7a2cbb0259ef8e",
+        "openspec/changes/split-long-requirements-part-2/verification.md": "dd92d4e39610ce091a716ed2a7fb0367a28355fe"
+      },
+      "base": "f1d36b2a29883ecb8ab08e6e9e05f4139f391f86"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "41316e23b6b0b198d13fad87d478bde789f51b186c4d847aa7acfa3ba34d0ac6",
+    "paths": {
+      "openspec/changes/split-long-requirements-part-2/.managed-task.json": "26671fa545fc32388f709219e30548a6bd2e8928",
+      "openspec/changes/split-long-requirements-part-2/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/split-long-requirements-part-2/design.md": "e8136f1ca2d3803dfdcf96569dffea8a62ad07d6",
+      "openspec/changes/split-long-requirements-part-2/proposal.md": "4f22dd4695eeddeb7d5a7e05d066ac82a49c7923",
+      "openspec/changes/split-long-requirements-part-2/specs/agent-instructions/spec.md": "14ae4effa9145f40f34dc74f251152375184fe50",
+      "openspec/changes/split-long-requirements-part-2/specs/agent-workflow/spec.md": "9cc3360a857f0b48cb99971c9c306870f464ba37",
+      "openspec/changes/split-long-requirements-part-2/specs/managed-task-intake/spec.md": "550d18448c4ebc44c149673bc22c9398d2b5fea0",
+      "openspec/changes/split-long-requirements-part-2/specs/platform-ci/spec.md": "c04030fd028c92576bdafc21bb67dda654a1072b",
+      "openspec/changes/split-long-requirements-part-2/specs/platform-config/spec.md": "f41191a027bf784f4f455dbd2419158fef35ed46",
+      "openspec/changes/split-long-requirements-part-2/specs/platform-explorer/spec.md": "c11780f379fab0c2966fe4b118487e6fa3a7b32f",
+      "openspec/changes/split-long-requirements-part-2/specs/platform-health-review/spec.md": "1182cec1f54bb3799d752d75eb2d2b2f1a54d5d3",
+      "openspec/changes/split-long-requirements-part-2/specs/requirement-metrics/spec.md": "dad4877caaef33d5e317f0146a8931b00201d4dd",
+      "openspec/changes/split-long-requirements-part-2/specs/upstream-substitution/spec.md": "0eda115937144304e9a968dfe57939c33a1d1f80",
+      "openspec/changes/split-long-requirements-part-2/tasks.md": "0501997d36e75327ba3fe34cef7a2cbb0259ef8e"
+    },
+    "base": "f1d36b2a29883ecb8ab08e6e9e05f4139f391f86",
+    "scope": "independent-review-v1"
+  }
+}

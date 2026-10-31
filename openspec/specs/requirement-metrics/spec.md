@@ -7,7 +7,7 @@ Give a read-only, source-traceable end-to-end view of how a Business Requirement
 
 ### Requirement: A Requirement has a read-only end-to-end metrics report
 
-Dev Platform SHALL provide a repository-owned read-only command that reports one Business Requirement's end-to-end execution from existing sources: the Requirement and its linked children, pre-authoring evidence, managed provenance, routing/execution records, verification and automated-check evidence, independent review evidence, PR/publication and CI state, the local friction log and supported runtime-local session signals. The command SHALL NOT write files, caches, logs, remote comments, labels, Project fields or git refs.
+Dev Platform SHALL provide a repository-owned read-only command that reports one Business Requirement's end-to-end execution from existing sources: the Requirement and its linked children, pre-authoring evidence, managed provenance, routing/execution records, verification and automated-check evidence, independent review evidence, PR/publication and CI state, the local friction log and supported runtime-local session signals.
 
 #### Scenario: Completed Requirement is reported without manual input
 - **GIVEN** a completed Requirement with at least one delivered child
@@ -37,7 +37,7 @@ Every reported value SHALL carry a status (`measured`, `derived`, `partial` or `
 
 ### Requirement: The report exposes the cost of mandatory independent review
 
-For each child, the report SHALL reconstruct independent review rounds from the published history of the change's review evidence and show per round the reviewer launches, per-perspective reviewer provider/model with its source, wall time, findings by severity and dispositions. Each rerun SHALL be classified as a substantive candidate change, an unavailable reviewer, or another process rerun, and the report SHALL show full-validation and CI cycles that followed the first review round. Round counts reconstructed from published history SHALL be partial.
+For each child, the report SHALL reconstruct independent review rounds from the published history of the change's review evidence and show per round the reviewer launches, per-perspective reviewer provider/model with its source, wall time, findings by severity and dispositions.
 
 #### Scenario: A review is rerun after a candidate fix
 - **GIVEN** two review rounds whose task-owned content digests differ
@@ -52,7 +52,7 @@ For each child, the report SHALL reconstruct independent review rounds from the 
 
 ### Requirement: Runtime session signals are counters only and runtime-specific
 
-Where a runtime keeps reliable local session records, the report MAY include session-quality counters attributed to the Requirement by exact child branch or exact reference: prompt turns, interruptions, tool rejections, tool errors, re-prompts after an interruption or rejection, session and active time, and runtime-local usage. The report SHALL output only counts, durations, identifiers and attribution method, never prompts, responses, transcript text or tool payloads. An unsupported runtime or unrecognized format SHALL be unknown. Signals from different runtimes SHALL NOT be combined as if comparable.
+Where a runtime keeps reliable local session records, the report MAY include session-quality counters attributed to the Requirement by exact child branch or exact reference: prompt turns, interruptions, tool rejections, tool errors, re-prompts after an interruption or rejection, session and active time, and runtime-local usage. The report SHALL output only counts, durations, identifiers and attribution method, never prompts, responses, transcript text or tool payloads.
 
 #### Scenario: Codex session signals are requested
 - **WHEN** the report covers work executed through a runtime without a supported session adapter
@@ -74,3 +74,57 @@ The command SHALL aggregate several Requirements side by side with their headlin
 #### Scenario: Faster stage but longer path
 - **WHEN** one Requirement has a shorter review stage but a longer total cycle or more CI cycles than another
 - **THEN** both totals are shown side by side, and no single score hides the trade-off
+
+### Requirement: The Requirement metrics command writes nothing
+
+The repository-owned read-only command that reports one Business Requirement's end-to-end execution SHALL NOT write files, caches, logs, remote comments, labels, Project fields or git refs.
+
+#### Scenario: Metrics command runs
+
+- **WHEN** the Requirement end-to-end metrics command runs
+- **THEN** it writes no files, caches, logs, remote comments, labels, Project fields or git refs
+
+### Requirement: Requirement metrics review reruns are classified
+
+In the Requirement end-to-end metrics report, each independent review rerun SHALL be classified as a substantive candidate change, an unavailable reviewer, or another process rerun.
+
+#### Scenario: Independent review is rerun
+
+- **WHEN** the Requirement end-to-end metrics report shows an independent review rerun
+- **THEN** the rerun is classified as a substantive candidate change, an unavailable reviewer, or another process rerun
+
+### Requirement: Requirement metrics show cycles after the first review round
+
+The Requirement end-to-end metrics report SHALL show full-validation and CI cycles that followed the first review round.
+
+#### Scenario: Cycles followed the first review round
+
+- **WHEN** full-validation or CI cycles followed the first review round
+- **THEN** the Requirement end-to-end metrics report shows them
+
+### Requirement: Requirement metrics reconstructed round counts are partial
+
+In the Requirement end-to-end metrics report, review round counts reconstructed from published history SHALL be partial.
+
+#### Scenario: Round counts come from published history
+
+- **WHEN** the Requirement end-to-end metrics report reconstructs review round counts from published history
+- **THEN** those counts are partial
+
+### Requirement: Unsupported runtime session signals are unknown
+
+In the Requirement end-to-end metrics report, an unsupported runtime or unrecognized session record format SHALL be unknown.
+
+#### Scenario: Runtime or format is not supported
+
+- **WHEN** the Requirement end-to-end metrics report meets an unsupported runtime or an unrecognized session record format
+- **THEN** its session signals are reported as unknown
+
+### Requirement: Session signals from different runtimes are not combined
+
+In the Requirement end-to-end metrics report, session signals from different runtimes SHALL NOT be combined as if comparable.
+
+#### Scenario: Signals come from several runtimes
+
+- **WHEN** the Requirement end-to-end metrics report has session signals from different runtimes
+- **THEN** it does not combine them as if comparable
