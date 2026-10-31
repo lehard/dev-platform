@@ -635,6 +635,22 @@ class CheckBundleTests(unittest.TestCase):
             with self.assertRaisesRegex(orch.OrchestratorError, r'handoff direct is invalid: .*"Invoice totals".*"Rounded total"'):
                 self._check()
 
+    def test_a_failed_check_creates_no_child_and_records_nothing_for_advance(self) -> None:
+        import managed_task
+
+        self._complete()
+        directory = orch.requirement_dir(self.base_dir, self.REQUIREMENT_ID)
+        orch.status(self.root, requirement_id=self.REQUIREMENT_ID, base_dir=self.base_dir)
+        before = {path: path.read_bytes() for path in directory.rglob("*") if path.is_file() and path != orch.receipt_path(directory)}
+        with mock.patch.object(managed_task, "target_main", return_value="a" * 40), \
+                mock.patch.object(managed_task, "validate_authoring_bundle", side_effect=managed_task.ManagedTaskError("invalid")), \
+                mock.patch.object(managed_task, "create_task") as create:
+            with self.assertRaises(orch.OrchestratorError):
+                self._check()
+        create.assert_not_called()
+        after = {path: path.read_bytes() for path in directory.rglob("*") if path.is_file() and path != orch.receipt_path(directory)}
+        self.assertEqual(before, after)
+
     def test_a_missing_bundle_fails_explicitly(self) -> None:
         import managed_task
 

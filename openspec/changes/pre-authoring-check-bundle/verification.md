@@ -17,7 +17,9 @@ Independent-Review-Evidence: independent-review-request.json
 - advance, materialize-handoff and `validate_authoring_bundle` are unchanged.
 
 - Exact-CLI regression suite: `check_modified_dropped_scenario` pins that `openspec validate --strict` rejects a MODIFIED block that drops a scenario and names both; passes on the pinned 1.15.0.
-- Independent review: three advisories. Fixed: check-bundle now uses advance's handoff ordering and grouping instead of the raw handoff keys (a cohesive group would otherwise be looked up per intent); the real OpenSpec rejection is pinned in the exact-CLI suite (unit tests mock the validation). "advance unchanged" is shown by the diff: `execute_requirement.py`, `requirement_intake.py` and `managed_task.py` are not modified.
+- Independent review: three advisories. Fixed: check-bundle now uses advance's handoff ordering and grouping instead of the raw handoff keys (a cohesive group would otherwise be looked up per intent); the real OpenSpec rejection is pinned in the exact-CLI suite (unit tests mock the validation). A unit test shows a failed check creates no child (`create_task` not called) and writes nothing advance could reuse; "advance unchanged" is shown by the diff: `execute_requirement.py`, `requirement_intake.py` and `managed_task.py` are not modified.
+
+- check-bundle deliberately calls advance's own `_ordered_handoffs` and `_bundle` so the bundle rule is shared, not copied; a change to them is covered by these tests.
 
 ## Not verified / limits
 

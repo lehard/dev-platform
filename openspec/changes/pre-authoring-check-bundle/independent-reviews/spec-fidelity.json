@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
     "base_ref": "origin/main",
-    "candidate_head": "f172da5b1c5e2abd1957afd8eedbb50386366a10",
-    "diff_sha256": "24b237d9ed5466aff35e88f9ccdf42e4f5d4d6b11069b252ba2dba93d09e528b"
+    "candidate_head": "0bb011edbe2e639bba37cb5ecd27d4fbc363019f",
+    "diff_sha256": "0c41bb08cd81b26d8b0eb93a8a5ad7a4900390f99fa4b62af926e00b7eb6c022"
   },
-  "completed_at": "2026-10-31T12:59:27+00:00",
+  "completed_at": "2026-10-31T13:03:39+00:00",
   "findings": [
     {
-      "evidence": "tests/test_orchestrate_pre_authoring.py, CheckBundleTests.test_a_bundle_that_drops_a_modified_scenario_is_rejected_with_the_openspec_message: managed_task.validate_authoring_bundle is patched with a side_effect carrying a hand-written message. The valid-bundle test patches the same function. The fixture spec.md is just '## MODIFIED Requirements\\n'. No test asserts that advance ignores or does not depend on check-bundle, although tasks.md 1.3 and the spec ('advance SHALL NOT read or reuse any check result') promise it. The implementation does appear to satisfy the contract: check_bundles records nothing, and execute_requirement.py is untouched in the diff.",
-      "id": "mocked-validation-no-real-openspec-evidence",
+      "evidence": "tests/test_orchestrate_pre_authoring.py CheckBundleTests only covers status hint, incomplete stage, valid, rejected (mocked validate_authoring_bundle) and missing bundle. execute_requirement.py is not in the diff, so advance is unchanged by construction. The MODIFIED-scenario rejection by real OpenSpec is pinned separately in tests/openspec_1_13_regression.py.",
+      "id": "advance-unchanged-untested",
       "severity": "advisory",
-      "summary": "The MODIFIED-scenario-loss scenario is covered only by mocking validate_authoring_bundle. Nothing exercises the real OpenSpec validation naming the requirement and scenario. Task 1.3's 'advance unchanged' check has no test either."
+      "summary": "tasks.md 1.3 is marked done and claims a test that advance is unchanged and ignores any check result. The spec also requires \"no child Issue exists\" after a failed check. The diff has no test for either point."
     }
   ],
-  "launched_at": "2026-10-31T12:58:57+00:00",
-  "output_sha256": "d8a93f48e6f36bc769e9649d4d9842e0c1e48a56fd0e43f91a1b5b886c07dc0b",
+  "launched_at": "2026-10-31T13:03:23+00:00",
+  "output_sha256": "a2aacf8078182afb2a823283b51948aa378aa7fc16812e4815e4b84e44f5c4eb",
   "perspective": "spec-fidelity",
-  "request_id": "12659a4c-da04-4242-aac0-531b7f5a9a08",
+  "request_id": "f91fd928-78ad-4bae-8911-baa9e1f418eb",
   "reviewer": {
-    "context_id": "1c456be8-ab00-4e95-8b71-6aba03ca0eb1",
+    "context_id": "ffff9d59-b36b-40a1-999e-e305fa523bd8",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-cfb40ff6-3107-44f7-a011-21a68f569837",
+    "launch_id": "platform-launch-11526976-3022-4447-8caa-90a26e3ea1bb",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31157
+        "value": 23401
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 99769
+        "value": 48788
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17167
+        "value": 10146
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23970
+        "value": 12029
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1930
+        "value": 1100
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "af1aee01eee4b63c2a4f004751a1fcd419daeef0ea0cad0012195120c377a799"
+  "task_content_digest": "dc6e72a6a9a858f271e3ca9b0eae2aed3720d62032078c6fe9e1bf315e58f2ba"
 }

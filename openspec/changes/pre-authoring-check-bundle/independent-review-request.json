@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
     "base_ref": "origin/main",
-    "candidate_head": "f172da5b1c5e2abd1957afd8eedbb50386366a10",
-    "diff_sha256": "24b237d9ed5466aff35e88f9ccdf42e4f5d4d6b11069b252ba2dba93d09e528b"
+    "candidate_head": "0bb011edbe2e639bba37cb5ecd27d4fbc363019f",
+    "diff_sha256": "0c41bb08cd81b26d8b0eb93a8a5ad7a4900390f99fa4b62af926e00b7eb6c022"
   },
   "change": "openspec/changes/pre-authoring-check-bundle",
   "excluded_lifecycle_paths": [
+    "openspec/changes/pre-authoring-check-bundle/independent-review-request.json",
+    "openspec/changes/pre-authoring-check-bundle/independent-reviews/engineering-quality.json",
+    "openspec/changes/pre-authoring-check-bundle/independent-reviews/spec-fidelity.json",
     "openspec/changes/pre-authoring-check-bundle/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T12:58:47+00:00",
+  "prepared_at": "2026-10-31T13:03:12+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/pre-authoring-check-bundle/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "12659a4c-da04-4242-aac0-531b7f5a9a08",
+  "request_id": "f91fd928-78ad-4bae-8911-baa9e1f418eb",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "e25e6c5a8aade0460787528d6845795d0d74b245",
-    "digest": "af1aee01eee4b63c2a4f004751a1fcd419daeef0ea0cad0012195120c377a799",
+    "digest": "dc6e72a6a9a858f271e3ca9b0eae2aed3720d62032078c6fe9e1bf315e58f2ba",
     "paths": {
       "docs/engineering/task-intake.md": "ac223b3e6b450c87ad0f1ceb68436ef813f2c4dd",
       "openspec/changes/pre-authoring-check-bundle/.managed-task.json": "aaaa1358d0e86fc16b43f65245c3de5a3f82dfa3",
@@ -66,7 +69,8 @@
       "openspec/changes/pre-authoring-check-bundle/specs/agent-workflow/spec.md": "04865250a013ffce8786ed8a28e260648931c9dd",
       "openspec/changes/pre-authoring-check-bundle/tasks.md": "7494654cf0b428f54b6f7fdaec788ee16ed81c63",
       "template/docs/engineering/task-intake.md.jinja": "20845fbeb8401e7bd4ab97d48ca1206b4c05acfa",
-      "template/scripts/orchestrate_pre_authoring.py": "4393c515f7fe11f4083ad4b206297a74234ea305",
+      "template/scripts/orchestrate_pre_authoring.py": "79fd0a318d0bfb570203f86d921ed44d90e4a284",
+      "tests/openspec_1_13_regression.py": "57e0c60c33b778f7dcc192ad183a9d9e9bd6f7c8",
       "tests/test_orchestrate_pre_authoring.py": "6339b0a0afff75c9190dc94491d288ffda1b5481"
     },
     "scope": "independent-review-v1",
