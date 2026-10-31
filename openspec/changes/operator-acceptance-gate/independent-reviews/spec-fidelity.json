@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_ref": "origin/main",
+    "candidate_head": "d458cd810918db2a60306e9a569611feb220ca37",
+    "diff_sha256": "560a6a0b38d29b706607b4d2a0ea12d8f4c76dc21aadcb0077ad80bcbfe4e2a4"
+  },
+  "completed_at": "2026-10-31T15:56:53+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md 3.1 is ticked: 'Docs: task-intake, chat-coordinator, requirement authoring'. proposal.md Impact lists 'docs (task-intake, chat-coordinator, requirement authoring)'. The diff changes only docs/engineering/task-intake.md and docs/engineering/chat-coordinator.md. dev-platform/capabilities/requirement-authoring.md is unchanged, so the `## Operator acceptance` section and the `--operator-acceptance-file` flag are undocumented for Requirement authors.",
+      "id": "requirement-authoring-doc-missing",
+      "severity": "advisory",
+      "summary": "The task list and proposal say the requirement-authoring docs were updated, but the candidate diff doesn't touch them."
+    },
+    {
+      "evidence": "integration_contour.py run_claimed_post_merge adds a try/except around reconcile_composition. tests/test_requirement_operator_acceptance.py only exercises contour.run_terminal, via a mock. Nothing checks that reconcile_composition lets OwnerAcceptancePending propagate unwrapped, or that the 'terminal-reconciliation' job kind gets the completed outcome.",
+      "id": "composition-terminal-path-untested",
+      "severity": "advisory",
+      "summary": "The composition terminal path now catches OwnerAcceptancePending, but no test covers it, even though tasks 2.1 and 3.2 present both paths as done."
+    },
+    {
+      "evidence": "spec.md scenario 'Malformed section': an item line that 'repeats an id' makes reading fail 'naming the line'. requirement_terminal.operator_items raises f\"## Operator acceptance repeats item id {match['id']!r}\" without the line text.",
+      "id": "duplicate-id-error-omits-line",
+      "severity": "advisory",
+      "summary": "The spec says a malformed section fails 'naming the line'. The duplicate-id error names only the id, not the line."
+    }
+  ],
+  "launched_at": "2026-10-31T15:56:36+00:00",
+  "output_sha256": "bb2c923fdacea1189fc4561cd12a30f136aab78200ae71f184260d4ace9d82d3",
+  "perspective": "spec-fidelity",
+  "request_id": "12e2e5ae-75b3-402f-972b-24ec1e19edc6",
+  "reviewer": {
+    "context_id": "0e217366-fc3e-4ac6-835e-5edd30258523",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-4a6b655f-301f-4447-b90e-cfbeaa5c2f10",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33487
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11928
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16524
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16649
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2059
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "56485107dfa9d0fcb1408836944a7f941a97a13307b1aa061d39ed0818c243f4"
+}

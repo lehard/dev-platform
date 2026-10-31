@@ -1,0 +1,81 @@
+{
+  "candidate": {
+    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_ref": "origin/main",
+    "candidate_head": "d458cd810918db2a60306e9a569611feb220ca37",
+    "diff_sha256": "560a6a0b38d29b706607b4d2a0ea12d8f4c76dc21aadcb0077ad80bcbfe4e2a4"
+  },
+  "change": "openspec/changes/operator-acceptance-gate",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/operator-acceptance-gate/automated-checks.json",
+    "openspec/changes/operator-acceptance-gate/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/operator-acceptance-gate/design.md",
+        "openspec/changes/operator-acceptance-gate/proposal.md",
+        "openspec/changes/operator-acceptance-gate/specs/agent-workflow/spec.md",
+        "openspec/changes/operator-acceptance-gate/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/operator-acceptance-gate/proposal.md",
+        "openspec/changes/operator-acceptance-gate/design.md",
+        "openspec/changes/operator-acceptance-gate/tasks.md",
+        "openspec/changes/operator-acceptance-gate/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T15:56:32+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/operator-acceptance-gate/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "12e2e5ae-75b3-402f-972b-24ec1e19edc6",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "16918a29ff8936b6cc6293f01cf398e4aef3bbed",
+    "digest": "56485107dfa9d0fcb1408836944a7f941a97a13307b1aa061d39ed0818c243f4",
+    "paths": {
+      "dev-platform/checks.toml": "827ad704e2fca9d6bb6d526b8ae4695506024cde",
+      "docs/engineering/chat-coordinator.md": "a32ed1bfefcead9951e6684edae54202e2aef8b4",
+      "docs/engineering/task-intake.md": "d3dd9674389a99cf635e26a8f3b71cc97bd348a4",
+      "openspec/changes/operator-acceptance-gate/.managed-task.json": "fcdd5a343a08a9561e3884709e3afd7e30ff1d3d",
+      "openspec/changes/operator-acceptance-gate/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/operator-acceptance-gate/design.md": "8a97e90eb4525bec04bf30efce41a0582c049850",
+      "openspec/changes/operator-acceptance-gate/proposal.md": "875d278af467e9c155b235313f41d3a1b63fecf1",
+      "openspec/changes/operator-acceptance-gate/specs/agent-workflow/spec.md": "f0712040b4b738cd8ce070c0e157f8d6ba44ce50",
+      "openspec/changes/operator-acceptance-gate/tasks.md": "7b47a136c3cb0063e19de67ece770ff06eaba350",
+      "template/scripts/execute_requirement.py": "bfdfe5161895371ab58c601f4fc0b46ef48f3b03",
+      "template/scripts/integration_contour.py": "cfec80dbf0da777c63e8563d10f5cd16fca9264d",
+      "template/scripts/lifecycle_overview.py": "393e0fa8ded3766d0ad2659c11892bfe2495f179",
+      "template/scripts/requirement_intake.py": "0be29fd77b36df8cf145a2727c8722cfd4bc8b11",
+      "template/scripts/requirement_terminal.py": "c16e9e4ce54a31328ca8824e837d46ed0671866b",
+      "tests/test_requirement_operator_acceptance.py": "98c9e7a7289ccc129bb8194a6dbdc7598a54a7f5"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

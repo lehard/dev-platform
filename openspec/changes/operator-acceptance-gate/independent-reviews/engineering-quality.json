@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_ref": "origin/main",
+    "candidate_head": "d458cd810918db2a60306e9a569611feb220ca37",
+    "diff_sha256": "560a6a0b38d29b706607b4d2a0ea12d8f4c76dc21aadcb0077ad80bcbfe4e2a4"
+  },
+  "completed_at": "2026-10-31T15:57:12+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_terminal.py:395-396 and 78. `publication_queue.py:182-194` handles the same kind of marker differently. It restricts the association to MEMBER or COLLABORATOR and then checks `collaborators/{login}/permission` against `_WRITER_PERMISSIONS`, failing closed. The new gate skips that check. design.md says the trusted set is 'the backlog's writers', but the code does not verify that.",
+      "id": "acceptance-trust-weaker-than-queue-writer-check",
+      "severity": "advisory",
+      "summary": "The acceptance decision marker is trusted by `author_association` alone (OWNER, MEMBER or COLLABORATOR). Those values do not prove write access. A read-only org member or collaborator could post a marker that confirms or waives an owner gate. The marker's `actor` field is also self-asserted in the comment body."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_overview.py, `_observe_requirement`: `intake.fetch_issue(...)` and `terminal.open_acceptance_items(...)`. template/scripts/requirement_terminal.py: `reason.strip()[:300]` in `accept`.",
+      "id": "overview-uncached-per-requirement-gh-reads",
+      "severity": "advisory",
+      "summary": "`_observe_requirement` now makes two extra uncached GitHub calls for every non-closed Requirement on each overview run. These are `fetch_issue` and, when the section is declared, a paginated `issue_comments`. The module already has a `_cached_read` helper for observations, which this code does not use. `accept` also silently truncates the owner's reason to 300 characters."
+    }
+  ],
+  "launched_at": "2026-10-31T15:56:53+00:00",
+  "output_sha256": "5b97fa4ea5590adf2ccc19ba7b4fe98472f65635195fc0b7f56f1474373cb564",
+  "perspective": "engineering-quality",
+  "request_id": "12e2e5ae-75b3-402f-972b-24ec1e19edc6",
+  "reviewer": {
+    "context_id": "e023eb9a-9344-45f8-bb20-f550f3c2f1ef",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e018c2a1-5697-4234-9ed6-4194ae935a0c",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30418
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48973
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18310
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18566
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1873
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "56485107dfa9d0fcb1408836944a7f941a97a13307b1aa061d39ed0818c243f4"
+}
