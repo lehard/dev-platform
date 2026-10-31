@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "origin/main",
-    "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
-    "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
+    "candidate_head": "76d9c6cb260c2bcd8f0a655c8225ed317734b6b7",
+    "diff_sha256": "dcf9fce39b45288dc9151e15e4d173f9421c38cc97f623c88aaea2c9e9405485"
   },
-  "completed_at": "2026-10-31T23:54:26+00:00",
+  "completed_at": "2026-10-31T23:57:07+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/integration_contour.py advance_after_repair calls main_only_reason, which calls main_only_integration and raises IntegrationProofError on a Git failure. The only caller, run_claimed_integration_repair, does not catch it, and it runs after the push and before adapter._transition and post_result. The design accepts raising, but does not describe the resulting queue state or how the run is retried.",
-      "id": "proof-error-after-push-unhandled",
+      "evidence": "template/scripts/task_content_identity.py:240-244 runs `merge-tree --write-tree` and treats any return code other than 0 or 1 as `IntegrationProofError`. design.md Risks covers the post-push stop, but nothing records or checks the Git version requirement.",
+      "id": "merge-tree-git-version-unchecked",
       "severity": "advisory",
-      "summary": "An IntegrationProofError, for example a missing object, now propagates out of advance_after_repair after the repaired head has already been pushed. The candidate is left in integration-repair-pending with no transition and no recorded reason."
+      "summary": "The proof depends on `git merge-tree --write-tree`, which needs Git 2.38 or newer. On an older Git the failure surfaces as `IntegrationProofError`, which stops the repair job after the repaired head was already pushed."
     },
     {
-      "evidence": "template/scripts/task_content_identity.py: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated` and `conflicts - generated`. design.md says: \"Generated content is validated by its own `--check`, as today.\"",
-      "id": "generated-files-fully-exempt-from-byte-proof",
+      "evidence": "tests/test_autonomous_integration_contour.py:293 and :311 patch `contour.main_only_reason`. The only unmocked contour test, `test_main_only_reason_needs_a_trusted_gated_head`, covers the missing-record path, which returns before the proof runs.",
+      "id": "main-only-proof-not-tested-against-real-flow",
       "severity": "advisory",
-      "summary": "Every path declared as generated is excluded from the byte-exact comparison, not only the conflicted ones. Any content in those files is accepted, and the design relies on a separate `--check`. Nothing in the gate-reuse path confirms that this check runs on the new head before the rebound gates are used."
+      "summary": "The contour tests mock `main_only_reason`. No test runs `advance_after_repair` or `main_only_reason` end to end with a real repository, generated declaration and trusted candidate head. A wrong `generated_files(root, \"HEAD\")` source or wrong `base` wiring would not be caught."
     }
   ],
-  "launched_at": "2026-10-31T23:54:06+00:00",
-  "output_sha256": "5a3a81e2fe9e1f70d90bbdca57d1bf48134cb3d6e068b4f6b8845848548d7e95",
+  "launched_at": "2026-10-31T23:56:46+00:00",
+  "output_sha256": "60c2626286e6932464313b0fcbae0fad85750e218873534b3bf0d41012fa57d0",
   "perspective": "engineering-quality",
-  "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+  "request_id": "ee133f8a-4906-405e-b8df-4ac8917e804a",
   "reviewer": {
-    "context_id": "e687ce37-63ae-4570-986c-d54e1ef80968",
+    "context_id": "eb6635ca-f0f4-4518-9ff8-f109ec07e33e",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b5c4ceb5-4b1a-41c4-8477-1cbd6c96eb47",
+    "launch_id": "platform-launch-0822223a-3048-4fd8-8ec3-be1d0066facb",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21537
+        "value": 21812
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21307
+        "value": 21303
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15351
+        "value": 15433
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16465
+        "value": 16753
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -78,11 +78,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1710
+        "value": 1654
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "746cc622162167d37449bab0c9daaf3092686058ea522f82cf7ea4ffd10b62c8"
+  "task_content_digest": "a959ae2ece8903abcf9214504939968a083e0ffe60dd4bf079efab2d00284e38"
 }

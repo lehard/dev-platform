@@ -37,6 +37,11 @@ Independent-Review-Evidence: independent-review-request.json
 
 - Re-review: material `derived-merge-path-not-covered` was rejected with a recorded disposition. A derived merge that changes the identity becomes integration repair, which reaches this proof. Kept advisories: a proof Git failure after the push stops the job explicitly (see design Risks); declared generated files are excluded wholesale because their own `--check` validates them; an unproven outcome returns to review, and finalize then requires the developer receipt through handoff.
 
+- Third review: ready, with advisories only, all kept.
+  - `git merge-tree --write-tree` is the same Git requirement `_prepare` already has.
+  - The contour wiring is tested with the proof mocked.
+  - Generated files are excluded wholesale by design.
+
 ## Not verified / limits
 
 - No live hosted integration repair run; the contour tests use the queue fixture.

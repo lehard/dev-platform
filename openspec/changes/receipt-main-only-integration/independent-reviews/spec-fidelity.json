@@ -3,36 +3,30 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "origin/main",
-    "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
-    "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
+    "candidate_head": "76d9c6cb260c2bcd8f0a655c8225ed317734b6b7",
+    "diff_sha256": "dcf9fce39b45288dc9151e15e4d173f9421c38cc97f623c88aaea2c9e9405485"
   },
-  "completed_at": "2026-10-31T23:54:06+00:00",
+  "completed_at": "2026-10-31T23:56:46+00:00",
   "findings": [
     {
-      "evidence": "The delta spec says \"After an integration repair or derived merge\". The diff touches only integration_contour.py and task_content_identity.py. post_review_finalization.py:583-584 still raises RederivationFailed(\"re-derivation changed the task-content identity\") when equivalent_proofs fails. That is exactly the case where main changed a task path, as in scenario \"Main touched a task path\". design.md says \"Finalize needs no change\", but nothing makes the derived-merge path use main_only_integration.",
-      "id": "derived-merge-path-not-covered",
-      "severity": "material",
-      "summary": "The spec requires gate evidence to survive a main-only integration after an integration repair or a derived merge. The candidate implements the proof only in integration_contour.advance_after_repair. The derived-merge re-derivation path is unchanged and still rejects any main change to a task path."
-    },
-    {
-      "evidence": "The spec says \"THEN fresh developer semantic verification is required through handoff\". advance_after_repair prints \"receipt reset after integration repair: \u2026\" and falls through to the existing return-to-review branch. The new test asserts state == \"review-pending\". design.md says \"returns to review as today\", which differs from the spec's handoff wording.",
-      "id": "unproven-outcome-vs-handoff-scenario",
+      "evidence": "template/scripts/task_content_identity.py:257 `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. spec.md:5 says \"equals, byte for byte, the merge ... conflicting only in generated files\". design.md:56 says generated content is validated by its own `--check`, but the spec does not state that relaxation. The test `test_main_merge_touching_a_task_path_is_proven` only covers a generated file that conflicted. A narrower implementation would exclude generated paths from the diff only when they appear in `conflicts`.",
+      "id": "generated-files-excluded-from-byte-exact-comparison",
       "severity": "advisory",
-      "summary": "Scenarios 2 and 3 say the receipt is reset or fresh developer semantic verification is required through handoff. The implementation only logs the reason to stderr and calls return_to_review (review-pending). Nothing in the diff resets the developer receipt or requires a handoff."
+      "summary": "The spec requires the new head's tree to equal the merge byte for byte, conflicting only in declared generated files. The implementation drops every declared generated path from the final tree comparison, whether or not it conflicted. A generated file that did not conflict can therefore differ from the merge result and still count as proven."
     }
   ],
-  "launched_at": "2026-10-31T23:53:42+00:00",
-  "output_sha256": "1976ddd5704887a611b5ba3e58bb2dc835020acede5aa673a101b9cadc4a20ac",
+  "launched_at": "2026-10-31T23:56:29+00:00",
+  "output_sha256": "d8cf6db6478c35f229dbec5cf18160dc1ec78ad2e891437e409861833a3e23d4",
   "perspective": "spec-fidelity",
-  "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+  "request_id": "ee133f8a-4906-405e-b8df-4ac8917e804a",
   "reviewer": {
-    "context_id": "42f9d0d7-9f5c-4793-9a40-ac19ad7146fa",
+    "context_id": "1e2681cb-4043-47d5-98d0-6bef7beaaed9",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ef25fdd8-3878-4bb7-9095-95c0eb3ba3ec",
+    "launch_id": "platform-launch-8f9a1d4a-e798-4f9a-a7da-c6e23ecce47b",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26739
+        "value": 22338
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 79859
+        "value": 21229
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18550
+        "value": 13312
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20232
+        "value": 14393
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2170
+        "value": 1299
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "746cc622162167d37449bab0c9daaf3092686058ea522f82cf7ea4ffd10b62c8"
+  "task_content_digest": "a959ae2ece8903abcf9214504939968a083e0ffe60dd4bf079efab2d00284e38"
 }
