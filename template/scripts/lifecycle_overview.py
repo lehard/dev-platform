@@ -411,14 +411,38 @@ def observe_candidate(root: Path, repo: str, pr: dict, *, now: datetime, thresho
                 "merged": bool(pr.get("merged")), "branch": (pr.get("head") or {}).get("ref")}
 
 
+def owner_acceptance(requirement: str, items: list[dict], open_ids: list[str]) -> list[dict]:
+    """Open operator acceptance items with their check and the exact owner decision command (BR-943)."""
+    return [{**item, "command": f"python3 scripts/requirement_terminal.py accept --requirement {requirement} "
+                                f"--item {item['id']} --decision confirmed --via chat-coordinator --reason \"<why>\""}
+            for item in items if item["id"] in open_ids]
+
+
 def _observe_requirement(root: Path, requirement: str, candidates: list[dict]) -> dict:
+    import managed_task
     import requirement_intake as intake
+    import requirement_terminal as terminal
 
     try:
         aggregate = intake.aggregate(root, requirement=requirement)
-        return assess_requirement(requirement, aggregate, None, candidates)
+        assessment = assess_requirement(requirement, aggregate, None, candidates)
     except (intake.RequirementIntakeError, OSError) as exc:
         return assess_requirement(requirement, None, str(exc), candidates)
+    if assessment["stage"] == "closed":
+        return assessment
+    try:
+        parent = intake.fetch_issue(root, *intake.issue_ref(requirement))
+        items = terminal.operator_items(str(parent.get("body") or ""))
+        pending = owner_acceptance(requirement, items, terminal.open_acceptance_items(root, requirement, parent))
+    except (terminal.RequirementTerminalError, managed_task.ManagedTaskError, intake.RequirementIntakeError) as exc:
+        return {**assessment, "findings": [*assessment["findings"], {
+            "kind": "unknown-source", "detail": f"operator acceptance of {requirement} is unreadable: {exc}",
+            "evidence": requirement}]}
+    if not pending:
+        return assessment
+    return {**assessment, "owner_acceptance": pending, "findings": [*assessment["findings"], {
+        "kind": "awaits-owner-acceptance",
+        "detail": "ждёт владельца: " + ", ".join(item["id"] for item in pending), "evidence": requirement}]}
 
 
 def _cached_read(root: Path, *args: str) -> Any:
@@ -622,6 +646,11 @@ def _owner_needed_lines(owner_needed: dict) -> list[str]:
     return lines
 
 
+def _owner_acceptance_lines(req: dict) -> list[str]:
+    return [line for item in req.get("owner_acceptance") or [] for line in (
+        f"  owner acceptance {item['id']}: {item['action']}", f"    check: {item['check']}", f"    decide: {item['command']}")]
+
+
 def render(result: dict) -> str:
     lines = []
     if "bounds" in result:
@@ -635,6 +664,7 @@ def render(result: dict) -> str:
                          f"PRs={req['candidates']}" + (f" ({req['note']})" if req.get("note") else ""))
             for finding in req["findings"]:
                 lines.append(f"  ! {finding['kind']}: {finding['detail']}")
+            lines += _owner_acceptance_lines(req)
         lines += _owner_needed_lines(result["owner_needed"])
         lines.append("\nCandidates:")
         lines += [render_candidate(item, detail=False) for item in result["candidates"]] or ["  none"]
@@ -651,6 +681,7 @@ def render(result: dict) -> str:
         lines.append(f"Requirement {req['requirement']} [{req['stage']}] status={req.get('status')}"
                      + (" (merged, Requirement not Done)" if req.get("merged_not_done") else ""))
         lines += [f"  ! {f['kind']}: {f['detail']}" for f in req["findings"]]
+        lines += _owner_acceptance_lines(req)
         lines += [render_candidate(item, detail=True) for item in result["candidates"]] or ["  no candidate PRs"]
         if status := _registry_status(result["agent_sessions"]):
             lines.append(status)

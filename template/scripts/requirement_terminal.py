@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +20,82 @@ from _platform_common import current_worktree_root, github_cli_env, lifecycle_mo
 
 class RequirementTerminalError(RuntimeError):
     pass
+
+
+class OwnerAcceptancePending(RequirementTerminalError):
+    """Declared operator acceptance items have no owner decision; the Requirement stays open (BR-943)."""
+
+    def __init__(self, items: list[str]) -> None:
+        self.items = items
+        super().__init__("Requirement awaits owner acceptance of: " + ", ".join(items))
+
+
+# ``## Operator acceptance`` lines: an action only the owner can take outside the repository, with its check.
+ACCEPTANCE_SECTION = "operator acceptance"
+ACCEPTANCE_ITEM = re.compile(r"^- (?P<id>[a-z0-9][a-z0-9-]*): (?P<action>.+?) Check: `(?P<check>[^`]+)`$")
+ACCEPTANCE_PREFIX = "dev-platform-requirement-acceptance:v1 "
+ACCEPTANCE_DECISIONS = ("confirmed", "waived")
+# Writers of the backlog repository; any other author's marker is ignored, never trusted.
+TRUSTED_ASSOCIATIONS = frozenset({"OWNER", "MEMBER", "COLLABORATOR"})
+
+
+def issue_state(issue: dict[str, Any], reference: str) -> str:
+    """``OPEN`` or ``CLOSED``; any other or a missing state is an error, never read as open."""
+    state = issue.get("state")
+    if not isinstance(state, str) or state.upper() not in {"OPEN", "CLOSED"}:
+        raise RequirementTerminalError(f"{reference} Issue state is {state!r}, expected OPEN or CLOSED")
+    return state.upper()
+
+
+def operator_items(body: str) -> list[dict[str, str]]:
+    """The declared operator acceptance items; a Requirement without the section has none."""
+    section = requirement_intake.parse_requirement_body(body)["sections"].get(ACCEPTANCE_SECTION)
+    if section is None:
+        return []
+    items: list[dict[str, str]] = []
+    for line in (line.strip() for line in section.splitlines()):
+        if not line:
+            continue
+        match = ACCEPTANCE_ITEM.match(line)
+        if match is None:
+            raise RequirementTerminalError(
+                f"## Operator acceptance line {line!r} is malformed; expected '- <id>: <owner action> Check: `<command>`'")
+        if any(item["id"] == match["id"] for item in items):
+            raise RequirementTerminalError(f"## Operator acceptance repeats item id {match['id']!r}")
+        items.append({"id": match["id"], "action": match["action"].strip(), "check": match["check"].strip()})
+    if not items:
+        raise RequirementTerminalError("## Operator acceptance has no items; remove the section or declare one")
+    return items
+
+
+def acceptance_decisions(comments: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """The latest trusted owner decision per item; a malformed trusted marker fails, an untrusted one is ignored."""
+    decisions: dict[str, dict[str, Any]] = {}
+    for comment in sorted(comments, key=lambda item: item.get("id", 0)):
+        body = comment.get("body")
+        if not isinstance(body, str) or not body.startswith(ACCEPTANCE_PREFIX):
+            continue
+        if comment.get("author_association") not in TRUSTED_ASSOCIATIONS:
+            continue
+        try:
+            record = json.loads(body[len(ACCEPTANCE_PREFIX):])
+        except json.JSONDecodeError as exc:
+            raise RequirementTerminalError(f"trusted acceptance decision comment {comment.get('id')} is not JSON") from exc
+        if (not isinstance(record, dict) or not isinstance(record.get("item"), str)
+                or record.get("decision") not in ACCEPTANCE_DECISIONS
+                or not all(isinstance(record.get(key), str) and record[key].strip() for key in ("actor", "reason", "at"))):
+            raise RequirementTerminalError(f"trusted acceptance decision comment {comment.get('id')} is malformed")
+        decisions[record["item"]] = record
+    return decisions
+
+
+def open_acceptance_items(root: Path, requirement: str, parent: dict[str, Any]) -> list[str]:
+    """Declared items without a trusted owner decision, in declaration order."""
+    items = operator_items(str(parent.get("body") or ""))
+    if not items:
+        return []
+    decisions = acceptance_decisions(managed_task.issue_comments(root, *requirement_intake.issue_ref(requirement)))
+    return [item["id"] for item in items if item["id"] not in decisions]
 
 
 def post_merge_closes(root: Path) -> bool:
@@ -85,6 +162,9 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     children = requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]
     if not children or len(children) != len(set(children)):
         raise RequirementTerminalError("Requirement needs a nonempty, unambiguous child set")
+    pending = open_acceptance_items(root, requirement, parent)
+    if pending:
+        raise OwnerAcceptancePending(pending)
     requirement_retrospective.require_checkpoint(root, requirement=requirement, parent=parent)
     commit = managed_task.target_main(root)
     for child in children:
@@ -105,18 +185,87 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     observed = managed_project_status.reconcile(root, "Done", source_issue=requirement)
     if observed is None or observed.current_status != "Done":
         raise RequirementTerminalError("parent Project Done reconciliation failed")
-    if str(parent.get("state", "")).upper() != "CLOSED":
+    if issue_state(parent, requirement) != "CLOSED":
         _close_issue(root, requirement)
     return {"status": "done", "requirement": requirement, "children": children}
 
 
+def _acting_login(root: Path) -> str:
+    env = github_cli_env(root)
+    if env is None:
+        raise RequirementTerminalError("GitHub authentication is required to record an acceptance decision")
+    done = subprocess.run(["gh", "api", "user"], cwd=root, env=env, text=True, capture_output=True)
+    try:
+        login = json.loads(done.stdout).get("login") if not done.returncode else None
+    except json.JSONDecodeError:
+        login = None
+    if not isinstance(login, str) or not login.strip():
+        raise RequirementTerminalError("the acting GitHub identity cannot be resolved: "
+                                       + (done.stderr.strip() or "no login in gh api user"))
+    return login.strip()
+
+
+def _post_decision(root: Path, requirement: str, record: dict[str, Any]) -> None:
+    env = github_cli_env(root)
+    if env is None:
+        raise RequirementTerminalError("GitHub authentication is required to record an acceptance decision")
+    repository, number = requirement_intake.issue_ref(requirement)
+    body = ACCEPTANCE_PREFIX + json.dumps(record, sort_keys=True, ensure_ascii=False)
+    posted = subprocess.run(["gh", "api", f"repos/{repository}/issues/{number}/comments", "-f", f"body={body}"],
+                            cwd=root, env=env, text=True, capture_output=True)
+    if posted.returncode:
+        raise RequirementTerminalError("acceptance decision was not recorded: " + (posted.stderr.strip() or posted.stdout.strip()))
+
+
+def accept(root: Path, *, requirement: str, item: str, decision: str, reason: str, via: str | None = None,
+           actor: str | None = None, post=None) -> dict[str, Any]:
+    """Record the owner's decision on one operator acceptance item; close the Requirement once none is open.
+
+    This is the owner-acceptance stage entry: the close itself is the single closer ``reconcile_parent`` with
+    every delivery and retrospective check, so a Requirement that still lacks them is reported, not closed.
+    """
+    if decision not in ACCEPTANCE_DECISIONS:
+        raise RequirementTerminalError(f"--decision must be one of {', '.join(ACCEPTANCE_DECISIONS)}")
+    if not reason or not reason.strip():
+        raise RequirementTerminalError("an acceptance decision needs the owner's reason")
+    parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
+    if requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
+        raise RequirementTerminalError(f"{requirement} is not a Business Requirement")
+    if issue_state(parent, requirement) == "CLOSED":
+        raise RequirementTerminalError(f"{requirement} is already closed; nothing to accept")
+    declared = [entry["id"] for entry in operator_items(str(parent.get("body") or ""))]
+    if item not in declared:
+        raise RequirementTerminalError(f"{requirement} declares no operator acceptance item {item!r}"
+                                       + (f"; declared: {', '.join(declared)}" if declared else ""))
+    record = {"item": item, "decision": decision, "actor": actor or _acting_login(root), "reason": reason.strip()[:300],
+              **({"via": via.strip()} if via and via.strip() else {}),
+              "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    (post or _post_decision)(root, requirement, record)
+    pending = open_acceptance_items(root, requirement, parent)
+    if pending:
+        return {"status": "awaits-owner-acceptance", "requirement": requirement, "recorded": record, "open": pending}
+    children = requirement_intake.parse_requirement_body(str(parent.get("body") or ""))["children"]
+    return {**reconcile_parent(root, requirement=requirement, merged_children=set(children)), "recorded": record}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Reconcile a delivered Business Requirement")
-    parser.add_argument("reconcile", choices=["reconcile"])
-    parser.add_argument("--requirement", required=True)
+    sub = parser.add_subparsers(dest="command", required=True)
+    reconcile = sub.add_parser("reconcile", help="coordinator recovery: close a delivered Requirement")
+    reconcile.add_argument("--requirement", required=True)
+    decide = sub.add_parser("accept", help="record the owner's decision on one operator acceptance item")
+    decide.add_argument("--requirement", required=True)
+    decide.add_argument("--item", required=True)
+    decide.add_argument("--decision", required=True, choices=ACCEPTANCE_DECISIONS)
+    decide.add_argument("--reason", required=True)
+    decide.add_argument("--via")
     args = parser.parse_args()
     try:
-        result = reconcile_parent(current_worktree_root(), requirement=args.requirement)
+        if args.command == "accept":
+            result = accept(current_worktree_root(), requirement=args.requirement, item=args.item,
+                            decision=args.decision, reason=args.reason, via=args.via)
+        else:
+            result = reconcile_parent(current_worktree_root(), requirement=args.requirement)
     except (RequirementTerminalError, requirement_retrospective.RequirementRetrospectiveError,
             managed_task.ManagedTaskError, managed_project_status.ManagedProjectStatusError) as exc:
         print(json.dumps({"status": "blocked", "reason": str(exc)}, ensure_ascii=False))

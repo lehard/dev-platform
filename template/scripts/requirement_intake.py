@@ -59,6 +59,7 @@ def render_requirement_body(
     context: str = "",
     acceptance_evidence: str = "",
     exclusions: str = "",
+    operator_acceptance: str = "",
 ) -> str:
     if not outcome.strip():
         raise RequirementIntakeError("outcome must be a non-empty string")
@@ -69,6 +70,8 @@ def render_requirement_body(
         sections.append(f"## Context\n\n{context.strip()}\n")
     if acceptance_evidence.strip():
         sections.append(f"## Acceptance evidence\n\n{acceptance_evidence.strip()}\n")
+    if operator_acceptance.strip():
+        sections.append(f"## Operator acceptance\n\n{operator_acceptance.strip()}\n")
     sections.append(f"## Target repository\n\n`{repo(target_repository)}`\n")
     if exclusions.strip():
         sections.append(f"## Exclusions\n\n{exclusions.strip()}\n")
@@ -220,6 +223,7 @@ def create_requirement(
     acceptance_evidence: str = "",
     exclusions: str = "",
     priority: str | None = None,
+    operator_acceptance: str = "",
 ) -> dict[str, Any]:
     if not title.strip():
         raise RequirementIntakeError("title must be a non-empty string")
@@ -249,8 +253,13 @@ def create_requirement(
     ensure_label(root, repository, REQUIREMENT_LABEL, env=env)
     body = render_requirement_body(
         outcome=outcome, target_repository=target_repository, context=context,
-        acceptance_evidence=acceptance_evidence, exclusions=exclusions,
+        acceptance_evidence=acceptance_evidence, exclusions=exclusions, operator_acceptance=operator_acceptance,
     )
+    import requirement_terminal
+    try:
+        requirement_terminal.operator_items(body)  # a malformed item fails here, before any Issue is written
+    except requirement_terminal.RequirementTerminalError as exc:
+        raise RequirementIntakeError(str(exc)) from exc
     existing = find_identical_open_requirement(
         root, repository, title=title.strip(), body=body, env=env, project_label=config.project_label,
     )
@@ -1006,6 +1015,8 @@ def main() -> int:
     create_parser.add_argument("--context-file", type=Path)
     create_parser.add_argument("--acceptance-file", type=Path)
     create_parser.add_argument("--exclusions-file", type=Path)
+    create_parser.add_argument("--operator-acceptance-file", type=Path,
+                               help="'- <id>: <owner action> Check: `<command>`' lines the owner must confirm or waive")
     create_parser.add_argument("--priority", choices=["P0", "P1", "P2", "P3"], default=None,
                                 help="defaults to the configured development_backlog.default_priority")
 
@@ -1053,6 +1064,8 @@ def main() -> int:
                 acceptance_evidence=args.acceptance_file.read_text(encoding="utf-8") if args.acceptance_file else "",
                 exclusions=args.exclusions_file.read_text(encoding="utf-8") if args.exclusions_file else "",
                 priority=args.priority,
+                operator_acceptance=(args.operator_acceptance_file.read_text(encoding="utf-8")
+                                     if args.operator_acceptance_file else ""),
             )
             verb = "reused" if payload["reused"] else "created"
             print(

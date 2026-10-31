@@ -99,6 +99,7 @@ targets = [
   "test_docs_semantic_checks",
   "test_capability_manager",
   "test_requirement_retrospective",
+  "test_requirement_operator_acceptance",
   "test_public_distribution",
   "test_requirement_child_context",
   "test_managed_status_lifecycle",
