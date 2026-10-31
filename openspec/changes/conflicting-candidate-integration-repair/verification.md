@@ -26,6 +26,10 @@ Independent-Review-Evidence: independent-review-request.json
 
 - Three advisory findings (engineering-quality, spec-fidelity) are fixed. A note superseded by a later record is posted again when the same failure recurs. The reason text comes only from the current head's note. A failed note no longer hides the environment error.
 
+- Two advisories from the re-review are kept as they are.
+  - The note posts the coordinator's environment-error text on the PR. That text comes from platform messages, is capped at 500 characters, and goes to the same public surface as the existing block reasons.
+  - The note-failure path catches `QueueError`, which is what the queue's `gh` helpers raise. Any other exception still propagates explicitly.
+
 ## Not verified / limits
 
 - No live hosted queue run; GitHub comments and the queue helpers are mocked.
