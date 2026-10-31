@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "split-long-requirements-part-3a",
+  "imported_at": "2026-10-31T10:13:34+00:00",
+  "package_revision": "666c2887b64d73cad03fa1dca9eb7230f1effcfca0d455328aa66c662816eaeb",
+  "prepared_against": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+  "private_lineage_handle": "pln_3e49bad0a04abb3cde80adec6d9b4a45",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "32a8fbbf3547921f1533795d9cf19b66fbcc4442bd51a79f2a36383c8351dd3a",
+    "updated_at": "2026-10-31T10:07:56Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1
+}
