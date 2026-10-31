@@ -1,0 +1,155 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.977,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.875,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.132,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.187,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 2068.09,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/lifecycle_preflight.py",
+        "template/scripts/local_workspace.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/select_checks.py",
+        "template/scripts/shared_workspace.py",
+        "template/scripts/start_worktree.py",
+        "template/scripts/task_content_identity.py",
+        "template/scripts/task_reconciliation.py",
+        "tests/test_lifecycle_preflight.py",
+        "tests/test_local_workspace.py",
+        "tests/test_managed_intake_project_harness_isolation.py",
+        "tests/test_select_checks.py",
+        "tests/test_shared_writer_guard.py",
+        "tests/test_task_reconciliation.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_4efe274028a85f60eb4ef9e48e986b52",
+    "change": "fail-fast-task-gitdir-and-stale-evidence",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/fail-fast-task-gitdir-and-stale-evidence",
+    "branch": "agent/br-927-t1-fail-fast-task-gitdir-and-stale-evidence",
+    "head": "7541a9fe6c516ebe0d86f5f9d31afbcca9ab7d8b",
+    "task_content": {
+      "version": 1,
+      "digest": "35de29e4973f0a66c2d8560ee585d202254de365beb9fbcf03adf19a7d9803a2",
+      "paths": {
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/.managed-task.json": "75f581ee5c1d3f7c29dc047c9ea21109ded5e3b4",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/design.md": "56aa28024cadc95f88c3659a6725469b47816f81",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/proposal.md": "97e48d7cc9823363fddeefe3a552319940389638",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/completion-lifecycle/spec.md": "f0df685514adcdb76c87f89219f529ca3d6113f4",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/shared-workspace/spec.md": "b731bd4a959f015c1f5a7547e6d030d56f9ab2b7",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/tasks.md": "78b17b0e66cc5ed36ff59237f57e986c6918c3b2",
+        "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/verification.md": "26c645e552809559a5c3ff12afd0e4e221d46abc",
+        "template/dev-platform/blocking-gates.toml": "7b486b29c76cec49c549bcbe61da43b18885d144",
+        "template/dev-platform/platform-manifest.json": "a48cc5bc9c4fd4e19a71900841dc80b6e8ae29f2",
+        "template/scripts/lifecycle_preflight.py": "302fa04a9e86c455b35cf8adbb5e9b462dba10c8",
+        "template/scripts/local_workspace.py": "0d76fe6ff969cf43784f7939784a91c9a37d4f95",
+        "template/scripts/openspec_lifecycle.py": "cbce106a4b0dcdd6307657e5a3fc2e4cfac82f61",
+        "template/scripts/select_checks.py": "82e5031db4d377ba2850b8ab431f15ddeee8acaa",
+        "template/scripts/shared_workspace.py": "f2df02fa3f0016f0c98d8648deefe2f074a510f2",
+        "template/scripts/start_worktree.py": "731a9912b004b0a199a42a23adfcdf36472d6a32",
+        "template/scripts/task_content_identity.py": "a35371d59dcbe80da85b70d7e229f55729f4436e",
+        "template/scripts/task_reconciliation.py": "8e0b70307747a59d1d661b6ed975bc83b5cb57be",
+        "tests/test_lifecycle_preflight.py": "4e154088494123a1b4582e056dc18c583dfdde41",
+        "tests/test_local_workspace.py": "8d6882bb4e684d4f74e7f90f19ee35212aa2231b",
+        "tests/test_managed_intake_project_harness_isolation.py": "cf2b2b840e6d1598f829188b99ea3cbf44f86a05",
+        "tests/test_select_checks.py": "98ddf7d26d6de00ae6705e7ce11bab7e3877ce2f",
+        "tests/test_shared_writer_guard.py": "9f0387c3b662dca80e98f4342f0b813e128d887e",
+        "tests/test_task_reconciliation.py": "76fdee256331abc03fde8c8f6771624ac3a52ff1"
+      },
+      "base": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "30ab0c29e57cc568c0b72ad7513943c079434bc50b23cafd9b390ae0e30d761a",
+    "paths": {
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/.managed-task.json": "75f581ee5c1d3f7c29dc047c9ea21109ded5e3b4",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/design.md": "56aa28024cadc95f88c3659a6725469b47816f81",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/proposal.md": "97e48d7cc9823363fddeefe3a552319940389638",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/completion-lifecycle/spec.md": "f0df685514adcdb76c87f89219f529ca3d6113f4",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/specs/shared-workspace/spec.md": "b731bd4a959f015c1f5a7547e6d030d56f9ab2b7",
+      "openspec/changes/fail-fast-task-gitdir-and-stale-evidence/tasks.md": "78b17b0e66cc5ed36ff59237f57e986c6918c3b2",
+      "template/dev-platform/blocking-gates.toml": "7b486b29c76cec49c549bcbe61da43b18885d144",
+      "template/scripts/lifecycle_preflight.py": "302fa04a9e86c455b35cf8adbb5e9b462dba10c8",
+      "template/scripts/local_workspace.py": "0d76fe6ff969cf43784f7939784a91c9a37d4f95",
+      "template/scripts/openspec_lifecycle.py": "cbce106a4b0dcdd6307657e5a3fc2e4cfac82f61",
+      "template/scripts/select_checks.py": "82e5031db4d377ba2850b8ab431f15ddeee8acaa",
+      "template/scripts/shared_workspace.py": "f2df02fa3f0016f0c98d8648deefe2f074a510f2",
+      "template/scripts/start_worktree.py": "731a9912b004b0a199a42a23adfcdf36472d6a32",
+      "template/scripts/task_content_identity.py": "a35371d59dcbe80da85b70d7e229f55729f4436e",
+      "template/scripts/task_reconciliation.py": "8e0b70307747a59d1d661b6ed975bc83b5cb57be",
+      "tests/test_lifecycle_preflight.py": "4e154088494123a1b4582e056dc18c583dfdde41",
+      "tests/test_local_workspace.py": "8d6882bb4e684d4f74e7f90f19ee35212aa2231b",
+      "tests/test_managed_intake_project_harness_isolation.py": "cf2b2b840e6d1598f829188b99ea3cbf44f86a05",
+      "tests/test_select_checks.py": "98ddf7d26d6de00ae6705e7ce11bab7e3877ce2f",
+      "tests/test_shared_writer_guard.py": "9f0387c3b662dca80e98f4342f0b813e128d887e",
+      "tests/test_task_reconciliation.py": "76fdee256331abc03fde8c8f6771624ac3a52ff1"
+    },
+    "base": "c4897d25d7366fb2ae617f08fe2b99dcdb6189ca",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/lifecycle_preflight.py --changed-file template/scripts/local_workspace.py --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/select_checks.py --changed-file template/scripts/shared_workspace.py --changed-file template/scripts/start_worktree.py --changed-file template/scripts/task_content_identity.py --changed-file template/scripts/task_reconciliation.py --changed-file tests/test_lifecycle_preflight.py --changed-file tests/test_local_workspace.py --changed-file tests/test_managed_intake_project_harness_isolation.py --changed-file tests/test_select_checks.py --changed-file tests/test_shared_writer_guard.py --changed-file tests/test_task_reconciliation.py",
+    "duration_seconds": 1879.278,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "7a665b3d90f9a0c322c552ab5554147972ccba9d",
+    "diff_sha256": "d28aca5645a0bc7f43308bb5d23fcad813689eca1437595bc6fd3fcd8678e265"
+  },
+  "change": "openspec/changes/readmit-over-unclaimed-finalize",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/readmit-over-unclaimed-finalize/automated-checks.json",
+    "openspec/changes/readmit-over-unclaimed-finalize/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/design.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/proposal.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/specs/publication-queue/spec.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/readmit-over-unclaimed-finalize/proposal.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/design.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/tasks.md",
+        "openspec/changes/readmit-over-unclaimed-finalize/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T18:29:08+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/readmit-over-unclaimed-finalize/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "87109a18-ad1b-43ca-a6a9-1aa50b74f86a",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "digest": "30e40bebd6bd48d3968716f9835b774491e915973e639d0d718b1cf49c34546f",
+    "paths": {
+      "openspec/changes/readmit-over-unclaimed-finalize/.managed-task.json": "9119836815b97ff5720acccfa5cbf5f3e5cb4ec6",
+      "openspec/changes/readmit-over-unclaimed-finalize/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/readmit-over-unclaimed-finalize/design.md": "68f265a2064ab0655139c8d8666ffd47d789f073",
+      "openspec/changes/readmit-over-unclaimed-finalize/proposal.md": "2ca122a276e3744002a86419178269e29d5d70a2",
+      "openspec/changes/readmit-over-unclaimed-finalize/specs/publication-queue/spec.md": "41b2a2444b1cb71763f8042617eeb6645b048dce",
+      "openspec/changes/readmit-over-unclaimed-finalize/tasks.md": "2726aa2805e42cc13dc35bda1189408b021190d3",
+      "template/scripts/publication_queue.py": "05f21d1170b9cfe8cc9b74edc4d9518bc6df0fc0",
+      "tests/test_pr_review_gate.py": "8dbe09cdbdca43c346195aaa79ced21b09d793bc",
+      "tests/test_queue_archived_readmission.py": "35e3fcc45b6c5fe74c46c858efbe7f5706787230"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

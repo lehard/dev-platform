@@ -14,7 +14,7 @@ sources = [
   "docs/release-policy.md#Choosing the version",
   "docs/release-policy.md#Managed rollout",
   "docs/release-policy.md#Version publication",
-  "docs/managed-rollout.md#Automatic release rollout",
+  "docs/managed-rollout.md#Release rollout",
   "docs/managed-rollout.md#Downstream adoption at task start",
 ]
 

@@ -34,8 +34,9 @@ class ConditionResult:
 
 @dataclass(frozen=True)
 class PreflightContext:
-    """What a condition needs. ``scope_gate_waiver``/``task_base_waiver`` carry the declared reason a
-    condition does not apply (a disposable CI checkout, a proven-base finalization); ``None`` means it applies."""
+    """What a condition needs. ``scope_gate_waiver``/``task_base_waiver``/``evidence_waiver`` carry the declared
+    reason a condition does not apply (a disposable CI checkout, a proven-base finalization, a run that records
+    the evidence); ``None`` means it applies."""
 
     root: Path
     integration: Path
@@ -43,6 +44,7 @@ class PreflightContext:
     entry: str
     scope_gate_waiver: str | None = None
     task_base_waiver: str | None = None
+    evidence_waiver: str | None = None
 
 
 @dataclass(frozen=True)
@@ -121,6 +123,17 @@ def check_task_base(ctx: PreflightContext) -> ConditionResult:
     return ConditionResult(PASSED, f"task is {freshness.state} relative to main ({freshness.authoritative_sha})")
 
 
+def check_task_evidence(ctx: PreflightContext) -> ConditionResult:
+    from openspec_lifecycle import stale_committed_evidence
+
+    if ctx.evidence_waiver is not None:
+        return ConditionResult(NOT_APPLICABLE, ctx.evidence_waiver)
+    state, detail = stale_committed_evidence(ctx.root)
+    if state == "stale":
+        raise PreflightRefusal(detail)
+    return ConditionResult(PASSED if state == "current" else NOT_APPLICABLE, detail)
+
+
 def load_checks_config(root: Path) -> dict:
     """The project's check configuration (``paths.checks``); a missing file is an explicit error."""
     import tomllib
@@ -165,6 +178,7 @@ CONDITIONS: tuple[Condition, ...] = (
     Condition("shared-workspace", ("shared-workspace-admission",), check_shared_workspace),
     Condition("board-claim-and-scope", ("scope-gate-unavailable", "scope-overlap"), check_board_claim_and_scope),
     Condition("task-base", ("task-freshness",), check_task_base),
+    Condition("task-evidence", ("stale-check-evidence",), check_task_evidence),
     Condition("project-cheap-gates", (), check_project_cheap_gates),
 )
 CONDITION_IDS = tuple(condition.id for condition in CONDITIONS)

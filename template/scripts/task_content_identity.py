@@ -120,6 +120,20 @@ def quick_task_evidence_path(root: Path) -> Path:
     return Path(result.stdout.strip())
 
 
+def ensure_quick_evidence_directory(root: Path) -> Path:
+    """Create the task git dir's evidence directory under the shared group contract that publication admission walks.
+
+    A plain ``mkdir`` would not inherit setgid on every filesystem (APFS), so local source admission
+    would refuse the directory at publication, after the full validation.
+    """
+    import shared_workspace
+
+    directory = quick_task_evidence_path(root).parent
+    directory.mkdir(exist_ok=True)
+    shared_workspace.ensure_shared_path(directory)
+    return directory
+
+
 def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> Callable[[str, str], bool]:
     """Exclude lifecycle receipts, review evidence and own spec materialization.
 

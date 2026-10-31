@@ -102,13 +102,13 @@ Concrete Development Backlog repository, GitHub Project owner/number, labels, an
 
 ### Requirement: Operator handoff is explicit before fleet rollout
 
-The public source SHALL document the external fields required for the current operator to resume managed fleet rollout after private compatibility data has been removed from source. Documentation SHALL name configuration keys and validation commands, but SHALL NOT commit the operator's real repository inventory, real legacy fingerprints, tokens, or credentials.
+The public source SHALL document the external fields required for the current operator to resume managed fleet rollout after private compatibility data has been removed from source. Documentation SHALL name configuration keys and validation commands, but SHALL NOT commit the operator's real repository inventory, tokens, or credentials.
 
 #### Scenario: Operator prepares for next real rollout
 - **WHEN** public cutover preparation is complete
-- **THEN** the handoff checklist identifies at least the external Development Backlog configuration, `rollout.registry_path`, rollout bot identity as applicable, and any required `rollout.legacy_harness_migrations` values
+- **THEN** the handoff checklist identifies at least the external Development Backlog configuration, `rollout.registry_path` and rollout bot identity as applicable
 - **AND** it identifies a validation/doctor command to prove the external configuration before fleet mutation
-- **AND** absence of required real continuity data causes rollout to fail closed rather than fall back to hidden public defaults.
+- **AND** absence of required real configuration causes rollout to fail closed rather than fall back to hidden public defaults.
 
 ### Requirement: Generic operator integration can be explicitly selected without installation identity
 
@@ -154,6 +154,12 @@ The platform SHALL record one explicit tested Copier version and SHALL keep ever
 - **GIVEN** a downstream project has no explicit `[tools.copier]` table
 - **WHEN** the platform doctor checks the installed Copier version
 - **THEN** it falls back to the platform's currently tested version, not an earlier one left over from a prior bump
+
+#### Scenario: A new tested version is proven before it is recorded
+
+- **WHEN** a platform change raises the tested Copier version
+- **THEN** a render, an update of a project rendered by the previous release, and a rollback check run with the new version before the change is published
+- **AND** the evidence names the upstream release source that confirmed the version as stable
 
 ### Requirement: Platform configuration is validated once against one schema
 

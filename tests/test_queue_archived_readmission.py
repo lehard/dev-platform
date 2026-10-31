@@ -2,7 +2,7 @@
 
 After a coordinator finalize archived the change, a developer fix on top of the proven head
 is accepted for re-admission while the candidate waits in ``integration-repair-pending``,
-``repair-pending`` or ``blocked-escalation``, or when its proven head stopped ``blocked-retryable``
+``repair-pending``, ``blocked-escalation`` or an unclaimed ``finalize-pending`` (BR-933), or when its proven head stopped ``blocked-retryable``
 on the ``semantic-verification`` red gate; a head that does not continue the proven head is
 still refused.
 """
@@ -27,7 +27,7 @@ PROVEN = "c" * 40
 FIX = "d" * 40
 REPO = "owner/repo"
 ROOT_PATH = Path("/unused")
-WAITING_STATES = ("integration-repair-pending", "repair-pending", "blocked-escalation")
+WAITING_STATES = ("integration-repair-pending", "repair-pending", "blocked-escalation", "finalize-pending")
 
 
 def events() -> list[dict]:

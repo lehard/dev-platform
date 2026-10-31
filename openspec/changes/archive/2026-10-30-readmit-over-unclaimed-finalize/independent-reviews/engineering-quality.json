@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "7a665b3d90f9a0c322c552ab5554147972ccba9d",
+    "diff_sha256": "d28aca5645a0bc7f43308bb5d23fcad813689eca1437595bc6fd3fcd8678e265"
+  },
+  "completed_at": "2026-10-30T18:29:36+00:00",
+  "findings": [
+    {
+      "evidence": "publication_queue.py:1331 treats any moved head over a READMISSION_STATES record as awaiting re-admission. :1582-1583 sets next_action to 'developer re-admission: rerun finish for the pushed head'. design.md Risks admits this and says the handoff is refused while the claim is live. The status and next_action text is still misleading for a claimed finalize. _awaiting_readmission could skip the report when the finalize job holds a live claim.",
+      "id": "finalize-inflight-misreported-awaiting-readmission",
+      "severity": "advisory",
+      "summary": "Adding finalize-pending to READMISSION_STATES makes a normal in-flight coordinator finalize (push landed, update not yet recorded) look like a head awaiting developer re-admission, and candidate_from_snapshot then tells the developer to rerun finish."
+    },
+    {
+      "evidence": "publication_queue.py:1211 `_awaits_developer_fix` checks state membership only. The live-claim guard sits in _supersession. A developer can therefore have the archived change re-opened locally and then be refused at handoff. The new tests cover the claim refusal only through admit, not through the local_status path.",
+      "id": "local-status-ignores-finalize-claim",
+      "severity": "advisory",
+      "summary": "DEVELOPER_FIX_STATES now includes finalize-pending, so local_status and semantic_readmission accept and re-open an archived change for a descendant head without checking for a live finalize claim. The claim refusal only happens later in admit."
+    }
+  ],
+  "launched_at": "2026-10-30T18:29:19+00:00",
+  "output_sha256": "f7e53bbc882db0f221e7c0a429b6fa01e936a01da71198cac313c3f4448e945c",
+  "perspective": "engineering-quality",
+  "request_id": "87109a18-ad1b-43ca-a6a9-1aa50b74f86a",
+  "reviewer": {
+    "context_id": "6f873d0e-1cbd-46b8-875d-70b12e712c71",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-fd223e13-2a6b-4b50-85bc-04fb4ad4086b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17139
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55247
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16241
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16392
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1481
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "30e40bebd6bd48d3968716f9835b774491e915973e639d0d718b1cf49c34546f"
+}

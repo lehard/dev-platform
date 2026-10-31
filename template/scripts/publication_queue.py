@@ -1192,12 +1192,14 @@ def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
 # Candidate states a fresh developer handoff for a new head may supersede: they wait on a human,
 # a retry or an unclaimed head-bound job (which can never run once the head moved), not on an
 # in-flight job. Every other state keeps the admitted head. A developer fix of a red integrated
-# check supersedes the unclaimed integration-repair job of the integrated head.
+# check supersedes the unclaimed integration-repair job of the integrated head; a reconciled
+# head supersedes the unclaimed finalize job of the reviewed head.
 READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-retryable", "blocked-escalation",
-                                "integration-repair-pending"})
+                                "integration-repair-pending", "finalize-pending"})
 # Waiting states a developer fix on top of the proven head answers directly: the local head is
 # handed off again (fresh review) instead of waiting for the coordinator job of the proven head.
-DEVELOPER_FIX_STATES = frozenset({"integration-repair-pending", "repair-pending", "blocked-escalation"})
+DEVELOPER_FIX_STATES = frozenset({"integration-repair-pending", "repair-pending", "blocked-escalation",
+                                  "finalize-pending"})
 
 
 def _awaits_developer_fix(lineage: dict[str, Any]) -> bool:

@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "f496b2c3bd2d9254850e43d0259b7b48c847de18",
+    "base_ref": "origin/main",
+    "candidate_head": "7a665b3d90f9a0c322c552ab5554147972ccba9d",
+    "diff_sha256": "d28aca5645a0bc7f43308bb5d23fcad813689eca1437595bc6fd3fcd8678e265"
+  },
+  "completed_at": "2026-10-30T18:29:19+00:00",
+  "findings": [
+    {
+      "evidence": "proposal.md Impact: `tests/test_queue_archived_readmission.py`, `tests/test_publication_queue.py`. candidate.diff changes only tests/test_pr_review_gate.py and tests/test_queue_archived_readmission.py. The contract behavior is still covered, so this is only artifact drift.",
+      "id": "proposal-impact-test-file-mismatch",
+      "severity": "advisory",
+      "summary": "The proposal's Impact section lists tests/test_publication_queue.py. The candidate adds the supersession tests to tests/test_pr_review_gate.py instead, and leaves test_publication_queue.py untouched."
+    }
+  ],
+  "launched_at": "2026-10-30T18:29:11+00:00",
+  "output_sha256": "d1e2569f54959ed7d109792bc1e84ee7cd8bb2db5cb5e538997ab90de32ca9dd",
+  "perspective": "spec-fidelity",
+  "request_id": "87109a18-ad1b-43ca-a6a9-1aa50b74f86a",
+  "reviewer": {
+    "context_id": "dce9abb4-13dd-4bb4-b026-654f1834c978",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-578c5d4b-f12d-445b-b161-92c0d643d5da",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20098
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11891
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7080
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7214
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 789
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "30e40bebd6bd48d3968716f9835b774491e915973e639d0d718b1cf49c34546f"
+}

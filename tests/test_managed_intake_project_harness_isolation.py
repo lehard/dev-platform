@@ -26,6 +26,7 @@ MANAGED_START_IMPORT_GRAPH = (
     "publication_state.py",
     "rollout_identity.py",
     "rollout_preflight.py",
+    "task_content_identity.py",
     "start_worktree.py",
     "start_task.py",
 )
@@ -106,6 +107,7 @@ class ManagedIntakeProjectHarnessIsolationTests(unittest.TestCase):
             "rp._synchronize_local_main = lambda *a, **k: (True, '');"
             "st.require_fresh_task_base = lambda *a, **k: 'a' * 40;"
             "st.github_cli_env = lambda root: {};"
+            "st.observe_platform_lag = lambda *a, **k: rp.PlatformLag(rp.LAG_CURRENT, 'current');"
             "started = st.start_task(pathlib.Path(sys.argv[1]), 'slug', 'task');"
             "print('merged=' + str(len(merged)) + ' branch=' + started.branch)"
         )

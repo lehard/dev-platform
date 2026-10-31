@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "e68555697fbf2206491bbd89a596b7e04edfaa89",
+    "base_ref": "origin/main",
+    "candidate_head": "f85fa4945ef5cf42c62448e35946fcd318449daa",
+    "diff_sha256": "b83db3a5da79f628cf85c09eeecc41f8c61c22be84d6e69e4c608949ef2d34fe"
+  },
+  "change": "openspec/changes/coordinator-orchestrator-role",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/coordinator-orchestrator-role/automated-checks.json",
+    "openspec/changes/coordinator-orchestrator-role/independent-review-request.json",
+    "openspec/changes/coordinator-orchestrator-role/independent-reviews/engineering-quality.json",
+    "openspec/changes/coordinator-orchestrator-role/independent-reviews/spec-fidelity.json",
+    "openspec/changes/coordinator-orchestrator-role/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/coordinator-orchestrator-role/design.md",
+        "openspec/changes/coordinator-orchestrator-role/proposal.md",
+        "openspec/changes/coordinator-orchestrator-role/specs/chat-coordinator/spec.md",
+        "openspec/changes/coordinator-orchestrator-role/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/coordinator-orchestrator-role/proposal.md",
+        "openspec/changes/coordinator-orchestrator-role/design.md",
+        "openspec/changes/coordinator-orchestrator-role/tasks.md",
+        "openspec/changes/coordinator-orchestrator-role/specs/chat-coordinator/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-30T22:57:21+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/coordinator-orchestrator-role/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "bae9b6d6-32f1-48bc-94e5-cdd02de4e836",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e68555697fbf2206491bbd89a596b7e04edfaa89",
+    "digest": "93ab6ab8777db8858f0303ac88251bb443553c4d3a7b28aa8689baf2d17a8355",
+    "paths": {
+      "AGENTS.md": "97770398074869d5d5845c4d722e010a9597cb16",
+      "docs/engineering/agent-workflow.md": "0b331e64416001a1e679f329eeffad4da1f28604",
+      "docs/engineering/chat-coordinator.md": "ba7746bc5be8a08708696f7f25fffa3771f9ea42",
+      "openspec/changes/coordinator-orchestrator-role/.managed-task.json": "7f71c96304efdc90c6f3d0fb6412d157713b3095",
+      "openspec/changes/coordinator-orchestrator-role/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+      "openspec/changes/coordinator-orchestrator-role/design.md": "fb4f9edd0d2df24e1b61b361dbf39f7640c67df5",
+      "openspec/changes/coordinator-orchestrator-role/proposal.md": "f73f49ae955ff024c1c171ce9f61f4da7ea7341e",
+      "openspec/changes/coordinator-orchestrator-role/specs/chat-coordinator/spec.md": "a0bf3f3e593bd5a8bc815ff201228a30f628910c",
+      "openspec/changes/coordinator-orchestrator-role/tasks.md": "fea7d872773a8922acf7e9d3ba02251784b25a4f",
+      "template/scripts/lifecycle_overview.py": "73a0b5f6bd80f0221dd3702f4f5ab1916b30b77c",
+      "tests/test_lifecycle_overview.py": "a0468749ae79c9c728d2b91ba47cdb6122db3745"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

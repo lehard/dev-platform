@@ -140,6 +140,8 @@ jobs:
           token: ${{ steps.registry-token.outputs.token }}
           path: operator
       - name: Plan or apply stale rollout supersession
+        # Stale-rollout reconciliation is operator-dispatched only (BR-846); the schedule runs just the alert recovery check.
+        if: github.event_name == 'workflow_dispatch'
         shell: bash
         env:
           GH_TOKEN: ${{ steps.target-token.outputs.token }}
@@ -168,7 +170,7 @@ jobs:
             --default-branch "$DEFAULT_BRANCH" \
             --tracker-repo "$TRACKER_REPO"
       - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: rollout-supersession-${{ matrix.repo_name }}-${{ inputs.mode }}-${{ github.run_id }}
           path: rollout-supersession.json
