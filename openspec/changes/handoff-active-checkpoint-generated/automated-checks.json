@@ -1,0 +1,130 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.855,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.683,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.162,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.151,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1691.596,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/agent_friction.py",
+        "template/scripts/openspec_lifecycle.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_task_content_identity.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b05e0a09bd3cac5ae988add557da07d5",
+    "change": "handoff-active-checkpoint-generated",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/handoff-active-checkpoint-generated",
+    "branch": "agent/br-940-t1-handoff-active-checkpoint-generated",
+    "head": "71318d53297009138d940a01a46c763efd189ef2",
+    "task_content": {
+      "version": 1,
+      "digest": "8b6046c0405a2652a26984a85334c0e5b033b34bb62dbd82d9613d1b0f8df8b8",
+      "paths": {
+        "docs/engineering/agent-workflow.md": "ccbf6b8e5d0cdee9cb795c4854f32fd59d930e82",
+        "openspec/changes/handoff-active-checkpoint-generated/.managed-task.json": "e34be6bc24c073ee669191345d8b1b2d14d13e62",
+        "openspec/changes/handoff-active-checkpoint-generated/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/handoff-active-checkpoint-generated/design.md": "f3fab6ec500ec0e5851f6a55ffe7cfa7b51c92f1",
+        "openspec/changes/handoff-active-checkpoint-generated/proposal.md": "21d6ac631390e422cf39c6d68b0c5979b9f1a269",
+        "openspec/changes/handoff-active-checkpoint-generated/specs/completion-lifecycle/spec.md": "2852c260f2f0866369ad7d9002bfa7d93518945f",
+        "openspec/changes/handoff-active-checkpoint-generated/specs/platform-lifecycle/spec.md": "457d53e9635cc0d8beebf43e526b798958ae0824",
+        "openspec/changes/handoff-active-checkpoint-generated/tasks.md": "8d762d4baa6ec0e299f304b50c1218556fe8fb6a",
+        "openspec/changes/handoff-active-checkpoint-generated/verification.md": "13867eb9f0f048e13d45c7ed24f0f187d11ce352",
+        "template/dev-platform/platform-manifest.json": "9e18704879db4c685067d56b7498435b44dfe29f",
+        "template/docs/engineering/agent-workflow.md.jinja": "f9ef7bef1e5412843e5a0b51654c8924f105235b",
+        "template/scripts/agent_friction.py": "97d83e7f309cb57e89a2632e739b4d6967257ef6",
+        "template/scripts/openspec_lifecycle.py": "e353140618113b5bb96e8128633b4350305f1fc8",
+        "template/scripts/task_content_identity.py": "c6d702ca51d852de36d1ae7f09427149d010d083",
+        "tests/test_openspec_lifecycle.py": "3a9623512aca4760ed158933dbbf77680858abcc",
+        "tests/test_task_content_identity.py": "b57ad0d89797aa111b63c74cf99b7c2cd3f86280"
+      },
+      "base": "a102413f006f350e8884509f96b8d1265d2bec1c"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "033b3edb31dffc28f979903d12e1ae44151ca1b7f0cea357f3d6863601df1552",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "ccbf6b8e5d0cdee9cb795c4854f32fd59d930e82",
+      "openspec/changes/handoff-active-checkpoint-generated/.managed-task.json": "e34be6bc24c073ee669191345d8b1b2d14d13e62",
+      "openspec/changes/handoff-active-checkpoint-generated/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/handoff-active-checkpoint-generated/design.md": "f3fab6ec500ec0e5851f6a55ffe7cfa7b51c92f1",
+      "openspec/changes/handoff-active-checkpoint-generated/proposal.md": "21d6ac631390e422cf39c6d68b0c5979b9f1a269",
+      "openspec/changes/handoff-active-checkpoint-generated/specs/completion-lifecycle/spec.md": "2852c260f2f0866369ad7d9002bfa7d93518945f",
+      "openspec/changes/handoff-active-checkpoint-generated/specs/platform-lifecycle/spec.md": "457d53e9635cc0d8beebf43e526b798958ae0824",
+      "openspec/changes/handoff-active-checkpoint-generated/tasks.md": "8d762d4baa6ec0e299f304b50c1218556fe8fb6a",
+      "template/docs/engineering/agent-workflow.md.jinja": "f9ef7bef1e5412843e5a0b51654c8924f105235b",
+      "template/scripts/agent_friction.py": "97d83e7f309cb57e89a2632e739b4d6967257ef6",
+      "template/scripts/openspec_lifecycle.py": "e353140618113b5bb96e8128633b4350305f1fc8",
+      "template/scripts/task_content_identity.py": "c6d702ca51d852de36d1ae7f09427149d010d083",
+      "tests/test_openspec_lifecycle.py": "3a9623512aca4760ed158933dbbf77680858abcc",
+      "tests/test_task_content_identity.py": "b57ad0d89797aa111b63c74cf99b7c2cd3f86280"
+    },
+    "base": "a102413f006f350e8884509f96b8d1265d2bec1c",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/agent_friction.py --changed-file template/scripts/openspec_lifecycle.py --changed-file template/scripts/task_content_identity.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_task_content_identity.py",
+    "duration_seconds": 393.64,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
