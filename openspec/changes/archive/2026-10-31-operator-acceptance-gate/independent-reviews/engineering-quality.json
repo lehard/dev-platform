@@ -3,34 +3,46 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "d458cd810918db2a60306e9a569611feb220ca37",
-    "diff_sha256": "560a6a0b38d29b706607b4d2a0ea12d8f4c76dc21aadcb0077ad80bcbfe4e2a4"
+    "candidate_head": "51f896d7c302d52f02377ee9fbe1203b719f641e",
+    "diff_sha256": "c4272a9611fbf8443f92ec078e1dd019dbd786b0a5841e425f5c5ccd93fc3cae"
   },
-  "completed_at": "2026-10-31T15:57:12+00:00",
+  "completed_at": "2026-10-31T16:04:16+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/requirement_terminal.py:395-396 and 78. `publication_queue.py:182-194` handles the same kind of marker differently. It restricts the association to MEMBER or COLLABORATOR and then checks `collaborators/{login}/permission` against `_WRITER_PERMISSIONS`, failing closed. The new gate skips that check. design.md says the trusted set is 'the backlog's writers', but the code does not verify that.",
-      "id": "acceptance-trust-weaker-than-queue-writer-check",
+      "evidence": "template/scripts/requirement_integration.py:908-915 calls reconcile_parent when post_merge_closes is false, and the new gate raises. That aborts before defer_completed_task/cleanup at line 913, after the PR is already merged. finish_task.py:666-668 turns it into SystemExit('...terminal reconciliation is pending: Requirement awaits owner acceptance'). execute_requirement.py:696 and 705 propagate it. Only integration_contour.run_terminal and the post-merge composition branch catch it (candidate.diff lines 198-228).",
+      "id": "portable-paths-unhandled-owner-pending",
       "severity": "advisory",
-      "summary": "The acceptance decision marker is trusted by `author_association` alone (OWNER, MEMBER or COLLABORATOR). Those values do not prove write access. A read-only org member or collaborator could post a marker that confirms or waives an owner gate. The marker's `actor` field is also self-asserted in the comment body."
+      "summary": "OwnerAcceptancePending is turned into a completed 'awaits owner' outcome only on the coordinator-queue paths. The portable lifecycle paths call reconcile_parent directly, so an open acceptance item surfaces as a hard error there. The integration worktree cleanup is skipped on the joint-delivery path."
     },
     {
-      "evidence": "template/scripts/lifecycle_overview.py, `_observe_requirement`: `intake.fetch_issue(...)` and `terminal.open_acceptance_items(...)`. template/scripts/requirement_terminal.py: `reason.strip()[:300]` in `accept`.",
-      "id": "overview-uncached-per-requirement-gh-reads",
+      "evidence": "requirement_terminal.py accept(): `reconcile_parent(root, requirement=requirement, merged_children=set(children))`. In reconcile_parent (lines 181-184), the `merged_children is None or child not in merged_children` check is the only guard for an open child. The design claims every delivery check is kept, but this check is effectively disabled for the accept path.",
+      "id": "accept-force-merged-children",
       "severity": "advisory",
-      "summary": "`_observe_requirement` now makes two extra uncached GitHub calls for every non-closed Requirement on each overview run. These are `fetch_issue` and, when the section is declared, a paginated `issue_comments`. The module already has a `_cached_read` helper for observations, which this code does not use. `accept` also silently truncates the owner's reason to 300 characters."
+      "summary": "accept() calls reconcile_parent with merged_children set to ALL children. That lets the closer close any still-open child Issue that has verified archived lineage on origin main. It bypasses the 'is not closed after delivery' guard, which the real merge paths use to pass only the child they just merged."
+    },
+    {
+      "evidence": "requirement_terminal.py acceptance_decisions: trust is `comment.get('author_association') in TRUSTED_ASSOCIATIONS`, and `record['actor']` is only checked to be a non-empty string. The design text says 'owner' but the code trusts every collaborator. open_acceptance_items matches decisions by `item['id']` only.",
+      "id": "acceptance-decision-trust-and-staleness",
+      "severity": "advisory",
+      "summary": "Any OWNER/MEMBER/COLLABORATOR comment carrying the marker counts as the owner's decision. The actor field is self-declared JSON that is never checked against the comment author. Decisions are keyed only by item id, so a decision stays valid if the body is later edited to reuse an id with a different action or check."
+    },
+    {
+      "evidence": "lifecycle_overview.py _observe_requirement: `intake.fetch_issue(...)` runs unconditionally after `assess_requirement`. The except branch converts any RequirementTerminalError, ManagedTaskError or RequirementIntakeError into an 'unknown-source' finding.",
+      "id": "overview-extra-api-calls-per-requirement",
+      "severity": "advisory",
+      "summary": "_observe_requirement now makes an extra fetch_issue plus a paginated issue_comments read for every non-closed Requirement on each overview run, even when the body has no Operator acceptance section. The comments are fetched only when items exist, but the issue is always re-fetched. The overview can also report 'unknown-source' from a transient fetch failure after aggregate already succeeded."
     }
   ],
-  "launched_at": "2026-10-31T15:56:53+00:00",
-  "output_sha256": "5b97fa4ea5590adf2ccc19ba7b4fe98472f65635195fc0b7f56f1474373cb564",
+  "launched_at": "2026-10-31T16:03:41+00:00",
+  "output_sha256": "f59110e17361721d77aa99fab11866211b0f7fd9768f2f0a7b4f471250583d41",
   "perspective": "engineering-quality",
-  "request_id": "12e2e5ae-75b3-402f-972b-24ec1e19edc6",
+  "request_id": "2ef8e17d-0f4f-4131-a7b4-358b2f84fd46",
   "reviewer": {
-    "context_id": "e023eb9a-9344-45f8-bb20-f550f3c2f1ef",
+    "context_id": "db986d19-ffdd-40b0-8fd5-593aaedde64b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e018c2a1-5697-4234-9ed6-4194ae935a0c",
+    "launch_id": "platform-launch-e6584896-6da0-4fec-a141-1efa4733e0a6",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +57,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30418
+        "value": 34169
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48973
+        "value": 154927
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18310
+        "value": 34699
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18566
+        "value": 34953
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1873
+        "value": 3558
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "56485107dfa9d0fcb1408836944a7f941a97a13307b1aa061d39ed0818c243f4"
+  "task_content_digest": "a3f18eebe40342e2ec45e841707c899825aed0fe16b56c2b0bd20293d8799153"
 }
