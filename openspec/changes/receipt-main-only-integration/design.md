@@ -9,6 +9,11 @@
 - **Generated declaration.** `main_only_reason` reads `generated_files(root, "HEAD")` from the coordinator's default-branch checkout, the same source `_prepare` uses. It never reads the candidate.
 - **Use.** `advance_after_repair(..., base=outcome["main"])` keeps the gates that are reusable for the gated identity, rebinding them to the fresh identity, and moves the candidate to ready, the same way it handles unchanged content. Required checks never carry over. An unproven integration returns to review as today, and the reason goes to the worker log. Finalize needs no change, because the rebound gates match the fresh identity.
 
+- **Derived merge.** A derived merge that changes the task-content identity raises `RederivationFailed`, and `_prepare` routes that to integration repair. That round reaches `advance_after_repair`, so the derived-merge route is covered at the same point.
+- **Unproven outcome.** `return_to_review` repeats review. Finalize's `reestablish_gates` then raises `SemanticVerificationRequired`, which sends the receipt reset back to the developer through handoff, as today.
+
 ## Risks
+
+- A Git failure in the proof after the repaired head was pushed (`IntegrationProofError`) stops the integration-repair job explicitly, with no transition. The existing validated-push recovery only adopts an identical digest, so such a candidate waits for an operator or a developer re-handoff instead of being adopted silently.
 
 - The proof needs the old head and new base objects locally. A missing object raises an explicit error, it is never treated as a mismatch.

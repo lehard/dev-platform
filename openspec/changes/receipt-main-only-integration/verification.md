@@ -35,6 +35,8 @@ Independent-Review-Evidence: independent-review-request.json
   - differences in declared generated files are excluded by design, because their content is checked by their own `--check`;
   - the reset reason goes to the worker log.
 
+- Re-review: material `derived-merge-path-not-covered` was rejected with a recorded disposition. A derived merge that changes the identity becomes integration repair, which reaches this proof. Kept advisories: a proof Git failure after the push stops the job explicitly (see design Risks); declared generated files are excluded wholesale because their own `--check` validates them; an unproven outcome returns to review, and finalize then requires the developer receipt through handoff.
+
 ## Not verified / limits
 
 - No live hosted integration repair run; the contour tests use the queue fixture.

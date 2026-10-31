@@ -7,6 +7,10 @@
   },
   "change": "openspec/changes/receipt-main-only-integration",
   "excluded_lifecycle_paths": [
+    "openspec/changes/receipt-main-only-integration/independent-review-dispositions.json",
+    "openspec/changes/receipt-main-only-integration/independent-review-request.json",
+    "openspec/changes/receipt-main-only-integration/independent-reviews/engineering-quality.json",
+    "openspec/changes/receipt-main-only-integration/independent-reviews/spec-fidelity.json",
     "openspec/changes/receipt-main-only-integration/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],

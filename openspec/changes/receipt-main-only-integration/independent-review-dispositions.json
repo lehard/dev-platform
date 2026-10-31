@@ -8,6 +8,15 @@
       "report_sha256": "6d4a4d6134528159b64b10de2510ee84db25a38169cdd7159aabda62f616796b",
       "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
       "status": "rejected"
+    },
+    {
+      "finding": "derived-merge-path-not-covered",
+      "perspective": "spec-fidelity",
+      "rationale": "A derived merge that changes the task-content identity raises RederivationFailed, which _prepare turns into IntegrationRepairNeeded; the resulting integration-repair round (merge-only or writer) reaches advance_after_repair, where the main-only proof now keeps the receipt. The derived merge itself already proves a merge of the claimed head and main differing only on derived paths, so the receipt reset of #836 and #837 is fixed at the single point both routes share.",
+      "recorded_at": "2026-10-31T23:55:23+00:00",
+      "report_sha256": "758d2774f523ff398365fa6827925ccfc39083637d5c61677db9a68e04ace78b",
+      "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
+      "status": "rejected"
     }
   ],
   "schema_version": 1

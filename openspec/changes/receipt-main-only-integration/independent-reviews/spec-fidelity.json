@@ -6,45 +6,33 @@
     "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
     "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
   },
-  "completed_at": "2026-10-31T23:51:04+00:00",
+  "completed_at": "2026-10-31T23:54:06+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/openspec_lifecycle.py:197-201 and :273-277 (`recorded_content_is_current`) check `gate_task_content` in automated-checks.json against `review_content_identity` with `equivalent_proofs`. `equivalent_proofs` fails when main changed a task path between the bases, which is the BR-969 scenario 'Main touched a task path'. `execute_finalize` runs the archiver, which calls `archive_content_problems` and `require_automated_evidence`, so finalize can still reject the receipt. The diff touches only integration_contour.py and task_content_identity.py. No test exercises finalize or archive after a main-only merge. The tests mock `main_only_reason` and `return_to_review`.",
-      "id": "in-repo-receipt-not-rebound",
-      "severity": "material",
-      "summary": "The spec says the developer receipt and its gates stay valid after a main-only integration. The candidate rebinds only the queue gate identities. The committed receipt evidence is still checked with strict equivalent_proofs against the current content, and the candidate does not change that check."
-    },
-    {
-      "evidence": "spec.md line 5: 'After an integration repair or derived merge'. The diff changes only `advance_after_repair` and its caller `run_claimed_integration_repair`. The other `equivalent_proofs` callers are unchanged: post_review_finalization.py:229/267/583, pr_review_gate.py:93 and requirement_composition.py:380/409. design.md and proposal.md mention only integration repair.",
+      "evidence": "The delta spec says \"After an integration repair or derived merge\". The diff touches only integration_contour.py and task_content_identity.py. post_review_finalization.py:583-584 still raises RederivationFailed(\"re-derivation changed the task-content identity\") when equivalent_proofs fails. That is exactly the case where main changed a task path, as in scenario \"Main touched a task path\". design.md says \"Finalize needs no change\", but nothing makes the derived-merge path use main_only_integration.",
       "id": "derived-merge-path-not-covered",
-      "severity": "advisory",
-      "summary": "The spec requirement covers 'an integration repair or derived merge', but only `advance_after_repair` (integration repair) uses the new proof."
+      "severity": "material",
+      "summary": "The spec requires gate evidence to survive a main-only integration after an integration repair or a derived merge. The candidate implements the proof only in integration_contour.advance_after_repair. The derived-merge re-derivation path is unchanged and still rejects any main change to a task path."
     },
     {
-      "evidence": "task_content_identity.py:252: `differing = {path ...} - generated`. The new head may carry any content in a generated path and still count as proven. design.md defers this to the generated file's own `--check`, but nothing in the candidate enforces that check at this point. The spec says only that the tree equals the merge, 'conflicting only in generated files'.",
-      "id": "generated-diff-unconstrained",
+      "evidence": "The spec says \"THEN fresh developer semantic verification is required through handoff\". advance_after_repair prints \"receipt reset after integration repair: \u2026\" and falls through to the existing return-to-review branch. The new test asserts state == \"review-pending\". design.md says \"returns to review as today\", which differs from the spec's handoff wording.",
+      "id": "unproven-outcome-vs-handoff-scenario",
       "severity": "advisory",
-      "summary": "The proof ignores all differences in declared generated files between the new head and the merge, even when the merge did not conflict there. The spec's 'byte for byte' wording is therefore not literal for those files."
-    },
-    {
-      "evidence": "integration_contour.py:182 prints to `sys.stderr`. The `return_to_review` path passes no reason to the queue record. The 'No trusted record' scenario is tested only at the `main_only_reason` return value, not as a queue-visible reset.",
-      "id": "reset-reason-only-logged",
-      "severity": "advisory",
-      "summary": "The spec says a missing or malformed trusted record resets the receipt with a reason. The reason is only printed to the worker's stderr, and the transition records no reason."
+      "summary": "Scenarios 2 and 3 say the receipt is reset or fresh developer semantic verification is required through handoff. The implementation only logs the reason to stderr and calls return_to_review (review-pending). Nothing in the diff resets the developer receipt or requires a handoff."
     }
   ],
-  "launched_at": "2026-10-31T23:50:25+00:00",
-  "output_sha256": "c39415978c4b1b708f5effbf1907dab99a01601706c8dd3b57835a70d90bbac9",
+  "launched_at": "2026-10-31T23:53:42+00:00",
+  "output_sha256": "1976ddd5704887a611b5ba3e58bb2dc835020acede5aa673a101b9cadc4a20ac",
   "perspective": "spec-fidelity",
   "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
   "reviewer": {
-    "context_id": "da911620-a5e7-41ed-a7a1-d740dc55c0eb",
+    "context_id": "42f9d0d7-9f5c-4793-9a40-ac19ad7146fa",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ef83b497-9161-4d92-821c-384693575126",
+    "launch_id": "platform-launch-ef25fdd8-3878-4bb7-9095-95c0eb3ba3ec",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -60,37 +48,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35047
+        "value": 26739
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 149484
+        "value": 79859
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33056
+        "value": 18550
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36262
+        "value": 20232
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3755
+        "value": 2170
       }
     },
     "runtime": "claude-code-print"

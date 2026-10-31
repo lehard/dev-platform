@@ -6,27 +6,33 @@
     "candidate_head": "455b7bdbab4a58b3d79ed2ecdf5a1ef79831a6df",
     "diff_sha256": "6ff6b7b5158adcd64e501870a5dbd50eec9bb281551be61234a575d72bf724a6"
   },
-  "completed_at": "2026-10-31T23:51:24+00:00",
+  "completed_at": "2026-10-31T23:54:26+00:00",
   "findings": [
     {
-      "evidence": "tests/test_autonomous_integration_contour.py patches `contour.main_only_reason` in both advance tests. `test_main_only_reason_needs_a_trusted_gated_head` only covers the two early-return reasons. The real `generated_files` call and the choice of `harness or root` for the Git objects are not tested. A wrong repository (the root checkout versus the harness checkout) or a failing declaration read would only show up in production.",
-      "id": "main-only-reason-wiring-untested",
+      "evidence": "template/scripts/integration_contour.py advance_after_repair calls main_only_reason, which calls main_only_integration and raises IntegrationProofError on a Git failure. The only caller, run_claimed_integration_repair, does not catch it, and it runs after the push and before adapter._transition and post_result. The design accepts raising, but does not describe the resulting queue state or how the run is retried.",
+      "id": "proof-error-after-push-unhandled",
       "severity": "advisory",
-      "summary": "The wiring from `advance_after_repair` into `main_only_reason`, and from there into `generated_files(root, \"HEAD\")` and `main_only_integration`, is never run end to end. Tests only cover each piece in isolation."
+      "summary": "An IntegrationProofError, for example a missing object, now propagates out of advance_after_repair after the repaired head has already been pushed. The candidate is left in integration-repair-pending with no transition and no recorded reason."
+    },
+    {
+      "evidence": "template/scripts/task_content_identity.py: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated` and `conflicts - generated`. design.md says: \"Generated content is validated by its own `--check`, as today.\"",
+      "id": "generated-files-fully-exempt-from-byte-proof",
+      "severity": "advisory",
+      "summary": "Every path declared as generated is excluded from the byte-exact comparison, not only the conflicted ones. Any content in those files is accepted, and the design relies on a separate `--check`. Nothing in the gate-reuse path confirms that this check runs on the new head before the rebound gates are used."
     }
   ],
-  "launched_at": "2026-10-31T23:51:04+00:00",
-  "output_sha256": "8cd9df5fe1c447fa499449047f9c6c283addb69f19edc486488fe84e7fd78781",
+  "launched_at": "2026-10-31T23:54:06+00:00",
+  "output_sha256": "5a3a81e2fe9e1f70d90bbdca57d1bf48134cb3d6e068b4f6b8845848548d7e95",
   "perspective": "engineering-quality",
   "request_id": "d5373432-3151-4f77-b941-9932ea7f87a0",
   "reviewer": {
-    "context_id": "f2d71500-2605-457d-963e-dba2db074a46",
+    "context_id": "e687ce37-63ae-4570-986c-d54e1ef80968",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3b439e79-adc6-4843-9653-d7621f5b89f9",
+    "launch_id": "platform-launch-b5c4ceb5-4b1a-41c4-8477-1cbd6c96eb47",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21411
+        "value": 21537
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21179
+        "value": 21307
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15556
+        "value": 15351
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16551
+        "value": 16465
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -72,7 +78,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1623
+        "value": 1710
       }
     },
     "runtime": "claude-code-print"
