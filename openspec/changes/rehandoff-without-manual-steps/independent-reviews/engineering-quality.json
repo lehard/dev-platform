@@ -3,23 +3,42 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "abb7528717e05eb06131f51d79f12b9cb796cc84",
-    "diff_sha256": "57e0e7d9ee4f1180e05f8369a3d4a1e8ca8ce83f1793dc29afe19a793609a656"
+    "candidate_head": "70e844842e9083e4e03da38f8c5bd869bd6928d6",
+    "diff_sha256": "1c32839306b8b48a3614d1007258cd0570644d4355533cac50d54e40b8ed2825"
   },
-  "completed_at": "2026-10-31T14:55:17+00:00",
-  "findings": [],
-  "launched_at": "2026-10-31T14:55:00+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-10-31T14:57:03+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/agent_board.py claim_eligibility (diff lines 236-239) filters out `stale-heartbeat` for handed-off items. The only cleanup route is the `finish --id` command named in the `_required_scope_inputs` refusal message (diff 285-289). design.md Risks does not mention abandoned PRs.",
+      "id": "handed-off-record-never-expires",
+      "severity": "advisory",
+      "summary": "A handed-off board record is exempt from the stale-heartbeat problem. It is removed only on a terminal problem (merged PR, missing worktree) or by the manual `finish --id` command. If its PR is closed without merging, or the task is abandoned while the worktree stays, the record lives forever. Doctor reports nothing for it, and worktree cleanup no longer treats it as active."
+    },
+    {
+      "evidence": "tests/test_rehandoff_board.py lines 777-782: `except Exception:  # noqa: BLE001 - later gates are out of scope here: pass`. This also conflicts with the repository's no-swallowed-exceptions rule.",
+      "id": "handoff-gate-test-swallows-exceptions",
+      "severity": "advisory",
+      "summary": "`HandoffGateTests.gates` catches every non-WorkerError exception raised by `handoff_gates`. A regression after the routing or checkpoint step, such as a TypeError, would pass silently. The assertions also depend on call order that this catch-all hides."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py lines 398-400 (diff): `data = json.loads(...read_text())`, then `item = next(item for item in data[\"items\"] if item.get(\"id\") == board_id)`.",
+      "id": "reactivate-unlocked-read-stopiteration",
+      "severity": "advisory",
+      "summary": "`reactivate_handed_off_board` reads the board JSON without the lock and then calls `next(...)` with no default. If the item disappears between `find_board_id` and this read, for example because doctor removed it, the result is a bare StopIteration instead of an explicit message. The check and the `reactivate` command are also not atomic."
+    }
+  ],
+  "launched_at": "2026-10-31T14:56:42+00:00",
+  "output_sha256": "e13374a21576041d746cc92f32fc6106aad4601d25604084ccf0a19c08894fe6",
   "perspective": "engineering-quality",
-  "request_id": "1151b9d2-f0bb-4a09-b9fc-ffe22171c19e",
+  "request_id": "eed0a393-1d0b-485a-add9-c5acce12a588",
   "reviewer": {
-    "context_id": "8ac3c09f-f853-453e-9aa1-fd7e0b657f49",
+    "context_id": "615fa24e-f0ff-423d-8f28-3e031cb9592d",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0d18532e-0a41-41ff-92af-76556b77f64e",
+    "launch_id": "platform-launch-1fedca88-2ccf-4942-a41c-21feb2814bbe",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,41 +54,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34846
+        "value": 32775
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 59236
+        "value": 21405
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12534
+        "value": 16078
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14291
+        "value": 17440
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1129
+        "value": 1685
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "c878f824d1b71f31f794ca26c2ad0792d81f2eb89355a0290f3c1b8ddfca8622"
+  "task_content_digest": "60d6d66db871abf9790ba00ad6941987effedbeb9d38a53be3e6d241c01d494e"
 }

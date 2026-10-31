@@ -185,10 +185,8 @@ class HandoffGateTests(unittest.TestCase):
             (Path(self.tmp.name) / "scripts/agent_friction.py").write_text("")
             try:
                 pr_review_gate.handoff_gates(Path(self.tmp.name), self.change)
-            except lifecycle_workers.WorkerError:
-                raise
-            except Exception:  # noqa: BLE001 - later gates are out of scope here
-                pass
+            except FileNotFoundError as exc:  # the fixture has no automated-checks.json: the next gate
+                self.assertIn("automated-checks.json", str(exc))
         return route, run
 
     def test_a_missing_retained_outcome_fails_at_handoff(self) -> None:

@@ -19,6 +19,7 @@ Independent-Review-Evidence: independent-review-request.json
 
 - Independent review: two material findings fixed — the handed-off record now stores the PR and acceptance reads that exact PR; the routing gate is not applied to an archived re-admission, whose archived path it cannot resolve.
 - Re-review advisories fixed: `hand-off` of a missing entry fails explicitly; an aged handed-off record is no doctor problem. Kept: `rehandoff_refusal` reuses the queue's own `_latest` / `_comments` / `_is_ancestor` so the re-admission rule is the queue's, not a copy; a handed-off record of a PR closed without merge is refused with the explicit `agent_board.py finish --id` command (not reclaimed silently).
+- Further advisories: reactivation reports a vanished claim explicitly; the handoff-gate test now accepts only the expected next-gate FileNotFoundError. Kept: a handed-off record of an abandoned PR whose worktree remains lives until `agent_board.py finish --id`, which the scope gate names.
 
 ## Not verified / limits
 

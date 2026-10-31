@@ -81,7 +81,7 @@
     "scripts/disposable_repository_sandbox.py": "290b29ff670fb03f4bc84282a7e3f780d5fdda642611f7423dec550fa8afe1e3",
     "scripts/execute_managed_task.py": "0b1ac8f76e401278e35d44aead20758728f95ed2d6ff80b1ea21e9f09cc60ca1",
     "scripts/execute_requirement.py": "b299b260268c8bf625698e1d2c58f34383ed121fe2c0f092b19245b885a86823",
-    "scripts/finish_task.py": "b4d3069b75f4f32727844c45536f5975a46a80081a55f1941f5223069003f222",
+    "scripts/finish_task.py": "1e4bfb93b949fc0d2757e214ed3cb9947dea31ad0a25af7df23f363a0f7e09d4",
     "scripts/git_hooks/pre-commit": "b2719741841aa0fa5f3f73b57a10f7527158680f99c0e5fa4ff0b156babacbd2",
     "scripts/git_hooks/pre-merge-commit": "ed8eb55f1d71ecaa1a0f9a7ba8a763e9371e7f28cd650b272a7a9be802feca2e",
     "scripts/github_read_cache.py": "7094fbe8dbf4df6fa1ef18c7e28446e499ebcb05af2e040d74d1771d57eb15c1",

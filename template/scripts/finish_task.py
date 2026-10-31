@@ -134,7 +134,9 @@ def reactivate_handed_off_board(main: Path, worktree: Path, config: dict) -> Non
     if not board_id:
         return
     data = json.loads((main / config["paths"]["agent_board"]).read_text(encoding="utf-8"))
-    item = next(item for item in data["items"] if item.get("id") == board_id)
+    item = next((item for item in data["items"] if item.get("id") == board_id), None)
+    if item is None:
+        raise SystemExit(f"re-handoff blocked: board claim {board_id} disappeared while it was being read; rerun finish")
     if item.get("handed_off"):
         result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "reactivate", "--id", board_id],
                                 cwd=main, check=False, stdin=subprocess.DEVNULL)
