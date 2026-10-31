@@ -1,0 +1,18 @@
+{
+  "base": "551062d9163983e6556d61b18b41ec14178423cc",
+  "children": [],
+  "dependencies": {
+    "conflicting-candidate-integration-repair": [],
+    "receipt-main-only-integration": []
+  },
+  "digest": "563aa33744af21980134e58d6c901f8dc2f6daa12bd59e3e3d084d755e8fbb71",
+  "expected_changes": [
+    "conflicting-candidate-integration-repair",
+    "receipt-main-only-integration"
+  ],
+  "integration_branch": "requirement/BR-969",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+  "version": 2,
+  "work_identity": "BR-969"
+}
