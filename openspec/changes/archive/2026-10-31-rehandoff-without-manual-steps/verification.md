@@ -21,6 +21,11 @@ Independent-Review-Evidence: independent-review-request.json
 - Re-review advisories fixed: `hand-off` of a missing entry fails explicitly; an aged handed-off record is no doctor problem. Kept: `rehandoff_refusal` reuses the queue's own `_latest` / `_comments` / `_is_ancestor` so the re-admission rule is the queue's, not a copy; a handed-off record of a PR closed without merge is refused with the explicit `agent_board.py finish --id` command (not reclaimed silently).
 - Further advisories: reactivation reports a vanished claim explicitly; the handoff-gate test now accepts only the expected next-gate FileNotFoundError. Kept: a handed-off record of an abandoned PR whose worktree remains lives until `agent_board.py finish --id`, which the scope gate names.
 
+## Re-admission 2026-10-31
+
+- Integration repair 918c3ea7 changed only `tests/test_rehandoff_board.py`: `HandedOffRecordTests` now patch `ensure_shared_path` the same way as `tests/test_agent_signal.py`, because on Linux CI a temporary directory with mode 0700 fails the shared-workspace check. That is test isolation only. No product code, spec or scenario changed, so the semantic review above still holds for the integrated head.
+- Re-checked: `tests.test_rehandoff_board`, `tests.test_finish_merged_queue` and `tests.test_pr_review_gate` pass locally on the integrated candidate. The selected checks are recorded again by the lifecycle for this content.
+
 ## Not verified / limits
 
 - No live re-handoff was run end to end on GitHub; the PR-state read is covered by mocks of the queue helpers it reuses.
