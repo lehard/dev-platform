@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "472e393ec3ad1df72425e5b33ddfd8776beecb5d",
-    "diff_sha256": "a7d68fe27ba454a5cb1b21e17c6416a002fbf9bc4cef07cf8950547367833375"
+    "candidate_head": "abb7528717e05eb06131f51d79f12b9cb796cc84",
+    "diff_sha256": "57e0e7d9ee4f1180e05f8369a3d4a1e8ca8ce83f1793dc29afe19a793609a656"
   },
-  "completed_at": "2026-10-31T14:52:55+00:00",
+  "completed_at": "2026-10-31T14:55:00+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_board.py: `cmd_doctor` appends any item with non-empty `problems` to `bad`, whatever its eligibility. `claim_eligibility` now returns \"handed-off\" together with its problems, for example `stale-heartbeat`. Doctor then prints \"handed-off diagnostic (...)\" and returns 1. `tests/test_rehandoff_board.py` asserts only that `[\"stale-heartbeat\"]` classifies as handed-off, and no test covers doctor output.",
-      "id": "handed-off-record-doctor-noise",
+      "evidence": "template/scripts/pr_review_gate.py handoff_gates: `if change.parent.name != \"archive\": ... require_managed_routing_evidence(change)`. specs/completion-lifecycle/spec.md: \"Every developer handoff, first or repeated, through `finish` or `execute_requirement.py advance`, SHALL run the same routing gate as archive before publication\". The test test_an_archived_re_admission_is_not_routed_again asserts the gate is not called.",
+      "id": "routing-gate-skipped-for-archived-readmission",
       "severity": "advisory",
-      "summary": "A handed-off record that has aged (stale heartbeat or other non-terminal problems) still produces a doctor diagnostic with exit 1, although it is an intentionally retained record. The delta does not say how long-lived handed-off records are treated by `agent_board.py doctor`."
+      "summary": "The spec says every developer handoff, first or repeated, runs the archive routing gate before publication. The code skips the gate for an archived re-admission. Design.md says this is deliberate because the gate passed at the first handoff, but the spec text does not carve it out."
     }
   ],
-  "launched_at": "2026-10-31T14:52:30+00:00",
-  "output_sha256": "863373acb710260bb00dc0cd5b581bae9cbcdfd02f9c7b8c370ee3b7889ed039",
+  "launched_at": "2026-10-31T14:54:38+00:00",
+  "output_sha256": "f2ebdbbfa99e4dbc2d1d9219a8561cde8fe6088adb85b066bc2a32085fdf772d",
   "perspective": "spec-fidelity",
-  "request_id": "4234d1e7-09df-473c-b2c5-a8fe2093479f",
+  "request_id": "1151b9d2-f0bb-4a09-b9fc-ffe22171c19e",
   "reviewer": {
-    "context_id": "52831d6f-ca6d-4225-85b9-059394e79c44",
+    "context_id": "51cd510e-f2b6-4d90-85aa-846ffc971693",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-91b02f72-521f-4a92-ac06-3e5c9fc352b3",
+    "launch_id": "platform-launch-8373333e-114c-484f-b3ff-822a79e5f948",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36972
+        "value": 36303
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 101217
+        "value": 60729
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18972
+        "value": 16509
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21016
+        "value": 18233
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1852
+        "value": 1701
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "6329c43995a206b2435408c75e8643d63392daad945821f1bedb671c8e835655"
+  "task_content_digest": "c878f824d1b71f31f794ca26c2ad0792d81f2eb89355a0290f3c1b8ddfca8622"
 }

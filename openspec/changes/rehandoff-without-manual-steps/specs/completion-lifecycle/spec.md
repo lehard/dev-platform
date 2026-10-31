@@ -12,7 +12,7 @@ For a coordinator-managed candidate, developer completion SHALL end at a handoff
 
 ### Requirement: Developer handoff enforces the routing gate
 
-Every developer handoff, first or repeated, through `finish` or `execute_requirement.py advance`, SHALL run the same routing gate as archive before publication and SHALL fail naming the missing routing record or retained execution outcome and its command.
+Every developer handoff of an active change, first or repeated, through `finish` or `execute_requirement.py advance`, SHALL run the same routing gate as archive before publication and SHALL fail naming the missing routing record or retained execution outcome and its command. An archived re-admission SHALL rely on the gate its first handoff passed.
 
 #### Scenario: First handoff without a retained outcome
 
