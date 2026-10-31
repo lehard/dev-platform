@@ -146,6 +146,21 @@ class CandidateLifecycleTests(unittest.TestCase):
         self.assertEqual(result["state"], "blocked-retryable")
         self.assertEqual(result["gates"], {})
 
+    def test_environment_error_note_names_the_reason_without_changing_state(self):
+        # BR-969: a coordinator environment failure is visible, but the state and attempts stay.
+        note = {"id": 2, "author_association": "OWNER", "body": lifecycle.V1_PREFIX + json.dumps(
+            {"version": 1, "number": 7, "kind": "environment-error", "head": HEAD, "reason": "OpenSpec CLI is required"})}
+        record = handoff("ready")
+        checks = {"head": HEAD, "kind": "pending", "detail": "required checks not yet reported on head: validate"}
+        result = lifecycle.derive_candidate(pr(), [comment(record), note], checks)
+        self.assertEqual(result["state"], "blocked-retryable")
+        self.assertEqual(result["attempts"], record["attempts"])
+        self.assertEqual(result["reason"], "coordinator environment error on this head: OpenSpec CLI is required")
+        later = comment(handoff("ready"), ident=3)
+        self.assertNotIn("environment", lifecycle.derive_candidate(pr(), [comment(record), note, later], checks)["reason"])
+        other = {**note, "body": note["body"].replace(HEAD, NEW_HEAD)}
+        self.assertNotIn("environment", lifecycle.derive_candidate(pr(), [comment(record), other], checks)["reason"])
+
     def test_pending_checks_and_merged_pr(self):
         rows = [comment(handoff("ready"))]
         result = lifecycle.derive_candidate(pr(), rows, {"head": HEAD, "kind": "pending"})
