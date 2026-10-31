@@ -106,7 +106,6 @@ targets = [
   "test_managed_project_status",
   "test_browser_verification",
   "test_finish_explicit_fallbacks",
-  "test_rehandoff_board",
 ]
 mode = "parallel"
 
@@ -248,7 +247,7 @@ targets = ["test_protected_main_zero_handoff"]
 mode = "parallel"
 
 [test_groups.worktree_hygiene]
-targets = ["test_worktree_hygiene"]
+targets = ["test_worktree_hygiene", "test_rehandoff_board"]
 mode = "parallel"
 
 [test_groups.model_routing]
