@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/completion-lifecycle/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "handoff-active-checkpoint-generated",
+  "imported_at": "2026-10-31T08:48:36+00:00",
+  "package_revision": "d2aab2eec8309ee6bab86c3415584d99fcacd22ffcee455a02d193c7623c5fc2",
+  "prepared_against": "e386ea3cb151a08c4211ab3d5d7b9e32d9fcc8f3",
+  "private_lineage_handle": "pln_b05e0a09bd3cac5ae988add557da07d5",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "202f698841de02f031a513d5eaf72c520254c62d3f8a482ff76b977c0dfd4423",
+    "updated_at": "2026-10-31T08:42:38Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-940/T1"
+}

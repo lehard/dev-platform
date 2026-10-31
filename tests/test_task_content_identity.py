@@ -13,7 +13,9 @@ sys.path.insert(0, str(ROOT / "tests"))
 from _platform_config import write_platform_config  # noqa: E402
 from _platform_common import TaskFreshnessError  # noqa: E402
 from task_content_identity import (  # noqa: E402
+    CHECKPOINT_SCOPE,
     REVIEW_SCOPE,
+    checkpoint_content_identity,
     content_identity,
     equivalent_proofs,
     review_content_identity,
@@ -365,6 +367,23 @@ class GeneratedFileExclusionTests(unittest.TestCase):
         after = review_content_identity(self.root, self.CHANGE)
         self.assertNotEqual(before["digest"], after["digest"])
         self.assertFalse(equivalent_proofs(self.root, before, after))
+
+    def test_checkpoint_proof_survives_a_merge_only_reconcile_that_changes_only_a_generated_file(self) -> None:
+        # BR-940: the friction checkpoint proof drops declared generated files; the full proof would go stale.
+        before = checkpoint_content_identity(self.root, self.CHANGE)
+        full_before = content_identity(self.root, self.CHANGE)
+        self.assertEqual(before["scope"], CHECKPOINT_SCOPE)
+        self.assertNotIn("gen.txt", before["paths"])
+        self.advance_main({"gen.txt": "one\ntwo\nTHREE\n"})
+        self.merge_main("ONE\ntwo\nTHREE\n")
+        self.assertTrue(equivalent_proofs(self.root, before, checkpoint_content_identity(self.root, self.CHANGE)))
+        self.assertFalse(equivalent_proofs(self.root, full_before, content_identity(self.root, self.CHANGE)))
+
+    def test_checkpoint_proof_goes_stale_when_a_task_owned_file_changes(self) -> None:
+        before = checkpoint_content_identity(self.root, self.CHANGE)
+        (self.root / "own.txt").write_text("own, edited after the checkpoint\n", encoding="utf-8")
+        self.commit("task edits its own file")
+        self.assertFalse(equivalent_proofs(self.root, before, checkpoint_content_identity(self.root, self.CHANGE)))
 
     def test_a_declaration_only_in_the_candidate_is_ignored(self) -> None:
         # Main never declared gen.txt; the candidate adds the declaration itself.

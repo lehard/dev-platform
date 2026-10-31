@@ -1,0 +1,85 @@
+{
+  "candidate": {
+    "base_head": "a102413f006f350e8884509f96b8d1265d2bec1c",
+    "base_ref": "origin/main",
+    "candidate_head": "5278b0c5ad2c13314e3ab48532c09c457456c64a",
+    "diff_sha256": "6645d027ce90a0b7e31b50c14290dc2fbf903076addbc02f328209e54d201e3a"
+  },
+  "change": "openspec/changes/handoff-active-checkpoint-generated",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/handoff-active-checkpoint-generated/automated-checks.json",
+    "openspec/changes/handoff-active-checkpoint-generated/independent-review-request.json",
+    "openspec/changes/handoff-active-checkpoint-generated/independent-reviews/engineering-quality.json",
+    "openspec/changes/handoff-active-checkpoint-generated/independent-reviews/spec-fidelity.json",
+    "openspec/changes/handoff-active-checkpoint-generated/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/handoff-active-checkpoint-generated/design.md",
+        "openspec/changes/handoff-active-checkpoint-generated/proposal.md",
+        "openspec/changes/handoff-active-checkpoint-generated/specs/completion-lifecycle/spec.md",
+        "openspec/changes/handoff-active-checkpoint-generated/specs/platform-lifecycle/spec.md",
+        "openspec/changes/handoff-active-checkpoint-generated/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/handoff-active-checkpoint-generated/proposal.md",
+        "openspec/changes/handoff-active-checkpoint-generated/design.md",
+        "openspec/changes/handoff-active-checkpoint-generated/tasks.md",
+        "openspec/changes/handoff-active-checkpoint-generated/specs/completion-lifecycle/spec.md",
+        "openspec/changes/handoff-active-checkpoint-generated/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T09:44:36+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/handoff-active-checkpoint-generated/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "8a32c665-2501-4b94-9a7f-88b439a78d4f",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "a102413f006f350e8884509f96b8d1265d2bec1c",
+    "digest": "033b3edb31dffc28f979903d12e1ae44151ca1b7f0cea357f3d6863601df1552",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "ccbf6b8e5d0cdee9cb795c4854f32fd59d930e82",
+      "openspec/changes/handoff-active-checkpoint-generated/.managed-task.json": "e34be6bc24c073ee669191345d8b1b2d14d13e62",
+      "openspec/changes/handoff-active-checkpoint-generated/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/handoff-active-checkpoint-generated/design.md": "f3fab6ec500ec0e5851f6a55ffe7cfa7b51c92f1",
+      "openspec/changes/handoff-active-checkpoint-generated/proposal.md": "21d6ac631390e422cf39c6d68b0c5979b9f1a269",
+      "openspec/changes/handoff-active-checkpoint-generated/specs/completion-lifecycle/spec.md": "2852c260f2f0866369ad7d9002bfa7d93518945f",
+      "openspec/changes/handoff-active-checkpoint-generated/specs/platform-lifecycle/spec.md": "457d53e9635cc0d8beebf43e526b798958ae0824",
+      "openspec/changes/handoff-active-checkpoint-generated/tasks.md": "8d762d4baa6ec0e299f304b50c1218556fe8fb6a",
+      "template/docs/engineering/agent-workflow.md.jinja": "f9ef7bef1e5412843e5a0b51654c8924f105235b",
+      "template/scripts/agent_friction.py": "97d83e7f309cb57e89a2632e739b4d6967257ef6",
+      "template/scripts/openspec_lifecycle.py": "e353140618113b5bb96e8128633b4350305f1fc8",
+      "template/scripts/task_content_identity.py": "c6d702ca51d852de36d1ae7f09427149d010d083",
+      "tests/test_openspec_lifecycle.py": "3a9623512aca4760ed158933dbbf77680858abcc",
+      "tests/test_task_content_identity.py": "b57ad0d89797aa111b63c74cf99b7c2cd3f86280"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
