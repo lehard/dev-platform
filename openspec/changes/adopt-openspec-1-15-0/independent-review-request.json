@@ -1,0 +1,88 @@
+{
+  "candidate": {
+    "base_head": "d603a6dbafc0c72875634f04fb3a09500d86c116",
+    "base_ref": "origin/main",
+    "candidate_head": "84c592fa8d601a1005fda79fc24297f9ca1370da",
+    "diff_sha256": "f92ddf16bb7b2788cb718bb7a973cfed55f4f0650935efae8adf403918cdff8c"
+  },
+  "change": "openspec/changes/adopt-openspec-1-15-0",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/adopt-openspec-1-15-0/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/adopt-openspec-1-15-0/design.md",
+        "openspec/changes/adopt-openspec-1-15-0/proposal.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/chat-coordinator/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/lifecycle-workers/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/openspec-authoring/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/publication-queue/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/adopt-openspec-1-15-0/proposal.md",
+        "openspec/changes/adopt-openspec-1-15-0/design.md",
+        "openspec/changes/adopt-openspec-1-15-0/tasks.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/chat-coordinator/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/lifecycle-workers/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/openspec-authoring/spec.md",
+        "openspec/changes/adopt-openspec-1-15-0/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T11:02:48+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/adopt-openspec-1-15-0/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "27b62d72-e646-4db9-9b03-5eba47a55c7e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d603a6dbafc0c72875634f04fb3a09500d86c116",
+    "digest": "5cb20764a51ae40ef6e1a111e2e9ad0688e89c9af7aa21fcb50ac717ee390d7a",
+    "paths": {
+      ".github/workflows/adopt-project.yml": "bc517543f043c5ab08701da8c863f56eed8327d6",
+      ".github/workflows/ci.yml": "94ba9b12efd6d5456d83fcda6a3b723a166e5725",
+      ".github/workflows/lifecycle-workers.yml": "6be7d5d0f39dccb0b072947298ff67e6889789d3",
+      "README.md": "d9e247f6f2f69e1edde1cf732711e4bb01c14f4e",
+      "openspec/changes/adopt-openspec-1-15-0/.managed-task.json": "67a7dccc901896d06b6b3758a9af744fc4583916",
+      "openspec/changes/adopt-openspec-1-15-0/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/adopt-openspec-1-15-0/design.md": "395b9e4ff916043c585425dfa4b2c6b20727e690",
+      "openspec/changes/adopt-openspec-1-15-0/proposal.md": "3ac118be09b089ad477a0762fc47aaccea5b9f63",
+      "openspec/changes/adopt-openspec-1-15-0/specs/chat-coordinator/spec.md": "453b486b62b7c9a20f5a3d1fa2e251edf9cc34b0",
+      "openspec/changes/adopt-openspec-1-15-0/specs/lifecycle-workers/spec.md": "15aea9e1a11b535632ed70f92d25e6c898f1cf80",
+      "openspec/changes/adopt-openspec-1-15-0/specs/openspec-authoring/spec.md": "db2d672b1da4371a9a13788134982a9a358b21f9",
+      "openspec/changes/adopt-openspec-1-15-0/specs/publication-queue/spec.md": "258304675237ccdb19c9ec3a9eff9879c4ad2059",
+      "openspec/changes/adopt-openspec-1-15-0/tasks.md": "8ba701727188521110092ca4120fe8cd53847bc2",
+      "template/.dev-platform.toml.jinja": "9d29c5011b8145454aac6094b75d0381ba97e9db",
+      "template/.github/workflows/dev-platform.yml.jinja": "31d3b7c188aeb01e78ddd9b369ca070f7cdf6ce0",
+      "tests/openspec_1_13_regression.py": "797661b8c09545148f5050ced9d43e0947b37865",
+      "tests/project_harness_adoption_smoke.py": "2946b407a8723961aeca73e467b3840551e1fdda",
+      "tests/test_template_contract.py": "1da6fc220ad1a2ccdadcbdb479bba2ad57f52730"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
