@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import json
 import sys
 import tempfile
@@ -228,6 +229,30 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
             with self.subTest(early=early):
                 with self.assertRaisesRegex(SystemExit, "releasing board claim claim-1 failed; rerun scripts/agent_board.py finish --id claim-1"):
                     self.run_queued(claimed=True, early=early, release_code=1)
+
+
+
+class LinkedParentReconciliationTests(unittest.TestCase):
+    """BR-950: with the coordinator queue finish never closes the parent Requirement."""
+
+    def run_reconcile(self, post_merge: bool):
+        import finish_task
+        import requirement_terminal
+        with mock.patch.object(requirement_terminal, "parent_for_child", return_value="acme/backlog#7"), \
+                mock.patch.object(requirement_terminal, "post_merge_closes", return_value=post_merge), \
+                mock.patch.object(requirement_terminal, "reconcile_parent") as parent, \
+                mock.patch("requirement_intake.fetch_issue", return_value={"body": ""}), \
+                mock.patch("requirement_intake.parse_requirement_body", return_value={"children": ["acme/backlog#8"]}), \
+                contextlib.redirect_stdout(io.StringIO()):
+            finish_task.reconcile_linked_parent(Path("/integration"), types.SimpleNamespace(source_issue="acme/backlog#8"))
+        return parent
+
+    def test_coordinator_mode_leaves_the_parent_to_post_merge_jobs(self):
+        self.run_reconcile(True).assert_not_called()
+
+    def test_portable_mode_closes_the_parent_in_session(self):
+        self.run_reconcile(False).assert_called_once_with(Path("/integration"), requirement="acme/backlog#7",
+                                                          merged_children={"acme/backlog#8"})
 
 
 if __name__ == "__main__":
