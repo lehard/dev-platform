@@ -47,10 +47,10 @@
     "change": "remove-deepseek-harness",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/remove-deepseek-harness",
     "branch": "agent/br-845-t1-remove-deepseek-harness",
-    "head": "f7722a1655466ba1df762c01672bc6d0b6a6430e",
+    "head": "27052cc1602631d1bcb14970c59a25a62bfd520e",
     "task_content": {
       "version": 1,
-      "digest": "7fe9f664d15c5cab4503c9d7e4597b13f62d4c9900b881e255e413bc8f10da3e",
+      "digest": "569d1105e80350e6f0eb535b75e5cbd2e442b8b5c5e99ecb6d0e38aca5108667",
       "paths": {
         "dev-platform/checks.toml": "b373f50fd10f602d21770f09d4f723bc3efa920b",
         "docs/engineering/deepseek-harness-runtime.md": null,
@@ -58,6 +58,7 @@
         "explorer/map.toml": "bae4837c8506893a8fad353c222f4101417a9174",
         "openspec/changes/remove-deepseek-harness/.managed-task.json": "1a6c7cb759b0a4d40e0863be57a7c2c28197c149",
         "openspec/changes/remove-deepseek-harness/.openspec.yaml": "4bfa67093b52a28d7bb33f98e01080becffe599a",
+        "openspec/changes/remove-deepseek-harness/automated-checks.json": "d8dc59524038ddd3287b587e7fc9de0d1c20de18",
         "openspec/changes/remove-deepseek-harness/design.md": "bd9aae0418f118a8b24a6470067f84eaa8dec012",
         "openspec/changes/remove-deepseek-harness/independent-review-request.json": "4dd7314045e41acd8c06c89800266a6ff57a8712",
         "openspec/changes/remove-deepseek-harness/independent-reviews/engineering-quality.json": "fd5539bd749eacd9e8f9d79a4b8211435dfcca86",
@@ -67,7 +68,7 @@
         "openspec/changes/remove-deepseek-harness/specs/model-routing/spec.md": "c9d94a8c95ba118a5d4d367f402773c5e05c1a64",
         "openspec/changes/remove-deepseek-harness/specs/platform-config/spec.md": "6520f042efd9759bcd65171668fd61371c55e5e6",
         "openspec/changes/remove-deepseek-harness/tasks.md": "d402b5d3f2906e4c8a157f79031c56e0537b31ed",
-        "openspec/changes/remove-deepseek-harness/verification.md": "8333221edb9bc3a0b33abfe791ff35a12e4bbfd8",
+        "openspec/changes/remove-deepseek-harness/verification.md": "0c452ac68af2f515ba8f8ab2e0f0b1699bf1b064",
         "scripts/deepseek_harness_adapter.py": null,
         "template/.dev-platform.toml.jinja": "857de5f413373394057efc4f6658e69d94ccf276",
         "template/dev-platform/deepseek-harness-observation.cordis.yml": null,
@@ -123,9 +124,18 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/deepseek_harness_adapter.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/deepseek_harness_adapter.py --changed-file template/scripts/platform_bootstrap.py --changed-file tests/test_build_explorer_editorial.py --changed-file tests/test_deepseek_harness_runtime.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_platform_bootstrap.py --changed-file tests/test_shared_writer_guard.py",
-    "duration_seconds": 260.542,
+    "duration_seconds": 253.64,
     "outcome": "failure",
     "exit_code": 1,
     "role": "affected-precheck feedback; not validation coverage"
+  },
+  "task_base": {
+    "contract": "behind-mergeable",
+    "main": "3963541f967bc697a25ca5ca8b7b48cba5737018",
+    "base": "4982d61e8bddcf660a8e8a09098d58ed6fa56156",
+    "overlapping": [
+      "template/dev-platform/platform-manifest.json"
+    ],
+    "generated_conflicts": []
   }
 }
