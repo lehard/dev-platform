@@ -1,30 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_head": "5fa6b1800e87bc6cdc319910a4c6b4d39a7bf9f3",
     "base_ref": "origin/main",
-    "candidate_head": "918c3ea7971bd3aeb867a72957ac367b4f0acfff",
-    "diff_sha256": "76213cce5268c966d773e9a0a17007ade24bf3d29e44c13ae8a78987304788bf"
+    "candidate_head": "a52f0015a297ff98d9e512b6e8d0502662aed33a",
+    "diff_sha256": "c82248c7665d55cfdaffaa5bce91f9cc7dec7e3567a2da1bb4f2db2d375b1ba2"
   },
-  "completed_at": "2026-10-31T19:28:44+00:00",
+  "completed_at": "2026-10-31T21:48:15+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_board.py:512-515 removes `stale-heartbeat` from the problems of a handed-off item. `doctor` only reports or removes items that have problems (agent_board.py:739-743), so an aged record in an open abandoned PR is reported as `ok` and `--fix` never removes it. `cmd_start` (lines 549-551) still rejects the same worktree or branch with 'already registered'. The only recovery is the manual `agent_board.py finish --id` command named in the refusal message at line 838.",
-      "id": "handed-off-record-never-ages-out",
+      "evidence": "template/scripts/agent_board.py in rehandoff_refusal calls queue._latest(worktree, number, queue._comments(worktree, queue._repo(worktree), number)) and queue._is_ancestor(...). A rename or signature change in publication_queue would break the scope gate for every handed-off claim. Only the tests that mock these names would see it. A public observation function in publication_queue would be safer.",
+      "id": "board-reader-uses-queue-private-api",
       "severity": "advisory",
-      "summary": "A handed-off board record that is never re-handed-off, for example because its PR was abandoned while still open, is never flagged or cleaned up."
+      "summary": "agent_board.rehandoff_refusal reaches into publication_queue's underscore-prefixed helpers, so the board script now depends on the queue's internal API."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py reactivate_handed_off_board does json.loads((main / config['paths']['agent_board']).read_text()) directly and then subprocess.run(... 'reactivate' ...). cmd_reactivate re-checks under locked_json and fails explicitly, so a concurrent change is detected rather than corrupting state. The unlocked read can still fail on a partially written file or give a spurious 'disappeared' error.",
+      "id": "reactivate-reads-board-unlocked",
+      "severity": "advisory",
+      "summary": "reactivate_handed_off_board reads the board JSON without the board lock and then runs a separate reactivate subprocess, leaving a gap between the check and the write."
     }
   ],
-  "launched_at": "2026-10-31T19:28:28+00:00",
-  "output_sha256": "6894e3f8dff5f0e329985e329e889b120a0fc778c4adcfcabce24cac61e11068",
+  "launched_at": "2026-10-31T21:47:59+00:00",
+  "output_sha256": "ba2e177d3a832174dc43ce118965ea9ac84fa3e41d074c84d6d65f19be4e68c7",
   "perspective": "engineering-quality",
-  "request_id": "cb53c574-69b1-4723-8d5a-79902184533a",
+  "request_id": "2c8141f9-f9a5-467e-8f64-cb777ac360a6",
   "reviewer": {
-    "context_id": "8a2d6b9c-f685-40bd-9d8d-e8a5b956b681",
+    "context_id": "12ddf628-202c-4a7a-a6b1-0dce54868e5f",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-19da6184-dc00-4bfe-bb02-2d001f4cf7ad",
+    "launch_id": "platform-launch-82186b2c-715d-46bb-94dd-6fb5b01c2695",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33752
+        "value": 29301
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 126214
+        "value": 17101
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14698
+        "value": 15022
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14987
+        "value": 15278
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1565
+        "value": 1739
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b206423e295e0030c6b149d636488b7db2508bcf6d9f0007cca7260aa582643a"
+  "task_content_digest": "1be97137cba5c0776f38436efb66401115ff03cab6c49b4c175d52fc764a6e2c"
 }
