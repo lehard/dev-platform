@@ -44,6 +44,12 @@ def setUpModule() -> None:
     unittest.addModuleCleanup(declared.stop)
 
 
+def tearDownModule() -> None:
+    # pytest never runs ``unittest.addModuleCleanup`` callbacks; without this the module-wide
+    # ``generated_files`` patch leaked into later test modules of the same process.
+    unittest.case.doModuleCleanups()
+
+
 def admission(number: int, key: int, head: str = HEAD) -> dict:
     return {"version": 1, "number": number, "kind": "admit", "comment_id": key,
             "head": head, "base": BASE, "branch": f"agent/{number}"}
@@ -798,15 +804,15 @@ class TransitionRecordTests(unittest.TestCase):
                                        if comments else None)
         return posted, record
 
-    def test_block_still_dequeues_when_its_handoff_record_cannot_read_a_malformed_record(self) -> None:
+    def test_block_dequeues_then_fails_when_its_handoff_record_cannot_read_a_malformed_record(self) -> None:
         broken = {"id": 61, "author_association": "OWNER", "body": "dev-platform-publication-queue:v2 {broken"}
         observed = {"number": 1, "state": "open", "head": {"sha": HEAD}, "labels": []}
         labels: list[tuple[str, bool]] = []
         with patch.object(queue, "_comment"), patch.object(queue, "_gh"), patch.object(queue, "_pr", return_value=observed), \
              patch.object(queue, "_comments", return_value=[broken]), patch.object(queue, "trusted_apps", return_value=frozenset()), \
              patch.object(queue, "_label", side_effect=lambda *a, present: labels.append((a[3], present))):
-            result = queue._block(ROOT_PATH, REPO, 1, "malformed marker comment 61", head=HEAD)
-        self.assertEqual(result["state"], "blocked")
+            with self.assertRaisesRegex(queue.QueueError, "PR #1 block was recorded .* blocked-escalation record failed"):
+                queue._block(ROOT_PATH, REPO, 1, "malformed marker comment 61", head=HEAD)
         self.assertIn((queue.QUEUE, False), labels)
 
     def test_transition_over_a_malformed_trusted_record_raises_instead_of_writing_over_it(self) -> None:
@@ -1529,15 +1535,33 @@ class MalformedDuringIntegrationTests(unittest.TestCase):
 
 
 class BlockRobustnessTests(unittest.TestCase):
-    def test_block_dequeues_even_when_the_handoff_record_fails(self) -> None:
+    def test_block_dequeues_then_fails_explicitly_when_the_handoff_record_fails(self) -> None:
         labels: list[tuple[str, bool]] = []
         with patch.object(queue, "_comment"), \
              patch.object(queue, "_label", side_effect=lambda *a, present: labels.append((a[3], present))), \
              patch.object(queue, "_transition", side_effect=queue.QueueError("comment page full")) as transition:
-            result = queue._block(ROOT_PATH, REPO, 7, "head changed outside coordinator control", head=NEW_HEAD)
-        self.assertEqual(result["state"], "blocked")
+            with self.assertRaisesRegex(queue.QueueError, "PR #7 block was recorded .* record failed: comment page full"):
+                queue._block(ROOT_PATH, REPO, 7, "head changed outside coordinator control", head=NEW_HEAD)
         self.assertIn((queue.QUEUE, False), labels)
         self.assertIs(transition.call_args.kwargs["inherit_identity"], False)
+
+    def test_block_without_an_observable_head_fails_explicitly(self) -> None:
+        with patch.object(queue, "_comment"), patch.object(queue, "_label"), \
+             patch.object(queue, "_pr", return_value={"number": 7, "head": {}}), \
+             patch.object(queue, "_transition") as transition:
+            with self.assertRaisesRegex(queue.QueueError, "PR #7 observation has no head SHA"):
+                queue._block(ROOT_PATH, REPO, 7, "reason")
+        transition.assert_not_called()
+
+    def test_transient_counter_fails_explicitly_without_a_head(self) -> None:
+        with patch.object(queue, "_pr", return_value={"number": 7, "head": {"sha": None}}), \
+             patch.object(queue, "_comments") as comments, patch.object(queue, "_transition") as transition:
+            for call in (lambda: queue._transient_wait(ROOT_PATH, REPO, 7, "HTTP 503"),
+                         lambda: queue._reset_transient(ROOT_PATH, REPO, 7)):
+                with self.assertRaisesRegex(queue.QueueError, "PR #7 observation has no head SHA"):
+                    call()
+        comments.assert_not_called()
+        transition.assert_not_called()
 
     def test_admission_retry_refuses_a_concurrently_recorded_head(self) -> None:
         with patch.object(queue, "_repo", return_value=REPO), \
