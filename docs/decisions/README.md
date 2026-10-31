@@ -11,6 +11,7 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | [DEC-0005](0005-managed-rollout-on-demand.md) | Managed rollout on demand, not on every release | Releases and downstream updates | Current |
 | [DEC-0006](0006-claude-lifecycle-provider.md) | Claude as the provider for review, repair and finalize | Central lifecycle jobs | Current |
 | [DEC-0007](0007-openspec-requirement-length.md) | Meet the OpenSpec requirement-length limit by splitting requirements | OpenSpec version and requirement form | Current |
+| [DEC-0008](0008-target-task-lifecycle.md) | One actor, one entry and one state owner for every lifecycle stage | End-to-end task lifecycle | Current |
 
 ## Record contract
 
