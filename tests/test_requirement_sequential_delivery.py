@@ -159,7 +159,7 @@ class RebindTests(unittest.TestCase):
         before = self._approved()
         own = commit(self.root, "first child (#1)", {
             "openspec/specs/payments/spec.md": "# Payments\nNew rule.\n",
-            "openspec/changes/archive/2026-01-01-first-change/proposal.md": "done\n",
+            "openspec/changes/archive/2026-01-01-first-change/specs/payments/spec.md": "## ADDED Requirements\n",
         })
         self.assertNotEqual(self._status()["current_stage"], "complete")
         receipt = self._rebind()
@@ -175,6 +175,47 @@ class RebindTests(unittest.TestCase):
         [source] = [item for item in receipt["sources"] if item["path"] == "openspec/specs/payments/spec.md"]
         self.assertEqual(source["commits"], [{"commit": own, "own": True}])
         self.assertTrue(Path(receipt["receipt"]).is_file())
+
+    def test_mixed_commit_cannot_attribute_another_capability_to_the_child(self) -> None:
+        mixed = commit(self.root, "first child plus another spec", {
+            "openspec/specs/payments/spec.md": "# Payments\nNew rule.\n",
+            "openspec/specs/billing/spec.md": "# Billing\nSmuggled.\n",
+            "openspec/changes/archive/2026-01-01-first-change/specs/payments/spec.md": "## ADDED Requirements\n",
+        })
+        before = self._artifacts()
+        with self.assertRaisesRegex(orch.RebindStop, f"openspec/specs/billing/spec.md \\({mixed[:12]}\\)"):
+            self._rebind()
+        self.assertEqual(self._artifacts(), before)
+
+    def test_commit_archiving_another_change_is_not_own(self) -> None:
+        commit(self.root, "two archives", {
+            "openspec/specs/payments/spec.md": "# Payments\nNew rule.\n",
+            "openspec/changes/archive/2026-01-01-first-change/specs/payments/spec.md": "## ADDED Requirements\n",
+            "openspec/changes/archive/2026-01-01-unrelated/specs/payments/spec.md": "## ADDED Requirements\n",
+        })
+        receipt = self._rebind()
+        [source] = [item for item in receipt["sources"] if item["path"] == "openspec/specs/payments/spec.md"]
+        self.assertFalse(source["commits"][0]["own"])
+
+    def test_receipt_write_failure_rolls_back_without_a_receipt(self) -> None:
+        commit(self.root, "first child", {
+            "openspec/specs/payments/spec.md": "# Payments\nNew.\n",
+            "openspec/changes/archive/2026-01-01-first-change/specs/payments/spec.md": "## ADDED Requirements\n",
+        })
+        before = self._artifacts()
+        real = orch._write_json
+
+        def failing(path, payload):
+            if path.name.startswith("rebind-"):
+                real(path, payload)
+                raise OSError("receipt disk full")
+            real(path, payload)
+
+        with mock.patch.object(orch, "_write_json", side_effect=failing), \
+             self.assertRaisesRegex(orch.RebindStop, "rolled back: receipt disk full"):
+            self._rebind()
+        self.assertEqual(self._artifacts(), before)
+        self.assertEqual(list(self.directory.glob("rebind-*.json")), [])
 
     def test_foreign_change_outside_the_remaining_children_is_rebound(self) -> None:
         foreign = commit(self.root, "other stream", {"openspec/specs/payments/spec.md": "# Payments\nOther.\n"})
@@ -312,6 +353,14 @@ class SequentialAdvanceTests(unittest.TestCase):
             publish.assert_called_once_with(root.resolve(), "acme/backlog#8", "first")
             contributions.assert_not_called()
             start.assert_not_called()
+
+    def test_unreadable_handoff_in_the_sequential_round_fails_naming_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            broken = root / "first.json"
+            broken.write_text("{broken", encoding="utf-8")
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "cannot read handoff .*first.json"):
+                execution._sequential_round(root, REQUIREMENT, root, [("first", broken)], {}, ["first"], False)
 
     def test_unreadable_intent_set_fails_naming_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

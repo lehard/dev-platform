@@ -594,11 +594,23 @@ def _git_lines(root: Path, *args: str) -> list[str]:
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
-def _own_commit(root: Path, commit: str, own_changes: list[str]) -> bool:
-    """A squash or merge commit of an own delivered child carries that child's archived contract."""
-    paths = _git_lines(root, "diff", "--name-only", f"{commit}^1", commit)
-    return any(re.fullmatch(rf"openspec/changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)}/.+", path)
-               for path in paths for change in own_changes)
+ARCHIVED_CHANGE_RE = re.compile(r"openspec/changes/archive/\d{4}-\d{2}-\d{2}-([^/]+)/(.+)")
+ACCEPTED_SPEC_RE = re.compile(r"openspec/specs/([^/]+)/spec\.md")
+
+
+def _own_change_of_path(root: Path, commit: str, path: str, own_changes: list[str]) -> bool:
+    """Whether this commit's change to ``path`` is explained by an own delivered child.
+
+    The commit (against its first parent) must archive only own children's changes. An
+    accepted spec counts as own only when one of those archives carries that capability's
+    delta, so a mixed commit cannot attribute another capability's change to the child.
+    """
+    archived = [match.groups() for match in map(ARCHIVED_CHANGE_RE.fullmatch,
+                                                  _git_lines(root, "diff", "--name-only", f"{commit}^1", commit)) if match]
+    if not archived or any(change not in own_changes for change, _ in archived):
+        return False
+    spec = ACCEPTED_SPEC_RE.fullmatch(path)
+    return spec is None or any(inner == f"specs/{spec.group(1)}/spec.md" for _, inner in archived)
 
 
 def _file_sources(add_document: dict[str, Any]) -> list[str]:
@@ -672,7 +684,7 @@ def rebind(root: Path, *, requirement_id: str, base_dir: Path | None = None,
         if not commits:
             blocked.append(f"{path} (changed without a commit on main)")
             continue
-        classified = [{"commit": commit, "own": _own_commit(root, commit, own_changes)} for commit in commits]
+        classified = [{"commit": commit, "own": _own_change_of_path(root, commit, path, own_changes)} for commit in commits]
         foreign = [item["commit"][:12] for item in classified if not item["own"]]
         if foreign and path in affected:
             blocked.append(f"{path} ({', '.join(foreign)})")
@@ -713,19 +725,21 @@ def rebind(root: Path, *, requirement_id: str, base_dir: Path | None = None,
             after = status(root, requirement_id=requirement_id, base_dir=base_dir)
             if after.get("current_stage") != "complete":
                 raise OrchestratorError(f"rebound pre-authoring is {after.get('current_stage')}: {after.get('blocker')}")
+            receipt = {"version": REBIND_RECEIPT_VERSION, "requirement_id": requirement_id, "at": utc_now(),
+                       "from_revision": snapshot["revision"], "to_revision": head, "own_changes": sorted(own_changes),
+                       "remaining_changes": sorted(remaining_changes), "sources": sources,
+                       "add_digest": {"from": old_add_digest, "to": new_add["approval"]["digest"]},
+                       "intents_digest": {"from": old_intents_digest,
+                                          "to": add_intents._content_digest(_load_json(intents_file, "intent-set document"))},
+                       "snapshot_digest": {"from": snapshot["digest"], "to": rebuilt["digest"]}}
+            # The receipt is the last write inside the rollback window: a carried approval never lacks its record.
+            _write_json(receipt_file, receipt)
         except Exception as exc:
-            # Restore every artifact and fail: a partial rebind is never left behind.
+            # Restore every artifact, drop a written receipt, and fail: a partial rebind is never left behind.
             for path, copy in originals.items():
                 shutil.copy2(copy, path)
+            receipt_file.unlink(missing_ok=True)
             raise RebindStop(f"{requirement_id}: rebind failed and was rolled back: {exc}") from exc
-    receipt = {"version": REBIND_RECEIPT_VERSION, "requirement_id": requirement_id, "at": utc_now(),
-               "from_revision": snapshot["revision"], "to_revision": head, "own_changes": sorted(own_changes),
-               "remaining_changes": sorted(remaining_changes), "sources": sources,
-               "add_digest": {"from": old_add_digest, "to": new_add["approval"]["digest"]},
-               "intents_digest": {"from": old_intents_digest,
-                                  "to": add_intents._content_digest(_load_json(intents_file, "intent-set document"))},
-               "snapshot_digest": {"from": snapshot["digest"], "to": rebuilt["digest"]}}
-    _write_json(receipt_file, receipt)
     return {**receipt, "receipt": str(receipt_file)}
 
 

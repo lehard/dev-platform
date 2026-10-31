@@ -25,6 +25,15 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Spec delta, proposal, design, tasks and both task-intake documents describe one declaration, one order and one rebind rule with its stop conditions.
 
+## Re-verification after review repair
+
+- Repair commit `b81deae1` widened the rebind stage check (a handoff stage whose envelopes are all stale, with none missing, is rebindable) and corrected the proposal (every child is materialized on the first pass). Re-reviewed: the stop for missing handoffs and non-stale stages is unchanged.
+- The three advisory review findings were still present after that repair and are fixed in this developer re-handoff:
+  - the rebind receipt is now the last write inside the rollback window; a failure while writing it restores every artifact and removes the receipt (`test_receipt_write_failure_rolls_back_without_a_receipt`);
+  - own attribution is per path: the commit must archive only own changes, and an accepted spec counts as own only when one of those archives carries that capability's delta (`test_mixed_commit_cannot_attribute_another_capability_to_the_child`, `test_commit_archiving_another_change_is_not_own`);
+  - `_sequential_round` names an unreadable handoff explicitly (`test_unreadable_handoff_in_the_sequential_round_fails_naming_it`).
+- `tests/test_requirement_sequential_delivery.py`: 20 passed.
+
 ## Not verified / limits
 
 - Not yet exercised on a live sequential Requirement; the first owner-declared sequential Requirement is the field case.

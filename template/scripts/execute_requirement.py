@@ -800,7 +800,10 @@ def _sequential_round(
     position = {intent: index for index, intent in enumerate(sequence)}
 
     def rank(entry: tuple[str, Path]) -> int:
-        intents = json.loads(entry[1].read_text(encoding="utf-8")).get("intents", [])
+        try:
+            intents = json.loads(entry[1].read_text(encoding="utf-8")).get("intents", [])
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RequirementExecutionError(f"cannot read handoff {entry[1]}: {exc}") from exc
         ids = [item.get("id") for item in intents if isinstance(item, dict)]
         if not ids or any(identity not in position for identity in ids):
             raise RequirementExecutionError(f"handoff {entry[1]} names intents outside the sequential order")
