@@ -1,12 +1,13 @@
 {
   "candidate": {
-    "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "base_head": "16918a29ff8936b6cc6293f01cf398e4aef3bbed",
     "base_ref": "origin/main",
-    "candidate_head": "47b48c4ae37dbd364c08ef27a80165dc679466ee",
-    "diff_sha256": "bf6684789a91d654a813df6da3a05d9f48b65df227f75a752719b2a31e49e6b9"
+    "candidate_head": "e218277ab015049562f2bcc38cd9c9a780b604a3",
+    "diff_sha256": "fedfa708377b62d6c528cc7c4f40b6e306676b3caf1e687b8eaab6c2403a8f43"
   },
   "change": "openspec/changes/pre-authoring-check-bundle",
   "excluded_lifecycle_paths": [
+    "openspec/changes/pre-authoring-check-bundle/automated-checks.json",
     "openspec/changes/pre-authoring-check-bundle/independent-review-request.json",
     "openspec/changes/pre-authoring-check-bundle/independent-reviews/engineering-quality.json",
     "openspec/changes/pre-authoring-check-bundle/independent-reviews/spec-fidelity.json",
@@ -37,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T13:05:15+00:00",
+  "prepared_at": "2026-10-31T14:05:51+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/pre-authoring-check-bundle/independent-reviews",
     "required_perspectives": [
@@ -46,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e5628484-36bc-4512-9d81-64a0243bd749",
+  "request_id": "79bfffe0-79ca-43bd-a3ec-009c57142b8e",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",

@@ -1,39 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "e25e6c5a8aade0460787528d6845795d0d74b245",
+    "base_head": "16918a29ff8936b6cc6293f01cf398e4aef3bbed",
     "base_ref": "origin/main",
-    "candidate_head": "47b48c4ae37dbd364c08ef27a80165dc679466ee",
-    "diff_sha256": "bf6684789a91d654a813df6da3a05d9f48b65df227f75a752719b2a31e49e6b9"
+    "candidate_head": "e218277ab015049562f2bcc38cd9c9a780b604a3",
+    "diff_sha256": "fedfa708377b62d6c528cc7c4f40b6e306676b3caf1e687b8eaab6c2403a8f43"
   },
-  "completed_at": "2026-10-31T13:06:02+00:00",
+  "completed_at": "2026-10-31T14:06:21+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/orchestrate_pre_authoring.py check_bundles calls execute_requirement._ordered_handoffs(report, requirement) and execute_requirement._bundle(base_dir, requirement, handoff). The tests mock managed_task.validate_authoring_bundle and managed_task.target_main, so the real OpenSpec validation path is never run end to end. The regression in tests/openspec_1_13_regression.py checks only the OpenSpec CLI, not check_bundles.",
-      "id": "private-api-coupling",
+      "evidence": "template/scripts/orchestrate_pre_authoring.py check_bundles calls execute_requirement._ordered_handoffs and execute_requirement._bundle (candidate.diff lines 218-219). The design says these are the rules advance uses. If either is renamed or changed, the check breaks or drifts without a clear signal. The tests mock validate_authoring_bundle, so they would not catch handoff-ordering drift. Promoting the helpers to a public name would make the shared contract explicit.",
+      "id": "private-helper-coupling",
       "severity": "advisory",
-      "summary": "check_bundles depends on underscore-private helpers of execute_requirement (_ordered_handoffs, _bundle) to stay in sync with advance. A rename or signature change there will break check-bundle, and only the mock-based unit tests would catch it."
+      "summary": "check_bundles calls underscore-prefixed helpers of execute_requirement, so it depends on that module's internal API to stay in step with advance."
     }
   ],
-  "launched_at": "2026-10-31T13:05:40+00:00",
-  "output_sha256": "3875fd6bcc6c5e14be728bc2fe48bec747589b47746c96f3477e2d66bdbd1c23",
+  "launched_at": "2026-10-31T14:06:06+00:00",
+  "output_sha256": "5138819e7fd052bf12c1e04a68edaf655f9467e2cc45d703c500826a170ab032",
   "perspective": "engineering-quality",
-  "request_id": "e5628484-36bc-4512-9d81-64a0243bd749",
+  "request_id": "79bfffe0-79ca-43bd-a3ec-009c57142b8e",
   "reviewer": {
-    "context_id": "0bc7f249-f299-4021-b1b1-b9771c560ada",
+    "context_id": "b6f0672f-b616-4d35-861a-7c0299a7dc10",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e212e0ed-9181-4dd5-a3e0-2c7766d4a966",
+    "launch_id": "platform-launch-8faddf61-e725-4030-823d-9889ecca6dd8",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -42,37 +39,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24118
+        "value": 20127
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 75442
+        "value": 39391
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15605
+        "value": 14218
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18005
+        "value": 14650
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1197
+        "value": 815
       }
     },
     "runtime": "claude-code-print"
