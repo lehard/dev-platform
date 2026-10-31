@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "base_ref": "origin/main",
+    "candidate_head": "12c953edea12343030b9d6774d096c19f4f36ac2",
+    "diff_sha256": "9bcba2205050141be95df32513e7d8dee48a72fbae5c32858ad327a7eaa51db5"
+  },
+  "change": "openspec/changes/split-long-requirements-part-3a",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/split-long-requirements-part-3a/automated-checks.json",
+    "openspec/changes/split-long-requirements-part-3a/independent-review-request.json",
+    "openspec/changes/split-long-requirements-part-3a/independent-reviews/engineering-quality.json",
+    "openspec/changes/split-long-requirements-part-3a/independent-reviews/spec-fidelity.json",
+    "openspec/changes/split-long-requirements-part-3a/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/split-long-requirements-part-3a/design.md",
+        "openspec/changes/split-long-requirements-part-3a/proposal.md",
+        "openspec/changes/split-long-requirements-part-3a/specs/completion-lifecycle/spec.md",
+        "openspec/changes/split-long-requirements-part-3a/specs/platform-lifecycle/spec.md",
+        "openspec/changes/split-long-requirements-part-3a/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/split-long-requirements-part-3a/proposal.md",
+        "openspec/changes/split-long-requirements-part-3a/design.md",
+        "openspec/changes/split-long-requirements-part-3a/tasks.md",
+        "openspec/changes/split-long-requirements-part-3a/specs/completion-lifecycle/spec.md",
+        "openspec/changes/split-long-requirements-part-3a/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T10:29:42+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/split-long-requirements-part-3a/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "c9468300-e311-4639-ad8b-f96da8ff8019",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "a26decb866e52661d29aaa8b1351490b60c9b81c",
+    "digest": "c6f028e0fb163fdae3b68ddbc73ccc8cdb83dbe9220477d2db22db9f66ab167e",
+    "paths": {
+      "openspec/changes/split-long-requirements-part-3a/.managed-task.json": "0633844d3237dafc2ec503f5ad3384ccff4eed26",
+      "openspec/changes/split-long-requirements-part-3a/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/split-long-requirements-part-3a/design.md": "da44644e73a9abf9b7bd1850937e9d084fdae025",
+      "openspec/changes/split-long-requirements-part-3a/proposal.md": "29344a193c4ab2aef5a304b4850d34ce3fef16ef",
+      "openspec/changes/split-long-requirements-part-3a/specs/completion-lifecycle/spec.md": "4020e9ab46bc955e06adedb4a8585c3283d704cf",
+      "openspec/changes/split-long-requirements-part-3a/specs/platform-lifecycle/spec.md": "9deeaf337f31bbaef8f3be006f40e815f973d85c",
+      "openspec/changes/split-long-requirements-part-3a/tasks.md": "5c83eaf5e75ad24895f45c5297e16651e8b17f92"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

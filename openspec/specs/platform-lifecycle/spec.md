@@ -66,9 +66,7 @@ For non-trivial OpenSpec work, agents SHALL update planning artifacts before kno
 
 ### Requirement: Deliberate learning promotion
 
-Platform friction SHALL keep raw evidence machine-local by default, while high-signal sanitized friction candidates SHALL be routed automatically to the appropriate GitHub process-issue backlog during supported lifecycle processing instead of depending on remembered routine manual promotion. Routing SHALL sanitize credential-like content and arbitrary raw evidence, deduplicate repeated occurrences with a stable non-secret fingerprint, and preserve a durable local fallback when GitHub routing is unavailable.
-
-Process/friction issues SHALL remain evidence/inbox state. They SHALL NOT automatically create Development Backlog tasks, materialize OpenSpec changes, dispatch executors or start remediation. Generic human fixation creates or reuses a Business Requirement and stops. Execution of that Requirement or explicit direct technical intent follows its respective intake path.
+Platform friction SHALL keep raw evidence machine-local by default, while high-signal sanitized friction candidates SHALL be routed automatically to the appropriate GitHub process-issue backlog during supported lifecycle processing instead of depending on remembered routine manual promotion.
 
 #### Scenario: Reusable friction is promoted
 
@@ -316,14 +314,7 @@ The platform-owned finish lifecycle SHALL recognize a task PR that was already m
 
 ### Requirement: Task intake preserves managed and quick execution paths
 
-The platform lifecycle SHALL distinguish planned managed work from small direct
-quick work before implementation begins. A Development Backlog issue explicitly
-supplied as the task source SHALL use managed-task intake and OpenSpec
-preflight. For platform-owned feature-capable profiles, managed-task intake
-SHALL first establish the task branch or worktree and then materialize the
-referenced OpenSpec planning contract in that task checkout. A small task
-directly requested by the user MAY enter the existing execution lifecycle
-without first creating a central backlog issue or ceremonial OpenSpec.
+The platform lifecycle SHALL distinguish planned managed work from small direct quick work before implementation begins. A Development Backlog issue explicitly supplied as the task source SHALL use managed-task intake and OpenSpec preflight. A small task directly requested by the user MAY enter the existing execution lifecycle without first creating a central backlog issue or ceremonial OpenSpec.
 
 #### Scenario: User explicitly supplies a managed backlog task
 
@@ -552,7 +543,7 @@ The platform SHALL emit machine-readable duration and outcome evidence for each 
 
 ### Requirement: Local affected validation never replaces protected PR authority
 
-The platform SHALL distinguish a conservative `local affected` feedback policy from a `protected full` merge-authority policy. For changed paths with a maintained, tested and unambiguous dependency mapping, local affected validation SHALL be able to select canonical bounded test/check groups rather than requiring the complete unit suite solely because the path belongs to a broad language or directory class. A protected-main PR SHALL still require the complete authoritative platform validation set even when a local affected subset has succeeded.
+The platform SHALL distinguish a conservative `local affected` feedback policy from a `protected full` merge-authority policy. A protected-main PR SHALL still require the complete authoritative platform validation set even when a local affected subset has succeeded.
 
 #### Scenario: Proven local affected change
 
@@ -619,8 +610,6 @@ The platform SHALL run validation groups concurrently only when each group's mut
 ### Requirement: New work reconciles an authoritative pending platform rollout first
 
 Before a supported new task starts in a managed repository, the platform SHALL determine whether the repository has an authoritative eligible Dev Platform rollout PR that still needs adoption. For platform-owned task execution, this reconciliation SHALL occur before creating a new task branch or worktree. A safely adoptable rollout SHALL be merged and locally reconciled before product work starts; an unsafe or ambiguous rollout SHALL block new work with an actionable state.
-
-A session MAY explicitly defer rollout adoption with `DEV_PLATFORM_DEFER_ROLLOUT=1`, which the `--defer-rollout` flag of `start_task.py`, `start_managed_task.py`, `execute_managed_task.py` and `execute_requirement.py advance` sets for the process and its children. While the deferral is set, task start SHALL only observe the rollout: it SHALL NOT merge, close, relabel or otherwise change the rollout PR, SHALL NOT synchronize local integration for it, and SHALL report that the rollout was skipped, naming the PR and the deferral. Any other non-empty value of the variable SHALL be an explicit error naming it. Without the deferral, immediately before merging a rollout, start SHALL announce the PR, the merge and the local synchronization it is about to perform and how to defer them, and `agent_doctor.py` SHALL report a green pending rollout as one the next task start will merge.
 
 #### Scenario: No pending rollout exists
 
@@ -966,8 +955,6 @@ For a Development Backlog managed task, platform-owned terminal reconciliation S
 
 For platform-owned task execution, the lifecycle SHALL refresh its observation of the configured remote integration branch and verify that the current task head is based on the authoritative remote history before running expensive full/protected validation intended as delivery evidence.
 
-One bounded exception SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch. The proven base SHALL be accepted only for executed checks in the coordinator lifecycle mode. It SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when it is not the merge base of the head and the remote integration branch. A second bounded exception SHALL exist for a task the publication queue integrates: a coordinator-managed candidate, or, under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch, a quick task without canonical managed provenance. The queue integrates such a task by merging the current integration branch and gating on required checks of the integrated head. Its developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block. The lifecycle SHALL report that behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record it in the evidence. The declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files. A conflict in any other file or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command. Evidence recorded earlier under the behind-disjoint contract SHALL remain valid. Outside these two exceptions, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
-
 #### Scenario: Task remains fresh before full validation
 
 - **GIVEN** the current task head contains the freshly fetched `origin/<main>` in its ancestry
@@ -1116,8 +1103,6 @@ When a platform-owned Git command is configured to fail on non-zero exit, the li
 
 For `workflow_profile=multi-agent` with platform-owned lifecycle semantics, a task SHALL receive a successful coordination admission before its first implementation change. Task discovery, isolated worktree creation, managed OpenSpec materialization, and semantic preflight MAY occur before admission when needed to resolve exact scope, but `WAIT` SHALL prevent implementation changes.
 
-`standard` and `light` profiles SHALL NOT acquire mandatory multi-agent coordination semantics from this requirement.
-
 #### Scenario: Managed task reaches hard overlap after materialization
 
 - **GIVEN** a managed task has a valid package and an isolated task worktree with canonical OpenSpec materialized
@@ -1192,7 +1177,7 @@ When the platform changes test execution structure for performance, it SHALL ret
 
 ### Requirement: Validation depth is proportional to a declared risk class
 
-The platform SHALL classify a changed path into one of a small canonical set of risk classes rather than selecting validation depth solely by file-type or directory glob. A documentation/instruction surface with no intended agent-behavior change SHALL receive bounded structure/link/anchor/render checks and SHALL NOT by itself trigger the full mandatory software suite. An executable/harness/control-plane surface, or any path that cannot be confidently classified, SHALL continue to select mapped or full validation as already required.
+The platform SHALL classify a changed path into one of a small canonical set of risk classes rather than selecting validation depth solely by file-type or directory glob. A documentation/instruction surface with no intended agent-behavior change SHALL receive bounded structure/link/anchor/render checks and SHALL NOT by itself trigger the full mandatory software suite.
 
 #### Scenario: Semantic-preserving documentation or instruction change
 
@@ -1225,15 +1210,7 @@ A change to an instruction/prompt surface that is declared to intentionally chan
 
 ### Requirement: Meaningful friction capture is a completion invariant
 
-For a non-trivial platform-owned task, terminal completion SHALL include a bounded post-task process retrospective so meaningful user corrections, repeated failures, safety near-misses, workarounds, false task premises, avoidable CI/lifecycle failures, excessive retries or other high-signal unresolved process problems cannot be omitted merely because the agent forgot to record them. The retrospective SHALL run before the final friction checkpoint and SHALL reuse the ordinary platform lifecycle rather than require a separate agent-specific hook or background state machine.
-
-The retrospective SHALL distinguish problems already fixed during the task, problems already represented by existing friction/process evidence, and new meaningful unresolved/unrecorded findings. One retrospective MAY legitimately produce `0..N` new friction events. `none` SHALL mean that this bounded retrospective ran and found no new meaningful unresolved/unrecorded findings; a bare checkpoint call without a current retrospective result is insufficient.
-
-The retrospective/checkpoint result SHALL be bound to current task execution state sufficiently to prevent a stale result from silently completing changed work. Supported machine-detectable lifecycle/process failures SHOULD continue recording friction directly without relying on model judgment.
-
-The bounded post-task review SHALL inspect the factual execution path, including meaningful successful manual workarounds, non-default or override actions, manual state changes, recurrences of already open process issues, and observed material drift even when another operator, runtime or lifecycle owns the state. Harmless deviations are not friction. A known open issue does not dispose of a new occurrence: the recurrence SHALL be preserved through the existing friction/process issue path. A clean path retains a concise `none` checkpoint.
-
-An evidence source that is unreadable or only partially readable SHALL be named in the review and SHALL NOT be reported as the absence of problems; a checkpoint over such a source SHALL require an explicit acceptance of that gap, recorded in the receipt.
+For a non-trivial platform-owned task, terminal completion SHALL include a bounded post-task process retrospective so meaningful user corrections, repeated failures, safety near-misses, workarounds, false task premises, avoidable CI/lifecycle failures, excessive retries or other high-signal unresolved process problems cannot be omitted merely because the agent forgot to record them.
 
 #### Scenario: Several unresolved semantic frictions occurred
 
@@ -1288,11 +1265,7 @@ An evidence source that is unreadable or only partially readable SHALL be named 
 
 ### Requirement: Friction evidence carries truthful bounded execution provenance
 
-For a non-trivial platform-owned task, the platform SHALL maintain bounded execution provenance sufficient to relate completion/friction evidence to the execution run and, when knowable, the relevant supervisor or delegated executor. Provenance SHALL prefer structured runtime metadata or platform-owned routing/launch evidence over free-form model self-identification.
-
-The provenance contract SHALL distinguish selected/configured model or reasoning-effort values from runtime-confirmed values. If the supported current runtime cannot establish a value truthfully, the value SHALL remain explicitly unknown rather than be inferred from a prompt, global default, model statement or unsupported assumption.
-
-Execution provenance SHALL remain bounded metadata, not a transcript or general tracing system. Public friction routing SHALL include only sanitized provenance needed for useful comparison; raw execution evidence and unnecessary machine-local identifiers SHALL remain local by default.
+For a non-trivial platform-owned task, the platform SHALL maintain bounded execution provenance sufficient to relate completion/friction evidence to the execution run and, when knowable, the relevant supervisor or delegated executor.
 
 #### Scenario: Friction is observed during a delegated execution
 
@@ -1632,7 +1605,7 @@ When a verified Requirement child chain changes after an earlier shared merge ca
 
 ### Requirement: Friction events carry resolvable task attribution
 
-New friction events SHALL record an explicit task when given, otherwise the current task branch. An event recorded with neither, from an integration checkout or an unknown or detached branch, SHALL be classified `no-task`; such a checkout SHALL NOT be assumed to be a task. A legacy task-less event with no other attribution evidence whose recorded branch is a non-task name SHALL be read as `no-task` without rewriting history. An operator SHALL be able to classify a recorded event as `no-task` with a reason through an explicit append-only operation; an explicit `no-task` and an explicit task attribution of the same event SHALL conflict and fail. A `no-task` event SHALL NOT be a signal of, nor block, any task or Requirement retrospective, and SHALL be listed as such in review and checkpoint output. Retrospective selection SHALL attribute a legacy event whose task is empty by its recorded branch or source issue without rewriting or duplicating history. An event that has no task, no usable branch, source issue or attribution and no `no-task` classification SHALL be reported as an explicit ambiguity, SHALL NOT be assigned to the task under review, and SHALL make both the automated and the manual task and Requirement checkpoints refuse with the event ids and the attribution commands until it is attributed or classified.
+New friction events SHALL record an explicit task when given, otherwise the current task branch.
 
 #### Scenario: Event lost its task but kept branch and source issue
 
@@ -1663,7 +1636,7 @@ New friction events SHALL record an explicit task when given, otherwise the curr
 
 ### Requirement: Retrospective uses a short shared template with bounded project additions
 
-The review-path SHALL present a short shared template covering what happened and its basis, the confirmed cause kept apart from a hypothesis (an unknown cause is acceptable), the fix kept apart from a workaround, repeats and remaining problems, and the required action with a verifiable result or the reason for none. A project MAY add up to five questions in a project-owned file, each optionally limited to changed paths; questions beyond five SHALL be ignored with a report, and a missing or invalid file SHALL leave the shared path working. Project questions SHALL NOT be mandatory for every task and SHALL NOT replace the shared template.
+The review-path SHALL present a short shared template covering what happened and its basis, the confirmed cause kept apart from a hypothesis (an unknown cause is acceptable), the fix kept apart from a workaround, repeats and remaining problems, and the required action with a verifiable result or the reason for none.
 
 #### Scenario: Project adds a path-scoped question
 
@@ -1679,7 +1652,7 @@ The review-path SHALL present a short shared template covering what happened and
 
 ### Requirement: Shared candidates grow append-only and are draft until complete
 
-A shared Requirement candidate manifest SHALL list the expected mandatory changes and the reviewed child contributions integrated so far. Where source/coordinator publication is enabled, child contributions SHALL reach the candidate through contribution PRs targeting the Requirement integration branch and SHALL be merged into it by the coordinator after their own checks, verification and review. An incomplete candidate SHALL be published only as a draft PR on its stable branch and manifest path. A new manifest revision SHALL keep earlier children as an exact prefix with identical heads and SHALL be pushed only as a fast-forward. Marking the PR ready, arming merge, publication-queue admission and terminal reconciliation SHALL require a complete manifest, composition-level review of cross-child properties, a single finalization of all children, the Requirement retrospective checkpoint and full checks on the exact final head.
+A shared Requirement candidate manifest SHALL list the expected mandatory changes and the reviewed child contributions integrated so far.
 
 #### Scenario: Later child is appended
 
@@ -1708,7 +1681,7 @@ A shared Requirement candidate manifest SHALL list the expected mandatory change
 
 ### Requirement: Affected-group precheck precedes full validation
 
-When a project opts in, for changed Python paths that trigger full validation the lifecycle SHALL first execute, within their canonical groups, the test modules that directly reference those paths according to a tested static mapping, and SHALL stop before the full set when the precheck fails. A precheck whose runner produced no usable result (unavailable) SHALL also stop before the full set with a failure descriptor marking the precheck phase and naming it unavailable; it SHALL NOT be replaced by silently continuing with the full set. Precheck results SHALL be recorded separately from the executed validation commands as feedback evidence and SHALL NOT replace or shorten the full or protected validation set. Paths without a mapping SHALL proceed directly to full validation.
+When a project opts in, for changed Python paths that trigger full validation the lifecycle SHALL first execute, within their canonical groups, the test modules that directly reference those paths according to a tested static mapping, and SHALL stop before the full set when the precheck fails. Paths without a mapping SHALL proceed directly to full validation.
 
 #### Scenario: Precheck fails
 - **GIVEN** a change to a template script referenced by test modules in two canonical groups
@@ -1757,7 +1730,7 @@ Requirement advance, terminal reconciliation and the publication queue SHALL ret
 
 ### Requirement: Post-handoff lifecycle obligations are coordinator jobs
 
-After developer handoff, friction capture for review, repair, integration, fallback and retry events, the task and Requirement retrospectives, terminal reconciliation of Issue/Project/Requirement state and safe local worktree cleanup SHALL be performed by coordinator-published jobs. Events SHALL be attributed to the candidate task and its parent Requirement, and a Requirement retrospective SHALL accept events attributed to its linked children. No manual completion pass SHALL be required on the happy path.
+After developer handoff, friction capture for review, repair, integration, fallback and retry events, the task and Requirement retrospectives, terminal reconciliation of Issue/Project/Requirement state and safe local worktree cleanup SHALL be performed by coordinator-published jobs. No manual completion pass SHALL be required on the happy path.
 
 #### Scenario: Child event in parent retrospective
 - **GIVEN** a friction event recorded for a linked child task
@@ -1782,7 +1755,7 @@ After developer handoff, friction capture for review, repair, integration, fallb
 
 ### Requirement: Independent children execute in parallel as contributions
 
-Where source/coordinator publication is enabled, children of a multi-child Requirement without unmet dependencies SHALL be able to start and proceed in parallel, each as a contribution PR to the Requirement integration branch with its own checks, verification, review and repair. A dependent child SHALL start from the integration branch after its predecessors are integrated. Downstream projects SHALL retain the existing archived-child multi-child path. A single-child Requirement SHALL use its child PR against main; a coordinator-managed child SHALL publish while active for review before finalization archives it.
+Where source/coordinator publication is enabled, children of a multi-child Requirement without unmet dependencies SHALL be able to start and proceed in parallel, each as a contribution PR to the Requirement integration branch with its own checks, verification, review and repair. A dependent child SHALL start from the integration branch after its predecessors are integrated.
 
 #### Scenario: Two independent children
 - **WHEN** a Requirement has two children without dependencies
@@ -1862,7 +1835,7 @@ The Requirement candidate SHALL receive a composition review covering cross-chil
 
 ### Requirement: Requirement retrospective reads durable coordinator evidence
 
-The Business Requirement retrospective SHALL include durable coordinator evidence recorded on the candidate pull requests of the Requirement and its linked children, in addition to the machine-local friction log, and SHALL treat it as it treats local events: it is listed by the review-path with its pull request, head, stage and worker, it may be linked or classified by the checkpoint, and mandatory lifecycle-failure and workaround signals among it SHALL be explained. When the durable source cannot be read or contains a malformed trusted record, the evidence source `coordinator-evidence` SHALL be reported as not fully readable and the checkpoint SHALL refuse it unless the gap is explicitly accepted; an unreadable source SHALL NOT be reported as an empty one. Developer task retrospectives SHALL NOT depend on GitHub for this evidence.
+The Business Requirement retrospective SHALL include durable coordinator evidence recorded on the candidate pull requests of the Requirement and its linked children, in addition to the machine-local friction log, and SHALL treat it as it treats local events: it is listed by the review-path with its pull request, head, stage and worker, it may be linked or classified by the checkpoint, and mandatory lifecycle-failure and workaround signals among it SHALL be explained.
 
 #### Scenario: Evidence recorded on a discarded runner
 
@@ -1882,7 +1855,7 @@ The Business Requirement retrospective SHALL include durable coordinator evidenc
 
 ### Requirement: Heavy validation coordinates through an opt-in machine pool
 
-When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` is set, every top-level heavy validation run (selected-check execution, the canonical test-group runner and Requirement full-candidate validation) SHALL acquire its weight in tokens from the machine-wide pool before running, SHALL hold them through kernel-released leases inherited by its child processes, and SHALL release them when every holder exits. Nested runs SHALL reuse the parent lease without acquiring more tokens, and the test runner's parallelism SHALL NOT exceed the lease weight. Acquisition SHALL be all-or-nothing and ordered by priority class (`finalize` before `development`) then arrival, SHALL wait while the per-CPU load exceeds the configured limit, available memory is below the configured minimum or, on macOS, the kernel memory pressure level is above normal (an unmeasurable or unknown value SHALL fail explicitly), and SHALL fail explicitly naming the holders after the configured wait timeout instead of running outside the pool. When the variable is unset the run SHALL print `DEV_PLATFORM_MACHINE_POOL: not configured` and run unpooled; a set but missing or invalid configuration SHALL fail explicitly naming the key or path. A selected-check execution SHALL lease one token when every selected command is labelled with a non-test evidence type (`configuration` or `syntax`) and no affected-test precheck runs; otherwise its weight is the test parallelism bounded by the tokens, and an unlabelled command counts as a test command. A waiting run SHALL report the actual blocker first (queue, load, memory, memory pressure, tokens or admission) with its current value and threshold, before the needed and free tokens, its queue position and the holders. A read-only status command SHALL show configuration, holders, waiters, load, memory, the head waiter's blocker in the same terms, and the effective run weight in the caller's environment with how many such runs fit and how many tokens stay idle, warning when the tokens are not a multiple of that weight. The configuration keys and the slot, ticket and lease formats SHALL stay unchanged so that participants on different platform releases share one pool.
+When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` is set, every top-level heavy validation run (selected-check execution, the canonical test-group runner and Requirement full-candidate validation) SHALL acquire its weight in tokens from the machine-wide pool before running, SHALL hold them through kernel-released leases inherited by its child processes, and SHALL release them when every holder exits.
 
 #### Scenario: Pool is busy
 
@@ -1944,7 +1917,7 @@ When the machine-local pool configuration named by `DEV_PLATFORM_MACHINE_POOL` i
 
 ### Requirement: Friction routing never substitutes a missing platform destination or label configuration
 
-The friction router SHALL route a `scope=platform` event only to the platform repository configured as `[promotion].repo` in the enabled operator configuration. When that setting is absent or the operator configuration cannot be read, the router SHALL NOT route the event to the project's own repository; it SHALL keep the event local and report an error that names the missing or unreadable setting. A read error of the process label configuration, or an empty or non-string configured label, SHALL be reported as an error and SHALL NOT be replaced by the default label.
+The friction router SHALL route a `scope=platform` event only to the platform repository configured as `[promotion].repo` in the enabled operator configuration. When that setting is absent or the operator configuration cannot be read, the router SHALL NOT route the event to the project's own repository; it SHALL keep the event local and report an error that names the missing or unreadable setting.
 
 #### Scenario: Platform repository is not configured
 
@@ -1961,7 +1934,7 @@ The friction router SHALL route a `scope=platform` event only to the platform re
 
 ### Requirement: The local friction log is read strictly with position-independent event identity
 
-Reading the local friction log SHALL fail with an error naming the file, and the line when applicable, if the log is unreadable or a non-empty line is not a valid dated event object; it SHALL NOT return an empty or truncated event list in that case. Tolerating a degraded log SHALL be limited to output that reports the gap and to a checkpoint that explicitly accepts the `friction-log` gap. An event recorded without an id SHALL receive an identity derived from its content rather than its position in the file, and an earlier positional reference SHALL resolve to that identity or fail with a named error.
+Reading the local friction log SHALL fail with an error naming the file, and the line when applicable, if the log is unreadable or a non-empty line is not a valid dated event object; it SHALL NOT return an empty or truncated event list in that case. Tolerating a degraded log SHALL be limited to output that reports the gap and to a checkpoint that explicitly accepts the `friction-log` gap.
 
 #### Scenario: Malformed line in the log
 
@@ -1989,7 +1962,7 @@ Reading the local friction log SHALL fail with an error naming the file, and the
 
 ### Requirement: One root cause keeps one open friction record
 
-A friction issue SHALL be able to carry several fingerprint markers, and routing SHALL add an event as an occurrence of the open issue that carries the event's fingerprint marker. An event left in the `candidate` route state SHALL be resolvable by an explicit decision that either attaches it to a named open friction issue, which then also carries the event's fingerprint marker, or creates a new root issue. Already open duplicates of one root SHALL be consolidable into one issue by an explicit command that moves their markers and closes them with a reference to the kept issue. A target that is not an open router-generated friction issue SHALL be a named error.
+A friction issue SHALL be able to carry several fingerprint markers, and routing SHALL add an event as an occurrence of the open issue that carries the event's fingerprint marker.
 
 #### Scenario: A known root recurs under a new category
 
@@ -2052,7 +2025,7 @@ When a pull request is merged, the friction issues referenced by `Fixes-Friction
 
 ### Requirement: Routed coordinator events name their reason and candidate
 
-A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head. The publication coordinator SHALL take the reason from the transition's named red gate and SHALL fail the transition explicitly with a named error when the gate is missing or explains nothing; a `blocked-retryable` transition without a red gate waits on exact-head required checks, is not a failed gate and SHALL record no friction event. Other producers SHALL fail explicitly with a named error rather than record such an event without them. The router SHALL render the reason and candidate in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
+A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`, `coordinator-integration-repair`, `lifecycle-blocked-escalation`, `lifecycle-validation-failure`, or any event attributed to the coordinator) SHALL carry a bounded `reason` and a `candidate` naming the task branch, the PR number when one exists, and the head.
 
 #### Scenario: Coordinator retry is routed with its cause
 - **GIVEN** the coordinator schedules a bounded retry of PR candidate 42 at head `abc` because a gate was unavailable
@@ -2080,7 +2053,7 @@ A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`,
 
 ### Requirement: A contribution re-bases its integration job onto a moved requirement branch head
 
-When a reviewed contribution's integration job was offered for a requirement integration branch head that has since moved, the coordinator worker SHALL NOT silently discard it. If the moved head still contains the contribution's recorded base, the worker SHALL re-offer the same integration job for the same contribution head and identity, bound to the moved head, without merging onto a head the job was not bound to. If the moved head no longer contains the base, the worker SHALL fail the job naming the lost base. A worker that lost its claim SHALL publish nothing.
+When a reviewed contribution's integration job was offered for a requirement integration branch head that has since moved, the coordinator worker SHALL NOT silently discard it. If the moved head still contains the contribution's recorded base, the worker SHALL re-offer the same integration job for the same contribution head and identity, bound to the moved head, without merging onto a head the job was not bound to.
 
 #### Scenario: Another contribution integrated first
 
@@ -2102,7 +2075,7 @@ When a reviewed contribution's integration job was offered for a requirement int
 
 ### Requirement: Task reconcile passes the platform merge-commit hook
 
-Where the platform `pre-merge-commit` hook is installed, the supported task reconcile SHALL complete its merge of authoritative `origin/<main_branch>` in its own task worktree without a manual override. Before that single merge, reconcile SHALL record a one-shot intent in the task worktree's own git directory naming the task branch and the commit of `origin/<main_branch>`, and SHALL remove it after the merge whatever the outcome. The hook SHALL admit a merge commit only in a linked task worktree whose git directory holds that intent for the current branch, when `GIT_REFLOG_ACTION` is exactly `merge origin/<main_branch>` and `origin/<main_branch>` still points to the recorded commit, and SHALL consume the intent. The hook SHALL keep blocking every other merge commit, including every merge commit in the integration copy, and SHALL NOT be removed or disabled. Reconcile SHALL NOT rebase or force-push.
+Where the platform `pre-merge-commit` hook is installed, the supported task reconcile SHALL complete its merge of authoritative `origin/<main_branch>` in its own task worktree without a manual override. Reconcile SHALL NOT rebase or force-push.
 
 #### Scenario: Reconcile of a diverged task with the hook installed
 
@@ -2130,7 +2103,7 @@ Where the platform `pre-merge-commit` hook is installed, the supported task reco
 
 ### Requirement: Task start reports a project behind the latest platform release
 
-When a task starts in a managed downstream project, the platform SHALL compare the project's installed platform version with the latest published release of its platform source after pending-rollout reconciliation. When the project is behind, task start SHALL print the project's version, the latest version and the exact Roll Out Platform command that opens the update pull request for this project, and SHALL continue the start (warn and continue). A project on the latest release SHALL start without the report. When the project version, the platform source, the project repository or the latest release cannot be determined, task start SHALL fail with the cause instead of skipping the comparison. The platform source repository itself is not applicable.
+When a task starts in a managed downstream project, the platform SHALL compare the project's installed platform version with the latest published release of its platform source after pending-rollout reconciliation. The platform source repository itself is not applicable.
 
 #### Scenario: Lagging project is reported and starts
 - **GIVEN** a managed project on platform 2.0.0 whose platform source's latest release is v3.0.0
@@ -2161,3 +2134,670 @@ The content proof that binds a managed task's friction checkpoint SHALL exclude 
 
 - **WHEN** a task-owned file other than a declared generated file changes after the checkpoint
 - **THEN** `assert-checkpoint` fails naming the checkpoint command
+
+### Requirement: Friction routing sanitizes, deduplicates and keeps a local fallback
+
+Routing of friction candidates SHALL sanitize credential-like content and arbitrary raw evidence, deduplicate repeated occurrences with a stable non-secret fingerprint, and preserve a durable local fallback when GitHub routing is unavailable.
+
+#### Scenario: A friction candidate is routed
+
+- **WHEN** a friction candidate is routed
+- **THEN** credential-like content and arbitrary raw evidence are sanitized
+- **AND** repeated occurrences are deduplicated with a stable non-secret fingerprint
+- **AND** a durable local fallback is preserved when GitHub routing is unavailable
+
+### Requirement: Process and friction issues remain evidence inbox state
+
+Process/friction issues SHALL remain evidence/inbox state. Process/friction issues SHALL NOT automatically create Development Backlog tasks, materialize OpenSpec changes, dispatch executors or start remediation. Generic human fixation creates or reuses a Business Requirement and stops. Execution of that Requirement or explicit direct technical intent follows its respective intake path.
+
+#### Scenario: A process issue exists
+
+- **WHEN** a process/friction issue exists
+- **THEN** it remains evidence/inbox state
+- **AND** it does not automatically create Development Backlog tasks, materialize OpenSpec changes, dispatch executors or start remediation
+
+### Requirement: Managed-task intake establishes the task checkout before materializing the planning contract
+
+For platform-owned feature-capable profiles, managed-task intake SHALL first establish the task branch or worktree and then materialize the referenced OpenSpec planning contract in that task checkout.
+
+#### Scenario: Managed-task intake runs in a feature-capable profile
+
+- **WHEN** managed-task intake runs for a platform-owned feature-capable profile
+- **THEN** it first establishes the task branch or worktree
+- **AND** then materializes the referenced OpenSpec planning contract in that task checkout
+
+### Requirement: Local affected validation selects bounded groups for mapped paths
+
+For changed paths with a maintained, tested and unambiguous dependency mapping, local affected validation SHALL be able to select canonical bounded test/check groups rather than requiring the complete unit suite solely because the path belongs to a broad language or directory class.
+
+#### Scenario: A changed path has a maintained dependency mapping
+
+- **WHEN** local affected validation runs for a changed path with a maintained, tested and unambiguous dependency mapping
+- **THEN** it can select canonical bounded test/check groups
+- **AND** it does not require the complete unit suite solely because the path belongs to a broad language or directory class
+
+### Requirement: A session can explicitly defer platform rollout adoption
+
+A session MAY explicitly defer rollout adoption with `DEV_PLATFORM_DEFER_ROLLOUT=1`, which the `--defer-rollout` flag of `start_task.py`, `start_managed_task.py`, `execute_managed_task.py` and `execute_requirement.py advance` sets for the process and its children. Any other non-empty value of the variable `DEV_PLATFORM_DEFER_ROLLOUT` SHALL be an explicit error naming it.
+
+#### Scenario: The rollout deferral variable has another value
+
+- **WHEN** `DEV_PLATFORM_DEFER_ROLLOUT` is set to a non-empty value other than `1`
+- **THEN** task start fails with an explicit error naming the value
+
+### Requirement: A deferred platform rollout is only observed
+
+While the rollout adoption deferral is set, task start SHALL only observe the rollout: task start SHALL NOT merge, close, relabel or otherwise change the rollout PR, SHALL NOT synchronize local integration for it, and SHALL report that the rollout was skipped, naming the PR and the deferral.
+
+#### Scenario: Task start runs with the rollout deferred
+
+- **WHEN** task start runs while the rollout adoption deferral is set and a rollout PR is pending
+- **THEN** task start does not merge, close, relabel or otherwise change the rollout PR
+- **AND** it does not synchronize local integration for it
+- **AND** it reports that the rollout was skipped, naming the PR and the deferral
+
+### Requirement: Task start announces a rollout merge before performing it
+
+Without the rollout adoption deferral, immediately before merging a rollout, start SHALL announce the PR, the merge and the local synchronization it is about to perform and how to defer them, and `agent_doctor.py` SHALL report a green pending rollout as one the next task start will merge.
+
+#### Scenario: Task start is about to merge a rollout
+
+- **WHEN** task start without the deferral is about to merge a rollout
+- **THEN** it first announces the PR, the merge and the local synchronization it is about to perform and how to defer them
+- **AND** `agent_doctor.py` reports a green pending rollout as one the next task start will merge
+
+### Requirement: Coordinator finalization may validate against an explicit proven base
+
+One bounded exception to the fresh task base requirement SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch.
+
+#### Scenario: Coordinator finalization supplies a proven base
+
+- **WHEN** selected-check execution receives an explicit proven base
+- **THEN** it requires that the head forks from exactly that commit on the remote integration branch's history
+- **AND** it does not require the head to contain the current remote integration branch
+
+### Requirement: A proven base is accepted only for coordinator executed checks
+
+The proven base of selected-check execution SHALL be accepted only for executed checks in the coordinator lifecycle mode. The proven base SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when the proven base is not the merge base of the head and the remote integration branch.
+
+#### Scenario: A proven base is combined with evidence output
+
+- **WHEN** selected-check execution receives a proven base together with evidence output, a contribution base or protected-full validation, or a proven base that is not the merge base of the head and the remote integration branch
+- **THEN** it refuses before any command starts
+- **AND** the error names the violated condition
+
+### Requirement: Tasks integrated by the publication queue form a second fresh-base exception
+
+A second bounded exception to the fresh task base requirement SHALL exist for a task the publication queue integrates: a coordinator-managed candidate, or, under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch, a quick task without canonical managed provenance. The queue integrates such a task by merging the current integration branch and gating on required checks of the integrated head.
+
+#### Scenario: A quick task runs under the queue-enabled coordinator mode
+
+- **WHEN** a quick task without canonical managed provenance runs under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch
+- **THEN** it is a task the publication queue integrates
+- **AND** the fresh task base exception for queue-integrated tasks applies to it
+
+### Requirement: Queue-integrated tasks accept a behind-mergeable head
+
+For a task the publication queue integrates, the task's developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block.
+
+#### Scenario: A queue-integrated head is behind but merges cleanly
+
+- **WHEN** a task the publication queue integrates has a head that does not contain the current remote integration branch and a trial merge with the observed integration head is clean or conflicts only in declared generated files
+- **THEN** developer evidence-producing validation, handoff, re-admission and status accept the head
+- **AND** a path changed on both sides does not by itself block
+
+### Requirement: The behind-mergeable contract is reported and recorded
+
+The lifecycle SHALL report the behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record the behind-mergeable contract in the evidence.
+
+#### Scenario: A behind-mergeable head is accepted
+
+- **WHEN** the lifecycle accepts a head under the behind-mergeable contract
+- **THEN** it reports the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts
+- **AND** it records the behind-mergeable contract in the evidence
+
+### Requirement: The generated-file declaration is read from the observed integration commit
+
+The generated-file declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files.
+
+#### Scenario: The generated-file declaration is malformed
+
+- **WHEN** the generated-file declaration in the observed integration commit is malformed
+- **THEN** the lifecycle fails explicitly
+- **AND** a declaration in the candidate is never read
+
+### Requirement: A non-generated conflict or missing merge base blocks queue-integrated validation
+
+For a trial merge of a queue-integrated task head with the observed integration head, a conflict in any file other than the declared generated files or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command.
+
+#### Scenario: A trial merge conflicts in a non-generated file
+
+- **WHEN** the trial merge conflicts in a file the project does not declare as generated, or no merge base exists
+- **THEN** the lifecycle blocks before any expensive command
+- **AND** it names the conflicting files and the reconcile command
+
+### Requirement: Evidence recorded under the behind-disjoint contract stays valid
+
+Evidence recorded earlier under the behind-disjoint contract SHALL remain valid.
+
+#### Scenario: Earlier behind-disjoint evidence is checked
+
+- **WHEN** evidence recorded earlier under the behind-disjoint contract is checked
+- **THEN** it remains valid
+
+### Requirement: Outside the bounded exceptions the fresh-base requirement is unchanged
+
+Outside the two bounded exceptions for trusted coordinator finalization of a reviewed candidate and for a task the publication queue integrates, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
+
+#### Scenario: Developer validation runs outside both exceptions
+
+- **WHEN** developer preflight, evidence-producing validation or protected CI runs for a task outside both bounded exceptions
+- **THEN** the fresh-base requirement applies unchanged
+
+### Requirement: Standard and light profiles do not acquire mandatory multi-agent coordination
+
+`standard` and `light` profiles SHALL NOT acquire mandatory multi-agent coordination semantics from the requirement that platform-owned multi-agent execution passes admission before implementation.
+
+#### Scenario: A standard profile task starts
+
+- **WHEN** a task starts under the `standard` or `light` profile
+- **THEN** it does not acquire mandatory multi-agent coordination semantics from the multi-agent admission requirement
+
+### Requirement: Executable and unclassified paths keep mapped or full validation
+
+An executable/harness/control-plane surface, or any path that cannot be confidently classified, SHALL continue to select mapped or full validation as already required.
+
+#### Scenario: A changed path cannot be confidently classified
+
+- **WHEN** a changed path is an executable/harness/control-plane surface or cannot be confidently classified
+- **THEN** it continues to select mapped or full validation as already required
+
+### Requirement: The post-task retrospective precedes the final checkpoint in the ordinary lifecycle
+
+The post-task process retrospective SHALL run before the final friction checkpoint and SHALL reuse the ordinary platform lifecycle rather than require a separate agent-specific hook or background state machine.
+
+#### Scenario: A non-trivial task reaches completion
+
+- **WHEN** a non-trivial platform-owned task reaches terminal completion
+- **THEN** the post-task process retrospective runs before the final friction checkpoint
+- **AND** it reuses the ordinary platform lifecycle rather than a separate agent-specific hook or background state machine
+
+### Requirement: The post-task retrospective classifies its findings
+
+The post-task process retrospective SHALL distinguish problems already fixed during the task, problems already represented by existing friction/process evidence, and new meaningful unresolved/unrecorded findings. One retrospective MAY legitimately produce `0..N` new friction events.
+
+#### Scenario: The retrospective reviews problems
+
+- **WHEN** the post-task process retrospective reviews the task's problems
+- **THEN** it distinguishes problems already fixed, problems already represented by existing friction/process evidence, and new meaningful unresolved/unrecorded findings
+- **AND** it may produce zero or more new friction events
+
+### Requirement: A none retrospective result requires a current retrospective
+
+A `none` result SHALL mean that the bounded post-task process retrospective ran and found no new meaningful unresolved/unrecorded findings; a bare checkpoint call without a current retrospective result is insufficient.
+
+#### Scenario: A bare checkpoint is attempted
+
+- **WHEN** a `none` checkpoint is attempted without a current retrospective result
+- **THEN** it is insufficient to complete the task
+
+### Requirement: The retrospective result is bound to current task execution state
+
+The retrospective/checkpoint result SHALL be bound to current task execution state sufficiently to prevent a stale result from silently completing changed work. Supported machine-detectable lifecycle/process failures SHOULD continue recording friction directly without relying on model judgment.
+
+#### Scenario: Work changes after a retrospective result
+
+- **WHEN** the task execution state changes after a retrospective/checkpoint result was recorded
+- **THEN** the stale result does not silently complete the changed work
+
+### Requirement: The post-task review inspects the factual execution path
+
+The bounded post-task review SHALL inspect the factual execution path, including meaningful successful manual workarounds, non-default or override actions, manual state changes, recurrences of already open process issues, and observed material drift even when another operator, runtime or lifecycle owns the state. Harmless deviations are not friction. A clean path retains a concise `none` checkpoint.
+
+#### Scenario: The task path contained a manual workaround
+
+- **WHEN** the bounded post-task review runs on a task path that contained a meaningful successful manual workaround
+- **THEN** the review inspects that workaround as part of the factual execution path
+
+### Requirement: A recurrence of a known open process issue is preserved
+
+A known open issue does not dispose of a new occurrence: the recurrence SHALL be preserved through the existing friction/process issue path.
+
+#### Scenario: A known open issue recurs
+
+- **WHEN** the post-task review finds a new occurrence of an already open process issue
+- **THEN** the recurrence is preserved through the existing friction/process issue path
+
+### Requirement: An unreadable retrospective evidence source is named and accepted explicitly
+
+An evidence source that is unreadable or only partially readable SHALL be named in the review and SHALL NOT be reported as the absence of problems; a checkpoint over such a source SHALL require an explicit acceptance of that gap, recorded in the receipt.
+
+#### Scenario: An evidence source is partially readable
+
+- **WHEN** an evidence source of the review is unreadable or only partially readable
+- **THEN** the review names it and does not report it as the absence of problems
+- **AND** a checkpoint over it requires an explicit acceptance of that gap, recorded in the receipt
+
+### Requirement: Execution provenance prefers structured runtime evidence
+
+Execution provenance SHALL prefer structured runtime metadata or platform-owned routing/launch evidence over free-form model self-identification.
+
+#### Scenario: Both runtime metadata and model self-identification exist
+
+- **WHEN** structured runtime metadata and free-form model self-identification are both available
+- **THEN** execution provenance uses the structured runtime metadata or platform-owned routing/launch evidence
+
+### Requirement: Execution provenance separates selected from runtime-confirmed values
+
+The provenance contract SHALL distinguish selected/configured model or reasoning-effort values from runtime-confirmed values. If the supported current runtime cannot establish a value truthfully, the value SHALL remain explicitly unknown rather than be inferred from a prompt, global default, model statement or unsupported assumption.
+
+#### Scenario: The runtime cannot confirm a model value
+
+- **WHEN** the supported current runtime cannot establish a model or reasoning-effort value truthfully
+- **THEN** the value remains explicitly unknown
+- **AND** it is not inferred from a prompt, global default, model statement or unsupported assumption
+
+### Requirement: Execution provenance stays bounded and sanitized when routed
+
+Execution provenance SHALL remain bounded metadata, not a transcript or general tracing system. Public friction routing SHALL include only sanitized provenance needed for useful comparison; raw execution evidence and unnecessary machine-local identifiers SHALL remain local by default.
+
+#### Scenario: Friction with provenance is routed publicly
+
+- **WHEN** a friction event with execution provenance is routed publicly
+- **THEN** only sanitized provenance needed for useful comparison is included
+- **AND** raw execution evidence and unnecessary machine-local identifiers remain local by default
+
+### Requirement: A friction event without task or task branch is classified no-task
+
+A new friction event recorded with neither an explicit task nor a current task branch, from an integration checkout or an unknown or detached branch, SHALL be classified `no-task`; such a checkout SHALL NOT be assumed to be a task.
+
+#### Scenario: Friction is recorded from an integration checkout
+
+- **WHEN** a new friction event is recorded without an explicit task from an integration checkout
+- **THEN** the event is classified `no-task`
+- **AND** the integration checkout is not assumed to be a task
+
+### Requirement: A legacy task-less friction event on a non-task branch reads as no-task
+
+A legacy task-less event with no other attribution evidence whose recorded branch is a non-task name SHALL be read as `no-task` without rewriting history.
+
+#### Scenario: A legacy event has a non-task branch
+
+- **WHEN** a legacy task-less event with no other attribution evidence has a recorded branch with a non-task name
+- **THEN** it is read as `no-task`
+- **AND** history is not rewritten
+
+### Requirement: An operator classifies a friction event as no-task append-only
+
+An operator SHALL be able to classify a recorded event as `no-task` with a reason through an explicit append-only operation; an explicit `no-task` and an explicit task attribution of the same event SHALL conflict and fail.
+
+#### Scenario: An event has both no-task and task attribution
+
+- **WHEN** an operator classifies an event as `no-task` that also has an explicit task attribution
+- **THEN** the attributions conflict and the operation fails
+
+### Requirement: A no-task friction event does not affect retrospectives
+
+A `no-task` event SHALL NOT be a signal of, nor block, any task or Requirement retrospective, and SHALL be listed as such in review and checkpoint output.
+
+#### Scenario: A no-task event exists during a retrospective
+
+- **WHEN** a task or Requirement retrospective runs while a `no-task` event exists
+- **THEN** the event is neither a signal of nor a block on the retrospective
+- **AND** it is listed as `no-task` in review and checkpoint output
+
+### Requirement: Retrospective selection attributes legacy friction events by branch or source issue
+
+Retrospective selection SHALL attribute a legacy event whose task is empty by its recorded branch or source issue without rewriting or duplicating history.
+
+#### Scenario: A legacy event has an empty task
+
+- **WHEN** retrospective selection reads a legacy event whose task is empty but whose recorded branch or source issue is usable
+- **THEN** it attributes the event by that branch or source issue
+- **AND** history is not rewritten or duplicated
+
+### Requirement: An unattributable friction event blocks checkpoints as an explicit ambiguity
+
+An event that has no task, no usable branch, source issue or attribution and no `no-task` classification SHALL be reported as an explicit ambiguity, SHALL NOT be assigned to the task under review, and SHALL make both the automated and the manual task and Requirement checkpoints refuse with the event ids and the attribution commands until it is attributed or classified.
+
+#### Scenario: An event has no attribution at all
+
+- **WHEN** an event has no task, no usable branch, source issue or attribution and no `no-task` classification
+- **THEN** it is reported as an explicit ambiguity and not assigned to the task under review
+- **AND** automated and manual task and Requirement checkpoints refuse with the event ids and the attribution commands until it is attributed or classified
+
+### Requirement: A project adds at most five optional retrospective questions
+
+A project MAY add up to five retrospective questions in a project-owned file, each optionally limited to changed paths; questions beyond five SHALL be ignored with a report, and a missing or invalid file SHALL leave the shared path working. Project questions SHALL NOT be mandatory for every task and SHALL NOT replace the shared template.
+
+#### Scenario: A project file lists six questions
+
+- **WHEN** a project-owned retrospective question file lists six questions
+- **THEN** the questions beyond five are ignored with a report
+- **AND** the project questions do not replace the shared template
+
+### Requirement: Child contributions reach a shared candidate through contribution PRs
+
+Where source/coordinator publication is enabled, child contributions SHALL reach the candidate through contribution PRs targeting the Requirement integration branch and SHALL be merged into it by the coordinator after their own checks, verification and review.
+
+#### Scenario: A child contribution is ready
+
+- **WHEN** source/coordinator publication is enabled and a child contribution has passed its own checks, verification and review
+- **THEN** the coordinator merges its contribution PR into the Requirement integration branch
+
+### Requirement: An incomplete shared candidate is published only as a draft
+
+An incomplete candidate SHALL be published only as a draft PR on its stable branch and manifest path.
+
+#### Scenario: A candidate is incomplete
+
+- **WHEN** a shared Requirement candidate is incomplete
+- **THEN** it is published only as a draft PR on its stable branch and manifest path
+
+### Requirement: A shared candidate manifest revision is an append-only fast-forward
+
+A new manifest revision SHALL keep earlier children as an exact prefix with identical heads and SHALL be pushed only as a fast-forward.
+
+#### Scenario: A new manifest revision is pushed
+
+- **WHEN** a new shared candidate manifest revision is pushed
+- **THEN** it keeps earlier children as an exact prefix with identical heads
+- **AND** it is pushed only as a fast-forward
+
+### Requirement: A shared candidate leaves draft only when complete and finalized
+
+Marking the shared candidate PR ready, arming merge, publication-queue admission and terminal reconciliation SHALL require a complete manifest, composition-level review of cross-child properties, a single finalization of all children, the Requirement retrospective checkpoint and full checks on the exact final head.
+
+#### Scenario: A candidate is marked ready
+
+- **WHEN** the shared candidate PR is to be marked ready, armed for merge, admitted to the publication queue or terminally reconciled
+- **THEN** a complete manifest, composition-level review of cross-child properties, a single finalization of all children, the Requirement retrospective checkpoint and full checks on the exact final head are required
+
+### Requirement: An unavailable affected-group precheck stops before the full set
+
+An affected-group precheck whose runner produced no usable result (unavailable) SHALL also stop before the full set with a failure descriptor marking the precheck phase and naming it unavailable; it SHALL NOT be replaced by silently continuing with the full set.
+
+#### Scenario: The precheck runner produces no usable result
+
+- **WHEN** the affected-group precheck runner produces no usable result
+- **THEN** the run stops before the full set with a failure descriptor marking the precheck phase and naming it unavailable
+- **AND** it does not silently continue with the full set
+
+### Requirement: Affected-group precheck results are separate feedback evidence
+
+Affected-group precheck results SHALL be recorded separately from the executed validation commands as feedback evidence and SHALL NOT replace or shorten the full or protected validation set.
+
+#### Scenario: A precheck passes
+
+- **WHEN** an affected-group precheck passes
+- **THEN** its results are recorded separately from the executed validation commands as feedback evidence
+- **AND** the full or protected validation set is neither replaced nor shortened
+
+### Requirement: Post-handoff friction events are attributed to the candidate and its Requirement
+
+Post-handoff review, repair, integration, fallback and retry events SHALL be attributed to the candidate task and its parent Requirement, and a Requirement retrospective SHALL accept events attributed to its linked children.
+
+#### Scenario: A post-handoff repair event is recorded
+
+- **WHEN** a repair event is recorded after developer handoff
+- **THEN** it is attributed to the candidate task and its parent Requirement
+- **AND** the Requirement retrospective accepts it as an event attributed to a linked child
+
+### Requirement: Downstream projects retain the archived-child multi-child path
+
+Downstream projects SHALL retain the existing archived-child multi-child path.
+
+#### Scenario: A downstream project runs a multi-child Requirement
+
+- **WHEN** a downstream project executes a multi-child Requirement
+- **THEN** it retains the existing archived-child multi-child path
+
+### Requirement: A single-child Requirement uses its child PR against main
+
+A single-child Requirement SHALL use its child PR against main; a coordinator-managed child SHALL publish while active for review before finalization archives it.
+
+#### Scenario: A Requirement has one child
+
+- **WHEN** a single-child Requirement is executed
+- **THEN** its child PR targets main
+- **AND** a coordinator-managed child publishes while active for review before finalization archives it
+
+### Requirement: An unreadable durable coordinator evidence source is reported as a gap
+
+When the durable coordinator evidence source cannot be read or contains a malformed trusted record, the evidence source `coordinator-evidence` SHALL be reported as not fully readable and the checkpoint SHALL refuse it unless the gap is explicitly accepted; an unreadable source SHALL NOT be reported as an empty one.
+
+#### Scenario: The coordinator evidence contains a malformed trusted record
+
+- **WHEN** the durable coordinator evidence source contains a malformed trusted record
+- **THEN** `coordinator-evidence` is reported as not fully readable
+- **AND** the Requirement checkpoint refuses it unless the gap is explicitly accepted
+- **AND** it is not reported as an empty source
+
+### Requirement: Developer task retrospectives do not depend on GitHub coordinator evidence
+
+Developer task retrospectives SHALL NOT depend on GitHub for durable coordinator evidence.
+
+#### Scenario: A developer task retrospective runs without GitHub
+
+- **WHEN** a developer task retrospective runs while GitHub is unavailable
+- **THEN** it does not depend on GitHub for durable coordinator evidence
+
+### Requirement: Nested heavy validation runs reuse the parent machine pool lease
+
+Nested heavy validation runs SHALL reuse the parent machine pool lease without acquiring more tokens, and the test runner's parallelism SHALL NOT exceed the lease weight.
+
+#### Scenario: A heavy run starts another heavy run
+
+- **WHEN** a pooled heavy validation run starts a nested heavy validation run
+- **THEN** the nested run reuses the parent lease without acquiring more tokens
+- **AND** the test runner's parallelism does not exceed the lease weight
+
+### Requirement: Machine pool acquisition is all-or-nothing and priority ordered
+
+Machine pool token acquisition SHALL be all-or-nothing and ordered by priority class (`finalize` before `development`) then arrival, and SHALL fail explicitly naming the holders after the configured wait timeout instead of running outside the pool.
+
+#### Scenario: A finalize run and a development run wait
+
+- **WHEN** a `finalize` run and an earlier `development` run wait for machine pool tokens
+- **THEN** the `finalize` run acquires first, all-or-nothing
+- **AND** a run still waiting after the configured wait timeout fails explicitly naming the holders
+
+### Requirement: Machine pool acquisition waits on load, memory and memory pressure
+
+Machine pool token acquisition SHALL wait while the per-CPU load exceeds the configured limit, available memory is below the configured minimum or, on macOS, the kernel memory pressure level is above normal (an unmeasurable or unknown value SHALL fail explicitly).
+
+#### Scenario: Memory pressure is above normal on macOS
+
+- **WHEN** machine pool token acquisition runs on macOS while the kernel memory pressure level is above normal
+- **THEN** acquisition waits
+- **AND** an unmeasurable or unknown memory pressure value fails explicitly
+
+### Requirement: An unset machine pool runs unpooled while an invalid one fails
+
+When the variable `DEV_PLATFORM_MACHINE_POOL` is unset the heavy validation run SHALL print `DEV_PLATFORM_MACHINE_POOL: not configured` and run unpooled; a set but missing or invalid configuration SHALL fail explicitly naming the key or path.
+
+#### Scenario: The machine pool configuration path is missing
+
+- **WHEN** `DEV_PLATFORM_MACHINE_POOL` is set to a path that does not exist
+- **THEN** the heavy validation run fails explicitly naming the path
+
+### Requirement: A non-test selected-check execution leases one machine pool token
+
+A selected-check execution SHALL lease one machine pool token when every selected command is labelled with a non-test evidence type (`configuration` or `syntax`) and no affected-test precheck runs; otherwise its weight is the test parallelism bounded by the tokens, and an unlabelled command counts as a test command.
+
+#### Scenario: Only configuration checks are selected
+
+- **WHEN** every selected command is labelled `configuration` or `syntax` and no affected-test precheck runs
+- **THEN** the selected-check execution leases one token
+- **AND** an unlabelled command would count as a test command
+
+### Requirement: A waiting machine pool run reports its actual blocker first
+
+A waiting machine pool run SHALL report the actual blocker first (queue, load, memory, memory pressure, tokens or admission) with its current value and threshold, before the needed and free tokens, its queue position and the holders.
+
+#### Scenario: A run waits on load
+
+- **WHEN** a heavy validation run waits because the per-CPU load exceeds the configured limit
+- **THEN** it reports load with its current value and threshold first
+- **AND** then the needed and free tokens, its queue position and the holders
+
+### Requirement: A read-only machine pool status command shows pool state and fit
+
+A read-only machine pool status command SHALL show configuration, holders, waiters, load, memory, the head waiter's blocker in the same terms, and the effective run weight in the caller's environment with how many such runs fit and how many tokens stay idle, warning when the tokens are not a multiple of that weight.
+
+#### Scenario: Pool tokens are not a multiple of the run weight
+
+- **WHEN** the machine pool status command runs and the tokens are not a multiple of the effective run weight
+- **THEN** it shows configuration, holders, waiters, load, memory, the head waiter's blocker, the effective run weight, how many such runs fit and how many tokens stay idle
+- **AND** it warns that the tokens are not a multiple of that weight
+
+### Requirement: Machine pool formats stay compatible across platform releases
+
+The machine pool configuration keys and the slot, ticket and lease formats SHALL stay unchanged so that participants on different platform releases share one pool.
+
+#### Scenario: Participants run different platform releases
+
+- **WHEN** heavy validation runs from different platform releases use one machine pool
+- **THEN** they share it through unchanged configuration keys and slot, ticket and lease formats
+
+### Requirement: A broken friction process label configuration is an error
+
+A read error of the process label configuration, or an empty or non-string configured label, SHALL be reported as an error and SHALL NOT be replaced by the default label.
+
+#### Scenario: The configured process label is empty
+
+- **WHEN** the friction router reads a process label configuration whose configured label is empty
+- **THEN** it reports an error
+- **AND** it does not replace the label with the default label
+
+### Requirement: Local friction events without an id get a content-derived identity
+
+A local friction log event recorded without an id SHALL receive an identity derived from its content rather than its position in the file, and an earlier positional reference SHALL resolve to that identity or fail with a named error.
+
+#### Scenario: An event without an id is referenced
+
+- **WHEN** an event recorded without an id is referenced by an earlier positional reference
+- **THEN** the reference resolves to the identity derived from the event content or fails with a named error
+
+### Requirement: A candidate friction event is resolved by an explicit decision
+
+An event left in the `candidate` route state SHALL be resolvable by an explicit decision that either attaches it to a named open friction issue, which then also carries the event's fingerprint marker, or creates a new root issue.
+
+#### Scenario: A candidate event is attached
+
+- **WHEN** an explicit decision attaches a `candidate` event to a named open friction issue
+- **THEN** the issue also carries the event's fingerprint marker
+
+### Requirement: Duplicate open friction issues are consolidated explicitly
+
+Already open duplicates of one root SHALL be consolidable into one issue by an explicit command that moves their markers and closes them with a reference to the kept issue.
+
+#### Scenario: Two open issues share one root
+
+- **WHEN** the consolidation command runs on open duplicate friction issues of one root
+- **THEN** their markers move to the kept issue
+- **AND** the duplicates are closed with a reference to the kept issue
+
+### Requirement: A friction resolution target must be an open router-generated issue
+
+A target that is not an open router-generated friction issue SHALL be a named error.
+
+#### Scenario: The target issue is closed
+
+- **WHEN** an attach decision or a consolidation names a target that is not an open router-generated friction issue
+- **THEN** the operation fails with a named error
+
+### Requirement: The publication coordinator takes the event reason from the named red gate
+
+The publication coordinator SHALL take the coordinator lifecycle event reason from the transition's named red gate and SHALL fail the transition explicitly with a named error when the gate is missing or explains nothing; a `blocked-retryable` transition without a red gate waits on exact-head required checks, is not a failed gate and SHALL record no friction event.
+
+#### Scenario: A blocked-retryable transition has no red gate
+
+- **WHEN** the publication coordinator performs a `blocked-retryable` transition without a red gate
+- **THEN** it waits on exact-head required checks
+- **AND** it records no friction event
+
+### Requirement: Other coordinator event producers fail without reason and candidate
+
+Producers of coordinator lifecycle events other than the publication coordinator SHALL fail explicitly with a named error rather than record such an event without a bounded `reason` and a `candidate`.
+
+#### Scenario: A producer lacks the candidate
+
+- **WHEN** a producer other than the publication coordinator is about to record a coordinator lifecycle event without a `candidate`
+- **THEN** it fails explicitly with a named error
+
+### Requirement: The friction router renders or withholds coordinator events
+
+The router SHALL render the reason and candidate of a coordinator lifecycle event in the published issue or comment, and SHALL NOT route a coordinator event that lacks either; such an event SHALL be recorded locally as `withheld` with the missing field named and SHALL NOT be retried.
+
+#### Scenario: A coordinator event lacks its reason
+
+- **WHEN** the router receives a coordinator event without a `reason`
+- **THEN** it does not route the event
+- **AND** the event is recorded locally as `withheld` naming the missing field and is not retried
+
+### Requirement: A contribution integration job fails when the moved head lost its base
+
+If the moved requirement integration branch head no longer contains the contribution's recorded base, the coordinator worker SHALL fail the integration job naming the lost base.
+
+#### Scenario: The moved head lost the contribution base
+
+- **WHEN** the requirement integration branch head moved and no longer contains the contribution's recorded base
+- **THEN** the coordinator worker fails the integration job naming the lost base
+
+### Requirement: A coordinator worker that lost its claim publishes nothing
+
+A coordinator worker that lost its claim SHALL publish nothing.
+
+#### Scenario: A worker loses its claim
+
+- **WHEN** a coordinator worker loses its claim during an integration job
+- **THEN** it publishes nothing
+
+### Requirement: Task reconcile records a one-shot merge intent
+
+Before the single merge of authoritative `origin/<main_branch>`, task reconcile SHALL record a one-shot intent in the task worktree's own git directory naming the task branch and the commit of `origin/<main_branch>`, and SHALL remove it after the merge whatever the outcome.
+
+#### Scenario: Reconcile merge fails
+
+- **WHEN** task reconcile records the one-shot intent and its merge of `origin/<main_branch>` fails
+- **THEN** the intent is removed after the merge
+
+### Requirement: The merge-commit hook admits only an intended reconcile merge
+
+The platform `pre-merge-commit` hook SHALL admit a merge commit only in a linked task worktree whose git directory holds the one-shot reconcile intent for the current branch, when `GIT_REFLOG_ACTION` is exactly `merge origin/<main_branch>` and `origin/<main_branch>` still points to the recorded commit, and SHALL consume the intent.
+
+#### Scenario: origin main moved after the intent was recorded
+
+- **WHEN** a merge commit is attempted in a linked task worktree holding the intent but `origin/<main_branch>` no longer points to the recorded commit
+- **THEN** the hook does not admit the merge commit
+
+### Requirement: The merge-commit hook keeps blocking every other merge commit
+
+The platform `pre-merge-commit` hook SHALL keep blocking every other merge commit, including every merge commit in the integration copy, and SHALL NOT be removed or disabled.
+
+#### Scenario: A merge commit is attempted in the integration copy
+
+- **WHEN** a merge commit is attempted in the integration copy
+- **THEN** the hook blocks it
+- **AND** the hook is not removed or disabled
+
+### Requirement: Task start warns and continues for a project behind the latest release
+
+When the project is behind the latest published release of its platform source, task start SHALL print the project's version, the latest version and the exact Roll Out Platform command that opens the update pull request for this project, and SHALL continue the start (warn and continue). A project on the latest release SHALL start without the report.
+
+#### Scenario: The project is behind
+
+- **WHEN** a task starts in a managed downstream project whose installed platform version is behind the latest release
+- **THEN** task start prints the project's version, the latest version and the exact Roll Out Platform command
+- **AND** the start continues
+
+### Requirement: Task start fails when the platform release comparison cannot be determined
+
+When the project version, the platform source, the project repository or the latest release cannot be determined, task start SHALL fail with the cause instead of skipping the comparison.
+
+#### Scenario: The latest release cannot be determined
+
+- **WHEN** task start cannot determine the latest release of the platform source
+- **THEN** task start fails with the cause
+- **AND** the comparison is not skipped
