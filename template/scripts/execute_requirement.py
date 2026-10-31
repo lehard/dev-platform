@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -655,12 +656,14 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         if len(set(predecessors)) > 1:
             raise RequirementExecutionError(f"{change} has multiple ready predecessors; select an exact dependency boundary")
         predecessor = predecessors[0] if predecessors else None
+        archived_state = _archive_delivered_task_state(integration, child)
         started, _, _ = start_managed_task.start_managed_task(
             integration, child, base_child_receipt=predecessor,
         )
         requirement_board.reconcile_nonterminal(integration, requirement=requirement)
         return audited({
             "status": "implement-child", "requirement": requirement, "child": child,
+            **({"archived_task_state": archived_state} if archived_state else {}),
             "change": change, "worktree": str(started.task_root),
             "predecessor_receipt": str(predecessor) if predecessor else None,
             "shared_draft": draft,
@@ -679,8 +682,8 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     coordinator = _contribution_publication_supported(integration)
     if len(ordered) == 1:
         if ready:
-            if not coordinator:
-                requirement_retrospective.require_checkpoint(integration, requirement=requirement)
+            if not coordinator and (pending := _retrospective_pending(integration, requirement, completed)):
+                return audited(pending)
             change = ordered[0][0]
             child = linked_by_change[change]
             worktree = machine_path("worktrees", integration) / change
@@ -692,6 +695,8 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                                 "change": change, "reason": "child handed off; coordinator work is in flight"})
         if coordinator:
             return audited(_await_post_merge(parent, requirement, completed))
+        if pending := _retrospective_pending(integration, requirement, completed):
+            return audited(pending)
         from requirement_terminal import reconcile_parent
         return audited(reconcile_parent(integration, requirement=requirement))
     if len(ready) < 2:
@@ -701,12 +706,14 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                     return audited(_await_post_merge(parent, requirement, completed))
                 # Every mandatory child is delivered: finish the parent (idempotent),
                 # e.g. after shared delivery was interrupted before reconciliation.
+                if pending := _retrospective_pending(integration, requirement, completed):
+                    return audited(pending)
                 from requirement_terminal import reconcile_parent
                 return audited(reconcile_parent(integration, requirement=requirement))
             return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
-    if not coordinator:
-        requirement_retrospective.require_checkpoint(integration, requirement=requirement)
+    if not coordinator and (pending := _retrospective_pending(integration, requirement, completed)):
+        return audited(pending)
     expected = _expected_changes(ordered, linked_by_change, completed)
     manifest, candidate, branch = _candidate_for(integration, requirement, ready, expected)
     requirement_integration.compose_candidate(
@@ -714,6 +721,38 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     )
     result = requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
     return audited({**result, "completed_before_shared_integration": completed})
+
+
+def _retrospective_pending(integration: Path, requirement: str, children: list[str]) -> dict[str, Any] | None:
+    """A missing or stale Requirement retrospective is the next step; any other receipt defect still fails."""
+    try:
+        requirement_retrospective.require_checkpoint(integration, requirement=requirement)
+    except requirement_retrospective.RetrospectivePending as exc:
+        return {"status": "await-requirement-retrospective", "requirement": requirement, "children": children,
+                "command": exc.command, "reason": str(exc)}
+    return None
+
+
+def _archive_delivered_task_state(integration: Path, next_child: str) -> str | None:
+    """Move aside task-local state left by a delivered child before the next child is imported here."""
+    state = managed_task.read_task_state(integration)
+    if state is None or state["source_issue"].lower() == next_child.lower():
+        return None
+    child, change = state["source_issue"], state["change"]
+    observation = managed_project_status.observe(integration, source_issue=child)
+    if observation is None or observation.current_status != "Done":
+        return None  # not delivered: the managed import refuses with the conflicting state named
+    _done_child_is_delivered(integration, child, change)
+    local, remote = _git(integration, "rev-parse", "HEAD").lower(), managed_task.target_main(integration)
+    if local != remote:
+        raise RequirementExecutionError(
+            f"task-local state of delivered child {child} ({change}) is kept: local main {local} differs from "
+            f"origin main {remote}; bring local main to origin main, then rerun advance")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    destination = integration / ".claude" / "delivered-task-state" / f"{change}-{stamp}.json"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    managed_task.task_state_path(integration).rename(destination)
+    return str(destination)
 
 
 def _await_post_merge(parent: dict[str, Any], requirement: str, children: list[str], **details: Any) -> dict[str, Any]:

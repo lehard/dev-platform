@@ -74,6 +74,10 @@ class RequirementExecutionTests(unittest.TestCase):
         patcher = mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"})
         patcher.start()
         self.addCleanup(patcher.stop)
+        # The pending-retrospective step has its own tests; here the checkpoint counts as recorded.
+        patcher = mock.patch.object(execution, "_retrospective_pending", return_value=None)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_handoffs_follow_declared_dependencies_not_filename_order(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
