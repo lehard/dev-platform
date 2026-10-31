@@ -718,7 +718,12 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
 
 def _await_post_merge(parent: dict[str, Any], requirement: str, children: list[str], **details: Any) -> dict[str, Any]:
     """Every mandatory child is merged: the post-merge jobs record the retrospective and close the Requirement."""
-    if str(parent.get("state", "")).upper() == "CLOSED":
+    from requirement_terminal import RequirementTerminalError, issue_state
+    try:
+        closed = issue_state(parent, requirement) == "CLOSED"
+    except RequirementTerminalError as exc:
+        raise RequirementExecutionError(str(exc)) from exc
+    if closed:
         return {"status": "done", "requirement": requirement, "children": children, **details}
     return {"status": "await-post-merge", "requirement": requirement, "children": children, **details,
             "reason": "every mandatory child is merged; the post-merge runner records the Requirement "

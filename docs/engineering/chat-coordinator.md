@@ -193,7 +193,10 @@ history. If it refuses, report the reason; the developer re-handoff rules apply.
 When the finalize job of that head already holds a result (it stopped on the
 lost gates), the same record re-offers finalize under a fresh job id. A
 `finalize-pending` candidate whose finalize job already holds a result and has
-no fresh job is re-offered with `resume`. A Requirement composition has no pre-merge
+no fresh job is re-offered with `resume`. A Requirement listed as waiting for the owner
+(`awaits-owner-acceptance` in the overview) closes only after the owner's word on each
+operator acceptance item, recorded with the printed
+`requirement_terminal.py accept ... --via chat-coordinator --reason "<owner's words>"`. A Requirement composition has no pre-merge
 retrospective: its finalize job runs the full final-head checks and admits it,
 and the post-merge retrospective job records the Requirement checkpoint after
 the merge. A record still carrying a pre-merge retrospective job fails

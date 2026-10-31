@@ -621,11 +621,22 @@ def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: 
         return "child-reconciled; requirement awaits remaining children"
     if not ops.requirement_checkpointed(root, requirement):
         ensure_requirement_checkpoint(ops, root, requirement, children)
+    from requirement_terminal import OwnerAcceptancePending
     try:
         ops.reconcile_parent(root, requirement, {child})
+    except OwnerAcceptancePending as exc:
+        return awaits_owner_acceptance(exc)
     except RuntimeError as exc:
         raise JobBlocked(str(exc)) from exc
     return "requirement-reconciled"
+
+
+def awaits_owner_acceptance(exc) -> str:
+    """A completed terminal outcome: the Requirement waits for its owner's acceptance decision (BR-943).
+
+    No attempt is spent on a human wait; ``requirement_terminal.py accept`` closes the Requirement later.
+    """
+    return "requirement-awaits-owner-acceptance: " + ", ".join(exc.items)
 
 
 def run_cleanup(ops: LifecycleOps, root: Path, number: int, branch: str, head: str) -> str:
@@ -669,7 +680,11 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
                                                     contract_from=root / ".dev-platform.toml")
                 manifest = candidate_manifest(checkout, job["task_identity"]["requirement"])
             if kind == "terminal-reconciliation":
-                outcome = reconcile_composition(root, repo, manifest, job["head"], job["number"], adapter=adapter)["status"]
+                from requirement_terminal import OwnerAcceptancePending
+                try:
+                    outcome = reconcile_composition(root, repo, manifest, job["head"], job["number"], adapter=adapter)["status"]
+                except OwnerAcceptancePending as exc:
+                    outcome = awaits_owner_acceptance(exc)
             else:
                 # The manifest is bounded by its mandatory set. Retrying after interruption
                 # repeats idempotent child operations before closing the parent obligation.

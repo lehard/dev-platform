@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
+    "base_ref": "origin/main",
+    "candidate_head": "51f896d7c302d52f02377ee9fbe1203b719f641e",
+    "diff_sha256": "c4272a9611fbf8443f92ec078e1dd019dbd786b0a5841e425f5c5ccd93fc3cae"
+  },
+  "completed_at": "2026-10-31T16:03:41+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/integration_contour.py:683-687 adds the catch around reconcile_composition. tests/test_requirement_operator_acceptance.py:669-677 tests only integration_contour.run_terminal. tasks.md 3.2 lists \"terminal outcome without attempts\" but names no composition case.",
+      "id": "composition-terminal-path-untested",
+      "severity": "advisory",
+      "summary": "The spec scenario \"Open item after the last merge\" covers the post-merge terminal job. The composition terminal path catches OwnerAcceptancePending and returns the completed outcome, but no test exercises it."
+    },
+    {
+      "evidence": "requirement_terminal.py: `raise RequirementTerminalError(f\"## Operator acceptance repeats item id {match['id']!r}\")`. The malformed-line error does quote the line. spec.md scenario \"Malformed section\" says \"fails naming the line\".",
+      "id": "duplicate-id-error-omits-line",
+      "severity": "advisory",
+      "summary": "Spec and design say a malformed section (no check command or a repeated id) fails naming the line. The duplicate-id error names only the id, not the line. The \"no items\" error names neither."
+    }
+  ],
+  "launched_at": "2026-10-31T16:03:16+00:00",
+  "output_sha256": "3b2213d9ebe334b09cfe6ed5248514499692b22544344ca906f83b5c45a44897",
+  "perspective": "spec-fidelity",
+  "request_id": "2ef8e17d-0f4f-4131-a7b4-358b2f84fd46",
+  "reviewer": {
+    "context_id": "4eace660-5e7a-407c-8957-0c71e3c023ce",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-547901b8-7eec-4047-9d6a-5aa23dfb829d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35193
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 86773
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24164
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24272
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2105
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a3f18eebe40342e2ec45e841707c899825aed0fe16b56c2b0bd20293d8799153"
+}
