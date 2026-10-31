@@ -3,37 +3,40 @@
   "candidate": {
     "base_head": "e1b00fd8f77a3dc3e02d46ffaa80e7f52fc57dd2",
     "base_ref": "origin/main",
-    "candidate_head": "acbd1e0ff4a1413890530803e3e73c71f78308e2",
-    "diff_sha256": "acd3cc895d7b0426e5eb2b6d8e8ba1133d0a666cf2a5e527f6e05bc594487a07"
+    "candidate_head": "a0d2bdcd55df2aa71ef55cca0b87b334ef894f1c",
+    "diff_sha256": "73f4799e3503539a17c6cf2c22a074592072af5aa4a56bd26549a78d32508a29"
   },
-  "completed_at": "2026-10-31T14:59:01+00:00",
+  "completed_at": "2026-10-31T16:12:29+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/agent_board.py claim_eligibility: for a handed_off item it returns \"handed-off\" and drops \"stale-heartbeat\", and only TERMINAL_BOARD_PROBLEMS (e.g. merged-pr, worktree-missing) classify it terminal. tests/test_rehandoff_board.py asserts \"doctor reports no problem for an aged handed-off record\". Nothing in the diff detects a PR that was closed without merging. The only remedy is the manual command named in the _required_scope_inputs refusal message.",
-      "id": "handed-off-record-orphan-no-cleanup",
+      "evidence": "template/scripts/agent_board.py claim_eligibility (~l.237-240) drops `stale-heartbeat` for handed-off items. `doctor` therefore reports nothing for them. `--fix` removes only terminal problems (merged PR, missing worktree). The scope gate refusal at ~l.286-290 tells the operator to run `agent_board.py finish` by hand. The same sibling-overlap blind spot is already noted in design.md Risks.",
+      "id": "handed-off-record-never-ages-out",
       "severity": "advisory",
-      "summary": "A handed-off board record whose PR is closed unmerged or abandoned never becomes a doctor problem and has no automatic cleanup. It stays on the board indefinitely and only a manual `agent_board.py finish` removes it."
+      "summary": "A handed-off board record whose PR is closed without merging, or abandoned, is never reclaimed automatically. It stays on the board indefinitely."
+    },
+    {
+      "evidence": "agent_board.py ~l.323-324 calls `queue._latest`, `queue._comments`, `queue._repo` and `queue._is_ancestor`. The test (tests/test_rehandoff_board.py RehandoffAcceptanceTests.refusal) patches those same private names, so any rename in publication_queue breaks both the code and the tests together. A public wrapper in publication_queue would make the contract explicit.",
+      "id": "scope-gate-depends-on-private-queue-internals",
+      "severity": "advisory",
+      "summary": "agent_board.rehandoff_refusal calls underscore-private helpers of publication_queue and adds network and `gh` calls to a previously local, read-only scope gate. This couples two modules through private APIs."
     }
   ],
-  "launched_at": "2026-10-31T14:58:40+00:00",
-  "output_sha256": "e737725aa7120db7e682172e34335c2b583963452745a3a41da7217e386a520e",
+  "launched_at": "2026-10-31T16:12:05+00:00",
+  "output_sha256": "a3bb08bb70acaab647b2ac780c552241d5d0223c40d86ada8de27f2f6f6174b3",
   "perspective": "engineering-quality",
-  "request_id": "a8a49424-9b3c-4d93-9498-b90c97f7ef54",
+  "request_id": "5af58dc3-3dbf-4e17-a1c3-4ccc0a3f739f",
   "reviewer": {
-    "context_id": "d341f016-74fe-4929-94e3-eeac37e05911",
+    "context_id": "de80441e-438f-43a2-88ba-f986cf963836",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2f572e4f-c291-4e71-a31b-3b304b0ed31f",
+    "launch_id": "platform-launch-902ac093-a110-4275-94b4-2d9e596f06a7",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -42,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32834
+        "value": 34674
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21409
+        "value": 85665
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16119
+        "value": 22727
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17331
+        "value": 22956
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1618
+        "value": 2440
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ce8bfe36728091dfc63170e49dd70f7f60418331b0c1b559b6b7ed1870cc719e"
+  "task_content_digest": "1325236b3dbf96301f29e8349c75fc1c7b58d94a8a8a506bd74a87b17455e9aa"
 }
