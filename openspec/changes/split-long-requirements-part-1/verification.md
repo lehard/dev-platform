@@ -19,3 +19,4 @@ Independent-Review-Evidence: independent-review-request.json
 
 - The OpenSpec pin stays 1.13.2; `validate --all --strict` on 1.15.0 still fails on the 19 specs of portions 2 and 3.
 - A later change that MODIFIES one of these requirements from its old long text would reintroduce it; the 1.15.0 bump catches that under `--strict`.
+- Independent review: ready; one advisory (blocking-check-recovery ADDED sentences lost their antecedent) fixed by naming the failure-class catalog and the `preflight`/`no_preflight` fields explicitly. "The Requirement" is kept verbatim from the original text.

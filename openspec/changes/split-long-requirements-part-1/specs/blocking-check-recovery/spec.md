@@ -33,7 +33,7 @@ Each entry of the blocking-gate catalog SHALL carry exactly one of `preflight`, 
 
 ### Requirement: The failure-class catalog inventories the named blocking checks
 
-The catalog SHALL inventory at least the blocking checks named by the Requirement.
+The failure-class catalog of blocking checks SHALL inventory at least the blocking checks named by the Requirement.
 
 #### Scenario: Catalog is inspected
 
@@ -42,7 +42,7 @@ The catalog SHALL inventory at least the blocking checks named by the Requiremen
 
 ### Requirement: Catalog entries carry a recovery step or a justification
 
-A recoverable entry SHALL name a recorded recovery step; a hard-stop entry SHALL carry a written justification.
+A recoverable entry of the failure-class catalog SHALL name a recorded recovery step; a hard-stop entry of that catalog SHALL carry a written justification.
 
 #### Scenario: Catalog entry is classified
 
@@ -71,7 +71,7 @@ A new or changed blocking check SHALL be added to the catalog and fail through t
 
 ### Requirement: Catalog validation rejects entries with neither or both preflight fields
 
-Catalog validation SHALL fail explicitly for an entry with neither or both.
+Catalog validation SHALL fail explicitly for a blocking-gate catalog entry with neither or both of `preflight` and `no_preflight`.
 
 #### Scenario: Entry has neither or both
 

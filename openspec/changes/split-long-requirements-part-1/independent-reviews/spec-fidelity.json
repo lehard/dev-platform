@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "9390a100eaae7e143c66dfe8fd54847a2a68b17b",
+    "base_ref": "origin/main",
+    "candidate_head": "72fbf689fa6cf14f363915fee372292dbcfda34d",
+    "diff_sha256": "23cff86d077a85dbd2b35dec84a716e365afd6a4caf679d9f5df86761141a0a7"
+  },
+  "completed_at": "2026-10-31T06:35:37+00:00",
+  "findings": [
+    {
+      "evidence": "specs/blocking-check-recovery/spec.md: \"The catalog SHALL inventory at least the blocking checks named by the Requirement.\" (\"the Requirement\" and the checks it names are not in this requirement). \"Catalog validation SHALL fail explicitly for an entry with neither or both.\" (\"neither or both\" depends on the previous sentence of the MODIFIED requirement). design.md says to \"repeat a subject, resolve a pronoun\".",
+      "id": "split-added-requirements-lose-antecedent",
+      "severity": "advisory",
+      "summary": "Some ADDED requirements in blocking-check-recovery depend on text of the original requirement that is no longer in the same requirement, so they cannot stand alone. The design says each sentence should \"stand alone\"."
+    }
+  ],
+  "launched_at": "2026-10-31T06:35:11+00:00",
+  "output_sha256": "a68dc3ad124217d5c5aca7576c06adb513e22f8ab7cea043bfcae159479327b6",
+  "perspective": "spec-fidelity",
+  "request_id": "0c114ac7-d51b-47af-a1df-286c6d931ea9",
+  "reviewer": {
+    "context_id": "ddfb1afd-b61d-4eb3-8a87-542efb607931",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9603e383-de7a-482d-977e-2b8fb58280bb",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33326
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 137110
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19693
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22141
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2051
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e56cc9495fa0a0b8c0398eaf10ba8b7780d949a559d8f921b5be5f64d0e0379c"
+}
