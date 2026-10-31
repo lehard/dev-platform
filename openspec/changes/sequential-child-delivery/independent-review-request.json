@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "candidate_head": "e744635665d7252d789e45a3a49eaa0d865f54f3",
+    "diff_sha256": "029858c75655ba41c2e247f9a90d3338ca1778b5b891e33046ccf0b1f3512b7a"
+  },
+  "change": "openspec/changes/sequential-child-delivery",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/sequential-child-delivery/automated-checks.json",
+    "openspec/changes/sequential-child-delivery/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/sequential-child-delivery/design.md",
+        "openspec/changes/sequential-child-delivery/proposal.md",
+        "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md",
+        "openspec/changes/sequential-child-delivery/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/sequential-child-delivery/proposal.md",
+        "openspec/changes/sequential-child-delivery/design.md",
+        "openspec/changes/sequential-child-delivery/tasks.md",
+        "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T22:57:28+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/sequential-child-delivery/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "12e6db04-3572-42b8-ad92-3835eba24ac2",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "digest": "9314ae7b1b6c77ebc9c10f109c4081ff5067b58cff55b586cc28b5733050d8b3",
+    "paths": {
+      "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+      "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+      "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+      "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/sequential-child-delivery/design.md": "031f10e23cf19e67942e4d2e2599387b273ca7a1",
+      "openspec/changes/sequential-child-delivery/proposal.md": "239516a32afe18d25967e5fe02c63be1947c7c16",
+      "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+      "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+      "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+      "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+      "template/scripts/execute_requirement.py": "898495de9fe12d3eafdb385aaa25a510068ceec1",
+      "template/scripts/orchestrate_pre_authoring.py": "7814e72ff8bc05cff8761842ebbfd1565fea1f5d",
+      "tests/test_requirement_sequential_delivery.py": "30dd896005f2e1b932151f1c1fef7379e2f309da",
+      "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

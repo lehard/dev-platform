@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "candidate_head": "e744635665d7252d789e45a3a49eaa0d865f54f3",
+    "diff_sha256": "029858c75655ba41c2e247f9a90d3338ca1778b5b891e33046ccf0b1f3512b7a"
+  },
+  "completed_at": "2026-10-31T22:58:27+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/orchestrate_pre_authoring.py `_own_commit`: `any(re.fullmatch(...archive/...) for path in paths for change in own_changes)`. The `paths` come from `git diff --name-only commit^1 commit`. Attribution is per commit, not per path, so the only protection is the single-purpose-commit assumption.",
+      "id": "rebind-own-commit-overattribution",
+      "severity": "advisory",
+      "summary": "A commit counts as the Requirement's own when it touches any file in an own child's archive directory. This holds even if the same commit also changes an affected source for unrelated reasons. A squash or merge commit that bundles foreign edits to a remaining child's spec would be classed own, and the approval would be carried without a stop."
+    },
+    {
+      "evidence": "orchestrate_pre_authoring.py `rebind`: `_write_json(receipt_file, receipt)` comes after the `with tempfile.TemporaryDirectory()` block. The receipt number comes from a glob count of existing `rebind-*.json` files, so it is not reserved. `approved_by` refers to `receipt_file.name` before that file exists.",
+      "id": "rebind-receipt-written-after-rollback-window",
+      "severity": "advisory",
+      "summary": "The `rebind-<n>.json` receipt is written after the backup/rollback block ends. If writing the receipt fails (or the process dies between the two steps), the snapshot, ADD, intents and handoffs stay rebound with the approval carried and no audit receipt. The docs and design promise that every carried approval has a receipt."
+    },
+    {
+      "evidence": "orchestrate_pre_authoring.py: `if not commits: blocked.append(f\"{path} (changed without a commit on main)\"); continue` runs before the `path in affected` check.",
+      "id": "rebind-unaffected-source-without-commit-blocks",
+      "severity": "advisory",
+      "summary": "A changed source with no first-parent commit on main is added to `blocked` even when it is not an affected source. A local or uncommitted change to an unrelated bound source therefore stops the rebind, which is stricter than the documented rule that only affected sources matter."
+    },
+    {
+      "evidence": "execute_requirement.py `if not ordered:` block returns `_retrospective_pending(...)` and `reconcile_parent(...)` directly, while the `_await_post_merge` call alone gets `rebind=rebound`.",
+      "id": "sequential-final-path-drops-rebind-audit",
+      "severity": "advisory",
+      "summary": "When every sequential child is already Done and the queue is not in use, the early returns omit the `rebind` audit. Only the coordinator branch passes `rebind=rebound`. The `audited()` wrapper is defined later and is not used on this path."
+    }
+  ],
+  "launched_at": "2026-10-31T22:57:55+00:00",
+  "output_sha256": "2cc2a918be57ed38d3b4737b69b9bb436e671097c1c1ff2f93af1173d64e7af7",
+  "perspective": "engineering-quality",
+  "request_id": "12e6db04-3572-42b8-ad92-3835eba24ac2",
+  "reviewer": {
+    "context_id": "34ccd39d-2fff-4edf-83ed-e0496d261f7a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b62ae7de-72aa-40f1-9bb6-52ed3f9a4d81",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39332
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 98192
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31837
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32084
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3694
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9314ae7b1b6c77ebc9c10f109c4081ff5067b58cff55b586cc28b5733050d8b3"
+}
