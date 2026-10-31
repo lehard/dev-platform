@@ -2,11 +2,15 @@
   "candidate": {
     "base_head": "a102413f006f350e8884509f96b8d1265d2bec1c",
     "base_ref": "origin/main",
-    "candidate_head": "71318d53297009138d940a01a46c763efd189ef2",
-    "diff_sha256": "f37b928fde58c0d9b778abbdc2333bc0e0ac6fdeb43f93e1d376a425290bd650"
+    "candidate_head": "5278b0c5ad2c13314e3ab48532c09c457456c64a",
+    "diff_sha256": "6645d027ce90a0b7e31b50c14290dc2fbf903076addbc02f328209e54d201e3a"
   },
   "change": "openspec/changes/handoff-active-checkpoint-generated",
   "excluded_lifecycle_paths": [
+    "openspec/changes/handoff-active-checkpoint-generated/automated-checks.json",
+    "openspec/changes/handoff-active-checkpoint-generated/independent-review-request.json",
+    "openspec/changes/handoff-active-checkpoint-generated/independent-reviews/engineering-quality.json",
+    "openspec/changes/handoff-active-checkpoint-generated/independent-reviews/spec-fidelity.json",
     "openspec/changes/handoff-active-checkpoint-generated/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -36,7 +40,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T08:59:53+00:00",
+  "prepared_at": "2026-10-31T09:44:36+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/handoff-active-checkpoint-generated/independent-reviews",
     "required_perspectives": [
@@ -45,7 +49,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "74234b5f-a38d-4493-854b-c6d1df4295dd",
+  "request_id": "8a32c665-2501-4b94-9a7f-88b439a78d4f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
