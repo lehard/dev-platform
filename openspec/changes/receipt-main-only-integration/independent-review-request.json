@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
     "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "candidate_head": "7d2bfe16f89483a5d41a2de94312aad43374e093",
-    "diff_sha256": "0500c786894810c6acc89ed0aec0073a22ec1aa1fd66672ca236cffb2f60acaa"
+    "candidate_head": "2e2dc29e75f2aa265b4576381a530203ab4c6814",
+    "diff_sha256": "4b2b01e5b2721a36f9497b93ccee211faf42f9d585d73c13c19cc04938132f4a"
   },
   "change": "openspec/changes/receipt-main-only-integration",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T00:53:46+00:00",
+  "prepared_at": "2026-11-01T01:16:10+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/receipt-main-only-integration/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "40f422e8-7d2b-436c-9d7a-9adc384cce48",
+  "request_id": "360dd559-5aaf-47b9-82ce-e0e509183542",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "digest": "a959ae2ece8903abcf9214504939968a083e0ffe60dd4bf079efab2d00284e38",
+    "digest": "03ae2dfba69c9d6567651fc6941801bddb22e417e0b3c3e1bbde72cae5b55479",
     "paths": {
       "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
       "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
@@ -70,7 +70,7 @@
       "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
       "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
       "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
-      "template/scripts/task_content_identity.py": "e7df15cce3e992ca5ce778de8a96254f4691aaa9",
+      "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
       "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
       "tests/test_task_content_identity.py": "1f2188dccdda6e4c8095f665827a5af22574479e"
     },

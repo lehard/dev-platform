@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
     "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "candidate_head": "7d2bfe16f89483a5d41a2de94312aad43374e093",
-    "diff_sha256": "0500c786894810c6acc89ed0aec0073a22ec1aa1fd66672ca236cffb2f60acaa"
+    "candidate_head": "2e2dc29e75f2aa265b4576381a530203ab4c6814",
+    "diff_sha256": "4b2b01e5b2721a36f9497b93ccee211faf42f9d585d73c13c19cc04938132f4a"
   },
-  "completed_at": "2026-11-01T00:54:00+00:00",
+  "completed_at": "2026-11-01T01:16:25+00:00",
   "findings": [
     {
-      "evidence": "design.md says a derived merge that changes identity raises `RederivationFailed` and `_prepare` routes it to integration repair, which reaches `advance_after_repair`. The diff changes only `advance_after_repair` and `run_claimed_integration_repair`. The new tests in tests/test_autonomous_integration_contour.py call `advance_after_repair` directly with `main_only_reason` mocked. None goes through the `RederivationFailed` \u2192 repair \u2192 `base=outcome[\"main\"]` path. The claimed coverage rests on code outside the diff.",
-      "id": "derived-merge-route-untested",
+      "evidence": "template/scripts/task_content_identity.py: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. A declared generated file that did not conflict, and that the integration changed arbitrarily, is still accepted as main-only. The spec (spec.md line 5) and proposal say the tree equals the merge byte for byte. The design relies on the generated file's own `--check` to cover this gap. That reliance is not in the spec requirement, and no scenario or test covers a non-conflicting generated file that differs.",
+      "id": "generated-exemption-broader-than-spec",
       "severity": "advisory",
-      "summary": "The spec requirement covers \"an integration repair or derived merge\". The derived-merge route is only claimed in design.md, and no test or code in the diff exercises it."
+      "summary": "The proof exempts every declared generated path from the byte-exact tree comparison, not only the paths that conflicted in the merge. The spec and proposal require the new head's tree to equal the merge byte for byte, conflicting only in generated files."
     }
   ],
-  "launched_at": "2026-11-01T00:53:49+00:00",
-  "output_sha256": "14e65d646eb0aa5b05cd2793dd70cd44e2aa5e7f2bee069ba5081489e804220c",
+  "launched_at": "2026-11-01T01:16:12+00:00",
+  "output_sha256": "fde36af9606ee241cd49b36a65939ca9a1bf95207bfe83907a405162904c6312",
   "perspective": "spec-fidelity",
-  "request_id": "40f422e8-7d2b-436c-9d7a-9adc384cce48",
+  "request_id": "360dd559-5aaf-47b9-82ce-e0e509183542",
   "reviewer": {
-    "context_id": "e4986662-eebd-4ed4-830d-b7d6df09cb1d",
+    "context_id": "0e5f037e-0d1c-417d-9ea1-a13951115f58",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ce43c698-9e27-4bd5-9eef-68d1459ee126",
+    "launch_id": "platform-launch-1fd3cd4f-1df1-45ff-be07-793e3103274f",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21213
+        "value": 20015
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15308
+        "value": 15315
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11250
+        "value": 12275
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11371
+        "value": 12430
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,16 +64,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1271
+        "value": 1388
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "a959ae2ece8903abcf9214504939968a083e0ffe60dd4bf079efab2d00284e38"
+  "task_content_digest": "03ae2dfba69c9d6567651fc6941801bddb22e417e0b3c3e1bbde72cae5b55479"
 }
