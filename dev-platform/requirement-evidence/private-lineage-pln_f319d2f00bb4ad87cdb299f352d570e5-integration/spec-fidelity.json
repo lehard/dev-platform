@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "fa82b4ef0ae8ad14de6027d911f8fd58bfbb74b5",
-    "diff_sha256": "2a827e92a03160458941b21e04be7dfbd83a9b1b6edff84c562e68f976603ba2"
+    "candidate_head": "1ceb7a0220a5475c8db545d9c9df45bce1933888",
+    "diff_sha256": "8bcc8e35aa055646f83ab1aad19fe010d3bad89899e6caf261363cea878a541c"
   },
-  "completed_at": "2026-11-01T02:17:13+00:00",
+  "completed_at": "2026-11-01T03:58:51+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/execute_requirement.py, sequential block: `if pending := _retrospective_pending(integration, requirement, sequential_completed): return pending`. The post-merge exit just above it passes `rebind=rebound`, and audited() adds `rebind` on the later exits.",
-      "id": "sequential-pending-retrospective-drops-rebind-audit",
+      "evidence": "template/scripts/execute_requirement.py: `_archive_delivered_task_state` is called only at `archived_state = _archive_delivered_task_state(integration, child)`, immediately before `start_managed_task.start_managed_task`. The `if not ordered:` branch in the sequential block and the `len(ordered) == 1` branch (`child-delivered`, `_await_post_merge`, `reconcile_parent`) do not call it. In the same function, `raise RequirementExecutionError(... local main ... differs from origin main ...)` fires on the mismatch. The docs in task-intake.md also say 'Before importing the next child'.",
+      "id": "delivered-state-cleanup-only-before-next-child",
       "severity": "advisory",
-      "summary": "When every sequential child is Done and the retrospective is pending, advance returns the pending result without the rebind receipt. The other exits wrap their result in audited() or pass rebind=. A rebind done in the same advance call is therefore not reported on this path. The receipt file is still written."
+      "summary": "Outcome 2 says a Done child's `.managed-task-state.json` is cleared as soon as the child is Done and local main equals origin/main, whether or not the parent is closed. The candidate only archives it inside the `implement-child` start path, just before the next child is imported. After the last sequential child, `advance` goes to reconcile or `await-post-merge` and never archives the state. A mismatch between local main and origin/main raises `RequirementExecutionError`, which stops `advance` instead of leaving the state in place."
     }
   ],
-  "launched_at": "2026-11-01T02:16:54+00:00",
-  "output_sha256": "798aa80df914594e16858ef2374806c1c0045e427c35c5f2253cdef793e66489",
+  "launched_at": "2026-11-01T03:58:33+00:00",
+  "output_sha256": "2eceaadde3fc482403be0a0c71e82f546785258823ad622e03e6faaa58c0f1c7",
   "perspective": "spec-fidelity",
-  "request_id": "f8da5a4f-70b7-4f27-9c0f-0cfe1915d0d6",
+  "request_id": "75438d9d-9bd3-46ba-8cf1-1861d8054e29",
   "reviewer": {
-    "context_id": "4ae1b6b6-da3b-49ee-9e3a-34c689754841",
+    "context_id": "0029a9a0-7e88-41dd-adf7-8bcb67cc07e3",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1f5ec18a-1c55-47a3-b5dc-9636de21d921",
+    "launch_id": "platform-launch-ccf886dc-f7b6-42be-ba8f-d7d0130bd990",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,37 +39,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40125
+        "value": 29293
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 59016
+        "value": 51497
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13605
+        "value": 14226
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14952
+        "value": 15742
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1369
+        "value": 1502
       }
     },
     "runtime": "claude-code-print"

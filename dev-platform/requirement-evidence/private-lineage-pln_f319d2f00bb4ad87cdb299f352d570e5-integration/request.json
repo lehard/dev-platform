@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "fa82b4ef0ae8ad14de6027d911f8fd58bfbb74b5",
-    "diff_sha256": "2a827e92a03160458941b21e04be7dfbd83a9b1b6edff84c562e68f976603ba2"
+    "candidate_head": "1ceb7a0220a5475c8db545d9c9df45bce1933888",
+    "diff_sha256": "8bcc8e35aa055646f83ab1aad19fe010d3bad89899e6caf261363cea878a541c"
   },
   "change": "private-lineage-pln_f319d2f00bb4ad87cdb299f352d570e5-integration",
   "children": [
@@ -95,8 +95,8 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T02:16:44+00:00",
-  "request_id": "f8da5a4f-70b7-4f27-9c0f-0cfe1915d0d6",
+  "prepared_at": "2026-11-01T03:58:26+00:00",
+  "request_id": "75438d9d-9bd3-46ba-8cf1-1861d8054e29",
   "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
   "schema_version": 1,
   "task_content": {
