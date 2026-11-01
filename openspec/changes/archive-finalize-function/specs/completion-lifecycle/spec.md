@@ -2,7 +2,7 @@
 
 ### Requirement: Required independent review is an automatic, resumable lifecycle gate
 
-When independent review is required, the review job, or finish without a queue, SHALL run a missing or stale review before finalize; finalize SHALL only require current review evidence and never launch a review. The lifecycle SHALL re-validate current review evidence before publication and SHALL expose the derived review state and next command through task status and Requirement advance from file-backed evidence without a separate state store.
+When independent review is required, a missing or stale review SHALL be run outside archive before finalize; finalize SHALL only require current review evidence and never launch a review. The lifecycle SHALL re-validate current review evidence before publication and SHALL expose the derived review state and next command through task status and Requirement advance from file-backed evidence without a separate state store.
 
 #### Scenario: Archive runs without prior review
 - **GIVEN** a required managed change with no current review evidence

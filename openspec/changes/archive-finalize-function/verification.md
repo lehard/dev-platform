@@ -15,7 +15,7 @@ Automated-Checks-Evidence: automated-checks.json
 - No review launch: `test_finalize_lists_missing_review_without_launching_one` (stale review listed, `independent_review.ensure_review_evidence` never called) and `test_archive_module_has_no_review_launcher`; `test_archive_requires_review_evidence_and_never_launches_review` (renamed from the launch test).
 - Existing gates now collected: invalid-target tests keep "archive target" naming; the uncommitted-package message is listed with its paths; the private reference guard problem is listed as "archive blocked before review and validation" and nothing is archived; finalize still skips checkout identity, committed package, applicable diff and routing.
 - `static_archive_problems` returns every deterministic prerequisite; `require_static_archive_readiness` raises them together.
-- openspec-workflow docs (platform and template) describe the split: review runs in the review job (or finish without a queue), archive only requires its evidence and lists every unmet precondition.
+- openspec-workflow docs (platform and template) describe the split: a review runs outside archive (the queue review job or the review command), archive only requires its evidence and lists every unmet precondition.
 
 ## Correctness
 
@@ -31,6 +31,11 @@ Automated-Checks-Evidence: automated-checks.json
 - Repair `c896f63b` added `finalize_change(root, change, *, context=None)` as a wrapper whose `context` was unused, and left the manifest stale. Replaced by a real single function: `archive_change` is removed and its body is `finalize_change(root, change, *, context)`; `context` is required and selects the executor's gates (`queue`: finalize job; `developer`: own checkout), and an unknown context fails before any work (`test_unknown_context_fails_before_any_work`). The CLI maps `--finalize` to `queue` (`test_cli_selects_the_finalize_context`); the finalize job's `trusted_archiver` runs that CLI (`test_finalize_job_archives_through_the_same_function`). Every test now calls `finalize_change` with an explicit context.
 - Privacy ordering restored in substance: the private reference guard tests assert no review launch, no selected checks, no rehearsal, no OpenSpec mutation and no automated-check evidence while the guard blocks; the uncommitted-package test asserts no review launch and no checks.
 - Manifest regenerated.
+
+## Re-verification after second review
+
+- Spec-fidelity material (finish launching review is T3's behaviour): the modified completion-lifecycle requirement, the openspec-workflow docs and the review status note now say only that a review runs outside archive and archive never launches it; the finish review stage stays in T3.
+- Advisories: task incompleteness is reported once (the separate completed-target problem is removed; the archive-content check reports it); the tautological line-count assertion is replaced by asserting a single task problem; design.md records that target existence (including the change directory read by `static_archive_problems`) stays fail-first and no longer claims dependency reporting between gates.
 
 ## Not verified / limits
 

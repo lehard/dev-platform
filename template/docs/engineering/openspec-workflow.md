@@ -212,9 +212,9 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-When review is required, archive never runs it: the queue review job (or,
-without a queue, `finish`) runs a missing, stale or unavailable review, and
-archive only requires its evidence. Archive evaluates every precondition
+When review is required, archive never runs it: a missing, stale or
+unavailable review is run outside archive (the queue review job, or the
+review command), and archive only requires its evidence. Archive evaluates every precondition
 (tasks, receipt, review evidence, routing, automated-check evidence, committed
 package, private lineage, checkout identity) before any archive work and fails
 once listing each unmet one with its fix. `finish` re-validates the evidence

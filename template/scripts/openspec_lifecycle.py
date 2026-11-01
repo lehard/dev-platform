@@ -891,8 +891,6 @@ def finalize_change(root: Path, name: str, *, context: str) -> int:
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(config) == "platform"
     problems: list[str] = []
-    if name not in completed_active_changes(root):
-        problems.append(f"archive: archive target {name!r} is not a completed active change (no tasks or tasks incomplete)")
     import private_lineage
     try:
         private_lineage.require_clean_candidate(root)
@@ -915,7 +913,7 @@ def finalize_change(root: Path, name: str, *, context: str) -> int:
         collect_problem(problems, require_committed_package, root, change)
     if platform_owned and not finalize:
         collect_problem(problems, require_applicable_committed_diff, root)
-    # Review evidence is only required here: the review job (or finish without a queue) runs the review.
+    # Review evidence is only required here: archive never runs a review; it runs outside archive.
     if composition:
         from requirement_composition import require_archive_evidence
         collect_problem(problems, require_archive_evidence, root, name, composition)

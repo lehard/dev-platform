@@ -667,7 +667,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "open", "- [ ] todo\n")
             with mock.patch.object(lifecycle, "run_checked") as run_checked:
                 for target in ("missing", "open", "../open", ""):
-                    with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target"):
+                    with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target|remain incomplete"):
                         lifecycle.finalize_change(root, target, context="developer")
             run_checked.assert_not_called()
 
@@ -718,7 +718,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "open", "- [ ] todo\n")
             with mock.patch.object(lifecycle, "run_checked") as run_checked:
                 for target in ("missing", "open", "../open"):
-                    with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target"):
+                    with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target|remain incomplete"):
                         lifecycle.finalize_change(root, target, context="queue")
             run_checked.assert_not_called()
             self.assertTrue((root / "openspec" / "changes" / "open").is_dir())

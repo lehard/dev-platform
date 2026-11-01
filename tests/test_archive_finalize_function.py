@@ -52,7 +52,7 @@ class FinalizePreconditionTests(unittest.TestCase):
         for expected in ("task(s) remain incomplete", "missing successful semantic verification receipt",
                          "independent review is required but missing", "Automated-Checks-Evidence"):
             self.assertIn(expected, message)
-        self.assertEqual(message.count("\n- "), len([line for line in message.splitlines() if line.startswith("- ")]))
+        self.assertEqual(message.count("remain incomplete"), 1)
         review.assert_called_once()
         run_checked.assert_not_called()
         archive.assert_not_called()

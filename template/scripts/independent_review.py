@@ -558,7 +558,7 @@ def review_state(root: Path, change: Path | None) -> dict[str, Any]:
     }
     if result["state"] in {STATE_MISSING, STATE_STALE} and change.parent.name != "archive":
         payload["note"] = (
-            "archive never runs a review: the review job (or finish without a queue) runs it, and archive "
+            "archive never runs a review: run it with the review command (the queue review job does so), and archive "
             f"only requires its evidence; check reviewer runtime readiness first with {preflight_command(canonical_change_name(change))}"
         )
     if result["blockers"]:
