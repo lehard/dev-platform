@@ -373,6 +373,78 @@ class SequentialAdvanceTests(unittest.TestCase):
             self.assertIsNone(execution._sequential_order(root, REQUIREMENT))
 
 
+class SequentialUnfinishedStageTests(unittest.TestCase):
+    PARENT = {"body": "## Outcome\n\nShip it\n\n## Target repository\n\n`acme/project`\n",
+              "labels": [{"name": "type:requirement"}], "state": "OPEN"}
+
+    def test_only_a_stale_approved_chain_is_rebindable(self) -> None:
+        cases = [
+            ({"current_stage": "snapshot", "blocker": {"state": "stale"}}, True),
+            ({"current_stage": "add", "blocker": {"state": "stale"}}, True),
+            ({"current_stage": "handoff", "blocker": {"state": "needs-handoff", "stale_intent_ids": {"a": []},
+                                                      "missing_intent_ids": []}}, True),
+            ({"current_stage": "handoff", "blocker": {"state": "needs-handoff", "stale_intent_ids": {},
+                                                      "missing_intent_ids": ["a"]}}, False),
+            ({"current_stage": "selection", "blocker": {"state": "stale"}}, False),
+            ({"current_stage": "unavailable", "blocker": "unreadable"}, False),
+            ({"current_stage": "complete", "blocker": None}, False),
+        ]
+        for report, expected in cases:
+            with self.subTest(report=report):
+                self.assertIs(orch.stale_approved_chain(report), expected)
+
+    def _advance(self, root: Path, report: dict, *, observe: str, materialized: dict | None):
+        directory = root / REQUIREMENT_ID
+        directory.mkdir()
+        (directory / "intents.json").write_text(json.dumps(intents_for(["first", "second"])), encoding="utf-8")
+        handoffs = {}
+        for intent in ("first", "second"):
+            path = root / f"{intent}.json"
+            path.write_text(json.dumps({"intents": [{"id": intent, "dependencies": []}]}), encoding="utf-8")
+            handoffs[intent] = path
+        linked = {"first": "acme/backlog#8", "second": "acme/backlog#9"}
+        import _platform_common
+        with mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
+             mock.patch.object(execution, "current_worktree_root", return_value=root), \
+             mock.patch.object(execution, "_git", return_value="main"), \
+             mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+             mock.patch.object(execution.requirement_intake, "fetch_issue", return_value=self.PARENT), \
+             mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value=report), \
+             mock.patch.object(execution.requirement_board, "claim_started"), \
+             mock.patch.object(execution, "_linked_children_by_change", return_value=linked), \
+             mock.patch.object(execution, "_materialized_handoff_report", return_value=materialized) as recovery, \
+             mock.patch.object(execution, "_ordered_handoffs", return_value=list(handoffs.items())), \
+             mock.patch.object(execution.managed_project_status, "observe",
+                               return_value=SimpleNamespace(current_status=observe)), \
+             mock.patch.object(execution, "_done_child_is_delivered"), \
+             mock.patch.object(execution, "_archive_delivered_task_state", return_value=None), \
+             mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(execution, "_publish_active_child", return_value=True), \
+             mock.patch.object(execution.orchestrate_pre_authoring, "rebind") as rebind:
+            result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+        return result, rebind, recovery
+
+    def test_needs_handoff_keeps_the_usual_unfinished_stage_handling(self) -> None:
+        report = {"current_stage": "handoff",
+                  "blocker": {"state": "needs-handoff", "stale_intent_ids": {}, "missing_intent_ids": ["second"]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            result, rebind, recovery = self._advance(
+                Path(tmp), report, observe="In review", materialized={"current_stage": "complete", "handoffs": {}})
+        rebind.assert_not_called()
+        recovery.assert_called_once()
+        self.assertEqual((result["status"], result["child"]), ("await-child-review", "acme/backlog#8"))
+
+    def test_a_rebind_is_reported_on_the_all_delivered_path(self) -> None:
+        report = {"current_stage": "snapshot", "blocker": {"state": "stale"}}
+        receipt = {"receipt": "rebind-1.json"}
+        with tempfile.TemporaryDirectory() as tmp, \
+             mock.patch.object(execution, "_rebind_sequential", return_value=receipt) as rebind_sequential:
+            result, _, _ = self._advance(Path(tmp), report, observe="Done", materialized=None)
+        rebind_sequential.assert_called_once()
+        self.assertEqual(result["status"], "await-post-merge")
+        self.assertEqual(result["rebind"], receipt)
+
+
 class TerminalAfterFirstChildTests(unittest.TestCase):
     def test_merging_the_first_sequential_child_does_not_close_the_requirement(self) -> None:
         ops = mock.Mock()

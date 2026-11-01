@@ -563,9 +563,10 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     linked_by_change = _linked_children_by_change(integration, requirement, parent)
     sequence = _sequential_order(base_dir, requirement)
     rebound = None
-    if sequence is not None and report.get("current_stage") != "complete":
-        # Sequential delivery re-anchors the unchanged approved chain instead of
-        # recovering stale materialized handoffs; a real change stops here.
+    if sequence is not None and orchestrate_pre_authoring.stale_approved_chain(report):
+        # Sequential delivery re-anchors a stale approved chain instead of recovering stale
+        # materialized handoffs; a real change stops here. Any other unfinished stage keeps
+        # the usual handling below.
         rebound = _rebind_sequential(integration, requirement, base_dir, linked_by_change)
         report = orchestrate_pre_authoring.status(
             integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
@@ -604,6 +605,15 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                     f"no current handoff; unmapped handoffs: {', '.join(unmapped)}. To bind them, {BUNDLE_KEY_RULE}")
             raise RequirementExecutionError(f"historical linked child {historical_child} is not terminal")
         _done_child_is_delivered(integration, historical_child, historical_change)
+    superseded: list[dict[str, str]] = []
+    audit: dict[str, Any] = {}
+
+    def audited(result: dict[str, Any]) -> dict[str, Any]:
+        # Replaced own stale receipts, a sequential rebind and an archived task state are reported for audit.
+        result = {**result, **audit}
+        result = {**result, "superseded_receipts": list(superseded)} if superseded else result
+        return {**result, "rebind": rebound} if rebound else result
+
     sequential_completed: list[str] = []
     sequential_more = False
     if sequence is not None:
@@ -613,27 +623,20 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         sequential_more = len(sequential_completed) + len(ordered) < total
         if not ordered:
             # Every child in the declared order is delivered.
-            archived = _archive_delivered_task_state(integration, None)
-            extra = {"archived_task_state": archived} if archived else {}
+            if archived := _archive_delivered_task_state(integration, None):
+                audit["archived_task_state"] = archived
             if _contribution_publication_supported(integration):
-                return _await_post_merge(parent, requirement, sequential_completed, rebind=rebound, **extra)
+                return audited(_await_post_merge(parent, requirement, sequential_completed))
             if pending := _retrospective_pending(integration, requirement, sequential_completed):
-                return {**pending, **extra}
+                return audited(pending)
             from requirement_terminal import reconcile_parent
-            return {**reconcile_parent(integration, requirement=requirement), **extra}
+            return audited(reconcile_parent(integration, requirement=requirement))
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
     # A Requirement already delivering through shared-candidate receipts stays on that
     # path to terminal reconciliation; switching mid-flight would mint a new integration branch.
     legacy_receipts = receipt_dir.is_dir() and any(receipt_dir.glob("*.json"))
     if len(ordered) > 1 and not legacy_receipts and _contribution_publication_supported(integration):
         return _advance_contributions(integration, requirement, ordered, linked_by_change, base_dir, confirm_distinct)
-    superseded: list[dict[str, str]] = []
-
-    def audited(result: dict[str, Any]) -> dict[str, Any]:
-        # Replaced own stale receipts and a sequential rebind are reported for operator audit.
-        result = {**result, "superseded_receipts": list(superseded)} if superseded else result
-        return {**result, "rebind": rebound} if rebound else result
-
     ready: list[Path] = []
     completed: list[str] = list(sequential_completed)
     receipts_by_change: dict[str, Path] = {}
@@ -710,10 +713,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     # the Requirement (BR-950); without it the same functions run here, in the developer session.
     coordinator = _contribution_publication_supported(integration)
     if not ready and (terminal_archived := _archive_delivered_task_state(integration, None)):
-        _audited = audited
-
-        def audited(result: dict[str, Any]) -> dict[str, Any]:  # noqa: F811
-            return _audited({**result, "archived_task_state": terminal_archived})
+        audit["archived_task_state"] = terminal_archived
     if len(ordered) == 1:
         if ready:
             # The Requirement retrospective follows the last child only, never an earlier sequential one.
