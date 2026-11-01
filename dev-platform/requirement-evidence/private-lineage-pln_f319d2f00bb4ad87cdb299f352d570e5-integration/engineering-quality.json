@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "b7652c48f2b01406dcecc862a0c50026ee596883",
-    "diff_sha256": "654d8fb80b2f2a4d64c711807377e933f7c339854640ac03b693623238640bf2"
+    "candidate_head": "fa82b4ef0ae8ad14de6027d911f8fd58bfbb74b5",
+    "diff_sha256": "2a827e92a03160458941b21e04be7dfbd83a9b1b6edff84c562e68f976603ba2"
   },
-  "completed_at": "2026-11-01T01:20:23+00:00",
+  "completed_at": "2026-11-01T02:17:32+00:00",
   "findings": [
     {
-      "evidence": "In template/scripts/execute_requirement.py, `_archive_delivered_task_state` has one call site, just before `start_managed_task.start_managed_task`. The sequential all-delivered path (`if not ordered:` after `_sequential_round`) returns `_await_post_merge`, `_retrospective_pending` or `reconcile_parent` without archiving. The last child's state therefore stays in the checkout while the Requirement waits for the retrospective, and it is only moved by a later child start. This matches the T1 spec wording (\"before advance starts a child\"), but it is narrower than the stated outcome.",
-      "id": "task-state-archive-only-before-next-child",
+      "evidence": "template/scripts/execute_requirement.py: `_archive_delivered_task_state(integration, child)` is called only just before `start_managed_task.start_managed_task` (about diff line 425). The terminal returns (`_await_post_merge`, `_retrospective_pending`, `reconcile_parent`) never call it. The sequential-child-housekeeping spec and design also say 'before advance starts a child', which is narrower than the Requirement wording.",
+      "id": "state-archive-only-on-next-start",
       "severity": "advisory",
-      "summary": "Requirement outcome 2 says a Done child's `.managed-task-state.json` should be archived once the child is Done and local main equals origin/main, whether or not the parent is closed. The candidate archives it only on the path that starts another child."
+      "summary": "Requirement outcome 2 says a Done child's `.managed-task-state.json` is archived as soon as the child is Done and local main equals origin/main, whether or not the parent is closed. The candidate archives it only inside the branch that starts the next child. After the last child, or on any advance that ends in `await-requirement-retrospective`, `await-post-merge`, `child-delivered` or parent reconciliation, the delivered state stays in the checkout."
     }
   ],
-  "launched_at": "2026-11-01T01:20:05+00:00",
-  "output_sha256": "111b26c51c966175e752f17d03c5f7974d3f5b987105a3038629043cde36064b",
+  "launched_at": "2026-11-01T02:17:13+00:00",
+  "output_sha256": "68737ee4a7703fa446d41707ebd9c4975272e6adcdfd7ef4290265dc9da29296",
   "perspective": "engineering-quality",
-  "request_id": "c980e85b-20ca-4879-be1b-d1c239dc173e",
+  "request_id": "f8da5a4f-70b7-4f27-9c0f-0cfe1915d0d6",
   "reviewer": {
-    "context_id": "58e416bb-173b-4995-b4e9-5f23821f4b83",
+    "context_id": "04444fce-f34f-4a05-bd6d-9a74e5418393",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-eca266c8-dbf0-45d0-b9e1-647e487926b6",
+    "launch_id": "platform-launch-19978cf4-4b35-4c38-b848-3a7f8ce48f54",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40713
+        "value": 38618
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 60643
+        "value": 60717
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15236
+        "value": 14864
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16190
+        "value": 16686
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -69,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1497
+        "value": 1504
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ef8c0187d36aa4f2ece487d6a4a6731e029215ed270672a2a6156f68c5e9e278"
+  "task_content_digest": "fdd3742e6a422b96825e151fae8097edc66396a1e990665ede6ecd8cce44abe6"
 }
