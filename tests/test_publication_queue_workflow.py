@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import sys
 import tomllib
 import unittest
@@ -49,6 +50,22 @@ class RegenerationDependencyTests(unittest.TestCase):
                 with self.subTest(script=str(script.relative_to(ROOT)), module=name):
                     self.assertIn(name, DISTRIBUTIONS, f"map {name} to its pip distribution")
                     self.assertIn(f"{DISTRIBUTIONS[name]}==", installs)
+
+
+class OpenSpecCliTests(unittest.TestCase):
+    def test_queue_runner_installs_the_ci_openspec_version(self) -> None:
+        # A derived merge re-derives archived specs with the installed OpenSpec CLI; the hosted
+        # queue lacked it and stopped #837 with an environment error (lehard/dev-platform#838).
+        ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        versions = set(re.findall(r"@fission-ai/openspec@(\d+\.\d+\.\d+)", ci))
+        self.assertEqual(len(versions), 1, versions)
+        steps = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))["jobs"]["publish-next"]["steps"]
+        names = [step.get("name") for step in steps]
+        install = next(index for index, step in enumerate(steps)
+                       if "npm install --global" in step.get("run", ""))
+        self.assertIn(f'"@fission-ai/openspec@{versions.pop()}"', steps[install]["run"])
+        self.assertLess(install, names.index("Process next admitted PR"))
+        self.assertTrue(any(step.get("uses", "").startswith("actions/setup-node@") for step in steps[:install]))
 
 
 if __name__ == "__main__":

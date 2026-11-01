@@ -55,6 +55,14 @@ jobs:
         # A derived merge regenerates declared generated files on this runner;
         # scripts/generate_platform_manifest.py imports yaml.
         run: python3 -m pip install "pyyaml==6.0.3"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "20.19.0"
+          package-manager-cache: false
+      - name: Install OpenSpec CLI
+        # A derived merge re-derives archived specs with the installed openspec on PATH;
+        # without it the worker stops with an environment error (lehard/dev-platform#838).
+        run: npm install --global "@fission-ai/openspec@1.15.0"
       - name: Resolve current repository name
         id: repo
         run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"

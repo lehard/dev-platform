@@ -442,7 +442,7 @@ def _replay_archived_delta(checkout: Path, archive_dir: str) -> None:
         workers._git(checkout, "checkout", "HEAD", "--", archive_dir)
 
 
-def _run_regeneration(tree: Path, trusted_root: Path, declared) -> tuple[list[str], subprocess.CompletedProcess]:
+def run_regeneration(tree: Path, trusted_root: Path, declared) -> tuple[list[str], subprocess.CompletedProcess]:
     """Run one declared generated file's command from the trusted root over ``tree``."""
     command = [item.replace(GENERATED_TREE_PLACEHOLDER, str(tree)) for item in declared.regenerate]
     try:
@@ -458,11 +458,11 @@ def _regenerate(checkout: Path, trusted_root: Path, declared, main_tree: Callabl
     A failure on the merged tree is probed once on ``main_tree()``, a pristine checkout of main: failing there as
     well proves the coordinator's environment (or main), not the candidate, so it is never integration repair.
     """
-    command, done = _run_regeneration(checkout, trusted_root, declared)
+    command, done = run_regeneration(checkout, trusted_root, declared)
     if done.returncode:
         failure = (done.stderr or done.stdout).strip()[-300:]
         pristine = main_tree()
-        _, probe = _run_regeneration(pristine, trusted_root, declared)
+        _, probe = run_regeneration(pristine, trusted_root, declared)
         if probe.returncode:
             raise RederivationEnvironmentFailed(
                 f"regeneration of {declared.path} fails on pristine main as well ({' '.join(command)}): "

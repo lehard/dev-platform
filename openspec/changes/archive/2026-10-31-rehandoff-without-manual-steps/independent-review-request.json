@@ -1,0 +1,89 @@
+{
+  "candidate": {
+    "base_head": "5fa6b1800e87bc6cdc319910a4c6b4d39a7bf9f3",
+    "base_ref": "origin/main",
+    "candidate_head": "a52f0015a297ff98d9e512b6e8d0502662aed33a",
+    "diff_sha256": "c82248c7665d55cfdaffaa5bce91f9cc7dec7e3567a2da1bb4f2db2d375b1ba2"
+  },
+  "change": "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/automated-checks.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-review-request.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/verification.md",
+    "openspec/specs/completion-lifecycle/spec.md",
+    "openspec/specs/worktree-coordination/spec.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/design.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/proposal.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/worktree-coordination/spec.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/proposal.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/design.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/tasks.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md",
+        "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/specs/worktree-coordination/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-10-31T21:47:42+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/archive/2026-10-31-rehandoff-without-manual-steps/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "2c8141f9-f9a5-467e-8f64-cb777ac360a6",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5fa6b1800e87bc6cdc319910a4c6b4d39a7bf9f3",
+    "digest": "1be97137cba5c0776f38436efb66401115ff03cab6c49b4c175d52fc764a6e2c",
+    "paths": {
+      "dev-platform/checks.toml": "cafe083a4d0e9c3a253af490b22fbca5e8780ccc",
+      "docs/engineering/agent-workflow.md": "bfc2eb863f5858c57c90f8c7a99912815f924020",
+      "openspec/changes/rehandoff-without-manual-steps/.managed-task.json": "590e2672d863a8069528b391994cd519dc3d801e",
+      "openspec/changes/rehandoff-without-manual-steps/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/rehandoff-without-manual-steps/design.md": "e2ad953a3cce57f73e9acb0de1e1c95c800589f9",
+      "openspec/changes/rehandoff-without-manual-steps/proposal.md": "a4c3d1aa8d40cb01810a4dc677118dd58604f238",
+      "openspec/changes/rehandoff-without-manual-steps/specs/completion-lifecycle/spec.md": "ea7a1635e13bd75b090efe32e9b885351cb9a007",
+      "openspec/changes/rehandoff-without-manual-steps/specs/worktree-coordination/spec.md": "cd2bcc48008d9f7aed0eceef42291e78b3875e5a",
+      "openspec/changes/rehandoff-without-manual-steps/tasks.md": "e82a6fa3d0df61b2205097cae49a5da6bd0b49fe",
+      "template/scripts/agent_board.py": "0f2a9292b98e96253502302f4ba25b28d5daaaba",
+      "template/scripts/finish_task.py": "9df45dbc9bb8ee1ef567bfd9e05e71bc4e4ac869",
+      "template/scripts/pr_review_gate.py": "a5bc5df25508c9db75af34558d68363d33cdbd34",
+      "template/scripts/worktree_cleanup.py": "77085d3c6651de95b9243e00e70ea0a84b7361c7",
+      "tests/test_finish_merged_queue.py": "e5eacd7252a4693f5a53c34527aa63dafca431d4",
+      "tests/test_pr_review_gate.py": "ecdb9799582c347c7905e1c25126ea10fedee0a8",
+      "tests/test_rehandoff_board.py": "2917ed6ad84927f2a8d67f13bc38ed73d0e791c7"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
