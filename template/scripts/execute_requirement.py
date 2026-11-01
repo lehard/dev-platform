@@ -613,12 +613,14 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
         sequential_more = len(sequential_completed) + len(ordered) < total
         if not ordered:
             # Every child in the declared order is delivered.
+            archived = _archive_delivered_task_state(integration, None)
+            extra = {"archived_task_state": archived} if archived else {}
             if _contribution_publication_supported(integration):
-                return _await_post_merge(parent, requirement, sequential_completed, rebind=rebound)
+                return _await_post_merge(parent, requirement, sequential_completed, rebind=rebound, **extra)
             if pending := _retrospective_pending(integration, requirement, sequential_completed):
-                return pending
+                return {**pending, **extra}
             from requirement_terminal import reconcile_parent
-            return reconcile_parent(integration, requirement=requirement)
+            return {**reconcile_parent(integration, requirement=requirement), **extra}
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
     # A Requirement already delivering through shared-candidate receipts stays on that
     # path to terminal reconciliation; switching mid-flight would mint a new integration branch.
@@ -707,6 +709,11 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     # With the coordinator queue the post-merge jobs alone record the Requirement retrospective and close
     # the Requirement (BR-950); without it the same functions run here, in the developer session.
     coordinator = _contribution_publication_supported(integration)
+    if not ready and (terminal_archived := _archive_delivered_task_state(integration, None)):
+        _audited = audited
+
+        def audited(result: dict[str, Any]) -> dict[str, Any]:  # noqa: F811
+            return _audited({**result, "archived_task_state": terminal_archived})
     if len(ordered) == 1:
         if ready:
             # The Requirement retrospective follows the last child only, never an earlier sequential one.
@@ -841,10 +848,10 @@ def _retrospective_pending(integration: Path, requirement: str, children: list[s
     return None
 
 
-def _archive_delivered_task_state(integration: Path, next_child: str) -> str | None:
-    """Move aside task-local state left by a delivered child before the next child is imported here."""
+def _archive_delivered_task_state(integration: Path, next_child: str | None) -> str | None:
+    """Move aside task-local state left by a delivered child, before the next child or at terminal."""
     state = managed_task.read_task_state(integration)
-    if state is None or state["source_issue"].lower() == next_child.lower():
+    if state is None or (next_child is not None and state["source_issue"].lower() == next_child.lower()):
         return None
     child, change = state["source_issue"], state["change"]
     observation = managed_project_status.observe(integration, source_issue=child)
