@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "9abefe1e6b7500110c1c833e3d75ee77e2017c30",
-    "diff_sha256": "182191f551d5010e440f2e18ba86020ec2e878beb7216c0baed9ed024a201179"
+    "candidate_head": "094af7f1b72e13553c4a71d310d8e73612ece887",
+    "diff_sha256": "ede0cfc905025674f409f2b5bb13aee46f57de245062476f9e7c7cf24c026e1e"
   },
   "change": "private-lineage-pln_2d7a62fc4bdeaafff4418d8ad898890a-integration",
   "children": [
@@ -85,8 +85,8 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T04:15:06+00:00",
-  "request_id": "a4d2fdc4-1f5c-4ff0-b905-be285ebfb85f",
+  "prepared_at": "2026-11-01T05:21:48+00:00",
+  "request_id": "4b8cea84-b791-4e33-b7f7-a074e86b5bfa",
   "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
   "schema_version": 1,
   "task_content": {
