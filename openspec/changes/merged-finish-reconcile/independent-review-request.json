@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "base_ref": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "candidate_head": "54a282072170ba81309de5cee715ca109a70ec48",
+    "diff_sha256": "0dd1e6d01eac376a5a0a55ad5e36ab6cd6c1c036940b94588885085525710f6c"
+  },
+  "change": "openspec/changes/merged-finish-reconcile",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/merged-finish-reconcile/automated-checks.json",
+    "openspec/changes/merged-finish-reconcile/independent-review-request.json",
+    "openspec/changes/merged-finish-reconcile/independent-reviews/engineering-quality.json",
+    "openspec/changes/merged-finish-reconcile/independent-reviews/spec-fidelity.json",
+    "openspec/changes/merged-finish-reconcile/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/merged-finish-reconcile/design.md",
+        "openspec/changes/merged-finish-reconcile/proposal.md",
+        "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md",
+        "openspec/changes/merged-finish-reconcile/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/merged-finish-reconcile/proposal.md",
+        "openspec/changes/merged-finish-reconcile/design.md",
+        "openspec/changes/merged-finish-reconcile/tasks.md",
+        "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-01T02:49:43+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/merged-finish-reconcile/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "d455231c-957c-4efa-b6c2-9aaa8eac7905",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+    "paths": {
+      "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+      "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+      "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+      "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+      "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+      "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+      "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
