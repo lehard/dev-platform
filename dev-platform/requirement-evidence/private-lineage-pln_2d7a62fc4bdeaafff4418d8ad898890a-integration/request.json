@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "094af7f1b72e13553c4a71d310d8e73612ece887",
-    "diff_sha256": "ede0cfc905025674f409f2b5bb13aee46f57de245062476f9e7c7cf24c026e1e"
+    "candidate_head": "7d1971863d5976a79060d90cbf7a88a8e2c60240",
+    "diff_sha256": "24391a6ae87378f9208d6f35c17308db8e4a61dc19a48094b4c5145d1aa78eb1"
   },
   "change": "private-lineage-pln_2d7a62fc4bdeaafff4418d8ad898890a-integration",
   "children": [
@@ -85,13 +85,13 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T05:21:48+00:00",
-  "request_id": "4b8cea84-b791-4e33-b7f7-a074e86b5bfa",
+  "prepared_at": "2026-11-01T09:08:32+00:00",
+  "request_id": "19a02361-3af9-4e19-b954-8b741e09752f",
   "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
   "schema_version": 1,
   "task_content": {
-    "base": "c919a53b72a1254e3ec91359d03291e39aabe2f6",
-    "digest": "956d58ccd7103ff5d1bc7cb991a283297fcb2f83a15498ebad6b47c636a65ef8",
+    "base": "b0498bde34bdbaca20c417d5f3b688ca98ab27b4",
+    "digest": "c7c976fe5f1de534cd76203ee532652f9518da553f54ca430d7adcc9e6662f46",
     "paths": {
       "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
       "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
@@ -106,9 +106,9 @@
       "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
       "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
       "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
-      "template/scripts/integration_contour.py": "30e5f8fd4083039ffbc1ddbbf7e0bd60156bdf69",
+      "template/scripts/integration_contour.py": "9d6eac11d35371c061b28e03d6e4b9000f5fee0a",
       "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
-      "tests/test_autonomous_integration_contour.py": "e21f415f1ff76e47ee19f58e37a5f802313eddef",
+      "tests/test_autonomous_integration_contour.py": "ac230b55a4f31f8c1dfdfbe9ae9f2e0f43486831",
       "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
     },
     "scope": "requirement-composition-v1",

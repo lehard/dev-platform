@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "094af7f1b72e13553c4a71d310d8e73612ece887",
-    "diff_sha256": "ede0cfc905025674f409f2b5bb13aee46f57de245062476f9e7c7cf24c026e1e"
+    "candidate_head": "7d1971863d5976a79060d90cbf7a88a8e2c60240",
+    "diff_sha256": "24391a6ae87378f9208d6f35c17308db8e4a61dc19a48094b4c5145d1aa78eb1"
   },
-  "completed_at": "2026-11-01T05:22:13+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/private_lineage.py issue_for_handle docstring and query use `issues(states: OPEN ...)`. template/scripts/integration_contour.py run_direct_terminal calls ops.terminal_recorded first, which relies only on a trusted posted result. The proposal acknowledges 'already closed or missing' as a stop condition, but no closed-Issue fallback exists for this partial-failure window.",
-      "id": "direct-terminal-retry-after-close-blocks",
-      "severity": "advisory",
-      "summary": "The direct terminal job walks only OPEN Backlog Issues. If reconcile_child closes the Issue but the 'task-recorded' result comment is not posted (for example, a crash or post failure), the retry sees no recorded result, finds no open Issue, and blocks with 'already closed or missing'. This needs manual intervention."
-    }
-  ],
-  "launched_at": "2026-11-01T05:21:56+00:00",
-  "output_sha256": "cd4da21a25f5018776722b92ef059b230a464f7a13174b7c30a0ff67696727f3",
+  "completed_at": "2026-11-01T09:08:54+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T09:08:42+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "4b8cea84-b791-4e33-b7f7-a074e86b5bfa",
+  "request_id": "19a02361-3af9-4e19-b954-8b741e09752f",
   "reviewer": {
-    "context_id": "53c034a3-a3c6-4bbf-a3bc-eba2944a11dc",
+    "context_id": "c51f6995-0b4d-4d5f-8df2-e6a88bd7ad98",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3927e202-364f-4177-ad20-12c6fb44fc44",
+    "launch_id": "platform-launch-cfe80cf3-b154-4e6c-a0c0-34385a11a09a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34340
+        "value": 36972
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 89507
+        "value": 14915
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14992
+        "value": 9587
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15989
+        "value": 10558
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1687
+        "value": 874
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "956d58ccd7103ff5d1bc7cb991a283297fcb2f83a15498ebad6b47c636a65ef8"
+  "task_content_digest": "c7c976fe5f1de534cd76203ee532652f9518da553f54ca430d7adcc9e6662f46"
 }
