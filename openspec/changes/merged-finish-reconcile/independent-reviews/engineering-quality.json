@@ -1,45 +1,42 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
-    "base_ref": "origin/main",
-    "candidate_head": "2ff58d6b36b02f4a33c03d12979998eb70e8cd2f",
-    "diff_sha256": "d9a3767778d90b772891fdc240c19c8858f2b115d23dec464f6cb73b928597c8"
+    "base_head": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "base_ref": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "candidate_head": "54a282072170ba81309de5cee715ca109a70ec48",
+    "diff_sha256": "0dd1e6d01eac376a5a0a55ad5e36ab6cd6c1c036940b94588885085525710f6c"
   },
-  "completed_at": "2026-11-01T01:54:14+00:00",
+  "completed_at": "2026-11-01T02:50:06+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/finish_task.py:1047-1049 calls sync_queue_merged_task, which has its own local_status, SystemExit wrapping and sync_merged_task. The pre-existing block at lines 1058-1082 repeats the same sequence. The test change `side_effect=[waiting, waiting] if early else [None, None, waiting]` shows the double read. The helper could return the queued state so the later block could reuse it, or the later block could call the helper.",
+      "evidence": "template/scripts/finish_task.py:954-971 (new helper) and :1060-1082 (original block). Both call queue_local_status, then sync_merged_task with the same SystemExit messages. The existing test had to change its side_effect from [None, waiting] to [None, None, waiting] to cope with the extra read.",
       "id": "duplicated-merged-queue-sync",
       "severity": "advisory",
-      "summary": "The merged-queue observation and sync is now implemented twice in finish_task.main. For a merged managed candidate, local_status and sync_merged_task each run twice (the second time after the fast-forward), which costs extra GitHub reads. The two copies can also drift apart."
+      "summary": "The new sync_queue_merged_task helper copies the existing queue-observation and merged-sync block further down in main(). Finish now reads the queue PR state twice and calls sync_merged_task twice on the merged path. The second call is idempotent, but it costs an extra PR read and leaves two copies of the same error-handling logic to keep in step."
     },
     {
-      "evidence": "template/scripts/finish_task.py:128-133 (`except Exception ... raise SystemExit`) runs ahead of `run_finish_preflight` at line 1050. publication_queue.local_status (publication_queue.py:1665-1682) raises QueueError for an oversized or ambiguous PR inventory. The design.md Risks section lists only the extra read.",
-      "id": "new-hard-failure-before-handoff-for-candidates",
+      "evidence": "template/scripts/finish_task.py:1049 calls sync_queue_merged_task before managed_candidate(work). The orphan and provenance checks follow at :1053-1054. The added tests cover only candidate=True.",
+      "id": "merged-sync-ahead-of-orphan-check",
       "severity": "advisory",
-      "summary": "Every coordinator-managed candidate finish now makes a publication-queue observation before the handoff preflight. Any exception from local_status (a gh outage, a queue inventory error such as multiple admitted PRs on the branch, or the 100-entry page limit) becomes a SystemExit before the handoff. Previously only the later post-handoff path observed the queue. This is consistent with the fail-explicitly rule, but it widens the failure surface of the first submission. The design records only 'one extra PR read' as a risk."
+      "summary": "The early sync now runs for every coordinator-mode PR finish, not only for managed candidates. It fast-forwards the worktree before require_no_orphan_active_openspec and require_delivery_provenance run. A merged non-candidate task is therefore synchronized before the gates that previously preceded it. This looks harmless, but it is an untested ordering change."
     }
   ],
-  "launched_at": "2026-11-01T01:53:55+00:00",
-  "output_sha256": "a6b552d20b643d404906a147d1d9549bbe6b5797a6cb6a97f19412a4d003c6e3",
+  "launched_at": "2026-11-01T02:49:56+00:00",
+  "output_sha256": "d5d2f7a55a99cb9424a782bdb7eb90c0092af607c49adf0a06aa4d81e3815213",
   "perspective": "engineering-quality",
-  "request_id": "dd122b9e-e7d9-45f8-88bb-a45ccbec419c",
+  "request_id": "d455231c-957c-4efa-b6c2-9aaa8eac7905",
   "reviewer": {
-    "context_id": "da2cf40d-8088-43fd-be2d-c850d5d6f5b0",
+    "context_id": "c148b6e4-8d83-41ff-a16b-3ad769e6fea7",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-38ec4529-885a-453d-9360-0ce8e1ed6dad",
+    "launch_id": "platform-launch-29c0e199-236c-4d85-b733-e4b7edc0b49f",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -48,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21707
+        "value": 15215
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 43459
+        "value": 34861
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12931
+        "value": 9117
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14603
+        "value": 9264
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -73,12 +70,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1465
+        "value": 985
       }
     },
     "runtime": "claude-code-print"

@@ -1,12 +1,13 @@
 {
   "candidate": {
-    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
-    "base_ref": "origin/main",
-    "candidate_head": "2ff58d6b36b02f4a33c03d12979998eb70e8cd2f",
-    "diff_sha256": "d9a3767778d90b772891fdc240c19c8858f2b115d23dec464f6cb73b928597c8"
+    "base_head": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "base_ref": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "candidate_head": "54a282072170ba81309de5cee715ca109a70ec48",
+    "diff_sha256": "0dd1e6d01eac376a5a0a55ad5e36ab6cd6c1c036940b94588885085525710f6c"
   },
   "change": "openspec/changes/merged-finish-reconcile",
   "excluded_lifecycle_paths": [
+    "openspec/changes/merged-finish-reconcile/automated-checks.json",
     "openspec/changes/merged-finish-reconcile/independent-review-request.json",
     "openspec/changes/merged-finish-reconcile/independent-reviews/engineering-quality.json",
     "openspec/changes/merged-finish-reconcile/independent-reviews/spec-fidelity.json",
@@ -37,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T01:53:32+00:00",
+  "prepared_at": "2026-11-01T02:49:43+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/merged-finish-reconcile/independent-reviews",
     "required_perspectives": [
@@ -46,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "dd122b9e-e7d9-45f8-88bb-a45ccbec419c",
+  "request_id": "d455231c-957c-4efa-b6c2-9aaa8eac7905",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
