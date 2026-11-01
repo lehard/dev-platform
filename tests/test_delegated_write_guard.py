@@ -59,6 +59,10 @@ def _write_executable(path: Path, content: str) -> Path:
     return path
 
 
+# Set in the child interpreter that runs one external-interrupt test in its own session.
+_ISOLATED_TEST_ENV = "DEV_PLATFORM_ISOLATED_INTERRUPT_TEST"
+
+
 class CodexTierTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -551,6 +555,24 @@ class GuardedDelegationTests(unittest.TestCase):
         # launcher interruption, and the receipt must say which.
         self.assertEqual(result.abnormal_kind, guard.ABNORMAL_TIMEOUT)
 
+    def _run_in_own_session(self) -> bool:
+        """Re-run this test in a child interpreter in its own session; whether the caller must stop here.
+
+        The external-interrupt tests signal their own process. In the runner's process a late signal
+        (the guard's handler already restored) would kill the whole test runner, so the scenario always
+        runs in an isolated child session whose failure is reported here.
+        """
+        if os.environ.get(_ISOLATED_TEST_ENV) == self.id():
+            return False
+        here = Path(__file__).resolve().parent
+        cwd = here.parent if self.id().startswith("tests.") else here
+        done = subprocess.run([sys.executable, "-m", "unittest", self.id()], cwd=cwd, capture_output=True, text=True,
+                              env={**os.environ, _ISOLATED_TEST_ENV: self.id()}, start_new_session=True,
+                              stdin=subprocess.DEVNULL, timeout=4 * process_deadline_seconds() + 60)
+        if done.returncode:
+            self.fail(f"isolated {self.id()} failed (exit {done.returncode}):\n" + (done.stdout + done.stderr)[-4000:])
+        return True
+
     def _interrupt_self_when_ready(self, marker: Path, signum: int) -> threading.Thread:
         """Deliver an external termination signal to this launcher process once
         the delegated child has proven it is live, then let the test's own
@@ -570,6 +592,8 @@ class GuardedDelegationTests(unittest.TestCase):
         return thread
 
     def test_external_interrupt_reaps_process_group_and_classifies_receipt(self) -> None:
+        if self._run_in_own_session():
+            return
         before_term = signal.getsignal(signal.SIGTERM)
         script = self.worktree / "interrupted_writer.py"
         descendant_pid = self.worktree / "descendant.pid"
@@ -612,6 +636,8 @@ class GuardedDelegationTests(unittest.TestCase):
         self.assertEqual(signal.getsignal(signal.SIGTERM), before_term)
 
     def test_failed_reap_after_interrupt_leaves_durable_ambiguous_state(self) -> None:
+        if self._run_in_own_session():
+            return
         script = self.worktree / "unreapable_writer.py"
         descendant_pid = self.worktree / "descendant.pid"
         script.write_text(

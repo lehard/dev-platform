@@ -726,6 +726,22 @@ def run_cleanup(ops: LifecycleOps, root: Path, number: int, branch: str, head: s
     return "cleaned" if result.get("removed") else "already-clean"
 
 
+def public_text(root: Path, text: str) -> str:
+    """``text`` for a public receipt: private Backlog references become ``Issue #N``, the repository is unnamed.
+
+    The PR receipt is public; an Issue of the configured private Backlog is named only by its number.
+    """
+    from _platform_common import read_platform_config
+
+    backlog = read_platform_config(root).get("development_backlog")
+    repository = backlog.get("repository") if isinstance(backlog, dict) else None
+    if not isinstance(repository, str) or not repository:
+        return text  # no private Backlog is configured: nothing private to name
+    pattern = re.escape(repository)
+    text = re.sub(pattern + r"#(\d+)", r"Issue #\1", text, flags=re.IGNORECASE)
+    return re.sub(pattern, "the private Backlog", text, flags=re.IGNORECASE)
+
+
 def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *, branch: str, post_result,
                            ops: LifecycleOps | None = None, adapter=queue, worker: str,
                            claim_current=None) -> dict:
@@ -780,11 +796,12 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
         else:
             outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
     except JobBlocked as exc:
-        outcome, status = "blocked: " + str(exc)[:200], "blocked"
+        outcome, status = "blocked: " + public_text(root, str(exc))[:200], "blocked"
     except PostMergeEnvironmentError:
         raise  # no receipt: the caller releases the claim and fails visibly
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal
-        outcome, status = "failed: " + str(exc)[:200], "failed"
+        outcome, status = "failed: " + public_text(root, str(exc))[:200], "failed"
+    outcome = public_text(root, outcome)
     if not claim_current():
         return {"status": "discarded"}
     post_result(workers.result_body(job, worker, outcome))
