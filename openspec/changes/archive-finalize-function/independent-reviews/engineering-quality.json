@@ -3,40 +3,21 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "ce38226067bb6660720a317f1f2138c16e9a3f8f",
-    "diff_sha256": "530df945b4cc1aee6b4a155d18c4a6afc85bb0d66128c67c0491ca867d7f0fd3"
+    "candidate_head": "c480f0de674bb46121a8b52e83968f96c2590dbf",
+    "diff_sha256": "c0e8d3264f56e91fc45b5a03fd21edbcad592302b5a46d977e3b7f576a6501be"
   },
-  "completed_at": "2026-11-01T02:01:39+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/openspec_lifecycle.py, finalize_change: it appends 'archive target ... is not a completed active change (no tasks or tasks incomplete)' when `name not in completed_active_changes(root)`. It then extends the list with static_archive_problems(), whose archive_content_problems() already reports 'task(s) remain incomplete'. The test in tests/test_archive_finalize_function.py expects both messages, so the duplicate is baked in.",
-      "id": "duplicate-incomplete-task-problem",
-      "severity": "advisory",
-      "summary": "When tasks are incomplete, finalize_change lists the problem twice, so the combined failure is noisier than the one-fix-per-precondition contract describes."
-    },
-    {
-      "evidence": "tests/test_archive_finalize_function.py: `self.assertEqual(message.count(\"\\n- \"), len([line for line in message.splitlines() if line.startswith(\"- \")]))`. Both sides count the same bullet lines in the message, so the assertion holds for any message.",
-      "id": "tautological-bullet-count-assertion",
-      "severity": "advisory",
-      "summary": "One assertion in the new test can never fail, so it does not check that each unmet precondition gets its own bullet."
-    },
-    {
-      "evidence": "template/scripts/openspec_lifecycle.py: require_independent_review_receipt is skipped when verification.md is missing, and the committed-package and applicable-diff gates still run independently. The only dependency messages come from the underlying checks' own wording. design.md 'Collected gates' promises explicit dependency reporting, and the code and design do not match.",
-      "id": "dependent-gates-not-reported-explicitly",
-      "severity": "advisory",
-      "summary": "design.md says gates that depend on an earlier one report the dependency explicitly. The code only skips some gates and records no dependency message."
-    }
-  ],
-  "launched_at": "2026-11-01T02:01:25+00:00",
-  "output_sha256": "34331fb0cf4cae7c80ebb530647d511fe2f1e98b0de1e0819146c1ae14b6df0f",
+  "completed_at": "2026-11-01T04:02:36+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T04:02:25+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "2e0c5fb3-fdc4-419f-b6e5-6f56d808ec3f",
+  "request_id": "235aea37-eceb-4b05-9e3e-1c3c3bea32a7",
   "reviewer": {
-    "context_id": "9618f0c2-de25-4e34-988d-bd5419502a4e",
+    "context_id": "b3492632-b66c-4e69-a654-64196845bc1d",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9cd7f9f5-bad6-4f9f-8066-85e0ab08d7d1",
+    "launch_id": "platform-launch-c64983f9-398d-4fc1-9d73-59ce797ad142",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33201
+        "value": 35253
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16870
+        "value": 54901
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13251
+        "value": 9665
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13521
+        "value": 9967
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1542
+        "value": 1005
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "7b58a1cbc1487af75f5a8a304b0077971d508dd6bedfa74e9ad38b0cd669b261"
+  "task_content_digest": "f0afeae2488789a9fbfe7e0edb470a1a8bb10721e1a0e9931b427a8222591dfb"
 }

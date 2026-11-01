@@ -3,34 +3,21 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "ce38226067bb6660720a317f1f2138c16e9a3f8f",
-    "diff_sha256": "530df945b4cc1aee6b4a155d18c4a6afc85bb0d66128c67c0491ca867d7f0fd3"
+    "candidate_head": "c480f0de674bb46121a8b52e83968f96c2590dbf",
+    "diff_sha256": "c0e8d3264f56e91fc45b5a03fd21edbcad592302b5a46d977e3b7f576a6501be"
   },
-  "completed_at": "2026-11-01T02:01:25+00:00",
-  "findings": [
-    {
-      "evidence": "specs/completion-lifecycle/spec.md:5 says \"the review job, or finish without a queue, SHALL run a missing or stale review before finalize\". The diff removes `ensure_review_evidence` from openspec_lifecycle.py. grep finds no production caller left; the only definition is template/scripts/independent_review.py:599. template/scripts/finish_task.py only calls `review_state` (observe, line 349) and `require_publication_review_evidence` (line 1082), and neither launches a review. The docs edit says \"`finish` runs a missing, stale or unavailable review\", which the code does not do. On a non-queue path a developer must run the review by hand, and the new archive error is the only prompt.",
-      "id": "review-runner-not-implemented-for-finish",
-      "severity": "material",
-      "summary": "The modified requirement and the docs say that without a queue, `finish` runs a missing or stale review before finalize. The candidate removes archive's only review launch (`ensure_review_evidence`) and adds no replacement launch in `finish`."
-    },
-    {
-      "evidence": "In openspec_lifecycle.py, `static_archive_problems` still does `raise SystemExit(f\"Active OpenSpec change not found...\")` before any collection. The managed-identity block collects only `ManagedTaskError`, and `source_issue_for_provenance` is called inside it. The spec says finalize \"SHALL evaluate every archive precondition ... and SHALL fail once\".",
-      "id": "static-readiness-early-exit-not-collected",
-      "severity": "advisory",
-      "summary": "Finalize does not fully collect all preconditions into one failure. `static_archive_problems` still raises immediately when the change directory is missing, and unexpected failures in source-issue lookup are not collected. The existing refusal of managed candidates also exits early."
-    }
-  ],
-  "launched_at": "2026-11-01T02:01:04+00:00",
-  "output_sha256": "ae5c2261d1f86780a352921df1a615336fd488f6629b96d978fac2776c90d2c2",
+  "completed_at": "2026-11-01T04:02:25+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T04:02:12+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "2e0c5fb3-fdc4-419f-b6e5-6f56d808ec3f",
+  "request_id": "235aea37-eceb-4b05-9e3e-1c3c3bea32a7",
   "reviewer": {
-    "context_id": "1bba3c2a-c54f-46c3-9018-914daf73bb74",
+    "context_id": "6b2fb7f1-e3ce-49ae-aef0-f64d77c33065",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-69d44478-35eb-4aa4-8f3a-50896ba72bda",
+    "launch_id": "platform-launch-c181bdb8-b800-41ee-97a1-ddf2a0bab5e8",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38660
+        "value": 41432
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 96431
+        "value": 51658
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19698
+        "value": 11895
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19879
+        "value": 12102
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2479
+        "value": 1311
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "7b58a1cbc1487af75f5a8a304b0077971d508dd6bedfa74e9ad38b0cd669b261"
+  "task_content_digest": "f0afeae2488789a9fbfe7e0edb470a1a8bb10721e1a0e9931b427a8222591dfb"
 }
