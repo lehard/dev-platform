@@ -1458,3 +1458,39 @@ A Requirement MAY declare operator acceptance items in a `## Operator acceptance
 - **WHEN** `check-bundle` runs on a valid bundle
 - **THEN** it reports the bundle valid
 - **AND** advance then materializes the child exactly as before
+
+### Requirement: Delivered child housekeeping does not stop the next child
+
+Before advance starts a child, it SHALL archive task-local state of a Done child when local main equals origin/main and the child's archived contract is on it. Any other conflicting state SHALL still refuse with the reason. Without the coordinator queue, a missing or stale Requirement retrospective SHALL be returned as await-requirement-retrospective with the exact command; an unreadable or malformed receipt SHALL fail.
+
+#### Scenario: Leftover state of a delivered child
+- **WHEN** the checkout holds the state of a Done child and local main equals origin/main
+- **THEN** advance archives the state and starts the next child
+
+#### Scenario: Retrospective not yet recorded
+- **WHEN** every child is delivered and the retrospective receipt is missing
+- **THEN** advance returns await-requirement-retrospective with the checkpoint command and exits 0
+
+#### Scenario: Malformed retrospective receipt
+- **WHEN** the receipt exists but is malformed
+- **THEN** advance fails naming the problem
+
+### Requirement: Sequential Requirement children are delivered one at a time
+
+An intent set MAY declare sequential delivery with an explicit order of all its intents. Advance SHALL then deliver only the first not-Done child in that order through the single-child path and start the next only after it is Done. Without the declaration delivery SHALL be unchanged.
+
+#### Scenario: Second child waits for the first
+- **WHEN** a sequential Requirement's first child is in review
+- **THEN** advance reports it and does not start the second child
+
+### Requirement: Unchanged pre-authoring is rebound after own merges
+
+For a sequential Requirement with stale pre-authoring, advance SHALL rebind snapshot, ADD, intents and handoffs to current main with a receipt and without re-approval when each changed source was changed only by its own delivered children or outside the remaining children's sources. Otherwise it SHALL stop naming paths, commits and what to re-approve.
+
+#### Scenario: Own child changed a bound spec
+- **WHEN** the only change to a bound spec came from a delivered child of the Requirement
+- **THEN** advance rebinds, keeps the approval and starts the next child
+
+#### Scenario: Foreign change to an affected spec
+- **WHEN** another commit changed a spec a remaining child modifies
+- **THEN** advance stops naming the spec and commit and the re-approval step
