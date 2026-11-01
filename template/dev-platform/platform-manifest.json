@@ -90,7 +90,7 @@
     "scripts/hosted_workers.py": "f474a73e090f6b2ec13ddb314ec5a4782db266878c668ba327f71037d19fcd5e",
     "scripts/independent_review.py": "92da02714a22a966ff85628e6092ab8de9eb8feafcb33496b5adf9083d35d760",
     "scripts/independent_review_runner.py": "73e0bb5a124b88255a2dd701315e1313079ad6df413a3f01b911a912f98f500d",
-    "scripts/integration_contour.py": "4569ba2ab99049cd1ef37dfe72b743734a07c7df0d9f4838501442da90442f2e",
+    "scripts/integration_contour.py": "e3555c68c2f8c98e941cd2487be492df236f72b0a73d8f2c5b2c72e15275e9df",
     "scripts/integration_state.py": "4a16d543146cdf4150c9fdfb9488febf071bc59b70d95992d27c6a68ab391f84",
     "scripts/lifecycle_overview.py": "562aacc11cb75e8002f547a91300aab2b3cc023c90b47df278128ea9bab7768e",
     "scripts/lifecycle_preflight.py": "668b6fb0b36757d7d5b1e44101a4814968193f1c155554acdc598add1bbee760",
@@ -142,7 +142,7 @@
     "scripts/start_task.py": "2506b248b1ac44c6cb363fbdaafc3526fbd2e966be8591c1a1e81983939bd784",
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
-    "scripts/task_content_identity.py": "98a8dd9413dbcd6dd527e1180ffb142e948f651128ebdc1b95c9a7f3f0a89ee9",
+    "scripts/task_content_identity.py": "931755acf14b979be752ebb52f4ed1253a7295d55a6b3d40ba64b59bc18497d0",
     "scripts/task_reconciliation.py": "d49d7e934628f6ef31731775e1ece7923baeb5fcc2c55ec1c6d2e7ad6d121f2e",
     "scripts/worktree_cleanup.py": "92e7fc2c3811ed1963cca598f38dd2b8bafd8a51dd784717545e03bb4f25ee8a"
   },
