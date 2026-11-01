@@ -212,10 +212,12 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-When review is required, the archive helper runs a missing, stale or
-unavailable review automatically after its cheap deterministic checks and
-before expensive validation, then stops with the findings and the exact next
-commands if the evidence does not validate. `finish` re-validates the evidence
+When review is required, archive never runs it: the queue review job (or,
+without a queue, `finish`) runs a missing, stale or unavailable review, and
+archive only requires its evidence. Archive evaluates every precondition
+(tasks, receipt, review evidence, routing, automated-check evidence, committed
+package, private lineage, checkout identity) before any archive work and fails
+once listing each unmet one with its fix. `finish` re-validates the evidence
 against the current task content before any publication step. Task status
 (`finish_task.py --status`) and Requirement
 `advance` report the derived `independent_review` state (`not-required`,

@@ -47,8 +47,8 @@ def make_candidate(root: Path, *, enabled: bool = True, guard: bool = True) -> N
 
 class EarlyPrivateReferenceGuardTests(unittest.TestCase):
     def archive(self, root: Path):
-        with mock.patch.object(lifecycle, "require_archive_target"), \
-                mock.patch.object(lifecycle, "require_static_archive_readiness") as readiness:
+        with mock.patch.object(lifecycle, "require_existing_archive_target"), \
+                mock.patch.object(lifecycle, "static_archive_problems", return_value=[]) as readiness:
             try:
                 return lifecycle.archive_change(root, "work"), readiness
             except SystemExit as exc:
@@ -63,7 +63,8 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
             self.assertIsInstance(outcome, SystemExit)
             self.assertIn("archive blocked before review", str(outcome))
             self.assertNotIn("216", str(outcome))
-            readiness.assert_not_called()
+            # Read-only readiness may be listed too; nothing is archived.
+            self.assertTrue((root / "openspec/changes/work").is_dir())
 
     def test_archived_artifact_reference_blocks_archive(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -74,7 +75,8 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
             (archived / "design.md").write_text(PRIVATE_REF, encoding="utf-8")
             outcome, readiness = self.archive(root)
             self.assertIsInstance(outcome, SystemExit)
-            readiness.assert_not_called()
+            # Read-only readiness may be listed too; nothing is archived.
+            self.assertTrue((root / "openspec/changes/work").is_dir())
 
     def test_missing_guard_fails_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

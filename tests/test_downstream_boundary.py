@@ -44,10 +44,10 @@ ARCHIVE_DRIVER = BLOCKER + textwrap.dedent(
     sys.path.insert(0, "scripts")
     import openspec_lifecycle as lifecycle
     root = Path.cwd()
-    with mock.patch.object(lifecycle, "require_static_archive_readiness"), \\
+    with mock.patch.object(lifecycle, "static_archive_problems", return_value=[]), \\
             mock.patch.object(lifecycle, "require_applicable_committed_diff"), \\
             mock.patch.object(lifecycle, "require_committed_package"), \\
-            mock.patch.object(lifecycle, "ensure_review_evidence") as review, \\
+            mock.patch.object(lifecycle, "require_review_evidence") as review, \\
             mock.patch.object(lifecycle, "require_ready"), \\
             mock.patch.object(lifecycle, "rehearse_archive"), \\
             mock.patch.object(lifecycle, "archive_with_recovery"), \\
@@ -226,7 +226,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
                 with self.subTest(config=config, composition=composition), \
                         mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
                         mock.patch.dict("os.environ", {"DEV_PLATFORM_COMPOSITION_FINALIZATION": composition}), \
-                        mock.patch.object(lifecycle, "require_archive_target") as target:
+                        mock.patch.object(lifecycle, "require_existing_archive_target") as target:
                     with self.assertRaises(common.PlatformConfigError):
                         lifecycle.archive_change(Path("/unused"), "work", finalize=True)
                     target.assert_called_once()

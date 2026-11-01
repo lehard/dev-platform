@@ -670,7 +670,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                 "rerun execute_requirement.py advance to publish the active child for coordinator review and finalization."
                 if len(ordered) == 1 and _contribution_publication_supported(integration) else
                 "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance. "
-                "When independent review is required, archive runs it automatically; follow independent_review.next if it is blocked. "
+                "When independent review is required, archive never runs it: run independent_review.next first and follow it if it is blocked. "
                 f"Check reviewer runtime readiness after routing with: python3 scripts/independent_review.py preflight {change}"
             ),
         })
