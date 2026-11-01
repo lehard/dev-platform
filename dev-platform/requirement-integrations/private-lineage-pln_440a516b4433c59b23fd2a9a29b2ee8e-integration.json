@@ -1,0 +1,22 @@
+{
+  "base": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+  "children": [],
+  "dependencies": {
+    "composition-main-only-gates": [],
+    "composition-order-and-advance-guard": [
+      "composition-main-only-gates"
+    ],
+    "requirement-branch-repair": []
+  },
+  "digest": "7bd597157a23d9eb3c6c335b6ad13aff6dd91ce690359976d31890be0908fa88",
+  "expected_changes": [
+    "composition-main-only-gates",
+    "requirement-branch-repair",
+    "composition-order-and-advance-guard"
+  ],
+  "integration_branch": "requirement/BR-978",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+  "version": 2,
+  "work_identity": "BR-978"
+}
