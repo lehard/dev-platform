@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "8e3d01c77feeac53afad1d642e30492f0217fd55",
-    "diff_sha256": "14bdf812e70b520f8417bb06cca7736c8e7daa9175fce7996d063e428dc82613"
+    "candidate_head": "d9209f22797c6ceacfcc16fc3452f45dbe90bbda",
+    "diff_sha256": "a3abad553fe2a8071f76d5b9fdccdb2fbe020de607b1299d70a5c248afd47229"
   },
-  "completed_at": "2026-11-01T05:34:05+00:00",
+  "completed_at": "2026-11-01T05:56:33+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/execute_requirement.py, candidate.diff lines ~392-401. `_await_post_merge(..., rebind=rebound, **extra)` includes it, but `return {**pending, **extra}` and `return {**reconcile_parent(...), **extra}` do not. The later paths in the same function use `audited(...)`, which does add `rebind`.",
-      "id": "rebind-missing-on-terminal-pending-paths",
+      "evidence": "template/scripts/execute_requirement.py: `_archive_delivered_task_state(integration, None)` runs in the sequential `if not ordered` branch before `_await_post_merge` and `_retrospective_pending`. The `not ready` branch near line 460 calls it too. When the last child is Done but local main is not yet at origin/main, the function raises `RequirementExecutionError` (\"local main ... differs from origin main\"). So advance fails with an error where the spec says the pending retrospective is a next step and the coordinator path should report `await-post-merge`. The housekeeping spec only requires archiving when main is equal; it does not require an error otherwise at terminal.",
+      "id": "terminal-archive-raises-on-unreconciled-main",
       "severity": "advisory",
-      "summary": "The sequential rebind receipt is reported only on some return paths. When every sequential child is Done, `await-requirement-retrospective` (via `{**pending, **extra}`) and the `reconcile_parent` result (via `{**..., **extra}`) omit `rebind`. The `await_post_merge` path does include it. An operator may not see that approval was carried on the terminal step."
-    },
-    {
-      "evidence": "template/scripts/execute_requirement.py, candidate.diff lines ~451-455: `if not ready and (terminal_archived := ...): _audited = audited; def audited(...): # noqa: F811`.",
-      "id": "audited-redefinition-shadowing",
-      "severity": "advisory",
-      "summary": "The nested `audited` helper is redefined conditionally with `# noqa: F811`, using a `_audited` alias. This composes the two children's output decorations in a fragile way. Archived task state is attached only when `not ready`, and other branches use the plain helper. The behavior is correct today, but a later edit could silently drop `archived_task_state` or `rebind`."
+      "summary": "The terminal-stage state archive can raise before the retrospective-pending or await-post-merge step is reported. This weakens outcome 3 when local main is behind origin/main."
     }
   ],
-  "launched_at": "2026-11-01T05:33:41+00:00",
-  "output_sha256": "3de66c5b2cc6ffb94e8cb97b05c7eb05e6ad0645618b883eb1b8cf79208accec",
+  "launched_at": "2026-11-01T05:56:10+00:00",
+  "output_sha256": "cff0d51cf0059e92b40d061d6545496b67f6fa77e42f6a0a351ea3b159408c91",
   "perspective": "spec-fidelity",
-  "request_id": "4987bd5e-151d-4b18-b37b-335d0d49000b",
+  "request_id": "26346940-d980-4c21-82ce-dff5fd76874b",
   "reviewer": {
-    "context_id": "98f1e97e-dc65-4fc3-a88c-ccc3bcf3435b",
+    "context_id": "9b7ea027-4b7b-43d0-8020-9a3a5558f311",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d032c84e-764e-4bed-b8c8-c472c313acd6",
+    "launch_id": "platform-launch-7dda8fe5-11bc-423a-978e-8452a85617d6",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29543
+        "value": 55756
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51389
+        "value": 34260
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19874
+        "value": 20465
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21598
+        "value": 21793
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2092
+        "value": 2318
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0bbd94d88f9e0f44a516929d995848e9f0bc098c620b4ba082b3dc0d1d4d12be"
+  "task_content_digest": "66eb9c1f6147dcd4963308ada9c8d506798df8121b98b4676ce5c897cf437fad"
 }
