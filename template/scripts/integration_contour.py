@@ -214,7 +214,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
                                push_env: dict[str, str] | None = None, home_files=(),
                                before_push: Callable[[Path, str], None] | None = None,
                                claim_current: Callable[[], bool] = lambda: True,
-                               launch: Callable[..., object] | None = None) -> dict:
+                               launch: Callable[..., object] | None = None, trusted_root: Path | None = None) -> dict:
     """Merge current main into a disposable checkout, let the writer resolve it, validate, push once."""
     root = Path(workdir).resolve()
     checkout = workers.prepare_checkout(source_repo, str(root), "integration-checkout", job["head"])
@@ -274,6 +274,13 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     workers.harness_git(harness, "-c", "user.name=Lifecycle harness", "-c", "user.email=lifecycle@localhost",
                         "commit", "-q", "-m", "Integrate current main into the candidate")
     result_head = workers.harness_git(harness, "rev-parse", "HEAD").strip()
+    if trusted_root is None:
+        raise workers.WorkerError("integration repair needs the trusted default-branch checkout to regenerate generated files")
+    try:
+        # As for a repair writer: the integrated result ships with its declared generated files current.
+        result_head = workers.regenerate_declared_files(harness, trusted_root, result_head)
+    except workers.WorkerError as exc:
+        return {"status": "failed", "reason": str(exc)[:300]}
     if current_head() != job["head"]:
         return {"status": "discarded"}
     candidate_paths = {p for p in workers.harness_git(
@@ -381,7 +388,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
             job, brief, source_repo=source_repo, branch=branch,
             allowed_paths=allowed_paths, llm_command=llm_command, current_head=current_head, workdir=workdir,
             runner=runner, env=env, push_env=push_env, home_files=home_files, before_push=before_push,
-            claim_current=claim_current, launch=launch)
+            claim_current=claim_current, launch=launch, trusted_root=root)
     except workers.WorkerError as exc:
         return fail(str(exc))
     if outcome["status"] == "discarded":
