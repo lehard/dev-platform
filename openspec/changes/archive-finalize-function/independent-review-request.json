@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "c896f63b1a7cc7e4dd44357a8013262054de8b23",
-    "diff_sha256": "7ae7b1a0fec9ea64be19d58511a58bfe3461033bffec946a9be9fd464fa8352f"
+    "candidate_head": "ce38226067bb6660720a317f1f2138c16e9a3f8f",
+    "diff_sha256": "530df945b4cc1aee6b4a155d18c4a6afc85bb0d66128c67c0491ca867d7f0fd3"
   },
   "change": "openspec/changes/archive-finalize-function",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T01:06:28+00:00",
+  "prepared_at": "2026-11-01T02:01:01+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive-finalize-function/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "19ec8c81-f3c1-4b79-bfea-ef49c3c37b4f",
+  "request_id": "2e0c5fb3-fdc4-419f-b6e5-6f56d808ec3f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,27 +60,28 @@
   "schema_version": 1,
   "task_content": {
     "base": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "digest": "b25445cfa7802d82ae3532bdb513805a3c8bd68213b68b05da341b0e75d6b2f9",
+    "digest": "7b58a1cbc1487af75f5a8a304b0077971d508dd6bedfa74e9ad38b0cd669b261",
     "paths": {
       "dev-platform/checks.toml": "30a8bf69e97b0e01e8db8952aa8a68559c936bc6",
       "docs/engineering/openspec-workflow.md": "477bca908d74f70ddc44fec6893ae575f9dbeb82",
       "openspec/changes/archive-finalize-function/.managed-task.json": "e881245272f981476c2032c0954a0189bf4449e0",
       "openspec/changes/archive-finalize-function/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
-      "openspec/changes/archive-finalize-function/design.md": "4f895871ae709e1843e115bdbfbb5a4bdc1567f0",
+      "openspec/changes/archive-finalize-function/design.md": "d4a95b55bc6a74f3c29610570417ab3a01feb755",
       "openspec/changes/archive-finalize-function/proposal.md": "1ed91db6b64a1661b8a862685d03b74b11ff40a6",
       "openspec/changes/archive-finalize-function/specs/completion-lifecycle/spec.md": "a9106fa6c6ba1657a965a508676e60f94c351852",
       "openspec/changes/archive-finalize-function/tasks.md": "4bd689c3f3db29b68aee0484c0a28419eb10be22",
       "template/docs/engineering/openspec-workflow.md": "0667a8f1f94f3051a804446faec287cba8970bd2",
       "template/scripts/execute_requirement.py": "94c49ec2043f200fcdd679db4780f3fd54365cf9",
       "template/scripts/independent_review.py": "852da1505d242d7b7cc48062411827ff2426452b",
-      "template/scripts/openspec_lifecycle.py": "0836d1d41afc606c8612ba2182dbcb45529b06b5",
-      "tests/test_archive_finalize_function.py": "d0884bfb0caa61ca2f19749881c5f5708278ed53",
-      "tests/test_downstream_boundary.py": "6b2baa7b5a8baf0ed22be6136c5c80fb2194eb86",
-      "tests/test_early_private_reference_guard.py": "70754f916d122df30d7983bc886afea4c1b01f2b",
-      "tests/test_independent_review.py": "2dca028daa9b6330bf367fd4bbfadd9ffb30813e",
-      "tests/test_machine_pool.py": "fc8f084b320dbe8661abe2efd3477b4661f7721b",
-      "tests/test_openspec_lifecycle.py": "275f9abeab4d36ec56ab0a8a3549a9b8cecd55db",
-      "tests/test_post_review_finalization.py": "fc83dcc309a352faa70cfb6c6b8a364b95064f78"
+      "template/scripts/openspec_lifecycle.py": "ed1293daffce3992a11152c9c1f38a31d834b07e",
+      "tests/test_archive_finalize_function.py": "500487d22c550ba618f216b580763a1a4315d83b",
+      "tests/test_downstream_boundary.py": "1ed2f7c96d77b395d5cd2797a66858077762f077",
+      "tests/test_early_private_reference_guard.py": "57e5a7e65d36ebeee87e037dfb042f58441cafdb",
+      "tests/test_independent_review.py": "7dab83a220631eeaaccb98ca91e7adb68d564c20",
+      "tests/test_machine_pool.py": "336a889dce4ac8247f3d7cb91d30db5c093468c8",
+      "tests/test_openspec_lifecycle.py": "14fc549c2586bca815fb22906c7833531ea4fbf0",
+      "tests/test_portable_finish_check_reuse.py": "d1f3444be7f978543b2600b681e43cbcc3ec81da",
+      "tests/test_post_review_finalization.py": "3853df21a66be8f38716f490644084bfccfd28cd"
     },
     "scope": "independent-review-v1",
     "version": 1

@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "c896f63b1a7cc7e4dd44357a8013262054de8b23",
-    "diff_sha256": "7ae7b1a0fec9ea64be19d58511a58bfe3461033bffec946a9be9fd464fa8352f"
+    "candidate_head": "ce38226067bb6660720a317f1f2138c16e9a3f8f",
+    "diff_sha256": "530df945b4cc1aee6b4a155d18c4a6afc85bb0d66128c67c0491ca867d7f0fd3"
   },
-  "completed_at": "2026-11-01T01:06:46+00:00",
+  "completed_at": "2026-11-01T02:01:25+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/openspec_lifecycle.py: `def finalize_change(root, change, *, context=None): return archive_change(root, change, finalize=True)`; `main()` still returns `archive_change(root, args.command...)` for non-finalize. `context` is never used.",
-      "id": "finalize-function-is-thin-wrapper",
-      "severity": "advisory",
-      "summary": "The spec says a change SHALL be archived only through one finalize function that checks, validates, rehearses and archives. The candidate keeps `archive_change` as the real implementation, and `finalize_change` only calls `archive_change(finalize=True)`. The non-finalize CLI path still calls `archive_change` directly, so a second entry point exists. The `context` parameter named in the proposal signature is accepted and ignored."
+      "evidence": "specs/completion-lifecycle/spec.md:5 says \"the review job, or finish without a queue, SHALL run a missing or stale review before finalize\". The diff removes `ensure_review_evidence` from openspec_lifecycle.py. grep finds no production caller left; the only definition is template/scripts/independent_review.py:599. template/scripts/finish_task.py only calls `review_state` (observe, line 349) and `require_publication_review_evidence` (line 1082), and neither launches a review. The docs edit says \"`finish` runs a missing, stale or unavailable review\", which the code does not do. On a non-queue path a developer must run the review by hand, and the new archive error is the only prompt.",
+      "id": "review-runner-not-implemented-for-finish",
+      "severity": "material",
+      "summary": "The modified requirement and the docs say that without a queue, `finish` runs a missing or stale review before finalize. The candidate removes archive's only review launch (`ensure_review_evidence`) and adds no replacement launch in `finish`."
     },
     {
-      "evidence": "static_archive_problems: `if verification.is_file(): collect_problem(problems, require_independent_review_receipt, ...)` with no message when the file is absent. It also raises `SystemExit(f\"Active OpenSpec change not found...\")` uncollected.",
-      "id": "dependency-reporting-not-implemented",
+      "evidence": "In openspec_lifecycle.py, `static_archive_problems` still does `raise SystemExit(f\"Active OpenSpec change not found...\")` before any collection. The managed-identity block collects only `ManagedTaskError`, and `source_issue_for_provenance` is called inside it. The spec says finalize \"SHALL evaluate every archive precondition ... and SHALL fail once\".",
+      "id": "static-readiness-early-exit-not-collected",
       "severity": "advisory",
-      "summary": "design.md says gates that depend on an earlier one report the dependency explicitly instead of being skipped silently. The implementation runs the committed-diff, committed-package and receipt checks independently. Where the dependency matters it applies conditional skips: the review receipt is skipped when verification.md is missing, with nothing reported. A missing change directory still raises immediately and is not collected with the other problems."
+      "summary": "Finalize does not fully collect all preconditions into one failure. `static_archive_problems` still raises immediately when the change directory is missing, and unexpected failures in source-issue lookup are not collected. The existing refusal of managed candidates also exits early."
     }
   ],
-  "launched_at": "2026-11-01T01:06:30+00:00",
-  "output_sha256": "492c2f39ce0292d913944434b64dd851f19eafc550b62362cd543e2cd398883c",
+  "launched_at": "2026-11-01T02:01:04+00:00",
+  "output_sha256": "ae5c2261d1f86780a352921df1a615336fd488f6629b96d978fac2776c90d2c2",
   "perspective": "spec-fidelity",
-  "request_id": "19ec8c81-f3c1-4b79-bfea-ef49c3c37b4f",
+  "request_id": "2e0c5fb3-fdc4-419f-b6e5-6f56d808ec3f",
   "reviewer": {
-    "context_id": "bd63e3a4-e5f8-42f6-8f96-d3047470d3c7",
+    "context_id": "1bba3c2a-c54f-46c3-9018-914daf73bb74",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-df1b0318-1efa-429d-b4f4-f5fdaad6720e",
+    "launch_id": "platform-launch-69d44478-35eb-4aa4-8f3a-50896ba72bda",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32179
+        "value": 38660
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49572
+        "value": 96431
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15064
+        "value": 19698
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15234
+        "value": 19879
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 9
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1872
+        "value": 2479
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "b25445cfa7802d82ae3532bdb513805a3c8bd68213b68b05da341b0e75d6b2f9"
+  "task_content_digest": "7b58a1cbc1487af75f5a8a304b0077971d508dd6bedfa74e9ad38b0cd669b261"
 }
