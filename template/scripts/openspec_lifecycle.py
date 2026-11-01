@@ -27,11 +27,6 @@ except ModuleNotFoundError as exc:
                 f"{change.name}: independent review is enabled but scripts/independent_review.py is missing; "
                 "repair the incomplete platform update before archive readiness."
             )
-try:
-    from independent_review import ensure_review_evidence
-except (ImportError, ModuleNotFoundError):  # Older renders validate only; they cannot launch a reviewer.
-    def ensure_review_evidence(root: Path, change: Path, *, launcher: object = None) -> None:
-        require_review_evidence(root, change)
 
 # Mirrors upstream OpenSpec TASK_LINE_PATTERN (1.13.x dist/utils/task-progress.js): `-`, `*`, `+`,
 # `N.` and `N)` markers; only `x`/`X` content is complete, any other checkbox content is open.
@@ -550,13 +545,26 @@ ARCHIVE_TARGET_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 def require_archive_target(root: Path, target: str, *, source: str) -> None:
     """Fail closed unless ``target`` names exactly one existing completed active change."""
+    require_existing_archive_target(root, target, source=source)
+    if target not in completed_active_changes(root):
+        raise SystemExit(f"{source}: archive target {target!r} is not a completed active change (no tasks or tasks incomplete)")
+
+
+def require_existing_archive_target(root: Path, target: str, *, source: str) -> None:
+    """Fail closed unless ``target`` names exactly one existing active change."""
     if not ARCHIVE_TARGET_RE.fullmatch(target) or target == "archive":
         raise SystemExit(f"{source}: archive target {target!r} is not a valid OpenSpec change name")
     matches = [path for path in active_changes(root) if path.name == target]
     if len(matches) != 1:
         raise SystemExit(f"{source}: archive target {target!r} is not an existing active OpenSpec change")
-    if target not in completed_active_changes(root):
-        raise SystemExit(f"{source}: archive target {target!r} is not a completed active change (no tasks or tasks incomplete)")
+
+
+def collect_problem(problems: list[str], check, *args, **kwargs) -> None:
+    """Run one archive precondition and record its failure message instead of stopping at it."""
+    try:
+        check(*args, **kwargs)
+    except SystemExit as exc:
+        problems.append(str(exc))
 
 
 def archive_target_environment(root: Path, target: str) -> dict[str, str]:
@@ -704,35 +712,39 @@ def require_managed_routing_evidence(change: Path) -> None:
 
 
 def require_static_archive_readiness(change: Path, *, platform_owned: bool = False, review: bool = True, routing: bool = True) -> None:
-    """Check deterministic archive prerequisites before checks mutate evidence.
-
-    ``review=False`` lets archive defer the (possibly launching) independent
-    review until after every cheap deterministic prerequisite has passed.
-    """
-    if not change.exists() or not change.is_dir():
-        raise SystemExit(f"Active OpenSpec change not found: {change.name}")
-    problems = archive_content_problems(change.parents[2], [change])
+    """Check deterministic archive prerequisites before checks mutate evidence, reporting all at once."""
+    problems = static_archive_problems(change, platform_owned=platform_owned, review=review, routing=routing)
     if problems:
         raise SystemExit("\n".join(problems))
+
+
+def static_archive_problems(change: Path, *, platform_owned: bool = False, review: bool = True, routing: bool = True) -> list[str]:
+    """Every unmet deterministic archive prerequisite, each with its fix; empty when ready."""
+    if not change.exists() or not change.is_dir():
+        raise SystemExit(f"Active OpenSpec change not found: {change.name}")
+    problems = list(archive_content_problems(change.parents[2], [change]))
     if not verification_passed(change):
-        raise SystemExit(
+        problems.append(
             f"{change.name}: missing successful semantic verification receipt. "
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
-    require_independent_review_receipt(change)
+    verification = change / "verification.md"
+    if verification.is_file():
+        collect_problem(problems, require_independent_review_receipt, change)
     if review:
-        require_review_evidence(change.parents[2], change)
+        collect_problem(problems, require_review_evidence, change.parents[2], change)
     if platform_owned and routing:
-        require_managed_routing_evidence(change)
+        collect_problem(problems, require_managed_routing_evidence, change)
     if platform_owned:
         expected = f"{AUTOMATED_EVIDENCE_PREFIX} {AUTOMATED_EVIDENCE_FILE}"
-        lines = [line.strip() for line in (change / "verification.md").read_text(encoding="utf-8").splitlines()]
+        lines = [line.strip() for line in verification.read_text(encoding="utf-8").splitlines()] if verification.is_file() else []
         if expected not in lines:
-            raise SystemExit(
+            problems.append(
                 f"{change.name}: platform-owned verification must cite '{expected}' before archive can run checks. "
                 f"Add that exact line to verification.md; see {VERIFICATION_RECEIPT_CONTRACT}."
             )
+    return problems
 
 
 def require_applicable_committed_diff(root: Path) -> None:
@@ -838,16 +850,28 @@ def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = 
         raise SystemExit(result.returncode)
 
 
-def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
-    """Archive a verified change.
+FINALIZE_QUEUE = "queue"
+FINALIZE_DEVELOPER = "developer"
+FINALIZE_CONTEXTS = (FINALIZE_QUEUE, FINALIZE_DEVELOPER)
 
-    ``finalize`` is the coordinator's post-review archive of a disposable candidate
-    checkout: review and selected-check evidence are reused (never launched or rerun),
-    and the local task-checkout identity gates do not apply because the trusted
-    coordinator already proved the content-bound gates before invoking it.
+
+def finalize_change(root: Path, name: str, *, context: str) -> int:
+    """The one function that archives a verified change; ``context`` names its executor.
+
+    ``queue`` is the coordinator's post-review archive of a disposable candidate
+    checkout (the finalize job): review and selected-check evidence are reused (never
+    launched or rerun), and the local task-checkout identity, committed-package,
+    applicable-diff and routing gates do not apply because the trusted coordinator
+    already proved the content-bound gates before invoking it. ``developer`` is the
+    archive of a verified change in its own checkout, which establishes selected-check
+    evidence. Every archive precondition is evaluated before any archive work and all
+    unmet ones are reported in one failure; no context launches an independent review.
     """
-    # Fail closed on a nonexistent, malformed or not-completed target before any state changes.
-    require_archive_target(root, name, source="archive")
+    if context not in FINALIZE_CONTEXTS:
+        raise SystemExit(f"{name}: unknown finalize context {context!r}; expected one of {', '.join(FINALIZE_CONTEXTS)}")
+    finalize = context == FINALIZE_QUEUE
+    # Fail closed on a nonexistent or malformed target before any state changes.
+    require_existing_archive_target(root, name, source="archive")
     config = read_platform_config(root)
     mode = lifecycle_mode(config)
     composition = os.environ.get("DEV_PLATFORM_COMPOSITION_FINALIZATION") if finalize else None
@@ -864,14 +888,14 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
                 "Hand off the active change: `python3 scripts/execute_requirement.py advance --requirement <owner/repo#N>` "
                 "for a Requirement child, otherwise `python3 scripts/dogfood_task.py finish`."
             )
-    # Cheap privacy gate before review, checks, evidence writes or OpenSpec mutation.
+    change = root / "openspec" / "changes" / name
+    platform_owned = harness_mode(config) == "platform"
+    problems: list[str] = []
     import private_lineage
     try:
         private_lineage.require_clean_candidate(root)
     except private_lineage.PrivateLineageError as exc:
-        raise SystemExit(f"{name}: archive blocked before review and validation: {exc}") from exc
-    change = root / "openspec" / "changes" / name
-    platform_owned = harness_mode(config) == "platform"
+        problems.append(f"{name}: archive blocked by private lineage before review, checks, evidence writes or OpenSpec mutation: {exc}")
     if platform_owned and not finalize and (change / ".managed-task.json").is_file():
         try:
             source_issue = source_issue_for_provenance(root, change)
@@ -883,41 +907,42 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
                 expected_source_issue=source_issue,
             )
         except ManagedTaskError as exc:
-            raise SystemExit(f"{name}: managed checkout identity gate blocked archive before validation: {exc}") from exc
-    require_static_archive_readiness(change, platform_owned=platform_owned, review=False, routing=not finalize)
+            problems.append(f"{name}: managed checkout identity: {exc}")
+    problems.extend(static_archive_problems(change, platform_owned=platform_owned, review=False, routing=not finalize))
     if not finalize:
-        require_committed_package(root, change)
+        collect_problem(problems, require_committed_package, root, change)
     if platform_owned and not finalize:
-        require_applicable_committed_diff(root)
+        collect_problem(problems, require_applicable_committed_diff, root)
+    # Review evidence is only required here: archive never runs a review; it runs outside archive.
     if composition:
         from requirement_composition import require_archive_evidence
-        require_archive_evidence(root, name, composition)
-    elif finalize:
-        require_review_evidence(root, change)
+        collect_problem(problems, require_archive_evidence, root, name, composition)
     else:
-        # Required independent review runs after the cheap deterministic gates and
-        # before expensive validation: a missing or stale review is launched now,
-        # and blocking findings stop archive with exact next commands.
-        ensure_review_evidence(root, change)
-        if platform_owned:
-            evidence = change / AUTOMATED_EVIDENCE_FILE
-            # One receipt for archive and finish: evidence that proves this task content is not run again.
-            reused = False
-            if evidence.is_file():
-                decision = automated_evidence_reuse(change, root=root, base_ref="origin/main")
-                print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
-                reused = decision["decision"] == "reused"
-            if not reused:
-                # Imported here: only an archive that executes checks depends on the machine pool.
-                from machine_pool import child_lease_descriptors
+        collect_problem(problems, require_review_evidence, root, change)
+    if problems:
+        raise SystemExit(
+            f"{name}: archive blocked before any archive work; every unmet precondition:\n"
+            + "\n".join(f"- {problem}" for problem in problems)
+        )
+    if not finalize and not composition and platform_owned:
+        evidence = change / AUTOMATED_EVIDENCE_FILE
+        # One receipt for archive and finish: evidence that proves this task content is not run again.
+        reused = False
+        if evidence.is_file():
+            decision = automated_evidence_reuse(change, root=root, base_ref="origin/main")
+            print("DEV_PLATFORM_CHECK_REUSE: " + json.dumps(decision, ensure_ascii=False, sort_keys=True), flush=True)
+            reused = decision["decision"] == "reused"
+        if not reused:
+            # Imported here: only an archive that executes checks depends on the machine pool.
+            from machine_pool import child_lease_descriptors
 
-                env = archive_target_environment(root, name)
-                run_checked(
-                    ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
-                    root,
-                    env=env,
-                    pass_fds=child_lease_descriptors(env),
-                )
+            env = archive_target_environment(root, name)
+            run_checked(
+                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
+                root,
+                env=env,
+                pass_fds=child_lease_descriptors(env),
+            )
     require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=bool(composition))
     executable = shutil.which("openspec")
     if not executable:
@@ -943,7 +968,7 @@ def main() -> int:
     root = current_worktree_root()
     if args.command == "check":
         return check_hygiene(root, args.stage)
-    return archive_change(root, args.change, finalize=args.finalize)
+    return finalize_change(root, args.change, context=FINALIZE_QUEUE if args.finalize else FINALIZE_DEVELOPER)
 
 
 if __name__ == "__main__":

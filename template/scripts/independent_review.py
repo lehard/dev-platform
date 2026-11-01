@@ -558,8 +558,8 @@ def review_state(root: Path, change: Path | None) -> dict[str, Any]:
     }
     if result["state"] in {STATE_MISSING, STATE_STALE} and change.parent.name != "archive":
         payload["note"] = (
-            "the archive helper runs a missing or stale review automatically before expensive validation; "
-            f"check reviewer runtime readiness first with {preflight_command(canonical_change_name(change))}"
+            "archive never runs a review: run it with the review command (the queue review job does so), and archive "
+            f"only requires its evidence; check reviewer runtime readiness first with {preflight_command(canonical_change_name(change))}"
         )
     if result["blockers"]:
         payload["blockers"] = [{key: item[key] for key in ("perspective", "id", "summary", "next")} for item in result["blockers"]]

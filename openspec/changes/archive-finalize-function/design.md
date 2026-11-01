@@ -1,0 +1,7 @@
+## Decisions
+
+- **Collected gates.** Each existing gate becomes a check returning problems instead of raising; `finalize_change` runs them all, then raises one `SystemExit` naming every problem and its fix. Task completeness is reported once, by the archive-content check.
+- **Target existence stays fail-first.** A malformed or missing target, and a change directory that does not exist when `static_archive_problems` reads it, fail immediately: no other precondition can be evaluated without the change.
+- **No review from archive.** The non-finalize branch that called `ensure_review_evidence` calls `require_review_evidence`; a missing or stale review is one listed problem naming the review command.
+- **Executor.** The finalize job keeps its disposable checkout, commit message and path validation; only the archive call changes. Composition and portable callers move in later children.
+- **Context names the executor.** `finalize_change(root, change, *, context)` is the only archive function; `context="queue"` is the finalize job (reuse review and check evidence, no checkout identity, committed-package, applicable-diff or routing gates) and `context="developer"` archives a verified change in its own checkout and establishes selected-check evidence. An unknown context fails before any work. The CLI maps `archive --finalize` to `queue` and plain `archive` to `developer`; the finalize job's `trusted_archiver` runs that CLI from the platform's own checkout. Composition and portable finish become contexts in the next children.

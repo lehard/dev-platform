@@ -44,16 +44,16 @@ ARCHIVE_DRIVER = BLOCKER + textwrap.dedent(
     sys.path.insert(0, "scripts")
     import openspec_lifecycle as lifecycle
     root = Path.cwd()
-    with mock.patch.object(lifecycle, "require_static_archive_readiness"), \\
+    with mock.patch.object(lifecycle, "static_archive_problems", return_value=[]), \\
             mock.patch.object(lifecycle, "require_applicable_committed_diff"), \\
             mock.patch.object(lifecycle, "require_committed_package"), \\
-            mock.patch.object(lifecycle, "ensure_review_evidence") as review, \\
+            mock.patch.object(lifecycle, "require_review_evidence") as review, \\
             mock.patch.object(lifecycle, "require_ready"), \\
             mock.patch.object(lifecycle, "rehearse_archive"), \\
             mock.patch.object(lifecycle, "archive_with_recovery"), \\
             mock.patch.object(lifecycle, "run_checked") as run, \\
             mock.patch.object(lifecycle.shutil, "which", return_value="openspec"):
-        code = lifecycle.archive_change(root, "work")
+        code = lifecycle.finalize_change(root, "work", context="developer")
     review.assert_called_once()
     assert code == 0, code
     loaded = [name for name in %r if name in sys.modules]
@@ -226,9 +226,9 @@ class DownstreamCheckoutTests(unittest.TestCase):
                 with self.subTest(config=config, composition=composition), \
                         mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
                         mock.patch.dict("os.environ", {"DEV_PLATFORM_COMPOSITION_FINALIZATION": composition}), \
-                        mock.patch.object(lifecycle, "require_archive_target") as target:
+                        mock.patch.object(lifecycle, "require_existing_archive_target") as target:
                     with self.assertRaises(common.PlatformConfigError):
-                        lifecycle.archive_change(Path("/unused"), "work", finalize=True)
+                        lifecycle.finalize_change(Path("/unused"), "work", context="queue")
                     target.assert_called_once()
 
     def test_portable_composition_finalize_rejected_before_coordinator_import(self) -> None:
@@ -241,7 +241,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
             import openspec_lifecycle
             os.environ["DEV_PLATFORM_COMPOSITION_FINALIZATION"] = "owner/repo#1"
             try:
-                openspec_lifecycle.archive_change(Path.cwd(), "work", finalize=True)
+                openspec_lifecycle.finalize_change(Path.cwd(), "work", context="queue")
             except SystemExit as error:
                 assert "coordinator source contract" in str(error), error
             else:

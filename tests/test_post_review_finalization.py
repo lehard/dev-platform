@@ -156,10 +156,9 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
             write_platform_config(root, platform_version="source")
             (root / "openspec/changes/work/.managed-task.json").write_text("{}")
             with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
-                    mock.patch.object(lifecycle, "require_static_archive_readiness") as static, \
+                    mock.patch.object(lifecycle, "static_archive_problems", return_value=[]) as static, \
                     mock.patch.object(lifecycle, "require_managed_checkout_identity") as identity, \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff") as diff, \
-                    mock.patch.object(lifecycle, "ensure_review_evidence") as launch, \
                     mock.patch.object(lifecycle, "require_review_evidence") as review, \
                     mock.patch.object(lifecycle, "require_ready") as ready, \
                     mock.patch.object(lifecycle.shutil, "which", return_value="openspec"), \
@@ -167,11 +166,10 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
                     mock.patch.object(lifecycle, "rehearse_archive") as rehearse, \
                     mock.patch.object(lifecycle, "archive_with_recovery") as archive, \
                     mock.patch.object(lifecycle, "run_checked") as run_checked:
-                self.assertEqual(lifecycle.archive_change(root, "work", finalize=True), 0)
+                self.assertEqual(lifecycle.finalize_change(root, "work", context="queue"), 0)
             identity.assert_not_called()
             diff.assert_not_called()
             committed.assert_not_called()
-            launch.assert_not_called()
             review.assert_called_once()
             self.assertFalse(static.call_args.kwargs["routing"])
             self.assertFalse(ready.call_args.kwargs["platform_owned"])
