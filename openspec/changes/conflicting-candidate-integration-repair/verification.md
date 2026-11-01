@@ -30,11 +30,6 @@ Independent-Review-Evidence: independent-review-request.json
   - The note posts the coordinator's environment-error text on the PR. That text comes from platform messages, is capped at 500 characters, and goes to the same public surface as the existing block reasons.
   - The note-failure path catches `QueueError`, which is what the queue's `gh` helpers raise. Any other exception still propagates explicitly.
 
-## Composition repair 2026-11-01
-
-- Composition review of #843 found BR-969 item 3 unmet: a conflicting waiting candidate whose derived merge hits an environment failure stayed blocked-retryable. Repair 1c210eda routed it to `IntegrationRepairNeeded`. This developer fix names both causes in the reason, aligns design, spec and tasks (the environment note now applies only without a real conflict), adds the tests and regenerates the manifest.
-- Tests: `test_unavailable_derived_merge_with_a_real_conflict_needs_integration_repair` covers the conflict branch, with a reason naming the conflict and the environment failure. `test_environment_failure_is_a_queue_environment_error` covers the no-conflict branch, which raises `QueueEnvironmentError` with no GitHub write. `test_integrate_releases_ownership_and_records_nothing` covers the note path.
-
 ## Not verified / limits
 
 - No live hosted queue run; GitHub comments and the queue helpers are mocked.
