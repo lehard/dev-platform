@@ -3,34 +3,34 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "c2d9d87e85b12a24ede3da141ad20e5134fe4c4b",
-    "diff_sha256": "bfc2f00d8ec6bb08a784b9e506df4ff25389839a72ecc9bcb38929d6021e17f8"
+    "candidate_head": "c896f63b1a7cc7e4dd44357a8013262054de8b23",
+    "diff_sha256": "7ae7b1a0fec9ea64be19d58511a58bfe3461033bffec946a9be9fd464fa8352f"
   },
-  "completed_at": "2026-11-01T01:01:28+00:00",
+  "completed_at": "2026-11-01T01:06:46+00:00",
   "findings": [
     {
-      "evidence": "A search for `finalize_change` finds no match in any .py file. `template/scripts/post_review_finalization.py:121-125` still runs `openspec_lifecycle.py archive <change> --finalize` as a subprocess. The candidate diff touches no `post_review_finalization.py`. The spec requirement 'One finalize function archives a change' is behaviorally satisfied because `archive_change(..., finalize=True)` is that function. The proposal, design and tasks name an artifact that was not delivered, so they no longer match the code.",
-      "id": "finalize-change-function-missing",
+      "evidence": "template/scripts/openspec_lifecycle.py: `def finalize_change(root, change, *, context=None): return archive_change(root, change, finalize=True)`; `main()` still returns `archive_change(root, args.command...)` for non-finalize. `context` is never used.",
+      "id": "finalize-function-is-thin-wrapper",
       "severity": "advisory",
-      "summary": "The proposal and tasks describe `openspec_lifecycle.finalize_change(root, change, *, context)` and say `post_review_finalization.trusted_archiver` archives through it (task 1.2 is ticked). No such function exists. The candidate only reworks `archive_change`, and `post_review_finalization.py` is unchanged."
+      "summary": "The spec says a change SHALL be archived only through one finalize function that checks, validates, rehearses and archives. The candidate keeps `archive_change` as the real implementation, and `finalize_change` only calls `archive_change(finalize=True)`. The non-finalize CLI path still calls `archive_change` directly, so a second entry point exists. The `context` parameter named in the proposal signature is accepted and ignored."
     },
     {
-      "evidence": "In `static_archive_problems`, `require_independent_review_receipt` runs only `if verification.is_file()`. When verification.md is absent there is no note that this check was skipped. `require_applicable_committed_diff` runs even when `require_committed_package` has already failed, and no dependency is reported. This is a mismatch with design.md line 3.",
-      "id": "dependent-gates-skipped-silently",
+      "evidence": "static_archive_problems: `if verification.is_file(): collect_problem(problems, require_independent_review_receipt, ...)` with no message when the file is absent. It also raises `SystemExit(f\"Active OpenSpec change not found...\")` uncollected.",
+      "id": "dependency-reporting-not-implemented",
       "severity": "advisory",
-      "summary": "The design says a gate that depends on an earlier one must report the dependency explicitly instead of being skipped silently. The code skips some dependent gates without saying so."
+      "summary": "design.md says gates that depend on an earlier one report the dependency explicitly instead of being skipped silently. The implementation runs the committed-diff, committed-package and receipt checks independently. Where the dependency matters it applies conditional skips: the review receipt is skipped when verification.md is missing, with nothing reported. A missing change directory still raises immediately and is not collected with the other problems."
     }
   ],
-  "launched_at": "2026-11-01T01:01:08+00:00",
-  "output_sha256": "c5c4ba6606c6a205394d974dbff84071014572e62ec5be864f693fe57cb20bc5",
+  "launched_at": "2026-11-01T01:06:30+00:00",
+  "output_sha256": "492c2f39ce0292d913944434b64dd851f19eafc550b62362cd543e2cd398883c",
   "perspective": "spec-fidelity",
-  "request_id": "9f9a18f2-6f07-4b42-86cf-9d2a93843a5d",
+  "request_id": "19ec8c81-f3c1-4b79-bfea-ef49c3c37b4f",
   "reviewer": {
-    "context_id": "9577a3b1-9231-4aa5-94ed-eff79974d275",
+    "context_id": "bd63e3a4-e5f8-42f6-8f96-d3047470d3c7",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1fdc413f-8343-41dc-8eed-db0449c431ba",
+    "launch_id": "platform-launch-df1b0318-1efa-429d-b4f4-f5fdaad6720e",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32398
+        "value": 32179
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 118154
+        "value": 49572
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19006
+        "value": 15064
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19326
+        "value": 15234
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2056
+        "value": 1872
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "5d6aa4a0ba31b77dbaee2eb21de5396c55f6ea64d8610b07bf9091a61e813c60"
+  "task_content_digest": "b25445cfa7802d82ae3532bdb513805a3c8bd68213b68b05da341b0e75d6b2f9"
 }

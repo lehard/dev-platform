@@ -3,46 +3,40 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "c2d9d87e85b12a24ede3da141ad20e5134fe4c4b",
-    "diff_sha256": "bfc2f00d8ec6bb08a784b9e506df4ff25389839a72ecc9bcb38929d6021e17f8"
+    "candidate_head": "c896f63b1a7cc7e4dd44357a8013262054de8b23",
+    "diff_sha256": "7ae7b1a0fec9ea64be19d58511a58bfe3461033bffec946a9be9fd464fa8352f"
   },
-  "completed_at": "2026-11-01T01:01:47+00:00",
+  "completed_at": "2026-11-01T01:07:00+00:00",
   "findings": [
     {
-      "evidence": "A grep of template/scripts finds only `archive_change` (openspec_lifecycle.py:853) and its CLI call (line 963); `finalize_change` does not exist. `trusted_archiver` (post_review_finalization.py:121-124) still runs the subprocess `openspec_lifecycle.py archive <change> --finalize`, and the diff does not touch that file. The spec requirement 'One finalize function archives a change' and its scenario 'Finalize job archives \u2026 calls the finalize function' therefore have no implementation. The `archive_change` docstring is relabelled 'The one finalize function' instead. The proposal, design and tasks are out of step with the code.",
-      "id": "finalize-function-not-implemented",
-      "severity": "material",
-      "summary": "The contract requires a distinct `finalize_change(root, change, *, context)` function that the queue finalize job calls, and tasks 1.1 and 1.2 are ticked. The candidate adds no such function, and `post_review_finalization.trusted_archiver` is unchanged."
+      "evidence": "template/scripts/openspec_lifecycle.py:949-951 `return archive_change(root, change, finalize=True)` (`context` unused); main() line ~970 `return archive_change(root, args.change)`.",
+      "id": "finalize-function-not-sole-archive-path",
+      "severity": "advisory",
+      "summary": "`finalize_change` is a thin wrapper over `archive_change(finalize=True)`. Local, non-finalize archive still calls `archive_change` directly, and `finalize_change` ignores its `context` parameter. The spec says a change SHALL be archived only through one finalize function."
     },
     {
-      "evidence": "tests/test_early_private_reference_guard.py replaces `readiness.assert_not_called()` with `assertTrue((root/'openspec/changes/work').is_dir())`. tests/test_openspec_lifecycle.py also drops `review.assert_not_called()` from the invalid-target tests, so they no longer check that review evidence is never evaluated for an invalid target.",
-      "id": "weakened-privacy-ordering-tests",
+      "evidence": "template/scripts/post_review_finalization.py:124 `subprocess.run([sys.executable, str(script), \"archive\", change, \"--finalize\"] ...)`; the diff has no change to that file.",
+      "id": "trusted-archiver-still-shells-out",
       "severity": "advisory",
-      "summary": "Tests that proved the private-reference gate runs before any readiness work were weakened. Archive now runs `static_archive_problems` even after the privacy gate fails, and the tests only check that the change directory still exists."
+      "summary": "The proposal and tasks (1.2) say `post_review_finalization.trusted_archiver` archives through `finalize_change`, but the diff does not touch `post_review_finalization.py`. It still runs the CLI as a subprocess (`archive <change> --finalize`). That reaches `finalize_change` only indirectly through `main()`, so task 1.2 is checked off with no corresponding code change."
     },
     {
-      "evidence": "openspec_lifecycle.py: `problems.append(f\"{name}: archive blocked before review and validation: {exc}\")`. The test asserts `assertIn(\"archive blocked before review\", ...)`.",
-      "id": "stale-block-message-wording",
+      "evidence": "tests/test_early_private_reference_guard.py: `readiness.assert_not_called()` replaced by `assertTrue((root/\"openspec/changes/work\").is_dir())`; archive_change now calls `static_archive_problems` even after the `private_lineage` error is collected.",
+      "id": "private-guard-test-weakened",
       "severity": "advisory",
-      "summary": "The privacy-gate message still says 'archive blocked before review and validation', although archive no longer runs review. The message is now one entry in an aggregated list, so the wording is misleading and tests still depend on it."
-    },
-    {
-      "evidence": "tests/test_openspec_lifecycle.py: the diff leaves both `mock.patch.object(lifecycle, \"require_review_evidence\")` entries in the same `with` block, one of them converted from `ensure_review_evidence`.",
-      "id": "duplicate-patch-in-test",
-      "severity": "advisory",
-      "summary": "The `ArchivePurposeAndRecoveryTests.archive` helper patches `require_review_evidence` twice after the rename."
+      "summary": "The early private-reference guard tests used to prove that static readiness was never reached when a private reference was found. That assertion was replaced with a check that the change directory still exists. Readiness checks now run alongside the lineage failure, and the combined error includes their messages. The tests no longer verify that those messages leak nothing private, apart from the '216' check on one case."
     }
   ],
-  "launched_at": "2026-11-01T01:01:28+00:00",
-  "output_sha256": "e1944066200aeb182e1968ca4101447b095ee2ab8721cbb0c80970e1558368b9",
+  "launched_at": "2026-11-01T01:06:46+00:00",
+  "output_sha256": "9f327fb37dc2ffd3d159ba385684b8990fd78ed3870dea161464c1694951aa07",
   "perspective": "engineering-quality",
-  "request_id": "9f9a18f2-6f07-4b42-86cf-9d2a93843a5d",
+  "request_id": "19ec8c81-f3c1-4b79-bfea-ef49c3c37b4f",
   "reviewer": {
-    "context_id": "11c5c225-26ac-4bda-9dcb-bde47483b91d",
+    "context_id": "ecef9ee6-7c4f-45a1-aa1d-b3bb7700f9be",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-28980ad2-30b9-4d16-9a66-2affe466b88e",
+    "launch_id": "platform-launch-ebd4fdbf-ca06-4d1d-b409-e920ee3f5191",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +51,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 30063
+        "value": 29111
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 82651
+        "value": 49819
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18462
+        "value": 13046
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18732
+        "value": 13286
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2321
+        "value": 1573
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "5d6aa4a0ba31b77dbaee2eb21de5396c55f6ea64d8610b07bf9091a61e813c60"
+  "task_content_digest": "b25445cfa7802d82ae3532bdb513805a3c8bd68213b68b05da341b0e75d6b2f9"
 }

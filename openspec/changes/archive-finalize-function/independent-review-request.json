@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
     "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "candidate_head": "c2d9d87e85b12a24ede3da141ad20e5134fe4c4b",
-    "diff_sha256": "bfc2f00d8ec6bb08a784b9e506df4ff25389839a72ecc9bcb38929d6021e17f8"
+    "candidate_head": "c896f63b1a7cc7e4dd44357a8013262054de8b23",
+    "diff_sha256": "7ae7b1a0fec9ea64be19d58511a58bfe3461033bffec946a9be9fd464fa8352f"
   },
   "change": "openspec/changes/archive-finalize-function",
   "excluded_lifecycle_paths": [
     "openspec/changes/archive-finalize-function/automated-checks.json",
+    "openspec/changes/archive-finalize-function/independent-review-request.json",
+    "openspec/changes/archive-finalize-function/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive-finalize-function/independent-reviews/spec-fidelity.json",
     "openspec/changes/archive-finalize-function/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -35,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T01:01:05+00:00",
+  "prepared_at": "2026-11-01T01:06:28+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive-finalize-function/independent-reviews",
     "required_perspectives": [
@@ -44,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "9f9a18f2-6f07-4b42-86cf-9d2a93843a5d",
+  "request_id": "19ec8c81-f3c1-4b79-bfea-ef49c3c37b4f",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "281e24835174258ee56702723fba59e81bbcb4fd",
-    "digest": "5d6aa4a0ba31b77dbaee2eb21de5396c55f6ea64d8610b07bf9091a61e813c60",
+    "digest": "b25445cfa7802d82ae3532bdb513805a3c8bd68213b68b05da341b0e75d6b2f9",
     "paths": {
       "dev-platform/checks.toml": "30a8bf69e97b0e01e8db8952aa8a68559c936bc6",
       "docs/engineering/openspec-workflow.md": "477bca908d74f70ddc44fec6893ae575f9dbeb82",
@@ -70,13 +73,13 @@
       "template/docs/engineering/openspec-workflow.md": "0667a8f1f94f3051a804446faec287cba8970bd2",
       "template/scripts/execute_requirement.py": "94c49ec2043f200fcdd679db4780f3fd54365cf9",
       "template/scripts/independent_review.py": "852da1505d242d7b7cc48062411827ff2426452b",
-      "template/scripts/openspec_lifecycle.py": "1380b5382becdc6b5ecfaacc3abfd839ceb6d882",
+      "template/scripts/openspec_lifecycle.py": "0836d1d41afc606c8612ba2182dbcb45529b06b5",
       "tests/test_archive_finalize_function.py": "d0884bfb0caa61ca2f19749881c5f5708278ed53",
       "tests/test_downstream_boundary.py": "6b2baa7b5a8baf0ed22be6136c5c80fb2194eb86",
-      "tests/test_early_private_reference_guard.py": "1b0b2d7320df04c19f1ef36e61916bd0dd9fa4db",
+      "tests/test_early_private_reference_guard.py": "70754f916d122df30d7983bc886afea4c1b01f2b",
       "tests/test_independent_review.py": "2dca028daa9b6330bf367fd4bbfadd9ffb30813e",
       "tests/test_machine_pool.py": "fc8f084b320dbe8661abe2efd3477b4661f7721b",
-      "tests/test_openspec_lifecycle.py": "6dbd82ccdf47acdac43375d376e35ac33bcd1790",
+      "tests/test_openspec_lifecycle.py": "275f9abeab4d36ec56ab0a8a3549a9b8cecd55db",
       "tests/test_post_review_finalization.py": "fc83dcc309a352faa70cfb6c6b8a364b95064f78"
     },
     "scope": "independent-review-v1",
