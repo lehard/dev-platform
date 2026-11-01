@@ -1101,6 +1101,21 @@ class PerCandidateIsolationTests(unittest.TestCase):
                     queue._gh(ROOT_PATH, "api", "-X", "PUT", "repos/o/r/pulls/1/update-branch")
                 self.assertIs(type(caught.exception), kind)
 
+    def test_gh_classifies_too_many_files_on_a_pr_read_only(self):
+        from subprocess import CompletedProcess
+
+        stderr = "gh: The request could not be processed because too many files changed (HTTP 422)"
+        failed = CompletedProcess([], 1, "", stderr)
+        for args, kind in ((("api", "repos/o/r/pulls/1"), queue.TransientQueueError),
+                           (("api", "repos/o/r/pulls/1/files"), queue.QueueError),
+                           (("api", "-X", "PATCH", "repos/o/r/pulls/1"), queue.QueueError)):
+            with self.subTest(args=args), patch.object(queue.subprocess, "run", return_value=failed), \
+                    patch("_platform_common.run_github_with_retry", return_value=failed):
+                with self.assertRaises(kind) as caught:
+                    queue._gh(ROOT_PATH, *args)
+                self.assertIs(type(caught.exception), kind)
+                self.assertEqual(str(caught.exception), stderr)
+
 
 TOO_MANY_FILES = "gh: The request could not be processed because too many files changed (HTTP 422)"
 
