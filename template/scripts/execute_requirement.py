@@ -561,6 +561,15 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     # Claim the card before child discovery so a resumed Requirement is not left in the free queue.
     requirement_board.claim_started(integration, requirement=requirement)
     linked_by_change = _linked_children_by_change(integration, requirement, parent)
+    sequence = _sequential_order(base_dir, requirement)
+    rebound = None
+    if sequence is not None and report.get("current_stage") != "complete":
+        # Sequential delivery re-anchors the unchanged approved chain instead of
+        # recovering stale materialized handoffs; a real change stops here.
+        rebound = _rebind_sequential(integration, requirement, base_dir, linked_by_change)
+        report = orchestrate_pre_authoring.status(
+            integration, requirement_id=f"requirement-{requirement.rsplit('#', 1)[1]}", base_dir=base_dir,
+        )
     if report.get("current_stage") != "complete":
         materialized = _materialized_handoff_report(integration, requirement, base_dir, linked_by_change)
         if materialized is not None:
@@ -595,6 +604,21 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                     f"no current handoff; unmapped handoffs: {', '.join(unmapped)}. To bind them, {BUNDLE_KEY_RULE}")
             raise RequirementExecutionError(f"historical linked child {historical_child} is not terminal")
         _done_child_is_delivered(integration, historical_child, historical_change)
+    sequential_completed: list[str] = []
+    sequential_more = False
+    if sequence is not None:
+        total = len(ordered)
+        ordered, sequential_completed = _sequential_round(
+            integration, requirement, base_dir, ordered, linked_by_change, sequence, confirm_distinct)
+        sequential_more = len(sequential_completed) + len(ordered) < total
+        if not ordered:
+            # Every child in the declared order is delivered.
+            if _contribution_publication_supported(integration):
+                return _await_post_merge(parent, requirement, sequential_completed, rebind=rebound)
+            if pending := _retrospective_pending(integration, requirement, sequential_completed):
+                return pending
+            from requirement_terminal import reconcile_parent
+            return reconcile_parent(integration, requirement=requirement)
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
     # A Requirement already delivering through shared-candidate receipts stays on that
     # path to terminal reconciliation; switching mid-flight would mint a new integration branch.
@@ -604,18 +628,21 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     superseded: list[dict[str, str]] = []
 
     def audited(result: dict[str, Any]) -> dict[str, Any]:
-        # Replaced own stale receipts are reported for operator audit.
-        return {**result, "superseded_receipts": list(superseded)} if superseded else result
+        # Replaced own stale receipts and a sequential rebind are reported for operator audit.
+        result = {**result, "superseded_receipts": list(superseded)} if superseded else result
+        return {**result, "rebind": rebound} if rebound else result
 
     ready: list[Path] = []
-    completed: list[str] = []
+    completed: list[str] = list(sequential_completed)
     receipts_by_change: dict[str, Path] = {}
     intent_owner: dict[str, str] = {}
     for owner_change, owner_handoff in ordered:
         try:
             owner_intents = json.loads(owner_handoff.read_text(encoding="utf-8")).get("intents", [])
-        except (OSError, json.JSONDecodeError):
-            owner_intents = []
+        except FileNotFoundError:
+            owner_intents = []  # no recorded handoff: the change declares no intents of its own
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RequirementExecutionError(f"cannot read handoff {owner_handoff}: {exc}") from exc
         for owner_intent in owner_intents if isinstance(owner_intents, list) else []:
             if isinstance(owner_intent, dict) and isinstance(owner_intent.get("id"), str):
                 intent_owner[owner_intent["id"]] = owner_change
@@ -693,6 +720,9 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             if coordinator:
                 return audited({"status": "await-child-review", "requirement": requirement, "child": child,
                                 "change": change, "reason": "child handed off; coordinator work is in flight"})
+            if sequential_more:
+                return audited({"status": "child-delivered", "requirement": requirement, "child": child,
+                                "change": change, "next": "rerun execute_requirement.py advance for the next sequential child"})
         if coordinator:
             return audited(_await_post_merge(parent, requirement, completed))
         if pending := _retrospective_pending(integration, requirement, completed):
@@ -721,6 +751,82 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     )
     result = requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
     return audited({**result, "completed_before_shared_integration": completed})
+
+
+def _sequential_order(base_dir: Path, requirement: str) -> list[str] | None:
+    """The owner-declared sequential intent order of the Requirement's intent set, if any."""
+    path = orchestrate_pre_authoring.intents_path(base_dir / f"requirement-{requirement.rsplit('#', 1)[1]}")
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None  # direct or skipped pre-authoring has no intent set
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RequirementExecutionError(f"cannot read intent set {path}: {exc}") from exc
+    if not isinstance(document, dict) or not isinstance(document.get("intents"), list):
+        raise RequirementExecutionError(f"intent set {path} is malformed")
+    by_id = {item["id"]: item for item in document["intents"] if isinstance(item, dict) and isinstance(item.get("id"), str)}
+    errors = add_intents._delivery_errors(document.get("delivery"), by_id)
+    if errors:
+        raise RequirementExecutionError(f"intent set {path}: {'; '.join(errors)}")
+    return add_intents.delivery_order(document)
+
+
+def _rebind_sequential(integration: Path, requirement: str, base_dir: Path,
+                       linked_by_change: dict[str, str]) -> dict[str, Any] | None:
+    """Re-anchor the approved chain after own deliveries, naming what to re-approve on a real change."""
+    own = [change for change, child in linked_by_change.items()
+           if (observation := managed_project_status.observe(integration, source_issue=child)) is not None
+           and observation.current_status == "Done"]
+    directory = base_dir / f"requirement-{requirement.rsplit('#', 1)[1]}"
+    authored = [json.loads(manifest.read_text(encoding="utf-8")).get("change")
+                for manifest in sorted((directory / "bundles").glob("*/manifest.json"))]
+    try:
+        return orchestrate_pre_authoring.rebind(
+            integration, requirement_id=directory.name, base_dir=base_dir,
+            own_changes=own, remaining_changes=[change for change in authored if change not in own])
+    except orchestrate_pre_authoring.OrchestratorError as exc:
+        raise RequirementExecutionError(str(exc)) from exc
+
+
+def _sequential_round(
+    integration: Path, requirement: str, base_dir: Path, ordered: list[tuple[str, Path]],
+    linked_by_change: dict[str, str], sequence: list[str], confirm_distinct: bool,
+) -> tuple[list[tuple[str, Path]], list[str]]:
+    """Materialize every child once, then return only the first not-Done child in the declared order.
+
+    Every child is linked from the first pass, so terminal reconciliation never sees
+    a partial child set and keeps the Requirement open until the last one is Done.
+    """
+    position = {intent: index for index, intent in enumerate(sequence)}
+
+    def rank(entry: tuple[str, Path]) -> int:
+        try:
+            intents = json.loads(entry[1].read_text(encoding="utf-8")).get("intents", [])
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RequirementExecutionError(f"cannot read handoff {entry[1]}: {exc}") from exc
+        ids = [item.get("id") for item in intents if isinstance(item, dict)]
+        if not ids or any(identity not in position for identity in ids):
+            raise RequirementExecutionError(f"handoff {entry[1]} names intents outside the sequential order")
+        return min(position[identity] for identity in ids)
+
+    ordered = sorted(ordered, key=rank)
+    for change, handoff in ordered:
+        if change not in linked_by_change:
+            linked = requirement_intake.materialize_handoff(
+                integration, requirement=requirement, handoff_file=handoff,
+                bundle_path=_bundle(base_dir, requirement, change), base_dir=base_dir,
+                confirm_distinct=confirm_distinct,
+            )
+            linked_by_change[change] = linked["child"]
+    completed: list[str] = []
+    for change, handoff in ordered:
+        child = linked_by_change[change]
+        observation = managed_project_status.observe(integration, source_issue=child)
+        if observation is None or observation.current_status != "Done":
+            return [(change, handoff)], completed
+        _done_child_is_delivered(integration, child, change)
+        completed.append(child)
+    return [], completed
 
 
 def _retrospective_pending(integration: Path, requirement: str, children: list[str]) -> dict[str, Any] | None:

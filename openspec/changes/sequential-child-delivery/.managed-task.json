@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/agent-workflow/spec.md",
+    "tasks.md"
+  ],
+  "change": "sequential-child-delivery",
+  "imported_at": "2026-10-31T22:02:26+00:00",
+  "package_revision": "95b32ca2a547d7d8782066ed9c27e1b237cfb052c0b8e83e1f7973532b7fba5f",
+  "prepared_against": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+  "private_lineage_handle": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "491c50e631c734dee1f5bc49984785cf872dbd598c2a118f9332d218c7801cdc",
+    "updated_at": "2026-10-31T20:35:51Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-941/T2"
+}

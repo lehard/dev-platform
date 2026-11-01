@@ -22,6 +22,7 @@ Directory layout per requirement id (default root: .claude/pre-authoring/<id>/):
     add.json        -- an ADD document (add_intents.py; material paths only)
     intents.json    -- an intent-set document (add_intents.py)
     handoff/<intent-or-group>.json -- OpenSpec authoring-input envelopes
+    rebind-<n>.json -- sequential delivery: an unchanged chain re-anchored to a newer main
     receipt.json    -- last computed status(), written for external inspection only
 
 Nothing here is a second backlog or implementation-state machine: OpenSpec
@@ -35,6 +36,8 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -574,6 +577,170 @@ def _finish_skip(
     result["handoffs"] = {"direct": str(direct_handoff_path(directory))}
     _write_receipt(directory, result)
     return result
+
+
+REBIND_RECEIPT_VERSION = 1
+REBINDABLE_STAGES = ("snapshot", "add", "intents", "handoff")
+
+
+class RebindStop(OrchestratorError):
+    """Stale pre-authoring is not explained by own deliveries: it must be re-approved."""
+
+
+def _git_lines(root: Path, *args: str) -> list[str]:
+    result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+    if result.returncode:
+        raise OrchestratorError(f"git {' '.join(args)} failed: {result.stderr.strip()}")
+    return [line for line in result.stdout.splitlines() if line.strip()]
+
+
+ARCHIVED_CHANGE_RE = re.compile(r"openspec/changes/archive/\d{4}-\d{2}-\d{2}-([^/]+)/(.+)")
+ACCEPTED_SPEC_RE = re.compile(r"openspec/specs/([^/]+)/spec\.md")
+
+
+def _own_change_of_path(root: Path, commit: str, path: str, own_changes: list[str]) -> bool:
+    """Whether this commit's change to ``path`` is explained by an own delivered child.
+
+    The commit (against its first parent) must archive only own children's changes. An
+    accepted spec counts as own only when one of those archives carries that capability's
+    delta, so a mixed commit cannot attribute another capability's change to the child.
+    """
+    archived = [match.groups() for match in map(ARCHIVED_CHANGE_RE.fullmatch,
+                                                  _git_lines(root, "diff", "--name-only", f"{commit}^1", commit)) if match]
+    if not archived or any(change not in own_changes for change, _ in archived):
+        return False
+    spec = ACCEPTED_SPEC_RE.fullmatch(path)
+    return spec is None or any(inner == f"specs/{spec.group(1)}/spec.md" for _, inner in archived)
+
+
+def _file_sources(add_document: dict[str, Any]) -> list[str]:
+    return [item["source"] for key in ("evidence", "reused_constraints") for item in add_document.get(key, []) or []
+            if isinstance(item, dict) and item.get("kind") != add_intents.EVIDENCE_KIND_SNAPSHOT
+            and isinstance(item.get("source"), str)]
+
+
+def _affected_sources(directory: Path, add_document: dict[str, Any], remaining_changes: list[str]) -> set[str]:
+    """Accepted specs the remaining children modify, plus the ADD's own file evidence and constraints."""
+    affected = {source.split("#", 1)[0] for source in _file_sources(add_document)}
+    for manifest in sorted((directory / "bundles").glob("*/manifest.json")):
+        if _load_json(manifest, "bundle manifest").get("change") in remaining_changes:
+            affected.update(f"openspec/specs/{spec.parent.name}/spec.md"
+                            for spec in sorted((manifest.parent / "specs").glob("*/spec.md")))
+    return affected
+
+
+def rebind(root: Path, *, requirement_id: str, base_dir: Path | None = None,
+           own_changes: list[str], remaining_changes: list[str]) -> dict[str, Any] | None:
+    """Re-anchor an unchanged approved chain to current main for sequential delivery.
+
+    Returns None when the chain is complete and the receipt after a rebind. Raises
+    RebindStop, writing nothing, when the ADD, the intent set or a handoff no longer
+    matches its approval, or another commit changed a source a remaining child uses.
+    """
+    base_dir = base_dir or default_base_dir(root)
+    directory = requirement_dir(base_dir, requirement_id)
+    report = status(root, requirement_id=requirement_id, base_dir=base_dir)
+    stage = report.get("current_stage")
+    if stage == "complete":
+        return None
+    blocker = report.get("blocker") or {}
+    reapprove = (f"rebuild the snapshot, re-approve the ADD and re-prepare intents and handoffs "
+                 f"(orchestrate_pre_authoring.py --id {requirement_id} status)")
+    stale = blocker.get("state") == "stale" or (
+        stage == "handoff" and blocker.get("state") == "needs-handoff"
+        and bool(blocker.get("stale_intent_ids")) and not blocker.get("missing_intent_ids"))
+    if stage not in REBINDABLE_STAGES or not stale:
+        raise RebindStop(f"{requirement_id}: pre-authoring stage {stage} is {blocker.get('state')}, not a stale "
+                         f"approved chain; {blocker.get('action') or reapprove}")
+    snapshot = _load_json(snapshot_path(directory), "snapshot")
+    add_file, intents_file = add_path(directory), intents_path(directory)
+    add_document = _load_json(add_file, "ADD document")
+    approval = add_document.get("approval") if isinstance(add_document.get("approval"), dict) else {}
+    old_add_digest = add_intents.add_content_digest(add_document)
+    if add_document.get("approved") is not True or approval.get("digest") != old_add_digest:
+        raise RebindStop(f"{requirement_id}: {add_file} changed since its approval; {reapprove}")
+    intents_document = _load_json(intents_file, "intent-set document")
+    old_intents_digest = add_intents._content_digest(intents_document)
+    if intents_document.get("approved_add_digest") != old_add_digest:
+        raise RebindStop(f"{requirement_id}: {intents_file} is bound to another ADD approval; {reapprove}")
+    envelopes = {path: _load_json(path, "handoff envelope") for path in sorted(handoff_dir(directory).glob("*.json"))}
+    for path, envelope in envelopes.items():
+        bindings = envelope.get("source_bindings") if isinstance(envelope.get("source_bindings"), dict) else {}
+        if (envelope.get("digest") != add_intents._content_digest({k: v for k, v in envelope.items() if k != "digest"})
+                or bindings.get("add_digest") != old_add_digest or bindings.get("intents_digest") != old_intents_digest):
+            raise RebindStop(f"{requirement_id}: {path} no longer matches the approved ADD and intent set; {reapprove}")
+
+    head = _git_lines(root, "rev-parse", "HEAD")[0]
+    changed = {path: snapshot["revision"] for path in
+               project_evidence.validate_snapshot(root, snapshot, check_freshness=True)["changed_sources"]}
+    prepared = add_document["prepared_against"]
+    changed.update({source.split("#", 1)[0]: prepared for source in _file_sources(add_document)
+                    if not add_intents._sources_unchanged_since(root, prepared, [source])})
+    affected = _affected_sources(directory, add_document, remaining_changes)
+    sources: list[dict[str, Any]] = []
+    blocked: list[str] = []
+    for path, since in sorted(changed.items()):
+        commits = _git_lines(root, "log", "--first-parent", "--format=%H", f"{since}..HEAD", "--", path)
+        if not commits:
+            blocked.append(f"{path} (changed without a commit on main)")
+            continue
+        classified = [{"commit": commit, "own": _own_change_of_path(root, commit, path, own_changes)} for commit in commits]
+        foreign = [item["commit"][:12] for item in classified if not item["own"]]
+        if foreign and path in affected:
+            blocked.append(f"{path} ({', '.join(foreign)})")
+        sources.append({"path": path, "affected": path in affected, "commits": classified})
+    if blocked:
+        raise RebindStop(f"{requirement_id}: sources the remaining children use changed outside this Requirement's "
+                         f"delivered children: {'; '.join(blocked)}; {reapprove}")
+
+    results = {concern: projection["result"] for concern, projection in snapshot["projections"].items()}
+    rebuilt, _ = project_evidence.build_snapshot(root, prior=snapshot, results=results, concerns=list(results))
+    receipt_file = directory / f"rebind-{len(list(directory.glob('rebind-*.json'))) + 1}.json"
+    evidence = []
+    for item in add_document.get("evidence", []) or []:
+        if isinstance(item, dict) and item.get("kind") == add_intents.EVIDENCE_KIND_SNAPSHOT:
+            projection = rebuilt["projections"][item["projection"]]
+            item = {**item, "digest": projection["digest"], "projection_digest": projection["digest"],
+                    "snapshot_digest": rebuilt["digest"], "snapshot_revision": rebuilt["revision"]}
+        evidence.append(item)
+    written = [snapshot_path(directory), add_file, intents_file, *envelopes]
+    with tempfile.TemporaryDirectory() as backup:
+        originals = {path: Path(backup) / str(index) for index, path in enumerate(written)}
+        for path, copy in originals.items():
+            shutil.copy2(path, copy)
+        try:
+            _write_json(snapshot_path(directory), rebuilt)
+            _write_json(add_file, {**add_document, "prepared_against": head, "evidence": evidence,
+                                   "approved": False, "approval": None})
+            new_add = add_intents.approve_add(root, add_file, approved_by=(
+                f"carried from {old_add_digest} by {receipt_file.name}; "
+                f"approved by {approval.get('approved_by', 'an unrecorded approver')}"))
+            _write_json(intents_file, {**intents_document, "approved_add_digest": new_add["approval"]["digest"],
+                                       "snapshot_refs": [item for item in evidence if isinstance(item, dict)
+                                                         and item.get("kind") == add_intents.EVIDENCE_KIND_SNAPSHOT]})
+            for path, envelope in envelopes.items():
+                add_intents.prepare_handoff(
+                    root, add_path=add_file, intents_path=intents_file, intent_ids=envelope["intent_ids"], out=path,
+                    group_reason=envelope.get("group_reason"), requirement_context=envelope.get("requirement_context"))
+            after = status(root, requirement_id=requirement_id, base_dir=base_dir)
+            if after.get("current_stage") != "complete":
+                raise OrchestratorError(f"rebound pre-authoring is {after.get('current_stage')}: {after.get('blocker')}")
+            receipt = {"version": REBIND_RECEIPT_VERSION, "requirement_id": requirement_id, "at": utc_now(),
+                       "from_revision": snapshot["revision"], "to_revision": head, "own_changes": sorted(own_changes),
+                       "remaining_changes": sorted(remaining_changes), "sources": sources,
+                       "add_digest": {"from": old_add_digest, "to": new_add["approval"]["digest"]},
+                       "intents_digest": {"from": old_intents_digest,
+                                          "to": add_intents._content_digest(_load_json(intents_file, "intent-set document"))},
+                       "snapshot_digest": {"from": snapshot["digest"], "to": rebuilt["digest"]}}
+            # The receipt is the last write inside the rollback window: a carried approval never lacks its record.
+            _write_json(receipt_file, receipt)
+        except Exception as exc:
+            # Restore every artifact, drop a written receipt, and fail: a partial rebind is never left behind.
+            for path, copy in originals.items():
+                shutil.copy2(copy, path)
+            receipt_file.unlink(missing_ok=True)
+            raise RebindStop(f"{requirement_id}: rebind failed and was rolled back: {exc}") from exc
+    return {**receipt, "receipt": str(receipt_file)}
 
 
 CHECK_BUNDLE_HINT = "orchestrate_pre_authoring.py --id {id} check-bundle (optional, before advance)"
