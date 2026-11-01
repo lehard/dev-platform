@@ -1103,7 +1103,7 @@ class IntegrationTests(PoolFixture):
                         import private_lineage
                         stack.enter_context(mock.patch.object(private_lineage, "require_clean_candidate"))
                         stack.enter_context(mock.patch.object(lifecycle.shutil, "which", return_value="openspec"))
-                        self.assertEqual(lifecycle.archive_change(self.base, "test"), 0)
+                        self.assertEqual(lifecycle.finalize_change(self.base, "test", context="developer"), 0)
                 else:
                     def stream(command, **kwargs):
                         self.assertTrue(any("select_checks.py" in str(arg) for arg in command))

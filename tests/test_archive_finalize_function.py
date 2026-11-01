@@ -40,7 +40,7 @@ class FinalizePreconditionTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "run_checked") as run_checked, \
                 mock.patch.object(lifecycle, "archive_with_recovery") as archive:
             with self.assertRaises(SystemExit) as raised:
-                lifecycle.archive_change(root, "work", finalize=finalize)
+                lifecycle.finalize_change(root, "work", context="queue" if finalize else "developer")
         return str(raised.exception), review, run_checked, archive
 
     def test_every_unmet_precondition_is_reported_in_one_failure(self) -> None:
@@ -73,6 +73,28 @@ class FinalizePreconditionTests(unittest.TestCase):
     def test_archive_module_has_no_review_launcher(self) -> None:
         self.assertFalse(hasattr(lifecycle, "ensure_review_evidence"))
 
+
+    def test_unknown_context_fails_before_any_work(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(lifecycle, "require_existing_archive_target") as target:
+            with self.assertRaisesRegex(SystemExit, "unknown finalize context 'composition'.*queue, developer"):
+                lifecycle.finalize_change(Path(tmp), "work", context="composition")
+        target.assert_not_called()
+
+    def test_cli_selects_the_finalize_context(self) -> None:
+        for argv, context in ((["archive", "work", "--finalize"], "queue"), (["archive", "work"], "developer")):
+            with self.subTest(argv=argv), mock.patch.object(sys, "argv", ["openspec_lifecycle.py", *argv]), \
+                    mock.patch.object(lifecycle, "current_worktree_root", return_value=Path("/r")), \
+                    mock.patch.object(lifecycle, "finalize_change", return_value=0) as finalize:
+                self.assertEqual(lifecycle.main(), 0)
+            finalize.assert_called_once_with(Path("/r"), "work", context=context)
+
+    def test_finalize_job_archives_through_the_same_function(self) -> None:
+        finalization = load_platform_module("post_review_finalization", SCRIPTS / "post_review_finalization.py")
+        with mock.patch.object(finalization.subprocess, "run", return_value=mock.Mock(returncode=0)) as run:
+            finalization.trusted_archiver(Path("/checkout"), "work", {})
+        command = run.call_args.args[0]
+        self.assertEqual(Path(command[1]).name, "openspec_lifecycle.py")
+        self.assertEqual(command[2:], ["archive", "work", "--finalize"])
 
 if __name__ == "__main__":
     unittest.main()

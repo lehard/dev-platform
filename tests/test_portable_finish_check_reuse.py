@@ -1,7 +1,7 @@
 """Finish reuses check evidence for unchanged task content (portable managed path; BR-692, BR-785).
 
 The decision tests and the execution-count tests run the real ``select_checks.py`` (as a subprocess,
-exactly as ``openspec_lifecycle.archive_change`` and ``finish_task.run_checks`` do), the real
+exactly as ``openspec_lifecycle.finalize_change`` and ``finish_task.run_checks`` do), the real
 ``openspec_lifecycle.require_automated_evidence`` / ``automated_evidence_reuse`` and the real
 ``finish_task.validate_or_reuse`` in temporary Git repositories with a bare ``origin``.  Only the
 OpenSpec CLI archive move (done by hand, mirroring what archive commits) and the independent review
@@ -114,7 +114,7 @@ class PortableProject:
         git(self.worktree, "commit", "-qm", "implement")
 
     def validate_for_archive(self) -> None:
-        """The command archive_change runs for a portable, platform-owned change."""
+        """The command finalize_change runs for a portable, platform-owned change."""
         result = subprocess.run(
             ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute",
              "--evidence", str(self.change / "automated-checks.json")],

@@ -166,7 +166,7 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
                     mock.patch.object(lifecycle, "rehearse_archive") as rehearse, \
                     mock.patch.object(lifecycle, "archive_with_recovery") as archive, \
                     mock.patch.object(lifecycle, "run_checked") as run_checked:
-                self.assertEqual(lifecycle.archive_change(root, "work", finalize=True), 0)
+                self.assertEqual(lifecycle.finalize_change(root, "work", context="queue"), 0)
             identity.assert_not_called()
             diff.assert_not_called()
             committed.assert_not_called()

@@ -26,6 +26,12 @@ Automated-Checks-Evidence: automated-checks.json
 
 - Spec delta (one modified, two added completion-lifecycle requirements), proposal, design, tasks and docs describe one archive function, collected preconditions and no review from archive.
 
+## Re-verification after review repair
+
+- Repair `c896f63b` added `finalize_change(root, change, *, context=None)` as a wrapper whose `context` was unused, and left the manifest stale. Replaced by a real single function: `archive_change` is removed and its body is `finalize_change(root, change, *, context)`; `context` is required and selects the executor's gates (`queue`: finalize job; `developer`: own checkout), and an unknown context fails before any work (`test_unknown_context_fails_before_any_work`). The CLI maps `--finalize` to `queue` (`test_cli_selects_the_finalize_context`); the finalize job's `trusted_archiver` runs that CLI (`test_finalize_job_archives_through_the_same_function`). Every test now calls `finalize_change` with an explicit context.
+- Privacy ordering restored in substance: the private reference guard tests assert no review launch, no selected checks, no rehearsal, no OpenSpec mutation and no automated-check evidence while the guard blocks; the uncommitted-package test asserts no review launch and no checks.
+- Manifest regenerated.
+
 ## Not verified / limits
 
 - Composition finalization and portable finish move onto this function in the next children of BR-949; until then a portable developer archive requires existing review evidence instead of launching the review.

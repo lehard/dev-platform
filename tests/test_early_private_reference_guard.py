@@ -47,12 +47,29 @@ def make_candidate(root: Path, *, enabled: bool = True, guard: bool = True) -> N
 
 class EarlyPrivateReferenceGuardTests(unittest.TestCase):
     def archive(self, root: Path):
+        """Archive through finalize and record every expensive or mutating step it might reach."""
+        import independent_review
         with mock.patch.object(lifecycle, "require_existing_archive_target"), \
-                mock.patch.object(lifecycle, "static_archive_problems", return_value=[]) as readiness:
+                mock.patch.object(lifecycle, "static_archive_problems", return_value=[]) as readiness, \
+                mock.patch.object(independent_review, "ensure_review_evidence") as launch, \
+                mock.patch.object(lifecycle, "run_checked") as checks, \
+                mock.patch.object(lifecycle, "rehearse_archive") as rehearse, \
+                mock.patch.object(lifecycle, "archive_with_recovery") as mutate:
             try:
-                return lifecycle.archive_change(root, "work"), readiness
+                outcome = lifecycle.finalize_change(root, "work", context="developer")
             except SystemExit as exc:
-                return exc, readiness
+                outcome = exc
+        self.steps = {"review launch": launch, "selected checks": checks, "rehearsal": rehearse, "OpenSpec mutation": mutate}
+        return outcome, readiness
+
+    def assert_guard_stopped_before_any_work(self, root: Path) -> None:
+        # The guard is collected with the read-only readiness, but archive stops before
+        # launching review, running checks, writing evidence or mutating OpenSpec.
+        for step, recorded in self.steps.items():
+            with self.subTest(step=step):
+                recorded.assert_not_called()
+        self.assertFalse((root / "openspec/changes/work/automated-checks.json").exists())
+        self.assertTrue((root / "openspec/changes/work").is_dir())
 
     def test_proposal_reference_blocks_archive_before_any_work(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -63,8 +80,7 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
             self.assertIsInstance(outcome, SystemExit)
             self.assertIn("archive blocked by private lineage", str(outcome))
             self.assertNotIn("216", str(outcome))
-            # Read-only readiness may be listed too; nothing is archived.
-            self.assertTrue((root / "openspec/changes/work").is_dir())
+            self.assert_guard_stopped_before_any_work(root)
 
     def test_archived_artifact_reference_blocks_archive(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -75,8 +91,7 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
             (archived / "design.md").write_text(PRIVATE_REF, encoding="utf-8")
             outcome, readiness = self.archive(root)
             self.assertIsInstance(outcome, SystemExit)
-            # Read-only readiness may be listed too; nothing is archived.
-            self.assertTrue((root / "openspec/changes/work").is_dir())
+            self.assert_guard_stopped_before_any_work(root)
 
     def test_missing_guard_fails_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

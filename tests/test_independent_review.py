@@ -828,7 +828,7 @@ class IndependentReviewTests(unittest.TestCase):
         launcher = FakeLauncher([material("missing-contract-behavior")])
         with self.platform_archive(launcher) as run_checked:
             with self.assertRaises(SystemExit) as raised:
-                lifecycle.archive_change(self.root, "review-change")
+                lifecycle.finalize_change(self.root, "review-change", context="developer")
         message = str(raised.exception)
         self.assertEqual(launcher.calls, [])
         run_checked.assert_not_called()
@@ -841,7 +841,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.run_review(launcher)
         calls = len(launcher.calls)
         with self.platform_archive(launcher) as run_checked:
-            self.assertEqual(lifecycle.archive_change(self.root, "review-change"), 0)
+            self.assertEqual(lifecycle.finalize_change(self.root, "review-change", context="developer"), 0)
         self.assertEqual(len(launcher.calls), calls)
         self.assertIn("select_checks.py", " ".join(run_checked.call_args_list[0].args[0]))
 
@@ -912,7 +912,7 @@ class IndependentReviewTests(unittest.TestCase):
 
     def test_runner_has_no_publish_archive_or_cleanup_operation(self) -> None:
         source = (SCRIPTS / "independent_review_runner.py").read_text(encoding="utf-8")
-        for forbidden in ("project_publish", "managed_project_status", "openspec_lifecycle", "archive_change", '"reset"', '"clean"', '"stash"'):
+        for forbidden in ("project_publish", "managed_project_status", "openspec_lifecycle", "archive_change", "finalize_change", '"reset"', '"clean"', '"stash"'):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, source)
 

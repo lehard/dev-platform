@@ -53,7 +53,7 @@ ARCHIVE_DRIVER = BLOCKER + textwrap.dedent(
             mock.patch.object(lifecycle, "archive_with_recovery"), \\
             mock.patch.object(lifecycle, "run_checked") as run, \\
             mock.patch.object(lifecycle.shutil, "which", return_value="openspec"):
-        code = lifecycle.archive_change(root, "work")
+        code = lifecycle.finalize_change(root, "work", context="developer")
     review.assert_called_once()
     assert code == 0, code
     loaded = [name for name in %r if name in sys.modules]
@@ -228,7 +228,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
                         mock.patch.dict("os.environ", {"DEV_PLATFORM_COMPOSITION_FINALIZATION": composition}), \
                         mock.patch.object(lifecycle, "require_existing_archive_target") as target:
                     with self.assertRaises(common.PlatformConfigError):
-                        lifecycle.archive_change(Path("/unused"), "work", finalize=True)
+                        lifecycle.finalize_change(Path("/unused"), "work", context="queue")
                     target.assert_called_once()
 
     def test_portable_composition_finalize_rejected_before_coordinator_import(self) -> None:
@@ -241,7 +241,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
             import openspec_lifecycle
             os.environ["DEV_PLATFORM_COMPOSITION_FINALIZATION"] = "owner/repo#1"
             try:
-                openspec_lifecycle.archive_change(Path.cwd(), "work", finalize=True)
+                openspec_lifecycle.finalize_change(Path.cwd(), "work", context="queue")
             except SystemExit as error:
                 assert "coordinator source contract" in str(error), error
             else:

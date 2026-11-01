@@ -850,16 +850,26 @@ def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = 
         raise SystemExit(result.returncode)
 
 
-def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
-    """The one finalize function that archives a verified change.
+FINALIZE_QUEUE = "queue"
+FINALIZE_DEVELOPER = "developer"
+FINALIZE_CONTEXTS = (FINALIZE_QUEUE, FINALIZE_DEVELOPER)
 
-    ``finalize`` is the coordinator's post-review archive of a disposable candidate
-    checkout: review and selected-check evidence are reused (never launched or rerun),
-    and the local task-checkout identity gates do not apply because the trusted
-    coordinator already proved the content-bound gates before invoking it. Every
-    archive precondition is evaluated before any archive work and all unmet ones are
-    reported in one failure; archive never launches an independent review.
+
+def finalize_change(root: Path, name: str, *, context: str) -> int:
+    """The one function that archives a verified change; ``context`` names its executor.
+
+    ``queue`` is the coordinator's post-review archive of a disposable candidate
+    checkout (the finalize job): review and selected-check evidence are reused (never
+    launched or rerun), and the local task-checkout identity, committed-package,
+    applicable-diff and routing gates do not apply because the trusted coordinator
+    already proved the content-bound gates before invoking it. ``developer`` is the
+    archive of a verified change in its own checkout, which establishes selected-check
+    evidence. Every archive precondition is evaluated before any archive work and all
+    unmet ones are reported in one failure; no context launches an independent review.
     """
+    if context not in FINALIZE_CONTEXTS:
+        raise SystemExit(f"{name}: unknown finalize context {context!r}; expected one of {', '.join(FINALIZE_CONTEXTS)}")
+    finalize = context == FINALIZE_QUEUE
     # Fail closed on a nonexistent or malformed target before any state changes.
     require_existing_archive_target(root, name, source="archive")
     config = read_platform_config(root)
@@ -887,7 +897,7 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     try:
         private_lineage.require_clean_candidate(root)
     except private_lineage.PrivateLineageError as exc:
-        problems.append(f"{name}: archive blocked by private lineage: {exc}")
+        problems.append(f"{name}: archive blocked by private lineage before review, checks, evidence writes or OpenSpec mutation: {exc}")
     if platform_owned and not finalize and (change / ".managed-task.json").is_file():
         try:
             source_issue = source_issue_for_provenance(root, change)
@@ -946,11 +956,6 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     return 0
 
 
-def finalize_change(root: Path, change: str, *, context: str | None = None) -> int:
-    """Coordinator finalization of a reviewed candidate: the one entry the finalize job archives through."""
-    return archive_change(root, change, finalize=True)
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Enforce the OpenSpec verify/archive completion contract.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -965,9 +970,7 @@ def main() -> int:
     root = current_worktree_root()
     if args.command == "check":
         return check_hygiene(root, args.stage)
-    if args.finalize:
-        return finalize_change(root, args.change)
-    return archive_change(root, args.change)
+    return finalize_change(root, args.change, context=FINALIZE_QUEUE if args.finalize else FINALIZE_DEVELOPER)
 
 
 if __name__ == "__main__":
