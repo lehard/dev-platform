@@ -2,7 +2,7 @@
 
 ### Requirement: A coordinator environment failure is visible on the candidate
 
-When integration stops on a coordinator environment failure and the merge with main has no real conflict, the queue SHALL post a note naming the head and the failure, change no state, post no block and spend no attempt; the run still fails. Status SHALL show the note as the reason until a later record supersedes it. A real conflict SHALL go to integration-repair-pending, spending an attempt, naming the conflict and the environment failure.
+When integration stops on a coordinator environment failure and merge-tree reports no conflict, the queue SHALL post a note naming the head and the failure, change no state, post no block, spend no attempt; the run still fails. Any merge-tree conflict, including one only in declared generated or derived files, SHALL go to integration-repair-pending, spending an attempt, naming the conflict and the environment failure.
 
 #### Scenario: Derived merge without OpenSpec CLI
 
@@ -20,3 +20,9 @@ When integration stops on a coordinator environment failure and the merge with m
 - **GIVEN** a waiting candidate whose merge with main conflicts outside generated files
 - **WHEN** its derived merge stops because the coordinator lacks the OpenSpec CLI
 - **THEN** it moves to integration-repair-pending, the attempt is counted, and the reason names the conflict and the environment failure
+
+#### Scenario: Generated-only conflict with derived merge unavailable
+
+- **GIVEN** a waiting candidate whose merge with main conflicts only in a declared generated file
+- **WHEN** the coordinator cannot run the derived merge
+- **THEN** it moves to integration-repair-pending, the attempt is counted, and the integration repair regenerates the declared generated files
