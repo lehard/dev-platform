@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "281e24835174258ee56702723fba59e81bbcb4fd",
+    "base_ref": "281e24835174258ee56702723fba59e81bbcb4fd",
+    "candidate_head": "c2d9d87e85b12a24ede3da141ad20e5134fe4c4b",
+    "diff_sha256": "bfc2f00d8ec6bb08a784b9e506df4ff25389839a72ecc9bcb38929d6021e17f8"
+  },
+  "completed_at": "2026-11-01T01:01:28+00:00",
+  "findings": [
+    {
+      "evidence": "A search for `finalize_change` finds no match in any .py file. `template/scripts/post_review_finalization.py:121-125` still runs `openspec_lifecycle.py archive <change> --finalize` as a subprocess. The candidate diff touches no `post_review_finalization.py`. The spec requirement 'One finalize function archives a change' is behaviorally satisfied because `archive_change(..., finalize=True)` is that function. The proposal, design and tasks name an artifact that was not delivered, so they no longer match the code.",
+      "id": "finalize-change-function-missing",
+      "severity": "advisory",
+      "summary": "The proposal and tasks describe `openspec_lifecycle.finalize_change(root, change, *, context)` and say `post_review_finalization.trusted_archiver` archives through it (task 1.2 is ticked). No such function exists. The candidate only reworks `archive_change`, and `post_review_finalization.py` is unchanged."
+    },
+    {
+      "evidence": "In `static_archive_problems`, `require_independent_review_receipt` runs only `if verification.is_file()`. When verification.md is absent there is no note that this check was skipped. `require_applicable_committed_diff` runs even when `require_committed_package` has already failed, and no dependency is reported. This is a mismatch with design.md line 3.",
+      "id": "dependent-gates-skipped-silently",
+      "severity": "advisory",
+      "summary": "The design says a gate that depends on an earlier one must report the dependency explicitly instead of being skipped silently. The code skips some dependent gates without saying so."
+    }
+  ],
+  "launched_at": "2026-11-01T01:01:08+00:00",
+  "output_sha256": "c5c4ba6606c6a205394d974dbff84071014572e62ec5be864f693fe57cb20bc5",
+  "perspective": "spec-fidelity",
+  "request_id": "9f9a18f2-6f07-4b42-86cf-9d2a93843a5d",
+  "reviewer": {
+    "context_id": "9577a3b1-9231-4aa5-94ed-eff79974d275",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-1fdc413f-8343-41dc-8eed-db0449c431ba",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32398
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 118154
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19006
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 19326
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2056
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5d6aa4a0ba31b77dbaee2eb21de5396c55f6ea64d8610b07bf9091a61e813c60"
+}
