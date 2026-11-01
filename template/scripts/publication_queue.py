@@ -1907,7 +1907,8 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
             # A candidate that really conflicts with main is repaired by a job, not parked on the coordinator.
             conflicts = merge_conflicts(root, head, current_main)
             if conflicts:
-                raise IntegrationRepairNeeded("merge of current main conflicts in: " + ", ".join(conflicts[:8])) from exc
+                raise IntegrationRepairNeeded("merge of current main conflicts in: " + ", ".join(conflicts[:8])
+                                              + f" (derived merge unavailable on this coordinator: {exc})") from exc
             raise QueueEnvironmentError(f"PR #{number} derived merge cannot run on this coordinator: {exc}") from exc
         except RederivationFailed as exc:
             raise IntegrationRepairNeeded(f"derived merge (archive-derived specs, generated files) failed: {exc}",

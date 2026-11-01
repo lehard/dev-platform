@@ -669,6 +669,17 @@ class DerivedMergeEnvironmentTests(unittest.TestCase):
         self.assertIn("No module named 'yaml'", str(exc))
         gh.assert_not_called()
 
+    def test_unavailable_derived_merge_with_a_real_conflict_needs_integration_repair(self) -> None:
+        # BR-969 item 3: a candidate that really conflicts is repaired by a job, never parked on the coordinator.
+        import post_review_finalization as final
+
+        exc, gh = self._prepare_generated(final.RederivationEnvironmentFailed("OpenSpec CLI is required"),
+                                          conflicts=["src.py"])
+        self.assertIsInstance(exc, queue.IntegrationRepairNeeded)
+        self.assertEqual(str(exc), "merge of current main conflicts in: src.py "
+                                   "(derived merge unavailable on this coordinator: OpenSpec CLI is required)")
+        gh.assert_not_called()
+
     def test_candidate_regeneration_failure_stays_integration_repair(self) -> None:
         import post_review_finalization as final
 
