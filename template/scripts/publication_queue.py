@@ -33,8 +33,9 @@ MAX_TRANSIENT_FAILURES = 3
 TRANSIENT_COUNTER_PREFIX = "transient-failures:"
 # Backoff (seconds) between the bounded attempts of one candidate observation in a queue run.
 OBSERVATION_BACKOFF = (15, 30, 60, 120)
-# Observed on a PR read (#744, 2026-10-27) and gone minutes later; transient for the queue's observation only.
+# Observed on a PR read (#744, 2026-10-27) and gone minutes later; transient for a queue read of one PR only.
 OBSERVATION_TRANSIENT = re.compile(r"too many files changed.*HTTP 422", re.IGNORECASE | re.DOTALL)
+PR_READ = re.compile(r"repos/[^/]+/[^/]+/pulls/\d+")
 
 
 class QueueError(RuntimeError):
@@ -112,13 +113,16 @@ def _gh(root: Path, *args: str, data: dict[str, str] | None = None) -> Any:
             cmd += ["-f", f"{key}={value}"]
     from _platform_common import is_github_read, run_github_with_retry
 
-    if is_github_read(cmd):
+    read = is_github_read(cmd)
+    if read:
         result = run_github_with_retry(cmd, cwd=root)
     else:
         result = subprocess.run(cmd, cwd=root, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or f"gh exit {result.returncode}"
-        raise (TransientQueueError if _transient(detail) else QueueError)(detail)
+        pr_read = read and any(PR_READ.fullmatch(part) for part in args)
+        transient = _transient(detail) or (pr_read and bool(OBSERVATION_TRANSIENT.search(detail)))
+        raise (TransientQueueError if transient else QueueError)(detail)
     if not result.stdout.strip():
         return None
     try:
