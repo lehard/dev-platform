@@ -554,6 +554,38 @@ class IntegrationRepairTests(RepairFixture):
             # The coordinator can prove the pushed head (update marker), so preparation will accept it.
             self.assertIn(after, [e.get("head") for e in queue._events(self.repo.root, "o/r", 7) if e.get("kind") == "update"])
 
+    def _generator(self, body: str):
+        from _platform_common import GeneratedFile
+
+        script = Path(self.tmp.name) / "gen.py"
+        script.write_text(body)
+        return (GeneratedFile("src.gen", (sys.executable, str(script), "{tree}"), ("true",)),)
+
+    def test_integration_repair_regenerates_declared_files_before_push(self):
+        # The integrated result ships with current declared generated files, like a repair writer's result.
+        declared = self._generator("import pathlib, sys\ntree = pathlib.Path(sys.argv[1])\n"
+                                   "(tree / 'src.gen').write_text('gen:' + (tree / 'src.py').read_text())\n")
+        with RemoteFixture(self.repo) as fixture, mock.patch("_platform_common.generated_files", return_value=declared):
+            self.offer(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.repair(fixture, resolve_value, allowed_paths=["src.gen"])
+            self.assertEqual(outcome["status"], "integrated")
+            after = self.repo.head("agent/example")
+            main = git(self.repo.remote, "rev-parse", "refs/heads/main")
+            self.assertEqual(git(self.repo.remote, "show", f"{after}:src.gen"), "gen:value = 12")
+            self.assertEqual(git(self.repo.remote, "log", "-1", "--format=%s", after), "Regenerate declared generated files")
+            self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", f"{after}^").split()[1:], [before, main])
+
+    def test_failing_generator_fails_the_integration_repair_without_push(self):
+        declared = self._generator("import sys\nsys.exit('generator broke')\n")
+        with RemoteFixture(self.repo) as fixture, mock.patch("_platform_common.generated_files", return_value=declared):
+            self.offer(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.repair(fixture, resolve_value)
+            self.assertEqual(outcome["status"], "failed")
+            self.assertIn("regeneration of src.gen failed", outcome["reason"])
+            self.assertEqual(self.repo.head("agent/example"), before)
+
     def test_out_of_scope_or_workflow_edits_are_refused_and_a_new_bounded_attempt_is_offered(self):
         def tamper(checkout: Path) -> None:
             (checkout / ".github/workflows").mkdir(parents=True)
