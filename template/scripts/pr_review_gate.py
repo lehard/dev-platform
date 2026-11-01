@@ -465,7 +465,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                                   review_handler=review_handler if kind == "review" else None, before_push=before_push,
                                   claim_current=claim_current,
                                   runtime_check=repair_runtime_check if kind == "repair" else None,
-                                  launch=launch if kind == "repair" else None)
+                                  launch=launch if kind == "repair" else None, trusted_root=root)
     if outcome["status"] == "discarded":
         return outcome
     head = outcome.get("pushed_head") or job["head"]
