@@ -29,6 +29,15 @@ Independent-Review-Evidence: independent-review-request.json
   - These replace the earlier test that expected a direct candidate to stay blocked.
 - A read-only live walk against the private Backlog resolved the archived handles of `split-long-requirements-part-2` to Issue 948 and of `split-long-requirements-part-3a` to Issue 960.
 
+## Independent review
+
+- First round: ready, five advisories.
+  - Fixed:
+    - `tasks.md` had been truncated by an editing slip and is restored;
+    - the archive is matched exactly as `YYYY-MM-DD-<change>`, so `-<change>` lookalikes no longer match;
+    - a failed GraphQL read reports only the `gh` exit status, so GitHub text that names the private repository never reaches a public receipt.
+  - Kept, by coordinator decision: an Issue closed while its result comment was lost stops explicitly with "no open Issue carries this handle (already closed or missing)" instead of walking closed Issues.
+
 ## Not verified / limits
 
 - No live terminal job ran. The live acceptance (#948 and #960 closed by the terminal job) waits for merge and a coordinator re-offer of those post-merge jobs.

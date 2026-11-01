@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "9fbbb8390f53dca82a7a7379a515e3a7189170d9",
+    "diff_sha256": "00d8ad0219b8874a0caf4f44fd201486e19542d47642e62fa658ed8b66a8607f"
+  },
+  "completed_at": "2026-11-01T01:52:48+00:00",
+  "findings": [
+    {
+      "evidence": "private_lineage._open_issue_pages raises PrivateLineageError with the first 200 characters of gh stderr or stdout. direct_source turns that into JobBlocked(str(exc)), which becomes a public blocked outcome. In run_direct_terminal, only JobBlocked from reconcile_child is rewrapped to 'Issue #N'. Other exceptions from managed_project_status.reconcile or requirement_terminal._close_issue propagate unchanged. require_handle and _comments can also raise errors that name the Backlog.",
+      "id": "public-message-may-name-backlog",
+      "severity": "advisory",
+      "summary": "The spec says logs and comments name only the Issue number. Some error paths can still carry text that names the private Backlog repository. The design says neither the handle nor the repository reaches a public receipt."
+    },
+    {
+      "evidence": "The diff creates openspec/changes/terminal-direct-lineage/tasks.md as a new empty file (index 00000000..e69de29b).",
+      "id": "tasks-md-empty",
+      "severity": "advisory",
+      "summary": "tasks.md in the candidate is empty, so the change records no implementation or verification tasks."
+    }
+  ],
+  "launched_at": "2026-11-01T01:52:23+00:00",
+  "output_sha256": "6c4a316e64fa263dfbe07b3a137e47ab20ec4fdec2dda10e459ebf47904b59ee",
+  "perspective": "spec-fidelity",
+  "request_id": "743ddb3d-4f3e-40eb-ab1e-6d65eb23d646",
+  "reviewer": {
+    "context_id": "16081205-d746-4b89-b706-1104a83ab8e6",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8d27ddf5-7979-4089-b614-82c81742e89e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27954
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 81211
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21159
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22697
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2357
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "4358a14f774315929d03619a85b48ed77a3ef192e86607c4a6ccf69064b48b41"
+}

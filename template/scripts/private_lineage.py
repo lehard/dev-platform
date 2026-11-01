@@ -141,7 +141,8 @@ def _open_issue_pages(root: Path, repository: str, max_pages: int):
             command += ["-F", f"after={after}"]
         result = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
         if result.returncode:
-            raise PrivateLineageError("open private Issues cannot be read: " + (result.stderr or result.stdout).strip()[:200])
+            # GitHub's text can name the private repository; public receipts carry only the exit status.
+            raise PrivateLineageError(f"open private Issues cannot be read (gh exit {result.returncode})")
         try:
             issues = json.loads(result.stdout)["data"]["repository"]["issues"]
             nodes, info = issues["nodes"], issues["pageInfo"]

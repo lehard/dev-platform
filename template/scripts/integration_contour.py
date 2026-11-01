@@ -505,7 +505,8 @@ class LifecycleOps:
         if run_git(["rev-parse", "FETCH_HEAD"], cwd=root).stdout.strip() != head:
             raise JobBlocked(f"PR #{number} fetched head differs from the merged head")
         listed = run_git(["ls-tree", "-d", "--name-only", head, "openspec/changes/archive/"], cwd=root).stdout.split()
-        archived = [path for path in listed if path.rsplit("/", 1)[-1].endswith(f"-{change}")]
+        archived = [path for path in listed
+                    if re.fullmatch(rf"\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)}", path.rsplit("/", 1)[-1])]
         if len(archived) != 1:
             raise JobBlocked(f"PR #{number} merged head has {len(archived)} archives of change {change}")
         shown = run_git(["show", f"{head}:{archived[0]}/.managed-task.json"], cwd=root, check=False)
