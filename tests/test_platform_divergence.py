@@ -341,6 +341,18 @@ class DivergenceCheckTests(DivergenceTestCase):
         self.assert_fails("invalid-record", "dev-platform", contains="harness_mode")
 
 
+class DivergenceReportTests(DivergenceTestCase):
+    def test_protected_and_other_problems_are_reported_by_kind_without_a_crash(self) -> None:
+        self.patch(PROTECTED)
+        self.patch(HOTFIXABLE)
+        completed = self.run_check()
+        self.assertEqual(1, completed.returncode, completed.stdout + completed.stderr)
+        self.assertNotIn("Traceback", completed.stderr)
+        self.assertIn("1 protected-touch problem(s)", completed.stdout)
+        self.assertIn("1 divergence problem(s) outside the protected surface", completed.stdout)
+        self.assertIn("platform_divergence: FAILED with 2 problem(s)", completed.stdout)
+
+
 class DoctorWiringTests(DivergenceTestCase):
     def load_doctor(self):
         sys.path.insert(0, str(TEMPLATE / "scripts"))
