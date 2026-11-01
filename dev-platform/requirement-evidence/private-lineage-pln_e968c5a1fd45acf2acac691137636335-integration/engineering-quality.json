@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
+    "candidate_head": "7b9c9c5d36d61af3b56470e31b9acbe9a8b3b07c",
+    "diff_sha256": "38471e9e942c439f6d696aa780e350cc8d36e72cc04d786bbca7cfa0a04b3e43"
+  },
+  "completed_at": "2026-11-01T02:37:38+00:00",
+  "findings": [
+    {
+      "evidence": "conflicting-candidate-integration-repair/design.md says \"No mergeability. ... GitHub `mergeable` is not read.\" The proposal says the note \"changes no state, posts no block and spends no attempt\". The `_integrate` handler in publication_queue.py still re-raises `QueueEnvironmentError` after the note, with no transition. `derive_candidate` keeps state `blocked-retryable` and only swaps the reason text. The only new conflict tests (`test_conflict_outside_generated_files_needs_integration_repair`, `test_integration_repair_needed_routes_to_counted_integration_repair`) pin behavior that already existed. A candidate that GitHub reports as CONFLICTING but whose conflict `merge-tree` does not detect, or whose derived merge fails for environment reasons, still waits for checks that will not run. The narrowing is recorded as a coordinator decision (\"variant A\"), but it leaves the stated Requirement outcome unmet.",
+      "id": "conflict-with-main-still-waits-on-environment-failure",
+      "severity": "material",
+      "summary": "Requirement item 3 is not met. The change does not move a candidate that is waiting for required checks and has mergeable=CONFLICTING into integration-repair-pending. The one conflict case seen in practice, PR #837 with a generated-only conflict, still stays blocked-retryable. It gets only an `environment-error` note as its reason."
+    }
+  ],
+  "launched_at": "2026-11-01T02:37:21+00:00",
+  "output_sha256": "08ab3a5dd3bc0a5d6977e05fc0071867609185b0d0182d5836db860212dc988d",
+  "perspective": "engineering-quality",
+  "request_id": "99a0152c-810f-4d58-b8fa-a8fcf64245ae",
+  "reviewer": {
+    "context_id": "d81ffa3f-0bde-48ca-b611-913be7e8ce0a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-43ae7025-44bb-4988-a033-f22bfef51f99",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31083
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20343
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15138
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16080
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1622
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e2d72472efc4bb3dfed9a4a753e4cf22628ed02418579dc372c447f11c75ea64"
+}

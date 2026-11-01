@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
+    "candidate_head": "7b9c9c5d36d61af3b56470e31b9acbe9a8b3b07c",
+    "diff_sha256": "38471e9e942c439f6d696aa780e350cc8d36e72cc04d786bbca7cfa0a04b3e43"
+  },
+  "completed_at": "2026-11-01T02:37:21+00:00",
+  "findings": [
+    {
+      "evidence": "The Requirement says a candidate waiting for checks with mergeable=CONFLICTING moves to integration red gate (integration-repair-pending) and does not stay in blocked-retryable. The T1 design says \"No mergeability. The conflict signal stays merge-tree in _prepare. GitHub mergeable is not read.\" It also says a QueueEnvironmentError leaves the state unchanged. publication_queue.py `_integrate` handles that error with `_note_environment_error` and re-raises. The T1 spec scenario \"Derived merge without OpenSpec CLI\" requires \"its state and attempts are unchanged\", which is the PR #837 hang. Only a conflict outside generated files reaches counted integration repair. A generated-only conflict, and any case where merge-tree is not the signal, still hangs in blocked-retryable. The proposal records this narrowing as a coordinator decision (variant A), so the Requirement outcome should be confirmed as accepted. The T2 receipt-preservation path is also never reached for such a candidate.",
+      "id": "conflict-env-failure-still-waits-not-repair",
+      "severity": "material",
+      "summary": "Requirement item 3 is not met for the conflict case that motivated it. A candidate that conflicts with main and waits for required checks does not move to integration-repair-pending when the failure is a coordinator environment failure. It stays blocked-retryable with only a new reason string. GitHub mergeable=CONFLICTING is not read at all."
+    }
+  ],
+  "launched_at": "2026-11-01T02:37:03+00:00",
+  "output_sha256": "f29488a009a07969789e713390f763546e406bd153ce73f507b9f8a49e3ead7a",
+  "perspective": "spec-fidelity",
+  "request_id": "99a0152c-810f-4d58-b8fa-a8fcf64245ae",
+  "reviewer": {
+    "context_id": "2653de6a-3c7f-41c3-ac4f-51eead77f129",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c600cf2c-849e-4dfd-9bbd-214fb47bbfc1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32787
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18637
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15527
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16399
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1779
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "e2d72472efc4bb3dfed9a4a753e4cf22628ed02418579dc372c447f11c75ea64"
+}
