@@ -1,0 +1,18 @@
+{
+  "base": "551062d9163983e6556d61b18b41ec14178423cc",
+  "children": [],
+  "dependencies": {
+    "merged-finish-reconcile": [],
+    "terminal-direct-lineage": []
+  },
+  "digest": "e8246e9ee32a047cacc282a571ba5b21cf1797a42d59e9b041553b59cb61d9b1",
+  "expected_changes": [
+    "merged-finish-reconcile",
+    "terminal-direct-lineage"
+  ],
+  "integration_branch": "requirement/BR-975",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+  "version": 2,
+  "work_identity": "BR-975"
+}
