@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "6cbc26e0e86e191bdff20601cbd6c875335c14fa",
-    "diff_sha256": "b77d06a7ac342083a5748fa8cfeb164806fc33165d24bf4435b31d119c51293a"
+    "candidate_head": "beea9b41857db87397d9ec653e8bc221b9b31a34",
+    "diff_sha256": "01eabe9b9e4ef413bd783f40f561d0112779e9f7b6d4e0c46ebba84b0d7fd254"
   },
   "change": "private-lineage-pln_e968c5a1fd45acf2acac691137636335-integration",
   "children": [
@@ -88,13 +88,13 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T04:06:49+00:00",
-  "request_id": "05dcaf9c-ac15-48c9-b779-96ace6811dd3",
+  "prepared_at": "2026-11-01T05:24:47+00:00",
+  "request_id": "62ba8b67-0ca6-4e69-b258-a5ce51d0c1de",
   "requirement": "pln_e968c5a1fd45acf2acac691137636335",
   "schema_version": 1,
   "task_content": {
-    "base": "551062d9163983e6556d61b18b41ec14178423cc",
-    "digest": "fcf97ecb019b649a19dd2197a01a30be01c781d7b9dc90d42a37f994d24d8654",
+    "base": "a9cc0bb1c0fac0656d9efc337c8eac02345d0628",
+    "digest": "56e49cbfa335d9b97d56a6c02216b3c6a6245b7cadfd5f4bc611a22550a856c0",
     "paths": {
       "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
       "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
@@ -109,10 +109,10 @@
       "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
       "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
       "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
-      "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+      "template/scripts/integration_contour.py": "394b738018b4d305974a8c57378e4fef0ba7017a",
       "template/scripts/publication_queue.py": "4747fa37154c0b73264ec4a1b5e6b12c07cbe7c4",
       "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
-      "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+      "tests/test_autonomous_integration_contour.py": "a39f7ea06e5728ea805ebe72c8c0ae6b4e572f90",
       "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
       "tests/test_publication_queue.py": "c301b50fa5481ff1e17f64e7c4b152d37658a44f",
       "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"

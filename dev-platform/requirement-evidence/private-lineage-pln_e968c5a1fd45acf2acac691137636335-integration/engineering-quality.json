@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "6cbc26e0e86e191bdff20601cbd6c875335c14fa",
-    "diff_sha256": "b77d06a7ac342083a5748fa8cfeb164806fc33165d24bf4435b31d119c51293a"
+    "candidate_head": "beea9b41857db87397d9ec653e8bc221b9b31a34",
+    "diff_sha256": "01eabe9b9e4ef413bd783f40f561d0112779e9f7b6d4e0c46ebba84b0d7fd254"
   },
-  "completed_at": "2026-11-01T04:07:29+00:00",
+  "completed_at": "2026-11-01T05:25:40+00:00",
   "findings": [
     {
-      "evidence": "conflicting-candidate-integration-repair/design.md, 'No mergeability': 'The conflict signal stays `merge-tree` in `_prepare`. GitHub `mergeable` is not read.' The change relies on a coordinator decision (narrowing item 2, variant A), not on the requirement wording. If GitHub reports CONFLICTING while merge-tree reports a clean merge, the candidate still sits in blocked-retryable waiting for checks. The new tests cover only the merge-tree paths.",
-      "id": "conflict-signal-not-github-mergeable",
+      "evidence": "design.md 'No mergeability': 'GitHub `mergeable` is not read.' The only code changes are in `_prepare` (publication_queue.py, the `RederivationEnvironmentFailed` handler calling `merge_conflicts`) and in the `_integrate` environment-note path. The tests mock merge-tree and no test covers a mergeable=CONFLICTING input. The case where merge-tree is clean and `mergeable` is CONFLICTING gets only the reason text from the environment note, with no routing to integration-repair.",
+      "id": "conflict-signal-ignores-github-mergeable",
       "severity": "advisory",
-      "summary": "Requirement item 3 is phrased in terms of GitHub mergeable=CONFLICTING. The delivered behavior uses only the queue's own merge-tree check in `_prepare`, and `mergeable` is never read. The two signals can disagree."
+      "summary": "Requirement item 3 is phrased around GitHub reporting mergeable=CONFLICTING. The change never reads that signal. It relies only on the queue's own git merge-tree in `_prepare`. A PR that GitHub marks CONFLICTING but merge-tree reports clean would still stay in blocked-retryable, and the only evidence is the environment note."
     }
   ],
-  "launched_at": "2026-11-01T04:07:12+00:00",
-  "output_sha256": "561fbcfc9b7cc0a2c0860f4fa5d70581ba16f516bf2bc34c3040a6d9cf304c2f",
+  "launched_at": "2026-11-01T05:25:13+00:00",
+  "output_sha256": "2be021a3f1d38d50b28876bbe39e2a9f09778b08e674b8175b7f5d2285c2142e",
   "perspective": "engineering-quality",
-  "request_id": "05dcaf9c-ac15-48c9-b779-96ace6811dd3",
+  "request_id": "62ba8b67-0ca6-4e69-b258-a5ce51d0c1de",
   "reviewer": {
-    "context_id": "6d59f97b-ca45-4800-a7e8-5e27d5cbef07",
+    "context_id": "65ed1300-c5a3-4eae-969e-8fba1ddc04bc",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-05807ad1-15b1-41b3-8049-2e8ff7f6c707",
+    "launch_id": "platform-launch-afeaa96d-310f-4170-be72-6795d6def343",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32530
+        "value": 43773
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20333
+        "value": 102292
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14211
+        "value": 23962
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15096
+        "value": 24905
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1541
+        "value": 2565
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "fcf97ecb019b649a19dd2197a01a30be01c781d7b9dc90d42a37f994d24d8654"
+  "task_content_digest": "56e49cbfa335d9b97d56a6c02216b3c6a6245b7cadfd5f4bc611a22550a856c0"
 }
