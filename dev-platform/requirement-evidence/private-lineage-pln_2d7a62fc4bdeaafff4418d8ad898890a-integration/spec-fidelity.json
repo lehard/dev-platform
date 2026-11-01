@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "61395ee81a612bb426d7563e8b2574f9981365af",
-    "diff_sha256": "f94f345f3dafac9d0e651f68edb0340b6a0f1bedc4c3de4f694956bc8e43ae2c"
+    "candidate_head": "9abefe1e6b7500110c1c833e3d75ee77e2017c30",
+    "diff_sha256": "182191f551d5010e440f2e18ba86020ec2e878beb7216c0baed9ed024a201179"
   },
-  "completed_at": "2026-11-01T03:18:35+00:00",
-  "findings": [
-    {
-      "evidence": "integration_contour.py run_direct_terminal calls ops.terminal_recorded and then ops.direct_source. private_lineage.issue_for_handle walks only `states: OPEN` and raises 'no open Issue carries this handle (already closed or missing)'. If reconcile_child closes the Issue and the job then fails before the `task-recorded` result is posted, the next attempt blocks. The design acknowledges this case only as a message, not as a recovery path.",
-      "id": "terminal-retry-after-close-without-receipt",
-      "severity": "advisory",
-      "summary": "A retry can block permanently if the Issue was closed but the success receipt was never recorded. The idempotent exit depends on a recorded trusted result, and the lineage walk covers only open Issues."
-    }
-  ],
-  "launched_at": "2026-11-01T03:18:22+00:00",
-  "output_sha256": "b6c12e773ef123b42a68171ca0c7c8498ffee61dd4037a19c3ea309d70c2f572",
+  "completed_at": "2026-11-01T04:15:31+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T04:15:18+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "615cd636-2ea4-41d2-abd8-67475ee73584",
+  "request_id": "a4d2fdc4-1f5c-4ff0-b905-be285ebfb85f",
   "reviewer": {
-    "context_id": "200670c4-0092-42c8-920c-0d08905a4b43",
+    "context_id": "a0915f41-bde6-4972-8749-7fb4e7ea2830",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-36c9f16d-030b-4e5a-873c-c2b23f922e3d",
+    "launch_id": "platform-launch-cb427bbd-3ad2-48fa-93e4-470dec172821",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29160
+        "value": 32883
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18406
+        "value": 53382
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10197
+        "value": 9416
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11038
+        "value": 10765
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1030
+        "value": 894
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "d8c7cf2e2b62e0997f1bb45f86673aad757775e0c3d45259b54fd3e236fc097d"
+  "task_content_digest": "956d58ccd7103ff5d1bc7cb991a283297fcb2f83a15498ebad6b47c636a65ef8"
 }
