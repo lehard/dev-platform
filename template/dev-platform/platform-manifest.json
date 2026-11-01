@@ -142,7 +142,7 @@
     "scripts/start_task.py": "2506b248b1ac44c6cb363fbdaafc3526fbd2e966be8591c1a1e81983939bd784",
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
-    "scripts/task_content_identity.py": "8c9cb8720b6c9f615a1080ec18b58149c6d072980a33afed8da6a3d0860c1e20",
+    "scripts/task_content_identity.py": "931755acf14b979be752ebb52f4ed1253a7295d55a6b3d40ba64b59bc18497d0",
     "scripts/task_reconciliation.py": "d49d7e934628f6ef31731775e1ece7923baeb5fcc2c55ec1c6d2e7ad6d121f2e",
     "scripts/worktree_cleanup.py": "92e7fc2c3811ed1963cca598f38dd2b8bafd8a51dd784717545e03bb4f25ee8a"
   },

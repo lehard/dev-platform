@@ -470,6 +470,20 @@ class MainOnlyIntegrationTests(unittest.TestCase):
         reason = main_only_integration(self.root, self.old_head, self.new_base, head, set())
         self.assertIn("manifest.json", reason)
 
+    def test_conflict_paths_with_spaces_and_quotes_parse_exactly(self) -> None:
+        # merge-tree -z keeps paths raw: a generated path with a space is excluded, a task path is named verbatim.
+        git(self.root, "switch", "-q", "main")
+        self.write("gen file.json", "main\n")
+        self.write('odd "name".txt', "main\n")
+        new_base = self.commit("main spaced")
+        git(self.root, "switch", "-q", "task")
+        self.write("gen file.json", "task\n")
+        self.write('odd "name".txt', "task\n")
+        old_head = self.commit("task spaced")
+        reason = main_only_integration(self.root, old_head, new_base, old_head, {"manifest.json", "gen file.json"})
+        self.assertIn('conflicts outside declared generated files: odd "name".txt', reason)
+        self.assertNotIn("gen file.json", reason)
+
     def test_untrusted_or_missing_heads_are_not_proven_and_git_failure_raises(self) -> None:
         head = self.merge_main()
         self.assertIn("old head", main_only_integration(self.root, None, self.new_base, head, set()))

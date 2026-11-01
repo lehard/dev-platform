@@ -42,6 +42,12 @@ Independent-Review-Evidence: independent-review-request.json
   - The contour wiring is tested with the proof mocked.
   - Generated files are excluded wholesale by design.
 
+## Re-admission 2026-11-01
+
+- Repair 2e2dc29e switched `main_only_integration` to `git merge-tree -z`. The output is now split on NUL: the first record is the tree OID, the rest are conflicted paths, and empty trailing records are dropped. Without `-z`, Git quotes paths that contain quotes or non-ASCII characters, so a declared generated path could have failed to match. The semantics are unchanged.
+- New test `test_conflict_paths_with_spaces_and_quotes_parse_exactly`: a generated path with a space is excluded, and a task path with quotes is named verbatim. Without `-z` the quoted output would not match it.
+- The manifest was regenerated: the repair round left it stale for `scripts/task_content_identity.py`. The CI failure that started that round was the flaky `test_delegated_write_guard`, whose runner was killed mid-test. It is unrelated to this change.
+
 ## Not verified / limits
 
 - No live hosted integration repair run; the contour tests use the queue fixture.
