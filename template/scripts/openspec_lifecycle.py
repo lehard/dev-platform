@@ -887,7 +887,7 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     try:
         private_lineage.require_clean_candidate(root)
     except private_lineage.PrivateLineageError as exc:
-        problems.append(f"{name}: archive blocked before review and validation: {exc}")
+        problems.append(f"{name}: archive blocked by private lineage: {exc}")
     if platform_owned and not finalize and (change / ".managed-task.json").is_file():
         try:
             source_issue = source_issue_for_provenance(root, change)
@@ -946,6 +946,11 @@ def archive_change(root: Path, name: str, *, finalize: bool = False) -> int:
     return 0
 
 
+def finalize_change(root: Path, change: str, *, context: str | None = None) -> int:
+    """Coordinator finalization of a reviewed candidate: the one entry the finalize job archives through."""
+    return archive_change(root, change, finalize=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Enforce the OpenSpec verify/archive completion contract.")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -960,7 +965,9 @@ def main() -> int:
     root = current_worktree_root()
     if args.command == "check":
         return check_hygiene(root, args.stage)
-    return archive_change(root, args.change, finalize=args.finalize)
+    if args.finalize:
+        return finalize_change(root, args.change)
+    return archive_change(root, args.change)
 
 
 if __name__ == "__main__":

@@ -897,7 +897,6 @@ class ArchivePurposeAndRecoveryTests(unittest.TestCase):
         with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer", harness_mode="project")), \
                 mock.patch.object(lifecycle, "require_review_evidence"), \
                 mock.patch.object(lifecycle, "require_independent_review_receipt"), \
-                mock.patch.object(lifecycle, "require_review_evidence"), \
                 mock.patch.object(lifecycle.shutil, "which", return_value=executable):
             return lifecycle.archive_change(self.root, "add-foo")
 

@@ -61,7 +61,7 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
             (root / "openspec/changes/work/proposal.md").write_text(PRIVATE_REF, encoding="utf-8")
             outcome, readiness = self.archive(root)
             self.assertIsInstance(outcome, SystemExit)
-            self.assertIn("archive blocked before review", str(outcome))
+            self.assertIn("archive blocked by private lineage", str(outcome))
             self.assertNotIn("216", str(outcome))
             # Read-only readiness may be listed too; nothing is archived.
             self.assertTrue((root / "openspec/changes/work").is_dir())
