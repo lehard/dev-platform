@@ -41,6 +41,10 @@ class QueueError(RuntimeError):
     pass
 
 
+# A v1 event noting a coordinator environment failure on a head; it changes no state (BR-969).
+ENVIRONMENT_ERROR_KIND = "environment-error"
+
+
 class IntegrationRepairNeeded(QueueError):
     """Integration preparation failed deterministically and needs integration repair, not a block.
 
@@ -1900,6 +1904,11 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         try:
             return prepare_derived_specs(root, repo, number, pr, head, task_paths)
         except RederivationEnvironmentFailed as exc:
+            # A candidate that really conflicts with main is repaired by a job, not parked on the coordinator.
+            conflicts = merge_conflicts(root, head, current_main)
+            if conflicts:
+                raise IntegrationRepairNeeded("merge of current main conflicts in: " + ", ".join(conflicts[:8])
+                                              + f" (derived merge unavailable on this coordinator: {exc})") from exc
             raise QueueEnvironmentError(f"PR #{number} derived merge cannot run on this coordinator: {exc}") from exc
         except RederivationFailed as exc:
             raise IntegrationRepairNeeded(f"derived merge (archive-derived specs, generated files) failed: {exc}",
@@ -2336,6 +2345,24 @@ def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, A
     return outcome, None
 
 
+def _note_environment_error(root: Path, repo: str, number: int, head: object, detail: str) -> None:
+    """Make a coordinator environment failure visible on the candidate without a block or an attempt.
+
+    The state and attempt counters stay as they are; only the derived reason names the failure until a
+    later record for the head supersedes it. A note is not posted again while it is still the shown reason.
+    """
+    from candidate_lifecycle import environment_reason
+
+    if not isinstance(head, str) or len(head) != 40:
+        raise QueueError(f"PR #{number} head is unavailable for its environment-error note")
+    reason = detail[:500]
+    observed = _pr(root, repo, number)
+    current = _derive(root, observed, _comments(root, repo, number))
+    if current.get("head") == head and current.get("reason") == environment_reason(reason):
+        return
+    _comment(root, repo, number, {"kind": ENVIRONMENT_ERROR_KIND, "head": head, "reason": reason})
+
+
 def _released(result: dict[str, Any]) -> dict[str, Any]:
     """Mark a result as one that leaves integration ownership, so the queue moves on."""
     return {**result, "released": True}
@@ -2446,9 +2473,14 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         return _released({"state": "waiting", "number": number, "reason": str(exc)})
     except IntegrationRepairNeeded as exc:
         return _released(_integration_repair(root, repo, number, admission, exc))
-    except QueueEnvironmentError:
+    except QueueEnvironmentError as exc:
         # No candidate defect: release integration ownership so later candidates proceed; the run fails naming it.
         _label(root, repo, number, ACTIVE, present=False)
+        try:
+            _note_environment_error(root, repo, number, pr.get("head", {}).get("sha"), str(exc))
+        except QueueError as note_failure:
+            # Both failures are named; the environment error stays the run's failure.
+            raise QueueEnvironmentError(f"{exc}; its environment-error note failed: {note_failure}") from note_failure
         raise
     except GitCommandError as exc:
         if not _transient(str(exc)):

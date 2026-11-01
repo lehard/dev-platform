@@ -1,6 +1,8 @@
 """Autonomous integration contour: integration repair, non-blocking queue, friction attribution, post-merge jobs."""
 from __future__ import annotations
 
+import io
+
 from contextlib import ExitStack
 from datetime import datetime, timedelta, timezone
 import json
@@ -872,6 +874,50 @@ class IntegrationRepairTests(RepairFixture):
             candidate = fixture.candidate()
             self.assertEqual(sorted(candidate["gates"]), ["review"])
             self.assertIsNone(candidate["red_gate"])
+
+    def test_main_only_integration_keeps_gates_bound_to_the_gated_identity(self):
+        # BR-969: content changed only by merging main keeps the receipt; the reason is None.
+        changed = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "f" * 64}}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            good = {"result": "passed", "identity": IDENTITY, "evidence": {}}
+            queue._transition(ROOT, "o/r", 7, "integration-repair-pending", HEAD, task_identity=IDENTITY,
+                              inherit_identity=False, gates={"semantic-verification": good})
+            new_head = "d" * 40
+            fixture.head = new_head
+            with mock.patch.object(contour, "main_only_reason", return_value=None) as proof:
+                state = contour.advance_after_repair(
+                    ROOT, "o/r", {**fixture.candidate(), "head": HEAD, "task_identity": IDENTITY,
+                                  "gates": {"semantic-verification": good, "required-checks": good}},
+                    new_head, changed, None, base="e" * 40)
+            self.assertEqual(state, "ready")
+            proof.assert_called_once()
+            self.assertEqual(proof.call_args.args[2:4], (new_head, "e" * 40))
+            candidate = fixture.candidate()
+            self.assertEqual(sorted(candidate["gates"]), ["semantic-verification"])
+            self.assertEqual(candidate["gates"]["semantic-verification"]["identity"], changed)
+
+    def test_unproven_integration_returns_to_review_naming_the_reason(self):
+        changed = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "f" * 64}}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            good = {"result": "passed", "identity": IDENTITY, "evidence": {}}
+            new_head = "d" * 40
+            fixture.head = new_head
+            with mock.patch.object(contour, "main_only_reason", return_value="the new head differs"), \
+                 mock.patch.object(contour.final, "return_to_review") as back, \
+                 mock.patch("sys.stderr", new_callable=io.StringIO) as err:
+                state = contour.advance_after_repair(
+                    ROOT, "o/r", {**fixture.candidate(), "number": 7, "head": HEAD, "task_identity": IDENTITY,
+                                  "gates": {"semantic-verification": good}},
+                    new_head, changed, None, base="e" * 40)
+            self.assertEqual(state, "review-pending")
+            back.assert_called_once()
+            self.assertIn("receipt reset after integration repair: the new head differs", err.getvalue())
+
+    def test_main_only_reason_needs_a_trusted_gated_head(self):
+        self.assertEqual(contour.main_only_reason(ROOT, {"head": None, "gates": {"review": {}}}, "d" * 40, "e" * 40, None),
+                         "no trusted queue record names the head on which the gates passed")
+        self.assertEqual(contour.main_only_reason(ROOT, {"head": HEAD, "gates": {}}, "d" * 40, "e" * 40, None),
+                         "no trusted queue record names the head on which the gates passed")
 
     def test_validation_refuses_results_that_skip_main_or_escape_scope(self):
         root = self.repo.root

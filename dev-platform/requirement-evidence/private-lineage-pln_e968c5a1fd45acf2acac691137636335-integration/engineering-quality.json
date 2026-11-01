@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
+    "candidate_head": "4644102c3ccadce2c49ba46e438182753e04b97b",
+    "diff_sha256": "d1951b0003cacc60999fe75124ea69d47c13ac787d4e57001fada06d9badede4"
+  },
+  "completed_at": "2026-11-01T10:47:16+00:00",
+  "findings": [
+    {
+      "evidence": "T1 design.md, section \"No mergeability\": \"GitHub `mergeable` is not read.\" `template/scripts/publication_queue.py` `_prepare` detects the conflict through `merge_conflicts(root, head, current_main)`. The new tests only cover merge-tree conflicts: `test_conflict_outside_generated_files_needs_integration_repair` and `test_unavailable_derived_merge_with_a_real_conflict_needs_integration_repair`. A candidate that GitHub reports as CONFLICTING but that is never selected by `_worker_candidate` still shows only the generic checks reason. The narrowing was recorded as a coordinator decision (variant A) in the proposal, so I am reporting it as an outcome-coverage note, not a defect.",
+      "id": "conflict-signal-not-github-mergeable",
+      "severity": "advisory",
+      "summary": "Requirement item 3 is stated in terms of GitHub `mergeable=CONFLICTING`. The implementation never reads GitHub mergeability. It routes a conflict to integration repair only when `_prepare` runs `merge-tree` during `_integrate`, and that happens only when the worker picks the candidate up."
+    },
+    {
+      "evidence": "`template/scripts/task_content_identity.py` `main_only_integration`: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. The T2 design.md says: \"Generated content is validated by its own `--check`, as today.\" This is consistent with the regeneration added in `execute_integration_repair`. Verification that generated files stay current therefore depends on a different component than the one that decides to reuse the receipt.",
+      "id": "main-only-proof-ignores-generated-file-content",
+      "severity": "advisory",
+      "summary": "`main_only_integration` excludes every path in the generated set from both the conflict check and the final tree diff. A change to a generated file therefore never invalidates the receipt through this proof. It relies on the separate `--check` of generated files and on the new `regenerate_declared_files` step in integration repair. If a generated file also carried hand-written content, the proof would not notice."
+    }
+  ],
+  "launched_at": "2026-11-01T10:46:24+00:00",
+  "output_sha256": "6900e5d7d25a98f13a04172d1179e0a897c7f171293aeecc02a1c5a85435f3ef",
+  "perspective": "engineering-quality",
+  "request_id": "8bec8f57-026f-4763-9872-bff40d112a11",
+  "reviewer": {
+    "context_id": "2440a106-b394-4c1b-baf5-3c0816855d45",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9367a174-828c-42dd-bea6-d2c9f6b30ee3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 57959
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 274749
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47711
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 50265
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4605
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5a193148133d44f87214a9f226cefa027063214fb1e3698aead3ae8b65aff73f"
+}

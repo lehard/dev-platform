@@ -1,0 +1,511 @@
+{
+  "base": "551062d9163983e6556d61b18b41ec14178423cc",
+  "children": [
+    {
+      "change": "conflicting-candidate-integration-repair",
+      "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/conflicting-candidate-integration-repair/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "b4103c7ffc94201c16df8a21a5c606aead852512"
+          },
+          "identity": {
+            "change": "conflicting-candidate-integration-repair",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+              "paths": {
+                "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+                "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+                "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+                "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+                "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+                "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+                "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+                "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+                "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "b90c069543ab3376acb958df9139d79a8fec7e04",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "conflicting-candidate-integration-repair",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+              "paths": {
+                "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+                "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+                "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+                "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+                "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+                "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+                "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+                "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+                "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "engineering-quality",
+              "report_sha256": "3e2fd4706dd502b0c88cde53f4037842f73317226159c8bd819094b2c5f52314"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "86478e69c994a21b9ca1cd880c621d98d277d01349f787a5049105ee57c4c8cc"
+            }
+          },
+          "identity": {
+            "change": "conflicting-candidate-integration-repair",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+              "paths": {
+                "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+                "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+                "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+                "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+                "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+                "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+                "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+                "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+                "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6431,
+            "path": "openspec/changes/conflicting-candidate-integration-repair/automated-checks.json",
+            "sha256": "c1b96309b230ede37f5e0e34219d25bce580a106cd673cf4635c038b0a79365d"
+          },
+          "identity": {
+            "change": "conflicting-candidate-integration-repair",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+              "paths": {
+                "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+                "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+                "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+                "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+                "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+                "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+                "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+                "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+                "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 3567,
+            "path": "openspec/changes/conflicting-candidate-integration-repair/verification.md",
+            "sha256": "9e48f34467d782a355b4187609efe2928876db67e8ff4f3493abdc7901c374e4"
+          },
+          "identity": {
+            "change": "conflicting-candidate-integration-repair",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+              "paths": {
+                "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+                "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+                "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+                "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+                "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+                "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+                "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+                "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+                "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "b90c069543ab3376acb958df9139d79a8fec7e04",
+      "integrated_head": "04d848dbc1dfc05eeecf2673788bd666badc9798",
+      "pr_number": 845,
+      "reviewed_evidence_digest": "12689083c6575ab2a91b26e397729d01f364860d48fa9b703e6ec736bee5bfd1",
+      "source_branch": "agent/br-969-t1-conflicting-candidate-integration-repair",
+      "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+      "task_identity": {
+        "change": "conflicting-candidate-integration-repair",
+        "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+        "kind": "contribution",
+        "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+        "source_issue": "pln_a9e0e9e64e8fd362434cc390c6425304",
+        "target_branch": "requirement/BR-969",
+        "task_content": {
+          "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+          "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+          "paths": {
+            "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+            "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+            "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+            "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+            "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+            "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+            "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+            "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+            "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-969/T1"
+      },
+      "work_identity": "BR-969/T1"
+    },
+    {
+      "change": "receipt-main-only-integration",
+      "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/receipt-main-only-integration/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "6c9255c6e9e8b1ed3d63f5798b9960a749d2d700"
+          },
+          "identity": {
+            "change": "receipt-main-only-integration",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+              "paths": {
+                "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+                "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+                "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+                "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+                "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+                "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+                "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+                "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+                "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "0416934969fe53adfe8b71c182d4264478e4b79e",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "receipt-main-only-integration",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+              "paths": {
+                "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+                "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+                "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+                "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+                "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+                "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+                "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+                "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+                "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/task_content_identity.py:257 computes `differing = {...} - generated`, and the `git diff` at line 252 compares the whole tree. A head that changes a generated file arbitrarily still passes while the gates stay rebound. The design relies on the generated files' own `--check` (design.md Decisions: 'validated by its own --check, as today'). If that check is not rerun or required after integration, or if a declared generated file carries semantic content, reviewed evidence can be re",
+                  "id": "generated-paths-unchecked-in-proof",
+                  "severity": "advisory",
+                  "summary": "The main-only proof drops every declared generated path from its tree comparison. This holds even for paths that did not conflict, so the candidate's content in those files is never compared with the merge result."
+                },
+                {
+                  "evidence": "template/scripts/integration_contour.py:424 calls `advance_after_repair` after the push. `main_only_reason` can raise from `main_only_integration` (task_content_identity.py:243, 247, 255). design.md Risks acknowledges that the job stops with no transition and that recovery is manual. A missing local object is a plausible transient condition, so a fetch-and-retry, or a fallback to `return_to_review`, would be safer than stranding the job.",
+                  "id": "proof-error-after-push-strands-candidate",
+                  "severity": "advisory",
+                  "summary": "`IntegrationProofError` can propagate out of `advance_after_repair` after the repaired head has been pushed. The candidate then waits for manual recovery."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "bab60ada79e8872ad33a5e7c8a007ad9118ee9d8c42fae94104e5ed6865d2548"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/task_content_identity.py: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. This subtracts all of `generated`, not `conflicts & generated`. spec.md says: \"new head's tree equals, byte for byte, the merge of the old head with the new base, conflicting only in generated files\".",
+                  "id": "generated-paths-exempt-from-byte-equality",
+                  "severity": "advisory",
+                  "summary": "The proof exempts every declared generated path from the byte-exact tree comparison, not only the conflicted ones. The spec says the new head's tree equals the merge byte for byte, conflicting only in declared generated files. The code is looser, because a generated file that did not conflict can di"
+                },
+                {
+                  "evidence": "The diff only changes `advance_after_repair` and `run_claimed_integration_repair` in integration_contour.py. tests/test_autonomous_integration_contour.py mocks `contour.main_only_reason`. design.md: \"That round reaches `advance_after_repair`, so the derived-merge route is covered at the same point.\"",
+                  "id": "derived-merge-route-untested",
+                  "severity": "advisory",
+                  "summary": "The spec covers \"an integration repair or derived merge\". The implementation and tests cover only the `advance_after_repair` path. The design assumes a derived merge reaches this path through `RederivationFailed` and `_prepare`. The diff adds no test or code for that route. The `advance_after_repair"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "c4447104ed51921016c8548b19182affe20749f8dfe533d0e8067666a7eae041"
+            }
+          },
+          "identity": {
+            "change": "receipt-main-only-integration",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+              "paths": {
+                "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+                "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+                "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+                "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+                "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+                "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+                "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+                "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+                "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6567,
+            "path": "openspec/changes/receipt-main-only-integration/automated-checks.json",
+            "sha256": "2b3fe3283ba6a54a1341c15c16d0e0fbbe1810cb8439ca82947505c6ddb00d6d"
+          },
+          "identity": {
+            "change": "receipt-main-only-integration",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+              "paths": {
+                "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+                "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+                "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+                "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+                "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+                "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+                "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+                "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+                "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 5459,
+            "path": "openspec/changes/receipt-main-only-integration/verification.md",
+            "sha256": "289d09f2000cdfa3b8233116e8388d83511bf4e0308c258701127967290bbd7f"
+          },
+          "identity": {
+            "change": "receipt-main-only-integration",
+            "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+            "kind": "contribution",
+            "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+            "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+            "target_branch": "requirement/BR-969",
+            "task_content": {
+              "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+              "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+              "paths": {
+                "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+                "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+                "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+                "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+                "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+                "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+                "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+                "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+                "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-969/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "0416934969fe53adfe8b71c182d4264478e4b79e",
+      "integrated_head": "dbc96270a1830e1c596bc6ae254a58088524396d",
+      "pr_number": 846,
+      "reviewed_evidence_digest": "5cbb8643f588f2452c919539b4c7151b09c3f9b02ab354a36dda8a024cb97592",
+      "source_branch": "agent/br-969-t2-receipt-main-only-integration",
+      "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+      "task_identity": {
+        "change": "receipt-main-only-integration",
+        "contribution_base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+        "kind": "contribution",
+        "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+        "source_issue": "pln_19ec58d25e02b51eb8e6831b3e484497",
+        "target_branch": "requirement/BR-969",
+        "task_content": {
+          "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+          "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+          "paths": {
+            "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+            "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+            "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+            "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+            "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+            "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+            "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+            "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+            "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-969/T2"
+      },
+      "work_identity": "BR-969/T2"
+    }
+  ],
+  "dependencies": {
+    "conflicting-candidate-integration-repair": [],
+    "receipt-main-only-integration": []
+  },
+  "digest": "9e1f130864af47f5816ed2831b640d136bd9810a131a885f8c1a246771d448ba",
+  "expected_changes": [
+    "conflicting-candidate-integration-repair",
+    "receipt-main-only-integration"
+  ],
+  "integration_branch": "requirement/BR-969",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_e968c5a1fd45acf2acac691137636335",
+  "version": 2,
+  "work_identity": "BR-969"
+}

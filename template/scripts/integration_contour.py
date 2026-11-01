@@ -296,18 +296,45 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     return {"status": "pushed", "pushed_head": result_head, "main": main_sha}
 
 
+def main_only_reason(root: Path, candidate: dict, head: str, base: str | None, harness: Path | None) -> str | None:
+    """Why the repaired head is not proven to be only the merge of main into the gated head (``None``: proven).
+
+    The old head is the head of the trusted record whose gates passed (the derived candidate), never
+    a candidate file; generated files are excluded only by the default-branch declaration of ``root``.
+    """
+    from _platform_common import generated_files
+    from task_content_identity import main_only_integration
+
+    old_head = candidate.get("head")
+    if not isinstance(old_head, str) or not old_head or not candidate.get("gates"):
+        return "no trusted queue record names the head on which the gates passed"
+    generated = {item.path for item in generated_files(root, "HEAD")}
+    return main_only_integration(harness or root, old_head, base, head, generated)
+
+
 def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fresh: dict, harness: Path | None,
-                         *, adapter=queue) -> str:
-    """Move a repaired candidate on: unchanged task content reuses evidence, changed content repeats review."""
+                         *, base: str | None = None, adapter=queue) -> str:
+    """Move a repaired candidate on: unchanged task content reuses evidence, changed content repeats review.
+
+    Content that changed only by merging main into the gated head (``base`` is that main) keeps the
+    gates bound to the gated identity (BR-969); any other change repeats review with the reason.
+    """
     old = candidate.get("task_identity")
     managed = isinstance(old, dict) and isinstance(old.get("task_content"), dict)
     unchanged = (managed and isinstance(fresh.get("task_content"), dict)
                  and equivalent_proofs(harness or root, old["task_content"], fresh["task_content"]))
-    if unchanged:
-        # Review, selected checks and verification stay valid for identical content; the required
-        # checks gate is never carried to the new head, so the coordinator reruns it on the merged head.
+    reason = None
+    if managed and not unchanged:
+        reason = main_only_reason(root, candidate, head, base, harness)
+        if reason is not None:
+            print(f"PR #{candidate['number']} receipt reset after integration repair: {reason}", file=sys.stderr)
+    if unchanged or (managed and reason is None):
+        # Review, selected checks and verification stay valid for identical content, or for content that
+        # only merged main; the required checks gate is never carried to the new head, so the
+        # coordinator reruns it on the merged head.
+        bound = fresh if unchanged else old
         gates = {name: {**gate, "identity": fresh} for name, gate in candidate.get("gates", {}).items()
-                 if name != "required-checks" and review_gate.reusable(harness or root, gate, fresh)}
+                 if name != "required-checks" and review_gate.reusable(harness or root, gate, bound)}
         state = "contribution-integration-pending" if fresh.get("kind") == "contribution" else "ready"
         adapter._transition(root, repo, candidate["number"], state, head, task_identity=fresh,
                             inherit_identity=False, gates=gates)
@@ -404,7 +431,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     workers.checkout_harness(harness, head)
     fresh = (review_gate.refresh_identity(harness, identity)
              if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
-    state = advance_after_repair(root, repo, observed, head, fresh, harness, adapter=adapter)
+    state = advance_after_repair(root, repo, observed, head, fresh, harness, base=outcome["main"], adapter=adapter)
     post_result(workers.result_body(job, worker, "integrated", head, provider=provider))
     return {"status": "integrated", "pushed_head": head, "state": state}
 
