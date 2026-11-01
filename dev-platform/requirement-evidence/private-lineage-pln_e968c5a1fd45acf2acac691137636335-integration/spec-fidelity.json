@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "1c210eda5a88bbabb4dd4bdeff4912a5125e2a12",
-    "diff_sha256": "90438137ff12092e99c2533dcc1125fc98c979acea7e9518aff005d7ca0357b8"
+    "candidate_head": "b05e8754068a25860846df6f0e5a411ead5e018c",
+    "diff_sha256": "d91ec2643eb21c251ffbcd007812b8604411a020d5c65215ca5e955af16283e9"
   },
-  "completed_at": "2026-11-01T03:23:49+00:00",
+  "completed_at": "2026-11-01T03:54:00+00:00",
   "findings": [
     {
-      "evidence": "publication_queue.py `_prepare`, the `RederivationEnvironmentFailed` handler, raises `IntegrationRepairNeeded` when `merge_conflicts(root, head, current_main)` is non-empty. Proposal.md and design.md describe every environment failure as ending in a note with no state change. The \"Derived merge without OpenSpec CLI\" scenario does not say it applies only to clean-merge routes. The PR #837 case (generated-only conflict) now takes the repair route. No test covers an environment failure together with a real conflict.",
-      "id": "t1-design-omits-conflict-reroute",
+      "evidence": "conflicting-candidate-integration-repair/design.md: \"No mergeability. The conflict signal stays `merge-tree` in `_prepare`. GitHub `mergeable` is not read.\" The proposal's \"What Changes\" says \"GitHub mergeability is not read.\" The test `test_conflict_outside_generated_files_needs_integration_repair` also mocks `merge-tree`, not `mergeable`.",
+      "id": "mergeable-conflicting-signal-not-read",
       "severity": "advisory",
-      "summary": "T1's design and spec do not describe the new `_prepare` branch. When the derived merge hits an environment failure and `merge_conflicts` is non-empty, the candidate now goes to counted integration repair instead of getting an environment-error note. The tests do not pin this branch either."
-    },
-    {
-      "evidence": "T1 design.md, \"No mergeability\": \"GitHub `mergeable` is not read.\" T1 proposal.md Impact: \"Coordinator decision 2026-11-01 narrowing BR-969 item 2 (variant A)\". The only new routing is the environment-failure + `merge_conflicts` branch in `_prepare`. T1 adds no code path that moves a waiting candidate to integration-repair-pending because GitHub reports CONFLICTING.",
-      "id": "mergeable-conflicting-not-read",
-      "severity": "advisory",
-      "summary": "Requirement item 3 is phrased in terms of GitHub `mergeable=CONFLICTING`. T1 deliberately does not read GitHub mergeability. Conflict detection stays with the queue's own `merge-tree` check, which only runs when the worker reaches `_prepare` for an admitted candidate. This is a recorded coordinator decision, but it is a narrower reading than the Requirement text."
+      "summary": "Requirement item 3 is phrased in terms of GitHub `mergeable=CONFLICTING`, but the delivered behavior never reads GitHub mergeability. It relies only on the queue's own `merge-tree` check in `_prepare`. The two signals can differ, for example when GitHub reports CONFLICTING while the local `merge-tree` is clean or only touches generated files. In that case the candidate still takes the derived-merge path and can stay in blocked-retryable if that path fails for environment reasons. The narrowing was an explicit coordinator decision, so this is advisory."
     }
   ],
-  "launched_at": "2026-11-01T03:23:21+00:00",
-  "output_sha256": "7d3f4f67db3db27609526e3c5c840d9149c5b46ae11596bb23b28d41eeea47ac",
+  "launched_at": "2026-11-01T03:53:43+00:00",
+  "output_sha256": "5909595d0d5eef0fdba0e66046c739962c45984782fbdce54e59067f7bf4e4d3",
   "perspective": "spec-fidelity",
-  "request_id": "779659cb-ca03-4c33-8a02-b42f71ce4e3f",
+  "request_id": "b653c776-b461-4796-aa35-77a79aa901ce",
   "reviewer": {
-    "context_id": "86d15195-013d-4304-9406-76ea7d579209",
+    "context_id": "db96ad7a-f0fa-4b22-9f3c-cff2043d13a9",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-42b3b0b0-4476-48f7-b978-75fdfc34dc85",
+    "launch_id": "platform-launch-0e9a45bb-7abf-4b3f-a4de-1caa60248ece",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36880
+        "value": 34036
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 94068
+        "value": 18649
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24912
+        "value": 14455
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25949
+        "value": 15386
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2688
+        "value": 1644
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4cb4d113c60faa01af38495adc0543880fb61c6c057b9a8f253f12f22e5c42b3"
+  "task_content_digest": "ee08e61cdf37e5602291e0603a086dfff0c0af267dc4ed733ac05699622da95e"
 }

@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "1c210eda5a88bbabb4dd4bdeff4912a5125e2a12",
-    "diff_sha256": "90438137ff12092e99c2533dcc1125fc98c979acea7e9518aff005d7ca0357b8"
+    "candidate_head": "b05e8754068a25860846df6f0e5a411ead5e018c",
+    "diff_sha256": "d91ec2643eb21c251ffbcd007812b8604411a020d5c65215ca5e955af16283e9"
   },
   "change": "private-lineage-pln_e968c5a1fd45acf2acac691137636335-integration",
   "children": [
@@ -88,20 +88,20 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T03:23:12+00:00",
-  "request_id": "779659cb-ca03-4c33-8a02-b42f71ce4e3f",
+  "prepared_at": "2026-11-01T03:53:34+00:00",
+  "request_id": "b653c776-b461-4796-aa35-77a79aa901ce",
   "requirement": "pln_e968c5a1fd45acf2acac691137636335",
   "schema_version": 1,
   "task_content": {
     "base": "551062d9163983e6556d61b18b41ec14178423cc",
-    "digest": "4cb4d113c60faa01af38495adc0543880fb61c6c057b9a8f253f12f22e5c42b3",
+    "digest": "ee08e61cdf37e5602291e0603a086dfff0c0af267dc4ed733ac05699622da95e",
     "paths": {
       "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
       "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
-      "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+      "openspec/changes/conflicting-candidate-integration-repair/design.md": "c92f2b843ab73d002236d786a62d87ebd0583a7f",
       "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
-      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
-      "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "45a669ad10a33070bf2b701a8ca2973697924580",
+      "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "283c3730be720712ff3bef87561d47a8c1aadad1",
       "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
       "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
       "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
@@ -110,11 +110,11 @@
       "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
       "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
       "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
-      "template/scripts/publication_queue.py": "755479c42842eed012c970ad81d94eae2207ca68",
+      "template/scripts/publication_queue.py": "4747fa37154c0b73264ec4a1b5e6b12c07cbe7c4",
       "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
       "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
       "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
-      "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7",
+      "tests/test_publication_queue.py": "c301b50fa5481ff1e17f64e7c4b152d37658a44f",
       "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
     },
     "scope": "requirement-composition-v1",
