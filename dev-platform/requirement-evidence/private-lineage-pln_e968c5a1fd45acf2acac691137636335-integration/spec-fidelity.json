@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "beea9b41857db87397d9ec653e8bc221b9b31a34",
-    "diff_sha256": "01eabe9b9e4ef413bd783f40f561d0112779e9f7b6d4e0c46ebba84b0d7fd254"
+    "candidate_head": "4644102c3ccadce2c49ba46e438182753e04b97b",
+    "diff_sha256": "d1951b0003cacc60999fe75124ea69d47c13ac787d4e57001fada06d9badede4"
   },
-  "completed_at": "2026-11-01T05:25:13+00:00",
+  "completed_at": "2026-11-01T10:46:24+00:00",
   "findings": [
     {
-      "evidence": "design.md, 'No mergeability': 'GitHub `mergeable` is not read.' `derive_candidate` is unchanged for blocked-retryable candidates that are waiting on checks. The new test `test_waiting_candidate_without_red_gate_is_integrable` only checks the predicates `red_retry_blocks_integration`, `review_owned` and `NOT_INTEGRABLE`. It does not run a worker pass over such a candidate. The outcome holds only if the worker actually selects blocked-retryable candidates for `_integrate`, and the tests do not exercise that end to end. The scope narrowing is a recorded coordinator decision, so this is advisory.",
-      "id": "mergeable-conflicting-not-read",
+      "evidence": "conflicting-candidate-integration-repair/design.md: \"No mergeability. The conflict signal stays merge-tree in _prepare. GitHub mergeable is not read.\" The change adds only a merge-tree conflict check inside the RederivationEnvironmentFailed handler (publication_queue.py ~1904). A conflict that is neither a generated-only conflict nor a RederivationEnvironmentFailed conflict relies on pre-existing routing that this diff does not touch.",
+      "id": "mergeable-conflicting-signal-not-read",
       "severity": "advisory",
-      "summary": "Requirement item 3 is phrased in terms of GitHub mergeable=CONFLICTING. The candidate never reads that signal. A waiting candidate goes to integration-repair only when the queue's own merge-tree check in `_prepare` finds a conflict while the worker is integrating it."
+      "summary": "Requirement item 3 is phrased in terms of GitHub mergeable=CONFLICTING. T1 keeps `merge-tree` in `_prepare` as the only conflict signal and does not read GitHub mergeability. It is compatible with the outcome only if a waiting candidate with no red gate always reaches `_prepare`."
+    },
+    {
+      "evidence": "receipt-main-only-integration/design.md says the derived-merge route is covered only through `RederivationFailed` -> integration repair -> `advance_after_repair`. `main_only_integration` excludes only `generated_files` from `dev-platform/checks.toml`, so derived or spec paths outside that set count as a difference (task_content_identity.py, `differing = ... - generated`).",
+      "id": "derived-merge-receipt-proof-scope",
+      "severity": "advisory",
+      "summary": "Item 1 of the outcome also covers derived merges. T2's proof reaches only the `advance_after_repair` path, which runs after an integration repair or after a derived merge that raised RederivationFailed. A derived merge that succeeds and changes archive-derived specs is not in the `generated` set. If such a merge changes the identity, the receipt resets even though the change comes only from main."
     }
   ],
-  "launched_at": "2026-11-01T05:24:55+00:00",
-  "output_sha256": "c626a68b074409c027a28c3bb8dbcda4518b34a78141528184ec91e1170f8626",
+  "launched_at": "2026-11-01T10:46:08+00:00",
+  "output_sha256": "346a71f221a23e1da7d8e0d7e2ba0b6f993958e0bfddb3c6076281e4410e981a",
   "perspective": "spec-fidelity",
-  "request_id": "62ba8b67-0ca6-4e69-b258-a5ce51d0c1de",
+  "request_id": "8bec8f57-026f-4763-9872-bff40d112a11",
   "reviewer": {
-    "context_id": "aa17a583-e754-4b98-8538-af2c0b2b0ec4",
+    "context_id": "198c98b5-3075-4258-a0da-150b89d91219",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f71be3f2-a491-402c-b163-9a97d46a8edf",
+    "launch_id": "platform-launch-2da7b00d-1fbe-40bd-960d-ebc75342e22d",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38068
+        "value": 38527
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 58715
+        "value": 15157
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15596
+        "value": 13994
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16550
+        "value": 15011
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1699
+        "value": 1503
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "56e49cbfa335d9b97d56a6c02216b3c6a6245b7cadfd5f4bc611a22550a856c0"
+  "task_content_digest": "5a193148133d44f87214a9f226cefa027063214fb1e3698aead3ae8b65aff73f"
 }
