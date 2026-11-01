@@ -1,39 +1,36 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
-    "base_ref": "origin/main",
-    "candidate_head": "76d9c6cb260c2bcd8f0a655c8225ed317734b6b7",
-    "diff_sha256": "dcf9fce39b45288dc9151e15e4d173f9421c38cc97f623c88aaea2c9e9405485"
+    "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "candidate_head": "7d2bfe16f89483a5d41a2de94312aad43374e093",
+    "diff_sha256": "0500c786894810c6acc89ed0aec0073a22ec1aa1fd66672ca236cffb2f60acaa"
   },
-  "completed_at": "2026-10-31T23:56:46+00:00",
+  "completed_at": "2026-11-01T00:54:00+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/task_content_identity.py:257 `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. spec.md:5 says \"equals, byte for byte, the merge ... conflicting only in generated files\". design.md:56 says generated content is validated by its own `--check`, but the spec does not state that relaxation. The test `test_main_merge_touching_a_task_path_is_proven` only covers a generated file that conflicted. A narrower implementation would exclude generated paths from the diff only when they appear in `conflicts`.",
-      "id": "generated-files-excluded-from-byte-exact-comparison",
+      "evidence": "design.md says a derived merge that changes identity raises `RederivationFailed` and `_prepare` routes it to integration repair, which reaches `advance_after_repair`. The diff changes only `advance_after_repair` and `run_claimed_integration_repair`. The new tests in tests/test_autonomous_integration_contour.py call `advance_after_repair` directly with `main_only_reason` mocked. None goes through the `RederivationFailed` \u2192 repair \u2192 `base=outcome[\"main\"]` path. The claimed coverage rests on code outside the diff.",
+      "id": "derived-merge-route-untested",
       "severity": "advisory",
-      "summary": "The spec requires the new head's tree to equal the merge byte for byte, conflicting only in declared generated files. The implementation drops every declared generated path from the final tree comparison, whether or not it conflicted. A generated file that did not conflict can therefore differ from the merge result and still count as proven."
+      "summary": "The spec requirement covers \"an integration repair or derived merge\". The derived-merge route is only claimed in design.md, and no test or code in the diff exercises it."
     }
   ],
-  "launched_at": "2026-10-31T23:56:29+00:00",
-  "output_sha256": "d8cf6db6478c35f229dbec5cf18160dc1ec78ad2e891437e409861833a3e23d4",
+  "launched_at": "2026-11-01T00:53:49+00:00",
+  "output_sha256": "14e65d646eb0aa5b05cd2793dd70cd44e2aa5e7f2bee069ba5081489e804220c",
   "perspective": "spec-fidelity",
-  "request_id": "ee133f8a-4906-405e-b8df-4ac8917e804a",
+  "request_id": "40f422e8-7d2b-436c-9d7a-9adc384cce48",
   "reviewer": {
-    "context_id": "1e2681cb-4043-47d5-98d0-6bef7beaaed9",
+    "context_id": "e4986662-eebd-4ed4-830d-b7d6df09cb1d",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8f9a1d4a-e798-4f9a-a7da-c6e23ecce47b",
+    "launch_id": "platform-launch-ce43c698-9e27-4bd5-9eef-68d1459ee126",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -42,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22338
+        "value": 21213
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21229
+        "value": 15308
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13312
+        "value": 11250
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14393
+        "value": 11371
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -67,12 +64,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1299
+        "value": 1271
       }
     },
     "runtime": "claude-code-print"
