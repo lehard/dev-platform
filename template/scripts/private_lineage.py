@@ -116,3 +116,85 @@ def handle_for_issue(root: Path, source_issue: str, change: str, *, create: bool
 def require_handle(root: Path, source_issue: str, change: str, public_handle: str) -> None:
     if not HANDLE_RE.fullmatch(public_handle) or handle_for_issue(root, source_issue, change) != public_handle:
         raise PrivateLineageError("public lineage handle does not match the private Issue")
+
+
+# A bounded walk of open Backlog Issues; exceeding it is an explicit error, never a partial answer (BR-975).
+LINEAGE_WALK_MAX_PAGES = 20
+_OPEN_ISSUES_QUERY = """
+query($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    issues(states: OPEN, first: 50, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes { number comments(first: 100) { pageInfo { hasNextPage } nodes { body } } }
+    }
+  }
+}
+""".strip()
+
+
+def _open_issue_pages(root: Path, repository: str, max_pages: int):
+    owner, name = repository.split("/", 1)
+    after = None
+    for page in range(1, max_pages + 1):
+        command = ["gh", "api", "graphql", "-f", f"query={_OPEN_ISSUES_QUERY}", "-F", f"owner={owner}", "-F", f"name={name}"]
+        if after is not None:
+            command += ["-F", f"after={after}"]
+        result = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
+        if result.returncode:
+            raise PrivateLineageError("open private Issues cannot be read: " + (result.stderr or result.stdout).strip()[:200])
+        try:
+            issues = json.loads(result.stdout)["data"]["repository"]["issues"]
+            nodes, info = issues["nodes"], issues["pageInfo"]
+        except (ValueError, KeyError, TypeError) as exc:
+            raise PrivateLineageError("open private Issues returned an unexpected shape") from exc
+        yield nodes
+        if not info.get("hasNextPage"):
+            return
+        after = info.get("endCursor")
+    raise PrivateLineageError(f"lineage walk exceeded {max_pages} pages of open private Issues")
+
+
+def issue_for_handle(root: Path, handle: str, change: str, *, max_pages: int = LINEAGE_WALK_MAX_PAGES) -> str:
+    """The one open private Issue whose trusted mapping marker names ``handle`` for ``change``.
+
+    Only open Issues are walked: a task's Issue stays open until terminal reconciliation closes it.
+    A marker counts only from a proven repository writer or the coordinator App. None, several, or
+    a marker for another change raise; messages never name the handle.
+    """
+    import publication_queue
+    from candidate_lifecycle import trusted_marker_comment
+
+    if not HANDLE_RE.fullmatch(handle) or not re.fullmatch(r"[a-z0-9][a-z0-9-]*", change):
+        raise PrivateLineageError("invalid private lineage identity")
+    configured = read_platform_config(root).get("development_backlog", {})
+    repository = configured.get("repository") if isinstance(configured, dict) else None
+    if not isinstance(repository, str) or not ISSUE_RE.fullmatch(f"{repository}#1"):
+        raise PrivateLineageError("private lineage needs the configured Backlog repository")
+    candidates: list[str] = []
+    for nodes in _open_issue_pages(root, repository, max_pages):
+        for node in nodes:
+            comments = node.get("comments") or {}
+            bodies = [str(item.get("body") or "") for item in comments.get("nodes") or []]
+            if (comments.get("pageInfo") or {}).get("hasNextPage") or any(handle in body for body in bodies):
+                candidates.append(str(node["number"]))
+    apps = publication_queue.trusted_apps(root)
+    matches: list[tuple[str, str]] = []
+    for number in candidates:
+        rows = _comments(root, repository, number)
+        writers = publication_queue.trusted_writers(root, rows, ("<!-- dev-platform-private-lineage:",),
+                                                    repo=repository)
+        for row in rows:
+            if not trusted_marker_comment(row, apps, writers):
+                continue
+            for found_handle, found_change in MARKER_RE.findall(str(row.get("body") or "")):
+                if found_handle == handle:
+                    matches.append((f"{repository}#{number}", found_change))
+    if not matches:
+        raise PrivateLineageError("no open Issue carries this handle (already closed or missing)")
+    if len({source for source, _ in matches}) != 1 or len(matches) != 1:
+        raise PrivateLineageError("the lineage handle is carried by several trusted markers")
+    source, found_change = matches[0]
+    if found_change != change:
+        raise PrivateLineageError(f"the lineage handle on Issue #{source.rsplit('#', 1)[1]} is assigned to another change")
+    require_handle(root, source, change, handle)
+    return source
