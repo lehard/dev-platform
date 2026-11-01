@@ -247,13 +247,247 @@
         "work_identity": "BR-975/T1"
       },
       "work_identity": "BR-975/T1"
+    },
+    {
+      "change": "terminal-direct-lineage",
+      "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/terminal-direct-lineage/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "b62de86de6e121325d034ad23ea02d3abe08057f"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "be04c4c2770424ed6aa3f792dc14b03eb5b34f61",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/private_lineage.py issue_for_handle calls publication_queue.trusted_writers (publication_queue.py:174-193), which raises QueueError 'cannot prove write permission of marker author <login>: ...' when the permission lookup fails. integration_contour.direct_source (diff lines 189-192) catches only PrivateLineageError. terminal_recorded, called just before it, does not catch QueueError either. The error can therefore reach run_claimed_post_merge as an unclassified exception, with th",
+                  "id": "direct-lineage-queue-error-not-mapped",
+                  "severity": "advisory",
+                  "summary": "A QueueError from the trusted-writer proof is not mapped to JobBlocked in the new direct-lineage path, although the surrounding code maps other lineage failures to a bounded block."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "d7bf725a0aaac71a95f6d924e4cb4d2f8e8ea763677609491b812e7dbce6d648"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "dded628d6030fce7516df7d1982e65dc1fb51694ee14964324d559f4dc504ba6"
+            }
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 5882,
+            "path": "openspec/changes/terminal-direct-lineage/automated-checks.json",
+            "sha256": "9fbb74b204f699719a69fe817f0865d3759500cb3cf1353320e60340da2fc3b2"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2780,
+            "path": "openspec/changes/terminal-direct-lineage/verification.md",
+            "sha256": "41857f5b368ee4cd5d02a355f2b943b64ef7f92eb7bf6c10159addd86023813e"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "be04c4c2770424ed6aa3f792dc14b03eb5b34f61",
+      "integrated_head": "792b49d3aa4d4054e3ed6f8692d091903a292b5a",
+      "pr_number": 850,
+      "reviewed_evidence_digest": "01d802ea439cc6f45494af618ee5bd08560c7fdff27d713dd7a0cba4181449a9",
+      "source_branch": "agent/br-975-t2-terminal-direct-lineage",
+      "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+      "task_identity": {
+        "change": "terminal-direct-lineage",
+        "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+        "kind": "contribution",
+        "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+        "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+        "target_branch": "requirement/BR-975",
+        "task_content": {
+          "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+          "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+          "paths": {
+            "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+            "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+            "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+            "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+            "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+            "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+            "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+            "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-975/T2"
+      },
+      "work_identity": "BR-975/T2"
     }
   ],
   "dependencies": {
     "merged-finish-reconcile": [],
     "terminal-direct-lineage": []
   },
-  "digest": "304562b076113beb3f8b67a50f7ac4a469fa9cdcec30dfe5c5be1bfe018319b7",
+  "digest": "e268384873cfa50edb63918b37cd48de4b5efda9513d045d995277220cb6f8fd",
   "expected_changes": [
     "merged-finish-reconcile",
     "terminal-direct-lineage"
