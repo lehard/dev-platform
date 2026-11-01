@@ -709,7 +709,9 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     coordinator = _contribution_publication_supported(integration)
     if len(ordered) == 1:
         if ready:
-            if not coordinator and (pending := _retrospective_pending(integration, requirement, completed)):
+            # The Requirement retrospective follows the last child only, never an earlier sequential one.
+            if not coordinator and not sequential_more and (
+                    pending := _retrospective_pending(integration, requirement, completed)):
                 return audited(pending)
             change = ordered[0][0]
             child = linked_by_change[change]
