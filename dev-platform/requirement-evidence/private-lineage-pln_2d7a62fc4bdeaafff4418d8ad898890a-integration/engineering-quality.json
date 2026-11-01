@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
+    "candidate_head": "61395ee81a612bb426d7563e8b2574f9981365af",
+    "diff_sha256": "f94f345f3dafac9d0e651f68edb0340b6a0f1bedc4c3de4f694956bc8e43ae2c"
+  },
+  "completed_at": "2026-11-01T03:18:54+00:00",
+  "findings": [
+    {
+      "evidence": "private_lineage.py `_OPEN_ISSUES_QUERY` uses `states: OPEN`. `terminal_recorded` in integration_contour.py short-circuits only on a recorded `task-recorded` result. Closing the Issue and posting the result are separate steps, so a crash between them leaves a manual block. Consider treating an already-closed, verified mapping as success.",
+      "id": "closed-issue-retry-blocks",
+      "severity": "advisory",
+      "summary": "A retry after the source Issue was closed but before the trusted terminal result was posted cannot recover on its own. The walk covers only open Issues, so the retry stops with 'no open Issue carries this handle (already closed or missing)'."
+    }
+  ],
+  "launched_at": "2026-11-01T03:18:35+00:00",
+  "output_sha256": "f1a78bd347def1b5dce8c4a6df226363e3c25bfe3980f6642e3685b3a092a512",
+  "perspective": "engineering-quality",
+  "request_id": "615cd636-2ea4-41d2-abd8-67475ee73584",
+  "reviewer": {
+    "context_id": "fac5a529-d741-455f-bc68-8627c075bb2c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a454d578-d181-4155-b186-d33ce2cbddbf",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30249
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 86704
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16752
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17691
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1914
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d8c7cf2e2b62e0997f1bb45f86673aad757775e0c3d45259b54fd3e236fc097d"
+}

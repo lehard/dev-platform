@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
+    "candidate_head": "61395ee81a612bb426d7563e8b2574f9981365af",
+    "diff_sha256": "f94f345f3dafac9d0e651f68edb0340b6a0f1bedc4c3de4f694956bc8e43ae2c"
+  },
+  "completed_at": "2026-11-01T03:18:35+00:00",
+  "findings": [
+    {
+      "evidence": "integration_contour.py run_direct_terminal calls ops.terminal_recorded and then ops.direct_source. private_lineage.issue_for_handle walks only `states: OPEN` and raises 'no open Issue carries this handle (already closed or missing)'. If reconcile_child closes the Issue and the job then fails before the `task-recorded` result is posted, the next attempt blocks. The design acknowledges this case only as a message, not as a recovery path.",
+      "id": "terminal-retry-after-close-without-receipt",
+      "severity": "advisory",
+      "summary": "A retry can block permanently if the Issue was closed but the success receipt was never recorded. The idempotent exit depends on a recorded trusted result, and the lineage walk covers only open Issues."
+    }
+  ],
+  "launched_at": "2026-11-01T03:18:22+00:00",
+  "output_sha256": "b6c12e773ef123b42a68171ca0c7c8498ffee61dd4037a19c3ea309d70c2f572",
+  "perspective": "spec-fidelity",
+  "request_id": "615cd636-2ea4-41d2-abd8-67475ee73584",
+  "reviewer": {
+    "context_id": "200670c4-0092-42c8-920c-0d08905a4b43",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-36c9f16d-030b-4e5a-873c-c2b23f922e3d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29160
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18406
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10197
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11038
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1030
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d8c7cf2e2b62e0997f1bb45f86673aad757775e0c3d45259b54fd3e236fc097d"
+}
