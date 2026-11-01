@@ -1,0 +1,133 @@
+{
+  "candidate": {
+    "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "candidate_head": "b7652c48f2b01406dcecc862a0c50026ee596883",
+    "diff_sha256": "654d8fb80b2f2a4d64c711807377e933f7c339854640ac03b693623238640bf2"
+  },
+  "change": "private-lineage-pln_f319d2f00bb4ad87cdb299f352d570e5-integration",
+  "children": [
+    {
+      "change": "sequential-child-housekeeping",
+      "head": "cf5b3a014b10cbbb1228506ebf56b7d9fa9418bd",
+      "identity": {
+        "change": "sequential-child-housekeeping",
+        "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+        "kind": "contribution",
+        "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+        "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+        "target_branch": "requirement/BR-941",
+        "task_content": {
+          "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+          "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+          "paths": {
+            "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+            "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+            "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+            "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+            "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+            "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+            "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+            "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+            "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+            "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+            "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+            "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+            "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-941/T1"
+      },
+      "reviewed_evidence_digest": "d44d3541117df71c321e6634dc82c00691e6061d75105ee4d1988d7f4901e87b"
+    },
+    {
+      "change": "sequential-child-delivery",
+      "head": "f3d1348f8194228175f135b8ac5b976b8cb174f4",
+      "identity": {
+        "change": "sequential-child-delivery",
+        "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+        "kind": "contribution",
+        "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+        "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+        "target_branch": "requirement/BR-941",
+        "task_content": {
+          "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+          "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+          "paths": {
+            "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+            "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+            "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+            "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+            "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+            "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+            "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+            "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+            "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+            "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+            "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+            "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+            "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-941/T2"
+      },
+      "reviewed_evidence_digest": "624c574cefa401b0ff18971430acb1bc00f411c5778648de2274a83d37738130"
+    }
+  ],
+  "fresh_context_required": true,
+  "kind": "requirement-composition",
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: Requirement, \u0434\u0435\u0442\u0438 \u043a\u043e\u0442\u043e\u0440\u043e\u0433\u043e \u043f\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044e \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 \u043f\u043e\u0441\u0442\u0430\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u043f\u043e \u043e\u0434\u043d\u043e\u043c\u0443, \u0432\u0435\u0434\u0451\u0442\u0441\u044f \u0447\u0435\u0440\u0435\u0437 `execute_requirement.py advance` \u0431\u0435\u0437 \u0440\u0443\u0447\u043d\u043e\u0439 \u043f\u0435\u0440\u0435\u0441\u0431\u043e\u0440\u043a\u0438 \u0446\u0435\u043f\u043e\u0447\u043a\u0438 \u043f\u0435\u0440\u0435\u0434 \u043a\u0430\u0436\u0434\u044b\u043c \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u043c \u0440\u0435\u0431\u0451\u043d\u043a\u043e\u043c.\n\n1. \u041f\u043e\u0441\u043b\u0435 merge \u043e\u0447\u0435\u0440\u0435\u0434\u043d\u043e\u0433\u043e \u0440\u0435\u0431\u0451\u043d\u043a\u0430 `advance` \u0441\u0430\u043c \u043f\u0435\u0440\u0435\u043d\u043e\u0441\u0438\u0442 \u043d\u0430 \u043d\u043e\u0432\u044b\u0439 `main` \u043d\u0435\u0438\u0437\u043c\u0435\u043d\u0451\u043d\u043d\u044b\u0435 ADD, intents \u0438 handoff (\u043f\u0440\u0438\u0432\u044f\u0437\u043a\u0430 evidence \u0438 \u0434\u0430\u0439\u0434\u0436\u0435\u0441\u0442\u043e\u0432), \u043d\u0435 \u0442\u0440\u0435\u0431\u0443\u044f \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0433\u043e \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u0438\u044f ADD, \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u043c\u043e\u0435 \u043a\u043e\u0442\u043e\u0440\u043e\u0433\u043e \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c. \u0415\u0441\u043b\u0438 \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u043c\u043e\u0435 \u0438\u043b\u0438 \u0437\u0430\u0442\u0440\u043e\u043d\u0443\u0442\u044b\u0435 \u0441\u043f\u0435\u043a\u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u0438\u0441\u044c, `advance` \u044f\u0432\u043d\u043e \u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0438 \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0442, \u0447\u0442\u043e \u043d\u0443\u0436\u043d\u043e \u043f\u0435\u0440\u0435\u0443\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c.\n2. \u041b\u043e\u043a\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u043e\u0433\u043e \u0440\u0435\u0431\u0451\u043d\u043a\u0430 (`.managed-task-state.json`) \u043e\u0447\u0438\u0449\u0430\u0435\u0442\u0441\u044f/\u0430\u0440\u0445\u0438\u0432\u0438\u0440\u0443\u0435\u0442\u0441\u044f, \u043a\u0430\u043a \u0442\u043e\u043b\u044c\u043a\u043e \u0440\u0435\u0431\u0451\u043d\u043e\u043a Done \u0438 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 `main` \u0440\u0430\u0432\u0435\u043d \u0441\u043c\u0435\u0440\u0434\u0436\u0435\u043d\u043d\u043e\u043c\u0443 `origin/main`, \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e \u043e\u0442 \u0442\u043e\u0433\u043e, \u0437\u0430\u043a\u0440\u044b\u0442 \u043b\u0438 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044c.\n3. \u041e\u0436\u0438\u0434\u0430\u044e\u0449\u0430\u044f \u0440\u0435\u0442\u0440\u043e\u0441\u043f\u0435\u043a\u0442\u0438\u0432\u0430 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044f \u0441\u043e\u043e\u0431\u0449\u0430\u0435\u0442\u0441\u044f \u043a\u0430\u043a \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433, \u0430 \u043d\u0435 \u043a\u0430\u043a \u043e\u0448\u0438\u0431\u043a\u0430.\nReviewed children: [{\"change\": \"sequential-child-housekeeping\", \"head\": \"cf5b3a014b10cbbb1228506ebf56b7d9fa9418bd\", \"identity\": {\"change\": \"sequential-child-housekeeping\", \"contribution_base\": \"604cfb23c119fa099c17061ae47abd22c326c73a\", \"kind\": \"contribution\", \"requirement\": \"pln_f319d2f00bb4ad87cdb299f352d570e5\", \"source_issue\": \"pln_b9c92ce5137dcdd3301d10a1de112504\", \"target_branch\": \"requirement/BR-941\", \"task_content\": {\"base\": \"604cfb23c119fa099c17061ae47abd22c326c73a\", \"digest\": \"4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63\", \"paths\": {\"dev-platform/checks.toml\": \"1e04d84d181b9bd583a4bde851d409e5baf16ee1\", \"docs/engineering/task-intake.md\": \"c1018646fe7c529e1104d745a5835c2210756d3c\", \"openspec/changes/sequential-child-housekeeping/.managed-task.json\": \"874e8d67def1f62c5576640302a4f2425f17f0a9\", \"openspec/changes/sequential-child-housekeeping/.openspec.yaml\": \"aa079bc5ee9b7523e2ac478238c5713ccdfd347a\", \"openspec/changes/sequential-child-housekeeping/design.md\": \"4fb062ab737b99d6f838d08b3d57cbd47b07f320\", \"openspec/changes/sequential-child-housekeeping/proposal.md\": \"631b3a0ef8c4a030debf453069da52b973910176\", \"openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md\": \"2ed92e9e41c507c4060a8115e3aae3c4aba8462e\", \"openspec/changes/sequential-child-housekeeping/tasks.md\": \"0035ce559b088eb313578ff77353924d3c720333\", \"template/docs/engineering/task-intake.md.jinja\": \"d09a57d26bef4f62590b0ff66d6b7150da2d156e\", \"template/scripts/execute_requirement.py\": \"ab5d8c02512d3f6cbcceb1faec16cc469c73040a\", \"template/scripts/requirement_retrospective.py\": \"78e47ac8d14fea006ea4332d8e1b31626098b41f\", \"tests/test_requirement_execution.py\": \"c8b84ce761bdfba1f3f461fde95997a1071ecd8b\", \"tests/test_requirement_sequential_housekeeping.py\": \"baff3700aa73961c740467430759f5315e35bff4\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-941/T1\"}, \"reviewed_evidence_digest\": \"d44d3541117df71c321e6634dc82c00691e6061d75105ee4d1988d7f4901e87b\"}, {\"change\": \"sequential-child-delivery\", \"head\": \"f3d1348f8194228175f135b8ac5b976b8cb174f4\", \"identity\": {\"change\": \"sequential-child-delivery\", \"contribution_base\": \"c24f2b3691d586b828e5bab4f80cc46195988a40\", \"kind\": \"contribution\", \"requirement\": \"pln_f319d2f00bb4ad87cdb299f352d570e5\", \"source_issue\": \"pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c\", \"target_branch\": \"requirement/BR-941\", \"task_content\": {\"base\": \"c24f2b3691d586b828e5bab4f80cc46195988a40\", \"digest\": \"a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac\", \"paths\": {\"dev-platform/checks.toml\": \"99e78ee2c423140c00042154efae534d4ed13da5\", \"docs/engineering/task-intake.md\": \"f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d\", \"openspec/changes/sequential-child-delivery/.managed-task.json\": \"d7d7818926c72564aa363c58be35b9cf5cebde8f\", \"openspec/changes/sequential-child-delivery/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/sequential-child-delivery/design.md\": \"db6db16ff90db0963e2f0e700c5b09cff678f2fb\", \"openspec/changes/sequential-child-delivery/proposal.md\": \"dddad0ab332d04bdff8da98c51a0e213eb8176d4\", \"openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md\": \"25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae\", \"openspec/changes/sequential-child-delivery/tasks.md\": \"86aa4c064d57d3a313174bb427c30cc16090e229\", \"template/docs/engineering/task-intake.md.jinja\": \"4e6b0830cac60b2a61652fd832768e0e6e55fc4b\", \"template/scripts/add_intents.py\": \"b85c66d532a2417f03deec46a20415bee794eff0\", \"template/scripts/execute_requirement.py\": \"2419ac5fe4bffabe0f9cb527d5472226e8f48640\", \"template/scripts/orchestrate_pre_authoring.py\": \"cf1b3c2cda1ec9adb16f88babeb56678526218a5\", \"tests/test_requirement_sequential_delivery.py\": \"c9d6a77288f0133dfc5afe9385e15b8686bf5335\", \"tests/test_shared_writer_guard.py\": \"f055bb1d4aa517d557d9290f3c78c22c57a49214\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-941/T2\"}, \"reviewed_evidence_digest\": \"624c574cefa401b0ff18971430acb1bc00f411c5778648de2274a83d37738130\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: Requirement, \u0434\u0435\u0442\u0438 \u043a\u043e\u0442\u043e\u0440\u043e\u0433\u043e \u043f\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044e \u0432\u043b\u0430\u0434\u0435\u043b\u044c\u0446\u0430 \u043f\u043e\u0441\u0442\u0430\u0432\u043b\u044f\u044e\u0442\u0441\u044f \u043f\u043e \u043e\u0434\u043d\u043e\u043c\u0443, \u0432\u0435\u0434\u0451\u0442\u0441\u044f \u0447\u0435\u0440\u0435\u0437 `execute_requirement.py advance` \u0431\u0435\u0437 \u0440\u0443\u0447\u043d\u043e\u0439 \u043f\u0435\u0440\u0435\u0441\u0431\u043e\u0440\u043a\u0438 \u0446\u0435\u043f\u043e\u0447\u043a\u0438 \u043f\u0435\u0440\u0435\u0434 \u043a\u0430\u0436\u0434\u044b\u043c \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u043c \u0440\u0435\u0431\u0451\u043d\u043a\u043e\u043c.\n\n1. \u041f\u043e\u0441\u043b\u0435 merge \u043e\u0447\u0435\u0440\u0435\u0434\u043d\u043e\u0433\u043e \u0440\u0435\u0431\u0451\u043d\u043a\u0430 `advance` \u0441\u0430\u043c \u043f\u0435\u0440\u0435\u043d\u043e\u0441\u0438\u0442 \u043d\u0430 \u043d\u043e\u0432\u044b\u0439 `main` \u043d\u0435\u0438\u0437\u043c\u0435\u043d\u0451\u043d\u043d\u044b\u0435 ADD, intents \u0438 handoff (\u043f\u0440\u0438\u0432\u044f\u0437\u043a\u0430 evidence \u0438 \u0434\u0430\u0439\u0434\u0436\u0435\u0441\u0442\u043e\u0432), \u043d\u0435 \u0442\u0440\u0435\u0431\u0443\u044f \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0433\u043e \u043e\u0434\u043e\u0431\u0440\u0435\u043d\u0438\u044f ADD, \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u043c\u043e\u0435 \u043a\u043e\u0442\u043e\u0440\u043e\u0433\u043e \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c. \u0415\u0441\u043b\u0438 \u0441\u043e\u0434\u0435\u0440\u0436\u0438\u043c\u043e\u0435 \u0438\u043b\u0438 \u0437\u0430\u0442\u0440\u043e\u043d\u0443\u0442\u044b\u0435 \u0441\u043f\u0435\u043a\u0438 \u0440\u0435\u0430\u043b\u044c\u043d\u043e \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u0438\u0441\u044c, `advance` \u044f\u0432\u043d\u043e \u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0438 \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0442, \u0447\u0442\u043e \u043d\u0443\u0436\u043d\u043e \u043f\u0435\u0440\u0435\u0443\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u044c.\n2. \u041b\u043e\u043a\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u043e\u0441\u0442\u043e\u044f\u043d\u0438\u0435 \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u043e\u0433\u043e \u0440\u0435\u0431\u0451\u043d\u043a\u0430 (`.managed-task-state.json`) \u043e\u0447\u0438\u0449\u0430\u0435\u0442\u0441\u044f/\u0430\u0440\u0445\u0438\u0432\u0438\u0440\u0443\u0435\u0442\u0441\u044f, \u043a\u0430\u043a \u0442\u043e\u043b\u044c\u043a\u043e \u0440\u0435\u0431\u0451\u043d\u043e\u043a Done \u0438 \u043b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439 `main` \u0440\u0430\u0432\u0435\u043d \u0441\u043c\u0435\u0440\u0434\u0436\u0435\u043d\u043d\u043e\u043c\u0443 `origin/main`, \u043d\u0435\u0437\u0430\u0432\u0438\u0441\u0438\u043c\u043e \u043e\u0442 \u0442\u043e\u0433\u043e, \u0437\u0430\u043a\u0440\u044b\u0442 \u043b\u0438 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044c.\n3. \u041e\u0436\u0438\u0434\u0430\u044e\u0449\u0430\u044f \u0440\u0435\u0442\u0440\u043e\u0441\u043f\u0435\u043a\u0442\u0438\u0432\u0430 \u0440\u043e\u0434\u0438\u0442\u0435\u043b\u044f \u0441\u043e\u043e\u0431\u0449\u0430\u0435\u0442\u0441\u044f \u043a\u0430\u043a \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433, \u0430 \u043d\u0435 \u043a\u0430\u043a \u043e\u0448\u0438\u0431\u043a\u0430.\nReviewed children: [{\"change\": \"sequential-child-housekeeping\", \"head\": \"cf5b3a014b10cbbb1228506ebf56b7d9fa9418bd\", \"identity\": {\"change\": \"sequential-child-housekeeping\", \"contribution_base\": \"604cfb23c119fa099c17061ae47abd22c326c73a\", \"kind\": \"contribution\", \"requirement\": \"pln_f319d2f00bb4ad87cdb299f352d570e5\", \"source_issue\": \"pln_b9c92ce5137dcdd3301d10a1de112504\", \"target_branch\": \"requirement/BR-941\", \"task_content\": {\"base\": \"604cfb23c119fa099c17061ae47abd22c326c73a\", \"digest\": \"4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63\", \"paths\": {\"dev-platform/checks.toml\": \"1e04d84d181b9bd583a4bde851d409e5baf16ee1\", \"docs/engineering/task-intake.md\": \"c1018646fe7c529e1104d745a5835c2210756d3c\", \"openspec/changes/sequential-child-housekeeping/.managed-task.json\": \"874e8d67def1f62c5576640302a4f2425f17f0a9\", \"openspec/changes/sequential-child-housekeeping/.openspec.yaml\": \"aa079bc5ee9b7523e2ac478238c5713ccdfd347a\", \"openspec/changes/sequential-child-housekeeping/design.md\": \"4fb062ab737b99d6f838d08b3d57cbd47b07f320\", \"openspec/changes/sequential-child-housekeeping/proposal.md\": \"631b3a0ef8c4a030debf453069da52b973910176\", \"openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md\": \"2ed92e9e41c507c4060a8115e3aae3c4aba8462e\", \"openspec/changes/sequential-child-housekeeping/tasks.md\": \"0035ce559b088eb313578ff77353924d3c720333\", \"template/docs/engineering/task-intake.md.jinja\": \"d09a57d26bef4f62590b0ff66d6b7150da2d156e\", \"template/scripts/execute_requirement.py\": \"ab5d8c02512d3f6cbcceb1faec16cc469c73040a\", \"template/scripts/requirement_retrospective.py\": \"78e47ac8d14fea006ea4332d8e1b31626098b41f\", \"tests/test_requirement_execution.py\": \"c8b84ce761bdfba1f3f461fde95997a1071ecd8b\", \"tests/test_requirement_sequential_housekeeping.py\": \"baff3700aa73961c740467430759f5315e35bff4\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-941/T1\"}, \"reviewed_evidence_digest\": \"d44d3541117df71c321e6634dc82c00691e6061d75105ee4d1988d7f4901e87b\"}, {\"change\": \"sequential-child-delivery\", \"head\": \"f3d1348f8194228175f135b8ac5b976b8cb174f4\", \"identity\": {\"change\": \"sequential-child-delivery\", \"contribution_base\": \"c24f2b3691d586b828e5bab4f80cc46195988a40\", \"kind\": \"contribution\", \"requirement\": \"pln_f319d2f00bb4ad87cdb299f352d570e5\", \"source_issue\": \"pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c\", \"target_branch\": \"requirement/BR-941\", \"task_content\": {\"base\": \"c24f2b3691d586b828e5bab4f80cc46195988a40\", \"digest\": \"a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac\", \"paths\": {\"dev-platform/checks.toml\": \"99e78ee2c423140c00042154efae534d4ed13da5\", \"docs/engineering/task-intake.md\": \"f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d\", \"openspec/changes/sequential-child-delivery/.managed-task.json\": \"d7d7818926c72564aa363c58be35b9cf5cebde8f\", \"openspec/changes/sequential-child-delivery/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/sequential-child-delivery/design.md\": \"db6db16ff90db0963e2f0e700c5b09cff678f2fb\", \"openspec/changes/sequential-child-delivery/proposal.md\": \"dddad0ab332d04bdff8da98c51a0e213eb8176d4\", \"openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md\": \"25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae\", \"openspec/changes/sequential-child-delivery/tasks.md\": \"86aa4c064d57d3a313174bb427c30cc16090e229\", \"template/docs/engineering/task-intake.md.jinja\": \"4e6b0830cac60b2a61652fd832768e0e6e55fc4b\", \"template/scripts/add_intents.py\": \"b85c66d532a2417f03deec46a20415bee794eff0\", \"template/scripts/execute_requirement.py\": \"2419ac5fe4bffabe0f9cb527d5472226e8f48640\", \"template/scripts/orchestrate_pre_authoring.py\": \"cf1b3c2cda1ec9adb16f88babeb56678526218a5\", \"tests/test_requirement_sequential_delivery.py\": \"c9d6a77288f0133dfc5afe9385e15b8686bf5335\", \"tests/test_shared_writer_guard.py\": \"f055bb1d4aa517d557d9290f3c78c22c57a49214\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-941/T2\"}, \"reviewed_evidence_digest\": \"624c574cefa401b0ff18971430acb1bc00f411c5778648de2274a83d37738130\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-01T01:19:41+00:00",
+  "request_id": "c980e85b-20ca-4879-be1b-d1c239dc173e",
+  "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+  "schema_version": 1,
+  "task_content": {
+    "base": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "digest": "ef8c0187d36aa4f2ece487d6a4a6731e029215ed270672a2a6156f68c5e9e278",
+    "paths": {
+      "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+      "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+      "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+      "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+      "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+      "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+      "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+      "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+      "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+      "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+      "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+      "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+      "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+      "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+      "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+      "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+      "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+      "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+      "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+      "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4",
+      "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+    },
+    "scope": "requirement-composition-v1",
+    "version": 1
+  }
+}

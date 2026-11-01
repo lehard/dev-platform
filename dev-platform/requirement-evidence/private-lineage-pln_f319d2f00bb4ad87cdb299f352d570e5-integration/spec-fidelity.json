@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "candidate_head": "b7652c48f2b01406dcecc862a0c50026ee596883",
+    "diff_sha256": "654d8fb80b2f2a4d64c711807377e933f7c339854640ac03b693623238640bf2"
+  },
+  "completed_at": "2026-11-01T01:20:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py, single-child branch in the candidate diff (~lines 709-712): `if len(ordered) == 1: if ready: if not coordinator and (pending := _retrospective_pending(...)): return audited(pending)`. `_sequential_round` always returns a single-element `ordered`, so this branch runs for each sequential child, before `finish` publishes it and before the `child-delivered` result at ~line 451. The task-intake docs describe the retrospective as 'before final publication' and 'after the mandatory children'. The Requirement outcome says the chain advances without manual steps before each next child. A pending retrospective should stop only the terminal step, but here it blocks intermediate children.",
+      "id": "sequential-retrospective-gates-every-child",
+      "severity": "material",
+      "summary": "In sequential delivery, the retrospective gate added by the housekeeping child runs before publishing every child, not only after the last one. A Requirement with several children therefore returns await-requirement-retrospective before its first child is published."
+    }
+  ],
+  "launched_at": "2026-11-01T01:19:51+00:00",
+  "output_sha256": "a33a6fba017a42cb79605bb0ce3e75553e5b09dc4fd86fdbc2567c9c4c0ea214",
+  "perspective": "spec-fidelity",
+  "request_id": "c980e85b-20ca-4879-be1b-d1c239dc173e",
+  "reviewer": {
+    "context_id": "2c97bc61-ac41-494d-b3f1-06d1cbedd2fc",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d1ee1646-48f2-4f61-bae7-c7444f90058b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40220
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15269
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11164
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12482
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1164
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ef8c0187d36aa4f2ece487d6a4a6731e029215ed270672a2a6156f68c5e9e278"
+}

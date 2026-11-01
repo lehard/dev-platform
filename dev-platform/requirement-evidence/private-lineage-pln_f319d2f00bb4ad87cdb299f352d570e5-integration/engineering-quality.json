@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+    "candidate_head": "b7652c48f2b01406dcecc862a0c50026ee596883",
+    "diff_sha256": "654d8fb80b2f2a4d64c711807377e933f7c339854640ac03b693623238640bf2"
+  },
+  "completed_at": "2026-11-01T01:20:23+00:00",
+  "findings": [
+    {
+      "evidence": "In template/scripts/execute_requirement.py, `_archive_delivered_task_state` has one call site, just before `start_managed_task.start_managed_task`. The sequential all-delivered path (`if not ordered:` after `_sequential_round`) returns `_await_post_merge`, `_retrospective_pending` or `reconcile_parent` without archiving. The last child's state therefore stays in the checkout while the Requirement waits for the retrospective, and it is only moved by a later child start. This matches the T1 spec wording (\"before advance starts a child\"), but it is narrower than the stated outcome.",
+      "id": "task-state-archive-only-before-next-child",
+      "severity": "advisory",
+      "summary": "Requirement outcome 2 says a Done child's `.managed-task-state.json` should be archived once the child is Done and local main equals origin/main, whether or not the parent is closed. The candidate archives it only on the path that starts another child."
+    }
+  ],
+  "launched_at": "2026-11-01T01:20:05+00:00",
+  "output_sha256": "111b26c51c966175e752f17d03c5f7974d3f5b987105a3038629043cde36064b",
+  "perspective": "engineering-quality",
+  "request_id": "c980e85b-20ca-4879-be1b-d1c239dc173e",
+  "reviewer": {
+    "context_id": "58e416bb-173b-4995-b4e9-5f23821f4b83",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-eca266c8-dbf0-45d0-b9e1-647e487926b6",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40713
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 60643
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15236
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16190
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1497
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ef8c0187d36aa4f2ece487d6a4a6731e029215ed270672a2a6156f68c5e9e278"
+}
