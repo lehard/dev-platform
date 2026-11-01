@@ -1157,6 +1157,7 @@ class CompositionPostMergeRetrospectiveTests(unittest.TestCase):
                 mock.patch.object(requirement_composition, "candidate_manifest", return_value=manifest), \
                 mock.patch.object(requirement_contributions, "private_manifest", return_value=exact), \
                 mock.patch.object(contour, "run_retrospective", side_effect=lambda ops, root, n, b, h: calls.append(n) or "task-recorded"), \
+                mock.patch("_platform_common.read_platform_config", return_value={}), \
                 mock.patch.object(contour, "ensure_requirement_checkpoint") as checkpoint:
             ops = mock.Mock()
             result = contour.run_claimed_post_merge(Path("/root"), "o/r", candidate, job, branch="requirement/BR-7",
@@ -1512,6 +1513,26 @@ class PostMergeJobTests(FrictionFixture):
         outcome, posted = self.run_job("terminal-reconciliation", ops)
         self.assertEqual(outcome["status"], "failed")
         self.assertIn("failed: no GitHub authentication", posted[0])
+
+    def test_public_receipts_name_private_backlog_issues_only_by_number(self):
+        # A post-merge receipt is a public PR comment: a private Backlog reference becomes "Issue #N".
+        config = {"development_backlog": {"repository": "acme/backlog"}}
+        for effect, expected in (
+                (contour.JobBlocked("acme/backlog#960 Project Done reconciliation failed"),
+                 "blocked: Issue #960 Project Done reconciliation failed"),
+                (RuntimeError("cannot read Acme/Backlog#12 or acme/backlog itself"),
+                 "failed: cannot read Issue #12 or the private Backlog itself")):
+            with self.subTest(expected=expected):
+                ops = FakeOps()
+                ops.reconcile_child = mock.Mock(side_effect=effect)
+                with mock.patch("_platform_common.read_platform_config", return_value=config):
+                    outcome, posted = self.run_job("terminal-reconciliation", ops)
+                self.assertEqual(outcome["outcome"], expected)
+                self.assertNotIn("acme/backlog", posted[0].lower())
+
+    def test_public_text_without_a_configured_backlog_is_unchanged(self):
+        with mock.patch("_platform_common.read_platform_config", return_value={}):
+            self.assertEqual(contour.public_text(ROOT, "plain text #7"), "plain text #7")
 
     def test_cleanup_reports_removed_clean_and_refused_states(self):
         ops = FakeOps()
