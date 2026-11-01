@@ -307,6 +307,11 @@ def restorable_gates(pr: dict, comments: list[dict], *, trusted_apps: frozenset[
     raise ValueError(f"no content-bound gates found within {MAX_RESTORE_HOPS} trusted harness pushes")
 
 
+def environment_reason(detail: str) -> str:
+    """The derived reason of a candidate whose latest exact-head event is a coordinator environment failure."""
+    return f"coordinator environment error on this head: {detail}"[:500]
+
+
 def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None, *,
                      trusted_apps: frozenset[str] = frozenset(), trusted_writers: frozenset[str] = frozenset()) -> dict:
     """Derive from the latest exact-head handoff; labels never grant v2 gates.
@@ -321,7 +326,7 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
               "task_identity": None, "gates": {}, "red_gate": None,
               "not_reverified": [], "attempts": {}, "next_job": None, "route": None, "provider_switch": None, "reason": ""}
     matching, legacy = [], []
-    matched_at = blocked_at = 0
+    matched_at = blocked_at = environment_at = 0
     newest: dict | None = None
     for row in sorted(comments, key=lambda item: item.get("id", 0)):
         body = row.get("body", "")
@@ -352,6 +357,8 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
             legacy.append(record)
             if record.get("kind") == "block":
                 blocked_at = len(matching) + len(legacy)
+            if record.get("kind") == "environment-error" and record.get("head") == head:
+                environment_at = len(matching) + len(legacy)
     if matching:
         result.update(deepcopy(matching[-1]))
         # A v1 block written after the latest record (its v2 record lost to an
@@ -477,8 +484,10 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
         result["route"] = deepcopy(newest.get("route"))  # recovery keeps the originating task route
     if not matching and newest is not None and result.get("provider_switch") is None:
         result["provider_switch"] = deepcopy(newest.get("provider_switch"))  # and the operator's provider switch
-    if not matching and not (newest is not None and newest["state"] in CLAIM_STATES) and legacy:
-        latest = legacy[-1]
+    # An environment-error note changes no state, so it never stands in for the latest v1 event.
+    stateful = [event for event in legacy if event.get("kind") != "environment-error"]
+    if not matching and not (newest is not None and newest["state"] in CLAIM_STATES) and stateful:
+        latest = stateful[-1]
         labels = {label if isinstance(label, str) else label.get("name") for label in pr.get("labels", [])}
         admissions = [event for event in legacy if event.get("kind") == "admit"]
         if latest.get("kind") == "block" or "publication:blocked" in labels:
@@ -525,6 +534,11 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
             result.update(state="blocked-retryable", reason=checks.get("detail") or "await exact-head required checks", next_job=None)
     elif checks and checks.get("head") != head:
         result.update(state="blocked-retryable", reason="checks do not match candidate head", gates={}, next_job=None)
+    if environment_at > matched_at and result["state"] in {"ready", "integrating", "blocked-retryable"}:
+        # A coordinator environment failure noted after the latest record is the honest reason; the state stays.
+        note = next(event for event in reversed(legacy)
+                    if event.get("kind") == "environment-error" and event.get("head") == head)
+        result["reason"] = environment_reason(note.get("reason", ""))
     return _action(result)
 
 

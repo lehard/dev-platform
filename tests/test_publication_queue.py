@@ -689,12 +689,81 @@ class DerivedMergeEnvironmentTests(unittest.TestCase):
         with patch.object(queue, "_label", side_effect=lambda *a, present: labels.append((a[3], present))), \
              patch.object(queue, "_require_finalized"), \
              patch.object(queue, "_prepare", side_effect=queue.QueueEnvironmentError("PR #1 derived merge cannot run")), \
+             patch.object(queue, "_note_environment_error") as note, \
              patch.object(queue, "_transition") as transition, patch.object(queue, "publish_job") as publish, \
              patch.object(queue, "_block") as block:
             with self.assertRaisesRegex(queue.QueueEnvironmentError, "cannot run"):
                 queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
         self.assertEqual(labels, [(queue.ACTIVE, True), (queue.ACTIVE, False)])
         transition.assert_not_called(), publish.assert_not_called(), block.assert_not_called()
+        # BR-969: only a visible note on the exact head; no state, block or attempt.
+        note.assert_called_once_with(ROOT_PATH, REPO, 1, HEAD, "PR #1 derived merge cannot run")
+
+    def test_environment_note_is_posted_only_while_not_already_the_reason(self) -> None:
+        import candidate_lifecycle
+
+        posted: list[dict] = []
+        shown = {"head": HEAD, "reason": "required checks not yet reported on head: validate"}
+        with patch.object(queue, "_pr", return_value=pr(1)), patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_derive", side_effect=lambda *_a: dict(shown)), \
+             patch.object(queue, "_comment", side_effect=lambda _r, _repo, _n, payload: posted.append(payload)):
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+            shown["reason"] = candidate_lifecycle.environment_reason("OpenSpec CLI is required")
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+            shown["reason"] = "superseded by a later record"
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+        self.assertEqual([(p["kind"], p["head"]) for p in posted], [(queue.ENVIRONMENT_ERROR_KIND, HEAD)] * 2)
+        with self.assertRaisesRegex(queue.QueueError, "head is unavailable"):
+            queue._note_environment_error(ROOT_PATH, REPO, 1, None, "x")
+
+    def test_a_failed_note_keeps_the_environment_error_and_names_both(self) -> None:
+        with patch.object(queue, "_label"), patch.object(queue, "_require_finalized"), \
+             patch.object(queue, "_prepare", side_effect=queue.QueueEnvironmentError("no OpenSpec CLI")), \
+             patch.object(queue, "_note_environment_error", side_effect=queue.QueueError("comment API down")):
+            with self.assertRaisesRegex(queue.QueueEnvironmentError, "no OpenSpec CLI; .*comment API down"):
+                queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+
+    def test_conflict_outside_generated_files_needs_integration_repair(self) -> None:
+        # BR-969 regression: a real conflict of a waiting candidate is detected by merge-tree, not GitHub mergeability.
+        from subprocess import CompletedProcess
+
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-tree":
+                return CompletedProcess(args, 1, "tree\nsrc.py\n", "")
+            if args[0] == "merge-base":
+                return CompletedProcess(args, 0 if args[2] == BASE else 1, "", "")
+            if args[0] == "diff":
+                return CompletedProcess(args, 0, "src.py\n", "")
+            return CompletedProcess(args, 0, "", "")
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=NEW_HEAD), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_task_paths", return_value={"src.py"}), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch("_platform_common.generated_files", return_value=()), \
+             patch.object(queue, "_gh") as gh:
+            with self.assertRaisesRegex(queue.IntegrationRepairNeeded, "conflicts in: src.py"):
+                queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        gh.assert_not_called()
+
+    def test_generated_only_conflict_takes_the_derived_merge(self) -> None:
+        exc, _ = self._prepare_generated(queue.QueueError("derived merge reached"), conflicts=["manifest.json"])
+        self.assertEqual(str(exc), "derived merge reached")
+
+    def test_integration_repair_needed_routes_to_counted_integration_repair(self) -> None:
+        needed = queue.IntegrationRepairNeeded("merge of current main conflicts in: src.py")
+        with patch.object(queue, "_label"), patch.object(queue, "_require_finalized"), \
+             patch.object(queue, "_prepare", side_effect=needed), \
+             patch.object(queue, "_integration_repair", return_value={"state": "integration-repair-pending"}) as repair:
+            result = queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        repair.assert_called_once_with(ROOT_PATH, REPO, 1, admission(1, 20), needed)
+        self.assertEqual(result["state"], "integration-repair-pending")
+
+    def test_waiting_candidate_without_red_gate_is_integrable(self) -> None:
+        waiting = {"state": "blocked-retryable", "red_gate": None, "next_job": None, "gates": {}}
+        self.assertFalse(queue.red_retry_blocks_integration(waiting))
+        self.assertFalse(queue.review_owned(waiting))
+        self.assertNotIn(waiting["state"], queue.NOT_INTEGRABLE)
 
     def test_worker_tries_the_rest_and_fails_the_run_naming_the_cause(self) -> None:
         seen: list[int] = []
