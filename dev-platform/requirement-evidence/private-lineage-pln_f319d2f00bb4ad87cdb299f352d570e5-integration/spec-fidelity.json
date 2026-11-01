@@ -3,21 +3,34 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "4c8525369b8c47bde884f58bcc2d646eb31fecfb",
-    "diff_sha256": "747acfc3adadea8fb9c4817eb6343e4b645934179a8e09118053e8f8caa1722c"
+    "candidate_head": "8e3d01c77feeac53afad1d642e30492f0217fd55",
+    "diff_sha256": "14bdf812e70b520f8417bb06cca7736c8e7daa9175fce7996d063e428dc82613"
   },
-  "completed_at": "2026-11-01T05:22:11+00:00",
-  "findings": [],
-  "launched_at": "2026-11-01T05:21:54+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-11-01T05:34:05+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py, candidate.diff lines ~392-401. `_await_post_merge(..., rebind=rebound, **extra)` includes it, but `return {**pending, **extra}` and `return {**reconcile_parent(...), **extra}` do not. The later paths in the same function use `audited(...)`, which does add `rebind`.",
+      "id": "rebind-missing-on-terminal-pending-paths",
+      "severity": "advisory",
+      "summary": "The sequential rebind receipt is reported only on some return paths. When every sequential child is Done, `await-requirement-retrospective` (via `{**pending, **extra}`) and the `reconcile_parent` result (via `{**..., **extra}`) omit `rebind`. The `await_post_merge` path does include it. An operator may not see that approval was carried on the terminal step."
+    },
+    {
+      "evidence": "template/scripts/execute_requirement.py, candidate.diff lines ~451-455: `if not ready and (terminal_archived := ...): _audited = audited; def audited(...): # noqa: F811`.",
+      "id": "audited-redefinition-shadowing",
+      "severity": "advisory",
+      "summary": "The nested `audited` helper is redefined conditionally with `# noqa: F811`, using a `_audited` alias. This composes the two children's output decorations in a fragile way. Archived task state is attached only when `not ready`, and other branches use the plain helper. The behavior is correct today, but a later edit could silently drop `archived_task_state` or `rebind`."
+    }
+  ],
+  "launched_at": "2026-11-01T05:33:41+00:00",
+  "output_sha256": "3de66c5b2cc6ffb94e8cb97b05c7eb05e6ad0645618b883eb1b8cf79208accec",
   "perspective": "spec-fidelity",
-  "request_id": "9415ded6-7f44-4266-9ed9-f38383e99774",
+  "request_id": "4987bd5e-151d-4b18-b37b-335d0d49000b",
   "reviewer": {
-    "context_id": "db3da5f4-e6d3-48f1-9712-c64722b84dad",
+    "context_id": "98f1e97e-dc65-4fc3-a88c-ccc3bcf3435b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-9dfce228-c770-4cf7-b3d5-030bb0bbb61a",
+    "launch_id": "platform-launch-d032c84e-764e-4bed-b8c8-c472c313acd6",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,37 +45,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 44310
+        "value": 29543
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 55790
+        "value": 51389
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13509
+        "value": 19874
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14481
+        "value": 21598
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1254
+        "value": 2092
       }
     },
     "runtime": "claude-code-print"

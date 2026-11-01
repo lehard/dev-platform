@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "4c8525369b8c47bde884f58bcc2d646eb31fecfb",
-    "diff_sha256": "747acfc3adadea8fb9c4817eb6343e4b645934179a8e09118053e8f8caa1722c"
+    "candidate_head": "8e3d01c77feeac53afad1d642e30492f0217fd55",
+    "diff_sha256": "14bdf812e70b520f8417bb06cca7736c8e7daa9175fce7996d063e428dc82613"
   },
-  "completed_at": "2026-11-01T05:22:31+00:00",
+  "completed_at": "2026-11-01T05:34:28+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/execute_requirement.py: `rebound = _rebind_sequential(...)` runs before `_sequential_round`. template/scripts/orchestrate_pre_authoring.py: `_affected_sources` always seeds from `_file_sources(add_document)`, even when `remaining_changes` is empty. Skipping the rebind once every child is Done, or restricting the affected set to the remaining children's specs when none remain, would avoid it.",
-      "id": "rebind-runs-after-last-child",
-      "severity": "advisory",
-      "summary": "For a sequential Requirement, advance calls `_rebind_sequential` on every pass while pre-authoring is not complete. That includes the pass after the last child is Done, when no child remains. The affected-source set still includes the ADD's file evidence and reused constraints. A foreign commit on one of those files can therefore raise RebindStop and block the retrospective or terminal step. It would not be reported as the pending-retrospective next step, which contradicts outcome 3 in that case."
-    },
-    {
-      "evidence": "tests/test_requirement_execution.py setUp: `mock.patch.object(execution, \"_retrospective_pending\", return_value=None)`.",
-      "id": "existing-tests-mask-retrospective-pending",
-      "severity": "advisory",
-      "summary": "tests/test_requirement_execution.py now patches `execution._retrospective_pending` to return None for every test in the class. The existing coverage of the real `require_checkpoint` call path from advance (single-child, shared-candidate and terminal branches) is therefore bypassed. The new housekeeping tests cover the pending-status behavior only partly."
+      "evidence": "template/scripts/execute_requirement.py:369-377 calls the rebind whenever `sequence is not None and report.get(\"current_stage\") != \"complete\"`, with no staleness or delivered-child guard. `orchestrate_pre_authoring.rebind` (diff lines ~708-710) raises `RebindStop(\"... not a stale approved chain; ...\")` when `stage not in REBINDABLE_STAGES or not stale`. That covers the `needs-handoff` stage with missing intent ids, such as a sequential Requirement whose intents.json declares `delivery` but whose handoffs are not yet authored. The `_materialized_handoff_report` branch at line 378 onward is then unreachable for sequential Requirements in the case where it is needed. The design.md 'Rebind trigger' text says this should happen only when pre-authoring is stale at snapshot, ADD, intents or handoff, with at least one delivered child or a moved main.",
+      "id": "sequential-rebind-runs-on-any-incomplete-stage",
+      "severity": "material",
+      "summary": "For a sequential Requirement, `advance` calls `_rebind_sequential` whenever pre-authoring is not `complete`. `rebind` raises `RebindStop` for any stage that is not a stale approved chain, and `advance` turns that into `RequirementExecutionError`. This replaces the normal non-complete handling (`_materialized_handoff_report` and the stage blocker report), so a legitimate next step becomes a hard error. The design and spec limit rebind to stale state with a delivered child or a moved main, and the code does not enforce that."
     }
   ],
-  "launched_at": "2026-11-01T05:22:11+00:00",
-  "output_sha256": "565151840325474d8e6cacb6868ce019c95cb7aaf71aa3ff4fd8ebb4aa70dfd1",
+  "launched_at": "2026-11-01T05:34:05+00:00",
+  "output_sha256": "9115ce9f74f3dfb64176b73800e47b04204896df675545fefc4772796a414daa",
   "perspective": "engineering-quality",
-  "request_id": "9415ded6-7f44-4266-9ed9-f38383e99774",
+  "request_id": "4987bd5e-151d-4b18-b37b-335d0d49000b",
   "reviewer": {
-    "context_id": "e0c7afff-fc04-4271-b994-e863e996cf0b",
+    "context_id": "5a28b133-a9f6-49e0-b6b2-da15563140e0",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-44ed1c87-02c3-4c36-b039-13c551514067",
+    "launch_id": "platform-launch-945a0bf9-264e-4b61-adad-a11d40dcc006",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 38729
+        "value": 51632
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 60948
+        "value": 35938
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16820
+        "value": 20001
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18466
+        "value": 21391
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -75,7 +69,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1744
+        "value": 2042
       }
     },
     "runtime": "claude-code-print"
