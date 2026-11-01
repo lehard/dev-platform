@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "base_ref": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "candidate_head": "b62de86de6e121325d034ad23ea02d3abe08057f",
+    "diff_sha256": "7fa2e1fe627cf183205c455e049d5eb903c2ab6a6f4b2a2ebad1cc8c7c38711d"
+  },
+  "completed_at": "2026-11-01T03:00:19+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/private_lineage.py issue_for_handle calls publication_queue.trusted_writers (publication_queue.py:174-193), which raises QueueError 'cannot prove write permission of marker author <login>: ...' when the permission lookup fails. integration_contour.direct_source (diff lines 189-192) catches only PrivateLineageError. terminal_recorded, called just before it, does not catch QueueError either. The error can therefore reach run_claimed_post_merge as an unclassified exception, with the author login and the underlying gh text in the message. The design promises that only the Issue number reaches public receipts, and the walk's gh failures already follow that rule (private_lineage.py:261-262). The tests do not cover this failure mode.",
+      "id": "direct-lineage-queue-error-not-mapped",
+      "severity": "advisory",
+      "summary": "A QueueError from the trusted-writer proof is not mapped to JobBlocked in the new direct-lineage path, although the surrounding code maps other lineage failures to a bounded block."
+    }
+  ],
+  "launched_at": "2026-11-01T03:00:06+00:00",
+  "output_sha256": "eca27208dd2ce86ae04e816245472aba96541c5072962c53f9e09b1e36063546",
+  "perspective": "engineering-quality",
+  "request_id": "31e8b3ba-05d6-4451-8afd-d9a27ce35dc6",
+  "reviewer": {
+    "context_id": "87c9c7c4-384f-49eb-a837-4c257d46e631",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9469a695-dc5a-49df-a899-545eac44e768",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21958
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 40737
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12614
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12852
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1455
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961"
+}
