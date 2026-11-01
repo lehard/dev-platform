@@ -3,21 +3,34 @@
   "candidate": {
     "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
     "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "candidate_head": "2e2dc29e75f2aa265b4576381a530203ab4c6814",
-    "diff_sha256": "4b2b01e5b2721a36f9497b93ccee211faf42f9d585d73c13c19cc04938132f4a"
+    "candidate_head": "6c9255c6e9e8b1ed3d63f5798b9960a749d2d700",
+    "diff_sha256": "f52a8300ec33505ee8133ade5bb31eda572760783b5dc64d0624dc88b4a903aa"
   },
-  "completed_at": "2026-11-01T01:16:36+00:00",
-  "findings": [],
-  "launched_at": "2026-11-01T01:16:25+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-11-01T02:13:36+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/task_content_identity.py:257 computes `differing = {...} - generated`, and the `git diff` at line 252 compares the whole tree. A head that changes a generated file arbitrarily still passes while the gates stay rebound. The design relies on the generated files' own `--check` (design.md Decisions: 'validated by its own --check, as today'). If that check is not rerun or required after integration, or if a declared generated file carries semantic content, reviewed evidence can be reused for unreviewed bytes. Consider narrowing the exclusion to the paths that actually conflicted, or confirming that the generated checks run on the merged head.",
+      "id": "generated-paths-unchecked-in-proof",
+      "severity": "advisory",
+      "summary": "The main-only proof drops every declared generated path from its tree comparison. This holds even for paths that did not conflict, so the candidate's content in those files is never compared with the merge result."
+    },
+    {
+      "evidence": "template/scripts/integration_contour.py:424 calls `advance_after_repair` after the push. `main_only_reason` can raise from `main_only_integration` (task_content_identity.py:243, 247, 255). design.md Risks acknowledges that the job stops with no transition and that recovery is manual. A missing local object is a plausible transient condition, so a fetch-and-retry, or a fallback to `return_to_review`, would be safer than stranding the job.",
+      "id": "proof-error-after-push-strands-candidate",
+      "severity": "advisory",
+      "summary": "`IntegrationProofError` can propagate out of `advance_after_repair` after the repaired head has been pushed. The candidate then waits for manual recovery."
+    }
+  ],
+  "launched_at": "2026-11-01T02:13:22+00:00",
+  "output_sha256": "dc9145077d0b0d11ece60ffce8c26c143631270687d5746feaad9cf3eaeb2bd8",
   "perspective": "engineering-quality",
-  "request_id": "360dd559-5aaf-47b9-82ce-e0e509183542",
+  "request_id": "e0d18327-eafa-4e33-ba42-a70a5405cae7",
   "reviewer": {
-    "context_id": "b8ba86ac-e164-4c54-8238-6fb0eb0a6d37",
+    "context_id": "17814975-9579-48e1-b2e8-37092befc7dd",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3a6dd46d-da4d-4932-b8ba-f9cad05570d0",
+    "launch_id": "platform-launch-d9085b78-ed4c-4e3d-b986-32fccc22985a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17897
+        "value": 18268
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16917
+        "value": 16934
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10808
+        "value": 13168
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10962
+        "value": 13383
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -62,11 +75,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 906
+        "value": 1456
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "03ae2dfba69c9d6567651fc6941801bddb22e417e0b3c3e1bbde72cae5b55479"
+  "task_content_digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0"
 }

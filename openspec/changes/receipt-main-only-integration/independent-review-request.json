@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
     "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "candidate_head": "2e2dc29e75f2aa265b4576381a530203ab4c6814",
-    "diff_sha256": "4b2b01e5b2721a36f9497b93ccee211faf42f9d585d73c13c19cc04938132f4a"
+    "candidate_head": "6c9255c6e9e8b1ed3d63f5798b9960a749d2d700",
+    "diff_sha256": "f52a8300ec33505ee8133ade5bb31eda572760783b5dc64d0624dc88b4a903aa"
   },
   "change": "openspec/changes/receipt-main-only-integration",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T01:16:10+00:00",
+  "prepared_at": "2026-11-01T02:13:06+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/receipt-main-only-integration/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "360dd559-5aaf-47b9-82ce-e0e509183542",
+  "request_id": "e0d18327-eafa-4e33-ba42-a70a5405cae7",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "digest": "03ae2dfba69c9d6567651fc6941801bddb22e417e0b3c3e1bbde72cae5b55479",
+    "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
     "paths": {
       "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
       "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
@@ -72,7 +72,7 @@
       "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
       "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
       "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
-      "tests/test_task_content_identity.py": "1f2188dccdda6e4c8095f665827a5af22574479e"
+      "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
     },
     "scope": "independent-review-v1",
     "version": 1

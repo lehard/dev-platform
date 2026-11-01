@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
     "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
-    "candidate_head": "2e2dc29e75f2aa265b4576381a530203ab4c6814",
-    "diff_sha256": "4b2b01e5b2721a36f9497b93ccee211faf42f9d585d73c13c19cc04938132f4a"
+    "candidate_head": "6c9255c6e9e8b1ed3d63f5798b9960a749d2d700",
+    "diff_sha256": "f52a8300ec33505ee8133ade5bb31eda572760783b5dc64d0624dc88b4a903aa"
   },
-  "completed_at": "2026-11-01T01:16:25+00:00",
+  "completed_at": "2026-11-01T02:13:22+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/task_content_identity.py: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. A declared generated file that did not conflict, and that the integration changed arbitrarily, is still accepted as main-only. The spec (spec.md line 5) and proposal say the tree equals the merge byte for byte. The design relies on the generated file's own `--check` to cover this gap. That reliance is not in the spec requirement, and no scenario or test covers a non-conflicting generated file that differs.",
-      "id": "generated-exemption-broader-than-spec",
+      "evidence": "template/scripts/task_content_identity.py: `differing = {path for path in diff.stdout.split(\"\\0\") if path} - generated`. This subtracts all of `generated`, not `conflicts & generated`. spec.md says: \"new head's tree equals, byte for byte, the merge of the old head with the new base, conflicting only in generated files\".",
+      "id": "generated-paths-exempt-from-byte-equality",
       "severity": "advisory",
-      "summary": "The proof exempts every declared generated path from the byte-exact tree comparison, not only the paths that conflicted in the merge. The spec and proposal require the new head's tree to equal the merge byte for byte, conflicting only in generated files."
+      "summary": "The proof exempts every declared generated path from the byte-exact tree comparison, not only the conflicted ones. The spec says the new head's tree equals the merge byte for byte, conflicting only in declared generated files. The code is looser, because a generated file that did not conflict can differ in the new head and the proof still holds. Gate reuse then relies on the generated file's own --check, which the design states but the spec requirement does not."
+    },
+    {
+      "evidence": "The diff only changes `advance_after_repair` and `run_claimed_integration_repair` in integration_contour.py. tests/test_autonomous_integration_contour.py mocks `contour.main_only_reason`. design.md: \"That round reaches `advance_after_repair`, so the derived-merge route is covered at the same point.\"",
+      "id": "derived-merge-route-untested",
+      "severity": "advisory",
+      "summary": "The spec covers \"an integration repair or derived merge\". The implementation and tests cover only the `advance_after_repair` path. The design assumes a derived merge reaches this path through `RederivationFailed` and `_prepare`. The diff adds no test or code for that route. The `advance_after_repair` tests mock `main_only_reason`, and no test exercises the full flow against real Git (trusted record, then proof, then rebound gates)."
     }
   ],
-  "launched_at": "2026-11-01T01:16:12+00:00",
-  "output_sha256": "fde36af9606ee241cd49b36a65939ca9a1bf95207bfe83907a405162904c6312",
+  "launched_at": "2026-11-01T02:13:08+00:00",
+  "output_sha256": "b8a0621520ca189cd9c8a524683ce3e2a619601214cd481c395ace4d223d2585",
   "perspective": "spec-fidelity",
-  "request_id": "360dd559-5aaf-47b9-82ce-e0e509183542",
+  "request_id": "e0d18327-eafa-4e33-ba42-a70a5405cae7",
   "reviewer": {
-    "context_id": "0e5f037e-0d1c-417d-9ea1-a13951115f58",
+    "context_id": "76c49f8a-1256-4ce1-9dc5-e2182528fc0b",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-1fd3cd4f-1df1-45ff-be07-793e3103274f",
+    "launch_id": "platform-launch-4108ef07-42f1-484a-a772-3a4c00ee7fd5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +45,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20015
+        "value": 21583
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15315
+        "value": 15330
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12275
+        "value": 13152
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12430
+        "value": 13253
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -64,16 +70,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1388
+        "value": 1579
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "03ae2dfba69c9d6567651fc6941801bddb22e417e0b3c3e1bbde72cae5b55479"
+  "task_content_digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0"
 }
