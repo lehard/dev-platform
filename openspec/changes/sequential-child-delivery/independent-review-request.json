@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
     "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
-    "candidate_head": "b81deae12b0a0f2c147fc73dd4ec15b18b097b1c",
-    "diff_sha256": "5005573981b62e7265e123ec98e9d35f5020e2e5baa662d1e692a3bc49b1bc58"
+    "candidate_head": "aef363925e7386a7134ec78627a9dd56f9c80875",
+    "diff_sha256": "70ad23f8d947ea9e4d3dba4d36e054675c8c2de0bed4918256a95dc26bebc19c"
   },
   "change": "openspec/changes/sequential-child-delivery",
   "excluded_lifecycle_paths": [
@@ -38,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-10-31T23:07:49+00:00",
+  "prepared_at": "2026-11-01T00:05:57+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/sequential-child-delivery/independent-reviews",
     "required_perspectives": [
@@ -47,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "e9bfc45d-01cd-4b19-9c04-518f6474307c",
+  "request_id": "d102d512-561b-42de-99a0-6dd09da686e6",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -60,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
-    "digest": "ee3b8bf243a40b4dc24885f655501dd4381d7852091a9d8dc75b84077dd24afe",
+    "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
     "paths": {
       "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
       "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
@@ -72,9 +72,9 @@
       "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
       "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
       "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
-      "template/scripts/execute_requirement.py": "898495de9fe12d3eafdb385aaa25a510068ceec1",
-      "template/scripts/orchestrate_pre_authoring.py": "9a80690656e8f0e18de49fbfc5a3598d398b50e0",
-      "tests/test_requirement_sequential_delivery.py": "30dd896005f2e1b932151f1c1fef7379e2f309da",
+      "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+      "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+      "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
       "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
     },
     "scope": "independent-review-v1",

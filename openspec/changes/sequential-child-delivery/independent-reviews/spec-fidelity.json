@@ -3,28 +3,21 @@
   "candidate": {
     "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
     "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
-    "candidate_head": "b81deae12b0a0f2c147fc73dd4ec15b18b097b1c",
-    "diff_sha256": "5005573981b62e7265e123ec98e9d35f5020e2e5baa662d1e692a3bc49b1bc58"
+    "candidate_head": "aef363925e7386a7134ec78627a9dd56f9c80875",
+    "diff_sha256": "70ad23f8d947ea9e4d3dba4d36e054675c8c2de0bed4918256a95dc26bebc19c"
   },
-  "completed_at": "2026-10-31T23:08:05+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/execute_requirement.py, `rank` in `_sequential_round`, calls `json.loads(entry[1].read_text(...))` with no handling. An unreadable or malformed handoff raises a raw OSError or JSONDecodeError instead of a `RequirementExecutionError` that names the file. Only the later `owner_intents` read was changed to raise explicitly, and sequential Requirements return before reaching it in the normal flow. The new tests do not cover an unreadable handoff on the sequential path. The task 3.2 list names an \"unreadable handoff fails\" test.",
-      "id": "sequential-round-unreadable-handoff-unwrapped",
-      "severity": "advisory",
-      "summary": "The proposal says `advance` reading a handoff's intents fails explicitly on an unreadable file. `_sequential_round.rank` does not do this."
-    }
-  ],
-  "launched_at": "2026-10-31T23:07:51+00:00",
-  "output_sha256": "07a86cecad0b59a73fd08beb3911a675b877604845d69c6ecec1151640105be7",
+  "completed_at": "2026-11-01T00:06:10+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T00:06:00+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "e9bfc45d-01cd-4b19-9c04-518f6474307c",
+  "request_id": "d102d512-561b-42de-99a0-6dd09da686e6",
   "reviewer": {
-    "context_id": "2c3a5e3b-1f7e-4578-9518-8f79cfa4cfef",
+    "context_id": "da589c6a-6f8a-4520-97de-29e7ea9f8482",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a06f0460-aa44-4d47-ba07-8f63eca4c540",
+    "launch_id": "platform-launch-d27922ab-b238-4c09-95ba-df8b99ecf0b9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35857
+        "value": 32820
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15288
+        "value": 15280
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13092
+        "value": 9622
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13242
+        "value": 9766
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -69,11 +62,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1474
+        "value": 1064
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ee3b8bf243a40b4dc24885f655501dd4381d7852091a9d8dc75b84077dd24afe"
+  "task_content_digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac"
 }

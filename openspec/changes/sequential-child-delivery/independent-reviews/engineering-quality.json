@@ -3,40 +3,34 @@
   "candidate": {
     "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
     "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
-    "candidate_head": "b81deae12b0a0f2c147fc73dd4ec15b18b097b1c",
-    "diff_sha256": "5005573981b62e7265e123ec98e9d35f5020e2e5baa662d1e692a3bc49b1bc58"
+    "candidate_head": "aef363925e7386a7134ec78627a9dd56f9c80875",
+    "diff_sha256": "70ad23f8d947ea9e4d3dba4d36e054675c8c2de0bed4918256a95dc26bebc19c"
   },
-  "completed_at": "2026-10-31T23:08:26+00:00",
+  "completed_at": "2026-11-01T00:06:22+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/orchestrate_pre_authoring.py: the `with tempfile.TemporaryDirectory()` backup block ends after `status()` succeeds, and `_write_json(receipt_file, receipt)` runs after it. `receipt_file` is computed from a glob count before the writes.",
-      "id": "rebind-receipt-written-after-state-mutation",
+      "evidence": "template/scripts/execute_requirement.py, in the `if not ordered:` branch of the sequential block, `_await_post_merge(..., rebind=rebound)` carries it. The `_retrospective_pending(...)` and `reconcile_parent(...)` returns on the lines after it do not. A rebind that happens on the pass that finishes the chain is therefore not reported to the operator on those paths. The receipt file is still written.",
+      "id": "rebind-receipt-dropped-on-terminal-paths",
       "severity": "advisory",
-      "summary": "The rebind receipt is written only after the snapshot, ADD, intents and handoffs have been rewritten and the rollback scope has closed. If writing the receipt fails, the chain stays re-anchored with a carried approval and no audit record. The carried `approved_by` string also names a `rebind-<n>.json` that would not exist."
+      "summary": "The rebind audit record is surfaced in only some return paths of advance."
     },
     {
-      "evidence": "template/scripts/execute_requirement.py, `_sequential_round`, nested `rank()`. Compare with the owner-intents read in `advance`, which now wraps errors in `RequirementExecutionError`.",
-      "id": "sequential-rank-unguarded-handoff-read",
+      "evidence": "In `_rebind_sequential`, `json.loads(manifest.read_text(...)).get(\"change\")` is not wrapped in try/except. A malformed or unreadable manifest raises JSONDecodeError or OSError instead of RequirementExecutionError. A manifest whose JSON is not an object also raises AttributeError. The other new readers (`_sequential_order`, `rank`) convert these errors explicitly. `orchestrate_pre_authoring._affected_sources` does use the guarded `_load_json`.",
+      "id": "rebind-unguarded-manifest-read",
       "severity": "advisory",
-      "summary": "`_sequential_round.rank` reads each handoff with a bare `json.loads(entry[1].read_text())`. A missing or corrupt handoff raises a raw `FileNotFoundError` or `JSONDecodeError` instead of the explicit `RequirementExecutionError`. This is inconsistent with the explicit-failure handling this change adds elsewhere in `advance`."
-    },
-    {
-      "evidence": "template/scripts/orchestrate_pre_authoring.py `_own_commit` uses `any(re.fullmatch(...archive/...) for path in paths for change in own_changes)`. `rebind` then applies `foreign = [... if not item['own']]` as the only gate for affected sources.",
-      "id": "own-commit-classification-by-archive-path-only",
-      "severity": "advisory",
-      "summary": "A commit counts as 'own' if its diff against the first parent touches any file under `openspec/changes/archive/<date>-<own change>/`. It does not check that the commit contains only that child's changes. A merge or mixed commit that also changes an affected source would be classified as own, so the stop gate would be skipped and the approval carried. `git diff <commit>^1` also errors on a root commit."
+      "summary": "`_rebind_sequential` reads bundle manifests without error handling, so a bad manifest raises a raw exception."
     }
   ],
-  "launched_at": "2026-10-31T23:08:05+00:00",
-  "output_sha256": "31636362d5fb52f83f2c103f7f292e329ea834b1ec721855db5362d508e888c3",
+  "launched_at": "2026-11-01T00:06:10+00:00",
+  "output_sha256": "46b3e7da6151e82bd98ed00770d5eef3cd99ee70218ce12774861181a3c2475d",
   "perspective": "engineering-quality",
-  "request_id": "e9bfc45d-01cd-4b19-9c04-518f6474307c",
+  "request_id": "d102d512-561b-42de-99a0-6dd09da686e6",
   "reviewer": {
-    "context_id": "c7f6cddc-c68f-4900-9ba1-826b8e658522",
+    "context_id": "f4b8a0c5-a17e-4507-a6de-a31228536c4e",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8a53d214-3c6b-46f3-8558-458a2655c2d9",
+    "launch_id": "platform-launch-9aee2682-1e5c-4f60-a7a1-7b04b684c695",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 36046
+        "value": 26017
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 95145
+        "value": 46876
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21107
+        "value": 11344
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21376
+        "value": 11613
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2368
+        "value": 1329
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ee3b8bf243a40b4dc24885f655501dd4381d7852091a9d8dc75b84077dd24afe"
+  "task_content_digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac"
 }
