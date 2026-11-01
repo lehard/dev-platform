@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "7b9c9c5d36d61af3b56470e31b9acbe9a8b3b07c",
-    "diff_sha256": "38471e9e942c439f6d696aa780e350cc8d36e72cc04d786bbca7cfa0a04b3e43"
+    "candidate_head": "1c210eda5a88bbabb4dd4bdeff4912a5125e2a12",
+    "diff_sha256": "90438137ff12092e99c2533dcc1125fc98c979acea7e9518aff005d7ca0357b8"
   },
-  "completed_at": "2026-11-01T02:37:38+00:00",
+  "completed_at": "2026-11-01T03:24:12+00:00",
   "findings": [
     {
-      "evidence": "conflicting-candidate-integration-repair/design.md says \"No mergeability. ... GitHub `mergeable` is not read.\" The proposal says the note \"changes no state, posts no block and spends no attempt\". The `_integrate` handler in publication_queue.py still re-raises `QueueEnvironmentError` after the note, with no transition. `derive_candidate` keeps state `blocked-retryable` and only swaps the reason text. The only new conflict tests (`test_conflict_outside_generated_files_needs_integration_repair`, `test_integration_repair_needed_routes_to_counted_integration_repair`) pin behavior that already existed. A candidate that GitHub reports as CONFLICTING but whose conflict `merge-tree` does not detect, or whose derived merge fails for environment reasons, still waits for checks that will not run. The narrowing is recorded as a coordinator decision (\"variant A\"), but it leaves the stated Requirement outcome unmet.",
-      "id": "conflict-with-main-still-waits-on-environment-failure",
+      "evidence": "template/scripts/publication_queue.py:1906-1911. `route` is true for a generated-file overlap, and also for a merge that conflicts only in derived or generated paths (lines 1895-1897). In that second case `merge_conflicts(root, head, current_main)` returns those same generated paths. So on `RederivationEnvironmentFailed` it is non-empty and `IntegrationRepairNeeded` is raised. The `QueueEnvironmentError` branch is then reachable only when the derived merge was routed with no conflict at all. The PR #837 scenario in proposal.md (conflict only in the generated manifest, no OpenSpec CLI) now becomes a counted integration repair, not an environment-error note. design.md and spec.md describe 'Derived merge without OpenSpec CLI \u2192 state and attempts unchanged, reason names the environment failure' and do not mention this handler change. The environment failure is also spent as a repair attempt, and the repair job may be unable to fix it. The handler's behavior is untested: `_prepare_generated` is only used with a different error and `conflicts=[\"manifest.json\"]`.",
+      "id": "env-failure-with-generated-conflict-now-repair",
       "severity": "material",
-      "summary": "Requirement item 3 is not met. The change does not move a candidate that is waiting for required checks and has mergeable=CONFLICTING into integration-repair-pending. The one conflict case seen in practice, PR #837 with a generated-only conflict, still stays blocked-retryable. It gets only an `environment-error` note as its reason."
+      "summary": "The new `merge_conflicts` check in the `RederivationEnvironmentFailed` handler of `_prepare` sends every generated-only conflict to integration repair. That contradicts the change's own design and spec, which keep the candidate in place with an environment note."
+    },
+    {
+      "evidence": "proposal.md and design.md of conflicting-candidate-integration-repair: 'GitHub mergeable is not read. The queue's own merge-tree stays the conflict signal.' The only new code paths are the environment-error note and the merge-conflicts check in the environment-failure handler. A waiting candidate whose GitHub state is CONFLICTING but which has not yet been picked up for integration (for example one rejected earlier in `_worker_candidate`) gets no new routing to integration-repair-pending. The narrowing is recorded as a coordinator decision, so the Requirement outcome is only partially covered.",
+      "id": "github-mergeable-conflicting-not-read",
+      "severity": "advisory",
+      "summary": "Requirement item 3 is stated in terms of GitHub `mergeable=CONFLICTING`. T1 explicitly does not read GitHub mergeability and relies on the queue's own `merge-tree` check."
     }
   ],
-  "launched_at": "2026-11-01T02:37:21+00:00",
-  "output_sha256": "08ab3a5dd3bc0a5d6977e05fc0071867609185b0d0182d5836db860212dc988d",
+  "launched_at": "2026-11-01T03:23:49+00:00",
+  "output_sha256": "f7b57cdf57fa4545a3464ad8c6a166818427a445cd1bf78203432eac68abf83f",
   "perspective": "engineering-quality",
-  "request_id": "99a0152c-810f-4d58-b8fa-a8fcf64245ae",
+  "request_id": "779659cb-ca03-4c33-8a02-b42f71ce4e3f",
   "reviewer": {
-    "context_id": "d81ffa3f-0bde-48ca-b611-913be7e8ce0a",
+    "context_id": "d1cb53f2-35a6-4dd5-896a-00cfeda20268",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-43ae7025-44bb-4988-a033-f22bfef51f99",
+    "launch_id": "platform-launch-8aaa654f-16ed-4667-bd3a-99a688d9f4ac",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31083
+        "value": 34475
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20343
+        "value": 94183
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15138
+        "value": 18373
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16080
+        "value": 19485
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1622
+        "value": 2060
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "e2d72472efc4bb3dfed9a4a753e4cf22628ed02418579dc372c447f11c75ea64"
+  "task_content_digest": "4cb4d113c60faa01af38495adc0543880fb61c6c057b9a8f253f12f22e5c42b3"
 }

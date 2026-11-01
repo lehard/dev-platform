@@ -3,28 +3,34 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "7b9c9c5d36d61af3b56470e31b9acbe9a8b3b07c",
-    "diff_sha256": "38471e9e942c439f6d696aa780e350cc8d36e72cc04d786bbca7cfa0a04b3e43"
+    "candidate_head": "1c210eda5a88bbabb4dd4bdeff4912a5125e2a12",
+    "diff_sha256": "90438137ff12092e99c2533dcc1125fc98c979acea7e9518aff005d7ca0357b8"
   },
-  "completed_at": "2026-11-01T02:37:21+00:00",
+  "completed_at": "2026-11-01T03:23:49+00:00",
   "findings": [
     {
-      "evidence": "The Requirement says a candidate waiting for checks with mergeable=CONFLICTING moves to integration red gate (integration-repair-pending) and does not stay in blocked-retryable. The T1 design says \"No mergeability. The conflict signal stays merge-tree in _prepare. GitHub mergeable is not read.\" It also says a QueueEnvironmentError leaves the state unchanged. publication_queue.py `_integrate` handles that error with `_note_environment_error` and re-raises. The T1 spec scenario \"Derived merge without OpenSpec CLI\" requires \"its state and attempts are unchanged\", which is the PR #837 hang. Only a conflict outside generated files reaches counted integration repair. A generated-only conflict, and any case where merge-tree is not the signal, still hangs in blocked-retryable. The proposal records this narrowing as a coordinator decision (variant A), so the Requirement outcome should be confirmed as accepted. The T2 receipt-preservation path is also never reached for such a candidate.",
-      "id": "conflict-env-failure-still-waits-not-repair",
-      "severity": "material",
-      "summary": "Requirement item 3 is not met for the conflict case that motivated it. A candidate that conflicts with main and waits for required checks does not move to integration-repair-pending when the failure is a coordinator environment failure. It stays blocked-retryable with only a new reason string. GitHub mergeable=CONFLICTING is not read at all."
+      "evidence": "publication_queue.py `_prepare`, the `RederivationEnvironmentFailed` handler, raises `IntegrationRepairNeeded` when `merge_conflicts(root, head, current_main)` is non-empty. Proposal.md and design.md describe every environment failure as ending in a note with no state change. The \"Derived merge without OpenSpec CLI\" scenario does not say it applies only to clean-merge routes. The PR #837 case (generated-only conflict) now takes the repair route. No test covers an environment failure together with a real conflict.",
+      "id": "t1-design-omits-conflict-reroute",
+      "severity": "advisory",
+      "summary": "T1's design and spec do not describe the new `_prepare` branch. When the derived merge hits an environment failure and `merge_conflicts` is non-empty, the candidate now goes to counted integration repair instead of getting an environment-error note. The tests do not pin this branch either."
+    },
+    {
+      "evidence": "T1 design.md, \"No mergeability\": \"GitHub `mergeable` is not read.\" T1 proposal.md Impact: \"Coordinator decision 2026-11-01 narrowing BR-969 item 2 (variant A)\". The only new routing is the environment-failure + `merge_conflicts` branch in `_prepare`. T1 adds no code path that moves a waiting candidate to integration-repair-pending because GitHub reports CONFLICTING.",
+      "id": "mergeable-conflicting-not-read",
+      "severity": "advisory",
+      "summary": "Requirement item 3 is phrased in terms of GitHub `mergeable=CONFLICTING`. T1 deliberately does not read GitHub mergeability. Conflict detection stays with the queue's own `merge-tree` check, which only runs when the worker reaches `_prepare` for an admitted candidate. This is a recorded coordinator decision, but it is a narrower reading than the Requirement text."
     }
   ],
-  "launched_at": "2026-11-01T02:37:03+00:00",
-  "output_sha256": "f29488a009a07969789e713390f763546e406bd153ce73f507b9f8a49e3ead7a",
+  "launched_at": "2026-11-01T03:23:21+00:00",
+  "output_sha256": "7d3f4f67db3db27609526e3c5c840d9149c5b46ae11596bb23b28d41eeea47ac",
   "perspective": "spec-fidelity",
-  "request_id": "99a0152c-810f-4d58-b8fa-a8fcf64245ae",
+  "request_id": "779659cb-ca03-4c33-8a02-b42f71ce4e3f",
   "reviewer": {
-    "context_id": "2653de6a-3c7f-41c3-ac4f-51eead77f129",
+    "context_id": "86d15195-013d-4304-9406-76ea7d579209",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-c600cf2c-849e-4dfd-9bbd-214fb47bbfc1",
+    "launch_id": "platform-launch-42b3b0b0-4476-48f7-b978-75fdfc34dc85",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32787
+        "value": 36880
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18637
+        "value": 94068
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15527
+        "value": 24912
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16399
+        "value": 25949
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1779
+        "value": 2688
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "e2d72472efc4bb3dfed9a4a753e4cf22628ed02418579dc372c447f11c75ea64"
+  "task_content_digest": "4cb4d113c60faa01af38495adc0543880fb61c6c057b9a8f253f12f22e5c42b3"
 }

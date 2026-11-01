@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "7b9c9c5d36d61af3b56470e31b9acbe9a8b3b07c",
-    "diff_sha256": "38471e9e942c439f6d696aa780e350cc8d36e72cc04d786bbca7cfa0a04b3e43"
+    "candidate_head": "1c210eda5a88bbabb4dd4bdeff4912a5125e2a12",
+    "diff_sha256": "90438137ff12092e99c2533dcc1125fc98c979acea7e9518aff005d7ca0357b8"
   },
   "change": "private-lineage-pln_e968c5a1fd45acf2acac691137636335-integration",
   "children": [
@@ -88,13 +88,13 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T02:36:55+00:00",
-  "request_id": "99a0152c-810f-4d58-b8fa-a8fcf64245ae",
+  "prepared_at": "2026-11-01T03:23:12+00:00",
+  "request_id": "779659cb-ca03-4c33-8a02-b42f71ce4e3f",
   "requirement": "pln_e968c5a1fd45acf2acac691137636335",
   "schema_version": 1,
   "task_content": {
     "base": "551062d9163983e6556d61b18b41ec14178423cc",
-    "digest": "e2d72472efc4bb3dfed9a4a753e4cf22628ed02418579dc372c447f11c75ea64",
+    "digest": "4cb4d113c60faa01af38495adc0543880fb61c6c057b9a8f253f12f22e5c42b3",
     "paths": {
       "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
       "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
@@ -110,7 +110,7 @@
       "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
       "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
       "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
-      "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+      "template/scripts/publication_queue.py": "755479c42842eed012c970ad81d94eae2207ca68",
       "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
       "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
       "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
