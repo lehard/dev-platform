@@ -1,0 +1,551 @@
+{
+  "base": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
+  "children": [
+    {
+      "change": "sequential-child-housekeeping",
+      "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sequential-child-housekeeping/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "5efdac53c84c9339df3a955c66150c785494f3dc"
+          },
+          "identity": {
+            "change": "sequential-child-housekeeping",
+            "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+              "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+              "paths": {
+                "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+                "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+                "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+                "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+                "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+                "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+                "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+                "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+                "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+                "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+                "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+                "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+                "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "cf5b3a014b10cbbb1228506ebf56b7d9fa9418bd",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "sequential-child-housekeeping",
+            "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+              "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+              "paths": {
+                "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+                "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+                "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+                "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+                "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+                "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+                "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+                "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+                "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+                "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+                "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+                "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+                "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/execute_requirement.py `_archive_delivered_task_state`: `local, remote = _git(integration, \"rev-parse\", \"HEAD\").lower(), managed_task.target_main(integration)`. The error text reads 'local main {local} differs from origin main'. The `advance` caller does not appear to verify the branch inside this helper.",
+                  "id": "archive-compares-head-not-main-branch",
+                  "severity": "advisory",
+                  "summary": "The archive guard compares `git rev-parse HEAD` with origin/main, so it does not check that the checkout is on the main branch. A detached or feature-branch HEAD that happens to equal origin/main is treated as 'local main'. The refusal message also says 'local main' for what is really HEAD."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "d468b7df4d33c563a3ad2c537604424ba852886f102ba5a6f84fa55f85230efd"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "7bcb6ccc99efe5e717b5797de6d97b6aa4e3adee2e15beb27293d7f11d59ee0f"
+            }
+          },
+          "identity": {
+            "change": "sequential-child-housekeeping",
+            "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+              "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+              "paths": {
+                "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+                "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+                "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+                "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+                "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+                "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+                "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+                "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+                "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+                "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+                "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+                "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+                "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6473,
+            "path": "openspec/changes/sequential-child-housekeeping/automated-checks.json",
+            "sha256": "8b08afeeb3cd87813e83d87402785659ab65480bb11dff1431c5ed258c0b8220"
+          },
+          "identity": {
+            "change": "sequential-child-housekeeping",
+            "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+              "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+              "paths": {
+                "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+                "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+                "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+                "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+                "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+                "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+                "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+                "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+                "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+                "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+                "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+                "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+                "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2466,
+            "path": "openspec/changes/sequential-child-housekeeping/verification.md",
+            "sha256": "c909536ebf9ca271b75c96345821427c43db1613f53cce470ff5f09d39ccc50a"
+          },
+          "identity": {
+            "change": "sequential-child-housekeeping",
+            "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+              "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+              "paths": {
+                "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+                "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+                "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+                "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+                "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+                "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+                "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+                "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+                "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+                "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+                "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+                "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+                "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "cf5b3a014b10cbbb1228506ebf56b7d9fa9418bd",
+      "integrated_head": "5ec44eded3f6d42d86477317a9fdbb95ddfb2a6a",
+      "pr_number": 841,
+      "reviewed_evidence_digest": "d44d3541117df71c321e6634dc82c00691e6061d75105ee4d1988d7f4901e87b",
+      "source_branch": "agent/br-941-t1-sequential-child-housekeeping",
+      "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+      "task_identity": {
+        "change": "sequential-child-housekeeping",
+        "contribution_base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+        "kind": "contribution",
+        "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+        "source_issue": "pln_b9c92ce5137dcdd3301d10a1de112504",
+        "target_branch": "requirement/BR-941",
+        "task_content": {
+          "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+          "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+          "paths": {
+            "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+            "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+            "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+            "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+            "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+            "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+            "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+            "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+            "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+            "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+            "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+            "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+            "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-941/T1"
+      },
+      "work_identity": "BR-941/T1"
+    },
+    {
+      "change": "sequential-child-delivery",
+      "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sequential-child-delivery/scripts/agent_friction.py",
+              "assert-checkpoint",
+              "--exact-head"
+            ],
+            "head": "aef363925e7386a7134ec78627a9dd56f9c80875"
+          },
+          "identity": {
+            "change": "sequential-child-delivery",
+            "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+              "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+              "paths": {
+                "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+                "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+                "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+                "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+                "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+                "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+                "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+                "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+                "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+                "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+                "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+                "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+                "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "f3d1348f8194228175f135b8ac5b976b8cb174f4",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "sequential-child-delivery",
+            "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+              "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+              "paths": {
+                "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+                "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+                "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+                "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+                "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+                "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+                "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+                "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+                "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+                "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+                "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+                "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+                "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/execute_requirement.py, in the `if not ordered:` branch of the sequential block, `_await_post_merge(..., rebind=rebound)` carries it. The `_retrospective_pending(...)` and `reconcile_parent(...)` returns on the lines after it do not. A rebind that happens on the pass that finishes the chain is therefore not reported to the operator on those paths. The receipt file is still written.",
+                  "id": "rebind-receipt-dropped-on-terminal-paths",
+                  "severity": "advisory",
+                  "summary": "The rebind audit record is surfaced in only some return paths of advance."
+                },
+                {
+                  "evidence": "In `_rebind_sequential`, `json.loads(manifest.read_text(...)).get(\"change\")` is not wrapped in try/except. A malformed or unreadable manifest raises JSONDecodeError or OSError instead of RequirementExecutionError. A manifest whose JSON is not an object also raises AttributeError. The other new readers (`_sequential_order`, `rank`) convert these errors explicitly. `orchestrate_pre_authoring._affected_sources` does use the guarded `_load_json`.",
+                  "id": "rebind-unguarded-manifest-read",
+                  "severity": "advisory",
+                  "summary": "`_rebind_sequential` reads bundle manifests without error handling, so a bad manifest raises a raw exception."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "2154e6b0901b13de3bbc4667f1a638b2a0f90773f6ade78541d33bc86e5f37b5"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "082b07f0b1aa7c646ceb0610df4addc67cf502259bc571297b0ab237d8bbc6aa"
+            }
+          },
+          "identity": {
+            "change": "sequential-child-delivery",
+            "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+              "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+              "paths": {
+                "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+                "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+                "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+                "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+                "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+                "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+                "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+                "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+                "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+                "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+                "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+                "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+                "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 9560,
+            "path": "openspec/changes/sequential-child-delivery/automated-checks.json",
+            "sha256": "c4a54a734fbd9b84efc0c072604f46fd877fbc0f3c73a8361018c7ed1198bbe1"
+          },
+          "identity": {
+            "change": "sequential-child-delivery",
+            "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+              "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+              "paths": {
+                "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+                "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+                "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+                "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+                "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+                "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+                "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+                "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+                "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+                "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+                "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+                "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+                "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 5088,
+            "path": "openspec/changes/sequential-child-delivery/verification.md",
+            "sha256": "6bb434eddb693c732f3fdc9c8e09cca49584e5a55c873c84e8ee9f8a51f91940"
+          },
+          "identity": {
+            "change": "sequential-child-delivery",
+            "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+            "kind": "contribution",
+            "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+            "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+            "target_branch": "requirement/BR-941",
+            "task_content": {
+              "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+              "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+              "paths": {
+                "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+                "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+                "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+                "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+                "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+                "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+                "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+                "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+                "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+                "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+                "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+                "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+                "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-941/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "f3d1348f8194228175f135b8ac5b976b8cb174f4",
+      "integrated_head": "fe92cca82bf5eff7ce6f901bec67e2cfb62b7fcb",
+      "pr_number": 842,
+      "reviewed_evidence_digest": "624c574cefa401b0ff18971430acb1bc00f411c5778648de2274a83d37738130",
+      "source_branch": "agent/br-941-t2-sequential-child-delivery",
+      "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+      "task_identity": {
+        "change": "sequential-child-delivery",
+        "contribution_base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+        "kind": "contribution",
+        "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+        "source_issue": "pln_6bdeeeb5a6e3f932d6a61cc5e9d6555c",
+        "target_branch": "requirement/BR-941",
+        "task_content": {
+          "base": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+          "digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac",
+          "paths": {
+            "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+            "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
+            "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
+            "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/sequential-child-delivery/design.md": "db6db16ff90db0963e2f0e700c5b09cff678f2fb",
+            "openspec/changes/sequential-child-delivery/proposal.md": "dddad0ab332d04bdff8da98c51a0e213eb8176d4",
+            "openspec/changes/sequential-child-delivery/specs/agent-workflow/spec.md": "25e7fa9a396dcd9ead90dbc9bfc040dc64d979ae",
+            "openspec/changes/sequential-child-delivery/tasks.md": "86aa4c064d57d3a313174bb427c30cc16090e229",
+            "template/docs/engineering/task-intake.md.jinja": "4e6b0830cac60b2a61652fd832768e0e6e55fc4b",
+            "template/scripts/add_intents.py": "b85c66d532a2417f03deec46a20415bee794eff0",
+            "template/scripts/execute_requirement.py": "2419ac5fe4bffabe0f9cb527d5472226e8f48640",
+            "template/scripts/orchestrate_pre_authoring.py": "cf1b3c2cda1ec9adb16f88babeb56678526218a5",
+            "tests/test_requirement_sequential_delivery.py": "c9d6a77288f0133dfc5afe9385e15b8686bf5335",
+            "tests/test_shared_writer_guard.py": "f055bb1d4aa517d557d9290f3c78c22c57a49214"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-941/T2"
+      },
+      "work_identity": "BR-941/T2"
+    }
+  ],
+  "dependencies": {
+    "sequential-child-delivery": [
+      "sequential-child-housekeeping"
+    ],
+    "sequential-child-housekeeping": []
+  },
+  "digest": "c853e5417254e427bd781d46bd0fd29a570693b3506a063798d699ce017fb531",
+  "expected_changes": [
+    "sequential-child-housekeeping",
+    "sequential-child-delivery"
+  ],
+  "integration_branch": "requirement/BR-941",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
+  "version": 2,
+  "work_identity": "BR-941"
+}
