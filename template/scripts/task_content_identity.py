@@ -348,15 +348,15 @@ def main_only_integration(root: Path, old_head: object, new_base: object, new_he
     for name, value in (("old head", old_head), ("new base", new_base), ("new head", new_head)):
         if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
             return f"the {name} of the integration is not an exact commit"
-    merge = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", old_head, new_base],
+    merge = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", old_head, new_base],
                     cwd=root, check=False)
     if merge.returncode not in (0, 1):
         raise IntegrationProofError("cannot merge the old head with the new base: "
                                     + (merge.stderr or merge.stdout).strip()[:200])
-    lines = merge.stdout.splitlines()
+    lines = merge.stdout.split("\0")
     if not lines or not re.fullmatch(r"[0-9a-f]{40}", lines[0].strip()):
         raise IntegrationProofError("git merge-tree returned no tree")
-    conflicts = {line.strip() for line in lines[1:] if line.strip()}
+    conflicts = {line for line in lines[1:] if line}
     if conflicts - generated:
         return "the merge of the old head with the new base conflicts outside declared generated files: " \
             + ", ".join(sorted(conflicts - generated)[:8])
