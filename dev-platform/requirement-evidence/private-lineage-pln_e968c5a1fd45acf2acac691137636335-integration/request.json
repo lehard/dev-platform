@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "b05e8754068a25860846df6f0e5a411ead5e018c",
-    "diff_sha256": "d91ec2643eb21c251ffbcd007812b8604411a020d5c65215ca5e955af16283e9"
+    "candidate_head": "6cbc26e0e86e191bdff20601cbd6c875335c14fa",
+    "diff_sha256": "b77d06a7ac342083a5748fa8cfeb164806fc33165d24bf4435b31d119c51293a"
   },
   "change": "private-lineage-pln_e968c5a1fd45acf2acac691137636335-integration",
   "children": [
@@ -88,19 +88,19 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T03:53:34+00:00",
-  "request_id": "b653c776-b461-4796-aa35-77a79aa901ce",
+  "prepared_at": "2026-11-01T04:06:49+00:00",
+  "request_id": "05dcaf9c-ac15-48c9-b779-96ace6811dd3",
   "requirement": "pln_e968c5a1fd45acf2acac691137636335",
   "schema_version": 1,
   "task_content": {
     "base": "551062d9163983e6556d61b18b41ec14178423cc",
-    "digest": "ee08e61cdf37e5602291e0603a086dfff0c0af267dc4ed733ac05699622da95e",
+    "digest": "fcf97ecb019b649a19dd2197a01a30be01c781d7b9dc90d42a37f994d24d8654",
     "paths": {
       "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
       "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
-      "openspec/changes/conflicting-candidate-integration-repair/design.md": "c92f2b843ab73d002236d786a62d87ebd0583a7f",
+      "openspec/changes/conflicting-candidate-integration-repair/design.md": "e0c7ff80624c27d9d14f7d259fb862bed657a1f3",
       "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
-      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "45a669ad10a33070bf2b701a8ca2973697924580",
+      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "2d072aa971517ce4387f550c13c651040616f970",
       "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "283c3730be720712ff3bef87561d47a8c1aadad1",
       "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
       "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",

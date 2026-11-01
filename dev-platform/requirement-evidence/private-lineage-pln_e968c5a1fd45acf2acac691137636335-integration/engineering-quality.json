@@ -3,34 +3,28 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "b05e8754068a25860846df6f0e5a411ead5e018c",
-    "diff_sha256": "d91ec2643eb21c251ffbcd007812b8604411a020d5c65215ca5e955af16283e9"
+    "candidate_head": "6cbc26e0e86e191bdff20601cbd6c875335c14fa",
+    "diff_sha256": "b77d06a7ac342083a5748fa8cfeb164806fc33165d24bf4435b31d119c51293a"
   },
-  "completed_at": "2026-11-01T03:54:26+00:00",
+  "completed_at": "2026-11-01T04:07:29+00:00",
   "findings": [
     {
-      "evidence": "publication_queue.py _prepare: the route is set when `conflicts and set(conflicts) <= derived_spec_paths(...)|generated`. The new handler then calls `conflicts = merge_conflicts(root, head, current_main); if conflicts: raise IntegrationRepairNeeded(...)`, so the generated-only conflicts that triggered the route are non-empty again. The test test_unavailable_derived_merge_with_a_real_conflict_needs_integration_repair uses conflicts=['src.py'], and in real _prepare that path raises at the earlier `elif conflicts:` branch. The handler should exclude derived and generated paths from the conflict set it checks.",
-      "id": "env-failure-generated-only-conflict-miscounted",
-      "severity": "material",
-      "summary": "The new RederivationEnvironmentFailed handler treats every non-empty merge_conflicts() result as a real conflict. But the derived-merge route is entered precisely when the conflicts are only in derived or generated paths, so a generated-only conflict (the PR #837 case) now always becomes counted integration repair instead of the uncounted environment note. This contradicts the design and spec, which say a conflict outside generated files is a real one and an environment failure spends no attempt. The regression test hides it by using conflicts=['src.py'], which can never reach the derived-merge branch."
-    },
-    {
-      "evidence": "design.md of conflicting-candidate-integration-repair: 'No mergeability. ... GitHub `mergeable` is not read.' Requirement item 3: 'GitHub \u0441\u043e\u043e\u0431\u0449\u0430\u0435\u0442 \u0434\u043b\u044f \u043d\u0435\u0433\u043e mergeable=CONFLICTING, \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u0441\u044f \u0432 integration red gate'.",
-      "id": "mergeable-conflicting-not-consumed",
+      "evidence": "conflicting-candidate-integration-repair/design.md, 'No mergeability': 'The conflict signal stays `merge-tree` in `_prepare`. GitHub `mergeable` is not read.' The change relies on a coordinator decision (narrowing item 2, variant A), not on the requirement wording. If GitHub reports CONFLICTING while merge-tree reports a clean merge, the candidate still sits in blocked-retryable waiting for checks. The new tests cover only the merge-tree paths.",
+      "id": "conflict-signal-not-github-mergeable",
       "severity": "advisory",
-      "summary": "Requirement item 3 is written in terms of GitHub mergeable=CONFLICTING. The T1 change deliberately never reads GitHub mergeability and relies only on the queue's own merge-tree. A candidate that GitHub reports as CONFLICTING but that merge-tree handles differently, for example a derived-merge-eligible conflict, is not routed by that signal."
+      "summary": "Requirement item 3 is phrased in terms of GitHub mergeable=CONFLICTING. The delivered behavior uses only the queue's own merge-tree check in `_prepare`, and `mergeable` is never read. The two signals can disagree."
     }
   ],
-  "launched_at": "2026-11-01T03:54:00+00:00",
-  "output_sha256": "9a507103b1e4936cf787b5332488e928725a899e740ea59a69f2184eb6be5758",
+  "launched_at": "2026-11-01T04:07:12+00:00",
+  "output_sha256": "561fbcfc9b7cc0a2c0860f4fa5d70581ba16f516bf2bc34c3040a6d9cf304c2f",
   "perspective": "engineering-quality",
-  "request_id": "b653c776-b461-4796-aa35-77a79aa901ce",
+  "request_id": "05dcaf9c-ac15-48c9-b779-96ace6811dd3",
   "reviewer": {
-    "context_id": "2114ff69-e38b-4f31-8a03-137520112b17",
+    "context_id": "6d59f97b-ca45-4800-a7e8-5e27d5cbef07",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-2c55daca-a0d8-40a5-a5cd-74a118337be9",
+    "launch_id": "platform-launch-05807ad1-15b1-41b3-8049-2e8ff7f6c707",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -45,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35168
+        "value": 32530
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 57837
+        "value": 20333
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23165
+        "value": 14211
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24077
+        "value": 15096
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 3
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2578
+        "value": 1541
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ee08e61cdf37e5602291e0603a086dfff0c0af267dc4ed733ac05699622da95e"
+  "task_content_digest": "fcf97ecb019b649a19dd2197a01a30be01c781d7b9dc90d42a37f994d24d8654"
 }

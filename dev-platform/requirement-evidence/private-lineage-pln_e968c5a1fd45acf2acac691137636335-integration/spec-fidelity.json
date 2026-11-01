@@ -3,28 +3,28 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
-    "candidate_head": "b05e8754068a25860846df6f0e5a411ead5e018c",
-    "diff_sha256": "d91ec2643eb21c251ffbcd007812b8604411a020d5c65215ca5e955af16283e9"
+    "candidate_head": "6cbc26e0e86e191bdff20601cbd6c875335c14fa",
+    "diff_sha256": "b77d06a7ac342083a5748fa8cfeb164806fc33165d24bf4435b31d119c51293a"
   },
-  "completed_at": "2026-11-01T03:54:00+00:00",
+  "completed_at": "2026-11-01T04:07:12+00:00",
   "findings": [
     {
-      "evidence": "conflicting-candidate-integration-repair/design.md: \"No mergeability. The conflict signal stays `merge-tree` in `_prepare`. GitHub `mergeable` is not read.\" The proposal's \"What Changes\" says \"GitHub mergeability is not read.\" The test `test_conflict_outside_generated_files_needs_integration_repair` also mocks `merge-tree`, not `mergeable`.",
-      "id": "mergeable-conflicting-signal-not-read",
+      "evidence": "conflicting-candidate-integration-repair/design.md: \"No mergeability. The conflict signal stays `merge-tree` in `_prepare`. GitHub `mergeable` is not read.\" The only new test of the waiting-candidate path (`test_waiting_candidate_without_red_gate_is_integrable`) asserts predicates (`red_retry_blocks_integration`, `review_owned`, `NOT_INTEGRABLE`). It does not drive `_worker_candidate` end to end.",
+      "id": "conflict-signal-not-github-mergeable",
       "severity": "advisory",
-      "summary": "Requirement item 3 is phrased in terms of GitHub `mergeable=CONFLICTING`, but the delivered behavior never reads GitHub mergeability. It relies only on the queue's own `merge-tree` check in `_prepare`. The two signals can differ, for example when GitHub reports CONFLICTING while the local `merge-tree` is clean or only touches generated files. In that case the candidate still takes the derived-merge path and can stay in blocked-retryable if that path fails for environment reasons. The narrowing was an explicit coordinator decision, so this is advisory."
+      "summary": "Requirement item 3 is phrased around GitHub reporting mergeable=CONFLICTING, but the change never reads that field. The conflict is detected only by the queue's own merge-tree inside `_prepare`. A waiting candidate reaches integration repair only if `_worker_candidate` picks it up for integration. The design records this as a deliberate narrowing, so it is not a defect, but the spec does not state the dependency."
     }
   ],
-  "launched_at": "2026-11-01T03:53:43+00:00",
-  "output_sha256": "5909595d0d5eef0fdba0e66046c739962c45984782fbdce54e59067f7bf4e4d3",
+  "launched_at": "2026-11-01T04:06:56+00:00",
+  "output_sha256": "6bf584ad3d84c4bce009704761a56271722e15dc4a3a32758c7ae0944e4ed064",
   "perspective": "spec-fidelity",
-  "request_id": "b653c776-b461-4796-aa35-77a79aa901ce",
+  "request_id": "05dcaf9c-ac15-48c9-b779-96ace6811dd3",
   "reviewer": {
-    "context_id": "db96ad7a-f0fa-4b22-9f3c-cff2043d13a9",
+    "context_id": "46bc7229-32d3-46f8-be69-61133a7d1237",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-0e9a45bb-7abf-4b3f-a4de-1caa60248ece",
+    "launch_id": "platform-launch-8d7af1ce-8a3d-45d4-86d8-e1098a693e1f",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -39,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 34036
+        "value": 34234
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18649
+        "value": 18623
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14455
+        "value": 13288
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15386
+        "value": 14335
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -69,11 +69,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1644
+        "value": 1467
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "ee08e61cdf37e5602291e0603a086dfff0c0af267dc4ed733ac05699622da95e"
+  "task_content_digest": "fcf97ecb019b649a19dd2197a01a30be01c781d7b9dc90d42a37f994d24d8654"
 }
