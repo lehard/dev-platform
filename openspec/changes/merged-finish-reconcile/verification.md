@@ -14,7 +14,14 @@ Independent-Review-Evidence: independent-review-request.json
   - a managed candidate whose exact queue PR is merged synchronizes to it and reconciles, with no developer handoff and no preflight;
   - an open candidate still hands off;
   - the admission tests account for the new first observation.
+- An unreadable queue status or a failed synchronization stops finish before any handoff (`test_unreadable_queue_state_or_failed_sync_stops_before_handoff`).
 - Spec scenario "Merged PR at a pre-finalize head": covered by the merged-candidate test.
+
+## Independent review
+
+- First round: ready, four advisories.
+  - The missing explicit-stop test was added.
+  - Kept: merged detection goes through the publication queue only. A coordinator-managed candidate exists only in coordinator mode, where the queue owns integration, and with the queue disabled `managed_candidate` handoff is not the path to merge. The second queue observation later in finish is the existing block; with the worktree already synchronized it is a no-op read.
 
 ## Not verified / limits
 

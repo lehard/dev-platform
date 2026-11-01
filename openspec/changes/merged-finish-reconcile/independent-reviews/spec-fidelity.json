@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "c65ddbcd3475e79bd0b22e70dc2fde83ee062dfe",
+    "diff_sha256": "ce4d75346bc61111cf779188d541a7548b0e50d41945e7707adf10694a20de54"
+  },
+  "completed_at": "2026-11-01T01:48:33+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py:124-140 `sync_queue_merged_task` returns False when `not queue_enabled(work)`. The call site at line 1049 then falls through to `managed_candidate(work)` and `run_finish_preflight`. The spec requirement and proposal say 'observes the exact PR of the branch first' with no queue qualifier. Only design.md scopes the check to the queue status. The contract and the code differ on scope.",
+      "id": "merged-check-queue-only",
+      "severity": "advisory",
+      "summary": "The spec says that when the exact PR of the task branch is merged, finish reconciles before any developer handoff, and that an unreadable PR state stops finish. The implementation only checks this through the publication queue. With the queue disabled, a merged PR on a managed candidate still goes to handoff and the scope gate."
+    },
+    {
+      "evidence": "The new tests in tests/test_finish_merged_queue.py cover only the merged-candidate reconcile (`test_merged_candidate_at_a_pre_finalize_head_reconciles_without_handoff`) and the open-candidate handoff (`test_open_candidate_still_hands_off`). Neither exercises `queue_local_status` raising, nor `sync_merged_task` raising, in `sync_queue_merged_task` (finish_task.py:131-139). The spec's 'An unreadable PR state SHALL stop finish explicitly' is therefore unverified.",
+      "id": "unreadable-state-untested",
+      "severity": "advisory",
+      "summary": "The spec's explicit-stop clause (unreadable PR state) and the sync-failure stop have no test coverage in the candidate."
+    }
+  ],
+  "launched_at": "2026-11-01T01:48:16+00:00",
+  "output_sha256": "8a2634b4ba3209d69410e67b2a705a835d39a8ebea2346bf6ebaa1acbf7d0762",
+  "perspective": "spec-fidelity",
+  "request_id": "df733f1a-f87a-4e2b-ac22-096c02af0dc5",
+  "reviewer": {
+    "context_id": "5252ed9e-2735-4848-a29f-abb7410e2488",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3948f4d8-67e3-4aa5-a92e-279cfc1b706e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22077
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42098
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12580
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13927
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1485
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "980d7e820b358a964d38685839024278db5efa4570617bae9f53bcf7940ae19e"
+}

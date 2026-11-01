@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "origin/main",
+    "candidate_head": "c65ddbcd3475e79bd0b22e70dc2fde83ee062dfe",
+    "diff_sha256": "ce4d75346bc61111cf779188d541a7548b0e50d41945e7707adf10694a20de54"
+  },
+  "completed_at": "2026-11-01T01:48:51+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py:124-140: sync_queue_merged_task returns False when queue_enabled(work) is false, or when queue_local_status returns None, which happens for an unadmitted PR with no admit event. A merged PR with no queue admission, or with the queue disabled, still falls through to managed_candidate and the developer handoff. The spec scenario is stated for any exact merged PR.",
+      "id": "merged-detection-queue-only",
+      "severity": "advisory",
+      "summary": "The spec says that when the exact PR of the task branch is merged, finish reconciles before any handoff. The implementation only detects a merge through the publication queue, so the spec's wording is broader than the code."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py:124-140 duplicates the logic at 1060-1082. The test side_effect had to be changed to [None, None, waiting]. The design acknowledges only 'one extra PR read'; the merged case also repeats the sync.",
+      "id": "duplicate-queue-observation",
+      "severity": "advisory",
+      "summary": "For a coordinator-mode task whose queue PR is merged, finish runs queue_local_status and sync_merged_task twice. The first pass is the new early check. The second is the existing block after the provenance checks (lines 1058-1082). The two passes duplicate the GitHub reads and the sync logic."
+    }
+  ],
+  "launched_at": "2026-11-01T01:48:33+00:00",
+  "output_sha256": "7a9a0895386ffa496c05194f7beaa9b57b17eec140b88ecefde104e406e0a662",
+  "perspective": "engineering-quality",
+  "request_id": "df733f1a-f87a-4e2b-ac22-096c02af0dc5",
+  "reviewer": {
+    "context_id": "854d9f78-e62a-4363-8fba-63b60ef3d5a4",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d023c13c-6b69-4d14-8e70-2f9a15d63382",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21184
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42838
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13781
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15102
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1393
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "980d7e820b358a964d38685839024278db5efa4570617bae9f53bcf7940ae19e"
+}

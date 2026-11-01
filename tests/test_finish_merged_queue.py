@@ -100,6 +100,21 @@ class QueueMergedFinishTests(unittest.TestCase):
         self.assertEqual(publication_queue.sync_merged_task.call_args.args[1:], ("agent/task", 7))
         finish_task.reconcile_confirmed_remote_pr_merge.assert_called_once()
 
+    def test_unreadable_queue_state_or_failed_sync_stops_before_handoff(self) -> None:
+        import finish_task
+        import publication_queue
+
+        handoff = mock.Mock()
+        for name, effect, message in (("local_status", RuntimeError("gh down"), "Publication queue observation blocked: gh down"),
+                                      ("sync_merged_task", RuntimeError("dirty"), "Merged PR task synchronization blocked: dirty")):
+            with self.subTest(name=name):
+                extra = [mock.patch.object(finish_task, "finish_developer_handoff", handoff),
+                         mock.patch.object(finish_task, "run_finish_preflight"),
+                         mock.patch.object(publication_queue, name, side_effect=effect)]
+                with self.assertRaisesRegex(SystemExit, message):
+                    self.run_finish({"state": "merged", "number": 7}, extra=extra, candidate=True)
+        handoff.assert_not_called()
+
     def test_open_candidate_still_hands_off(self) -> None:
         import finish_task
 
