@@ -29,7 +29,7 @@ class QueueMergedFinishTests(unittest.TestCase):
     content no longer matches the pre-merge evidence; finish must reconcile it."""
 
     def run_finish(self, queued: dict, *, work: Path = Path("/nonexistent/work"), config: dict | None = None,
-                   extra: list | None = None) -> tuple[int | None, mock.Mock, mock.Mock]:
+                   extra: list | None = None, candidate: bool = False) -> tuple[int | None, mock.Mock, mock.Mock]:
         """Drive finish for a queue state; ``extra`` replaces the reconciliation mock with patches of its own."""
         import finish_task
         import pr_review_gate
@@ -51,7 +51,7 @@ class QueueMergedFinishTests(unittest.TestCase):
             mock.patch.object(finish_task, "current_branch", return_value="agent/task"),
             mock.patch.object(finish_task, "require_managed_checkout_identity"),
             mock.patch.object(finish_task, "validate_publication_config"),
-            mock.patch.object(pr_review_gate, "managed_candidate", return_value=False),
+            mock.patch.object(pr_review_gate, "managed_candidate", return_value=candidate),
             mock.patch.object(finish_task, "require_no_orphan_active_openspec"),
             mock.patch.object(finish_task, "require_delivery_provenance", return_value=types.SimpleNamespace(path=work / "archived")),
             mock.patch.object(publication_queue, "enabled", return_value=True),
@@ -82,6 +82,48 @@ class QueueMergedFinishTests(unittest.TestCase):
         self.assertEqual(code, 0)
         evidence.assert_not_called()
         reconcile.assert_called_once()
+
+    def test_merged_candidate_at_a_pre_finalize_head_reconciles_without_handoff(self) -> None:
+        # BR-975: a managed candidate whose exact queue PR is merged synchronizes and reconciles;
+        # it never reaches the scope gate or a developer handoff.
+        import finish_task
+        import publication_queue
+
+        handoff, preflight = mock.Mock(), mock.Mock()
+        extra = [mock.patch.object(finish_task, "finish_developer_handoff", handoff),
+                 mock.patch.object(finish_task, "run_finish_preflight", preflight),
+                 mock.patch.object(finish_task, "reconcile_confirmed_remote_pr_merge")]
+        code, _, _ = self.run_finish({"state": "merged", "number": 7}, extra=extra, candidate=True)
+        self.assertEqual(code, 0)
+        handoff.assert_not_called()
+        preflight.assert_not_called()
+        self.assertEqual(publication_queue.sync_merged_task.call_args.args[1:], ("agent/task", 7))
+        finish_task.reconcile_confirmed_remote_pr_merge.assert_called_once()
+
+    def test_unreadable_queue_state_or_failed_sync_stops_before_handoff(self) -> None:
+        import finish_task
+        import publication_queue
+
+        handoff = mock.Mock()
+        for name, effect, message in (("local_status", RuntimeError("gh down"), "Publication queue observation blocked: gh down"),
+                                      ("sync_merged_task", RuntimeError("dirty"), "Merged PR task synchronization blocked: dirty")):
+            with self.subTest(name=name):
+                extra = [mock.patch.object(finish_task, "finish_developer_handoff", handoff),
+                         mock.patch.object(finish_task, "run_finish_preflight"),
+                         mock.patch.object(publication_queue, name, side_effect=effect)]
+                with self.assertRaisesRegex(SystemExit, message):
+                    self.run_finish({"state": "merged", "number": 7}, extra=extra, candidate=True)
+        handoff.assert_not_called()
+
+    def test_open_candidate_still_hands_off(self) -> None:
+        import finish_task
+
+        handoff = mock.Mock(return_value=0)
+        extra = [mock.patch.object(finish_task, "finish_developer_handoff", handoff),
+                 mock.patch.object(finish_task, "run_finish_preflight")]
+        code, _, _ = self.run_finish({"state": "review-pending", "number": 7}, extra=extra, candidate=True)
+        self.assertEqual(code, 0)
+        handoff.assert_called_once()
 
     def test_post_merge_finish_completes_without_a_board_claim(self) -> None:
         # Regression: the developer claim is released at handoff, so post-merge finish
@@ -188,7 +230,8 @@ class QueueAdmissionReleasesClaimTests(unittest.TestCase):
             mock.patch.object(finish_task, "require_delivery_provenance", return_value=None),  # quick task
             mock.patch.object(publication_queue, "enabled", return_value=True),
             mock.patch.object(publication_queue, "local_status",
-                              side_effect=[waiting] if early else [None, waiting]),
+                              # The first observation is the merged-PR check before any developer handoff (BR-975).
+                              side_effect=[waiting, waiting] if early else [None, None, waiting]),
             mock.patch.object(finish_task, "pr_merge_mode", return_value="queue"),
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
             mock.patch.object(finish_task, "fetch_main"),

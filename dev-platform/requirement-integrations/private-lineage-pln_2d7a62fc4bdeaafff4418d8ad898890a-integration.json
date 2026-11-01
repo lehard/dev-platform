@@ -1,0 +1,500 @@
+{
+  "base": "551062d9163983e6556d61b18b41ec14178423cc",
+  "children": [
+    {
+      "change": "merged-finish-reconcile",
+      "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/merged-finish-reconcile/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "54a282072170ba81309de5cee715ca109a70ec48"
+          },
+          "identity": {
+            "change": "merged-finish-reconcile",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+              "paths": {
+                "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+                "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+                "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+                "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+                "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+                "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+                "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "990904cc1d1f0403ee3609c6e4098366a594555a",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "merged-finish-reconcile",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+              "paths": {
+                "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+                "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+                "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+                "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+                "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+                "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+                "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/finish_task.py:954-971 (new helper) and :1060-1082 (original block). Both call queue_local_status, then sync_merged_task with the same SystemExit messages. The existing test had to change its side_effect from [None, waiting] to [None, None, waiting] to cope with the extra read.",
+                  "id": "duplicated-merged-queue-sync",
+                  "severity": "advisory",
+                  "summary": "The new sync_queue_merged_task helper copies the existing queue-observation and merged-sync block further down in main(). Finish now reads the queue PR state twice and calls sync_merged_task twice on the merged path. The second call is idempotent, but it costs an extra PR read and leaves two copies "
+                },
+                {
+                  "evidence": "template/scripts/finish_task.py:1049 calls sync_queue_merged_task before managed_candidate(work). The orphan and provenance checks follow at :1053-1054. The added tests cover only candidate=True.",
+                  "id": "merged-sync-ahead-of-orphan-check",
+                  "severity": "advisory",
+                  "summary": "The early sync now runs for every coordinator-mode PR finish, not only for managed candidates. It fast-forwards the worktree before require_no_orphan_active_openspec and require_delivery_provenance run. A merged non-candidate task is therefore synchronized before the gates that previously preceded i"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "edc4e2ea4fdbd7f0e5d360ea26111e2b449673789bbc2197562df2db28d33d8e"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/finish_task.py:1049 calls sync_queue_merged_task. Lines 1060-1082 run queue_local_status and sync_merged_task again for the same merged state. The updated test side_effect=[waiting, waiting] / [None, None, waiting] shows the doubled read.",
+                  "id": "merged-sync-repeated-downstream",
+                  "severity": "advisory",
+                  "summary": "The merged queue state is observed and synchronized twice per finish. The new early helper and the existing queue block both call local_status and sync_merged_task. The design says only 'one extra PR read' and does not describe the second synchronization. It also leaves duplicate logic and error mes"
+                },
+                {
+                  "evidence": "sync_queue_merged_task returns False when `not queue_enabled(work)`. The new spec says 'When the exact PR of the task branch is merged, finish SHALL run the post-merge reconcile path ... An unreadable PR state SHALL stop finish explicitly.' The proposal Impact lists '`lifecycle_preflight` board condition'. The diff leaves the preflight code unchanged.",
+                  "id": "merged-detection-queue-only",
+                  "severity": "advisory",
+                  "summary": "The spec requires reconcile ahead of handoff whenever the exact PR of the task branch is merged. The implementation detects this only through publication_queue.enabled and local_status. The proposal also lists a lifecycle_preflight board-condition change in its Impact section, but the diff has no su"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "5c6d645569f445f7d9aa5d28019e5c6e20eaa4c3ad2e96242e34181a379f69be"
+            }
+          },
+          "identity": {
+            "change": "merged-finish-reconcile",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+              "paths": {
+                "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+                "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+                "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+                "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+                "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+                "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+                "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 5534,
+            "path": "openspec/changes/merged-finish-reconcile/automated-checks.json",
+            "sha256": "ea79ced72e3b9011533b4847dfe209720b77d515de54f19c42c01c9188880860"
+          },
+          "identity": {
+            "change": "merged-finish-reconcile",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+              "paths": {
+                "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+                "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+                "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+                "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+                "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+                "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+                "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2218,
+            "path": "openspec/changes/merged-finish-reconcile/verification.md",
+            "sha256": "159b3f414c2d8fc597129d7adb40c20ea18cbf2a95cfcd9c17745ac483166120"
+          },
+          "identity": {
+            "change": "merged-finish-reconcile",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+              "paths": {
+                "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+                "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+                "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+                "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+                "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+                "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+                "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "990904cc1d1f0403ee3609c6e4098366a594555a",
+      "integrated_head": "8ba95524240365bacb98c278aa674a354643c155",
+      "pr_number": 849,
+      "reviewed_evidence_digest": "4d14c40b19fe8c7590f4397c94a14657d229b6c4f079d11048b7df941f7c7f78",
+      "source_branch": "agent/br-975-t1-merged-finish-reconcile",
+      "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+      "task_identity": {
+        "change": "merged-finish-reconcile",
+        "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+        "kind": "contribution",
+        "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+        "source_issue": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+        "target_branch": "requirement/BR-975",
+        "task_content": {
+          "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+          "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+          "paths": {
+            "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+            "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+            "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+            "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+            "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+            "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+            "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-975/T1"
+      },
+      "work_identity": "BR-975/T1"
+    },
+    {
+      "change": "terminal-direct-lineage",
+      "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/terminal-direct-lineage/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "b62de86de6e121325d034ad23ea02d3abe08057f"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "be04c4c2770424ed6aa3f792dc14b03eb5b34f61",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/private_lineage.py issue_for_handle calls publication_queue.trusted_writers (publication_queue.py:174-193), which raises QueueError 'cannot prove write permission of marker author <login>: ...' when the permission lookup fails. integration_contour.direct_source (diff lines 189-192) catches only PrivateLineageError. terminal_recorded, called just before it, does not catch QueueError either. The error can therefore reach run_claimed_post_merge as an unclassified exception, with th",
+                  "id": "direct-lineage-queue-error-not-mapped",
+                  "severity": "advisory",
+                  "summary": "A QueueError from the trusted-writer proof is not mapped to JobBlocked in the new direct-lineage path, although the surrounding code maps other lineage failures to a bounded block."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "d7bf725a0aaac71a95f6d924e4cb4d2f8e8ea763677609491b812e7dbce6d648"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "dded628d6030fce7516df7d1982e65dc1fb51694ee14964324d559f4dc504ba6"
+            }
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 5882,
+            "path": "openspec/changes/terminal-direct-lineage/automated-checks.json",
+            "sha256": "9fbb74b204f699719a69fe817f0865d3759500cb3cf1353320e60340da2fc3b2"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2780,
+            "path": "openspec/changes/terminal-direct-lineage/verification.md",
+            "sha256": "41857f5b368ee4cd5d02a355f2b943b64ef7f92eb7bf6c10159addd86023813e"
+          },
+          "identity": {
+            "change": "terminal-direct-lineage",
+            "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+            "kind": "contribution",
+            "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+            "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+            "target_branch": "requirement/BR-975",
+            "task_content": {
+              "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+              "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+              "paths": {
+                "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+                "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+                "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+                "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+                "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+                "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+                "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+                "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-975/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "be04c4c2770424ed6aa3f792dc14b03eb5b34f61",
+      "integrated_head": "792b49d3aa4d4054e3ed6f8692d091903a292b5a",
+      "pr_number": 850,
+      "reviewed_evidence_digest": "01d802ea439cc6f45494af618ee5bd08560c7fdff27d713dd7a0cba4181449a9",
+      "source_branch": "agent/br-975-t2-terminal-direct-lineage",
+      "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+      "task_identity": {
+        "change": "terminal-direct-lineage",
+        "contribution_base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+        "kind": "contribution",
+        "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+        "source_issue": "pln_0e33c076352dc625ecf40eaeb4d58a0b",
+        "target_branch": "requirement/BR-975",
+        "task_content": {
+          "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+          "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+          "paths": {
+            "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+            "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+            "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+            "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+            "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+            "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+            "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+            "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-975/T2"
+      },
+      "work_identity": "BR-975/T2"
+    }
+  ],
+  "dependencies": {
+    "merged-finish-reconcile": [],
+    "terminal-direct-lineage": []
+  },
+  "digest": "e268384873cfa50edb63918b37cd48de4b5efda9513d045d995277220cb6f8fd",
+  "expected_changes": [
+    "merged-finish-reconcile",
+    "terminal-direct-lineage"
+  ],
+  "integration_branch": "requirement/BR-975",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_2d7a62fc4bdeaafff4418d8ad898890a",
+  "version": 2,
+  "work_identity": "BR-975"
+}

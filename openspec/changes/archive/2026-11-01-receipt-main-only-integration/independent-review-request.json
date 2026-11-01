@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "candidate_head": "6c9255c6e9e8b1ed3d63f5798b9960a749d2d700",
+    "diff_sha256": "f52a8300ec33505ee8133ade5bb31eda572760783b5dc64d0624dc88b4a903aa"
+  },
+  "change": "openspec/changes/receipt-main-only-integration",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/receipt-main-only-integration/automated-checks.json",
+    "openspec/changes/receipt-main-only-integration/independent-review-dispositions.json",
+    "openspec/changes/receipt-main-only-integration/independent-review-request.json",
+    "openspec/changes/receipt-main-only-integration/independent-reviews/engineering-quality.json",
+    "openspec/changes/receipt-main-only-integration/independent-reviews/spec-fidelity.json",
+    "openspec/changes/receipt-main-only-integration/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/receipt-main-only-integration/design.md",
+        "openspec/changes/receipt-main-only-integration/proposal.md",
+        "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md",
+        "openspec/changes/receipt-main-only-integration/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/receipt-main-only-integration/proposal.md",
+        "openspec/changes/receipt-main-only-integration/design.md",
+        "openspec/changes/receipt-main-only-integration/tasks.md",
+        "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-01T02:13:06+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/receipt-main-only-integration/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e0d18327-eafa-4e33-ba42-a70a5405cae7",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+    "paths": {
+      "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+      "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+      "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+      "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+      "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+      "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+      "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+      "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+      "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

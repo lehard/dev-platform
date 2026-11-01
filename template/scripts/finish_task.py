@@ -951,6 +951,25 @@ def validate_or_reuse(
     run_checks(work, remote_main, no_checks, task_evidence=quick_task)
 
 
+def sync_queue_merged_task(work: Path, branch: str) -> bool:
+    """Fast-forward a task whose exact queue PR is merged to its proven merged head; whether it was merged."""
+    from publication_queue import enabled as queue_enabled, local_status as queue_local_status, sync_merged_task
+
+    if not queue_enabled(work):
+        return False
+    try:
+        queued = queue_local_status(work, branch)
+    except Exception as exc:
+        raise SystemExit("Publication queue observation blocked: " + str(exc)) from exc
+    if queued is None or queued["state"] != "merged":
+        return False
+    try:
+        sync_merged_task(work, branch, queued["number"])
+    except Exception as exc:
+        raise SystemExit("Merged PR task synchronization blocked: " + str(exc)) from exc
+    return True
+
+
 def run_finish_preflight(work: Path, integration: Path, branch: str, *, consolidated: bool) -> None:
     """The shared lifecycle preflight, before any expensive finish operation (first submission and re-submission).
 
@@ -1025,7 +1044,9 @@ def main() -> int:
             and selected_mode == "coordinator"):
         from pr_review_gate import managed_candidate
 
-        if managed_candidate(work):
+        # A merged exact PR only reconciles: synchronize to its proven merged head before any handoff,
+        # so a worktree left at a pre-finalize head never re-enters developer handoff or the scope gate.
+        if not sync_queue_merged_task(work, branch) and managed_candidate(work):
             run_finish_preflight(work, integration, branch, consolidated=False)
             return finish_developer_handoff(work, integration, config, branch, args.title, args.body)
     try:

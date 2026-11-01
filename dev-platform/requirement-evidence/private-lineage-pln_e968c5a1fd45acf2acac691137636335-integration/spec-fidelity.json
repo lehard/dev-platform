@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
+    "base_ref": "551062d9163983e6556d61b18b41ec14178423cc",
+    "candidate_head": "4644102c3ccadce2c49ba46e438182753e04b97b",
+    "diff_sha256": "d1951b0003cacc60999fe75124ea69d47c13ac787d4e57001fada06d9badede4"
+  },
+  "completed_at": "2026-11-01T10:46:24+00:00",
+  "findings": [
+    {
+      "evidence": "conflicting-candidate-integration-repair/design.md: \"No mergeability. The conflict signal stays merge-tree in _prepare. GitHub mergeable is not read.\" The change adds only a merge-tree conflict check inside the RederivationEnvironmentFailed handler (publication_queue.py ~1904). A conflict that is neither a generated-only conflict nor a RederivationEnvironmentFailed conflict relies on pre-existing routing that this diff does not touch.",
+      "id": "mergeable-conflicting-signal-not-read",
+      "severity": "advisory",
+      "summary": "Requirement item 3 is phrased in terms of GitHub mergeable=CONFLICTING. T1 keeps `merge-tree` in `_prepare` as the only conflict signal and does not read GitHub mergeability. It is compatible with the outcome only if a waiting candidate with no red gate always reaches `_prepare`."
+    },
+    {
+      "evidence": "receipt-main-only-integration/design.md says the derived-merge route is covered only through `RederivationFailed` -> integration repair -> `advance_after_repair`. `main_only_integration` excludes only `generated_files` from `dev-platform/checks.toml`, so derived or spec paths outside that set count as a difference (task_content_identity.py, `differing = ... - generated`).",
+      "id": "derived-merge-receipt-proof-scope",
+      "severity": "advisory",
+      "summary": "Item 1 of the outcome also covers derived merges. T2's proof reaches only the `advance_after_repair` path, which runs after an integration repair or after a derived merge that raised RederivationFailed. A derived merge that succeeds and changes archive-derived specs is not in the `generated` set. If such a merge changes the identity, the receipt resets even though the change comes only from main."
+    }
+  ],
+  "launched_at": "2026-11-01T10:46:08+00:00",
+  "output_sha256": "346a71f221a23e1da7d8e0d7e2ba0b6f993958e0bfddb3c6076281e4410e981a",
+  "perspective": "spec-fidelity",
+  "request_id": "8bec8f57-026f-4763-9872-bff40d112a11",
+  "reviewer": {
+    "context_id": "198c98b5-3075-4258-a0da-150b89d91219",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-2da7b00d-1fbe-40bd-960d-ebc75342e22d",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38527
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15157
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13994
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15011
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1503
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5a193148133d44f87214a9f226cefa027063214fb1e3698aead3ae8b65aff73f"
+}

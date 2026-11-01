@@ -23,6 +23,7 @@ import os
 import re
 import shlex
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
@@ -295,18 +296,45 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     return {"status": "pushed", "pushed_head": result_head, "main": main_sha}
 
 
+def main_only_reason(root: Path, candidate: dict, head: str, base: str | None, harness: Path | None) -> str | None:
+    """Why the repaired head is not proven to be only the merge of main into the gated head (``None``: proven).
+
+    The old head is the head of the trusted record whose gates passed (the derived candidate), never
+    a candidate file; generated files are excluded only by the default-branch declaration of ``root``.
+    """
+    from _platform_common import generated_files
+    from task_content_identity import main_only_integration
+
+    old_head = candidate.get("head")
+    if not isinstance(old_head, str) or not old_head or not candidate.get("gates"):
+        return "no trusted queue record names the head on which the gates passed"
+    generated = {item.path for item in generated_files(root, "HEAD")}
+    return main_only_integration(harness or root, old_head, base, head, generated)
+
+
 def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fresh: dict, harness: Path | None,
-                         *, adapter=queue) -> str:
-    """Move a repaired candidate on: unchanged task content reuses evidence, changed content repeats review."""
+                         *, base: str | None = None, adapter=queue) -> str:
+    """Move a repaired candidate on: unchanged task content reuses evidence, changed content repeats review.
+
+    Content that changed only by merging main into the gated head (``base`` is that main) keeps the
+    gates bound to the gated identity (BR-969); any other change repeats review with the reason.
+    """
     old = candidate.get("task_identity")
     managed = isinstance(old, dict) and isinstance(old.get("task_content"), dict)
     unchanged = (managed and isinstance(fresh.get("task_content"), dict)
                  and equivalent_proofs(harness or root, old["task_content"], fresh["task_content"]))
-    if unchanged:
-        # Review, selected checks and verification stay valid for identical content; the required
-        # checks gate is never carried to the new head, so the coordinator reruns it on the merged head.
+    reason = None
+    if managed and not unchanged:
+        reason = main_only_reason(root, candidate, head, base, harness)
+        if reason is not None:
+            print(f"PR #{candidate['number']} receipt reset after integration repair: {reason}", file=sys.stderr)
+    if unchanged or (managed and reason is None):
+        # Review, selected checks and verification stay valid for identical content, or for content that
+        # only merged main; the required checks gate is never carried to the new head, so the
+        # coordinator reruns it on the merged head.
+        bound = fresh if unchanged else old
         gates = {name: {**gate, "identity": fresh} for name, gate in candidate.get("gates", {}).items()
-                 if name != "required-checks" and review_gate.reusable(harness or root, gate, fresh)}
+                 if name != "required-checks" and review_gate.reusable(harness or root, gate, bound)}
         state = "contribution-integration-pending" if fresh.get("kind") == "contribution" else "ready"
         adapter._transition(root, repo, candidate["number"], state, head, task_identity=fresh,
                             inherit_identity=False, gates=gates)
@@ -403,7 +431,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     workers.checkout_harness(harness, head)
     fresh = (review_gate.refresh_identity(harness, identity)
              if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
-    state = advance_after_repair(root, repo, observed, head, fresh, harness, adapter=adapter)
+    state = advance_after_repair(root, repo, observed, head, fresh, harness, base=outcome["main"], adapter=adapter)
     post_result(workers.result_body(job, worker, "integrated", head, provider=provider))
     return {"status": "integrated", "pushed_head": head, "state": state}
 
@@ -479,6 +507,53 @@ class LifecycleOps:
 
         issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(child))
         return str(issue.get("state", "")).upper() == "CLOSED"
+
+    def terminal_recorded(self, root: Path, number: int) -> bool:
+        """Whether a trusted lifecycle result records a successful terminal reconciliation of PR #number."""
+        comments = queue._comments(root, queue._repo(root), number)
+        apps = queue.trusted_apps(root)
+        writers = queue.trusted_writers(root, comments, (workers.RESULT_PREFIX,), repo=queue._repo(root))
+        prefix = f"pr{number}:terminal-reconciliation:"
+        for row in comments:
+            body = row.get("body")
+            if not isinstance(body, str) or not body.startswith(workers.RESULT_PREFIX):
+                continue
+            if not workers.trusted_marker_comment(row, apps, writers):
+                continue
+            try:
+                record = json.loads(body[len(workers.RESULT_PREFIX):])
+            except json.JSONDecodeError as exc:
+                raise JobBlocked(f"PR #{number} has a malformed trusted lifecycle result") from exc
+            if (isinstance(record, dict) and str(record.get("job", "")).startswith(prefix)
+                    and str(record.get("outcome", "")).startswith("task-recorded")):
+                return True
+        return False
+
+    def direct_source(self, root: Path, number: int, head: str, change: str) -> str:
+        """The private source Issue of a merged direct managed task, proven from its archived lineage handle."""
+        import private_lineage
+
+        from _platform_common import run_git
+
+        run_git(["fetch", "origin", f"pull/{number}/head"], cwd=root)
+        if run_git(["rev-parse", "FETCH_HEAD"], cwd=root).stdout.strip() != head:
+            raise JobBlocked(f"PR #{number} fetched head differs from the merged head")
+        listed = run_git(["ls-tree", "-d", "--name-only", head, "openspec/changes/archive/"], cwd=root).stdout.split()
+        archived = [path for path in listed
+                    if re.fullmatch(rf"\d{{4}}-\d{{2}}-\d{{2}}-{re.escape(change)}", path.rsplit("/", 1)[-1])]
+        if len(archived) != 1:
+            raise JobBlocked(f"PR #{number} merged head has {len(archived)} archives of change {change}")
+        shown = run_git(["show", f"{head}:{archived[0]}/.managed-task.json"], cwd=root, check=False)
+        try:
+            handle = json.loads(shown.stdout).get("private_lineage_handle") if not shown.returncode else None
+        except ValueError:
+            handle = None
+        if not isinstance(handle, str):
+            raise JobBlocked(f"PR #{number} archived change {change} carries no private lineage handle")
+        try:
+            return private_lineage.issue_for_handle(root, handle, change)
+        except private_lineage.PrivateLineageError as exc:
+            raise JobBlocked(str(exc)) from exc
 
     def reconcile_child(self, root: Path, child: str) -> None:
         import managed_project_status
@@ -612,10 +687,30 @@ def quick_task(task_identity) -> bool:
     return isinstance(task_identity, dict) and "change" not in task_identity and "kind" not in task_identity
 
 
+def run_direct_terminal(ops: LifecycleOps, root: Path, number: int, head: str, change: str) -> str:
+    """Terminal reconciliation of a direct managed task (no BR branch identity) through its opaque lineage (BR-975).
+
+    A trusted successful terminal result for this PR ends the job before any Backlog walk. Public
+    receipts and messages name only the private Issue number, never the handle or the Backlog.
+    """
+    if ops.terminal_recorded(root, number):
+        return "task-recorded: already reconciled"
+    child = ops.direct_source(root, number, head, change)
+    issue = "#" + child.rsplit("#", 1)[1]
+    try:
+        ops.reconcile_child(root, child)
+    except JobBlocked as exc:
+        raise JobBlocked(f"Issue {issue} Project Done reconciliation failed") from exc
+    print(f"PR #{number}: direct managed source Issue {issue} reconciled", file=sys.stderr)
+    return f"task-recorded: Issue {issue}"
+
+
 def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: str, *, task_identity) -> str:
     lineage = ops.lineage(root, branch)
     if lineage is None and quick_task(task_identity):
         return "no-source-issue: quick task"
+    if lineage is None and isinstance(task_identity, dict) and isinstance(task_identity.get("change"), str):
+        return run_direct_terminal(ops, root, number, head, task_identity["change"])
     if not lineage or not lineage.get("child"):
         raise JobBlocked("cannot resolve the task's source Issue; reconcile its Project state manually")
     child = lineage["child"]
@@ -656,6 +751,22 @@ def run_cleanup(ops: LifecycleOps, root: Path, number: int, branch: str, head: s
     if result.get("errors"):
         raise JobBlocked("local cleanup refused: " + json.dumps(result["errors"], sort_keys=True)[:300])
     return "cleaned" if result.get("removed") else "already-clean"
+
+
+def public_text(root: Path, text: str) -> str:
+    """``text`` for a public receipt: private Backlog references become ``Issue #N``, the repository is unnamed.
+
+    The PR receipt is public; an Issue of the configured private Backlog is named only by its number.
+    """
+    from _platform_common import read_platform_config
+
+    backlog = read_platform_config(root).get("development_backlog")
+    repository = backlog.get("repository") if isinstance(backlog, dict) else None
+    if not isinstance(repository, str) or not repository:
+        return text  # no private Backlog is configured: nothing private to name
+    pattern = re.escape(repository)
+    text = re.sub(pattern + r"#(\d+)", r"Issue #\1", text, flags=re.IGNORECASE)
+    return re.sub(pattern, "the private Backlog", text, flags=re.IGNORECASE)
 
 
 def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *, branch: str, post_result,
@@ -712,11 +823,12 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
         else:
             outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
     except JobBlocked as exc:
-        outcome, status = "blocked: " + str(exc)[:200], "blocked"
+        outcome, status = "blocked: " + public_text(root, str(exc))[:200], "blocked"
     except PostMergeEnvironmentError:
         raise  # no receipt: the caller releases the claim and fails visibly
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal
-        outcome, status = "failed: " + str(exc)[:200], "failed"
+        outcome, status = "failed: " + public_text(root, str(exc))[:200], "failed"
+    outcome = public_text(root, outcome)
     if not claim_current():
         return {"status": "discarded"}
     post_result(workers.result_body(job, worker, outcome))
