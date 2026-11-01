@@ -1,45 +1,29 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
-    "base_ref": "origin/main",
-    "candidate_head": "7cc207b63dae690b958dde5ffabc934556b0d603",
-    "diff_sha256": "32e5370fb98408525203c1de9326f0a733d086141f3655f206a96c6c75764ee1"
+    "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "candidate_head": "b4103c7ffc94201c16df8a21a5c606aead852512",
+    "diff_sha256": "69144dbe3fc10c26a0a99db3efca54188f0effce8fc10e350f73cc9454963ae2"
   },
-  "completed_at": "2026-10-31T23:46:17+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/publication_queue.py `_integrate`: `_note_environment_error(..., str(exc))`, then `_comment(..., {\"kind\": ENVIRONMENT_ERROR_KIND, \"head\": head, \"reason\": reason})`. The only bound is `detail[:500]`. There is no redaction or restriction to a curated message. QueueEnvironmentError messages can wrap git/CLI stderr.",
-      "id": "environment-detail-posted-verbatim",
-      "severity": "advisory",
-      "summary": "The full text of the coordinator exception is posted as a PR comment, so any command output, paths or stderr inside that exception becomes publicly visible on the PR."
-    },
-    {
-      "evidence": "publication_queue.py `_integrate`: `except QueueError as note_failure:` wraps `_note_environment_error`, which calls `_pr`, `_derive`, `_comments` and `_comment`. The test only simulates `QueueError(\"comment API down\")`.",
-      "id": "note-failure-only-catches-queueerror",
-      "severity": "advisory",
-      "summary": "The note failure path only catches QueueError. If `_pr`, `_comments` or `_comment` raise a different exception type, such as a gh or JSON error, that exception replaces the original QueueEnvironmentError and the environment-error classification of the run is lost."
-    }
-  ],
-  "launched_at": "2026-10-31T23:45:57+00:00",
-  "output_sha256": "f40d6365b5c427e727d1f87c3d2c9f04188825af3b329b2a635675db70c98ab3",
+  "completed_at": "2026-11-01T00:50:45+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T00:50:29+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "0ce0113a-3537-4273-9455-c5efa9379733",
+  "request_id": "e14cdbdd-f08a-4256-95a6-8c9ec650c128",
   "reviewer": {
-    "context_id": "0b1882ed-12c4-414a-8f5b-1baec5326e4b",
+    "context_id": "d9aabb99-fb21-4b5b-8a83-1545398ee696",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-12711d09-53b3-4e53-b0ad-8a59d84974c4",
+    "launch_id": "platform-launch-c9e0b9bd-9f79-4fd4-9cd9-73afb858cf88",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -48,37 +32,37 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 23313
+        "value": 21766
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 74954
+        "value": 88558
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15188
+        "value": 15562
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16946
+        "value": 15734
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1582
+        "value": 1738
       }
     },
     "runtime": "claude-code-print"

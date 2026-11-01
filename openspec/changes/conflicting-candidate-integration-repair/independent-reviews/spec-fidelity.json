@@ -1,32 +1,29 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
-    "base_ref": "origin/main",
-    "candidate_head": "7cc207b63dae690b958dde5ffabc934556b0d603",
-    "diff_sha256": "32e5370fb98408525203c1de9326f0a733d086141f3655f206a96c6c75764ee1"
+    "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "candidate_head": "b4103c7ffc94201c16df8a21a5c606aead852512",
+    "diff_sha256": "69144dbe3fc10c26a0a99db3efca54188f0effce8fc10e350f73cc9454963ae2"
   },
-  "completed_at": "2026-10-31T23:45:57+00:00",
+  "completed_at": "2026-11-01T00:50:29+00:00",
   "findings": [],
-  "launched_at": "2026-10-31T23:45:42+00:00",
+  "launched_at": "2026-11-01T00:50:18+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "0ce0113a-3537-4273-9455-c5efa9379733",
+  "request_id": "e14cdbdd-f08a-4256-95a6-8c9ec650c128",
   "reviewer": {
-    "context_id": "7d006ceb-7242-4fb1-a73e-c0650a5fcd8e",
+    "context_id": "71d6504d-f8cc-4859-a0b1-dc392ee50446",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-84e5875d-d9ca-4f0e-86b1-3e0aa894fb4a",
+    "launch_id": "platform-launch-5b295375-9e4c-4da0-8ddb-ed3d28d97184",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -35,22 +32,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24382
+        "value": 21751
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 49163
+        "value": 39021
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 11187
+        "value": 10511
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12558
+        "value": 10653
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -65,7 +62,7 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1117
+        "value": 999
       }
     },
     "runtime": "claude-code-print"
