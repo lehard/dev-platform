@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "origin/main",
-    "candidate_head": "c65ddbcd3475e79bd0b22e70dc2fde83ee062dfe",
-    "diff_sha256": "ce4d75346bc61111cf779188d541a7548b0e50d41945e7707adf10694a20de54"
+    "candidate_head": "2ff58d6b36b02f4a33c03d12979998eb70e8cd2f",
+    "diff_sha256": "d9a3767778d90b772891fdc240c19c8858f2b115d23dec464f6cb73b928597c8"
   },
-  "completed_at": "2026-11-01T01:48:51+00:00",
+  "completed_at": "2026-11-01T01:54:14+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/finish_task.py:124-140: sync_queue_merged_task returns False when queue_enabled(work) is false, or when queue_local_status returns None, which happens for an unadmitted PR with no admit event. A merged PR with no queue admission, or with the queue disabled, still falls through to managed_candidate and the developer handoff. The spec scenario is stated for any exact merged PR.",
-      "id": "merged-detection-queue-only",
+      "evidence": "template/scripts/finish_task.py:1047-1049 calls sync_queue_merged_task, which has its own local_status, SystemExit wrapping and sync_merged_task. The pre-existing block at lines 1058-1082 repeats the same sequence. The test change `side_effect=[waiting, waiting] if early else [None, None, waiting]` shows the double read. The helper could return the queued state so the later block could reuse it, or the later block could call the helper.",
+      "id": "duplicated-merged-queue-sync",
       "severity": "advisory",
-      "summary": "The spec says that when the exact PR of the task branch is merged, finish reconciles before any handoff. The implementation only detects a merge through the publication queue, so the spec's wording is broader than the code."
+      "summary": "The merged-queue observation and sync is now implemented twice in finish_task.main. For a merged managed candidate, local_status and sync_merged_task each run twice (the second time after the fast-forward), which costs extra GitHub reads. The two copies can also drift apart."
     },
     {
-      "evidence": "template/scripts/finish_task.py:124-140 duplicates the logic at 1060-1082. The test side_effect had to be changed to [None, None, waiting]. The design acknowledges only 'one extra PR read'; the merged case also repeats the sync.",
-      "id": "duplicate-queue-observation",
+      "evidence": "template/scripts/finish_task.py:128-133 (`except Exception ... raise SystemExit`) runs ahead of `run_finish_preflight` at line 1050. publication_queue.local_status (publication_queue.py:1665-1682) raises QueueError for an oversized or ambiguous PR inventory. The design.md Risks section lists only the extra read.",
+      "id": "new-hard-failure-before-handoff-for-candidates",
       "severity": "advisory",
-      "summary": "For a coordinator-mode task whose queue PR is merged, finish runs queue_local_status and sync_merged_task twice. The first pass is the new early check. The second is the existing block after the provenance checks (lines 1058-1082). The two passes duplicate the GitHub reads and the sync logic."
+      "summary": "Every coordinator-managed candidate finish now makes a publication-queue observation before the handoff preflight. Any exception from local_status (a gh outage, a queue inventory error such as multiple admitted PRs on the branch, or the 100-entry page limit) becomes a SystemExit before the handoff. Previously only the later post-handoff path observed the queue. This is consistent with the fail-explicitly rule, but it widens the failure surface of the first submission. The design records only 'one extra PR read' as a risk."
     }
   ],
-  "launched_at": "2026-11-01T01:48:33+00:00",
-  "output_sha256": "7a9a0895386ffa496c05194f7beaa9b57b17eec140b88ecefde104e406e0a662",
+  "launched_at": "2026-11-01T01:53:55+00:00",
+  "output_sha256": "a6b552d20b643d404906a147d1d9549bbe6b5797a6cb6a97f19412a4d003c6e3",
   "perspective": "engineering-quality",
-  "request_id": "df733f1a-f87a-4e2b-ac22-096c02af0dc5",
+  "request_id": "dd122b9e-e7d9-45f8-88bb-a45ccbec419c",
   "reviewer": {
-    "context_id": "854d9f78-e62a-4363-8fba-63b60ef3d5a4",
+    "context_id": "da2cf40d-8088-43fd-be2d-c850d5d6f5b0",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-d023c13c-6b69-4d14-8e70-2f9a15d63382",
+    "launch_id": "platform-launch-38ec4529-885a-453d-9360-0ce8e1ed6dad",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +48,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21184
+        "value": 21707
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 42838
+        "value": 43459
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13781
+        "value": 12931
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15102
+        "value": 14603
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -78,11 +78,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1393
+        "value": 1465
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "980d7e820b358a964d38685839024278db5efa4570617bae9f53bcf7940ae19e"
+  "task_content_digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d"
 }

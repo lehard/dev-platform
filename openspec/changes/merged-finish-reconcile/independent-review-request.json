@@ -2,11 +2,14 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "origin/main",
-    "candidate_head": "c65ddbcd3475e79bd0b22e70dc2fde83ee062dfe",
-    "diff_sha256": "ce4d75346bc61111cf779188d541a7548b0e50d41945e7707adf10694a20de54"
+    "candidate_head": "2ff58d6b36b02f4a33c03d12979998eb70e8cd2f",
+    "diff_sha256": "d9a3767778d90b772891fdc240c19c8858f2b115d23dec464f6cb73b928597c8"
   },
   "change": "openspec/changes/merged-finish-reconcile",
   "excluded_lifecycle_paths": [
+    "openspec/changes/merged-finish-reconcile/independent-review-request.json",
+    "openspec/changes/merged-finish-reconcile/independent-reviews/engineering-quality.json",
+    "openspec/changes/merged-finish-reconcile/independent-reviews/spec-fidelity.json",
     "openspec/changes/merged-finish-reconcile/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -34,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T01:48:07+00:00",
+  "prepared_at": "2026-11-01T01:53:32+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/merged-finish-reconcile/independent-reviews",
     "required_perspectives": [
@@ -43,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "df733f1a-f87a-4e2b-ac22-096c02af0dc5",
+  "request_id": "dd122b9e-e7d9-45f8-88bb-a45ccbec419c",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -56,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
-    "digest": "980d7e820b358a964d38685839024278db5efa4570617bae9f53bcf7940ae19e",
+    "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
     "paths": {
       "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
       "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
@@ -65,7 +68,7 @@
       "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
       "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
       "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
-      "tests/test_finish_merged_queue.py": "f539d56652d93185fda6ec3767d21fe45787bf3a"
+      "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
     },
     "scope": "independent-review-v1",
     "version": 1
