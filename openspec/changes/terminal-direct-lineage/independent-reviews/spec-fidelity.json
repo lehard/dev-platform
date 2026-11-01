@@ -3,36 +3,30 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "origin/main",
-    "candidate_head": "9fbbb8390f53dca82a7a7379a515e3a7189170d9",
-    "diff_sha256": "00d8ad0219b8874a0caf4f44fd201486e19542d47642e62fa658ed8b66a8607f"
+    "candidate_head": "6cbe6da6d5e77e55e293135c3e80562377c9107f",
+    "diff_sha256": "4654d6a1cc5041e8a0cbc63f0ebba090f92805bd9fb88c1a8a0a1dec567f7d91"
   },
-  "completed_at": "2026-11-01T01:52:48+00:00",
+  "completed_at": "2026-11-01T01:55:48+00:00",
   "findings": [
     {
-      "evidence": "private_lineage._open_issue_pages raises PrivateLineageError with the first 200 characters of gh stderr or stdout. direct_source turns that into JobBlocked(str(exc)), which becomes a public blocked outcome. In run_direct_terminal, only JobBlocked from reconcile_child is rewrapped to 'Issue #N'. Other exceptions from managed_project_status.reconcile or requirement_terminal._close_issue propagate unchanged. require_handle and _comments can also raise errors that name the Backlog.",
-      "id": "public-message-may-name-backlog",
+      "evidence": "template/scripts/private_lineage.py issue_for_handle walks `states: OPEN` only. template/scripts/integration_contour.py:662-671 (`terminal_recorded` is checked before `direct_source`). The spec scenario 'Repeated job' covers only an already-recorded result.",
+      "id": "retry-after-close-blocks",
       "severity": "advisory",
-      "summary": "The spec says logs and comments name only the Issue number. Some error paths can still carry text that names the private Backlog repository. The design says neither the handle nor the repository reaches a public receipt."
-    },
-    {
-      "evidence": "The diff creates openspec/changes/terminal-direct-lineage/tasks.md as a new empty file (index 00000000..e69de29b).",
-      "id": "tasks-md-empty",
-      "severity": "advisory",
-      "summary": "tasks.md in the candidate is empty, so the change records no implementation or verification tasks."
+      "summary": "If `reconcile_child` closes the Issue but the terminal result is not recorded (crash or post failure), a retried job fails to find the Issue. The walk covers only open Issues, and the idempotent exit relies on a recorded result. The job then blocks with 'no open Issue carries this handle (already closed or missing)'. The delta does not describe this recovery case."
     }
   ],
-  "launched_at": "2026-11-01T01:52:23+00:00",
-  "output_sha256": "6c4a316e64fa263dfbe07b3a137e47ab20ec4fdec2dda10e459ebf47904b59ee",
+  "launched_at": "2026-11-01T01:55:23+00:00",
+  "output_sha256": "fecdf5297b8dcf70958320afc93a09a199b1837044c25e44abf3e3afc265585b",
   "perspective": "spec-fidelity",
-  "request_id": "743ddb3d-4f3e-40eb-ab1e-6d65eb23d646",
+  "request_id": "363724d4-8b5b-406d-a554-2547d124887e",
   "reviewer": {
-    "context_id": "16081205-d746-4b89-b706-1104a83ab8e6",
+    "context_id": "4606ceaf-e001-40a0-a4b9-c75de3a2f269",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-8d27ddf5-7979-4089-b614-82c81742e89e",
+    "launch_id": "platform-launch-f9ae57dd-6474-4587-98f9-fed10a8bbfe8",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27954
+        "value": 28715
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 81211
+        "value": 114581
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21159
+        "value": 19265
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22697
+        "value": 21915
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 10
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2357
+        "value": 2320
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4358a14f774315929d03619a85b48ed77a3ef192e86607c4a6ccf69064b48b41"
+  "task_content_digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961"
 }

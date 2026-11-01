@@ -3,42 +3,23 @@
   "candidate": {
     "base_head": "551062d9163983e6556d61b18b41ec14178423cc",
     "base_ref": "origin/main",
-    "candidate_head": "9fbbb8390f53dca82a7a7379a515e3a7189170d9",
-    "diff_sha256": "00d8ad0219b8874a0caf4f44fd201486e19542d47642e62fa658ed8b66a8607f"
+    "candidate_head": "6cbe6da6d5e77e55e293135c3e80562377c9107f",
+    "diff_sha256": "4654d6a1cc5041e8a0cbc63f0ebba090f92805bd9fb88c1a8a0a1dec567f7d91"
   },
-  "completed_at": "2026-11-01T01:53:09+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/integration_contour.py:168 `archived = [path ... if path.rsplit(\"/\", 1)[-1].endswith(f\"-{change}\")]`. Archive directories are date-prefixed, so a fixed-shape match (a date regex followed by the exact name) would be stricter. The handle is later checked against the marker's change, which limits the damage.",
-      "id": "archive-suffix-match-ambiguous",
-      "severity": "advisory",
-      "summary": "The archive for the change is found by `endswith(f\"-{change}\")`, so a different change whose name ends in `-<change>` also matches. With one real archive plus one such lookalike, the job blocks. If only the lookalike exists, it reads the wrong archive's handle."
-    },
-    {
-      "evidence": "The diff adds `openspec/changes/terminal-direct-lineage/tasks.md` as a new file with index e69de29b (empty blob).",
-      "id": "tasks-md-empty",
-      "severity": "advisory",
-      "summary": "`tasks.md` of the change is an empty file, though the proposal and design describe several implementation steps. The task checklist the lifecycle and verification rely on records nothing."
-    },
-    {
-      "evidence": "template/scripts/private_lineage.py: `_OPEN_ISSUES_QUERY` uses `states: OPEN`. `issue_for_handle` raises \"no open Issue carries this handle (already closed or missing)\" when there are no matches. `run_direct_terminal` calls `terminal_recorded` first, and that reads only posted results.",
-      "id": "direct-terminal-retry-after-close-blocks",
-      "severity": "advisory",
-      "summary": "The idempotent exit depends on a posted `task-recorded` result. If the Issue is closed (Project Done and closure done) but the result comment is not recorded, for example because posting the result fails, the retry cannot find the Issue. It blocks with \"already closed or missing\" and needs manual intervention. The walk covers only open Issues."
-    }
-  ],
-  "launched_at": "2026-11-01T01:52:48+00:00",
-  "output_sha256": "b02ad6c48b15ad667694711dfa02af7f0590149e63420d49e95e45f5fcd1e4d9",
+  "completed_at": "2026-11-01T01:56:08+00:00",
+  "findings": [],
+  "launched_at": "2026-11-01T01:55:48+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "engineering-quality",
-  "request_id": "743ddb3d-4f3e-40eb-ab1e-6d65eb23d646",
+  "request_id": "363724d4-8b5b-406d-a554-2547d124887e",
   "reviewer": {
-    "context_id": "f3f57b20-e04b-4993-b540-10cbfbb3a94e",
+    "context_id": "c260379d-b619-43df-8ede-ffbb6ca9b0f0",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-f60e9aaf-838c-4a26-a63d-5fdd2d2f0798",
+    "launch_id": "platform-launch-01c8013c-7abd-4e48-915e-365618ceccda",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -54,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24887
+        "value": 24374
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48880
+        "value": 49364
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 16470
+        "value": 13257
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 18087
+        "value": 15671
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -84,11 +65,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1835
+        "value": 1376
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4358a14f774315929d03619a85b48ed77a3ef192e86607c4a6ccf69064b48b41"
+  "task_content_digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961"
 }
