@@ -3,21 +3,21 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "f0fefe9b09ad6faa2e801f4fd78a46a577ed907e",
-    "diff_sha256": "30c77cc7f1c4ae528c4242d1c80b9c53c0240730bb3561e55aaec8f08c0a4beb"
+    "candidate_head": "4c8525369b8c47bde884f58bcc2d646eb31fecfb",
+    "diff_sha256": "747acfc3adadea8fb9c4817eb6343e4b645934179a8e09118053e8f8caa1722c"
   },
-  "completed_at": "2026-11-01T04:05:02+00:00",
+  "completed_at": "2026-11-01T05:22:11+00:00",
   "findings": [],
-  "launched_at": "2026-11-01T04:04:46+00:00",
+  "launched_at": "2026-11-01T05:21:54+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "4cbfe8f2-453d-45cb-a7bd-56910484d29a",
+  "request_id": "9415ded6-7f44-4266-9ed9-f38383e99774",
   "reviewer": {
-    "context_id": "c1007fef-883e-4332-ad00-c50027f1ad53",
+    "context_id": "db3da5f4-e6d3-48f1-9712-c64722b84dad",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-ee060f40-dd3d-4e65-95bc-b2c10c6ea57c",
+    "launch_id": "platform-launch-9dfce228-c770-4cf7-b3d5-030bb0bbb61a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -32,41 +32,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 29562
+        "value": 44310
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51452
+        "value": 55790
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13279
+        "value": 13509
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14488
+        "value": 14481
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1223
+        "value": 1254
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "d0bda21723558620698cf98247caa535e9491db99edd1aa5a278df4d5e94e8ab"
+  "task_content_digest": "0bbd94d88f9e0f44a516929d995848e9f0bc098c620b4ba082b3dc0d1d4d12be"
 }

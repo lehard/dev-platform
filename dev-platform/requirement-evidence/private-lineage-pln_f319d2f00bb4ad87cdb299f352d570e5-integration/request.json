@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
     "base_ref": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "candidate_head": "f0fefe9b09ad6faa2e801f4fd78a46a577ed907e",
-    "diff_sha256": "30c77cc7f1c4ae528c4242d1c80b9c53c0240730bb3561e55aaec8f08c0a4beb"
+    "candidate_head": "4c8525369b8c47bde884f58bcc2d646eb31fecfb",
+    "diff_sha256": "747acfc3adadea8fb9c4817eb6343e4b645934179a8e09118053e8f8caa1722c"
   },
   "change": "private-lineage-pln_f319d2f00bb4ad87cdb299f352d570e5-integration",
   "children": [
@@ -95,15 +95,15 @@
       ]
     }
   },
-  "prepared_at": "2026-11-01T04:04:38+00:00",
-  "request_id": "4cbfe8f2-453d-45cb-a7bd-56910484d29a",
+  "prepared_at": "2026-11-01T05:21:46+00:00",
+  "request_id": "9415ded6-7f44-4266-9ed9-f38383e99774",
   "requirement": "pln_f319d2f00bb4ad87cdb299f352d570e5",
   "schema_version": 1,
   "task_content": {
-    "base": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f",
-    "digest": "d0bda21723558620698cf98247caa535e9491db99edd1aa5a278df4d5e94e8ab",
+    "base": "a9cc0bb1c0fac0656d9efc337c8eac02345d0628",
+    "digest": "0bbd94d88f9e0f44a516929d995848e9f0bc098c620b4ba082b3dc0d1d4d12be",
     "paths": {
-      "dev-platform/checks.toml": "99e78ee2c423140c00042154efae534d4ed13da5",
+      "dev-platform/checks.toml": "6546567f680437b1ac61776503872140a61cf409",
       "docs/engineering/task-intake.md": "f96cd3d6daf2c6fb7f0cd87a4f9341332c6ad52d",
       "openspec/changes/sequential-child-delivery/.managed-task.json": "d7d7818926c72564aa363c58be35b9cf5cebde8f",
       "openspec/changes/sequential-child-delivery/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
