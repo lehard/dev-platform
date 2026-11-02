@@ -1,0 +1,7 @@
+OpenSpec-Verify: PASS
+Verification-Method: Equivalent manual semantic OpenSpec review; the /opsx:verify command was not available in this environment.
+Automated-Checks-Evidence: automated-checks.json
+
+Reviewed the proposal, design, both specification deltas and tasks against implementation and tests at source commit cbc14a34d3117c405ce08211624d00cebbecb500. Verified the transferred lifecycle requirements against the approved T3 bundle. Main-only reuse requires trusted full-check evidence and a proof chain; required CI must pass on the exact new head before ready. Actual integration repair runs final publication once and records a candidate-scoped CI wait for continuation by the existing queue workflow; unavailable or invalid evidence and interrupted checks produce an explicit blocked reason. Changed repair content follows the review path. Terminal retrospective enforcement remains in place. Tests cover these paths, including failed, stale and missing evidence, queue continuation and preflight.
+
+Validation performed: strict OpenSpec validation; selected checks with affected precheck and complete test groups, compile, CI Python configuration, Ruff and platform manifest checks (see automated-checks.json); managed-project validation; OpenSpec lifecycle hygiene check. All passed. Hosted finalization without the operator registry needed by full checks is explicitly blocked; continuation only reuses already recorded full-check evidence. Independent review was not run locally: coordinator review remains pending after developer handoff.
