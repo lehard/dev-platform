@@ -226,10 +226,12 @@ class WorkerPreflightGateTests(PreflightFixture):
 
     def test_passing_preflight_installs_identity_and_runs_worker(self):
         with patch.object(queue, "worker", return_value={"state": "empty"}) as run, \
+                patch.object(queue, "resume_composition_ci") as resume, \
                 patch.object(queue, "use_default_friction_sink") as sink:
             result = queue.run_worker(Path("/unused"), "ci", CI_ENV, install_sink=True)
         self.assertEqual(result, {"state": "empty"})
         run.assert_called_once()
+        resume.assert_called_once()
         self.assertEqual(sink.call_args.kwargs["worker"], f"github-actions:{REPO}:123:2")
 
     def test_worker_exit_code_follows_the_outcome(self):
