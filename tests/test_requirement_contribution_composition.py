@@ -1541,6 +1541,31 @@ class QueueOwnershipGuardTests(unittest.TestCase):
             with self.assertRaisesRegex(execution.RequirementExecutionError, "multiple open"):
                 execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
 
+    def test_all_claims_and_active_queue_label_refuse(self):
+        pr = {"state": "open", "head": {"ref": "requirement/BR-7"}, "base": {"ref": "main"}, "labels": []}
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
+             mock.patch.object(self.queue, "_pr", return_value=pr), \
+             mock.patch.object(self.queue, "_comments", return_value=[]), \
+             mock.patch.object(self.queue, "_derive") as derive, \
+             mock.patch.object(self.queue, "_malformed", return_value=False):
+            for state in self.queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}:
+                with self.subTest(state=state):
+                    derive.return_value = {"state": state}
+                    with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+                        execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+            derive.return_value = {"state": "blocked-retryable"}
+            pr["labels"] = [{"name": self.queue.ACTIVE}]
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_invalid_requirement_is_rejected_before_queue_observation(self):
+        with mock.patch.object(execution, "_contribution_publication_supported") as supported:
+            with self.assertRaisesRegex(execution.managed_task.ManagedTaskError, "owner/repo"):
+                execution._refuse_queue_owned_composition(Path("/unused"), "not-a-requirement")
+        supported.assert_not_called()
+
 
 class SupervisorTests(unittest.TestCase):
     def advance(self, root, graph, children, in_flight=None):

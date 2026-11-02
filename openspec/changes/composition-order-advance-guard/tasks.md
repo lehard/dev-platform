@@ -14,3 +14,5 @@
 
 ## 4. Verification
 - [x] 4.1 Run required validation and semantic OpenSpec verification; regenerate the platform manifest.
+- [x] 4.2 Remove the portable shared-publication retrospective gate, preserving terminal reconciliation; test publication and terminal checkpoint absence and presence.
+- [x] 4.3 Resolve or explain independent-review advisories and repeat validation and review.

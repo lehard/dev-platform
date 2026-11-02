@@ -532,11 +532,12 @@ def _publish_early_draft(
 
 def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
     """Refuse before advancing any child when the shared PR belongs to the queue."""
+    _, number = requirement_intake.issue_ref(requirement)
     if not _contribution_publication_supported(root):
         return
     import publication_queue as queue
 
-    branch = f"requirement/BR-{requirement.rsplit('#', 1)[1]}"
+    branch = f"requirement/BR-{number}"
     try:
         repo = queue._repo(root)
         rows = queue._gh(root, "pr", "list", "--state", "open", "--head", branch,
@@ -561,8 +562,7 @@ def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
         if queue._malformed(candidate):
             raise RequirementExecutionError(f"composition PR #{number} has malformed queue state")
         state = candidate.get("state")
-        owned = {"review-pending", "reviewing", "repair-pending", "repairing", "finalize-pending",
-                 "ready", "integrating", "integration-repair-pending"}
+        owned = queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}
         if queue.QUEUE in names or queue.ACTIVE in names or state in owned:
             raise RequirementExecutionError(f"composition PR #{number} is queue-owned: state {state}; owner publication-queue")
     except queue.QueueError as exc:
@@ -791,8 +791,6 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                 return audited(reconcile_parent(integration, requirement=requirement))
             return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
-    if not coordinator and (pending := _retrospective_pending(integration, requirement, completed)):
-        return audited(pending)
     expected = _expected_changes(ordered, linked_by_change, completed)
     manifest, candidate, branch = _candidate_for(integration, requirement, ready, expected)
     requirement_integration.compose_candidate(
