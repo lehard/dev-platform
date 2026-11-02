@@ -616,16 +616,16 @@
   ],
   "dependencies": {
     "composition-main-only-gates": [],
-    "composition-order-and-advance-guard": [
+    "composition-order-advance-guard": [
       "composition-main-only-gates"
     ],
     "requirement-branch-repair": []
   },
-  "digest": "a11fb635ad60cd05c05ee8370abaec110dcc7e535dd638ba44a6b52895878d34",
+  "digest": "29c07aee3c36157ddec6117b6057f3c3d2d4760ebe589db3b6433080ee23382b",
   "expected_changes": [
     "composition-main-only-gates",
     "requirement-branch-repair",
-    "composition-order-and-advance-guard"
+    "composition-order-advance-guard"
   ],
   "integration_branch": "requirement/BR-978",
   "repository": "lehard/dev-platform",
