@@ -146,7 +146,8 @@ def write_manifest(checkout: Path, manifest: dict) -> None:
 
 
 def ensure_integration_branch(root: Path, *, requirement: str, repository: str, expected_changes: list[str],
-                              dependencies: dict, source_repo: str | None = None, runner=subprocess.run) -> dict:
+                              dependencies: dict, source_repo: str | None = None, runner=subprocess.run,
+                              handoff_renames: dict[str, str] | None = None) -> dict:
     """Create the owned branch once, or recover its exact committed manifest."""
     import managed_work_identity
 
@@ -161,9 +162,39 @@ def ensure_integration_branch(root: Path, *, requirement: str, repository: str, 
             workers.harness_git(checkout, "fetch", "origin", branch)
             workers.harness_git(checkout, "checkout", "--detach", "FETCH_HEAD")
             manifest = read_manifest(checkout, public_requirement)
-            if (manifest.get("repository") != repository or manifest["expected_changes"] != expected_changes
-                    or manifest["dependencies"] != dependencies):
-                raise ContributionError("existing integration branch has different ownership or mandatory graph")
+            if (manifest.get("repository") != repository
+                    or manifest.get("work_identity") != managed_work_identity.parent_identity(requirement)):
+                raise ContributionError("existing integration branch has different repository or owner")
+            if manifest["expected_changes"] != expected_changes or manifest["dependencies"] != dependencies:
+                renames = {} if handoff_renames is None else handoff_renames
+                old_names = set(manifest["expected_changes"])
+                applicable = {old: new for old, new in renames.items() if old in old_names}
+                if (not applicable or any(old == new or new in old_names for old, new in applicable.items())
+                        or len(set(applicable.values())) != len(applicable)):
+                    raise ContributionError("mandatory graph rename is missing or ambiguous")
+                integrated = {child["change"] for child in manifest["children"]}
+                if integrated & set(applicable):
+                    raise ContributionError("mandatory graph rename targets an already integrated child")
+                renamed_expected = [applicable.get(name, name) for name in manifest["expected_changes"]]
+                renamed_dependencies = {applicable.get(name, name): sorted(applicable.get(dep, dep) for dep in deps)
+                                        for name, deps in manifest["dependencies"].items()}
+                if renamed_expected != expected_changes or renamed_dependencies != dependencies:
+                    raise ContributionError("mandatory graph differs after proved handoff renames")
+                manifest = seal({**manifest, "expected_changes": renamed_expected, "dependencies": renamed_dependencies})
+                validate(manifest)
+                old_head = workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+                write_manifest(checkout, manifest)
+                new_head = workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+                observed = workers.harness_git(checkout, "ls-remote", "origin", f"refs/heads/{branch}").split()
+                if not observed or observed[0] != old_head:
+                    raise ContributionError("integration branch moved before graph migration")
+                workers.harness_git(checkout, "merge-base", "--is-ancestor", old_head, new_head)
+                result = runner(["git", *workers.SAFE_GIT, "-c", "credential.useHttpPath=true",
+                                 "push", "origin", f"{new_head}:refs/heads/{branch}"], cwd=checkout,
+                                env=workers.harness_push_env(checkout), stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, check=False)
+                if result.returncode:
+                    raise ContributionError("graph migration fast-forward push rejected; integration branch may have moved")
         else:
             manifest = seal({"version": 2, "requirement": public_requirement, "repository": repository,
                              "work_identity": managed_work_identity.parent_identity(requirement), "base": base,
