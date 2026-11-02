@@ -2230,9 +2230,10 @@ def resume_composition_ci(root: Path, repo: str) -> None:
         raise QueueError("composition CI wait inventory is unavailable or exceeds the bounded limit")
     failures = []
     for row in rows:
-        if not isinstance(row, dict) or not isinstance(row.get("number"), int):
-            raise QueueError("composition CI wait inventory contains an invalid PR")
-        if not str(row.get("headRefName", "")).startswith("requirement/BR-"):
+        if (not isinstance(row, dict) or type(row.get("number")) is not int or row["number"] <= 0
+                or not isinstance(row.get("headRefName"), str) or not row["headRefName"]):
+            raise QueueError("composition CI wait inventory contains a PR with an invalid number or branch")
+        if not row["headRefName"].startswith("requirement/BR-"):
             continue
         number = row["number"]
         pr = _pr(root, repo, number)

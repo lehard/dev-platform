@@ -2391,6 +2391,11 @@ class CompositionUpdateLineageTests(unittest.TestCase):
         self.assertTrue(resume.call_args.kwargs["enqueue"])
         self.assertNotIn("full_checks", resume.call_args.kwargs)
 
+    def test_ci_event_rejects_inventory_without_a_branch(self) -> None:
+        with patch.object(queue, "_gh", return_value=[{"number": 1}]):
+            with self.assertRaisesRegex(queue.QueueError, "invalid number or branch"):
+                queue.resume_composition_ci(ROOT_PATH, REPO)
+
     def test_ci_event_rejects_a_wait_without_admission_intent(self) -> None:
         candidate = {"head": HEAD, "state": "blocked-retryable", "task_identity": self.IDENTITY,
                      "gates": {"required-checks": {"evidence": {"phase": "composition-final-ci", "head": HEAD}}}}
