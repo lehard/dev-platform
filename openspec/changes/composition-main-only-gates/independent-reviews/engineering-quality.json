@@ -3,46 +3,34 @@
   "candidate": {
     "base_head": "e14c33827b2f10444666042df6edd80cbcf23fb5",
     "base_ref": "e14c33827b2f10444666042df6edd80cbcf23fb5",
-    "candidate_head": "49b154cbdef2c285900f6d1c5ed78d9f413821c3",
-    "diff_sha256": "5d97c20869562b46fa4c9a6c4426cb0a88705a9bed6f137d928cc6c1db0dcbaf"
+    "candidate_head": "5cf3e4aa89b0e62c11aeac8026009e20d7ed92b8",
+    "diff_sha256": "d0b143ca48f91b648450563367fbdac47bf5204d8c8fac40cbe629c7337656f9"
   },
-  "completed_at": "2026-11-02T06:21:57+00:00",
+  "completed_at": "2026-11-02T08:14:32+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/publication_queue.py:2149-2153 (`progress = worker(root); resume_composition_ci(root, _repo(root)); return progress`) and 2362-2421 (raises QueueError on inventory limit, malformed row, and `if failures: raise`). The `len(rows) >= QUEUE_INVENTORY_LIMIT` check also fails on exactly-at-limit inventories.",
-      "id": "ci-resume-error-masks-worker-progress",
+      "evidence": "template/scripts/lifecycle_workers.py: `identity = job[\"task_identity\"]` followed by `composition_repair = kind == \"repair\" and isinstance(identity, dict) and ...`",
+      "id": "execute-job-identity-keyerror",
       "severity": "advisory",
-      "summary": "run_worker now calls resume_composition_ci after worker(). Any raise from it discards the worker's already-computed progress result. The raises are an inventory at or above the bound, an invalid row, an accumulated stale-head failure, or an exception from advance_final_publication. One bad composition PR can make every queue run look failed, including runs that did integrate something."
+      "summary": "execute_job now reads job[\"task_identity\"] unconditionally for every job kind. A review or non-composition job record without that key raises KeyError before the existing \"no executor\" and provider checks. Use job.get(\"task_identity\") instead."
     },
     {
-      "evidence": "template/scripts/requirement_composition.py:593-603; callers without main_base at requirement_composition.py:363 and post_review_finalization.py:372.",
-      "id": "main-only-carry-without-base-raises-instead-of-awaiting",
+      "evidence": "template/scripts/publication_queue.py run_worker: `progress = worker(root); resume_composition_ci(root, _repo(root)); return progress`; resume_composition_ci raises QueueError for inventory problems and `if failures: raise QueueError(...)`; the per-PR loop has no try/except around advance_final_publication.",
+      "id": "ci-resume-aborts-queue-run",
       "severity": "advisory",
-      "summary": "advance_final_publication takes the main-only carry branch whenever candidate['head'] != head and force_full_checks is false. The finalization and reconcile callers pass no main_base. If the derived candidate's head differs from the pushed head (for example a finalization push), the function now raises ContributionError ('main-only carry lacks trusted passed gates') or passes main_base=None to main_only_reason. Before this change it returned 'await-composition-finalization' or ran the checks. The old-head test is a proxy for 'queue main refresh', not an explicit signal."
-    },
-    {
-      "evidence": "template/scripts/integration_contour.py:342-344 (`enqueue=False`); template/scripts/publication_queue.py:2267-2419 (the repair handoff applies only when `not evidence[\"enqueue\"]`).",
-      "id": "repair-pass-never-admits-by-itself",
-      "severity": "advisory",
-      "summary": "The genuine-repair path calls advance_final_publication with enqueue=False. The spec says repair completes 'full checks and admission'. Admission therefore depends on the candidate already being admitted and on the later CI-event resume. A failed-CI outcome on that path is routed into _integration_repair only for queue-owned waits. The contract is unclear for non-queue-owned cases."
-    },
-    {
-      "evidence": "template/scripts/integration_contour.py:331-336; template/scripts/candidate_lifecycle.py:458-460; template/scripts/publication_queue.py:2385-2387 (skips unless phase == 'composition-final-ci').",
-      "id": "interrupted-repair-recovery-blocks-without-resume-path",
-      "severity": "advisory",
-      "summary": "The recovery of an interrupted composition repair sets blocked-retryable with a red full-checks gate and a derive-time pop of full-checks. The CI-resume worker only resumes candidates whose required-checks evidence phase is 'composition-final-ci'. Such a recovered candidate has no such gate, so no automatic path advances it. It stays blocked until manual intervention. This may be intended ('explicitly blocked'), but the runbook doesn't name the operator action."
+      "summary": "run_worker calls resume_composition_ci after worker(root) has already done its work. An unrelated problem makes the whole queue run fail and discards the returned progress. The problems are an inventory at or above QUEUE_INVENTORY_LIMIT, a malformed row, any exception from one PR's advance_final_publication, or the aggregated stale-head QueueError. One bad composition wait also stops the remaining waits from being resumed in that event. There is also no claim or lock around the resume, so concurrent CI events can both re-run advance_final_publication for the same PR. Idempotency relies only on transition CAS."
     }
   ],
-  "launched_at": "2026-11-02T06:21:33+00:00",
-  "output_sha256": "d917bc33fa2e91ae0627b6dde0cdc4f9fc8ebdbe807bc576de49082e5f889858",
+  "launched_at": "2026-11-02T08:14:07+00:00",
+  "output_sha256": "00442d47fbd6778eee9a01c56b4f0d210cc56c94dbb9d60b641a38bedfe4626f",
   "perspective": "engineering-quality",
-  "request_id": "dde4d24c-b505-4bda-9b26-82c39278e918",
+  "request_id": "1e63c26b-5ece-489a-a7c1-769c3647e587",
   "reviewer": {
-    "context_id": "4ad381b0-2944-4de7-aa6b-c391c11d0f88",
+    "context_id": "70fbbcd3-4d74-424e-9f40-098fb8143a54",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e0236fe0-a700-4790-aa93-5324ba9368a3",
+    "launch_id": "platform-launch-060c6c4e-0dfa-43f9-b033-2658bda24207",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -57,41 +45,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32712
+        "value": 54922
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53432
+        "value": 204503
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21937
+        "value": 24291
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22918
+        "value": 24683
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2556
+        "value": 2893
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "3ca7665770f96adea19304104c0e5e37425b6cc2c61dbde69105cadbb1a8a14c"
+  "task_content_digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30"
 }
