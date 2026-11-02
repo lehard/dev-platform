@@ -9,31 +9,31 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.439,
+      "duration_seconds": 0.154,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
-      "duration_seconds": 1.93,
+      "duration_seconds": 0.445,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.143,
+      "duration_seconds": 0.138,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/generate_platform_manifest.py --check",
-      "duration_seconds": 0.173,
+      "duration_seconds": 0.212,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 1255.85,
+      "duration_seconds": 1335.552,
       "outcome": "success",
       "exit_code": 0
     }
@@ -43,7 +43,9 @@
       "id": "full-trigger",
       "paths": [
         "template/scripts/candidate_lifecycle.py",
+        "template/scripts/execute_requirement.py",
         "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_workers.py",
         "template/scripts/publication_queue.py",
         "template/scripts/requirement_composition.py",
         "tests/test_autonomous_integration_contour.py",
@@ -76,38 +78,57 @@
     "change": "composition-main-only-gates",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/composition-main-only-gates",
     "branch": "agent/br-978-t1-composition-main-only-gates",
-    "head": "cbc14a34d3117c405ce08211624d00cebbecb500",
+    "head": "9cfe26e2c049f7767faa2f220c3014114df5d1fc",
     "task_content": {
       "version": 1,
-      "digest": "d4d86c49b87377787bb8aa3ff8e45ba9496a17036407a78ea1c5e6ca80042cfa",
+      "digest": "8b27b1e72689387a9a6d2708649e5b19baa1f884a33f3fe0b4104d567eef17aa",
       "paths": {
-        "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "2c57e5c7d56bdd0b334cb8ee70ec5c8593d1378c",
-        "docs/engineering/chat-coordinator.md": "2edcedeffe4854ac280b320ff644c67afa0919c2",
+        "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+        "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
         "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
         "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/composition-main-only-gates/automated-checks.json": "5b34234d6b452c6fd1579953484383867b059ade",
         "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+        "openspec/changes/composition-main-only-gates/independent-review-request.json": "fb9921b9afb4d93453e233dc51cb6ed801c62ff4",
+        "openspec/changes/composition-main-only-gates/independent-reviews/engineering-quality.json": "3f0bc576b58d5903af58b9b2bc499c4378c72c9e",
+        "openspec/changes/composition-main-only-gates/independent-reviews/spec-fidelity.json": "9cf3067194e8b430d1455cb0cce35ca08115a459",
         "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
         "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
         "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
         "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
-        "template/dev-platform/platform-manifest.json": "d63071ed8e1f59795b92cf93ec3ec5707d835f9c",
+        "openspec/changes/composition-main-only-gates/verification.md": "c01fdea47516c6f1eb30e8383a4eb8ff69f42951",
+        "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+        "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+        "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+        "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+        "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+        "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+        "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+        "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+        "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+        "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+        "template/dev-platform/platform-manifest.json": "a258e61fba142200bbbbb3f731a245f08cdcd3b2",
         "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+        "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
         "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+        "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
         "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
-        "template/scripts/requirement_composition.py": "6f880b766e845678ddccb8f7a302e6ec2e836b5d",
+        "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
         "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
         "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
         "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
-        "tests/test_requirement_contribution_composition.py": "9b2e9846712791e32d53b35459526a3defcfaca4"
+        "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
       },
       "base": "a7dda322630f3b561a5d391e6def8c6c895d3e31"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "3ca7665770f96adea19304104c0e5e37425b6cc2c61dbde69105cadbb1a8a14c",
+    "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
     "paths": {
-      "docs/engineering/chat-coordinator.md": "2edcedeffe4854ac280b320ff644c67afa0919c2",
+      "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+      "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
       "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
       "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
       "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
@@ -115,21 +136,34 @@
       "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
       "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
       "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+      "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+      "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+      "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+      "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+      "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+      "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+      "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+      "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+      "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+      "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
       "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+      "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
       "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+      "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
       "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
-      "template/scripts/requirement_composition.py": "6f880b766e845678ddccb8f7a302e6ec2e836b5d",
+      "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
       "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
       "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
       "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
-      "tests/test_requirement_contribution_composition.py": "9b2e9846712791e32d53b35459526a3defcfaca4"
+      "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
     },
     "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
-    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/requirement_composition.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_coordinator_preflight.py --changed-file tests/test_publication_queue.py --changed-file tests/test_requirement_contribution_composition.py",
-    "duration_seconds": 372.576,
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/requirement_composition.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_coordinator_preflight.py --changed-file tests/test_publication_queue.py --changed-file tests/test_requirement_contribution_composition.py",
+    "duration_seconds": 413.688,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
