@@ -246,6 +246,372 @@
         "work_identity": "BR-978/T2"
       },
       "work_identity": "BR-978/T2"
+    },
+    {
+      "change": "composition-main-only-gates",
+      "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/composition-main-only-gates/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "5cf3e4aa89b0e62c11aeac8026009e20d7ed92b8"
+          },
+          "identity": {
+            "change": "composition-main-only-gates",
+            "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+            "kind": "contribution",
+            "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+            "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+            "target_branch": "requirement/BR-978",
+            "task_content": {
+              "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+              "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+              "paths": {
+                "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+                "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+                "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+                "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+                "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+                "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+                "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+                "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+                "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+                "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+                "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+                "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+                "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+                "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+                "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+                "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+                "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+                "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+                "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+                "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+                "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+                "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+                "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+                "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+                "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+                "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+                "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+                "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-978/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "148d18fe4dd80726c8c78ccb68fbea7c5719e494",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "composition-main-only-gates",
+            "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+            "kind": "contribution",
+            "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+            "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+            "target_branch": "requirement/BR-978",
+            "task_content": {
+              "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+              "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+              "paths": {
+                "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+                "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+                "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+                "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+                "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+                "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+                "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+                "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+                "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+                "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+                "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+                "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+                "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+                "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+                "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+                "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+                "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+                "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+                "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+                "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+                "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+                "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+                "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+                "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+                "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+                "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+                "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+                "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-978/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/lifecycle_workers.py: `identity = job[\"task_identity\"]` followed by `composition_repair = kind == \"repair\" and isinstance(identity, dict) and ...`",
+                  "id": "execute-job-identity-keyerror",
+                  "severity": "advisory",
+                  "summary": "execute_job now reads job[\"task_identity\"] unconditionally for every job kind. A review or non-composition job record without that key raises KeyError before the existing \"no executor\" and provider checks. Use job.get(\"task_identity\") instead."
+                },
+                {
+                  "evidence": "template/scripts/publication_queue.py run_worker: `progress = worker(root); resume_composition_ci(root, _repo(root)); return progress`; resume_composition_ci raises QueueError for inventory problems and `if failures: raise QueueError(...)`; the per-PR loop has no try/except around advance_final_publication.",
+                  "id": "ci-resume-aborts-queue-run",
+                  "severity": "advisory",
+                  "summary": "run_worker calls resume_composition_ci after worker(root) has already done its work. An unrelated problem makes the whole queue run fail and discards the returned progress. The problems are an inventory at or above QUEUE_INVENTORY_LIMIT, a malformed row, any exception from one PR's advance_final_pub"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "0651cc7dfbcf299c022bb07025c4ce0fabe09ee8bb3c4ce78d19aec13e64f051"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "49833a09f20841deaa7cd18c8fc077b317d7027b5de75ceaefebcbe29069aa67"
+            }
+          },
+          "identity": {
+            "change": "composition-main-only-gates",
+            "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+            "kind": "contribution",
+            "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+            "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+            "target_branch": "requirement/BR-978",
+            "task_content": {
+              "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+              "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+              "paths": {
+                "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+                "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+                "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+                "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+                "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+                "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+                "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+                "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+                "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+                "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+                "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+                "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+                "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+                "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+                "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+                "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+                "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+                "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+                "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+                "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+                "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+                "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+                "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+                "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+                "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+                "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+                "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+                "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-978/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 11395,
+            "path": "openspec/changes/composition-main-only-gates/automated-checks.json",
+            "sha256": "7a107981776ba83c9542312bc97d4f2589ff701e65c9920d380dde872c76c4f8"
+          },
+          "identity": {
+            "change": "composition-main-only-gates",
+            "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+            "kind": "contribution",
+            "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+            "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+            "target_branch": "requirement/BR-978",
+            "task_content": {
+              "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+              "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+              "paths": {
+                "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+                "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+                "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+                "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+                "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+                "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+                "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+                "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+                "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+                "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+                "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+                "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+                "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+                "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+                "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+                "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+                "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+                "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+                "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+                "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+                "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+                "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+                "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+                "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+                "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+                "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+                "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+                "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-978/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2178,
+            "path": "openspec/changes/composition-main-only-gates/verification.md",
+            "sha256": "f449fed1bb10ae3fc46e86907d4705bf606dd025d867fbb6911e95884026a7c4"
+          },
+          "identity": {
+            "change": "composition-main-only-gates",
+            "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+            "kind": "contribution",
+            "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+            "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+            "target_branch": "requirement/BR-978",
+            "task_content": {
+              "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+              "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+              "paths": {
+                "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+                "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+                "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+                "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+                "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+                "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+                "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+                "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+                "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+                "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+                "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+                "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+                "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+                "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+                "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+                "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+                "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+                "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+                "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+                "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+                "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+                "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+                "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+                "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+                "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+                "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+                "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+                "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+                "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-978/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "148d18fe4dd80726c8c78ccb68fbea7c5719e494",
+      "integrated_head": "53350faef71b14744626bb156d073b2589523006",
+      "pr_number": 862,
+      "reviewed_evidence_digest": "05952661460097497097c5afcc54609f33de86e4e820932585903d359d9b0b55",
+      "source_branch": "agent/br-978-t1-composition-main-only-gates",
+      "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+      "task_identity": {
+        "change": "composition-main-only-gates",
+        "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+        "kind": "contribution",
+        "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+        "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+        "target_branch": "requirement/BR-978",
+        "task_content": {
+          "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+          "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+          "paths": {
+            "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+            "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+            "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+            "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+            "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+            "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+            "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+            "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+            "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+            "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+            "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+            "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+            "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+            "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+            "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+            "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+            "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+            "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+            "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+            "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+            "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+            "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+            "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+            "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+            "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+            "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+            "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+            "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-978/T1"
+      },
+      "work_identity": "BR-978/T1"
     }
   ],
   "dependencies": {
@@ -255,7 +621,7 @@
     ],
     "requirement-branch-repair": []
   },
-  "digest": "d60dfa19643a96d94cf92a43140503434043ac2f9b7c7dfc5a630d9a065a24b2",
+  "digest": "a11fb635ad60cd05c05ee8370abaec110dcc7e535dd638ba44a6b52895878d34",
   "expected_changes": [
     "composition-main-only-gates",
     "requirement-branch-repair",
