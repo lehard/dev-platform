@@ -1,0 +1,77 @@
+{
+  "candidate": {
+    "base_head": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "base_ref": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "candidate_head": "0a519d160c503558deeae011f4f415433dd53fc6",
+    "diff_sha256": "7848786be4d377cb6160203e9f81abe7b71bf02ec9030724f8a6d00db4edd001"
+  },
+  "change": "openspec/changes/requirement-branch-repair",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/requirement-branch-repair/automated-checks.json",
+    "openspec/changes/requirement-branch-repair/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/requirement-branch-repair/design.md",
+        "openspec/changes/requirement-branch-repair/proposal.md",
+        "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md",
+        "openspec/changes/requirement-branch-repair/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/requirement-branch-repair/proposal.md",
+        "openspec/changes/requirement-branch-repair/design.md",
+        "openspec/changes/requirement-branch-repair/tasks.md",
+        "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-02T05:04:22+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/requirement-branch-repair/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "3b6586e4-0b62-4a1d-8c09-af84239c8850",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "digest": "3b825a0744eda6623254845ea5887cd92c249d431575b20861dd5d8109f3943c",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "b7698dd333f1f9de845fe4e9450b5576a8040dc3",
+      "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+      "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+      "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+      "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+      "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+      "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+      "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+      "template/scripts/requirement_composition.py": "ae8ed7a1499eebcb73b7c2bea5d9eb8cdaf85675",
+      "tests/test_requirement_contribution_composition.py": "3d1b50a2d45ce86fb4862f8d08b32a9566027317"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
