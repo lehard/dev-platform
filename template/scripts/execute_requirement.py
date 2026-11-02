@@ -884,16 +884,35 @@ def _await_post_merge(parent: dict[str, Any], requirement: str, children: list[s
                       "retrospective and closes the Requirement"}
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Resume one Business Requirement through managed child and shared delivery.")
-    parser.add_argument("advance", choices=["advance"])
-    parser.add_argument("--requirement", required=True)
-    parser.add_argument("--base-dir", type=Path)
-    parser.add_argument("--confirm-distinct", action="store_true", help="Confirm that reviewed similar Issues are distinct before creating a missing child")
-    add_defer_rollout_argument(parser)
-    args = parser.parse_args()
-    apply_defer_rollout(args)
+    commands = parser.add_subparsers(dest="command", required=True)
+    resume = commands.add_parser("advance")
+    resume.add_argument("--requirement", required=True)
+    resume.add_argument("--base-dir", type=Path)
+    resume.add_argument("--confirm-distinct", action="store_true", help="Confirm that reviewed similar Issues are distinct before creating a missing child")
+    add_defer_rollout_argument(resume)
+    repair = commands.add_parser("repair", help="enqueue the existing repair job for a complete Requirement composition PR")
+    repair.add_argument("--pr", type=int, required=True)
+    repair.add_argument("--expected-head", required=True)
+    repair.add_argument("--reason", required=True)
+    args = parser.parse_args(argv)
     integration = current_worktree_root().resolve()
+    if args.command == "repair":
+        import publication_queue
+        from requirement_composition import request_repair
+        from requirement_contributions import ContributionError
+        import lifecycle_workers
+
+        try:
+            result = request_repair(integration, managed_task.origin_repository(integration), args.pr,
+                                    expected_head=args.expected_head, reason=args.reason)
+        except (ContributionError, publication_queue.QueueError, lifecycle_workers.WorkerError) as exc:
+            print(json.dumps({"status": "blocked", "pr": args.pr, "reason": str(exc)}, ensure_ascii=False))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    apply_defer_rollout(args)
     base_dir = (args.base_dir or orchestrate_pre_authoring.default_base_dir(integration)).resolve()
     try:
         result = advance(integration, requirement=args.requirement, base_dir=base_dir, confirm_distinct=args.confirm_distinct)

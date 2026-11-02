@@ -157,6 +157,30 @@ healthy. The line explains the wait and takes no action.
 
 ## Acting on an exception
 
+An assembled Requirement branch is repaired only through its composition PR's
+queue job. From the coordinator checkout, request the existing repair writer:
+
+```bash
+python3 scripts/execute_requirement.py repair --pr N --expected-head <head> --reason "<bounded composition fix>"
+```
+
+The command requires an open composition PR at that exact head, its complete
+owned contribution manifest, intact child receipts and no live job claim. It
+records the reason and authenticated actor and offers one `repair` job using
+the normal provider routing and attempt budget. Repeating it while that repair
+is pending returns the existing job. A finding escalation or spent repair budget
+still requires the owner's decision. Never repair `requirement/BR-N` with a
+manual commit or edit its manifest instance by hand.
+
+Run the offered job through the usual `lifecycle_workers.py work-next` repair
+writer, whose scope is the PR's changed paths. The harness regenerates declared
+generated files and the composition manifest, then runs `validate_children`
+before push. Every child's verification, automated checks and independent review
+files must remain byte-for-byte identical to the reviewed contribution, including
+after archive moves. A mismatch fails naming the child and receipt; nothing is
+restored silently or pushed. A successful repair returns to composition review,
+finalization and full checks for the changed content.
+
 The overview prints, per item, either the permitted commands or the human
 decision that is needed. The permitted list is computed by the same eligibility
 function as the commands and is limited to `resume`, `switch-provider` and, for a
