@@ -63,6 +63,11 @@ def fixture_locked_json(path: Path) -> Iterator[dict]:
 
 class RequirementExecutionTests(unittest.TestCase):
     def setUp(self) -> None:
+        import publication_queue
+        for name, value in (("_repo", "acme/project"), ("_gh", [])):
+            patcher = mock.patch.object(publication_queue, name, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         # Card claiming first ensures Project membership; these tests fake only the card status.
         patcher = mock.patch.object(
             execution.managed_project_status, "ensure_item", return_value=SimpleNamespace(status="Backlog"))
