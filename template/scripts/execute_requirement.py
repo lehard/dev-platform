@@ -966,12 +966,36 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
     from _platform_common import read_platform_config
     from requirement_composition import publish_composition
 
+    # Resolve the handoff key through its own authored bundle before creating the graph.
+    # The filename remains the bundle lookup key even after a linked child rekeys it.
+    normalized = []
+    bundles = {}
+    renames = {}
+    for key, handoff in ordered:
+        handoff_key = handoff.stem
+        bundle_path = _bundle(base_dir, requirement, handoff_key)
+        try:
+            change = managed_task.load_authoring_bundle(str(bundle_path)).change
+        except managed_task.ManagedTaskError as exc:
+            raise RequirementExecutionError(f"invalid bundle for handoff {handoff_key}: {exc}") from exc
+        if key not in (handoff_key, change):
+            raise RequirementExecutionError(f"handoff {handoff_key} maps to {key}, but its bundle names {change}")
+        if handoff_key != change and handoff_key in linked:
+            raise RequirementExecutionError(f"linked child change {handoff_key} conflicts with bundle change {change}")
+        if change in bundles:
+            raise RequirementExecutionError(f"ambiguous handoffs map to change {change}")
+        bundles[change] = bundle_path
+        if handoff_key != change:
+            renames[handoff_key] = change
+        normalized.append((change, handoff))
+    ordered = _ordered_handoffs({"current_stage": "complete", "handoffs": {
+        change: str(path) for change, path in normalized}}, requirement)
     # Materialize all identities before starting work. No sibling backlog is invented.
     for change, handoff in ordered:
         if change not in linked:
             linked[change] = requirement_intake.materialize_handoff(
                 integration, requirement=requirement, handoff_file=handoff,
-                bundle_path=_bundle(base_dir, requirement, change), base_dir=base_dir,
+                bundle_path=bundles[change], base_dir=base_dir,
                 confirm_distinct=confirm_distinct)["child"]
     config = read_platform_config(integration)
     repository = str(config.get("repository") or managed_task.origin_repository(integration))
@@ -983,7 +1007,7 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
                                  status_command=f"python3 scripts/publication_queue.py status --pr {merged[-1]}")
     graph = _handoff_dependencies(ordered)
     boundary = ensure_integration_branch(integration, requirement=requirement, repository=repository,
-                                         expected_changes=[c for c, _ in ordered], dependencies=graph)
+                                         expected_changes=[c for c, _ in ordered], dependencies=graph, handoff_renames=renames)
     branch, head, manifest = boundary["branch"], boundary["head"], boundary["manifest"]
     _git(integration, "fetch", "origin", f"{branch}:refs/remotes/origin/{branch}")
     integrated = {child["change"]: child for child in manifest["children"]}
