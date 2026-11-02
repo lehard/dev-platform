@@ -2146,7 +2146,9 @@ def run_worker(root: Path, mode: str, env: Mapping[str, str], *, install_sink: b
     identity = run_identity(mode, env)
     if install_sink:
         use_default_friction_sink(root, worker=identity)
-    return worker(root)
+    progress = worker(root)
+    resume_composition_ci(root, _repo(root))
+    return progress
 
 
 def worker(root: Path) -> dict[str, Any]:
@@ -2216,6 +2218,67 @@ def worker(root: Path) -> dict[str, Any]:
     return {"state": "waiting", "reason": "no integrable candidate; " + "; ".join(skipped)}
 
 
+def resume_composition_ci(root: Path, repo: str) -> None:
+    """Re-observe saved composition waits once per existing queue-workflow event."""
+    import tempfile
+    from lifecycle_workers import prepare_checkout
+    from requirement_composition import advance_final_publication, candidate_manifest
+
+    rows = _gh(root, "pr", "list", "--state", "open", "--label", "lifecycle:blocked-retryable",
+               "--limit", str(QUEUE_INVENTORY_LIMIT), "--json", "number,headRefName")
+    if not isinstance(rows, list) or len(rows) >= QUEUE_INVENTORY_LIMIT:
+        raise QueueError("composition CI wait inventory is unavailable or exceeds the bounded limit")
+    failures = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("number"), int):
+            raise QueueError("composition CI wait inventory contains an invalid PR")
+        if not str(row.get("headRefName", "")).startswith("requirement/BR-"):
+            continue
+        number = row["number"]
+        pr = _pr(root, repo, number)
+        comments = _comments(root, repo, number)
+        candidate = _derive(root, pr, comments)
+        gate = candidate.get("gates", {}).get("required-checks")
+        evidence = gate.get("evidence") if isinstance(gate, dict) else None
+        if (candidate.get("state") != "blocked-retryable" or not isinstance(evidence, dict)
+                or evidence.get("phase") != "composition-final-ci"):
+            continue
+        head = candidate.get("head")
+        if not isinstance(head, str) or pr.get("head", {}).get("sha") != head or evidence.get("head") != head:
+            failures.append(f"PR #{number} composition CI wait head is stale")
+            continue
+        if type(evidence.get("enqueue")) is not bool:
+            failures.append(f"PR #{number} composition CI wait lacks its admission intent")
+            continue
+        identity = candidate.get("task_identity")
+        if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
+            failures.append(f"PR #{number} composition CI wait lacks its trusted identity")
+            continue
+        full_gate = candidate.get("gates", {}).get("full-checks")
+        if not isinstance(full_gate, dict) or full_gate.get("result") != "passed":
+            failures.append(f"PR #{number} composition CI wait lacks passed full-check evidence")
+            continue
+        with tempfile.TemporaryDirectory(prefix="composition-ci-wait-") as temporary:
+            checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
+            manifest = candidate_manifest(checkout, identity["requirement"])
+        result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__],
+                                           enqueue=evidence["enqueue"], candidate=candidate)
+        if result.get("status") == "waiting-ci" and not evidence["enqueue"]:
+            observed = result["observed"]
+            if observed.get("kind") == "failed" and observed.get("head") == head:
+                admission = _admission(_events(root, repo, number), number)
+                if admission is None:
+                    raise QueueError("queue-owned composition CI wait has no admission")
+                failed = [{key: check.get(key) for key in ("name", "workflow", "state", "link")}
+                          for check in observed["checks"]
+                          if str(check.get("state", "")).strip().upper() in FAILED_CHECK_STATES]
+                _integration_repair(root, repo, number, admission,
+                                    IntegrationRepairNeeded(result["reason"], gate="required-checks",
+                                                            failed_checks=failed))
+    if failures:
+        raise QueueError("; ".join(failures))
+
+
 def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, Any], pr: dict[str, Any],
                       skipped: list[str], active: Callable[[int], bool]) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """One queue candidate: ``(outcome that ends the run, block to report)``; ``(None, None)`` moves on."""
@@ -2275,6 +2338,14 @@ def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, A
     # Without any v2 record the v1 admission alone governs (it reads as ready).
     has_v2 = any(str(row.get("body", "")).startswith(V2_PREFIX) for row in comments)
     current = _derive(root, pr, comments) if has_v2 else {"state": "ready"}
+    ci_gate = current.get("gates", {}).get("required-checks")
+    ci_evidence = ci_gate.get("evidence") if isinstance(ci_gate, dict) else None
+    if (current.get("state") == "blocked-retryable" and isinstance(ci_evidence, dict)
+            and ci_evidence.get("phase") == "composition-final-ci"):
+        skipped.append(f"#{number} composition awaits exact-head required CI")
+        if active(number):
+            _label(root, repo, number, ACTIVE, present=False)
+        return None, None
     if has_v2 and str(current.get("reason", "")).startswith("recover validated integration-repair push"):
         # A repair job pushed its validated result but was interrupted before advancing: record it.
         from integration_contour import recover_integration_repair
@@ -2378,7 +2449,18 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
         _require_finalized(root, number, pr.get("head", {}).get("sha"))
         head, base = _prepare(root, repo, number, admission, pr)
         if pr.get("head", {}).get("ref", "").startswith("requirement/BR-") and head != pr["head"]["sha"]:
-            refresh_composition_checks(root, repo, number, head)
+            refreshed = refresh_composition_checks(root, repo, number, head, base)
+            if refreshed.get("status") == "waiting-ci":
+                observed = refreshed["observed"]
+                if observed.get("kind") == "failed" and observed.get("head") == head:
+                    failed = [{key: check.get(key) for key in ("name", "workflow", "state", "link")}
+                              for check in observed["checks"]
+                              if str(check.get("state", "")).strip().upper() in FAILED_CHECK_STATES]
+                    raise IntegrationRepairNeeded(refreshed["reason"], gate="required-checks", failed_checks=failed)
+                _label(root, repo, number, ACTIVE, present=False)
+                return _released({"state": "waiting", "number": number, "reason": refreshed["reason"]})
+            if refreshed.get("status") != "ready":
+                raise QueueError("Requirement final-head checks await fresh composition gates")
         identity = {"branch": admission.get("branch"), "head": head}
         integrating = _transition(root, repo, number, "integrating", head, task_identity=identity, attempt="integration",
                     refuse_from=NOT_INTEGRABLE, cross_head_claims=True,
@@ -2423,6 +2505,9 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
                                             f"head within {CHECK_WAIT_SECONDS} s: {names}", head=head))
                 return {"state": "waiting", "number": number, "reason": "required CI pending"}
             time.sleep(10)
+        if isinstance(identity, dict) and identity.get("kind") == "requirement-composition":
+            # The observation above established a passed exact-head check; preserve its classification.
+            checks_evidence = {**checks_evidence, "kind": "passed"}
         if isinstance(identity, dict) and isinstance(identity.get("task_content"), dict):
             _transition(root, repo, number, "integrating", head, task_identity=identity,
                         gates={"required-checks": {"result": "passed", "identity": identity,
@@ -2770,27 +2855,30 @@ def require_composition_finalized(root: Path, repo: str, number: int, head: str,
         with tempfile.TemporaryDirectory(prefix="requirement-merge-gates-") as temporary:
             checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", proven)
             manifest = candidate_manifest(checkout, identity["requirement"])
-            require_final_gates(checkout, manifest, current, proven)
+            require_final_gates(checkout, manifest, current, proven, trusted_root=root)
             return {"task_identity": identity, "gates": current["gates"]}
     except ContributionError as exc:
         raise QueueError(str(exc)) from exc
 
 
-def refresh_composition_checks(root: Path, repo: str, number: int, head: str) -> None:
+def refresh_composition_checks(root: Path, repo: str, number: int, head: str, base: str) -> dict[str, Any]:
     import tempfile
     from lifecycle_workers import prepare_checkout
     from requirement_composition import candidate_manifest, advance_final_publication
 
     # The coordinator has just merged main into the composition: its gates are on the replaced head.
     candidate = _composition_lineage(root, repo, number, head)
+    if candidate.get("head") == head:
+        raise QueueError("composition main refresh lacks the replaced gated head")
+    full_gate = candidate.get("gates", {}).get("full-checks")
+    if not isinstance(full_gate, dict) or full_gate.get("result") != "passed":
+        raise QueueError("composition main refresh lacks passed full-check evidence")
     identity = candidate["task_identity"]
     with tempfile.TemporaryDirectory(prefix="composition-main-refresh-") as temporary:
         checkout = prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
         manifest = candidate_manifest(checkout, identity["requirement"])
-    result = advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__],
-                                       enqueue=False, candidate=candidate)
-    if result["status"] != "ready":
-        raise QueueError("Requirement final-head checks await fresh composition gates")
+    return advance_final_publication(root, repo, manifest, head, number, adapter=sys.modules[__name__],
+                                     enqueue=False, candidate=candidate, main_base=base)
 
 
 if __name__ == "__main__":

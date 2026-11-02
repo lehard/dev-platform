@@ -197,9 +197,13 @@ no fresh job is re-offered with `resume`. A Requirement listed as waiting for th
 (`awaits-owner-acceptance` in the overview) closes only after the owner's word on each
 operator acceptance item, recorded with the printed
 `requirement_terminal.py accept ... --via chat-coordinator --reason "<owner's words>"`. A Requirement composition has no pre-merge
-retrospective: its finalize job runs the full final-head checks and admits it,
-and the post-merge retrospective job records the Requirement checkpoint after
-the merge. A record still carrying a pre-merge retrospective job fails
+retrospective: its finalize job runs the full final-head checks, records any
+wait for required CI on that exact head, and admits it only once CI passes. The
+existing publication queue resumes the recorded wait on a CI completion event;
+it does not repeat the full checks. A clean, proven main-only update retains the
+original full-check evidence and requires new exact-head CI. An interrupted
+integration-repair push without final-check proof is explicitly blocked. The
+post-merge retrospective job records the Requirement checkpoint after the merge. A record still carrying a pre-merge retrospective job fails
 derivation naming the PR; re-offer finalization or recover the candidate.
 A review or repair escalated only because its worker kept failing (the claim was
 released after failed runs, the evidence holds no findings) is operational: `resume`
