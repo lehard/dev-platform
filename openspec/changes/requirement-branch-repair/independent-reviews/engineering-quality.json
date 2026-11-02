@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "base_ref": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "candidate_head": "0a519d160c503558deeae011f4f415433dd53fc6",
+    "diff_sha256": "7848786be4d377cb6160203e9f81abe7b71bf02ec9030724f8a6d00db4edd001"
+  },
+  "completed_at": "2026-11-02T05:05:09+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py (diff lines 227-228): `identity = job[\"task_identity\"]` followed by `composition_repair = kind == \"repair\" and isinstance(identity, dict) ...`",
+      "id": "execute-job-identity-keyerror",
+      "severity": "advisory",
+      "summary": "execute_job now reads job[\"task_identity\"] unconditionally for every job kind, including review and non-composition jobs. A job record without that key would raise KeyError before the existing `no executor` and provider checks, which is a regression in error handling. It should use job.get(\"task_identity\")."
+    }
+  ],
+  "launched_at": "2026-11-02T05:04:53+00:00",
+  "output_sha256": "8b88fa881fa187ae9caab55c1be191cdc54e68de31c00db441c44a9d49657871",
+  "perspective": "engineering-quality",
+  "request_id": "3b6586e4-0b62-4a1d-8c09-af84239c8850",
+  "reviewer": {
+    "context_id": "43ae7f0c-3f80-4dca-87e9-bceb53b2126b",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3750ac8d-7b59-44cb-bb06-1355067281f1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25075
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18177
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13140
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14136
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1339
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3b825a0744eda6623254845ea5887cd92c249d431575b20861dd5d8109f3943c"
+}

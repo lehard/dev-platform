@@ -26,11 +26,31 @@ def evidence_directory(requirement: str) -> Path:
     return Path("dev-platform/requirement-evidence") / integration._candidate_slug(requirement)
 
 
+def child_receipts(checkout: Path, change: str, ref: str) -> dict:
+    """Git blob ids preserve receipt bytes and modes across active/archive moves."""
+    receipts = {}
+    for entry in workers.harness_git(checkout, "ls-tree", "-r", "-z", ref).split("\0"):
+        if not entry:
+            continue
+        metadata, raw = entry.split("\t", 1)
+        path = _canonical_path(raw, change)
+        if path.startswith(f"openspec/changes/{change}/") and workers._forbidden(path):
+            if path in receipts:
+                raise contributions.ContributionError(f"child {change} has duplicate receipt {path}")
+            receipts[path] = metadata
+    return receipts
+
+
 def validate_children(checkout: Path, manifest: dict) -> None:
     contributions.validate(manifest)
     if not integration.manifest_complete(manifest):
         raise contributions.ContributionError("composition requires every mandatory contribution exactly once")
     for child in manifest["children"]:
+        original = child_receipts(checkout, child["change"], child["head"])
+        current = child_receipts(checkout, child["change"], "HEAD")
+        for path in sorted(original.keys() | current.keys()):
+            if original.get(path) != current.get(path):
+                raise contributions.ContributionError(f"child {child['change']} receipt changed since review: {path}")
         identity = child["task_identity"]
         contributions.require_gates({"head": child["head"], "task_identity": identity, "gates": child["gates"]})
         if integration._digest(child["gates"]) != child["reviewed_evidence_digest"]:
@@ -66,9 +86,106 @@ def validate_children(checkout: Path, manifest: dict) -> None:
             if gate == "selected-checks" and reference.get("harness_executed"):
                 workers.harness_git(checkout, "merge-base", "--is-ancestor", reference["head"], child["head"])
                 continue
-            observed = workers.harness_git(checkout, "show", f"HEAD:{path}").encode() if path else b""
-            if not path or hashlib.sha256(observed).hexdigest() != reference.get("sha256"):
-                raise contributions.ContributionError(f"child {gate} receipt changed since review")
+            if not path:
+                raise contributions.ContributionError(f"child {child['change']} {gate} receipt is missing: {filename}")
+            observed = workers.harness_git(checkout, "show", f"HEAD:{path}", binary=True)
+            if hashlib.sha256(observed).hexdigest() != reference.get("sha256"):
+                raise contributions.ContributionError(f"child {child['change']} {gate} receipt changed since review: {filename}")
+
+
+def prepare_repaired_composition(stage: Path, trusted_root: Path, job: dict, branch: str,
+                                 allowed_paths) -> tuple[str, list[str]]:
+    """Regenerate the owned manifest and validate every preserved child before push."""
+    from _platform_common import generated_files
+
+    requirement = job["task_identity"]["requirement"]
+    try:
+        workers.install_source_contract(stage)
+        original = contributions.read_manifest(stage, requirement, job["head"])
+        manifest = candidate_manifest(stage, requirement)
+        contributions.validate(manifest, original)
+        if branch != original["integration_branch"] or manifest != original:
+            raise contributions.ContributionError("composition repair changed its owned contribution manifest")
+        changed = workers.worktree_changes(stage)
+        if changed:
+            raise workers._refusal("composition regeneration left uncommitted or undeclared changes", changed)
+        contributions.write_manifest(stage, contributions.seal(manifest))
+        head = workers.harness_git(stage, "rev-parse", "HEAD").strip()
+        validate_children(stage, manifest)
+    except contributions.ContributionError as exc:
+        raise workers.WorkerError(str(exc)) from exc
+    manifest_path = integration._candidate_manifest_path(requirement, stage).as_posix()
+    generated = [item.path for item in generated_files(trusted_root, "HEAD")]
+    return head, list(dict.fromkeys([*allowed_paths, *generated, manifest_path]))
+
+
+def request_repair(root: Path, repo: str, number: int, *, expected_head: str, reason: str,
+                   adapter=None, source_repo=None) -> dict:
+    """Request the existing queue repair job on an intact, complete composition."""
+    if adapter is None:
+        import publication_queue as adapter
+    from candidate_lifecycle import STATES
+    from pr_review_gate import MAX_ROUNDS
+
+    if not isinstance(reason, str) or not reason.strip():
+        raise contributions.ContributionError("composition repair requires a reason")
+    if not workers.HEAD.fullmatch(expected_head):
+        raise contributions.ContributionError("composition repair requires an exact expected head")
+    pr = adapter._pr(root, repo, number)
+    if pr.get("state") != "open" or pr.get("merged") or pr["head"]["sha"] != expected_head:
+        raise contributions.ContributionError(f"PR #{number} is not open at the expected head {expected_head}")
+    comments = adapter._comments(root, repo, number)
+    current = adapter._derive(root, pr, comments)
+    identity = current.get("task_identity")
+    if (adapter._malformed(current) or not isinstance(identity, dict)
+            or identity.get("kind") != "requirement-composition"
+            or adapter._latest(root, number, comments, expected_head) is None):
+        raise contributions.ContributionError(f"PR #{number} has no current assembled composition record")
+    job = workers.build_job(current)
+    if job is not None:
+        claim = workers.winning_claim(job, comments, trusted_apps=adapter.trusted_apps(root),
+            trusted_writers=adapter.trusted_writers(root, comments, (workers.CLAIM_PREFIX,), repo=repo))
+        if claim is not None:
+            raise contributions.ContributionError(f"PR #{number} is claimed by {claim['worker']} until {claim['expires_at']}")
+    if current["state"] not in {"review-pending", "finalize-pending", "ready", "repair-pending"}:
+        raise contributions.ContributionError(f"PR #{number} cannot request composition repair from {current['state']}")
+    with tempfile.TemporaryDirectory(prefix="composition-repair-request-") as temporary:
+        source = f"https://github.com/{repo}.git" if source_repo is None else source_repo
+        checkout = workers.prepare_checkout(source, temporary,
+                                            "harness", expected_head)
+        manifest = candidate_manifest(checkout, identity["requirement"])
+        if (pr["head"]["ref"] != manifest["integration_branch"] or pr["base"]["ref"] != "main"
+                or manifest["repository"] != repo or composition_identity(checkout, manifest) != identity):
+            raise contributions.ContributionError(f"PR #{number} does not match its complete composition manifest")
+    if current["state"] == "repair-pending":
+        if job is None or job["kind"] != "repair":
+            raise contributions.ContributionError(f"PR #{number} has no repair job to resume")
+        return {"state": "repair-pending", "number": number, "changed": False, "job": job}
+    attempts = current["attempts"]
+    attempt = attempts.get("repair", 0) + 1
+    if attempt > MAX_ROUNDS:
+        raise contributions.ContributionError(f"PR #{number} composition repair rounds exhausted")
+    route, _ = adapter._repair_route(current, pr, number, "repair")
+    switches = current.get("provider_switch")
+    if switches is not None and not isinstance(switches, dict):
+        raise contributions.ContributionError(f"PR #{number} has an invalid provider switch record")
+    switched = switches.get("repair") if switches is not None else None
+    providers = workers.authorized_repair_providers(route,
+        [route["provider"]] if switched is None else switched, None,
+        f"composition repair PR #{number}", switched=switched)
+    actor = adapter._actor(root)
+    seq = attempts.get("reoffers", 0) + 1
+    event = {"seq": seq, "action": "composition-repair", "actor": actor, "reason": reason.strip(), "head": expected_head}
+    job = workers.job_record("repair", expected_head, identity, attempt, providers=providers, reoffer=event)
+    red = {"name": "repair", "evidence": {"coordinator": {"findings": [
+        {"id": "composition-repair", "severity": "material", "summary": reason.strip(), "evidence": expected_head}]}}}
+    record = adapter._transition(root, repo, number, "repair-pending", expected_head,
+        task_identity=identity, inherit_identity=False, route=route, red_gate=red,
+        set_attempts={"repair": attempt, "reoffers": seq}, next_job=job,
+        refuse_from=STATES - {"review-pending", "finalize-pending", "ready"})
+    if record is None:
+        raise contributions.ContributionError(f"PR #{number} head moved while requesting composition repair")
+    return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}
 
 
 def children_archive_problems(checkout: Path, manifest: dict) -> list[str]:

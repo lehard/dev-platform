@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/platform-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "requirement-branch-repair",
+  "imported_at": "2026-11-01T14:19:11+00:00",
+  "package_revision": "0706e85294f8df2125bffbf3211c9a25d66de53f14765d411d552a7a84943692",
+  "prepared_against": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+  "private_lineage_handle": "pln_e8871a2df3934f8f1f6b8b0adc397952",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "6feb418155123b6cdcf010c245f8958e57e1eda35ae3e68db8473781c16fdec9",
+    "updated_at": "2026-11-01T14:03:50Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-978/T2"
+}
