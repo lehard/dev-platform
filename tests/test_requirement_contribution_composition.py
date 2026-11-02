@@ -442,6 +442,69 @@ class ContributionTests(unittest.TestCase):
             with self.assertRaises(contributions.ContributionError):
                 contributions.ensure_integration_branch(seed, **{**kwargs, "expected_changes": ["second", "first"]})
 
+    def test_graph_migration_is_bounded_and_fast_forward(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote, seed = root / "remote.git", root / "seed"
+            remote.mkdir(); seed.mkdir()
+            git(remote, "init", "--bare", "-b", "main")
+            git(seed, "init", "-b", "main")
+            git(seed, "config", "user.name", "Test"); git(seed, "config", "user.email", "test@example.test")
+            (seed / "AGENTS.md").write_text("test\n")
+            (seed / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
+            (seed / "dev-platform").mkdir()
+            (seed / "dev-platform/checks.toml").write_text("# checks\n")
+            git(seed, "add", "."); git(seed, "commit", "-m", "base")
+            git(seed, "remote", "add", "origin", str(remote)); git(seed, "push", "origin", "main")
+            kwargs = {"requirement": REQUIREMENT, "repository": "acme/project", "source_repo": remote.as_uri()}
+            old = contributions.ensure_integration_branch(seed, **kwargs, expected_changes=["first", "old-key"],
+                dependencies={"first": [], "old-key": ["first"]})
+            target = {**kwargs, "expected_changes": ["first", "new-change"],
+                      "dependencies": {"first": [], "new-change": ["first"]},
+                      "handoff_renames": {"old-key": "new-change"}}
+            with self.assertRaisesRegex(contributions.ContributionError, "ambiguous"):
+                contributions.ensure_integration_branch(seed, **{**target, "handoff_renames": {}})
+            with self.assertRaisesRegex(contributions.ContributionError, "differs"):
+                contributions.ensure_integration_branch(seed, **{**target, "dependencies": {"first": [], "new-change": []}})
+            original_git = workers.harness_git
+            def moved(checkout, *args):
+                if args[:2] == ("ls-remote", "origin"):
+                    moved.calls += 1
+                    if moved.calls == 2:
+                        return "f" * 40 + " refs/heads/requirement/BR-7"
+                return original_git(checkout, *args)
+            moved.calls = 0
+            with mock.patch.object(workers, "harness_git", side_effect=moved):
+                with self.assertRaisesRegex(contributions.ContributionError, "moved"):
+                    contributions.ensure_integration_branch(seed, **target)
+            self.assertEqual(git(remote, "rev-parse", "refs/heads/requirement/BR-7"), old["head"])
+            migrated = contributions.ensure_integration_branch(seed, **target)
+            self.assertEqual(migrated["manifest"]["expected_changes"], ["first", "new-change"])
+            self.assertEqual(migrated["manifest"]["dependencies"], target["dependencies"])
+            self.assertEqual(git(remote, "rev-parse", migrated["head"] + "^"), old["head"])
+            self.assertEqual(contributions.ensure_integration_branch(seed, **target), migrated)
+
+    def test_integrated_child_cannot_be_renamed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Repository(root)
+            child = fixture.child("first", 8)
+            git(root, "switch", "requirement/BR-7")
+            manifest = contributions.seal({**fixture.manifest, "children": [{
+                "change": "first", "head": child["head"], "contribution_base": fixture.boundary,
+                "integrated_head": child["head"], "source_issue": "acme/backlog#8", "pr_number": 8,
+                "reviewed_evidence_digest": "proof", "task_identity": child["task_identity"]}]})
+            contributions.write_manifest(root, manifest)
+            git(root, "branch", "-f", "main", fixture.base)
+            with tempfile.TemporaryDirectory() as bare:
+                git(Path(bare), "init", "--bare", "-b", "main")
+                git(root, "remote", "add", "origin", bare)
+                git(root, "push", "origin", "main", "requirement/BR-7")
+                with self.assertRaisesRegex(contributions.ContributionError, "already integrated"):
+                    contributions.ensure_integration_branch(root, requirement=REQUIREMENT, repository="acme/project",
+                        expected_changes=["renamed", "second"], dependencies={"renamed": [], "second": []},
+                        handoff_renames={"first": "renamed"}, source_repo=Path(bare).as_uri())
+
     def test_integrated_contribution_has_no_terminal_job(self):
         candidate = {"task_identity": {"kind": "contribution"}, "state": "contribution-integrated", "next_job": None}
         self.assertIsNone(workers.build_job(candidate))
@@ -1498,6 +1561,12 @@ class CompositionRepairTests(unittest.TestCase):
                                        expected_head="a" * 40, reason="Fix wording")
         self.assertIn("incomplete", output.call_args.args[0])
         advance.assert_not_called()
+def write_bundle(root, key, change):
+    bundle = root / "requirement-7" / "bundles" / key
+    bundle.mkdir(parents=True, exist_ok=True)
+    (bundle / "manifest.json").write_text(json.dumps({"title": change, "change": change, "artifacts": ["proposal.md"]}))
+    (bundle / "issue.md").write_text("issue\n")
+    (bundle / "proposal.md").write_text("proposal\n")
 
 
 class QueueOwnershipGuardTests(unittest.TestCase):
@@ -1573,8 +1642,9 @@ class SupervisorTests(unittest.TestCase):
         ordered = []
         for change, deps in graph.items():
             path = root / (change + ".json")
-            path.write_text(json.dumps({"intents": [{"id": change, "dependencies": deps}]}))
+            path.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": change, "dependencies": deps}]}))
             ordered.append((change, path))
+            write_bundle(root, change, change)
         boundary = {"branch": "requirement/BR-7", "head": "a" * 40,
                     "manifest": {"children": children}}
         with mock.patch.object(execution, "_merged_composition", return_value=[]), \
@@ -1588,6 +1658,56 @@ class SupervisorTests(unittest.TestCase):
             result = execution._advance_contributions(root, REQUIREMENT, ordered,
                 {c: f"acme/backlog#{8 + i}" for i, c in enumerate(graph)}, root, False)
         return result, start
+
+    def test_first_and_resumed_advance_use_bundle_change_graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
+            first, third = root / "first.json", root / "order-and-guard.json"
+            first.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "first", "dependencies": []}]}))
+            third.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "order-and-guard", "dependencies": ["first"]}]}))
+            write_bundle(root, "first", "first")
+            write_bundle(root, "order-and-guard", "order-guard")
+            boundary = {"branch": "requirement/BR-7", "head": "a" * 40, "manifest": {"children": []}}
+            def materialize(*args, **kwargs):
+                return {"child": "acme/backlog#8" if kwargs["handoff_file"] == first else "acme/backlog#9"}
+            with mock.patch.object(execution, "_merged_composition", return_value=[]), \
+                 mock.patch.object(execution.requirement_intake, "materialize_handoff", side_effect=materialize), \
+                 mock.patch.object(contributions, "ensure_integration_branch", return_value=boundary) as ensure, \
+                 mock.patch.object(contributions, "in_flight_children", return_value={}), \
+                 mock.patch.object(execution, "_git"), \
+                 mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
+                 mock.patch.object(execution.start_managed_task, "start_managed_task",
+                                   return_value=(SimpleNamespace(task_root=root / "child"), "head", False)), \
+                 mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), \
+                 mock.patch.object(composition, "publish_composition", return_value={"status": "draft-published"}):
+                execution._advance_contributions(root, REQUIREMENT, [("first", first), ("order-and-guard", third)], {}, root, False)
+                first_call = ensure.call_args.kwargs
+                execution._advance_contributions(root, REQUIREMENT, [("first", first), ("order-guard", third)],
+                    {"first": "acme/backlog#8", "order-guard": "acme/backlog#9"}, root, False)
+                second_call = ensure.call_args.kwargs
+            self.assertEqual(first_call, second_call)
+            self.assertEqual(first_call["expected_changes"], ["first", "order-guard"])
+            self.assertEqual(first_call["dependencies"], {"first": [], "order-guard": ["first"]})
+            self.assertEqual(first_call["handoff_renames"], {"order-and-guard": "order-guard"})
+
+    def test_ambiguous_bundles_and_linked_change_mismatch_are_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            handoff = root / "first.json"
+            handoff.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "first", "dependencies": []}]}))
+            write_bundle(root, "first", "new-change")
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "conflicts with bundle"):
+                execution._advance_contributions(root, REQUIREMENT, [("first", handoff)],
+                                                {"first": "acme/backlog#8"}, root, False)
+            other = root / "requirement-7" / "bundles" / "other"
+            write_bundle(root, "other", "different-change")
+            manifest = other / "manifest.json"
+            data = json.loads(manifest.read_text())
+            data["handoff"] = "first"
+            manifest.write_text(json.dumps(data))
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "several authored bundles"):
+                execution._advance_contributions(root, REQUIREMENT, [("first", handoff)], {}, root, False)
 
     def test_merged_composition_is_listed_before_the_integration_branch_is_touched(self):
         adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[{"number": 556}, {"number": 540}]))
@@ -1615,7 +1735,8 @@ class SupervisorTests(unittest.TestCase):
                 root = Path(tmp)
                 (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
                 path = root / "first.json"
-                path.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
+                path.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "first", "dependencies": []}]}))
+                write_bundle(root, "first", "first")
                 with mock.patch.object(execution, "_merged_composition", return_value=[556]) as check, \
                         mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"state": state}), \
                         mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
