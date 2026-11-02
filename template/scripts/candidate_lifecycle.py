@@ -455,6 +455,9 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                                              if name != "required-checks"},
                                       attempts=deepcopy(newest.get("attempts", {})), red_gate=None,
                                       next_job=None, reason="recover validated integration-repair push")
+                        if receipt["task_identity"].get("kind") == "requirement-composition":
+                            result["state"] = "blocked-retryable"
+                            result["gates"].pop("full-checks", None)
                         break
                 if kind == "finalize":
                     # The harness pushed the archive of this exact task content: it is ready,

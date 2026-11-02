@@ -374,7 +374,33 @@ def _execute_composition_review(checkout: Path, job: dict, *, source_repo: str, 
     return {"status": "reviewed", "pushed_head": head, "reports": reports, "rejected": False}
 
 
-def require_final_gates(checkout: Path, manifest: dict, candidate: dict, head: str) -> None:
+def require_full_check_evidence(root: Path, checkout: Path, gate: dict, identity: dict, head: str) -> None:
+    """Validate the original check head and every trusted main-only carry."""
+    from pr_review_gate import reusable
+    from integration_contour import main_only_reason
+
+    if not reusable(checkout, gate, identity):
+        raise contributions.ContributionError("Requirement readiness lacks passed full-check evidence")
+    evidence = gate.get("evidence")
+    if not isinstance(evidence, dict) or not isinstance(evidence.get("head"), str):
+        raise contributions.ContributionError("Requirement full-check evidence lacks its original head")
+    current = evidence["head"]
+    bindings = evidence.get("main_only_bindings", [])
+    if not isinstance(bindings, list):
+        raise contributions.ContributionError("Requirement full-check proof bindings are invalid")
+    for binding in bindings:
+        if not isinstance(binding, dict) or set(binding) != {"old_head", "base", "head"} or binding["old_head"] != current:
+            raise contributions.ContributionError("Requirement full-check proof chain is invalid")
+        reason = main_only_reason(root, {"head": current, "gates": {"full-checks": gate}},
+                                  binding["head"], binding["base"], checkout)
+        if reason is not None:
+            raise contributions.ContributionError("Requirement full-check main-only proof failed: " + reason)
+        current = binding["head"]
+    if current != head:
+        raise contributions.ContributionError("Requirement full-check evidence is not proven for exact final head")
+
+
+def require_final_gates(checkout: Path, manifest: dict, candidate: dict, head: str, *, trusted_root: Path) -> None:
     """All publication entrypoints use the same fail-closed readiness predicate."""
     from pr_review_gate import reusable
 
@@ -385,8 +411,13 @@ def require_final_gates(checkout: Path, manifest: dict, candidate: dict, head: s
         gate = candidate.get("gates", {}).get(name)
         if not reusable(checkout, gate, identity):
             raise contributions.ContributionError(f"Requirement readiness lacks {name}")
-        if name == "full-checks" and gate.get("evidence", {}).get("head") != head:
-            raise contributions.ContributionError("Requirement full checks are not on exact final head")
+        if name == "full-checks":
+            require_full_check_evidence(trusted_root, checkout, gate, identity, head)
+    required = candidate.get("gates", {}).get("required-checks")
+    if (not isinstance(required, dict) or required.get("result") != "passed"
+            or required.get("identity") != identity or not isinstance(required.get("evidence"), dict)
+            or required["evidence"].get("head") != head or required["evidence"].get("kind") != "passed"):
+        raise contributions.ContributionError("Requirement required CI has not passed on the exact head")
     if any((checkout / "openspec/changes" / c).exists() for c in manifest["expected_changes"]):
         raise contributions.ContributionError("Requirement finalization has not archived all children")
 
@@ -537,47 +568,114 @@ def execute_composition_finalize(checkout: Path, job: dict, gates: dict, *, sour
 
 
 def advance_final_publication(root: Path, repo: str, manifest: dict, head: str, number: int, *, adapter,
-                              source_repo=None, full_checks=None, enqueue=True, candidate=None) -> dict:
-    """Run the full final-head checks of a finalized composition before readiness and queue admission.
-
-    ``candidate`` is the record whose gates are re-established on ``head``; the
-    queue passes the record of the head its own ``main`` update replaced. The
-    Requirement retrospective is not a readiness gate: the post-merge
-    retrospective job records it after the merge.
-    """
+                              source_repo=None, full_checks=None, enqueue=True, candidate=None,
+                              main_base=None, force_full_checks=False) -> dict:
+    """Persist full-check evidence, then wait for exact-head CI before readiness."""
     from project_publish import _set_pr_draft
     from publication_state import PrRef
     from _platform_common import github_cli_env
     from pr_review_gate import reusable
+    from integration_contour import main_only_reason
 
     if candidate is None:
         candidate = adapter._derive(root, adapter._pr(root, repo, number), adapter._comments(root, repo, number))
+    source = source_repo if source_repo is not None else f"https://github.com/{repo}.git"
     with tempfile.TemporaryDirectory(prefix="composition-ready-") as temporary:
-        checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head)
+        checkout = workers.prepare_checkout(source, temporary, "harness", head)
         identity = composition_identity(checkout, manifest)
-        if not all(reusable(checkout, candidate.get("gates", {}).get(g), identity) for g in ("review", "finalization")):
+        old_head = candidate.get("head")
+        gates = dict(candidate.get("gates", {}))
+        if old_head != head and not force_full_checks:
+            old_identity = candidate.get("task_identity")
+            if not isinstance(old_identity, dict) or not all(
+                    reusable(checkout, gates.get(name), old_identity) for name in ("review", "finalization", "full-checks")):
+                raise contributions.ContributionError("Requirement main-only carry lacks trusted passed gates")
+            require_full_check_evidence(root, checkout, gates["full-checks"], old_identity, old_head)
+            reason = main_only_reason(root, candidate, head, main_base, checkout)
+            if reason is not None:
+                raise contributions.ContributionError("Requirement main-only carry refused: " + reason)
+            full = gates["full-checks"]
+            evidence = dict(full["evidence"])
+            bindings = list(evidence.get("main_only_bindings", []))
+            bindings.append({"old_head": old_head, "base": main_base, "head": head})
+            evidence["main_only_bindings"] = bindings
+            gates = {name: {**gate, "identity": identity} for name, gate in gates.items()
+                     if name != "required-checks" and reusable(checkout, gate, old_identity)}
+            gates["full-checks"] = {**full, "identity": identity, "evidence": evidence}
+        if not all(reusable(checkout, gates.get(name), identity) for name in ("review", "finalization")):
             return {"status": "await-composition-finalization", "head": head}
-        full = candidate.get("gates", {}).get("full-checks", {})
-        if full.get("evidence", {}).get("head") != head or not reusable(checkout, full, identity):
-            if full_checks is not None:
-                full_checks(checkout)
-            else:
-                # The disposable checkout has only the public contract; the trusted root supplies the registry.
-                integration._run_full_checks(checkout, trusted_root=root)
+        full = gates.get("full-checks")
+        if force_full_checks or full is None:
+            running = {"result": "pending", "identity": identity,
+                       "evidence": {"head": head, "phase": "running"}}
+            running_reason = {"name": "full-checks", "identity": identity,
+                              "evidence": "full candidate validation is running or interrupted; completion is not proven"}
+            if adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                                   inherit_identity=False, gates={**gates, "full-checks": running},
+                                   red_gate=running_reason) is None:
+                return {"status": "discarded"}
+            try:
+                if full_checks is not None:
+                    full_checks(checkout)
+                else:
+                    integration._run_full_checks(checkout, trusted_root=root)
+            except Exception as exc:
+                reason = f"full candidate validation failed: {type(exc).__name__}: {exc}"
+                red = {"name": "full-checks", "identity": identity, "evidence": reason[:1000]}
+                adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                                    inherit_identity=False, gates={**gates, "full-checks": running}, red_gate=red)
+                raise
+            gates["full-checks"] = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+        else:
+            require_full_check_evidence(root, checkout, full, identity, head)
         if adapter._pr(root, repo, number).get("head", {}).get("sha") != head:
             return {"status": "discarded"}
-        gates = {**candidate["gates"],
-                 "full-checks": {"result": "passed", "identity": identity, "evidence": {"head": head}}}
+        waiting = {"result": "pending", "identity": identity,
+                   "evidence": {"head": head, "phase": "composition-final-ci", "enqueue": enqueue}}
+        gates["required-checks"] = waiting
+        if adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                               inherit_identity=False, gates=gates) is None:
+            return {"status": "discarded"}
+        try:
+            observed = adapter.observe_checks(root, number, head)
+        except Exception as exc:
+            reason = f"exact-head required CI observation failed: {type(exc).__name__}: {exc}"
+            red = {"name": "required-checks", "identity": identity, "evidence": reason[:1000]}
+            adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                                inherit_identity=False, gates=gates, red_gate=red)
+            raise
+        if observed.get("head") != head or observed.get("kind") != "passed":
+            kind = observed.get("kind")
+            detail = observed.get("detail")
+            reason = f"exact-head required CI {kind}: {detail}"
+            if observed.get("head") != head:
+                reason = "exact-head required CI observation is stale or unavailable"
+            if kind != "pending" or observed.get("head") != head:
+                red = {"name": "required-checks", "identity": identity, "evidence": reason}
+                adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                                    inherit_identity=False, gates=gates, red_gate=red)
+            return {"status": "waiting-ci", "head": head, "reason": reason, "observed": observed}
+        gates["required-checks"] = {"result": "passed", "identity": identity, "evidence": observed}
         exact = {**candidate, "head": head, "task_identity": identity, "gates": gates}
-        require_final_gates(checkout, manifest, exact, head)
-        adapter._transition(root, repo, number, "ready", head, task_identity=identity,
-                            inherit_identity=False, gates=gates)
-    env = getattr(adapter, "github_cli_env", github_cli_env)(root)
-    pr = adapter._pr(root, repo, number)
-    if pr.get("draft"):
-        getattr(adapter, "set_pr_draft", _set_pr_draft)(root, env, PrRef(number=number, url=pr["html_url"]), draft=False)
-    if enqueue:
-        adapter.admit(root, number, head)
+        require_final_gates(checkout, manifest, exact, head, trusted_root=root)
+        if adapter._transition(root, repo, number, "ready", head, task_identity=identity,
+                               inherit_identity=False, gates=gates) is None:
+            return {"status": "discarded"}
+    try:
+        env = github_cli_env(root)
+        pr = adapter._pr(root, repo, number)
+        if pr.get("head", {}).get("sha") != head:
+            return {"status": "discarded"}
+        if pr.get("draft"):
+            _set_pr_draft(root, env, PrRef(number=number, url=pr["html_url"]), draft=False)
+        if enqueue:
+            adapter.admit(root, number, head)
+    except Exception as exc:
+        reason = f"composition publication failed: {type(exc).__name__}: {exc}"
+        red = {"name": "publication", "identity": identity, "evidence": reason[:1000]}
+        adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                            inherit_identity=False, gates={**gates, "required-checks": waiting}, red_gate=red)
+        raise
     return {"status": "queued" if enqueue else "ready", "head": head, "number": number}
 
 
@@ -631,7 +729,7 @@ def reconcile_composition(root: Path, repo: str, manifest: dict, head: str, numb
         # integration checkout's trusted contract instead (a missing one fails; nothing is defaulted).
         checkout = workers.prepare_checkout(source_repo or f"https://github.com/{repo}.git", temporary, "harness", head,
                                             contract_from=root / ".dev-platform.toml")
-        require_final_gates(checkout, manifest, candidate, head)
+        require_final_gates(checkout, manifest, candidate, head, trusted_root=root)
     config = read_platform_config(root)
     with serialized_integration(root, config, 60.0):
         (getattr(ops, "sync", None) or sync_after_remote_pr_merge)(root, root, config, "main")

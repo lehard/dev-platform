@@ -321,6 +321,28 @@ def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fres
     """
     old = candidate.get("task_identity")
     managed = isinstance(old, dict) and isinstance(old.get("task_content"), dict)
+    if isinstance(old, dict) and old.get("kind") == "requirement-composition":
+        if harness is None or not isinstance(base, str):
+            raise workers.WorkerError("composition repair requires the trusted checkout and integration base")
+        from requirement_composition import advance_final_publication, candidate_manifest
+
+        unchanged = (isinstance(fresh.get("task_content"), dict)
+                     and equivalent_proofs(harness, old["task_content"], fresh["task_content"]))
+        reason = main_only_reason(root, candidate, head, base, harness)
+        if reason is not None and not unchanged:
+            final.return_to_review(harness, repo, candidate, head, fresh, adapter=adapter)
+            return "review-pending"
+        manifest = candidate_manifest(harness, fresh["requirement"])
+        if reason is None:
+            current = candidate
+        else:
+            gates = {name: {**gate, "identity": fresh} for name, gate in candidate.get("gates", {}).items()
+                     if name not in {"required-checks", "full-checks"} and review_gate.reusable(harness, gate, old)}
+            current = {**candidate, "head": head, "task_identity": fresh, "gates": gates}
+        result = advance_final_publication(root, repo, manifest, head, candidate["number"], adapter=adapter,
+                                           source_repo=str(harness), candidate=current, main_base=base,
+                                           force_full_checks=reason is not None, enqueue=False)
+        return result["status"]
     unchanged = (managed and isinstance(fresh.get("task_content"), dict)
                  and equivalent_proofs(harness or root, old["task_content"], fresh["task_content"]))
     reason = None
@@ -456,8 +478,15 @@ def recover_integration_repair(root: Path, repo: str, number: int, observed: dic
                for event in adapter._events(root, repo, number)):
         adapter._comment(root, repo, number, {"kind": "update", "previous": lineage.get("head"), "head": head,
                                               "worker_job": "integration-repair-recovery"})
-    adapter._transition(root, repo, number, "ready", head, task_identity=current["task_identity"],
-                        inherit_identity=False, gates=current["gates"])
+    identity = current["task_identity"]
+    if isinstance(identity, dict) and identity.get("kind") == "requirement-composition":
+        reason = "composition integration repair was interrupted before final checks and exact-head CI could be proven"
+        red = {"name": "full-checks", "identity": identity, "evidence": reason}
+        adapter._transition(root, repo, number, "blocked-retryable", head, task_identity=identity,
+                            inherit_identity=False, gates=current["gates"], red_gate=red)
+    else:
+        adapter._transition(root, repo, number, "ready", head, task_identity=identity,
+                            inherit_identity=False, gates=current["gates"])
     return True
 
 

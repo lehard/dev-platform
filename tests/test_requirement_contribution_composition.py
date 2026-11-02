@@ -766,16 +766,17 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             head = git(fixture.root, "rev-parse", "HEAD")
             gates = {g: {"result": "passed", "identity": identity, "evidence": {"head": head}}
-                     for g in ("review", "finalization", "full-checks")}
+                     for g in ("review", "finalization", "full-checks", "required-checks")}
+            gates["required-checks"]["evidence"]["kind"] = "passed"
             candidate = {"head": head, "task_identity": identity, "gates": gates}
-            composition.require_final_gates(fixture.root, fixture.manifest, candidate, head)
+            composition.require_final_gates(fixture.root, fixture.manifest, candidate, head, trusted_root=fixture.root)
             for name in gates:
                 bad = copy.deepcopy(candidate); bad["gates"].pop(name)
                 with self.subTest(gate=name), self.assertRaises(contributions.ContributionError):
-                    composition.require_final_gates(fixture.root, fixture.manifest, bad, head)
+                    composition.require_final_gates(fixture.root, fixture.manifest, bad, head, trusted_root=fixture.root)
             stale = copy.deepcopy(candidate); stale["gates"]["full-checks"]["evidence"]["head"] = "f" * 40
             with self.assertRaises(contributions.ContributionError):
-                composition.require_final_gates(fixture.root, fixture.manifest, stale, head)
+                composition.require_final_gates(fixture.root, fixture.manifest, stale, head, trusted_root=fixture.root)
 
     def test_existing_exact_draft_rerun_reuses_pr_without_ready_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -1044,7 +1045,8 @@ class CompositionTests(unittest.TestCase):
         pr = {"head": {"sha": head}, "merged": False, "draft": True, "html_url": "https://example.test/pr/11"}
         return SimpleNamespace(_pr=lambda *a: pr, _comments=lambda *a: [], _derive=lambda *a: candidate,
             publish_job=mock.Mock(side_effect=AssertionError("no pre-merge job is published")),
-            _transition=lambda *a, **kw: (events.append("ready"), candidate.update(gates=kw["gates"])),
+            _transition=lambda *a, **kw: (events.append(a[3]), candidate.update(gates=kw["gates"])),
+            observe_checks=lambda *a: {"head": head, "kind": "passed", "checks": []},
             github_cli_env=lambda root: {}, set_pr_draft=lambda *a, **kw: events.append("undraft"),
             admit=lambda *a: events.append("admit"),
             trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
@@ -1064,12 +1066,14 @@ class CompositionTests(unittest.TestCase):
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
                                    original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
                     mock.patch.object(composition, "require_final_gates"), \
+                    mock.patch("_platform_common.github_cli_env", return_value={}), \
+                    mock.patch("project_publish._set_pr_draft", side_effect=lambda *a, **kw: events.append("undraft")), \
                     mock.patch.object(retrospective, "require_checkpoint",
                                       side_effect=AssertionError("no Requirement checkpoint before the merge")):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
                                                                adapter=adapter, full_checks=lambda *a: events.append("checks"))
             self.assertEqual(result["status"], "queued")
-            self.assertEqual(events, ["checks", "ready", "undraft", "admit"])
+            self.assertEqual(events, ["blocked-retryable", "checks", "blocked-retryable", "ready", "undraft", "admit"])
             self.assertNotIn("requirement-retrospective", candidate["gates"])
 
     def test_carried_composition_is_ready_without_the_local_receipt_file(self):
@@ -1080,14 +1084,16 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
             original_checkout = workers.prepare_checkout
-            carried = {"number": 11, "head": "f" * 40, "task_identity": identity, "state": "ready",
-                       "gates": {"review": gate, "finalization": gate}}
+            carried = {"number": 11, "head": head, "task_identity": identity, "state": "ready",
+                       "gates": {"review": gate, "finalization": gate, "full-checks": gate}}
             adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False, "draft": False},
                 _comments=lambda *a: [], _derive=mock.Mock(side_effect=AssertionError("carried record must be used")),
                 publish_job=mock.Mock(), _transition=mock.Mock(), github_cli_env=lambda root: {},
+                observe_checks=lambda *a: {"head": head, "kind": "passed", "checks": []},
                 trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options: original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
                  mock.patch.object(composition, "require_final_gates"), \
+                 mock.patch("_platform_common.github_cli_env", return_value={}), \
                  mock.patch.object(retrospective, "require_checkpoint",
                                    side_effect=AssertionError("the local receipt file is absent in CI")):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
@@ -1098,6 +1104,121 @@ class CompositionTests(unittest.TestCase):
             gates = adapter._transition.call_args.kwargs["gates"]
             self.assertNotIn("requirement-retrospective", gates)
             self.assertEqual(gates["full-checks"]["evidence"], {"head": head})
+
+    def test_pending_ci_resumes_without_running_full_checks_twice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            candidate = {"number": 11, "head": head, "task_identity": identity,
+                         "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
+            events = []
+            adapter = self.finalized_adapter(head, candidate, events)
+            adapter.observe_checks = mock.Mock(side_effect=[
+                {"head": head, "kind": "pending", "detail": "running", "checks": []},
+                {"head": head, "kind": "passed", "detail": "passed", "checks": []},
+            ])
+            full = mock.Mock()
+            original_checkout = workers.prepare_checkout
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options)
+                                   if "composition-child-" in temporary else fixture.root), \
+                    mock.patch.object(composition, "require_final_gates"), \
+                    mock.patch("_platform_common.github_cli_env", return_value={}), \
+                    mock.patch("project_publish._set_pr_draft"):
+                first = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                               adapter=adapter, full_checks=full)
+                self.assertEqual(first["status"], "waiting-ci")
+                self.assertEqual(candidate["gates"]["required-checks"]["evidence"]["phase"], "composition-final-ci")
+                self.assertNotIn("admit", events)
+                second = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                                adapter=adapter, full_checks=full)
+            self.assertEqual(second["status"], "queued")
+            self.assertEqual(full.call_count, 1)
+            self.assertEqual(events.count("admit"), 1)
+
+    def test_main_only_merge_carries_original_full_check_evidence_without_rerun(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            old = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": old}}
+            candidate = {"number": 11, "head": old, "task_identity": identity, "state": "ready",
+                         "gates": {"review": gate, "finalization": gate, "full-checks": gate}}
+            git(fixture.root, "switch", "main")
+            (fixture.root / "unrelated-main.txt").write_text("main update\n")
+            base = fixture.commit("main update")
+            git(fixture.root, "update-ref", "refs/remotes/origin/main", base)
+            git(fixture.root, "switch", "requirement/BR-7")
+            git(fixture.root, "merge", "--no-ff", base, "-m", "merge main")
+            head = git(fixture.root, "rev-parse", "HEAD")
+            adapter = self.finalized_adapter(head, candidate, [])
+            adapter.observe_checks = mock.Mock(return_value={"head": head, "kind": "pending", "detail": "running"})
+            checks = mock.Mock()
+            original_checkout = workers.prepare_checkout
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options)
+                                   if "composition-child-" in temporary else fixture.root):
+                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                    adapter=adapter, candidate=candidate, main_base=base, enqueue=False, full_checks=checks)
+            self.assertEqual(result["status"], "waiting-ci")
+            checks.assert_not_called()
+            evidence = candidate["gates"]["full-checks"]["evidence"]
+            self.assertEqual(evidence["head"], old)
+            self.assertEqual(evidence["main_only_bindings"], [{"old_head": old, "base": base, "head": head}])
+            composition.require_full_check_evidence(fixture.root, fixture.root, candidate["gates"]["full-checks"],
+                                                    candidate["gates"]["full-checks"]["identity"], head)
+            invalid = copy.deepcopy(candidate["gates"]["full-checks"])
+            invalid["evidence"]["main_only_bindings"][0]["head"] = old
+            with self.assertRaises(contributions.ContributionError):
+                composition.require_full_check_evidence(fixture.root, fixture.root, invalid, invalid["identity"], head)
+
+    def test_failed_or_stale_ci_never_makes_composition_ready(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            for observation in ({"head": head, "kind": "failed", "detail": "CI failed"},
+                                {"head": "f" * 40, "kind": "passed", "detail": "stale"},
+                                {"head": head, "kind": "unknown", "detail": "unavailable"}):
+                with self.subTest(observation=observation):
+                    candidate = {"number": 11, "head": head, "task_identity": identity, "state": "blocked-retryable",
+                                 "gates": {"review": gate, "finalization": gate, "full-checks": gate}}
+                    events = []
+                    adapter = self.finalized_adapter(head, candidate, events)
+                    adapter.observe_checks = mock.Mock(return_value=observation)
+                    adapter._transition = mock.Mock(side_effect=adapter._transition)
+                    original_checkout = workers.prepare_checkout
+                    with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                           original_checkout(source, temporary, name, ref, **options)
+                                           if "composition-child-" in temporary else fixture.root):
+                        result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest,
+                                                                       head, 11, adapter=adapter)
+                    self.assertEqual(result["status"], "waiting-ci")
+                    self.assertNotIn("ready", events)
+                    self.assertNotIn("admit", events)
+                    self.assertEqual(adapter._transition.call_args.kwargs["red_gate"]["name"], "required-checks")
+
+    def test_failed_full_checks_record_a_named_block_and_propagate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            candidate = {"number": 11, "head": head, "task_identity": identity,
+                         "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
+            adapter = self.finalized_adapter(head, candidate, [])
+            adapter._transition = mock.Mock(return_value={})
+            original_checkout = workers.prepare_checkout
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options)
+                                   if "composition-child-" in temporary else fixture.root):
+                with self.assertRaisesRegex(RuntimeError, "validation unavailable"):
+                    composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                        adapter=adapter, full_checks=mock.Mock(side_effect=RuntimeError("validation unavailable")))
+            self.assertIn("validation unavailable", adapter._transition.call_args.kwargs["red_gate"]["evidence"])
 
     def test_malformed_trusted_result_receipt_fails_explicitly(self):
         head = "a" * 40
@@ -1124,16 +1245,19 @@ class CompositionTests(unittest.TestCase):
             events = []
             pr = {"head": {"sha": head}, "draft": True, "html_url": "https://example.test/pr/11"}
             adapter = SimpleNamespace(_pr=lambda *args: pr, _comments=lambda *args: [], _derive=lambda *args: candidate,
-                _transition=lambda *args, **kw: (events.append("ready"), candidate.update(gates=kw["gates"])),
+                _transition=lambda *args, **kw: (events.append(args[3]), candidate.update(gates=kw["gates"])),
+                observe_checks=lambda *a: {"head": head, "kind": "passed", "checks": []},
                 github_cli_env=lambda root: {}, set_pr_draft=lambda *args, **kw: events.append("undraft"),
                 admit=lambda *args: events.append("admit"))
             kwargs = {"adapter": adapter, "full_checks": lambda *args: events.append("checks")}
             original_checkout = workers.prepare_checkout
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
-                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
+                 mock.patch("_platform_common.github_cli_env", return_value={}), \
+                 mock.patch("project_publish._set_pr_draft", side_effect=lambda *a, **kw: events.append("undraft")):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertEqual(result["status"], "queued")
-                self.assertEqual(events, ["checks", "ready", "undraft", "admit"])
+                self.assertEqual(events, ["blocked-retryable", "checks", "blocked-retryable", "ready", "undraft", "admit"])
                 self.assertEqual(candidate["gates"]["full-checks"]["evidence"], {"head": head})
                 events.clear()
                 composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)

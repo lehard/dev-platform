@@ -326,7 +326,7 @@ class ComposeGeneratedManifestConflictTests(unittest.TestCase):
             # Each boundary below has its own coverage; this scenario proves the integration path between them.
             enter(mock.patch.object(queue, "_require_finalized"))
             composition_gates = enter(mock.patch.object(queue, "require_composition_finalized"))
-            refreshed = enter(mock.patch.object(queue, "refresh_composition_checks"))
+            refreshed = enter(mock.patch.object(queue, "refresh_composition_checks", return_value={"status": "ready"}))
             enter(mock.patch.object(queue, "required_check_state_for_ref",
                                     return_value=SimpleNamespace(kind="passed", detail="validate")))
             derived = enter(mock.patch.object(final, "prepare_derived_specs", side_effect=prepare_locally))
@@ -341,7 +341,7 @@ class ComposeGeneratedManifestConflictTests(unittest.TestCase):
         self.assertEqual(candidate["state"], "merged")
         derived.assert_called_once()
         self.assertEqual(replayed, ["first", "second"])  # the composition derivation, in manifest child order
-        refreshed.assert_called_once_with(trusted, "o/r", self.NUMBER, merged)
+        refreshed.assert_called_once_with(trusted, "o/r", self.NUMBER, merged, self.main)
         composition_gates.assert_any_call(trusted, "o/r", self.NUMBER, merged)
         # One coordinator merge of the admitted head and main, fast-forwarded onto the branch.
         self.assertEqual(git(self.remote, "rev-list", "--parents", "-n", "1", merged).split()[1:], [self.head, self.main])
@@ -537,6 +537,40 @@ def resolve_value(checkout: Path) -> None:
 
 
 class IntegrationRepairTests(RepairFixture):
+    def test_composition_genuine_repair_runs_one_final_publication_pass(self):
+        identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                    "children": [{"change": "example"}]}
+        gates = {name: {"result": "passed", "identity": identity, "evidence": {"head": "a" * 40}}
+                 for name in ("review", "finalization", "full-checks", "required-checks")}
+        candidate = {"number": 7, "head": "a" * 40, "task_identity": identity, "gates": gates}
+        with mock.patch.object(contour, "equivalent_proofs", return_value=True), \
+             mock.patch.object(contour, "main_only_reason", return_value="real conflict"), \
+             mock.patch.object(contour.review_gate, "reusable", return_value=True), \
+             mock.patch("requirement_composition.candidate_manifest", return_value={"children": []}), \
+             mock.patch("requirement_composition.advance_final_publication", return_value={"status": "waiting-ci"}) as publish:
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, identity,
+                                                self.repo.root, base="c" * 40)
+        self.assertEqual(state, "waiting-ci")
+        publish.assert_called_once()
+        self.assertTrue(publish.call_args.kwargs["force_full_checks"])
+        self.assertFalse(publish.call_args.kwargs["enqueue"])
+        self.assertNotIn("full-checks", publish.call_args.kwargs["candidate"]["gates"])
+        self.assertNotIn("required-checks", publish.call_args.kwargs["candidate"]["gates"])
+
+    def test_composition_repair_changing_own_content_returns_to_full_review(self):
+        identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                    "children": [{"change": "example"}]}
+        candidate = {"number": 7, "head": "a" * 40, "task_identity": identity, "gates": {}}
+        with mock.patch.object(contour, "equivalent_proofs", return_value=False), \
+             mock.patch.object(contour, "main_only_reason", return_value="own content changed"), \
+             mock.patch.object(contour.final, "return_to_review") as review, \
+             mock.patch("requirement_composition.advance_final_publication") as publish:
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, identity,
+                                                self.repo.root, base="c" * 40)
+        self.assertEqual(state, "review-pending")
+        review.assert_called_once()
+        publish.assert_not_called()
+
     def test_conflict_changing_task_content_returns_through_review_and_finalization(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture)
@@ -833,6 +867,25 @@ class IntegrationRepairTests(RepairFixture):
             count = len(fixture.comments)
             self.assertFalse(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
             self.assertEqual(len(fixture.comments), count)
+
+    def test_interrupted_composition_repair_never_recovers_directly_as_ready(self):
+        self.identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                         "children": [{"change": "example"}]}
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            job = workers.build_job(fixture.candidate())
+            git(self.repo.root, "commit", "-q", "--allow-empty", "-m", "repair")
+            self.repo.push("agent/example")
+            fixture.comments.append({"id": 100, "author_association": "OWNER", "body": workers.result_body(
+                job, "w", "validated-push", self.repo.head("agent/example"), task_identity=self.identity)})
+            recovered = fixture.candidate()
+            self.assertEqual(recovered["state"], "blocked-retryable")
+            self.assertNotIn("full-checks", recovered["gates"])
+            pr = queue._pr(self.repo.root, "o/r", 7)
+            self.assertTrue(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
+            recorded = fixture.candidate()
+            self.assertEqual(recorded["state"], "blocked-retryable")
+            self.assertIn("interrupted", recorded["red_gate"]["evidence"])
 
     def test_validated_integration_merge_push_is_recovered_by_its_own_job(self):
         with RemoteFixture(self.repo) as fixture:
