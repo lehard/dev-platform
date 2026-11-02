@@ -1,0 +1,91 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "base_ref": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "candidate_head": "49b154cbdef2c285900f6d1c5ed78d9f413821c3",
+    "diff_sha256": "5d97c20869562b46fa4c9a6c4426cb0a88705a9bed6f137d928cc6c1db0dcbaf"
+  },
+  "completed_at": "2026-11-02T06:21:33+00:00",
+  "findings": [
+    {
+      "evidence": "The scenario 'Proof does not hold' in specs/platform-lifecycle/spec.md and the publication-queue requirement 'Failed proof SHALL prohibit reuse and preserve the existing repair/review rules'. In requirement_composition.advance_final_publication, `raise contributions.ContributionError(\"Requirement main-only carry refused: \" + reason)`. publication_queue._integrate calls refresh_composition_checks and only handles `waiting-ci`/`ready` results, and the diff shows no catch of this error. The queue therefore stops with an error and no repair is offered.",
+      "id": "refresh-proof-failure-raises-instead-of-repair",
+      "severity": "advisory",
+      "summary": "The spec says a failed main-only proof must fall back to the existing repair and full-review rules. In the queue refresh path a failed proof only raises ContributionError, and nothing routes it to repair or review."
+    },
+    {
+      "evidence": "The ADDED requirements in specs/publication-queue/spec.md and specs/platform-lifecycle/spec.md have no scenario for resume_composition_ci, the `composition-final-ci` wait, the idempotent repeat event, or recover_integration_repair blocking composition candidates. design.md ('Event-driven final publication continuation') and publication_queue.resume_composition_ci / integration_contour.recover_integration_repair implement them. Under the 'no silent divergence' rule the executable contract should state them.",
+      "id": "ci-wait-resume-not-in-spec-delta",
+      "severity": "advisory",
+      "summary": "The spec deltas do not cover the event-driven CI-wait resume, the explicit block for stale or invalid wait evidence, or the interrupted-repair block. These behaviors appear only in design.md, tasks.md 0.2 and the code."
+    },
+    {
+      "evidence": "publication_queue.run_worker: `progress = worker(root)` followed by `resume_composition_ci(root, _repo(root))`. There is no try/finally, so an exception from worker() skips the resume. Design says each CI event resumes the saved waits.",
+      "id": "ci-resume-skipped-when-worker-raises",
+      "severity": "advisory",
+      "summary": "The CI-wait resume runs only after the queue worker returns normally. If worker() raises, saved composition CI waits are not re-observed on that CI-completion event."
+    }
+  ],
+  "launched_at": "2026-11-02T06:20:46+00:00",
+  "output_sha256": "5e50d5641c9daf9682c5a7dae80a368413cd1ff31f229eab70095dc8bb8cf0cc",
+  "perspective": "spec-fidelity",
+  "request_id": "dde4d24c-b505-4bda-9b26-82c39278e918",
+  "reviewer": {
+    "context_id": "b42872b2-d3f5-4fa8-bb31-4d65b54201de",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e15fd987-0857-46ed-840f-65090bc64cf0",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 54667
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 154216
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 44363
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45150
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5321
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3ca7665770f96adea19304104c0e5e37425b6cc2c61dbde69105cadbb1a8a14c"
+}

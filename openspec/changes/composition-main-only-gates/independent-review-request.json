@@ -1,0 +1,84 @@
+{
+  "candidate": {
+    "base_head": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "base_ref": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "candidate_head": "49b154cbdef2c285900f6d1c5ed78d9f413821c3",
+    "diff_sha256": "5d97c20869562b46fa4c9a6c4426cb0a88705a9bed6f137d928cc6c1db0dcbaf"
+  },
+  "change": "openspec/changes/composition-main-only-gates",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/composition-main-only-gates/automated-checks.json",
+    "openspec/changes/composition-main-only-gates/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/composition-main-only-gates/design.md",
+        "openspec/changes/composition-main-only-gates/proposal.md",
+        "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md",
+        "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md",
+        "openspec/changes/composition-main-only-gates/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/composition-main-only-gates/proposal.md",
+        "openspec/changes/composition-main-only-gates/design.md",
+        "openspec/changes/composition-main-only-gates/tasks.md",
+        "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md",
+        "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-02T06:20:36+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/composition-main-only-gates/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "dde4d24c-b505-4bda-9b26-82c39278e918",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "digest": "3ca7665770f96adea19304104c0e5e37425b6cc2c61dbde69105cadbb1a8a14c",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "2edcedeffe4854ac280b320ff644c67afa0919c2",
+      "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+      "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+      "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+      "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+      "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+      "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+      "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+      "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+      "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+      "template/scripts/requirement_composition.py": "6f880b766e845678ddccb8f7a302e6ec2e836b5d",
+      "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+      "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+      "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+      "tests/test_requirement_contribution_composition.py": "9b2e9846712791e32d53b35459526a3defcfaca4"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
