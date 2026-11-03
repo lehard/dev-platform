@@ -3,8 +3,7 @@ Automated-Checks-Evidence: automated-checks.json
 Verification-Method: equivalent semantic review of proposal, design, delta scenarios, implementation and stubbed regression evidence
 
 This is a local implementation receipt, not terminal delivery. The assigned child context was read before implementation; base
-`abce3d9584fd60c34a6431d13092b3a7ff27a565`. No archive, publication, commit or
-live GitHub write was performed.
+`abce3d9584fd60c34a6431d13092b3a7ff27a565`. No archive, publication or live GitHub boundary write was performed.
 
 ## Coordinator decision and length proof
 
