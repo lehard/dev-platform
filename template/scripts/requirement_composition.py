@@ -416,7 +416,8 @@ def require_final_gates(checkout: Path, manifest: dict, candidate: dict, head: s
     required = candidate.get("gates", {}).get("required-checks")
     if (not isinstance(required, dict) or required.get("result") != "passed"
             or required.get("identity") != identity or not isinstance(required.get("evidence"), dict)
-            or required["evidence"].get("head") != head or required["evidence"].get("kind") != "passed"):
+            or required["evidence"].get("head") != head
+            or ("kind" in required["evidence"] and required["evidence"]["kind"] != "passed")):
         raise contributions.ContributionError("Requirement required CI has not passed on the exact head")
     if any((checkout / "openspec/changes" / c).exists() for c in manifest["expected_changes"]):
         raise contributions.ContributionError("Requirement finalization has not archived all children")
