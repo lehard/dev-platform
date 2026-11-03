@@ -6,4 +6,4 @@
 - [x] 2.1 Tests: two children with problems reported together before any archive; successful composition archive unchanged.
 
 ## 3. Verification
-- [ ] 3.1 Full validation and semantic OpenSpec verification.
+- [x] 3.1 Full validation and semantic OpenSpec verification.
