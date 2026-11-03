@@ -824,28 +824,26 @@ class IndependentReviewTests(unittest.TestCase):
             self.addCleanup(patch.stop)
         return mock.patch.object(lifecycle, "run_checked")
 
-    def test_archive_auto_runs_missing_review_and_blocks_on_findings_before_validation(self) -> None:
+    def test_archive_never_runs_a_missing_review_and_lists_it_before_validation(self) -> None:
         launcher = FakeLauncher([material("missing-contract-behavior")])
         with self.platform_archive(launcher) as run_checked:
             with self.assertRaises(SystemExit) as raised:
-                lifecycle.archive_change(self.root, "review-change")
+                lifecycle.finalize_change(self.root, "review-change", context="developer")
         message = str(raised.exception)
-        self.assertEqual(len(launcher.calls), 2)
+        self.assertEqual(launcher.calls, [])
         run_checked.assert_not_called()
-        self.assertIn("spec-fidelity:missing-contract-behavior", message)
-        self.assertIn("python3 scripts/independent_review.py dispose review-change", message)
+        self.assertIn("every unmet precondition", message)
+        self.assertIn("independent review is required but missing", message)
         self.assertIn("python3 scripts/independent_review.py run review-change", message)
 
-    def test_archive_runs_review_then_continues_to_expensive_validation(self) -> None:
+    def test_archive_with_current_review_continues_to_expensive_validation(self) -> None:
         launcher = FakeLauncher()
+        self.run_review(launcher)
+        calls = len(launcher.calls)
         with self.platform_archive(launcher) as run_checked:
-            self.assertEqual(lifecycle.archive_change(self.root, "review-change"), 0)
-        self.assertEqual(len(launcher.calls), 2)
+            self.assertEqual(lifecycle.finalize_change(self.root, "review-change", context="developer"), 0)
+        self.assertEqual(len(launcher.calls), calls)
         self.assertIn("select_checks.py", " ".join(run_checked.call_args_list[0].args[0]))
-        # Current evidence is reused, not relaunched.
-        with self.platform_archive(launcher):
-            lifecycle.archive_change(self.root, "review-change")
-        self.assertEqual(len(launcher.calls), 2)
 
     def test_finish_gate_refuses_stale_review_before_publication(self) -> None:
         self.run_review()
@@ -881,7 +879,7 @@ class IndependentReviewTests(unittest.TestCase):
         state = self.state()
         self.assertEqual(state["state"], "missing")
         self.assertEqual(state["next"], "python3 scripts/independent_review.py run review-change")
-        self.assertIn("archive helper runs a missing or stale review automatically", state["note"])
+        self.assertIn("archive never runs a review", state["note"])
         self.assertIn("python3 scripts/independent_review.py preflight review-change", state["note"])
         import finish_task
 
@@ -902,7 +900,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(state["state"], "missing")
         source = (SCRIPTS / "execute_requirement.py").read_text(encoding="utf-8")
         self.assertIn('"independent_review": _child_review_state(', source)
-        self.assertIn("archive runs it automatically", source)
+        self.assertIn("archive never runs it", source)
 
     # Boundaries ---------------------------------------------------------------
 
@@ -914,7 +912,7 @@ class IndependentReviewTests(unittest.TestCase):
 
     def test_runner_has_no_publish_archive_or_cleanup_operation(self) -> None:
         source = (SCRIPTS / "independent_review_runner.py").read_text(encoding="utf-8")
-        for forbidden in ("project_publish", "managed_project_status", "openspec_lifecycle", "archive_change", '"reset"', '"clean"', '"stash"'):
+        for forbidden in ("project_publish", "managed_project_status", "openspec_lifecycle", "archive_change", "finalize_change", '"reset"', '"clean"', '"stash"'):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, source)
 
