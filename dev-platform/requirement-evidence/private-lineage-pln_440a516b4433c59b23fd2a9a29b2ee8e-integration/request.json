@@ -1,0 +1,203 @@
+{
+  "candidate": {
+    "base_head": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+    "base_ref": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+    "candidate_head": "562f1319d7ec4b747cfa62d035ddf59a78e5b659",
+    "diff_sha256": "2ccc2123e0293a93e2faeb62a1f953bb3f7a4a95f93f6306b2d45e61558f0b95"
+  },
+  "change": "private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration",
+  "children": [
+    {
+      "change": "requirement-branch-repair",
+      "head": "0ff9cf995eba8278ebcd52bef08bb0e3a381776a",
+      "identity": {
+        "change": "requirement-branch-repair",
+        "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+        "kind": "contribution",
+        "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+        "source_issue": "pln_e8871a2df3934f8f1f6b8b0adc397952",
+        "target_branch": "requirement/BR-978",
+        "task_content": {
+          "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+          "digest": "3b825a0744eda6623254845ea5887cd92c249d431575b20861dd5d8109f3943c",
+          "paths": {
+            "docs/engineering/chat-coordinator.md": "b7698dd333f1f9de845fe4e9450b5576a8040dc3",
+            "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+            "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+            "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+            "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+            "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+            "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+            "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+            "template/scripts/requirement_composition.py": "ae8ed7a1499eebcb73b7c2bea5d9eb8cdaf85675",
+            "tests/test_requirement_contribution_composition.py": "3d1b50a2d45ce86fb4862f8d08b32a9566027317"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-978/T2"
+      },
+      "reviewed_evidence_digest": "ee5a61801ca47532b313c978333fe82a78b8cb379a203d06926d718cd3e947ed"
+    },
+    {
+      "change": "composition-main-only-gates",
+      "head": "148d18fe4dd80726c8c78ccb68fbea7c5719e494",
+      "identity": {
+        "change": "composition-main-only-gates",
+        "contribution_base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+        "kind": "contribution",
+        "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+        "source_issue": "pln_6b5b7f9e5cfc358fc25bff7158598e77",
+        "target_branch": "requirement/BR-978",
+        "task_content": {
+          "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+          "digest": "6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30",
+          "paths": {
+            "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "96a82f40643cc87cb1fcc5faec5c5c3f2956a718",
+            "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+            "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+            "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+            "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+            "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+            "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+            "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+            "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+            "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+            "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
+            "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+            "openspec/changes/requirement-branch-repair/independent-review-request.json": "daf8f9d6ad216672e514776ace14b0be31ef991c",
+            "openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json": "9dcd9f05421ec117b38187bbe3116a1a4d38237e",
+            "openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json": "e3429e63c31e66762504b3a112607aa2c040f895",
+            "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+            "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+            "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+            "openspec/changes/requirement-branch-repair/verification.md": "ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1",
+            "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+            "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+            "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+            "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+            "template/scripts/publication_queue.py": "91dd06b455e1deaeed652f312dcb29526a6e44ee",
+            "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+            "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+            "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+            "tests/test_publication_queue.py": "ddb269cca5e57af22cb99754267e23950aeb0a1e",
+            "tests/test_requirement_contribution_composition.py": "f930980f9581b350a3e9148ccc973f2ac37233e1"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-978/T1"
+      },
+      "reviewed_evidence_digest": "05952661460097497097c5afcc54609f33de86e4e820932585903d359d9b0b55"
+    },
+    {
+      "change": "composition-order-advance-guard",
+      "head": "3bedf8c41cf09f2626d425096b96e4a8b4685b08",
+      "identity": {
+        "change": "composition-order-advance-guard",
+        "contribution_base": "469a224bee1798a40ca45e430d77137994b0efb5",
+        "kind": "contribution",
+        "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+        "source_issue": "pln_d76f315c7f52200e4661e04655749e69",
+        "target_branch": "requirement/BR-978",
+        "task_content": {
+          "base": "469a224bee1798a40ca45e430d77137994b0efb5",
+          "digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be",
+          "paths": {
+            "docs/engineering/lifecycle-map.md": "49785c2bbf8f89bcf105d6c3d10da100f38bfeb1",
+            "docs/engineering/task-intake.md": "2c426fe3290bbdd5b41971887c83a9bf2c86d750",
+            "openspec/changes/composition-order-advance-guard/.managed-task.json": "f8f92f2e24c60c1635c65a2c058622bdc0cd929e",
+            "openspec/changes/composition-order-advance-guard/.openspec.yaml": "a7587c5f07bdc91709ad9b053e28487c68d7e10b",
+            "openspec/changes/composition-order-advance-guard/design.md": "2b4f6b17f79eead4197e1d3265cf8d270d8aad6b",
+            "openspec/changes/composition-order-advance-guard/proposal.md": "4b93692ca7df73fcf768eea9e10bcafcf02bd367",
+            "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md": "fc5e1c534eb6637a902d3d54229216b2b5454cff",
+            "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md": "16e737ff0540a6bc7ccb2f607b5fc85a02f0c604",
+            "openspec/changes/composition-order-advance-guard/tasks.md": "f70da84e157ff6ec63ecc0ad606513f5b841bc18",
+            "template/scripts/execute_requirement.py": "13e11f6b8cff91ee29792cf4b47ff5456652b831",
+            "template/scripts/publication_queue.py": "28cfce1e4500925136c5f84d67ece2038954e00b",
+            "template/scripts/requirement_contributions.py": "cc89772a5b3f6d7900a0c8902df74839fc2da92c",
+            "tests/test_publication_queue.py": "8a5a4801c573196b73f7d8ab1742849b989e6d44",
+            "tests/test_requirement_card_claim.py": "65fe1a620d688fa3beaaeee23f3939c962ed43c9",
+            "tests/test_requirement_contribution_composition.py": "3f21fa288604d19cceb41281982843632cb26038",
+            "tests/test_requirement_execution.py": "b535c5270f5a37132ba06055e2f371b30222878c",
+            "tests/test_requirement_flow_e2e.py": "fd229755bba2c06a5b11200bff8216b4b4814e7a",
+            "tests/test_requirement_sequential_delivery.py": "d7b9218b6974b8293aa254b9bd0213f843a8553f",
+            "tests/test_requirement_terminal_fresh_main.py": "8b583437da002b48ac681829315f8d839731fac4"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-978/T3"
+      },
+      "reviewed_evidence_digest": "11a4d981b76b48fdecf5f95cc6f2a65d174bb4425470f0b521882e8b9e40d747"
+    }
+  ],
+  "fresh_context_required": true,
+  "kind": "requirement-composition",
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: \u0418\u0442\u043e\u0433\u043e\u0432\u044b\u0439 PR Requirement (\u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u0434\u0435\u0442\u0435\u0439) \u0434\u043e\u0445\u043e\u0434\u0438\u0442 \u0434\u043e main \u0431\u0435\u0437 \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u044f review, finalize \u0438 \u043f\u043e\u043b\u043d\u044b\u0445 \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u043f\u043e\u0441\u043b\u0435 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0447\u0443\u0436\u043e\u0433\u043e merge \u0432 main, \u0435\u0441\u043b\u0438 \u0432 \u0441\u0430\u043c\u043e\u0439 \u0432\u0435\u0442\u043a\u0435 Requirement \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c. \u0415\u0441\u043b\u0438 \u0432\u0435\u0442\u043a\u0435 Requirement \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u0430\u0432\u043a\u0430, \u0443 \u043d\u0435\u0451 \u0435\u0441\u0442\u044c \u0448\u0442\u0430\u0442\u043d\u044b\u0439 \u0432\u0445\u043e\u0434 repair, \u0438 \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u043e\u0440\u0443 \u043d\u0435 \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0432\u0440\u0443\u0447\u043d\u0443\u044e \u043a\u043e\u043c\u043c\u0438\u0442\u0438\u0442\u044c \u0432 `requirement/BR-N`.\nReviewed children: [{\"change\": \"requirement-branch-repair\", \"head\": \"0ff9cf995eba8278ebcd52bef08bb0e3a381776a\", \"identity\": {\"change\": \"requirement-branch-repair\", \"contribution_base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"kind\": \"contribution\", \"requirement\": \"pln_440a516b4433c59b23fd2a9a29b2ee8e\", \"source_issue\": \"pln_e8871a2df3934f8f1f6b8b0adc397952\", \"target_branch\": \"requirement/BR-978\", \"task_content\": {\"base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"digest\": \"3b825a0744eda6623254845ea5887cd92c249d431575b20861dd5d8109f3943c\", \"paths\": {\"docs/engineering/chat-coordinator.md\": \"b7698dd333f1f9de845fe4e9450b5576a8040dc3\", \"openspec/changes/requirement-branch-repair/.managed-task.json\": \"00d1c56be001e96b981193fb83c0462626812c58\", \"openspec/changes/requirement-branch-repair/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/requirement-branch-repair/design.md\": \"6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7\", \"openspec/changes/requirement-branch-repair/proposal.md\": \"5ffa744f167194960d5e07d877a5964c65070e9e\", \"openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md\": \"e9fd2f90c4b12513dc93ade02268810aa1753692\", \"openspec/changes/requirement-branch-repair/tasks.md\": \"095b77bf585df4dd3943cc457ecb19b805e9adf6\", \"template/scripts/execute_requirement.py\": \"2b579df72ad1a09d2909fcae3e4b5a40685651f8\", \"template/scripts/lifecycle_workers.py\": \"e10362dc36d864fccc8b9990297333582817e1c3\", \"template/scripts/requirement_composition.py\": \"ae8ed7a1499eebcb73b7c2bea5d9eb8cdaf85675\", \"tests/test_requirement_contribution_composition.py\": \"3d1b50a2d45ce86fb4862f8d08b32a9566027317\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-978/T2\"}, \"reviewed_evidence_digest\": \"ee5a61801ca47532b313c978333fe82a78b8cb379a203d06926d718cd3e947ed\"}, {\"change\": \"composition-main-only-gates\", \"head\": \"148d18fe4dd80726c8c78ccb68fbea7c5719e494\", \"identity\": {\"change\": \"composition-main-only-gates\", \"contribution_base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"kind\": \"contribution\", \"requirement\": \"pln_440a516b4433c59b23fd2a9a29b2ee8e\", \"source_issue\": \"pln_6b5b7f9e5cfc358fc25bff7158598e77\", \"target_branch\": \"requirement/BR-978\", \"task_content\": {\"base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"digest\": \"6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30\", \"paths\": {\"dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json\": \"96a82f40643cc87cb1fcc5faec5c5c3f2956a718\", \"docs/engineering/chat-coordinator.md\": \"5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24\", \"openspec/changes/composition-main-only-gates/.managed-task.json\": \"f74c1e5fbb8249a0819f95914a844e4173789af2\", \"openspec/changes/composition-main-only-gates/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/composition-main-only-gates/design.md\": \"94d2a3923c5ee57a24b31464629ea07543fb5b8f\", \"openspec/changes/composition-main-only-gates/proposal.md\": \"8d2c75e453ceccdede48c5558cb7c8c7e02614ef\", \"openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md\": \"6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e\", \"openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md\": \"ebf3ab2c2387427b8fd4c5c6e000d367f98f5997\", \"openspec/changes/composition-main-only-gates/tasks.md\": \"8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd\", \"openspec/changes/requirement-branch-repair/.managed-task.json\": \"00d1c56be001e96b981193fb83c0462626812c58\", \"openspec/changes/requirement-branch-repair/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/requirement-branch-repair/automated-checks.json\": \"10f5dace60a12bff9214534f577ea40c3fe3ee61\", \"openspec/changes/requirement-branch-repair/design.md\": \"6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7\", \"openspec/changes/requirement-branch-repair/independent-review-request.json\": \"daf8f9d6ad216672e514776ace14b0be31ef991c\", \"openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json\": \"9dcd9f05421ec117b38187bbe3116a1a4d38237e\", \"openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json\": \"e3429e63c31e66762504b3a112607aa2c040f895\", \"openspec/changes/requirement-branch-repair/proposal.md\": \"5ffa744f167194960d5e07d877a5964c65070e9e\", \"openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md\": \"e9fd2f90c4b12513dc93ade02268810aa1753692\", \"openspec/changes/requirement-branch-repair/tasks.md\": \"095b77bf585df4dd3943cc457ecb19b805e9adf6\", \"openspec/changes/requirement-branch-repair/verification.md\": \"ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1\", \"template/scripts/candidate_lifecycle.py\": \"8ae16c84e9d7847060714c77f982492c16c8ab62\", \"template/scripts/execute_requirement.py\": \"2b579df72ad1a09d2909fcae3e4b5a40685651f8\", \"template/scripts/integration_contour.py\": \"6ad5df48f049a28a1eddcf4f31e3c3058458eb89\", \"template/scripts/lifecycle_workers.py\": \"e10362dc36d864fccc8b9990297333582817e1c3\", \"template/scripts/publication_queue.py\": \"91dd06b455e1deaeed652f312dcb29526a6e44ee\", \"template/scripts/requirement_composition.py\": \"ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d\", \"tests/test_autonomous_integration_contour.py\": \"35b811a656d1577e32e3fb945070ee13591c758b\", \"tests/test_coordinator_preflight.py\": \"a0a755fbf30264fa3762abcfe59da806a451208c\", \"tests/test_publication_queue.py\": \"ddb269cca5e57af22cb99754267e23950aeb0a1e\", \"tests/test_requirement_contribution_composition.py\": \"f930980f9581b350a3e9148ccc973f2ac37233e1\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-978/T1\"}, \"reviewed_evidence_digest\": \"05952661460097497097c5afcc54609f33de86e4e820932585903d359d9b0b55\"}, {\"change\": \"composition-order-advance-guard\", \"head\": \"3bedf8c41cf09f2626d425096b96e4a8b4685b08\", \"identity\": {\"change\": \"composition-order-advance-guard\", \"contribution_base\": \"469a224bee1798a40ca45e430d77137994b0efb5\", \"kind\": \"contribution\", \"requirement\": \"pln_440a516b4433c59b23fd2a9a29b2ee8e\", \"source_issue\": \"pln_d76f315c7f52200e4661e04655749e69\", \"target_branch\": \"requirement/BR-978\", \"task_content\": {\"base\": \"469a224bee1798a40ca45e430d77137994b0efb5\", \"digest\": \"3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be\", \"paths\": {\"docs/engineering/lifecycle-map.md\": \"49785c2bbf8f89bcf105d6c3d10da100f38bfeb1\", \"docs/engineering/task-intake.md\": \"2c426fe3290bbdd5b41971887c83a9bf2c86d750\", \"openspec/changes/composition-order-advance-guard/.managed-task.json\": \"f8f92f2e24c60c1635c65a2c058622bdc0cd929e\", \"openspec/changes/composition-order-advance-guard/.openspec.yaml\": \"a7587c5f07bdc91709ad9b053e28487c68d7e10b\", \"openspec/changes/composition-order-advance-guard/design.md\": \"2b4f6b17f79eead4197e1d3265cf8d270d8aad6b\", \"openspec/changes/composition-order-advance-guard/proposal.md\": \"4b93692ca7df73fcf768eea9e10bcafcf02bd367\", \"openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md\": \"fc5e1c534eb6637a902d3d54229216b2b5454cff\", \"openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md\": \"16e737ff0540a6bc7ccb2f607b5fc85a02f0c604\", \"openspec/changes/composition-order-advance-guard/tasks.md\": \"f70da84e157ff6ec63ecc0ad606513f5b841bc18\", \"template/scripts/execute_requirement.py\": \"13e11f6b8cff91ee29792cf4b47ff5456652b831\", \"template/scripts/publication_queue.py\": \"28cfce1e4500925136c5f84d67ece2038954e00b\", \"template/scripts/requirement_contributions.py\": \"cc89772a5b3f6d7900a0c8902df74839fc2da92c\", \"tests/test_publication_queue.py\": \"8a5a4801c573196b73f7d8ab1742849b989e6d44\", \"tests/test_requirement_card_claim.py\": \"65fe1a620d688fa3beaaeee23f3939c962ed43c9\", \"tests/test_requirement_contribution_composition.py\": \"3f21fa288604d19cceb41281982843632cb26038\", \"tests/test_requirement_execution.py\": \"b535c5270f5a37132ba06055e2f371b30222878c\", \"tests/test_requirement_flow_e2e.py\": \"fd229755bba2c06a5b11200bff8216b4b4814e7a\", \"tests/test_requirement_sequential_delivery.py\": \"d7b9218b6974b8293aa254b9bd0213f843a8553f\", \"tests/test_requirement_terminal_fresh_main.py\": \"8b583437da002b48ac681829315f8d839731fac4\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-978/T3\"}, \"reviewed_evidence_digest\": \"11a4d981b76b48fdecf5f95cc6f2a65d174bb4425470f0b521882e8b9e40d747\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Review only cross-child contract compatibility, duplicated or conflicting behavior, and the Requirement outcome. Do not fully re-review unchanged child implementations: their reviewed content identities have been proven. Requirement outcome: \u0418\u0442\u043e\u0433\u043e\u0432\u044b\u0439 PR Requirement (\u043a\u043e\u043c\u043f\u043e\u0437\u0438\u0446\u0438\u044f \u0434\u0435\u0442\u0435\u0439) \u0434\u043e\u0445\u043e\u0434\u0438\u0442 \u0434\u043e main \u0431\u0435\u0437 \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0433\u043e \u043f\u0440\u043e\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u044f review, finalize \u0438 \u043f\u043e\u043b\u043d\u044b\u0445 \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u043a \u043f\u043e\u0441\u043b\u0435 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0447\u0443\u0436\u043e\u0433\u043e merge \u0432 main, \u0435\u0441\u043b\u0438 \u0432 \u0441\u0430\u043c\u043e\u0439 \u0432\u0435\u0442\u043a\u0435 Requirement \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u043e\u0441\u044c. \u0415\u0441\u043b\u0438 \u0432\u0435\u0442\u043a\u0435 Requirement \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u0430\u0432\u043a\u0430, \u0443 \u043d\u0435\u0451 \u0435\u0441\u0442\u044c \u0448\u0442\u0430\u0442\u043d\u044b\u0439 \u0432\u0445\u043e\u0434 repair, \u0438 \u043a\u043e\u043e\u0440\u0434\u0438\u043d\u0430\u0442\u043e\u0440\u0443 \u043d\u0435 \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0432\u0440\u0443\u0447\u043d\u0443\u044e \u043a\u043e\u043c\u043c\u0438\u0442\u0438\u0442\u044c \u0432 `requirement/BR-N`.\nReviewed children: [{\"change\": \"requirement-branch-repair\", \"head\": \"0ff9cf995eba8278ebcd52bef08bb0e3a381776a\", \"identity\": {\"change\": \"requirement-branch-repair\", \"contribution_base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"kind\": \"contribution\", \"requirement\": \"pln_440a516b4433c59b23fd2a9a29b2ee8e\", \"source_issue\": \"pln_e8871a2df3934f8f1f6b8b0adc397952\", \"target_branch\": \"requirement/BR-978\", \"task_content\": {\"base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"digest\": \"3b825a0744eda6623254845ea5887cd92c249d431575b20861dd5d8109f3943c\", \"paths\": {\"docs/engineering/chat-coordinator.md\": \"b7698dd333f1f9de845fe4e9450b5576a8040dc3\", \"openspec/changes/requirement-branch-repair/.managed-task.json\": \"00d1c56be001e96b981193fb83c0462626812c58\", \"openspec/changes/requirement-branch-repair/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/requirement-branch-repair/design.md\": \"6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7\", \"openspec/changes/requirement-branch-repair/proposal.md\": \"5ffa744f167194960d5e07d877a5964c65070e9e\", \"openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md\": \"e9fd2f90c4b12513dc93ade02268810aa1753692\", \"openspec/changes/requirement-branch-repair/tasks.md\": \"095b77bf585df4dd3943cc457ecb19b805e9adf6\", \"template/scripts/execute_requirement.py\": \"2b579df72ad1a09d2909fcae3e4b5a40685651f8\", \"template/scripts/lifecycle_workers.py\": \"e10362dc36d864fccc8b9990297333582817e1c3\", \"template/scripts/requirement_composition.py\": \"ae8ed7a1499eebcb73b7c2bea5d9eb8cdaf85675\", \"tests/test_requirement_contribution_composition.py\": \"3d1b50a2d45ce86fb4862f8d08b32a9566027317\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-978/T2\"}, \"reviewed_evidence_digest\": \"ee5a61801ca47532b313c978333fe82a78b8cb379a203d06926d718cd3e947ed\"}, {\"change\": \"composition-main-only-gates\", \"head\": \"148d18fe4dd80726c8c78ccb68fbea7c5719e494\", \"identity\": {\"change\": \"composition-main-only-gates\", \"contribution_base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"kind\": \"contribution\", \"requirement\": \"pln_440a516b4433c59b23fd2a9a29b2ee8e\", \"source_issue\": \"pln_6b5b7f9e5cfc358fc25bff7158598e77\", \"target_branch\": \"requirement/BR-978\", \"task_content\": {\"base\": \"e14c33827b2f10444666042df6edd80cbcf23fb5\", \"digest\": \"6888c7c2918b5cf435f09951633e04d0ae8c9ee5dcc4399892ac7a1965334b30\", \"paths\": {\"dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json\": \"96a82f40643cc87cb1fcc5faec5c5c3f2956a718\", \"docs/engineering/chat-coordinator.md\": \"5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24\", \"openspec/changes/composition-main-only-gates/.managed-task.json\": \"f74c1e5fbb8249a0819f95914a844e4173789af2\", \"openspec/changes/composition-main-only-gates/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/composition-main-only-gates/design.md\": \"94d2a3923c5ee57a24b31464629ea07543fb5b8f\", \"openspec/changes/composition-main-only-gates/proposal.md\": \"8d2c75e453ceccdede48c5558cb7c8c7e02614ef\", \"openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md\": \"6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e\", \"openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md\": \"ebf3ab2c2387427b8fd4c5c6e000d367f98f5997\", \"openspec/changes/composition-main-only-gates/tasks.md\": \"8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd\", \"openspec/changes/requirement-branch-repair/.managed-task.json\": \"00d1c56be001e96b981193fb83c0462626812c58\", \"openspec/changes/requirement-branch-repair/.openspec.yaml\": \"25002a8e8151998b10d369d4a0ccd578f8ba97f9\", \"openspec/changes/requirement-branch-repair/automated-checks.json\": \"10f5dace60a12bff9214534f577ea40c3fe3ee61\", \"openspec/changes/requirement-branch-repair/design.md\": \"6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7\", \"openspec/changes/requirement-branch-repair/independent-review-request.json\": \"daf8f9d6ad216672e514776ace14b0be31ef991c\", \"openspec/changes/requirement-branch-repair/independent-reviews/engineering-quality.json\": \"9dcd9f05421ec117b38187bbe3116a1a4d38237e\", \"openspec/changes/requirement-branch-repair/independent-reviews/spec-fidelity.json\": \"e3429e63c31e66762504b3a112607aa2c040f895\", \"openspec/changes/requirement-branch-repair/proposal.md\": \"5ffa744f167194960d5e07d877a5964c65070e9e\", \"openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md\": \"e9fd2f90c4b12513dc93ade02268810aa1753692\", \"openspec/changes/requirement-branch-repair/tasks.md\": \"095b77bf585df4dd3943cc457ecb19b805e9adf6\", \"openspec/changes/requirement-branch-repair/verification.md\": \"ac4b47b28a2e88f7c45b6ca2ebebc9eaf2dbd7c1\", \"template/scripts/candidate_lifecycle.py\": \"8ae16c84e9d7847060714c77f982492c16c8ab62\", \"template/scripts/execute_requirement.py\": \"2b579df72ad1a09d2909fcae3e4b5a40685651f8\", \"template/scripts/integration_contour.py\": \"6ad5df48f049a28a1eddcf4f31e3c3058458eb89\", \"template/scripts/lifecycle_workers.py\": \"e10362dc36d864fccc8b9990297333582817e1c3\", \"template/scripts/publication_queue.py\": \"91dd06b455e1deaeed652f312dcb29526a6e44ee\", \"template/scripts/requirement_composition.py\": \"ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d\", \"tests/test_autonomous_integration_contour.py\": \"35b811a656d1577e32e3fb945070ee13591c758b\", \"tests/test_coordinator_preflight.py\": \"a0a755fbf30264fa3762abcfe59da806a451208c\", \"tests/test_publication_queue.py\": \"ddb269cca5e57af22cb99754267e23950aeb0a1e\", \"tests/test_requirement_contribution_composition.py\": \"f930980f9581b350a3e9148ccc973f2ac37233e1\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-978/T1\"}, \"reviewed_evidence_digest\": \"05952661460097497097c5afcc54609f33de86e4e820932585903d359d9b0b55\"}, {\"change\": \"composition-order-advance-guard\", \"head\": \"3bedf8c41cf09f2626d425096b96e4a8b4685b08\", \"identity\": {\"change\": \"composition-order-advance-guard\", \"contribution_base\": \"469a224bee1798a40ca45e430d77137994b0efb5\", \"kind\": \"contribution\", \"requirement\": \"pln_440a516b4433c59b23fd2a9a29b2ee8e\", \"source_issue\": \"pln_d76f315c7f52200e4661e04655749e69\", \"target_branch\": \"requirement/BR-978\", \"task_content\": {\"base\": \"469a224bee1798a40ca45e430d77137994b0efb5\", \"digest\": \"3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be\", \"paths\": {\"docs/engineering/lifecycle-map.md\": \"49785c2bbf8f89bcf105d6c3d10da100f38bfeb1\", \"docs/engineering/task-intake.md\": \"2c426fe3290bbdd5b41971887c83a9bf2c86d750\", \"openspec/changes/composition-order-advance-guard/.managed-task.json\": \"f8f92f2e24c60c1635c65a2c058622bdc0cd929e\", \"openspec/changes/composition-order-advance-guard/.openspec.yaml\": \"a7587c5f07bdc91709ad9b053e28487c68d7e10b\", \"openspec/changes/composition-order-advance-guard/design.md\": \"2b4f6b17f79eead4197e1d3265cf8d270d8aad6b\", \"openspec/changes/composition-order-advance-guard/proposal.md\": \"4b93692ca7df73fcf768eea9e10bcafcf02bd367\", \"openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md\": \"fc5e1c534eb6637a902d3d54229216b2b5454cff\", \"openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md\": \"16e737ff0540a6bc7ccb2f607b5fc85a02f0c604\", \"openspec/changes/composition-order-advance-guard/tasks.md\": \"f70da84e157ff6ec63ecc0ad606513f5b841bc18\", \"template/scripts/execute_requirement.py\": \"13e11f6b8cff91ee29792cf4b47ff5456652b831\", \"template/scripts/publication_queue.py\": \"28cfce1e4500925136c5f84d67ece2038954e00b\", \"template/scripts/requirement_contributions.py\": \"cc89772a5b3f6d7900a0c8902df74839fc2da92c\", \"tests/test_publication_queue.py\": \"8a5a4801c573196b73f7d8ab1742849b989e6d44\", \"tests/test_requirement_card_claim.py\": \"65fe1a620d688fa3beaaeee23f3939c962ed43c9\", \"tests/test_requirement_contribution_composition.py\": \"3f21fa288604d19cceb41281982843632cb26038\", \"tests/test_requirement_execution.py\": \"b535c5270f5a37132ba06055e2f371b30222878c\", \"tests/test_requirement_flow_e2e.py\": \"fd229755bba2c06a5b11200bff8216b4b4814e7a\", \"tests/test_requirement_sequential_delivery.py\": \"d7b9218b6974b8293aa254b9bd0213f843a8553f\", \"tests/test_requirement_terminal_fresh_main.py\": \"8b583437da002b48ac681829315f8d839731fac4\"}, \"scope\": \"independent-review-v1\", \"version\": 1}, \"work_identity\": \"BR-978/T3\"}, \"reviewed_evidence_digest\": \"11a4d981b76b48fdecf5f95cc6f2a65d174bb4425470f0b521882e8b9e40d747\"}]",
+      "paths": [
+        "AGENTS.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-03T08:52:05+00:00",
+  "request_id": "727eb30c-8d16-42ba-b6f9-130597abe065",
+  "requirement": "pln_440a516b4433c59b23fd2a9a29b2ee8e",
+  "schema_version": 1,
+  "task_content": {
+    "base": "b49324376d2090537c3cdc2a570b3510f25eb553",
+    "digest": "be768665b1b600b06356c3810fb76ac6399b726349a73e0c6f0f59c33ad8c916",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
+      "docs/engineering/lifecycle-map.md": "49785c2bbf8f89bcf105d6c3d10da100f38bfeb1",
+      "docs/engineering/task-intake.md": "2c426fe3290bbdd5b41971887c83a9bf2c86d750",
+      "openspec/changes/composition-main-only-gates/.managed-task.json": "f74c1e5fbb8249a0819f95914a844e4173789af2",
+      "openspec/changes/composition-main-only-gates/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/composition-main-only-gates/design.md": "94d2a3923c5ee57a24b31464629ea07543fb5b8f",
+      "openspec/changes/composition-main-only-gates/proposal.md": "8d2c75e453ceccdede48c5558cb7c8c7e02614ef",
+      "openspec/changes/composition-main-only-gates/specs/platform-lifecycle/spec.md": "6d598f6d3b6eccaa2a66d9e88629a19da09cbb5e",
+      "openspec/changes/composition-main-only-gates/specs/publication-queue/spec.md": "ebf3ab2c2387427b8fd4c5c6e000d367f98f5997",
+      "openspec/changes/composition-main-only-gates/tasks.md": "8d7b400067f93fcfeff76cbe6b1f1d7c027cdebd",
+      "openspec/changes/composition-order-advance-guard/.managed-task.json": "f8f92f2e24c60c1635c65a2c058622bdc0cd929e",
+      "openspec/changes/composition-order-advance-guard/.openspec.yaml": "a7587c5f07bdc91709ad9b053e28487c68d7e10b",
+      "openspec/changes/composition-order-advance-guard/design.md": "2b4f6b17f79eead4197e1d3265cf8d270d8aad6b",
+      "openspec/changes/composition-order-advance-guard/proposal.md": "4b93692ca7df73fcf768eea9e10bcafcf02bd367",
+      "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md": "fc5e1c534eb6637a902d3d54229216b2b5454cff",
+      "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md": "16e737ff0540a6bc7ccb2f607b5fc85a02f0c604",
+      "openspec/changes/composition-order-advance-guard/tasks.md": "f70da84e157ff6ec63ecc0ad606513f5b841bc18",
+      "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+      "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+      "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+      "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+      "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+      "template/scripts/candidate_lifecycle.py": "8ae16c84e9d7847060714c77f982492c16c8ab62",
+      "template/scripts/execute_requirement.py": "13e11f6b8cff91ee29792cf4b47ff5456652b831",
+      "template/scripts/integration_contour.py": "6ad5df48f049a28a1eddcf4f31e3c3058458eb89",
+      "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+      "template/scripts/publication_queue.py": "28cfce1e4500925136c5f84d67ece2038954e00b",
+      "template/scripts/requirement_composition.py": "ae2bebac65a764225e6c2ac707ad9f99b9a8ed1d",
+      "tests/test_autonomous_integration_contour.py": "35b811a656d1577e32e3fb945070ee13591c758b",
+      "tests/test_coordinator_preflight.py": "a0a755fbf30264fa3762abcfe59da806a451208c",
+      "tests/test_publication_queue.py": "8a5a4801c573196b73f7d8ab1742849b989e6d44",
+      "tests/test_requirement_card_claim.py": "65fe1a620d688fa3beaaeee23f3939c962ed43c9",
+      "tests/test_requirement_contribution_composition.py": "3f21fa288604d19cceb41281982843632cb26038",
+      "tests/test_requirement_execution.py": "b535c5270f5a37132ba06055e2f371b30222878c",
+      "tests/test_requirement_flow_e2e.py": "fd229755bba2c06a5b11200bff8216b4b4814e7a",
+      "tests/test_requirement_sequential_delivery.py": "d7b9218b6974b8293aa254b9bd0213f843a8553f",
+      "tests/test_requirement_terminal_fresh_main.py": "8b583437da002b48ac681829315f8d839731fac4"
+    },
+    "scope": "requirement-composition-v1",
+    "version": 1
+  }
+}

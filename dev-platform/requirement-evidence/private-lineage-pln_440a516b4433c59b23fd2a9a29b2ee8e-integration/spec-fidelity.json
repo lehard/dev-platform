@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+    "base_ref": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+    "candidate_head": "562f1319d7ec4b747cfa62d035ddf59a78e5b659",
+    "diff_sha256": "2ccc2123e0293a93e2faeb62a1f953bb3f7a4a95f93f6306b2d45e61558f0b95"
+  },
+  "completed_at": "2026-11-03T08:52:36+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py: `owned = queue.CLAIM_STATES | {\"ready\", \"integrating\", \"integration-repair-pending\"}`. template/scripts/publication_queue.py `resume_composition_ci` and `_worker_candidate` treat `blocked-retryable` with `phase == \"composition-final-ci\"` as queue-resumed.",
+      "id": "advance-guard-misses-ci-wait-state",
+      "severity": "advisory",
+      "summary": "The T3 advance guard (`_refuse_queue_owned_composition`) does not cover the `blocked-retryable` composition-final-ci wait that T1 introduces. The queue worker owns that wait and resumes it on CI events. A concurrent `advance` can therefore re-enter final publication, including full checks, for the same head while the queue worker is also resuming it."
+    },
+    {
+      "evidence": "template/scripts/requirement_composition.py `request_repair`: `if current[\"state\"] not in {\"review-pending\", \"finalize-pending\", \"ready\", \"repair-pending\"}`. T1 paths in the same file (`advance_final_publication`) and in integration_contour.py (`recover_integration_repair`) transition compositions to `blocked-retryable`.",
+      "id": "repair-entry-excludes-blocked-retryable",
+      "severity": "advisory",
+      "summary": "The T2 `request_repair` entry accepts only review-pending, finalize-pending, ready and repair-pending. A composition that T1 parks in `blocked-retryable` has no standard repair entry. This includes a composition whose exact-head CI failed with enqueue=True, whose full-check run failed, or whose interrupted integration-repair push was recovered as blocked. This partly undercuts the Requirement outcome that the coordinator need not commit manually to `requirement/BR-N`."
+    }
+  ],
+  "launched_at": "2026-11-03T08:52:12+00:00",
+  "output_sha256": "9370fac6c490310e60b9e8753aca23e74c12348a60034472e6062feb4f70da0f",
+  "perspective": "spec-fidelity",
+  "request_id": "727eb30c-8d16-42ba-b6f9-130597abe065",
+  "reviewer": {
+    "context_id": "b6787a71-fdc7-45b0-9985-6ef3f0af52e4",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-963df928-5ff8-4567-8ba0-52e333f1c311",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55856
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 60350
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21162
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22526
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2009
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "be768665b1b600b06356c3810fb76ac6399b726349a73e0c6f0f59c33ad8c916"
+}
