@@ -652,7 +652,7 @@ def check_hygiene(root: Path, stage: str | None = None) -> int:
     print("OpenSpec lifecycle hygiene: BLOCKED")
     for name in stale:
         print(f"- {name}: all tasks are complete but the change is still active")
-    print("Run /opsx:verify when available (or the documented equivalent semantic review), resolve findings, record the PASS receipt and method, then archive through scripts/openspec_lifecycle.py.")
+    print("Run /opsx:verify when available (or the documented equivalent semantic review), resolve findings, record the PASS receipt and method, then run finish (or Requirement advance); the finalize executor archives it.")
     return 1
 
 
@@ -780,7 +780,7 @@ def require_committed_package(root: Path, change: Path) -> None:
         raise SystemExit(
             f"{change.name}: archive requires the committed package before review, checks or evidence writes; "
             "uncommitted or untracked: " + ", ".join(dirty) + ". "
-            f"Commit them first (git add -- {prefix} openspec/specs && git commit), then rerun archive."
+            f"Commit them first (git add -- {prefix} openspec/specs && git commit), then rerun finish or Requirement advance."
         )
 
 
@@ -856,7 +856,7 @@ FINALIZE_COMPOSITION = "composition"
 FINALIZE_CONTEXTS = (FINALIZE_QUEUE, FINALIZE_DEVELOPER, FINALIZE_COMPOSITION)
 
 
-def finalize_change_problems(root: Path, name: str, *, context: str, requirement: str | None = None) -> list[str]:
+def finalize_change_problems(root: Path, name: str, *, context: str, requirement: str | None = None, review: bool = True) -> list[str]:
     """Read-only archive preconditions shared by single-change and composition finalization."""
     if context not in FINALIZE_CONTEXTS:
         raise SystemExit(f"{name}: unknown finalize context {context!r}; expected one of {', '.join(FINALIZE_CONTEXTS)}")
@@ -917,7 +917,7 @@ def finalize_change_problems(root: Path, name: str, *, context: str, requirement
             require_archive_evidence(root, name, requirement)
         except (SystemExit, WorkerError, ContributionError) as exc:
             problems.append(f"{name}: {exc}")
-    else:
+    elif review:
         collect_problem(problems, require_review_evidence, root, change)
     return problems
 
@@ -983,7 +983,12 @@ def main() -> int:
     root = current_worktree_root()
     if args.command == "check":
         return check_hygiene(root, args.stage)
-    return finalize_change(root, args.change, context=FINALIZE_QUEUE if args.finalize else FINALIZE_DEVELOPER)
+    if not args.finalize:
+        mode = lifecycle_mode(read_platform_config(root))
+        executor = "the queue finalize job" if mode == "coordinator" else "finish (or Requirement advance for a ready child)"
+        raise SystemExit(f"{args.change}: developer archive is refused; {executor} runs review and finalization. "
+                         "The --finalize flag is reserved for the trusted archiver.")
+    return finalize_change(root, args.change, context=FINALIZE_QUEUE)
 
 
 if __name__ == "__main__":

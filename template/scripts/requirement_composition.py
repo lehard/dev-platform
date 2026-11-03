@@ -700,20 +700,9 @@ def run_child_review(checkout: Path, change: Path, *, base_ref: str, launcher, c
     config = reviewer.settings(checkout) if config is None else config
     clean = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
     launcher = launcher or (lambda argv, cwd, timeout: reviewer.subprocess_launcher(argv, cwd, timeout, env=clean))
-    reports = {}
     snapshot = workers.tree_snapshot(checkout)
-    readiness = reviewer.preflight(checkout, config=config, launcher=launcher)
-    with tempfile.TemporaryDirectory(prefix="contribution-review-") as temporary:
-        scratch = Path(temporary)
-        (scratch / "findings-schema.json").write_text(json.dumps(reviewer.FINDINGS_SCHEMA), encoding="utf-8")
-        diff_path = scratch / "candidate.diff"
-        diff_path.write_text(diff, encoding="utf-8")
-        for perspective in review.PERSPECTIVES:
-            reports[perspective] = reviewer.run_perspective(
-                checkout, request, perspective, provider=readiness["provider"], model=readiness["model"],
-                binary=readiness["binary"], limitation=error or (None if readiness["ready"] else readiness["limitation"]),
-                launcher=launcher, timeout=reviewer.timeout_seconds(config), scratch=scratch, diff_path=diff_path,
-                watched=[])
+    reports = reviewer.run_review_stage(checkout, request, config=config, launcher=launcher, diff=diff,
+                                        limitation=error, watched=[])
     if workers.tree_snapshot(checkout) != snapshot:
         raise workers.WorkerError("child reviewer modified the checkout")
     for perspective, report in reports.items():

@@ -691,6 +691,44 @@ class RequirementExecutionTests(unittest.TestCase):
             execution._candidate_for(Path("/unused"), REQUIREMENT, [Path("r.json")], ["a", "b"])
         self.assertEqual(assemble.call_args.kwargs["base"], "b" * 40)
 
+    def test_portable_ready_child_finalizes_before_its_receipt(self) -> None:
+        import finish_task
+        import openspec_lifecycle
+        import _platform_common
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worktree = root / "worktrees" / "first"
+            worktree.mkdir(parents=True)
+            active = worktree / "openspec/changes/first"
+            archive = worktree / "openspec/changes/archive/2026-11-04-first"
+            events = []
+            active.mkdir(parents=True)
+            (active / "tasks.md").write_text("- [x] done\n")
+            (active / "verification.md").write_text("OpenSpec-Verify: PASS\nVerification-Method: fixture\n")
+            def finalize(path):
+                self.assertEqual(path, worktree)
+                events.append("finalize")
+            def receipt(*args, **kwargs):
+                events.append("receipt")
+                self.assertEqual(kwargs["archived_contract"], archive)
+                return {"head": "b" * 40}
+            with mock.patch.object(execution.requirement_integration, "_registered_worktrees", return_value={worktree.resolve(): "agent/first"}), \
+                    mock.patch.object(execution, "machine_path", return_value=root / "worktrees"), \
+                    mock.patch.object(execution, "_git", return_value="agent/first"), \
+                    mock.patch.object(execution.managed_task, "resolve_canonical_provenance", side_effect=[
+                        SimpleNamespace(lifecycle="active", path=active), SimpleNamespace(lifecycle="archived", path=archive)]), \
+                    mock.patch.object(_platform_common, "read_platform_config", return_value={}), \
+                    mock.patch.object(_platform_common, "lifecycle_mode", return_value="portable"), \
+                    mock.patch.object(finish_task, "finalize_portable_change", side_effect=finalize), \
+                    mock.patch.object(execution.requirement_integration, "create_receipt", side_effect=receipt), \
+                    mock.patch.object(execution.requirement_integration, "superseded_receipt_head", return_value=None), \
+                    mock.patch.object(execution.requirement_integration, "write_receipt", return_value=object()):
+                self.assertIsNotNone(execution._ready_receipt(root, root / "receipts", REQUIREMENT,
+                                                            "acme/backlog#8", "first", release_claim=False))
+            self.assertEqual(events, ["finalize", "receipt"])
+            # A verified receipt is a prerequisite; incomplete work remains for implementation.
+            self.assertTrue(openspec_lifecycle.verification_passed(active))
+
     def test_ready_receipt_supersedes_own_stale_receipt_in_child_worktree_and_reports_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

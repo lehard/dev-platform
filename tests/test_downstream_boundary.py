@@ -330,8 +330,7 @@ class DownstreamCheckoutTests(unittest.TestCase):
             sys.path.insert(0, "scripts")
             import openspec_lifecycle as lifecycle
             os.environ["PATH"] = str(Path.cwd() / "bin") + os.pathsep + os.environ["PATH"]
-            sys.argv = ["openspec_lifecycle.py", "archive", "work"]
-            assert lifecycle.main() == 0
+            assert lifecycle.finalize_change(Path.cwd(), "work", context="developer") == 0
             """
         )
         result = self.run_driver(root, source)
