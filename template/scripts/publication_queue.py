@@ -329,6 +329,21 @@ def _admission(events: list[dict[str, Any]], number: int) -> dict[str, Any] | No
     return slot
 
 
+def _ordering_key(events: list[dict[str, Any]], admission: dict[str, Any]) -> int:
+    """Preserve a composition branch's first admission without changing its current gates."""
+    branch = admission.get("branch")
+    if not isinstance(branch, str) or not branch:
+        raise QueueError("admission has no valid branch for queue ordering")
+    if not branch.startswith("requirement/BR-"):
+        return admission["comment_id"]
+    first = [event["comment_id"] for event in events
+             if event.get("kind") == "admit" and event.get("branch") == branch
+             and isinstance(event.get("comment_id"), int)]
+    if not first:
+        raise QueueError(f"composition {branch} has no valid first admission")
+    return min(first)
+
+
 def _proven_head(events: list[dict[str, Any]], admission: dict[str, Any]) -> Any:
     """The head the admission slot proves: its admission head or its latest coordinator update."""
     updates = [event for event in events if event.get("kind") == "update"
@@ -1458,7 +1473,8 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
             _label(root, repo, number, QUEUE, present=False)
             _comment(root, repo, number, {"kind": "admit", "head": expected_head, "base": base, "branch": branch,
                                           "supersedes": supersedes})
-            admitted = _admission(_events(root, repo, number), number)
+            events = _events(root, repo, number)
+            admitted = _admission(events, number)
             if admitted is None or admitted.get("head") != expected_head:
                 raise QueueError("superseding admission comment was not confirmed")
             _label(root, repo, number, BLOCKED, present=False)
@@ -1466,7 +1482,8 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
         base = identity["contribution_base"] if identity.get("kind") == "contribution" else _main(root)
         _ensure_labels(root)
         _comment(root, repo, number, {"kind": "admit", "head": expected_head, "base": base, "branch": branch})
-        admitted = _admission(_events(root, repo, number), number)
+        events = _events(root, repo, number)
+        admitted = _admission(events, number)
         if admitted is None or admitted.get("head") != expected_head:
             raise QueueError("admission comment was not confirmed")
         _label(root, repo, number, BLOCKED, present=False)
@@ -1505,7 +1522,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
             publish_job(root, repo, number, "review", expected_head, task_identity=handoff["task_identity"])
         _require_handoff_progress(root, repo, number, expected_head, admitted)
     _label(root, repo, number, QUEUE, present=True)
-    return {"number": number, "position_key": admitted["comment_id"], "head": expected_head, "state": "queued"}
+    return {"number": number, "position_key": _ordering_key(events, admitted), "head": expected_head, "state": "queued"}
 
 
 QUEUE_INVENTORY_LIMIT = 300
@@ -1528,7 +1545,8 @@ def _queued(root: Path, repo: str, skipped: list[str] | None = None) -> list[tup
         if not isinstance(number, int):
             raise QueueError("queued PR has no number")
         try:
-            admission = _admission(_events(root, repo, number), number)
+            events = _events(root, repo, number)
+            admission = _admission(events, number)
         except QueueError as exc:
             admission, cause = None, str(exc)
         else:
@@ -1538,7 +1556,7 @@ def _queued(root: Path, repo: str, skipped: list[str] | None = None) -> list[tup
             if skipped is not None:
                 skipped.append(f"#{number} queued but {cause}"[:300])
             continue
-        queue.append((admission["comment_id"], number, admission))
+        queue.append((_ordering_key(events, admission), number, admission))
     return sorted(queue)
 
 
@@ -1564,7 +1582,7 @@ def status(root: Path, number: int) -> dict[str, Any]:
     # authoritative for its membership, so admission is never misreported as
     # "lacks queue label" while the index catches up.
     if QUEUE in labels and number not in {candidate for _, candidate, _ in queue}:
-        queue = sorted([*queue, (admission["comment_id"], number, admission)])
+        queue = sorted([*queue, (_ordering_key(events, admission), number, admission)])
     for index, (_, candidate, _) in enumerate(queue, 1):
         if candidate == number:
             awaiting = _awaiting_readmission(root, repo, number, pr, _comments(root, repo, number), admission)

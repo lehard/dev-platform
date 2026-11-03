@@ -404,7 +404,10 @@ class SequentialUnfinishedStageTests(unittest.TestCase):
             handoffs[intent] = path
         linked = {"first": "acme/backlog#8", "second": "acme/backlog#9"}
         import _platform_common
-        with mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
+        import publication_queue
+        with mock.patch.object(publication_queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(publication_queue, "_gh", return_value=[]), \
+             mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
              mock.patch.object(execution, "current_worktree_root", return_value=root), \
              mock.patch.object(execution, "_git", return_value="main"), \
              mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \

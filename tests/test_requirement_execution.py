@@ -63,6 +63,11 @@ def fixture_locked_json(path: Path) -> Iterator[dict]:
 
 class RequirementExecutionTests(unittest.TestCase):
     def setUp(self) -> None:
+        import publication_queue
+        for name, value in (("_repo", "acme/project"), ("_gh", [])):
+            patcher = mock.patch.object(publication_queue, name, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         # Card claiming first ensures Project membership; these tests fake only the card status.
         patcher = mock.patch.object(
             execution.managed_project_status, "ensure_item", return_value=SimpleNamespace(status="Backlog"))
@@ -527,6 +532,33 @@ class RequirementExecutionTests(unittest.TestCase):
                 with self.assertRaises(LegacyPath):
                     execution.advance(root, requirement=REQUIREMENT, base_dir=root)
             contributions.assert_not_called()
+
+    def test_portable_shared_candidate_publishes_without_retrospective(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            handoffs = [(name, root / f"{name}.json") for name in ("first", "second")]
+            for name, path in handoffs:
+                path.write_text(json.dumps({"intents": [{"id": name, "dependencies": []}]}))
+            receipts = [(root / "first-receipt.json", object()), (root / "second-receipt.json", object())]
+            with mock.patch.object(execution, "current_worktree_root", return_value=root), \
+                 mock.patch.object(execution, "_git", return_value="main"), \
+                 mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
+                 mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}), \
+                 mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), \
+                 mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), \
+                 mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}), \
+                 mock.patch.object(execution, "_contribution_publication_supported", return_value=False), \
+                 mock.patch.object(execution.requirement_board, "claim_started"), \
+                 mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Ready")), \
+                 mock.patch.object(execution, "_ready_receipt", side_effect=receipts), \
+                 mock.patch.object(execution, "_retrospective_pending", side_effect=AssertionError("premature checkpoint")), \
+                 mock.patch.object(execution, "_candidate_for", return_value=({"complete": True}, root, "agent/shared")), \
+                 mock.patch.object(execution.requirement_integration, "compose_candidate") as compose, \
+                 mock.patch.object(execution.requirement_integration, "publish_candidate", return_value={"status": "in-review"}) as publish:
+                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+            self.assertEqual(result["status"], "in-review")
+            compose.assert_called_once()
+            publish.assert_called_once()
 
     def test_downstream_multi_child_uses_existing_supervisor_path(self):
         import _platform_common

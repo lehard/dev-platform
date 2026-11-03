@@ -227,6 +227,18 @@ class AdmissionTests(unittest.TestCase):
             self.assertEqual(queue.status(ROOT_PATH, 2)["position"], 2)
             self.assertEqual([item[1] for item in queue._queued(ROOT_PATH, REPO)], [1, 2])
 
+    def test_readmitted_composition_keeps_first_slot_after_block(self) -> None:
+        branch = "requirement/BR-7"
+        old = {**admission(1, 10), "branch": branch}
+        new = {**admission(1, 30, NEW_HEAD), "branch": branch}
+        events = {1: [old, {"kind": "block", "comment_id": 15}, new], 2: [admission(2, 20)]}
+        rows = [{"number": n, "labels": [{"name": queue.QUEUE}]} for n in (1, 2)]
+        with patch.object(queue, "_gh", return_value=rows), \
+             patch.object(queue, "_events", side_effect=lambda _root, _repo, number: events[number]):
+            result = queue._queued(ROOT_PATH, REPO)
+        self.assertEqual([(key, number) for key, number, _ in result], [(10, 1), (20, 2)])
+        self.assertEqual(result[0][2]["head"], NEW_HEAD)
+
     def test_active_owner_requires_coordinator_label(self) -> None:
         with patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_pr", return_value=pr(1, labels=(queue.QUEUE, queue.ACTIVE))), \
