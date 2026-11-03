@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "abce3d9584fd60c34a6431d13092b3a7ff27a565",
+    "base_ref": "origin/main",
+    "candidate_head": "4208e59da503d3256d35baf824f198c0338b02d6",
+    "diff_sha256": "7ee3cce9f9caa6a3a97a7cbc891afb7a76355aced26a576a3719c38e43ca0ca3"
+  },
+  "completed_at": "2026-11-03T21:49:15+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/managed_task.py: create_task calls create_issue, then check_created_package_size, which raises ManagedTaskError when `actual != expected`. The test test_upstream_bound_or_evidence_length_drift_fails_before_package_publication asserts `len(self.writes) == 1` (Issue created, no comment published).",
+      "id": "post-create-drift-check-strands-issue",
+      "severity": "advisory",
+      "summary": "The post-creation exact-length check raises after the Issue already exists and before publication. If GitHub returns a timestamp that differs from the documented 20-character form, even a package that would fit is left as an unpublished Issue, and no recovery path exists. The design accepts this deliberately, and the tests cover it."
+    },
+    {
+      "evidence": "The diff adds check_creation_package_size only before create_issue in create_task. serialize_package and publish_package are shared, and serialize_superseded_marker and the supersede tests show a separate write path.",
+      "id": "supersede-path-unguarded",
+      "severity": "advisory",
+      "summary": "The size guard applies only to fresh creation in create_task. Other package-writing paths, such as the supersede flow that publishes a replacement package, have no pre-write limit check and can still hit the 422 error after side effects. The proposal scopes this out explicitly, but the gap remains."
+    }
+  ],
+  "launched_at": "2026-11-03T21:48:58+00:00",
+  "output_sha256": "15755f1d6bc88312abad53197e435f4ceef429573f26ed02cac3c37511005943",
+  "perspective": "engineering-quality",
+  "request_id": "da0350ca-3b58-44b9-b28a-430a52acb563",
+  "reviewer": {
+    "context_id": "4af2200a-4307-4a49-9582-ecde679d01ca",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-b725433d-5265-4d8a-bebd-d82b58cb99ca",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 24450
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48152
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11411
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13553
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1288
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d0dbbb55e7b0af11ec3d3adb1dd949b8dd01d65f7c37a07e1f1c987589706ca5"
+}

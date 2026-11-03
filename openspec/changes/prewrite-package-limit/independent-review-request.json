@@ -1,0 +1,73 @@
+{
+  "candidate": {
+    "base_head": "abce3d9584fd60c34a6431d13092b3a7ff27a565",
+    "base_ref": "origin/main",
+    "candidate_head": "4208e59da503d3256d35baf824f198c0338b02d6",
+    "diff_sha256": "7ee3cce9f9caa6a3a97a7cbc891afb7a76355aced26a576a3719c38e43ca0ca3"
+  },
+  "change": "openspec/changes/prewrite-package-limit",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/prewrite-package-limit/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/prewrite-package-limit/design.md",
+        "openspec/changes/prewrite-package-limit/proposal.md",
+        "openspec/changes/prewrite-package-limit/specs/managed-task-intake/spec.md",
+        "openspec/changes/prewrite-package-limit/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/prewrite-package-limit/proposal.md",
+        "openspec/changes/prewrite-package-limit/design.md",
+        "openspec/changes/prewrite-package-limit/tasks.md",
+        "openspec/changes/prewrite-package-limit/specs/managed-task-intake/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-03T21:48:21+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/prewrite-package-limit/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "da0350ca-3b58-44b9-b28a-430a52acb563",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "abce3d9584fd60c34a6431d13092b3a7ff27a565",
+    "digest": "d0dbbb55e7b0af11ec3d3adb1dd949b8dd01d65f7c37a07e1f1c987589706ca5",
+    "paths": {
+      "openspec/changes/prewrite-package-limit/.managed-task.json": "87f3cdeea83f326cc37a0d790fe16c99fb60275f",
+      "openspec/changes/prewrite-package-limit/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+      "openspec/changes/prewrite-package-limit/design.md": "85f6667599f351ac16b32a41b40aa43eaef17056",
+      "openspec/changes/prewrite-package-limit/proposal.md": "5d27da5e3f926d867c25f6a40799cc4ab55f84b8",
+      "openspec/changes/prewrite-package-limit/specs/managed-task-intake/spec.md": "fd2c19617dd54ae6d76ea2f436578810c53655e3",
+      "openspec/changes/prewrite-package-limit/tasks.md": "51b5fbec12c9e57f5c9dc05640c2b69232275a2a",
+      "template/scripts/managed_task.py": "9fbde3079b496ebaa13eba3a2c8ec35e83da2f67",
+      "tests/test_managed_task.py": "71876d7a7e1597fdd4f18dfcd28e4b1883f42fd6"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
