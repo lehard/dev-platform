@@ -3,30 +3,34 @@
   "candidate": {
     "base_head": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
     "base_ref": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
-    "candidate_head": "1fd15a7b8084ba108f206821a9f44e2deaf68d00",
-    "diff_sha256": "a004a3ecc0b3174822c7db71ed9b9c8dede9c332fe71550d3cd228c124304cc7"
+    "candidate_head": "b80efaef98047e86d86aa876fe1c6e864649bdd3",
+    "diff_sha256": "ae865a2ec8deda7f3422920a26a50c7a928256b633f6730d1fced3cd815bac8b"
   },
-  "completed_at": "2026-11-03T21:18:22+00:00",
-  "findings": [],
-  "launched_at": "2026-11-03T21:17:54+00:00",
-  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
+  "completed_at": "2026-11-03T21:33:44+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff lines 11509-11575 (request_repair), 11584-11627 (require_full_check_evidence and the required-checks gate), 11682-11819 (advance_final_publication with main-only carry and CI wait); proposal.md Impact lists only `template/scripts/{requirement_composition,openspec_lifecycle}.py`, tests and manifest.",
+      "id": "candidate-scope-exceeds-declared-change",
+      "severity": "advisory",
+      "summary": "The candidate diff changes much more than this change's declared scope. The proposal's Impact section lists only requirement_composition.py, openspec_lifecycle.py, tests and the manifest, and the delta spec adds a single requirement. The diff also adds composition repair requests, required-CI gating and main-only full-check carry chains in requirement_composition.py. It touches publication_queue.py, integration_contour.py, execute_requirement.py and others, and adds receipt-drift checks in validate_children. None of these appear in this change's proposal, design, tasks or delta spec. They look like they belong to other changes (e.g. BR-949 T2 contribution binding) merged into this branch. The finalize-through-shared-function requirement itself is implemented as specified."
+    }
+  ],
+  "launched_at": "2026-11-03T21:33:23+00:00",
+  "output_sha256": "4993b3f69903a8d24e20ffa0a06010f3022dde9f19f9b78abcbb83141aa10832",
   "perspective": "spec-fidelity",
-  "request_id": "b80bf13f-de99-42c6-bdcb-3f71b4b3bdce",
+  "request_id": "b443e88b-1e1c-47cd-ba80-2be9f183dc6c",
   "reviewer": {
-    "context_id": "04536716-c17c-4b1a-854f-d7cd45144c76",
+    "context_id": "498610c6-4cff-4899-a60a-dbdeaaf1e3ed",
     "context_id_source": "runtime",
-    "executed_provider": "claude",
-    "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-38076d89-f16a-4122-993a-40c7d16a9bf0",
+    "launch_id": "platform-launch-a24cf443-cc19-4821-a74e-3da2ef239629",
     "model": {
       "source": "selected",
       "value": "sonnet"
     },
     "provider": "claude",
     "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
-    "requested_provider": "claude",
     "runtime": "claude-code-print",
     "write_access": false
   },
@@ -35,22 +39,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32935
+        "value": 30660
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 133710
+        "value": 125067
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 20035
+        "value": 17928
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 24125
+        "value": 18975
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -60,12 +64,12 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 11
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2070
+        "value": 2277
       }
     },
     "runtime": "claude-code-print"
