@@ -2494,7 +2494,8 @@ def _integrate(root: Path, repo: str, number: int, admission: dict[str, Any], pr
                 break
             state = required_check_state_for_ref(root, os.environ.copy(), str(number), head)
             if state.kind == "passed":
-                checks_evidence = {"detail": state.detail or "required checks passed", "main": base, "head": head}
+                checks_evidence = {"kind": "passed", "detail": state.detail,
+                                   "main": base, "head": head}
                 break
             if state.kind in {"failed", "not_registered"}:
                 # Review or repair may have claimed the head while checks ran.

@@ -2206,6 +2206,19 @@ class RequiredCheckObservationMappingTests(unittest.TestCase):
                           "-f", "merge_method=squash", "-f", f"sha={HEAD}"])
         self.assertEqual(result["reason"], "merge accepted; awaiting GitHub confirmation")
 
+    def test_integration_records_complete_exact_head_ci_evidence(self) -> None:
+        identity = {"kind": "requirement-composition", "task_content": {"digest": "proof"}}
+        with patch.object(queue, "_label"), patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
+             patch.object(queue, "_transition", side_effect=[{"task_identity": identity}, None]) as transition, \
+             patch.object(queue, "_checks_proven_on", return_value=False), \
+             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("passed", "validate")), \
+             patch.object(queue, "_main", return_value=NEW_HEAD):
+            result = queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        self.assertEqual(result["state"], "waiting")
+        gate = transition.call_args.kwargs["gates"]["required-checks"]
+        self.assertEqual(gate, {"result": "passed", "identity": identity,
+                                "evidence": {"kind": "passed", "detail": "validate", "main": BASE, "head": HEAD}})
+
     def test_protected_ref_refusal_waits_without_a_merged_transition(self) -> None:
         from subprocess import CompletedProcess
         refusal = '{"message":"Repository rule violations found\\n\\nCannot update this protected ref.","status":"405"}'

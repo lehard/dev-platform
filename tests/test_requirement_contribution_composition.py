@@ -833,6 +833,17 @@ class CompositionTests(unittest.TestCase):
             gates["required-checks"]["evidence"]["kind"] = "passed"
             candidate = {"head": head, "task_identity": identity, "gates": gates}
             composition.require_final_gates(fixture.root, fixture.manifest, candidate, head, trusted_root=fixture.root)
+            legacy = copy.deepcopy(candidate)
+            legacy["gates"]["required-checks"]["evidence"] = {
+                "head": head, "main": "a" * 40, "detail": "required checks passed"}
+            composition.require_final_gates(fixture.root, fixture.manifest, legacy, head, trusted_root=fixture.root)
+            for key, value in (("result", "failed"), ("identity", {}),
+                               ("evidence", {"head": "f" * 40, "main": "a" * 40, "detail": "passed"}),
+                               ("evidence", {"head": head, "kind": "failed"})):
+                bad = copy.deepcopy(legacy)
+                bad["gates"]["required-checks"][key] = value
+                with self.subTest(field=key, value=value), self.assertRaises(contributions.ContributionError):
+                    composition.require_final_gates(fixture.root, fixture.manifest, bad, head, trusted_root=fixture.root)
             for name in gates:
                 bad = copy.deepcopy(candidate); bad["gates"].pop(name)
                 with self.subTest(gate=name), self.assertRaises(contributions.ContributionError):
