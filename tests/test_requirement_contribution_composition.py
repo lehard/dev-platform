@@ -1585,6 +1585,36 @@ class QueueOwnershipGuardTests(unittest.TestCase):
         import publication_queue
         self.queue = publication_queue
 
+    def test_incomplete_draft_review_pending_allows_advance(self):
+        pr = {"state": "open", "draft": True, "head": {"ref": "requirement/BR-7"},
+              "base": {"ref": "main"}, "labels": []}
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
+             mock.patch.object(self.queue, "_pr", return_value=pr), \
+             mock.patch.object(self.queue, "_comments", return_value=[]), \
+             mock.patch.object(self.queue, "_derive", return_value={"state": "review-pending"}), \
+             mock.patch.object(self.queue, "_malformed", return_value=False), \
+             mock.patch.object(execution, "_composition_manifest_complete", return_value=False):
+            execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_manifest_completeness_uses_exact_pr_head(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp))
+            incomplete = fixture.boundary
+            fixture.integrate(fixture.child("first", 8))
+            fixture.integrate(fixture.child("second", 9))
+            complete = git(fixture.root, "rev-parse", "HEAD")
+            with mock.patch.object(workers, "prepare_checkout", return_value=fixture.root):
+                for head, expected in ((incomplete, False), (complete, True)):
+                    with self.subTest(head=head):
+                        pr = {"head": {"ref": "requirement/BR-7", "sha": head}}
+                        self.assertEqual(execution._composition_manifest_complete(fixture.root, "acme/project", pr,
+                                                                                  REQUIREMENT), expected)
+                pr = {"head": {"ref": "requirement/BR-7", "sha": fixture.base}}
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "cannot read composition manifest"):
+                    execution._composition_manifest_complete(fixture.root, "acme/project", pr, REQUIREMENT)
+
     def test_owned_composition_refuses_before_advance_side_effects(self):
         pr = {"state": "open", "head": {"ref": "requirement/BR-7"}, "base": {"ref": "main"},
               "labels": [{"name": self.queue.QUEUE}]}
@@ -1629,7 +1659,8 @@ class QueueOwnershipGuardTests(unittest.TestCase):
              mock.patch.object(self.queue, "_pr", return_value=pr), \
              mock.patch.object(self.queue, "_comments", return_value=[]), \
              mock.patch.object(self.queue, "_derive") as derive, \
-             mock.patch.object(self.queue, "_malformed", return_value=False):
+             mock.patch.object(self.queue, "_malformed", return_value=False), \
+             mock.patch.object(execution, "_composition_manifest_complete", return_value=True):
             for state in self.queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}:
                 with self.subTest(state=state):
                     derive.return_value = {"state": state}
