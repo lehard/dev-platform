@@ -93,6 +93,9 @@ class Repository:
         (change / "proposal.md").write_text(f"Implement {name}\n")
         (change / "automated-checks.json").write_text("{}\n")
         (change / "verification.md").write_text(verification)
+        (change / "independent-review-request.json").write_text("{}\n")
+        (change / "independent-reviews").mkdir()
+        (change / "independent-reviews/spec-fidelity.json").write_bytes(b'{"reviewed": true}\r\n')
         (self.root / f"{name}.txt").write_text(f"{name}\n")
         head = self.commit(name)
         identity = {"kind": "contribution", "change": name, "requirement": REQUIREMENT,
@@ -443,6 +446,69 @@ class ContributionTests(unittest.TestCase):
             with self.assertRaises(contributions.ContributionError):
                 contributions.ensure_integration_branch(seed, **{**kwargs, "expected_changes": ["second", "first"]})
 
+    def test_graph_migration_is_bounded_and_fast_forward(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote, seed = root / "remote.git", root / "seed"
+            remote.mkdir(); seed.mkdir()
+            git(remote, "init", "--bare", "-b", "main")
+            git(seed, "init", "-b", "main")
+            git(seed, "config", "user.name", "Test"); git(seed, "config", "user.email", "test@example.test")
+            (seed / "AGENTS.md").write_text("test\n")
+            (seed / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
+            (seed / "dev-platform").mkdir()
+            (seed / "dev-platform/checks.toml").write_text("# checks\n")
+            git(seed, "add", "."); git(seed, "commit", "-m", "base")
+            git(seed, "remote", "add", "origin", str(remote)); git(seed, "push", "origin", "main")
+            kwargs = {"requirement": REQUIREMENT, "repository": "acme/project", "source_repo": remote.as_uri()}
+            old = contributions.ensure_integration_branch(seed, **kwargs, expected_changes=["first", "old-key"],
+                dependencies={"first": [], "old-key": ["first"]})
+            target = {**kwargs, "expected_changes": ["first", "new-change"],
+                      "dependencies": {"first": [], "new-change": ["first"]},
+                      "handoff_renames": {"old-key": "new-change"}}
+            with self.assertRaisesRegex(contributions.ContributionError, "ambiguous"):
+                contributions.ensure_integration_branch(seed, **{**target, "handoff_renames": {}})
+            with self.assertRaisesRegex(contributions.ContributionError, "differs"):
+                contributions.ensure_integration_branch(seed, **{**target, "dependencies": {"first": [], "new-change": []}})
+            original_git = workers.harness_git
+            def moved(checkout, *args):
+                if args[:2] == ("ls-remote", "origin"):
+                    moved.calls += 1
+                    if moved.calls == 2:
+                        return "f" * 40 + " refs/heads/requirement/BR-7"
+                return original_git(checkout, *args)
+            moved.calls = 0
+            with mock.patch.object(workers, "harness_git", side_effect=moved):
+                with self.assertRaisesRegex(contributions.ContributionError, "moved"):
+                    contributions.ensure_integration_branch(seed, **target)
+            self.assertEqual(git(remote, "rev-parse", "refs/heads/requirement/BR-7"), old["head"])
+            migrated = contributions.ensure_integration_branch(seed, **target)
+            self.assertEqual(migrated["manifest"]["expected_changes"], ["first", "new-change"])
+            self.assertEqual(migrated["manifest"]["dependencies"], target["dependencies"])
+            self.assertEqual(git(remote, "rev-parse", migrated["head"] + "^"), old["head"])
+            self.assertEqual(contributions.ensure_integration_branch(seed, **target), migrated)
+
+    def test_integrated_child_cannot_be_renamed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture = Repository(root)
+            child = fixture.child("first", 8)
+            git(root, "switch", "requirement/BR-7")
+            manifest = contributions.seal({**fixture.manifest, "children": [{
+                "change": "first", "head": child["head"], "contribution_base": fixture.boundary,
+                "integrated_head": child["head"], "source_issue": "acme/backlog#8", "pr_number": 8,
+                "reviewed_evidence_digest": "proof", "task_identity": child["task_identity"]}]})
+            contributions.write_manifest(root, manifest)
+            git(root, "branch", "-f", "main", fixture.base)
+            with tempfile.TemporaryDirectory() as bare:
+                git(Path(bare), "init", "--bare", "-b", "main")
+                git(root, "remote", "add", "origin", bare)
+                git(root, "push", "origin", "main", "requirement/BR-7")
+                with self.assertRaisesRegex(contributions.ContributionError, "already integrated"):
+                    contributions.ensure_integration_branch(root, requirement=REQUIREMENT, repository="acme/project",
+                        expected_changes=["renamed", "second"], dependencies={"renamed": [], "second": []},
+                        handoff_renames={"first": "renamed"}, source_repo=Path(bare).as_uri())
+
     def test_integrated_contribution_has_no_terminal_job(self):
         candidate = {"task_identity": {"kind": "contribution"}, "state": "contribution-integrated", "next_job": None}
         self.assertIsNone(workers.build_job(candidate))
@@ -767,16 +833,28 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             head = git(fixture.root, "rev-parse", "HEAD")
             gates = {g: {"result": "passed", "identity": identity, "evidence": {"head": head}}
-                     for g in ("review", "finalization", "full-checks")}
+                     for g in ("review", "finalization", "full-checks", "required-checks")}
+            gates["required-checks"]["evidence"]["kind"] = "passed"
             candidate = {"head": head, "task_identity": identity, "gates": gates}
-            composition.require_final_gates(fixture.root, fixture.manifest, candidate, head)
+            composition.require_final_gates(fixture.root, fixture.manifest, candidate, head, trusted_root=fixture.root)
+            legacy = copy.deepcopy(candidate)
+            legacy["gates"]["required-checks"]["evidence"] = {
+                "head": head, "main": "a" * 40, "detail": "required checks passed"}
+            composition.require_final_gates(fixture.root, fixture.manifest, legacy, head, trusted_root=fixture.root)
+            for key, value in (("result", "failed"), ("identity", {}),
+                               ("evidence", {"head": "f" * 40, "main": "a" * 40, "detail": "passed"}),
+                               ("evidence", {"head": head, "kind": "failed"})):
+                bad = copy.deepcopy(legacy)
+                bad["gates"]["required-checks"][key] = value
+                with self.subTest(field=key, value=value), self.assertRaises(contributions.ContributionError):
+                    composition.require_final_gates(fixture.root, fixture.manifest, bad, head, trusted_root=fixture.root)
             for name in gates:
                 bad = copy.deepcopy(candidate); bad["gates"].pop(name)
                 with self.subTest(gate=name), self.assertRaises(contributions.ContributionError):
-                    composition.require_final_gates(fixture.root, fixture.manifest, bad, head)
+                    composition.require_final_gates(fixture.root, fixture.manifest, bad, head, trusted_root=fixture.root)
             stale = copy.deepcopy(candidate); stale["gates"]["full-checks"]["evidence"]["head"] = "f" * 40
             with self.assertRaises(contributions.ContributionError):
-                composition.require_final_gates(fixture.root, fixture.manifest, stale, head)
+                composition.require_final_gates(fixture.root, fixture.manifest, stale, head, trusted_root=fixture.root)
 
     def test_existing_exact_draft_rerun_reuses_pr_without_ready_mutation(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -969,10 +1047,10 @@ class CompositionTests(unittest.TestCase):
             checkout = workers.prepare_checkout(remote.as_uri(), str(root), "llm", head)
             launched = False
             originals = (workers.harness_git, workers._git, _platform_common.run_git)
-            def harness(path, *args):
+            def harness(path, *args, **kwargs):
                 if launched and path == checkout:
                     raise AssertionError("Git used the reviewer checkout after launch")
-                return originals[0](path, *args)
+                return originals[0](path, *args, **kwargs)
             def worker_git(path, *args):
                 if launched and path == checkout:
                     raise AssertionError("Git used the reviewer checkout after launch")
@@ -1101,7 +1179,8 @@ class CompositionTests(unittest.TestCase):
         pr = {"head": {"sha": head}, "merged": False, "draft": True, "html_url": "https://example.test/pr/11"}
         return SimpleNamespace(_pr=lambda *a: pr, _comments=lambda *a: [], _derive=lambda *a: candidate,
             publish_job=mock.Mock(side_effect=AssertionError("no pre-merge job is published")),
-            _transition=lambda *a, **kw: (events.append("ready"), candidate.update(gates=kw["gates"])),
+            _transition=lambda *a, **kw: (events.append(a[3]), candidate.update(gates=kw["gates"])),
+            observe_checks=lambda *a: {"head": head, "kind": "passed", "checks": []},
             github_cli_env=lambda root: {}, set_pr_draft=lambda *a, **kw: events.append("undraft"),
             admit=lambda *a: events.append("admit"),
             trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
@@ -1121,12 +1200,14 @@ class CompositionTests(unittest.TestCase):
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
                                    original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
                     mock.patch.object(composition, "require_final_gates"), \
+                    mock.patch("_platform_common.github_cli_env", return_value={}), \
+                    mock.patch("project_publish._set_pr_draft", side_effect=lambda *a, **kw: events.append("undraft")), \
                     mock.patch.object(retrospective, "require_checkpoint",
                                       side_effect=AssertionError("no Requirement checkpoint before the merge")):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
                                                                adapter=adapter, full_checks=lambda *a: events.append("checks"))
             self.assertEqual(result["status"], "queued")
-            self.assertEqual(events, ["checks", "ready", "undraft", "admit"])
+            self.assertEqual(events, ["blocked-retryable", "checks", "blocked-retryable", "ready", "undraft", "admit"])
             self.assertNotIn("requirement-retrospective", candidate["gates"])
 
     def test_carried_composition_is_ready_without_the_local_receipt_file(self):
@@ -1137,14 +1218,16 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
             original_checkout = workers.prepare_checkout
-            carried = {"number": 11, "head": "f" * 40, "task_identity": identity, "state": "ready",
-                       "gates": {"review": gate, "finalization": gate}}
+            carried = {"number": 11, "head": head, "task_identity": identity, "state": "ready",
+                       "gates": {"review": gate, "finalization": gate, "full-checks": gate}}
             adapter = SimpleNamespace(_pr=lambda *a: {"head": {"sha": head}, "merged": False, "draft": False},
                 _comments=lambda *a: [], _derive=mock.Mock(side_effect=AssertionError("carried record must be used")),
                 publish_job=mock.Mock(), _transition=mock.Mock(), github_cli_env=lambda root: {},
+                observe_checks=lambda *a: {"head": head, "kind": "passed", "checks": []},
                 trusted_apps=lambda *a: frozenset(), trusted_writers=lambda *a: frozenset())
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options: original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
                  mock.patch.object(composition, "require_final_gates"), \
+                 mock.patch("_platform_common.github_cli_env", return_value={}), \
                  mock.patch.object(retrospective, "require_checkpoint",
                                    side_effect=AssertionError("the local receipt file is absent in CI")):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
@@ -1155,6 +1238,121 @@ class CompositionTests(unittest.TestCase):
             gates = adapter._transition.call_args.kwargs["gates"]
             self.assertNotIn("requirement-retrospective", gates)
             self.assertEqual(gates["full-checks"]["evidence"], {"head": head})
+
+    def test_pending_ci_resumes_without_running_full_checks_twice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            candidate = {"number": 11, "head": head, "task_identity": identity,
+                         "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
+            events = []
+            adapter = self.finalized_adapter(head, candidate, events)
+            adapter.observe_checks = mock.Mock(side_effect=[
+                {"head": head, "kind": "pending", "detail": "running", "checks": []},
+                {"head": head, "kind": "passed", "detail": "passed", "checks": []},
+            ])
+            full = mock.Mock()
+            original_checkout = workers.prepare_checkout
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options)
+                                   if "composition-child-" in temporary else fixture.root), \
+                    mock.patch.object(composition, "require_final_gates"), \
+                    mock.patch("_platform_common.github_cli_env", return_value={}), \
+                    mock.patch("project_publish._set_pr_draft"):
+                first = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                               adapter=adapter, full_checks=full)
+                self.assertEqual(first["status"], "waiting-ci")
+                self.assertEqual(candidate["gates"]["required-checks"]["evidence"]["phase"], "composition-final-ci")
+                self.assertNotIn("admit", events)
+                second = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                                                                adapter=adapter, full_checks=full)
+            self.assertEqual(second["status"], "queued")
+            self.assertEqual(full.call_count, 1)
+            self.assertEqual(events.count("admit"), 1)
+
+    def test_main_only_merge_carries_original_full_check_evidence_without_rerun(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            old = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": old}}
+            candidate = {"number": 11, "head": old, "task_identity": identity, "state": "ready",
+                         "gates": {"review": gate, "finalization": gate, "full-checks": gate}}
+            git(fixture.root, "switch", "main")
+            (fixture.root / "unrelated-main.txt").write_text("main update\n")
+            base = fixture.commit("main update")
+            git(fixture.root, "update-ref", "refs/remotes/origin/main", base)
+            git(fixture.root, "switch", "requirement/BR-7")
+            git(fixture.root, "merge", "--no-ff", base, "-m", "merge main")
+            head = git(fixture.root, "rev-parse", "HEAD")
+            adapter = self.finalized_adapter(head, candidate, [])
+            adapter.observe_checks = mock.Mock(return_value={"head": head, "kind": "pending", "detail": "running"})
+            checks = mock.Mock()
+            original_checkout = workers.prepare_checkout
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options)
+                                   if "composition-child-" in temporary else fixture.root):
+                result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                    adapter=adapter, candidate=candidate, main_base=base, enqueue=False, full_checks=checks)
+            self.assertEqual(result["status"], "waiting-ci")
+            checks.assert_not_called()
+            evidence = candidate["gates"]["full-checks"]["evidence"]
+            self.assertEqual(evidence["head"], old)
+            self.assertEqual(evidence["main_only_bindings"], [{"old_head": old, "base": base, "head": head}])
+            composition.require_full_check_evidence(fixture.root, fixture.root, candidate["gates"]["full-checks"],
+                                                    candidate["gates"]["full-checks"]["identity"], head)
+            invalid = copy.deepcopy(candidate["gates"]["full-checks"])
+            invalid["evidence"]["main_only_bindings"][0]["head"] = old
+            with self.assertRaises(contributions.ContributionError):
+                composition.require_full_check_evidence(fixture.root, fixture.root, invalid, invalid["identity"], head)
+
+    def test_failed_or_stale_ci_never_makes_composition_ready(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            for observation in ({"head": head, "kind": "failed", "detail": "CI failed"},
+                                {"head": "f" * 40, "kind": "passed", "detail": "stale"},
+                                {"head": head, "kind": "unknown", "detail": "unavailable"}):
+                with self.subTest(observation=observation):
+                    candidate = {"number": 11, "head": head, "task_identity": identity, "state": "blocked-retryable",
+                                 "gates": {"review": gate, "finalization": gate, "full-checks": gate}}
+                    events = []
+                    adapter = self.finalized_adapter(head, candidate, events)
+                    adapter.observe_checks = mock.Mock(return_value=observation)
+                    adapter._transition = mock.Mock(side_effect=adapter._transition)
+                    original_checkout = workers.prepare_checkout
+                    with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                           original_checkout(source, temporary, name, ref, **options)
+                                           if "composition-child-" in temporary else fixture.root):
+                        result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest,
+                                                                       head, 11, adapter=adapter)
+                    self.assertEqual(result["status"], "waiting-ci")
+                    self.assertNotIn("ready", events)
+                    self.assertNotIn("admit", events)
+                    self.assertEqual(adapter._transition.call_args.kwargs["red_gate"]["name"], "required-checks")
+
+    def test_failed_full_checks_record_a_named_block_and_propagate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gate = {"result": "passed", "identity": identity, "evidence": {"head": head}}
+            candidate = {"number": 11, "head": head, "task_identity": identity,
+                         "state": "blocked-retryable", "gates": {"review": gate, "finalization": gate}}
+            adapter = self.finalized_adapter(head, candidate, [])
+            adapter._transition = mock.Mock(return_value={})
+            original_checkout = workers.prepare_checkout
+            with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
+                                   original_checkout(source, temporary, name, ref, **options)
+                                   if "composition-child-" in temporary else fixture.root):
+                with self.assertRaisesRegex(RuntimeError, "validation unavailable"):
+                    composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11,
+                        adapter=adapter, full_checks=mock.Mock(side_effect=RuntimeError("validation unavailable")))
+            self.assertIn("validation unavailable", adapter._transition.call_args.kwargs["red_gate"]["evidence"])
 
     def test_malformed_trusted_result_receipt_fails_explicitly(self):
         head = "a" * 40
@@ -1181,16 +1379,19 @@ class CompositionTests(unittest.TestCase):
             events = []
             pr = {"head": {"sha": head}, "draft": True, "html_url": "https://example.test/pr/11"}
             adapter = SimpleNamespace(_pr=lambda *args: pr, _comments=lambda *args: [], _derive=lambda *args: candidate,
-                _transition=lambda *args, **kw: (events.append("ready"), candidate.update(gates=kw["gates"])),
+                _transition=lambda *args, **kw: (events.append(args[3]), candidate.update(gates=kw["gates"])),
+                observe_checks=lambda *a: {"head": head, "kind": "passed", "checks": []},
                 github_cli_env=lambda root: {}, set_pr_draft=lambda *args, **kw: events.append("undraft"),
                 admit=lambda *args: events.append("admit"))
             kwargs = {"adapter": adapter, "full_checks": lambda *args: events.append("checks")}
             original_checkout = workers.prepare_checkout
             with mock.patch.object(workers, "prepare_checkout", side_effect=lambda source, temporary, name, ref, **options:
-                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root):
+                                   original_checkout(source, temporary, name, ref, **options) if "composition-child-" in temporary else fixture.root), \
+                 mock.patch("_platform_common.github_cli_env", return_value={}), \
+                 mock.patch("project_publish._set_pr_draft", side_effect=lambda *a, **kw: events.append("undraft")):
                 result = composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
                 self.assertEqual(result["status"], "queued")
-                self.assertEqual(events, ["checks", "ready", "undraft", "admit"])
+                self.assertEqual(events, ["blocked-retryable", "checks", "blocked-retryable", "ready", "undraft", "admit"])
                 self.assertEqual(candidate["gates"]["full-checks"]["evidence"], {"head": head})
                 events.clear()
                 composition.advance_final_publication(fixture.root, "acme/project", fixture.manifest, head, 11, **kwargs)
@@ -1202,14 +1403,350 @@ class CompositionTests(unittest.TestCase):
                 self.assertEqual(checks.call_args.kwargs, {"trusted_root": fixture.root})
 
 
+class CompositionRepairTests(unittest.TestCase):
+    fixture = CompositionTests.fixture
+
+    def request_adapter(self, fixture):
+        import publication_queue as queue
+
+        head = git(fixture.root, "rev-parse", "HEAD")
+        identity = composition.composition_identity(fixture.root, fixture.manifest)
+        current = {"number": 11, "head": head, "state": "finalize-pending", "task_identity": identity,
+                   "attempts": {"review": 1}, "gates": {}, "next_job": None, "provider_switch": None}
+        pr = {"state": "open", "merged": False, "number": 11,
+              "head": {"ref": "requirement/BR-7", "sha": head}, "base": {"ref": "main"}}
+
+        def transition(_root, _repo, _number, state, observed_head, **options):
+            current.update(state=state, head=observed_head, next_job=options["next_job"],
+                           attempts=options["set_attempts"], red_gate=options["red_gate"])
+            return current
+
+        return SimpleNamespace(_pr=mock.Mock(return_value=pr), _comments=mock.Mock(return_value=[]),
+            _derive=mock.Mock(return_value=current), _latest=mock.Mock(return_value=current),
+            _malformed=mock.Mock(return_value=False), _repair_route=queue._repair_route,
+            trusted_apps=mock.Mock(return_value=frozenset()), trusted_writers=mock.Mock(return_value=frozenset()),
+            _actor=mock.Mock(return_value="coordinator"), _transition=mock.Mock(side_effect=transition))
+
+    def request(self, fixture, adapter):
+        return composition.request_repair(fixture.root, "acme/project", 11,
+            expected_head=git(fixture.root, "rev-parse", "HEAD"), reason="Fix cross-child contract wording",
+            adapter=adapter, source_repo=str(fixture.root))
+
+    def test_request_enqueues_one_existing_repair_job_with_reason_and_provider(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            adapter = self.request_adapter(fixture)
+            result = self.request(fixture, adapter)
+            self.assertTrue(result["changed"])
+            self.assertEqual(result["job"]["kind"], "repair")
+            self.assertEqual(result["job"]["providers"], ["claude"])
+            self.assertEqual(result["job"]["reoffer"]["actor"], "coordinator")
+            brief = review_gate.repair_brief(adapter._derive.return_value)
+            self.assertEqual(brief["findings"][0]["summary"], "Fix cross-child contract wording")
+            repeated = self.request(fixture, adapter)
+            self.assertFalse(repeated["changed"])
+            adapter._transition.assert_called_once()
+            self.assertTrue({"blocked-escalation", "blocked-retryable", "repairing"}
+                            <= adapter._transition.call_args.kwargs["refuse_from"])
+
+    def test_request_refuses_noncomposition_stale_incomplete_or_claimed_before_write(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            adapter = self.request_adapter(fixture)
+            pr = adapter._pr.return_value
+            for field, value in (("ref", "agent/first"), ("sha", "a" * 40)):
+                before = pr["head"][field]
+                pr["head"][field] = value
+                with self.subTest(field=field), self.assertRaises(contributions.ContributionError):
+                    self.request(fixture, adapter)
+                pr["head"][field] = before
+            original = adapter._derive.return_value["task_identity"]
+            adapter._derive.return_value["task_identity"] = {"kind": "contribution"}
+            with self.assertRaisesRegex(contributions.ContributionError, "composition record"):
+                self.request(fixture, adapter)
+            adapter._derive.return_value["task_identity"] = original
+            current = adapter._derive.return_value
+            current["next_job"] = workers.job_record("review", current["head"], original, 1, providers=["claude"])
+            with mock.patch.object(workers, "winning_claim", return_value={"worker": "busy", "expires_at": "later"}), \
+                    self.assertRaisesRegex(contributions.ContributionError, "claimed by busy"):
+                self.request(fixture, adapter)
+            manifest = contributions.seal({**fixture.manifest, "children": fixture.manifest["children"][:1]})
+            with mock.patch.object(composition, "candidate_manifest", return_value=manifest), \
+                    self.assertRaisesRegex(contributions.ContributionError, "mandatory contribution"):
+                self.request(fixture, adapter)
+            adapter._transition.assert_not_called()
+
+    def test_request_preserves_recorded_provider_switch_and_refuses_exhaustion(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            adapter = self.request_adapter(fixture)
+            current = adapter._derive.return_value
+            current["provider_switch"] = {"repair": ["codex"]}
+            self.assertEqual(self.request(fixture, adapter)["job"]["providers"], ["codex"])
+            current.update(state="finalize-pending", attempts={"repair": review_gate.MAX_ROUNDS})
+            with self.assertRaisesRegex(contributions.ContributionError, "rounds exhausted"):
+                self.request(fixture, adapter)
+            self.assertEqual(adapter._transition.call_count, 1)
+
+    def run_repair(self, fixture, workdir, edit, *, declared=()):
+        head = git(fixture.root, "rev-parse", "HEAD")
+        identity = composition.composition_identity(fixture.root, fixture.manifest)
+        job = {"number": 11, **workers.job_record("repair", head, identity, 1, providers=["claude"])}
+        posted = []
+
+        def launch(_command, checkout, **_options):
+            edit(checkout)
+            return subprocess.CompletedProcess([], 0, "", "")
+
+        workdir.mkdir()
+        with mock.patch("_platform_common.generated_files", return_value=declared), \
+                mock.patch.object(workers, "push_validated") as push:
+            result = workers.execute_job(job, source_repo=str(fixture.root), branch="requirement/BR-7",
+                allowed_paths=["first.txt"], llm_command=["writer", "repair"], current_head=lambda: head,
+                post_result=posted.append, workdir=str(workdir), worker="test-worker", provider="claude",
+                launch=launch, trusted_root=fixture.root)
+        return result, push, posted
+
+    def test_repair_regenerates_declared_output_and_composition_manifest_before_validation_and_push(self):
+        from _platform_common import GeneratedFile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "repo").mkdir()
+            fixture = self.fixture(root / "repo")
+            manifest_path = fixture.root / integration._candidate_manifest_path(REQUIREMENT, fixture.root)
+            manifest_path.write_text(json.dumps(fixture.manifest))  # valid, noncanonical serialization
+            fixture.commit("compact manifest")
+            generator = root / "generate.py"
+            generator.write_text("from pathlib import Path\nimport sys\np = Path(sys.argv[1])\n"
+                                 "(p / 'generated.txt').write_text((p / 'first.txt').read_text())\n")
+            declared = (GeneratedFile("generated.txt", (sys.executable, str(generator), "{tree}"), ("true",)),)
+            original_validate = composition.validate_children
+            validated = []
+
+            def validate(checkout, manifest):
+                if checkout.name == "writer-stage":
+                    self.assertEqual((checkout / "generated.txt").read_text(), "repaired\n")
+                    self.assertEqual((checkout / manifest_path.relative_to(fixture.root)).read_text(),
+                                     json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+                    validated.append(checkout)
+                return original_validate(checkout, manifest)
+
+            with mock.patch.object(composition, "validate_children", side_effect=validate):
+                result, push, _ = self.run_repair(fixture, root / "job",
+                    lambda checkout: (checkout / "first.txt").write_text("repaired\n"), declared=declared)
+            self.assertEqual(result["status"], "pushed")
+            self.assertEqual(len(validated), 1)
+            push.assert_called_once()
+            harness = push.call_args.args[0]
+            self.assertEqual(git(harness, "show", f"{result['pushed_head']}:generated.txt"), "repaired")
+            self.assertIn("Bind reviewed Requirement contributions", git(harness, "log", "-3", "--format=%s"))
+
+    def test_writer_receipt_edit_is_rejected_before_push(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "repo").mkdir()
+            fixture = self.fixture(root / "repo")
+            result, push, posted = self.run_repair(fixture, root / "job", lambda checkout:
+                (checkout / "openspec/changes/first/verification.md").write_text("forged\n"))
+            self.assertEqual(result["status"], "rejected")
+            self.assertIn("openspec/changes/first/verification.md", posted[-1])
+            push.assert_not_called()
+
+    def test_manifest_only_regeneration_does_not_require_an_artificial_writer_edit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "repo").mkdir()
+            fixture = self.fixture(root / "repo")
+            manifest_path = fixture.root / integration._candidate_manifest_path(REQUIREMENT, fixture.root)
+            manifest_path.write_text(json.dumps(fixture.manifest))
+            fixture.commit("compact manifest")
+            result, push, _ = self.run_repair(fixture, root / "job", lambda _checkout: None)
+            self.assertEqual(result["status"], "pushed")
+            push.assert_called_once()
+            changed = git(push.call_args.args[0], "diff", "--name-only", "HEAD", result["pushed_head"])
+            self.assertEqual(changed, manifest_path.relative_to(fixture.root).as_posix())
+
+    def test_generator_receipt_edit_fails_child_validation_before_push(self):
+        from _platform_common import GeneratedFile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "repo").mkdir()
+            fixture = self.fixture(root / "repo")
+            generator = root / "corrupt.py"
+            generator.write_text("from pathlib import Path\nimport sys\n"
+                "(Path(sys.argv[1]) / 'openspec/changes/first/independent-reviews/spec-fidelity.json').write_text('{}')\n")
+            declared = (GeneratedFile("openspec/changes/first/independent-reviews/spec-fidelity.json",
+                                     (sys.executable, str(generator), "{tree}"), ("true",)),)
+            result, push, posted = self.run_repair(fixture, root / "job",
+                lambda checkout: (checkout / "first.txt").write_text("repair\n"), declared=declared)
+            self.assertEqual(result["status"], "failed")
+            self.assertIn("child first receipt changed", posted[-1])
+            self.assertIn("independent-reviews/spec-fidelity.json", posted[-1])
+            push.assert_not_called()
+
+    def test_every_receipt_is_byte_preserved_after_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp))
+            archived = fixture.root / "openspec/changes/archive/2026-11-01-first"
+            archived.parent.mkdir()
+            (fixture.root / "openspec/changes/first").rename(archived)
+            head = fixture.commit("archive first")
+            composition.validate_children(fixture.root, fixture.manifest)
+            for filename in ("verification.md", "automated-checks.json", "independent-review-request.json",
+                             "independent-reviews/spec-fidelity.json"):
+                path = archived / filename
+                original = path.read_bytes()
+                # Even CRLF -> LF in a report must fail; a text read would conceal it.
+                path.write_bytes(original.replace(b"\r\n", b"\n") if b"\r\n" in original else original + b" ")
+                fixture.commit("receipt drift")
+                with self.subTest(filename=filename), self.assertRaisesRegex(contributions.ContributionError,
+                                                                                 "child first receipt changed"):
+                    composition.validate_children(fixture.root, fixture.manifest)
+                path.write_bytes(original)
+                fixture.commit("restore fixture receipt")
+            self.assertNotEqual(git(fixture.root, "rev-parse", "HEAD"), head)
+
+    def test_reviewed_crlf_receipt_is_validated_without_text_normalization(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp))
+            first = fixture.child("first", 8)
+            receipt = fixture.root / "openspec/changes/first/verification.md"
+            receipt.write_bytes(b"Actual fixture evidence\r\n")
+            first["head"] = fixture.commit("reviewed CRLF receipt")
+            first["gates"]["required-checks"]["evidence"]["head"] = first["head"]
+            first["gates"]["semantic-verification"]["evidence"] = review_gate.file_reference(fixture.root, receipt)
+            fixture.integrate(first)
+            fixture.integrate(fixture.child("second", 9))
+            composition.validate_children(fixture.root, fixture.manifest)
+
+    def test_repair_cli_dispatches_only_repair_and_reports_a_refusal(self):
+        argv = ["repair", "--pr", "11", "--expected-head", "a" * 40, "--reason", "Fix wording"]
+        with mock.patch.object(execution, "current_worktree_root", return_value=Path("/task")), \
+                mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
+                mock.patch.object(composition, "request_repair", side_effect=contributions.ContributionError("incomplete")) as request, \
+                mock.patch.object(execution, "advance") as advance, mock.patch("builtins.print") as output:
+            self.assertEqual(execution.main(argv), 2)
+        request.assert_called_once_with(Path("/task"), "acme/project", 11,
+                                       expected_head="a" * 40, reason="Fix wording")
+        self.assertIn("incomplete", output.call_args.args[0])
+        advance.assert_not_called()
+def write_bundle(root, key, change):
+    bundle = root / "requirement-7" / "bundles" / key
+    bundle.mkdir(parents=True, exist_ok=True)
+    (bundle / "manifest.json").write_text(json.dumps({"title": change, "change": change, "artifacts": ["proposal.md"]}))
+    (bundle / "issue.md").write_text("issue\n")
+    (bundle / "proposal.md").write_text("proposal\n")
+
+
+class QueueOwnershipGuardTests(unittest.TestCase):
+    def setUp(self):
+        import publication_queue
+        self.queue = publication_queue
+
+    def test_incomplete_draft_review_pending_allows_advance(self):
+        pr = {"state": "open", "draft": True, "head": {"ref": "requirement/BR-7"},
+              "base": {"ref": "main"}, "labels": []}
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
+             mock.patch.object(self.queue, "_pr", return_value=pr), \
+             mock.patch.object(self.queue, "_comments", return_value=[]), \
+             mock.patch.object(self.queue, "_derive", return_value={"state": "review-pending"}), \
+             mock.patch.object(self.queue, "_malformed", return_value=False), \
+             mock.patch.object(execution, "_composition_manifest_complete", return_value=False):
+            execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_manifest_completeness_uses_exact_pr_head(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp))
+            incomplete = fixture.boundary
+            fixture.integrate(fixture.child("first", 8))
+            fixture.integrate(fixture.child("second", 9))
+            complete = git(fixture.root, "rev-parse", "HEAD")
+            with mock.patch.object(workers, "prepare_checkout", return_value=fixture.root):
+                for head, expected in ((incomplete, False), (complete, True)):
+                    with self.subTest(head=head):
+                        pr = {"head": {"ref": "requirement/BR-7", "sha": head}}
+                        self.assertEqual(execution._composition_manifest_complete(fixture.root, "acme/project", pr,
+                                                                                  REQUIREMENT), expected)
+                pr = {"head": {"ref": "requirement/BR-7", "sha": fixture.base}}
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "cannot read composition manifest"):
+                    execution._composition_manifest_complete(fixture.root, "acme/project", pr, REQUIREMENT)
+
+    def test_owned_composition_refuses_before_advance_side_effects(self):
+        pr = {"state": "open", "head": {"ref": "requirement/BR-7"}, "base": {"ref": "main"},
+              "labels": [{"name": self.queue.QUEUE}]}
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
+             mock.patch.object(self.queue, "_pr", return_value=pr), \
+             mock.patch.object(self.queue, "_comments", return_value=[]), \
+             mock.patch.object(self.queue, "_derive", return_value={"state": "integrating"}), \
+             mock.patch.object(self.queue, "_malformed", return_value=False):
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned: state integrating"):
+                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_advance_refuses_unavailable_queue_before_mutations(self):
+        import _platform_common
+        root = Path("/unused").resolve()
+        with mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
+             mock.patch.object(execution, "current_worktree_root", return_value=root), \
+             mock.patch.object(execution, "_git", return_value="main"), \
+             mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", side_effect=self.queue.QueueError("queue unavailable")), \
+             mock.patch.object(execution.requirement_intake, "fetch_issue") as fetch, \
+             mock.patch.object(execution.requirement_board, "claim_started") as claim:
+            with self.assertRaisesRegex(execution.RequirementExecutionError,
+                                        "cannot observe queue ownership for requirement/BR-7: queue unavailable"):
+                execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+        fetch.assert_not_called()
+        claim.assert_not_called()
+
+    def test_ambiguous_composition_inventory_refuses(self):
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}, {"number": 12}]):
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "multiple open"):
+                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_all_claims_and_active_queue_label_refuse(self):
+        pr = {"state": "open", "head": {"ref": "requirement/BR-7"}, "base": {"ref": "main"}, "labels": []}
+        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
+             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
+             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
+             mock.patch.object(self.queue, "_pr", return_value=pr), \
+             mock.patch.object(self.queue, "_comments", return_value=[]), \
+             mock.patch.object(self.queue, "_derive") as derive, \
+             mock.patch.object(self.queue, "_malformed", return_value=False), \
+             mock.patch.object(execution, "_composition_manifest_complete", return_value=True):
+            for state in self.queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}:
+                with self.subTest(state=state):
+                    derive.return_value = {"state": state}
+                    with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+                        execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+            derive.return_value = {"state": "blocked-retryable"}
+            pr["labels"] = [{"name": self.queue.ACTIVE}]
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_invalid_requirement_is_rejected_before_queue_observation(self):
+        with mock.patch.object(execution, "_contribution_publication_supported") as supported:
+            with self.assertRaisesRegex(execution.managed_task.ManagedTaskError, "owner/repo"):
+                execution._refuse_queue_owned_composition(Path("/unused"), "not-a-requirement")
+        supported.assert_not_called()
+
+
 class SupervisorTests(unittest.TestCase):
     def advance(self, root, graph, children, in_flight=None):
         (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
         ordered = []
         for change, deps in graph.items():
             path = root / (change + ".json")
-            path.write_text(json.dumps({"intents": [{"id": change, "dependencies": deps}]}))
+            path.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": change, "dependencies": deps}]}))
             ordered.append((change, path))
+            write_bundle(root, change, change)
         boundary = {"branch": "requirement/BR-7", "head": "a" * 40,
                     "manifest": {"children": children}}
         with mock.patch.object(execution, "_merged_composition", return_value=[]), \
@@ -1223,6 +1760,56 @@ class SupervisorTests(unittest.TestCase):
             result = execution._advance_contributions(root, REQUIREMENT, ordered,
                 {c: f"acme/backlog#{8 + i}" for i, c in enumerate(graph)}, root, False)
         return result, start
+
+    def test_first_and_resumed_advance_use_bundle_change_graph(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
+            first, third = root / "first.json", root / "order-and-guard.json"
+            first.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "first", "dependencies": []}]}))
+            third.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "order-and-guard", "dependencies": ["first"]}]}))
+            write_bundle(root, "first", "first")
+            write_bundle(root, "order-and-guard", "order-guard")
+            boundary = {"branch": "requirement/BR-7", "head": "a" * 40, "manifest": {"children": []}}
+            def materialize(*args, **kwargs):
+                return {"child": "acme/backlog#8" if kwargs["handoff_file"] == first else "acme/backlog#9"}
+            with mock.patch.object(execution, "_merged_composition", return_value=[]), \
+                 mock.patch.object(execution.requirement_intake, "materialize_handoff", side_effect=materialize), \
+                 mock.patch.object(contributions, "ensure_integration_branch", return_value=boundary) as ensure, \
+                 mock.patch.object(contributions, "in_flight_children", return_value={}), \
+                 mock.patch.object(execution, "_git"), \
+                 mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
+                 mock.patch.object(execution.start_managed_task, "start_managed_task",
+                                   return_value=(SimpleNamespace(task_root=root / "child"), "head", False)), \
+                 mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), \
+                 mock.patch.object(composition, "publish_composition", return_value={"status": "draft-published"}):
+                execution._advance_contributions(root, REQUIREMENT, [("first", first), ("order-and-guard", third)], {}, root, False)
+                first_call = ensure.call_args.kwargs
+                execution._advance_contributions(root, REQUIREMENT, [("first", first), ("order-guard", third)],
+                    {"first": "acme/backlog#8", "order-guard": "acme/backlog#9"}, root, False)
+                second_call = ensure.call_args.kwargs
+            self.assertEqual(first_call, second_call)
+            self.assertEqual(first_call["expected_changes"], ["first", "order-guard"])
+            self.assertEqual(first_call["dependencies"], {"first": [], "order-guard": ["first"]})
+            self.assertEqual(first_call["handoff_renames"], {"order-and-guard": "order-guard"})
+
+    def test_ambiguous_bundles_and_linked_change_mismatch_are_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            handoff = root / "first.json"
+            handoff.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "first", "dependencies": []}]}))
+            write_bundle(root, "first", "new-change")
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "conflicts with bundle"):
+                execution._advance_contributions(root, REQUIREMENT, [("first", handoff)],
+                                                {"first": "acme/backlog#8"}, root, False)
+            other = root / "requirement-7" / "bundles" / "other"
+            write_bundle(root, "other", "different-change")
+            manifest = other / "manifest.json"
+            data = json.loads(manifest.read_text())
+            data["handoff"] = "first"
+            manifest.write_text(json.dumps(data))
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "several authored bundles"):
+                execution._advance_contributions(root, REQUIREMENT, [("first", handoff)], {}, root, False)
 
     def test_merged_composition_is_listed_before_the_integration_branch_is_touched(self):
         adapter = SimpleNamespace(QueueError=RuntimeError, _gh=mock.Mock(return_value=[{"number": 556}, {"number": 540}]))
@@ -1250,7 +1837,8 @@ class SupervisorTests(unittest.TestCase):
                 root = Path(tmp)
                 (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)
                 path = root / "first.json"
-                path.write_text(json.dumps({"intents": [{"id": "first", "dependencies": []}]}))
+                path.write_text(json.dumps({"add_id": "requirement-7", "intents": [{"id": "first", "dependencies": []}]}))
+                write_bundle(root, "first", "first")
                 with mock.patch.object(execution, "_merged_composition", return_value=[556]) as check, \
                         mock.patch.object(execution.requirement_intake, "fetch_issue", return_value={"state": state}), \
                         mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \

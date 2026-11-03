@@ -1,0 +1,129 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.297,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.589,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.153,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.221,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 2605.94,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/requirement_retrospective.py",
+        "tests/test_requirement_execution.py",
+        "tests/test_requirement_sequential_housekeeping.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_b9c92ce5137dcdd3301d10a1de112504",
+    "change": "sequential-child-housekeeping",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/sequential-child-housekeeping",
+    "branch": "agent/br-941-t1-sequential-child-housekeeping",
+    "head": "e718d3405e9f0d16bd5261c94670c51915724c88",
+    "task_content": {
+      "version": 1,
+      "digest": "967bf1801ab54d743297cd7bf666a8d55560008ef5bdfeb484bb616486cc4a9c",
+      "paths": {
+        "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+        "dev-platform/requirement-integrations/private-lineage-pln_f319d2f00bb4ad87cdb299f352d570e5-integration.json": "6ebda6b80ac9eb18eb144a16ea737c81e5ef8f96",
+        "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+        "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+        "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+        "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+        "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+        "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+        "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+        "openspec/changes/sequential-child-housekeeping/verification.md": "4332496b875e5bf5ef66e81b1139fbcd08fc872f",
+        "template/dev-platform/platform-manifest.json": "adfba3779cde0db3ff0004215b65550b2465a0c9",
+        "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+        "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+        "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+        "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+        "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+      },
+      "base": "4e48ae3e272fc7a7f25f48fb558b1b7f3f09191f"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63",
+    "paths": {
+      "dev-platform/checks.toml": "1e04d84d181b9bd583a4bde851d409e5baf16ee1",
+      "docs/engineering/task-intake.md": "c1018646fe7c529e1104d745a5835c2210756d3c",
+      "openspec/changes/sequential-child-housekeeping/.managed-task.json": "874e8d67def1f62c5576640302a4f2425f17f0a9",
+      "openspec/changes/sequential-child-housekeeping/.openspec.yaml": "aa079bc5ee9b7523e2ac478238c5713ccdfd347a",
+      "openspec/changes/sequential-child-housekeeping/design.md": "4fb062ab737b99d6f838d08b3d57cbd47b07f320",
+      "openspec/changes/sequential-child-housekeeping/proposal.md": "631b3a0ef8c4a030debf453069da52b973910176",
+      "openspec/changes/sequential-child-housekeeping/specs/agent-workflow/spec.md": "2ed92e9e41c507c4060a8115e3aae3c4aba8462e",
+      "openspec/changes/sequential-child-housekeeping/tasks.md": "0035ce559b088eb313578ff77353924d3c720333",
+      "template/docs/engineering/task-intake.md.jinja": "d09a57d26bef4f62590b0ff66d6b7150da2d156e",
+      "template/scripts/execute_requirement.py": "ab5d8c02512d3f6cbcceb1faec16cc469c73040a",
+      "template/scripts/requirement_retrospective.py": "78e47ac8d14fea006ea4332d8e1b31626098b41f",
+      "tests/test_requirement_execution.py": "c8b84ce761bdfba1f3f461fde95997a1071ecd8b",
+      "tests/test_requirement_sequential_housekeeping.py": "baff3700aa73961c740467430759f5315e35bff4"
+    },
+    "base": "604cfb23c119fa099c17061ae47abd22c326c73a",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/requirement_retrospective.py --changed-file tests/test_requirement_execution.py --changed-file tests/test_requirement_sequential_housekeeping.py",
+    "duration_seconds": 162.452,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

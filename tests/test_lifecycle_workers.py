@@ -27,6 +27,7 @@ def setUpModule() -> None:
 
 lifecycle = load_platform_module("candidate_lifecycle", ROOT / "template/scripts/candidate_lifecycle.py")
 workers = load_platform_module("lifecycle_workers", ROOT / "template/scripts/lifecycle_workers.py")
+from _platform_common import GeneratedFile  # noqa: E402
 HEAD, NEW = "a" * 40, "b" * 40
 NOW = datetime(2026, 10, 5, 9, 0, tzinfo=timezone.utc)
 LATER = "2026-10-05T09:30:00Z"
@@ -1099,6 +1100,12 @@ class ExecuteJobTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
+        # The trusted default-branch checkout declares no generated files unless a test sets them.
+        self.trusted = Path(self.tmp.name)
+        self.declared: tuple = ()
+        declared = mock.patch("_platform_common.generated_files", side_effect=lambda *_a: self.declared)
+        declared.start()
+        self.addCleanup(declared.stop)
         base = Path(self.tmp.name)
         self.src = base / "src.git"
         seed = base / "seed"
@@ -1134,7 +1141,7 @@ class ExecuteJobTests(unittest.TestCase):
             llm_command=[sys.executable, str(self.script), *([prompt] if prompt is not None else [])],
             current_head=lambda: head or self.head,
             post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
-            env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull})
+            env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull}, trusted_root=self.trusted)
 
     def test_repair_pushes_through_harness(self):
         result = self.run_job("commit")
@@ -1157,11 +1164,45 @@ class ExecuteJobTests(unittest.TestCase):
             self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
             llm_command=[sys.executable, str(self.script), "Repair the findings"], current_head=lambda: self.head,
             post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
-            env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull}, launch=launch)
+            env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull}, launch=launch,
+            trusted_root=self.trusted)
         self.assertEqual(result["status"], "pushed")
         self.assertEqual(len(calls), 1)
         self.assertEqual(calls[0][0][-1], "Repair the findings")
         self.assertEqual(calls[0][2], self.work.resolve() / "llm-tmp")
+
+    def generator(self, body: str) -> None:
+        script = self.trusted / "gen.py"
+        script.write_text(body)
+        self.declared = (GeneratedFile("src/gen.txt", (sys.executable, str(script), "{tree}"), ("true",)),)
+
+    def test_repair_regenerates_declared_files_before_push(self):
+        # BR-969 follow-up: a writer edit of a generator input ships with its regenerated file, not stale.
+        self.generator("import pathlib, sys\ntree = pathlib.Path(sys.argv[1])\n"
+                       "(tree / 'src/gen.txt').write_text('gen:' + (tree / 'src/a.py').read_text())\n")
+        result = self.run_job("edit", prompt="Repair the findings")
+        self.assertEqual(result["status"], "pushed")
+        self.assertEqual(git(self.src, "show", "refs/heads/task:src/gen.txt"), "gen:fixed")
+        self.assertEqual(git(self.src, "log", "-1", "--format=%s", "refs/heads/task"), "Regenerate declared generated files")
+        self.assertEqual(git(self.src, "show", "refs/heads/task^:src/a.py"), "fixed")
+
+    def test_failing_generator_fails_the_job_without_push(self):
+        self.generator("import sys\nsys.exit('generator broke')\n")
+        result = self.run_job("edit", prompt="Repair the findings")
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("regeneration of src/gen.txt failed", self.posted[-1])
+        self.assertEqual(self.remote_head(), self.head)
+
+    def test_writer_result_without_trusted_checkout_raises(self):
+        os.environ.update(FAKE_MODE="edit", HOOK_MARK=str(self.mark), PROMPT_SEEN=str(self.prompt_seen))
+        self.addCleanup(lambda: [os.environ.pop(k, None) for k in ("FAKE_MODE", "HOOK_MARK", "PROMPT_SEEN")])
+        with self.assertRaisesRegex(workers.WorkerError, "trusted default-branch checkout"):
+            workers.execute_job(
+                self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
+                llm_command=[sys.executable, str(self.script), "Repair"], current_head=lambda: self.head,
+                post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex",
+                env={**os.environ}, push_env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull})
+        self.assertEqual(self.remote_head(), self.head)
 
     def remote_head(self):
         return git(self.src, "rev-parse", "refs/heads/task")

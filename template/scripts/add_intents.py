@@ -58,6 +58,7 @@ COVERAGE_REQUIRED_STATUSES = ("new", "changed")
 # decomposition and intent validation re-prove it is still fresh rather than
 # merely warning when it is not.
 EVIDENCE_KIND_SNAPSHOT = "project-evidence-snapshot"
+DELIVERY_SEQUENTIAL = "sequential"
 PROJECTION_STATUSES = ("fresh", "escalation-required", "requires-extraction")
 
 # Fields excluded from the ADD's canonical content digest: the approval
@@ -895,6 +896,8 @@ def validate_intents(root: Path, path: Path, *, add_path: Path) -> ValidationRep
             + ", ".join(missing)
         )
 
+    errors.extend(_delivery_errors(document.get("delivery"), by_id))
+
     for intent_id, item in by_id.items():
         if item.get("ready") is not True:
             continue
@@ -936,6 +939,35 @@ def validate_intents(root: Path, path: Path, *, add_path: Path) -> ValidationRep
             errors.extend(_snapshot_evidence_freshness_errors(root, snapshot_refs))
 
     return ValidationReport(ok=not errors, errors=tuple(errors), warnings=tuple(warnings))
+
+
+def _delivery_errors(delivery: Any, by_id: dict[str, dict[str, Any]]) -> list[str]:
+    """An optional owner-decided sequential delivery: every intent once, each ready, after its dependencies."""
+    if delivery is None:
+        return []
+    if not isinstance(delivery, dict) or set(delivery) != {"mode", "order"} or delivery["mode"] != DELIVERY_SEQUENTIAL:
+        return [f'delivery must be {{"mode": "{DELIVERY_SEQUENTIAL}", "order": [<every intent id>]}}']
+    order = delivery["order"]
+    if not isinstance(order, list) or not all(isinstance(item, str) for item in order):
+        return ["delivery order must be a list of intent ids"]
+    errors: list[str] = []
+    if len(order) != len(set(order)) or set(order) != set(by_id):
+        errors.append(f"delivery order must list every intent exactly once: {', '.join(sorted(by_id))}")
+    position = {intent_id: index for index, intent_id in enumerate(order)}
+    for intent_id in order:
+        item = by_id.get(intent_id, {})
+        if intent_id in by_id and item.get("ready") is not True:
+            errors.append(f"sequential intent {intent_id!r} must be ready")
+        for dependency in item.get("dependencies", []) or []:
+            if position.get(dependency, -1) > position[intent_id]:
+                errors.append(f"sequential intent {intent_id!r} is ordered before its dependency {dependency!r}")
+    return errors
+
+
+def delivery_order(intents_document: dict[str, Any]) -> list[str] | None:
+    """The declared sequential order of a validated intent set, or None for the default delivery."""
+    delivery = intents_document.get("delivery")
+    return list(delivery["order"]) if isinstance(delivery, dict) else None
 
 
 # --- Intent -> OpenSpec handoff --------------------------------------------

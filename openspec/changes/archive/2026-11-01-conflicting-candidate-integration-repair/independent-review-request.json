@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "base_ref": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "candidate_head": "b4103c7ffc94201c16df8a21a5c606aead852512",
+    "diff_sha256": "69144dbe3fc10c26a0a99db3efca54188f0effce8fc10e350f73cc9454963ae2"
+  },
+  "change": "openspec/changes/conflicting-candidate-integration-repair",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/conflicting-candidate-integration-repair/automated-checks.json",
+    "openspec/changes/conflicting-candidate-integration-repair/independent-review-request.json",
+    "openspec/changes/conflicting-candidate-integration-repair/independent-reviews/engineering-quality.json",
+    "openspec/changes/conflicting-candidate-integration-repair/independent-reviews/spec-fidelity.json",
+    "openspec/changes/conflicting-candidate-integration-repair/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/conflicting-candidate-integration-repair/design.md",
+        "openspec/changes/conflicting-candidate-integration-repair/proposal.md",
+        "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md",
+        "openspec/changes/conflicting-candidate-integration-repair/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/conflicting-candidate-integration-repair/proposal.md",
+        "openspec/changes/conflicting-candidate-integration-repair/design.md",
+        "openspec/changes/conflicting-candidate-integration-repair/tasks.md",
+        "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-01T00:50:15+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/conflicting-candidate-integration-repair/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "e14cdbdd-f08a-4256-95a6-8c9ec650c128",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+    "paths": {
+      "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+      "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+      "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+      "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+      "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+      "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+      "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+      "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

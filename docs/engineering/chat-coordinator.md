@@ -157,6 +157,30 @@ healthy. The line explains the wait and takes no action.
 
 ## Acting on an exception
 
+An assembled Requirement branch is repaired only through its composition PR's
+queue job. From the coordinator checkout, request the existing repair writer:
+
+```bash
+python3 scripts/execute_requirement.py repair --pr N --expected-head <head> --reason "<bounded composition fix>"
+```
+
+The command requires an open composition PR at that exact head, its complete
+owned contribution manifest, intact child receipts and no live job claim. It
+records the reason and authenticated actor and offers one `repair` job using
+the normal provider routing and attempt budget. Repeating it while that repair
+is pending returns the existing job. A finding escalation or spent repair budget
+still requires the owner's decision. Never repair `requirement/BR-N` with a
+manual commit or edit its manifest instance by hand.
+
+Run the offered job through the usual `lifecycle_workers.py work-next` repair
+writer, whose scope is the PR's changed paths. The harness regenerates declared
+generated files and the composition manifest, then runs `validate_children`
+before push. Every child's verification, automated checks and independent review
+files must remain byte-for-byte identical to the reviewed contribution, including
+after archive moves. A mismatch fails naming the child and receipt; nothing is
+restored silently or pushed. A successful repair returns to composition review,
+finalization and full checks for the changed content.
+
 The overview prints, per item, either the permitted commands or the human
 decision that is needed. The permitted list is computed by the same eligibility
 function as the commands and is limited to `resume`, `switch-provider` and, for a
@@ -197,9 +221,13 @@ no fresh job is re-offered with `resume`. A Requirement listed as waiting for th
 (`awaits-owner-acceptance` in the overview) closes only after the owner's word on each
 operator acceptance item, recorded with the printed
 `requirement_terminal.py accept ... --via chat-coordinator --reason "<owner's words>"`. A Requirement composition has no pre-merge
-retrospective: its finalize job runs the full final-head checks and admits it,
-and the post-merge retrospective job records the Requirement checkpoint after
-the merge. A record still carrying a pre-merge retrospective job fails
+retrospective: its finalize job runs the full final-head checks, records any
+wait for required CI on that exact head, and admits it only once CI passes. The
+existing publication queue resumes the recorded wait on a CI completion event;
+it does not repeat the full checks. A clean, proven main-only update retains the
+original full-check evidence and requires new exact-head CI. An interrupted
+integration-repair push without final-check proof is explicitly blocked. The
+post-merge retrospective job records the Requirement checkpoint after the merge. A record still carrying a pre-merge retrospective job fails
 derivation naming the PR; re-offer finalization or recover the candidate.
 A review or repair escalated only because its worker kept failing (the claim was
 released after failed runs, the evidence holds no findings) is operational: `resume`

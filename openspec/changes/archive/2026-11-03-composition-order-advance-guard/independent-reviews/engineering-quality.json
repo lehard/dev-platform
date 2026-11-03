@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "base_ref": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "candidate_head": "80cc9cf9b0e33fe899604a71c409f5b0df4b2c1d",
+    "diff_sha256": "b79efa8945243e1e533f1ed59c71ec92d8220b308fda4f62eb227937d8b1bba0"
+  },
+  "completed_at": "2026-11-03T08:28:52+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/requirement_contributions.py `ensure_integration_branch` handoff_renames block; template/scripts/execute_requirement.py `_advance_contributions` normalization loop; design.md 'Inherited from main'. Impact in proposal.md lists only publication_queue and execute_requirement. The migration rewrites and pushes the manifest on the shared branch, so it is worth confirming the diff is correctly scoped or that the artifacts mention it.",
+      "id": "undeclared-graph-migration-scope",
+      "severity": "advisory",
+      "summary": "The candidate diff includes the handoff-rename graph migration (`handoff_renames`, bundle-based key normalization, and its tests). Neither the proposal, specs nor tasks cover it. design.md says it is inherited from main #863 and not introduced by this change. Against the stated base 469a224 it still appears as new behavior."
+    }
+  ],
+  "launched_at": "2026-11-03T08:28:28+00:00",
+  "output_sha256": "3d5a844f4a045ad2a7fdecac9e24fae7c1a1634bf05f175f818fe7c48c37ae47",
+  "perspective": "engineering-quality",
+  "request_id": "4756409a-fb1b-41be-9f02-0d7b6f650d3a",
+  "reviewer": {
+    "context_id": "ae9160e1-84a1-4854-9e68-c873f4105fea",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-085ddf6d-7c4d-4669-883c-35c6e1236494",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36122
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 95910
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20815
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21809
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1894
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be"
+}

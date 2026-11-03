@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+    "base_ref": "a7dda322630f3b561a5d391e6def8c6c895d3e31",
+    "candidate_head": "562f1319d7ec4b747cfa62d035ddf59a78e5b659",
+    "diff_sha256": "2ccc2123e0293a93e2faeb62a1f953bb3f7a4a95f93f6306b2d45e61558f0b95"
+  },
+  "completed_at": "2026-11-03T08:53:13+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py `_refuse_queue_owned_composition` refuses only on `queue.CLAIM_STATES | {ready, integrating, integration-repair-pending}` or on the QUEUE/ACTIVE labels. template/scripts/requirement_composition.py `advance_final_publication` parks the candidate in `blocked-retryable` with `required-checks` evidence `phase: composition-final-ci`. For a non-queue-labelled PR in that state, the guard lets advance through. I did not check whether `blocked-retryable` is in `CLAIM_STATES`.",
+      "id": "advance-guard-misses-ci-wait-state",
+      "severity": "advisory",
+      "summary": "T3's advance guard does not treat the T1 `blocked-retryable` composition CI wait as queue-owned. A rerun of advance during that wait is not refused, so it can run final publication, and possibly full checks, again. T1 says the queue workflow owns the resume after a CI event."
+    },
+    {
+      "evidence": "template/scripts/publication_queue.py `run_worker`: `progress = worker(root); resume_composition_ci(root, _repo(root)); return progress`. In `resume_composition_ci`, `failures` is collected and then `raise QueueError(\"; \".join(failures))` after the loop. An inventory of 300 or more `blocked-retryable` PRs also raises.",
+      "id": "ci-resume-raises-after-worker-progress",
+      "severity": "advisory",
+      "summary": "`run_worker` now calls `resume_composition_ci` after the worker. That function raises a `QueueError` for any stale-head, missing-intent or missing-evidence wait, and also for an unreadable inventory. The exception discards the `progress` value the worker already computed. One bad composition PR can then fail every queue run, including runs for unrelated candidates. This works against the Requirement outcome of not blocking on other merges."
+    }
+  ],
+  "launched_at": "2026-11-03T08:52:36+00:00",
+  "output_sha256": "a96d9c7261a6c883362833b825c0ccafa60d7ed94e984df6dc238343a4a4a479",
+  "perspective": "engineering-quality",
+  "request_id": "727eb30c-8d16-42ba-b6f9-130597abe065",
+  "reviewer": {
+    "context_id": "85ed74c6-c17d-47cf-b9fd-b5603f594a71",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-87893893-2277-44ba-a469-7971b28a176b",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 60309
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 61972
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 33941
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35333
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3134
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "be768665b1b600b06356c3810fb76ac6399b726349a73e0c6f0f59c33ad8c916"
+}

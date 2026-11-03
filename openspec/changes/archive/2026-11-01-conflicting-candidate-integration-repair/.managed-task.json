@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/publication-queue/spec.md",
+    "tasks.md"
+  ],
+  "change": "conflicting-candidate-integration-repair",
+  "imported_at": "2026-10-31T23:24:31+00:00",
+  "package_revision": "a39569784cf5811491cffb16f94371f403f8b00e9ceb55b6e478390fe9166a8a",
+  "prepared_against": "551062d9163983e6556d61b18b41ec14178423cc",
+  "private_lineage_handle": "pln_a9e0e9e64e8fd362434cc390c6425304",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "74279c75344283b66b99d11ea113bc5b125d59cc4e5c80338db09fe5cf48f32c",
+    "updated_at": "2026-10-31T23:06:38Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-969/T1"
+}

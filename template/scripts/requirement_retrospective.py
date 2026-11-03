@@ -19,6 +19,14 @@ class RequirementRetrospectiveError(RuntimeError):
     pass
 
 
+class RetrospectivePending(RequirementRetrospectiveError):
+    """The checkpoint is not recorded yet for the current parent/children: a next step, not a defect."""
+
+    def __init__(self, message: str, command: str) -> None:
+        super().__init__(message)
+        self.command = command
+
+
 _CHILD_CHECKBOX_RE = re.compile(r"^([ \t]*- \[)[xX](\] \S+/\S+#\d+\s*)$", re.MULTILINE)
 
 
@@ -179,15 +187,18 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
     parent = parent or requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))
     identity = _identity(requirement, parent)
     path = _receipt_path(root, identity["number"])
-    instruction = f"run `python3 scripts/requirement_retrospective.py checkpoint --requirement {requirement} --result none --review-note TEXT` after the full-path review, or record findings and pass their --event ids"
+    command = f"python3 scripts/requirement_retrospective.py checkpoint --requirement {requirement} --result none --review-note TEXT"
+    instruction = f"run `{command}` after the full-path review, or record findings and pass their --event ids"
     try:
         receipt = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise RetrospectivePending(f"Requirement retrospective is missing; {instruction}", command) from exc
     except (OSError, ValueError) as exc:
-        raise RequirementRetrospectiveError(f"Requirement retrospective is missing or unreadable; {instruction}") from exc
+        raise RequirementRetrospectiveError(f"Requirement retrospective is unreadable; {instruction}") from exc
     if not isinstance(receipt, dict) or receipt.get("version") != 1:
         raise RequirementRetrospectiveError(f"Requirement retrospective receipt is unsupported; {instruction}")
     if any(receipt.get(key) != value for key, value in identity.items()):
-        raise RequirementRetrospectiveError(f"Requirement retrospective is stale for current parent/children; {instruction}")
+        raise RetrospectivePending(f"Requirement retrospective is stale for current parent/children; {instruction}", command)
     result = receipt.get("result")
     events = receipt.get("event_ids")
     if result not in ("none", "findings") or not isinstance(events, list) or not all(isinstance(e, str) for e in events):

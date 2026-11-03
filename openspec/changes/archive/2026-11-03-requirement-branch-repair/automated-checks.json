@@ -1,0 +1,123 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.416,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.823,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.246,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.171,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1222.183,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/execute_requirement.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/requirement_composition.py",
+        "tests/test_requirement_contribution_composition.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_e8871a2df3934f8f1f6b8b0adc397952",
+    "change": "requirement-branch-repair",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/requirement-branch-repair",
+    "branch": "agent/br-978-t2-requirement-branch-repair",
+    "head": "1e00ae3a01b6bd39557a1f32c63b116372df3f14",
+    "task_content": {
+      "version": 1,
+      "digest": "b7ab238b48fb5b1c87156fcd8330b9a415d2188438546c20be545f73741ed548",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "2c57e5c7d56bdd0b334cb8ee70ec5c8593d1378c",
+        "docs/engineering/chat-coordinator.md": "b7698dd333f1f9de845fe4e9450b5576a8040dc3",
+        "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+        "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+        "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+        "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+        "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+        "template/dev-platform/platform-manifest.json": "5b4f765ef20ad7099353fc19ca79b88734050961",
+        "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+        "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+        "template/scripts/requirement_composition.py": "ae8ed7a1499eebcb73b7c2bea5d9eb8cdaf85675",
+        "tests/test_requirement_contribution_composition.py": "3d1b50a2d45ce86fb4862f8d08b32a9566027317"
+      },
+      "base": "a7dda322630f3b561a5d391e6def8c6c895d3e31"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "3b825a0744eda6623254845ea5887cd92c249d431575b20861dd5d8109f3943c",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "b7698dd333f1f9de845fe4e9450b5576a8040dc3",
+      "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
+      "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/requirement-branch-repair/design.md": "6eb8b70722c4cd72c6e97c23f6bb81dfc5a55ec7",
+      "openspec/changes/requirement-branch-repair/proposal.md": "5ffa744f167194960d5e07d877a5964c65070e9e",
+      "openspec/changes/requirement-branch-repair/specs/platform-lifecycle/spec.md": "e9fd2f90c4b12513dc93ade02268810aa1753692",
+      "openspec/changes/requirement-branch-repair/tasks.md": "095b77bf585df4dd3943cc457ecb19b805e9adf6",
+      "template/scripts/execute_requirement.py": "2b579df72ad1a09d2909fcae3e4b5a40685651f8",
+      "template/scripts/lifecycle_workers.py": "e10362dc36d864fccc8b9990297333582817e1c3",
+      "template/scripts/requirement_composition.py": "ae8ed7a1499eebcb73b7c2bea5d9eb8cdaf85675",
+      "tests/test_requirement_contribution_composition.py": "3d1b50a2d45ce86fb4862f8d08b32a9566027317"
+    },
+    "base": "e14c33827b2f10444666042df6edd80cbcf23fb5",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/requirement_composition.py --changed-file tests/test_requirement_contribution_composition.py",
+    "duration_seconds": 404.966,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
