@@ -1,8 +1,8 @@
 OpenSpec-Verify: PASS
+Automated-Checks-Evidence: automated-checks.json
 Verification-Method: equivalent semantic review of proposal, design, delta scenarios, implementation and stubbed regression evidence
 
-This is a bounded local implementation receipt, not terminal delivery or a claim
-that the full platform suite passed. The assigned child context was read before implementation; base
+This is a local implementation receipt, not terminal delivery. The assigned child context was read before implementation; base
 `abce3d9584fd60c34a6431d13092b3a7ff27a565`. No archive, publication, commit or
 live GitHub write was performed.
 
@@ -65,6 +65,9 @@ spec/implementation conflict or descriptive-docs/code mismatch was found.
 
 ## Successful checks
 
+- `python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/prewrite-package-limit/automated-checks.json` — passed, including the full `run_test_groups.py --all` suite and all selected compile, CI Python, Ruff and manifest checks.
+- Independent Claude review: spec fidelity had no findings; engineering quality noted the documented contract-drift risk and the separately scoped supersede path, both advisory.
+
 - `PYTHONPATH=tests python3 -m unittest test_managed_task.ManagedPackageLimitTests -v`
   — all 7 new tests pass, including their boundary subcases.
 - `PYTHONPATH=tests python3 -m unittest test_managed_task.PublishedManagedTaskVerificationTests test_managed_task.SupersedeTaskTests test_managed_task_exact_state test_managed_execution_intake -q`
@@ -113,8 +116,7 @@ The initial broad command also named a nonexistent
 `test_managed_task_provenance` module: that extra import error was an invocation
 mistake, not a code regression. Corrected selections ran afterward, including
 the successful 63-test run above. A keyword-filtered 36-test run likewise
-reported three of the baseline permission errors. No all-green broader suite
-or full `run_test_groups.py --all` result is claimed.
+reported three of the baseline permission errors. The later selected full suite passed outside the child sandbox, as recorded above.
 
 ## Limitations and retained issues
 
@@ -126,16 +128,12 @@ or full `run_test_groups.py --all` result is claimed.
   number/timestamp contract is violated, the post-create length guard stops
   publication, but the Issue already exists. No arbitrary safety margin or
   recovery was added to hide this risk.
-- Independent reviewer processes, selected-check lifecycle evidence, the full
-  platform suite, archive and publication were not run. The semantic PASS
-  above records this agent's equivalent review, not independent review or
-  terminal lifecycle approval.
+- Archive and publication remain coordinator lifecycle steps. The semantic PASS
+  above records equivalent semantic review; independent Claude review and selected
+  checks are recorded separately.
 - The task path was reviewed for friction. The baseline permission failure is
   retained as a verification-environment limitation. The platform friction
-  checkpoint was not written: `agent_friction.local_path()` resolves through
-  `main_root()` to shared integration `.claude/agent-friction-state.json`,
-  outside this assigned worktree and the permitted write roots. The existing
-  delegated routing receipt was read; shared routing state was not changed.
+  checkpoint was later written by the supervisor after review of the task path.
 - Existing permissive parsing in `managed_task.run_json` (trying a JSON suffix
   after a parse failure) was observed outside the edited blocks. It was not
   extended or used as recovery for this size check. The pre-existing optional
