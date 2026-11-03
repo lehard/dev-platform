@@ -9,31 +9,31 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.167,
+      "duration_seconds": 0.143,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
-      "duration_seconds": 0.508,
+      "duration_seconds": 0.459,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.144,
+      "duration_seconds": 0.158,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/generate_platform_manifest.py --check",
-      "duration_seconds": 0.216,
+      "duration_seconds": 0.157,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/run_test_groups.py --all",
-      "duration_seconds": 1304.647,
+      "duration_seconds": 1323.433,
       "outcome": "success",
       "exit_code": 0
     }
@@ -83,10 +83,10 @@
     "change": "composition-order-advance-guard",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/composition-order-advance-guard",
     "branch": "agent/br-978-t3-composition-order-advance-guard",
-    "head": "9409a05c62ec034230df71bc4e6a294b40571748",
+    "head": "54ba1280ea997a82a3558375f14d9a9a5f6896ce",
     "task_content": {
       "version": 1,
-      "digest": "65eb3c85c4f77b91f93e3aae0f1d15e2b8cce8a5f179821dba8825f62e463061",
+      "digest": "d060a36f17eac6d4290aa5e519457c124ed38247b5798b290fa49b8cc23c7962",
       "paths": {
         "dev-platform/requirement-integrations/private-lineage-pln_440a516b4433c59b23fd2a9a29b2ee8e-integration.json": "9081d67fe2727e5959bb9976e9b14ae1ab24ab74",
         "docs/engineering/chat-coordinator.md": "5faeac64ef69fb8bf73d92ca2aa1ff70c5358d24",
@@ -106,16 +106,16 @@
         "openspec/changes/composition-main-only-gates/verification.md": "b6216294effece795b9d75d559114d0b6eaa4370",
         "openspec/changes/composition-order-advance-guard/.managed-task.json": "f8f92f2e24c60c1635c65a2c058622bdc0cd929e",
         "openspec/changes/composition-order-advance-guard/.openspec.yaml": "a7587c5f07bdc91709ad9b053e28487c68d7e10b",
-        "openspec/changes/composition-order-advance-guard/automated-checks.json": "3b3e23423c0dbfcf524bf63d60519a38d98c8b3c",
-        "openspec/changes/composition-order-advance-guard/design.md": "65f1e22402ecbddd4ac1e34b49b76ed7ac0186d0",
-        "openspec/changes/composition-order-advance-guard/independent-review-request.json": "167618a44f5f796df6ed90629ae260bf58a71615",
-        "openspec/changes/composition-order-advance-guard/independent-reviews/engineering-quality.json": "bbc61393037ea04a9c8319bb0fdadb41e5e5c878",
-        "openspec/changes/composition-order-advance-guard/independent-reviews/spec-fidelity.json": "8ec0fa1349e736f8a900243cddcf21801b79b217",
+        "openspec/changes/composition-order-advance-guard/automated-checks.json": "b4f1ecda5c5e58f611465315365e4baad311e2b6",
+        "openspec/changes/composition-order-advance-guard/design.md": "2b4f6b17f79eead4197e1d3265cf8d270d8aad6b",
+        "openspec/changes/composition-order-advance-guard/independent-review-request.json": "c2cafc1fdc81277ffcdfa0197cba94eeb994627e",
+        "openspec/changes/composition-order-advance-guard/independent-reviews/engineering-quality.json": "1db7c4ed9d1f11218fab5cecd47c000ef1e222e2",
+        "openspec/changes/composition-order-advance-guard/independent-reviews/spec-fidelity.json": "1bd88507957772535bb91432bc6a12a914ff132c",
         "openspec/changes/composition-order-advance-guard/proposal.md": "4b93692ca7df73fcf768eea9e10bcafcf02bd367",
         "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md": "fc5e1c534eb6637a902d3d54229216b2b5454cff",
         "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md": "16e737ff0540a6bc7ccb2f607b5fc85a02f0c604",
         "openspec/changes/composition-order-advance-guard/tasks.md": "f70da84e157ff6ec63ecc0ad606513f5b841bc18",
-        "openspec/changes/composition-order-advance-guard/verification.md": "b3fc28de2d12fd27d034e9fe5fc5f143286b95da",
+        "openspec/changes/composition-order-advance-guard/verification.md": "34b69379e4e53b6359e2442df54cc3af663e46d9",
         "openspec/changes/requirement-branch-repair/.managed-task.json": "00d1c56be001e96b981193fb83c0462626812c58",
         "openspec/changes/requirement-branch-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
         "openspec/changes/requirement-branch-repair/automated-checks.json": "10f5dace60a12bff9214534f577ea40c3fe3ee61",
@@ -149,13 +149,13 @@
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "cca93b8fadaa9ef91512eabbe9d2676d630a3af93f6b8636cdc58f51dac1e206",
+    "digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be",
     "paths": {
       "docs/engineering/lifecycle-map.md": "49785c2bbf8f89bcf105d6c3d10da100f38bfeb1",
       "docs/engineering/task-intake.md": "2c426fe3290bbdd5b41971887c83a9bf2c86d750",
       "openspec/changes/composition-order-advance-guard/.managed-task.json": "f8f92f2e24c60c1635c65a2c058622bdc0cd929e",
       "openspec/changes/composition-order-advance-guard/.openspec.yaml": "a7587c5f07bdc91709ad9b053e28487c68d7e10b",
-      "openspec/changes/composition-order-advance-guard/design.md": "65f1e22402ecbddd4ac1e34b49b76ed7ac0186d0",
+      "openspec/changes/composition-order-advance-guard/design.md": "2b4f6b17f79eead4197e1d3265cf8d270d8aad6b",
       "openspec/changes/composition-order-advance-guard/proposal.md": "4b93692ca7df73fcf768eea9e10bcafcf02bd367",
       "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md": "fc5e1c534eb6637a902d3d54229216b2b5454cff",
       "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md": "16e737ff0540a6bc7ccb2f607b5fc85a02f0c604",
@@ -176,7 +176,7 @@
   },
   "affected_precheck": {
     "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/publication_queue.py --changed-file template/scripts/requirement_composition.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_coordinator_preflight.py --changed-file tests/test_publication_queue.py --changed-file tests/test_requirement_card_claim.py --changed-file tests/test_requirement_contribution_composition.py --changed-file tests/test_requirement_execution.py --changed-file tests/test_requirement_flow_e2e.py --changed-file tests/test_requirement_sequential_delivery.py --changed-file tests/test_requirement_terminal_fresh_main.py",
-    "duration_seconds": 474.333,
+    "duration_seconds": 443.078,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
