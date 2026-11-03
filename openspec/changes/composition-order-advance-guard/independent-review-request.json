@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "469a224bee1798a40ca45e430d77137994b0efb5",
     "base_ref": "469a224bee1798a40ca45e430d77137994b0efb5",
-    "candidate_head": "eb8836ed838f0eb23888573c7ae1d096a7e35df0",
-    "diff_sha256": "49b56e630f8ed592c95878bf8ad5f644051e14ed1e93616d602c100a86dd981a"
+    "candidate_head": "80cc9cf9b0e33fe899604a71c409f5b0df4b2c1d",
+    "diff_sha256": "b79efa8945243e1e533f1ed59c71ec92d8220b308fda4f62eb227937d8b1bba0"
   },
   "change": "openspec/changes/composition-order-advance-guard",
   "excluded_lifecycle_paths": [
@@ -40,7 +40,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-03T06:05:19+00:00",
+  "prepared_at": "2026-11-03T08:27:58+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/composition-order-advance-guard/independent-reviews",
     "required_perspectives": [
@@ -49,7 +49,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "2efb1ad5-d4b7-4b16-8f7b-607f3c3aa2b9",
+  "request_id": "4756409a-fb1b-41be-9f02-0d7b6f650d3a",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -62,13 +62,13 @@
   "schema_version": 1,
   "task_content": {
     "base": "469a224bee1798a40ca45e430d77137994b0efb5",
-    "digest": "cca93b8fadaa9ef91512eabbe9d2676d630a3af93f6b8636cdc58f51dac1e206",
+    "digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be",
     "paths": {
       "docs/engineering/lifecycle-map.md": "49785c2bbf8f89bcf105d6c3d10da100f38bfeb1",
       "docs/engineering/task-intake.md": "2c426fe3290bbdd5b41971887c83a9bf2c86d750",
       "openspec/changes/composition-order-advance-guard/.managed-task.json": "f8f92f2e24c60c1635c65a2c058622bdc0cd929e",
       "openspec/changes/composition-order-advance-guard/.openspec.yaml": "a7587c5f07bdc91709ad9b053e28487c68d7e10b",
-      "openspec/changes/composition-order-advance-guard/design.md": "65f1e22402ecbddd4ac1e34b49b76ed7ac0186d0",
+      "openspec/changes/composition-order-advance-guard/design.md": "2b4f6b17f79eead4197e1d3265cf8d270d8aad6b",
       "openspec/changes/composition-order-advance-guard/proposal.md": "4b93692ca7df73fcf768eea9e10bcafcf02bd367",
       "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md": "fc5e1c534eb6637a902d3d54229216b2b5454cff",
       "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md": "16e737ff0540a6bc7ccb2f607b5fc85a02f0c604",

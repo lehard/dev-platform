@@ -3,40 +3,28 @@
   "candidate": {
     "base_head": "469a224bee1798a40ca45e430d77137994b0efb5",
     "base_ref": "469a224bee1798a40ca45e430d77137994b0efb5",
-    "candidate_head": "eb8836ed838f0eb23888573c7ae1d096a7e35df0",
-    "diff_sha256": "49b56e630f8ed592c95878bf8ad5f644051e14ed1e93616d602c100a86dd981a"
+    "candidate_head": "80cc9cf9b0e33fe899604a71c409f5b0df4b2c1d",
+    "diff_sha256": "b79efa8945243e1e533f1ed59c71ec92d8220b308fda4f62eb227937d8b1bba0"
   },
-  "completed_at": "2026-11-03T06:05:52+00:00",
+  "completed_at": "2026-11-03T08:28:28+00:00",
   "findings": [
     {
-      "evidence": "The diff changes `template/scripts/execute_requirement.py` (`_advance_contributions`, which now builds `normalized`, `bundles` and `renames`) and `template/scripts/requirement_contributions.py` (`ensure_integration_branch(..., handoff_renames=...)`, which now seals a migrated manifest and pushes it). `proposal.md` 'What Changes' and 'Impact' list only first-admission ordering, the advance guard, retrospective removal and docs. `design.md` and `tasks.md` say nothing about handoff-key to bundle-change renames or manifest graph migration. The proposal also says the repair command and main-only implementation belong to other children. The new tests (`test_graph_migration_is_bounded_and_fast_forward`, `test_first_and_resumed_advance_use_bundle_change_graph`) cover this unspecified behavior.",
-      "id": "undocumented-handoff-rename-migration",
-      "severity": "material",
-      "summary": "The candidate adds behavior that no proposal, design, spec or task in this change covers. It adds a bundle-change resolution step in `_advance_contributions` and a `handoff_renames` migration of the integration-branch manifest graph. The migration rewrites `expected_changes` and `dependencies` and pushes a new commit to the shared branch. AGENTS.md's 'No silent divergence' invariant requires the artifacts to be updated first."
-    },
-    {
-      "evidence": "`template/scripts/execute_requirement.py` deletes `if not coordinator and (pending := _retrospective_pending(...)): return audited(pending)`. `openspec/specs/platform-lifecycle/spec.md:1680` still reads 'the retrospective checkpoint exists and full checks pass on the exact final head before the existing protected merge path runs'. The change's `specs/platform-lifecycle/spec.md` contains only the queue-owned advance requirement. The ready/pre-merge correction is not in the candidate.",
-      "id": "portable-retrospective-removal-not-in-delta-spec",
+      "evidence": "candidate.diff adds `handoff_renames` handling to `ensure_integration_branch` in template/scripts/requirement_contributions.py, including a manifest reseal and a fast-forward push. It also adds the bundle-resolution and renames block in `_advance_contributions` in template/scripts/execute_requirement.py. design.md ('Inherited from main') says this is inherited from main #863 and 'not introduced by this change'. The diff against base 469a224 nonetheless shows it as new. Neither the proposal, the two spec deltas, nor tasks.md mention it. This is a drift between the stated contract and the diff, though the behavior itself looks bounded by the new tests.",
+      "id": "handoff-rename-migration-outside-delta",
       "severity": "advisory",
-      "summary": "The candidate removes the portable (non-coordinator) shared-publication retrospective gate in code. It also reworded `task-intake.md` to match. The delta specs for this change do not state or test that behavior. The change relies on the claim that T1 already holds the identical requirement. The current `openspec/specs/platform-lifecycle/spec.md` still states the old condition."
-    },
-    {
-      "evidence": "`_refuse_queue_owned_composition` in `template/scripts/execute_requirement.py` uses `owned = queue.CLAIM_STATES | {\"ready\", \"integrating\", \"integration-repair-pending\"}`. The spec scenario only says 'whose composition is in the queue'.",
-      "id": "guard-state-set-vs-spec-wording",
-      "severity": "advisory",
-      "summary": "The spec says advance refuses while the queue owns the composition, naming the queue state. The guard enumerates specific states (`CLAIM_STATES`, ready, integrating, integration-repair-pending) plus the QUEUE and ACTIVE labels. Other states a queue-owned composition could be in are not refused. The spec does not define which states count as owned. The guard also returns early, with no refusal, when `_contribution_publication_supported` is false."
+      "summary": "The candidate diff contains graph-migration behavior that no spec or task in this change covers: the `handoff_renames` rewrite of an existing integration manifest, and bundle-based change-key normalization in `_advance_contributions`."
     }
   ],
-  "launched_at": "2026-11-03T06:05:28+00:00",
-  "output_sha256": "9e029e384eed1b08905f8a614b6d4202048991d8a1d0abe957b55c36eb0c2982",
+  "launched_at": "2026-11-03T08:28:05+00:00",
+  "output_sha256": "f0dfe272244b4936b291ad7dec50784c9cd174452a0f0b1b4c4fa22adc81f07a",
   "perspective": "spec-fidelity",
-  "request_id": "2efb1ad5-d4b7-4b16-8f7b-607f3c3aa2b9",
+  "request_id": "4756409a-fb1b-41be-9f02-0d7b6f650d3a",
   "reviewer": {
-    "context_id": "b659c284-6ec4-46c9-9b4b-11070a77a1b2",
+    "context_id": "f561918a-22e6-4e8a-aa8f-1529d5f77a3c",
     "context_id_source": "runtime",
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-5ab484bc-22e1-4802-a18e-6a457d07c332",
+    "launch_id": "platform-launch-2eb5a0be-b2ce-428d-a115-a98889e0fef4",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -51,41 +39,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41459
+        "value": 41715
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52437
+        "value": 92688
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 21903
+        "value": 21106
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 22541
+        "value": 21794
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 8
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2365
+        "value": 2010
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "cca93b8fadaa9ef91512eabbe9d2676d630a3af93f6b8636cdc58f51dac1e206"
+  "task_content_digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be"
 }
