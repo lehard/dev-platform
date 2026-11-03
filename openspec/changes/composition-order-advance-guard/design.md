@@ -10,3 +10,7 @@
 ## Dependency and verification
 
 T3 still depends on T1's composition gate behavior. This delta permits proof-bound main-only full-check carry while keeping exact-head required CI before ready. Verify stable re-admission ordering, no checks on refused advance, both corrected pre-ready scenarios, preservation of every unrelated append-only scenario, and terminal-close rejection without the checkpoint. No queue state or receipts are edited by hand.
+
+## Inherited from main
+
+The Requirement branch was synchronized with main once; stable composition graph handling, `handoff_renames` migration in `execute_requirement.py` and `requirement_contributions.py`, and their tests are inherited from main #863 and are not introduced by this change. Contribution review remains based on the original contribution base, a known platform limitation.

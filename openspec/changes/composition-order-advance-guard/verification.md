@@ -16,3 +16,5 @@ The initial independent review's material portable-publication finding was fixed
 - Unchecked Requirement parsing: the standard issue parser now validates and extracts the number before queue observation, including malformed-input coverage.
 
 The repeat independent review against the contribution base completed with both perspectives available and zero findings.
+
+The later coordinator review includes main #863 in its starting-base diff; its graph migration is inherited as described in design. Three advisory observations were assessed: the guard remains early because deciding that no composition exists requires a reliable delivery-mode observation, and unavailable queue ownership must not be silently ignored; `_ordering_key` fails explicitly on invalid ordering evidence rather than suppressing the error; the ownership set uses canonical claim states, the ready and integration states, and the queue and active labels, while unavailable or malformed state is refused.
