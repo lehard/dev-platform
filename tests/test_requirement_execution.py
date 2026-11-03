@@ -729,6 +729,31 @@ class RequirementExecutionTests(unittest.TestCase):
             # A verified receipt is a prerequisite; incomplete work remains for implementation.
             self.assertTrue(openspec_lifecycle.verification_passed(active))
 
+    def test_portable_finalization_refusal_never_creates_a_ready_receipt(self) -> None:
+        import finish_task
+        import _platform_common
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worktree = root / "worktrees" / "first"
+            active = worktree / "openspec/changes/first"
+            active.mkdir(parents=True)
+            (active / "tasks.md").write_text("- [x] done\n")
+            (active / "verification.md").write_text("OpenSpec-Verify: PASS\nVerification-Method: fixture\n")
+            refusal = SystemExit("independent review unavailable; next command: independent_review.py run first")
+            with mock.patch.object(execution.requirement_integration, "_registered_worktrees", return_value={worktree.resolve(): "agent/first"}), \
+                    mock.patch.object(execution, "machine_path", return_value=root / "worktrees"), \
+                    mock.patch.object(execution, "_git", return_value="agent/first"), \
+                    mock.patch.object(execution.managed_task, "resolve_canonical_provenance", return_value=SimpleNamespace(lifecycle="active", path=active)), \
+                    mock.patch.object(_platform_common, "read_platform_config", return_value={}), \
+                    mock.patch.object(_platform_common, "lifecycle_mode", return_value="portable"), \
+                    mock.patch.object(finish_task, "finalize_portable_change", side_effect=refusal), \
+                    mock.patch.object(execution.requirement_integration, "create_receipt") as create:
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "portable finalization refused: independent review unavailable") as caught:
+                    execution._ready_receipt(root, root / "receipts", REQUIREMENT, "acme/backlog#8", "first", release_claim=False)
+                self.assertIs(caught.exception.__cause__, refusal)
+            create.assert_not_called()
+            self.assertFalse((root / "receipts").exists())
+
     def test_ready_receipt_supersedes_own_stale_receipt_in_child_worktree_and_reports_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

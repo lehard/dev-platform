@@ -409,7 +409,10 @@ def _ready_receipt(
             total, incomplete = task_state(canonical.path)
             if total and not incomplete and verification_passed(canonical.path):
                 from finish_task import finalize_portable_change
-                finalize_portable_change(worktree)
+                try:
+                    finalize_portable_change(worktree)
+                except SystemExit as exc:
+                    raise RequirementExecutionError(f"{change}: portable finalization refused: {exc}") from exc
                 canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
                 if canonical is None or canonical.lifecycle != "archived":
                     raise RequirementExecutionError(f"{change}: portable finalization did not produce archived canonical provenance")

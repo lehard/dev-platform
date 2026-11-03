@@ -8,6 +8,7 @@ In portable and light projects the developer archives by hand before finish, whi
 - `execute_requirement` portable multi-child: a verified ready child is finalized by advance before its ready receipt.
 - `openspec_lifecycle.py archive` without `--finalize` refuses, naming finish or the finalize job; `--finalize` stays for the trusted archiver.
 - Docs drop the developer archive command and step.
+- Shipped OpenSpec configuration, explorer guidance and template contract assertions name the executable finish/advance path. Portable advance reports finalization refusals through its existing structured error boundary.
 
 ## Impact
 

@@ -48,4 +48,4 @@ operations:
       - When a verification check fails, classify it as introduced, pre-existing, or unknown relative to the authoritative base; claim pre-existing only with trustworthy baseline evidence, otherwise leave it unknown.
       - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
       - Commit the package (tasks, delta specs, verification receipt) before archive; archive rejects uncommitted authored package files before review or checks.
-      - Use `python3 scripts/openspec_lifecycle.py archive <change>` as the normal project archive entrypoint so completion requirements are mechanically checked.
+      - Run `python3 scripts/finish_task.py` or Requirement advance with the verified active change; portable finish runs required review and shared finalization before publication, while coordinator projects hand off to queue review and finalize jobs. Developers do not run archive.
