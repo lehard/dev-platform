@@ -174,8 +174,8 @@ class ArchiveFinalizeModeTests(unittest.TestCase):
             self.assertFalse(static.call_args.kwargs["routing"])
             self.assertFalse(ready.call_args.kwargs["platform_owned"])
             self.assertIn("validate", run_checked.call_args_list[0].args[0])
-            rehearse.assert_called_once_with(root, "work", "openspec")
-            archive.assert_called_once_with(root, "work", "openspec")
+            rehearse.assert_called_once_with(root, "work", "openspec", env=None)
+            archive.assert_called_once_with(root, "work", "openspec", env=None)
 
 
 class ArchiveFailureReportingTests(unittest.TestCase):

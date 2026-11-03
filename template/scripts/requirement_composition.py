@@ -371,7 +371,8 @@ def require_archive_evidence(checkout: Path, change: str, requirement: str) -> N
 def execute_composition_finalize(checkout: Path, job: dict, gates: dict, *, source_repo: str, branch: str,
                                  current_head, runner=subprocess.run, archiver=None, push_env=None,
                                  before_push=None, claim_current=lambda: True, checks_runner=None) -> dict:
-    from post_review_finalization import trusted_archiver, validate_finalization_paths
+    from openspec_lifecycle import FINALIZE_COMPOSITION, finalize_change, finalize_change_problems
+    from post_review_finalization import _archive_dir, validate_finalization_paths
     from pr_review_gate import reusable
 
     identity = job["task_identity"]
@@ -382,20 +383,27 @@ def execute_composition_finalize(checkout: Path, job: dict, gates: dict, *, sour
     if not reusable(checkout, gates.get("review"), actual):
         raise workers.WorkerError("composition finalization lacks content-bound review")
     validate_composition_reports(checkout, actual)
-    problems = children_archive_problems(checkout, manifest)
-    if problems:
-        raise workers.WorkerError("composition finalization archived nothing; children are not archiveable: " + "; ".join(problems))
-    env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
-    env["DEV_PLATFORM_COMPOSITION_FINALIZATION"] = identity["requirement"]
-    # Preserve contribution integration order; shared capability deltas are applied once, in order.
+    problems = []
+    active = []
     for child in manifest["children"]:
         name = child["change"]
         if (checkout / "openspec/changes" / name).is_dir():
-            (archiver or trusted_archiver)(checkout, name, env)
-        else:
-            from post_review_finalization import _archive_dir
-            if _archive_dir(checkout, name) is None:
-                raise workers.WorkerError(f"missing active or archived child: {name}")
+            active.append(name)
+            try:
+                problems.extend(finalize_change_problems(checkout, name, context=FINALIZE_COMPOSITION,
+                                                        requirement=identity["requirement"]))
+            except SystemExit as exc:
+                problems.append(f"{name}: {exc}")
+        elif _archive_dir(checkout, name) is None:
+            problems.append(f"missing active or archived child: {name}")
+    if problems:
+        raise workers.WorkerError("composition finalization archived nothing; children are not archiveable: " + "; ".join(problems))
+    if archiver is None:
+        archiver = finalize_change
+    env = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
+    # Preserve contribution integration order; shared capability deltas are applied once, in order.
+    for name in active:
+        archiver(checkout, name, context=FINALIZE_COMPOSITION, requirement=identity["requirement"], env=env)
     workers.harness_git(checkout, "add", "-A", "--", "openspec")
     leftovers = workers.harness_git(checkout, "diff", "--name-only").strip()
     if leftovers or workers.harness_git(checkout, "ls-files", "--others", "--exclude-standard").strip():

@@ -21,6 +21,7 @@ from _platform_modules import isolate_machine_pool_environment  # noqa: E402
 from _platform_config import platform_config_text  # noqa: E402
 import requirement_contributions as contributions
 import requirement_composition as composition
+import openspec_lifecycle as archive_lifecycle
 import execute_requirement as execution
 import pr_review_gate as review_gate
 import candidate_lifecycle as lifecycle
@@ -52,13 +53,14 @@ PROJECT_CONTRACT = platform_config_text()
 
 
 class Repository:
-    def __init__(self, root, *, committed_contract=True):
+    def __init__(self, root, *, committed_contract=True, source_contract=False):
         self.root = root
         git(root, "init", "-b", "main")
         git(root, "config", "user.name", "Test")
         git(root, "config", "user.email", "test@example.test")
         (root / "AGENTS.md").write_text("Bounded test repository\n")
-        (root / ".dev-platform.toml").write_text(PROJECT_CONTRACT)  # committed project contract
+        (root / ".dev-platform.toml").write_text(
+            platform_config_text(platform_version="source") if source_contract else PROJECT_CONTRACT)
         (root / "dev-platform").mkdir()
         (root / "dev-platform/checks.toml").write_text("# no generated files\n")
         if not committed_contract:
@@ -81,14 +83,16 @@ class Repository:
         git(self.root, "commit", "-m", message)
         return git(self.root, "rev-parse", "HEAD")
 
-    def child(self, name, number, tasks="- [x] Implement child\n"):
+    def child(self, name, number, tasks="- [x] Implement child\n", *,
+              verification="OpenSpec-Verify: PASS\nVerification-Method: fixture\n"
+                           "Automated-Checks-Evidence: automated-checks.json\n"):
         git(self.root, "switch", "-c", f"agent/{name}", self.boundary)
         change = self.root / "openspec/changes" / name
         change.mkdir(parents=True)
         (change / "tasks.md").write_text(tasks)
         (change / "proposal.md").write_text(f"Implement {name}\n")
         (change / "automated-checks.json").write_text("{}\n")
-        (change / "verification.md").write_text("Actual fixture evidence\n")
+        (change / "verification.md").write_text(verification)
         (self.root / f"{name}.txt").write_text(f"{name}\n")
         head = self.commit(name)
         identity = {"kind": "contribution", "change": name, "requirement": REQUIREMENT,
@@ -606,8 +610,8 @@ class ContributionTests(unittest.TestCase):
 
 
 class CompositionTests(unittest.TestCase):
-    def fixture(self, root):
-        fixture = Repository(root)
+    def fixture(self, root, *, source_contract=False):
+        fixture = Repository(root, source_contract=source_contract)
         first, second = fixture.child("first", 8), fixture.child("second", 9)
         fixture.integrate(first); fixture.integrate(second)
         return fixture
@@ -828,7 +832,7 @@ class CompositionTests(unittest.TestCase):
             self.assertFalse(any("verification.md" in p for p in paths))
 
     def unarchiveable_fixture(self, root):
-        fixture = Repository(root)
+        fixture = Repository(root, source_contract=True)
         first, second = fixture.child("first", 8), fixture.child("second", 9, tasks="- [x] Done\n- [ ] Publish\n")
         fixture.integrate(first); fixture.integrate(second)
         return fixture
@@ -845,6 +849,60 @@ class CompositionTests(unittest.TestCase):
                     self.assertRaisesRegex(workers.WorkerError, r"second: 1 of 2 task\(s\) remain incomplete"):
                 composition.execute_composition_finalize(fixture.root, {"head": head, "task_identity": identity}, gates, **kwargs)
             self.assertTrue((fixture.root / "openspec/changes/first").is_dir())
+
+    def test_finalization_reports_both_children_and_every_problem_before_any_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp), source_contract=True)
+            first = fixture.child("first", 8, tasks="- [ ] Implement child\n")
+            second = fixture.child("second", 9, tasks="- [ ] Implement child\n", verification="Unverified fixture\n")
+            fixture.integrate(first); fixture.integrate(second)
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gates = {"review": {"result": "passed", "identity": identity, "evidence": {"reviewed": True}}}
+            with mock.patch.object(composition, "validate_composition_reports"), \
+                    mock.patch.object(archive_lifecycle, "archive_with_recovery") as archive:
+                with self.assertRaises(workers.WorkerError) as error:
+                    composition.execute_composition_finalize(fixture.root, {"head": head, "task_identity": identity}, gates,
+                        source_repo=str(fixture.root), branch="requirement/BR-7", current_head=lambda: head)
+            for name in ("first", "second"):
+                self.assertIn(f"{name}: 1 of 1 task(s) remain incomplete", str(error.exception))
+                self.assertTrue((fixture.root / "openspec/changes" / name).is_dir())
+            self.assertIn("second: missing successful semantic verification receipt", str(error.exception))
+            self.assertIn("second: platform-owned verification must cite", str(error.exception))
+            archive.assert_not_called()
+            self.assertEqual(git(fixture.root, "rev-parse", "HEAD"), head)
+
+    def test_finalization_calls_shared_function_in_manifest_order_after_all_preflights(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = self.fixture(Path(tmp), source_contract=True)
+            head = git(fixture.root, "rev-parse", "HEAD")
+            identity = composition.composition_identity(fixture.root, fixture.manifest)
+            gates = {"review": {"result": "passed", "identity": identity, "evidence": {"reviewed": True}}}
+            events = []
+            preflight = archive_lifecycle.finalize_change_problems
+            def record_preflight(root, name, **kwargs):
+                events.append(("preflight", name))
+                return preflight(root, name, **kwargs)
+            def archive(root, name, *, context, requirement, env):
+                self.assertEqual(context, "composition")
+                self.assertEqual(requirement, REQUIREMENT)
+                self.assertNotIn("GH_TOKEN", env)
+                events.append(("archive", name))
+                target = root / "openspec/changes/archive" / ("2026-10-06-" + name)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                (root / "openspec/changes" / name).rename(target)
+                return 0
+            with mock.patch.object(composition, "validate_composition_reports"), \
+                    mock.patch.object(archive_lifecycle, "finalize_change_problems", side_effect=record_preflight), \
+                    mock.patch.object(archive_lifecycle, "finalize_change", side_effect=archive) as finalize, \
+                    mock.patch.dict(os.environ, {"GH_TOKEN": "fixture-secret"}), \
+                    mock.patch.object(contributions, "push_fast_forward"):
+                result = composition.execute_composition_finalize(fixture.root, {"head": head, "task_identity": identity}, gates,
+                    source_repo=str(fixture.root), branch="requirement/BR-7", current_head=lambda: head)
+            self.assertEqual(events, [("preflight", "first"), ("preflight", "second"), ("archive", "first"), ("archive", "second")])
+            self.assertEqual(finalize.call_count, 2)
+            self.assertEqual(result["status"], "finalized")
+            self.assertEqual(git(fixture.root, "log", "-1", "--format=%s"), "Archive reviewed Requirement contributions")
 
     def test_composition_review_is_not_offered_for_unarchiveable_child(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -863,14 +921,16 @@ class CompositionTests(unittest.TestCase):
 
     def test_partial_archive_resume_then_repeated_finalization_archives_each_child_once(self):
         with tempfile.TemporaryDirectory() as tmp:
-            fixture = self.fixture(Path(tmp))
+            fixture = self.fixture(Path(tmp), source_contract=True)
             head = git(fixture.root, "rev-parse", "HEAD")
             identity = composition.composition_identity(fixture.root, fixture.manifest)
             job = {"head": head, "task_identity": identity}
             gates = {"review": {"result": "passed", "identity": identity, "evidence": {"reviewed": True}}}
             archived = []
-            def archive(checkout, name, env):
-                self.assertEqual(env["DEV_PLATFORM_COMPOSITION_FINALIZATION"], REQUIREMENT)
+            def archive(checkout, name, *, context, requirement, env):
+                self.assertEqual(context, "composition")
+                self.assertEqual(requirement, REQUIREMENT)
+                self.assertNotIn("GH_TOKEN", env)
                 target = checkout / "openspec/changes/archive" / ("2026-10-06-" + name)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 (checkout / "openspec/changes" / name).rename(target)
