@@ -1,0 +1,119 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.465,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.739,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.301,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.253,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1949.328,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/finish_task.py",
+        "tests/test_finish_merged_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_f13731d8e2df25ae3c47b6d76ceafd50",
+    "change": "merged-finish-reconcile",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/merged-finish-reconcile",
+    "branch": "agent/br-975-t1-merged-finish-reconcile",
+    "head": "2ff58d6b36b02f4a33c03d12979998eb70e8cd2f",
+    "task_content": {
+      "version": 1,
+      "digest": "5fe034f615583a060256119d99105b7fb5e03de5ca59a29a5638a292d2f86484",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_2d7a62fc4bdeaafff4418d8ad898890a-integration.json": "4984e8748b280d5ca9fc8251e077d77130551c4a",
+        "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+        "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+        "openspec/changes/merged-finish-reconcile/independent-review-request.json": "3eb7b2f69cda5929508076526f3cd365b6710e00",
+        "openspec/changes/merged-finish-reconcile/independent-reviews/engineering-quality.json": "5f63addd3b2976cd8eb4cf04b9639cc0ae7a8646",
+        "openspec/changes/merged-finish-reconcile/independent-reviews/spec-fidelity.json": "38946a36cc08bf5646d2328cb548ba0e22868ca0",
+        "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+        "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+        "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+        "openspec/changes/merged-finish-reconcile/verification.md": "d435a11fa9a094b086abf04ada765434c34fdf9f",
+        "template/dev-platform/platform-manifest.json": "1174521131b8208b8bc9dee1ff02e744f6949ed3",
+        "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+        "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+      },
+      "base": "551062d9163983e6556d61b18b41ec14178423cc"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d",
+    "paths": {
+      "openspec/changes/merged-finish-reconcile/.managed-task.json": "53fa715122eb983a0e0bc67c9fb9b03468d731b4",
+      "openspec/changes/merged-finish-reconcile/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/merged-finish-reconcile/design.md": "a24d3ebe09a8c498eb664aa9c705efdcd3ed0bdd",
+      "openspec/changes/merged-finish-reconcile/proposal.md": "efd4b4fd900d54148dfb0cfa0e405078ac63be74",
+      "openspec/changes/merged-finish-reconcile/specs/completion-lifecycle/spec.md": "0aaa3fda2f2f0903a37072ac21d699354a6d6c8a",
+      "openspec/changes/merged-finish-reconcile/tasks.md": "e0a93d02fbc4e26805553aed3d93e2fdb3950aa4",
+      "template/scripts/finish_task.py": "8365579692f29605f161af8adc72038524d45b85",
+      "tests/test_finish_merged_queue.py": "891571142b4b1b114823d36f0ad0468c6856b4e1"
+    },
+    "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/finish_task.py --changed-file tests/test_finish_merged_queue.py",
+    "duration_seconds": 467.748,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

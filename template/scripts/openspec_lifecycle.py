@@ -797,16 +797,16 @@ def openspec_failure_summary(output: str) -> str:
     return failing_lines(output) or output.strip()
 
 
-def _openspec_captured(executable: str, args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run([executable, *args], cwd=cwd, stdin=subprocess.DEVNULL, text=True, capture_output=True)
+def _openspec_captured(executable: str, args: list[str], cwd: Path, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([executable, *args], cwd=cwd, env=env, stdin=subprocess.DEVNULL, text=True, capture_output=True)
 
 
-def rehearse_archive(root: Path, name: str, executable: str) -> None:
+def rehearse_archive(root: Path, name: str, executable: str, *, env: dict[str, str] | None = None) -> None:
     """Archive and strictly validate a disposable copy of ``openspec/`` before touching the checkout."""
     with tempfile.TemporaryDirectory(prefix="openspec-archive-rehearsal-") as temporary:
         shutil.copytree(root / "openspec", Path(temporary) / "openspec", symlinks=True)
         for args in (["archive", name, "--yes"], ["validate", "--all", "--strict", "--no-interactive"]):
-            done = _openspec_captured(executable, args, Path(temporary))
+            done = _openspec_captured(executable, args, Path(temporary), env=env)
             if done.returncode:
                 raise SystemExit(
                     f"{name}: archive rehearsal failed at 'openspec {' '.join(args)}'; this checkout was not changed.\n"
@@ -815,7 +815,7 @@ def rehearse_archive(root: Path, name: str, executable: str) -> None:
     print(f"Archive rehearsal passed for {name}", flush=True)
 
 
-def archive_with_recovery(root: Path, name: str, executable: str) -> None:
+def archive_with_recovery(root: Path, name: str, executable: str, *, env: dict[str, str] | None = None) -> None:
     """Archive for real; on a failed archive or post-validation restore the exact pre-archive tree."""
     tree = root / "openspec"
     with tempfile.TemporaryDirectory(prefix="openspec-archive-restore-") as temporary:
@@ -823,7 +823,7 @@ def archive_with_recovery(root: Path, name: str, executable: str) -> None:
         shutil.copytree(tree, snapshot, symlinks=True)
         for args in (["archive", name, "--yes"], ["validate", "--all", "--strict", "--no-interactive"]):
             print("+ openspec " + " ".join(args), flush=True)
-            done = _openspec_captured(executable, args, root)
+            done = _openspec_captured(executable, args, root, env=env)
             print(done.stdout, end="", flush=True)
             print(done.stderr, end="", flush=True)
             if not done.returncode:
@@ -852,31 +852,26 @@ def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = 
 
 FINALIZE_QUEUE = "queue"
 FINALIZE_DEVELOPER = "developer"
-FINALIZE_CONTEXTS = (FINALIZE_QUEUE, FINALIZE_DEVELOPER)
+FINALIZE_COMPOSITION = "composition"
+FINALIZE_CONTEXTS = (FINALIZE_QUEUE, FINALIZE_DEVELOPER, FINALIZE_COMPOSITION)
 
 
-def finalize_change(root: Path, name: str, *, context: str) -> int:
-    """The one function that archives a verified change; ``context`` names its executor.
-
-    ``queue`` is the coordinator's post-review archive of a disposable candidate
-    checkout (the finalize job): review and selected-check evidence are reused (never
-    launched or rerun), and the local task-checkout identity, committed-package,
-    applicable-diff and routing gates do not apply because the trusted coordinator
-    already proved the content-bound gates before invoking it. ``developer`` is the
-    archive of a verified change in its own checkout, which establishes selected-check
-    evidence. Every archive precondition is evaluated before any archive work and all
-    unmet ones are reported in one failure; no context launches an independent review.
-    """
+def finalize_change_problems(root: Path, name: str, *, context: str, requirement: str | None = None) -> list[str]:
+    """Read-only archive preconditions shared by single-change and composition finalization."""
     if context not in FINALIZE_CONTEXTS:
         raise SystemExit(f"{name}: unknown finalize context {context!r}; expected one of {', '.join(FINALIZE_CONTEXTS)}")
-    finalize = context == FINALIZE_QUEUE
+    finalize = context in (FINALIZE_QUEUE, FINALIZE_COMPOSITION)
     # Fail closed on a nonexistent or malformed target before any state changes.
     require_existing_archive_target(root, name, source="archive")
     config = read_platform_config(root)
     mode = lifecycle_mode(config)
-    composition = os.environ.get("DEV_PLATFORM_COMPOSITION_FINALIZATION") if finalize else None
-    if composition and mode != "coordinator":
-        raise SystemExit("composition finalization requires a coordinator source contract")
+    if context == FINALIZE_COMPOSITION:
+        if mode != "coordinator":
+            raise SystemExit("composition finalization requires a coordinator source contract")
+        if not isinstance(requirement, str) or not requirement.strip():
+            raise SystemExit(f"{name}: composition finalization requires an explicit Requirement identity")
+    elif requirement is not None:
+        raise SystemExit(f"{name}: Requirement identity is only valid for composition finalization")
     if not finalize and mode == "coordinator":
         from pr_review_gate import managed_candidate
 
@@ -914,17 +909,37 @@ def finalize_change(root: Path, name: str, *, context: str) -> int:
     if platform_owned and not finalize:
         collect_problem(problems, require_applicable_committed_diff, root)
     # Review evidence is only required here: archive never runs a review; it runs outside archive.
-    if composition:
+    if context == FINALIZE_COMPOSITION:
+        from lifecycle_workers import WorkerError
+        from requirement_contributions import ContributionError
         from requirement_composition import require_archive_evidence
-        collect_problem(problems, require_archive_evidence, root, name, composition)
+        try:
+            require_archive_evidence(root, name, requirement)
+        except (SystemExit, WorkerError, ContributionError) as exc:
+            problems.append(f"{name}: {exc}")
     else:
         collect_problem(problems, require_review_evidence, root, change)
+    return problems
+
+
+def finalize_change(root: Path, name: str, *, context: str, requirement: str | None = None,
+                    env: dict[str, str] | None = None) -> int:
+    """Archive a verified change, reporting all preconditions before doing archive work.
+
+    Queue and composition finalization reuse the coordinator's proven gates; the
+    composition context selects Requirement review evidence. Developer finalization
+    establishes selected-check evidence in its own checkout. No context launches review.
+    """
+    problems = finalize_change_problems(root, name, context=context, requirement=requirement)
     if problems:
         raise SystemExit(
             f"{name}: archive blocked before any archive work; every unmet precondition:\n"
             + "\n".join(f"- {problem}" for problem in problems)
         )
-    if not finalize and not composition and platform_owned:
+    change = root / "openspec" / "changes" / name
+    platform_owned = harness_mode(read_platform_config(root)) == "platform"
+    finalize = context in (FINALIZE_QUEUE, FINALIZE_COMPOSITION)
+    if not finalize and platform_owned:
         evidence = change / AUTOMATED_EVIDENCE_FILE
         # One receipt for archive and finish: evidence that proves this task content is not run again.
         reused = False
@@ -936,20 +951,20 @@ def finalize_change(root: Path, name: str, *, context: str) -> int:
             # Imported here: only an archive that executes checks depends on the machine pool.
             from machine_pool import child_lease_descriptors
 
-            env = archive_target_environment(root, name)
+            check_env = archive_target_environment(root, name)
             run_checked(
                 ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
                 root,
-                env=env,
-                pass_fds=child_lease_descriptors(env),
+                env=check_env,
+                pass_fds=child_lease_descriptors(check_env),
             )
-    require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=bool(composition))
+    require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=context == FINALIZE_COMPOSITION)
     executable = shutil.which("openspec")
     if not executable:
         raise SystemExit("OpenSpec CLI is required to archive a verified change")
-    run_checked([executable, "validate", name, "--strict", "--no-interactive"], root)
-    rehearse_archive(root, name, executable)
-    archive_with_recovery(root, name, executable)
+    run_checked([executable, "validate", name, "--strict", "--no-interactive"], root, env=env)
+    rehearse_archive(root, name, executable, env=env)
+    archive_with_recovery(root, name, executable, env=env)
     print(f"Archived verified OpenSpec change: {name}")
     return 0
 

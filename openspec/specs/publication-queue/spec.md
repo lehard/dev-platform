@@ -1335,3 +1335,74 @@ For a fresh developer handoff of a candidate whose latest record is `finalize-pe
 - **GIVEN** a candidate in `finalize-pending` whose finalize job holds a live claim
 - **WHEN** a fresh developer handoff arrives
 - **THEN** it is refused with a message naming the live finalize claim
+
+### Requirement: A coordinator environment failure is visible on the candidate
+
+When integration stops on a coordinator environment failure and merge-tree reports no conflict, the queue SHALL post a note naming the head and the failure, change no state, post no block, spend no attempt; the run still fails. Any merge-tree conflict, including one only in declared generated or derived files, SHALL go to integration-repair-pending, spending an attempt, naming the conflict and the environment failure.
+
+#### Scenario: Derived merge without OpenSpec CLI
+
+- **GIVEN** a blocked-retryable candidate waiting for exact-head required checks
+- **WHEN** its derived merge stops because the coordinator lacks the OpenSpec CLI
+- **THEN** its state and attempts are unchanged and its reason names the environment failure on that head
+
+#### Scenario: Real conflict of a waiting candidate
+
+- **WHEN** a waiting candidate without a red gate conflicts with main outside generated files
+- **THEN** it moves to integration-repair-pending and the integration-repair attempt is counted
+
+#### Scenario: Derived merge unavailable with a real conflict
+
+- **GIVEN** a waiting candidate whose merge with main conflicts outside generated files
+- **WHEN** its derived merge stops because the coordinator lacks the OpenSpec CLI
+- **THEN** it moves to integration-repair-pending, the attempt is counted, and the reason names the conflict and the environment failure
+
+#### Scenario: Generated-only conflict with derived merge unavailable
+
+- **GIVEN** a waiting candidate whose merge with main conflicts only in a declared generated file
+- **WHEN** the coordinator cannot run the derived merge
+- **THEN** it moves to integration-repair-pending, the attempt is counted, and the integration repair regenerates the declared generated files
+
+### Requirement: Terminal reconciliation resolves a direct managed task's opaque lineage
+
+For a merged managed candidate without BR branch identity, terminal reconciliation SHALL first exit when a trusted successful terminal result for this PR exists. Otherwise it SHALL resolve the archived lineage handle by a page-capped walk of open private Backlog Issues that counts only trusted-author markers, require exactly one verified mapping, then reconcile and close the Issue. Logs and comments SHALL name only the Issue number.
+
+#### Scenario: Direct task without a worktree
+
+- **GIVEN** a merged direct managed task whose worktree was removed
+- **WHEN** terminal reconciliation runs
+- **THEN** its source Issue is found, verified, set Done and closed
+
+#### Scenario: Unprovable lineage
+
+- **WHEN** no marker, several markers or a marker for another change is found, or the page cap is exceeded
+- **THEN** the job stops with a reason and closes nothing
+
+#### Scenario: Repeated job
+
+- **WHEN** a trusted successful terminal result for this PR is already recorded
+- **THEN** the job exits without walking the Backlog
+
+### Requirement: The queue carries composition gates over a proven main-only update
+
+When the queue refreshes a composition onto main, it SHALL carry review, finalization and full checks only with the existing main-only proof and trusted passed-gate evidence. Proven updates SHALL NOT rerun full checks, but SHALL wait for required CI on the exact new head before ready or admission. Failed proof SHALL prohibit reuse and preserve the existing repair/review rules.
+
+#### Scenario: Clean update of a composition
+
+- **WHEN** the queue cleanly refreshes a finalized composition and the main-only proof holds
+- **THEN** no full-check rerun is started
+- **AND** the candidate waits for required CI on its new head before ready or admission
+
+#### Scenario: Conflict and runtime policy is preserved
+
+- **WHEN** composition refresh encounters an environment failure or a merge-tree conflict
+- **THEN** the accepted environment-failure and real-conflict transitions and attempt accounting remain in force
+
+### Requirement: A re-admitted composition keeps its first queue slot
+
+The queue SHALL order a Requirement composition by its first admission; a later admission of the same composition SHALL keep that ordering slot.
+
+#### Scenario: Composition re-admitted after repair
+- **GIVEN** compositions A then B were admitted
+- **WHEN** A is re-admitted after integration repair
+- **THEN** A stays ahead of B in the queue

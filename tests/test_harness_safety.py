@@ -157,6 +157,18 @@ with serialized_integration(Path(%r), {"paths": {"main_merge_lock": ".claude/mai
         self.assertFalse(hasattr(agent_doctor, "retry_friction_routing"))
         self.assertFalse(hasattr(finish_task, "run_friction_route_pending_retry"))
 
+    def test_agent_doctor_counts_failed_or_unreadable_cleanup_scan(self) -> None:
+        for board_code in (0, 2):
+            for cleanup_code, output in ((1, ""), (0, "not json")):
+                with self.subTest(board_code=board_code, cleanup_code=cleanup_code):
+                    board = subprocess.CompletedProcess([], board_code, "", "board error")
+                    cleanup = subprocess.CompletedProcess([], cleanup_code, output, "scan error")
+                    with patch.object(agent_doctor.subprocess, "run", side_effect=[board, cleanup]), patch.object(agent_doctor, "report") as report:
+                        failures = agent_doctor.run_multi_agent_hygiene(ROOT)
+                    self.assertEqual(failures, 1 + (board_code != 0))
+                    self.assertEqual(report.call_args.args[0], "fail")
+                    self.assertIn("worktree hygiene scan", report.call_args.args[1])
+
     def test_agent_doctor_distinguishes_degraded_board_warning_from_a_blocked_error(self) -> None:
         board = subprocess.CompletedProcess(
             ["python3", "scripts/agent_board.py", "doctor"],

@@ -1,0 +1,5 @@
+## Decisions
+
+- **Archive, not delete.** The state file moves to `.claude/delivered-task-state/<change>-<UTC stamp>.json` under the checkout (git-ignored machine-local directory); the move is reported in the advance result as `archived_task_state`.
+- **Conditions.** The state names another child than the one being started; that child is Done (`managed_project_status.observe`) and passes `_done_child_is_delivered` (archived lineage on origin main, closed Issue); `git rev-parse HEAD` equals `managed_task.target_main`. A Done child with local main not equal to origin/main raises naming both commits; a non-Done child leaves the state and the existing import refusal stands.
+- **Pending retrospective.** A missing receipt file (`FileNotFoundError`) and an identity mismatch are `RetrospectivePending` with `command`; other read errors, unsupported versions and malformed content stay `RequirementRetrospectiveError`. Only `advance` translates the pending case; `requirement_terminal.reconcile_parent` and the post-merge job keep raising.

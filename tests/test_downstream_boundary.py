@@ -222,13 +222,12 @@ class DownstreamCheckoutTests(unittest.TestCase):
                         for key, value in (("scm_provider", "gitlab"),
                                            ("publish_mode", "direct"), ("harness_mode", "project")))]
         for config in configs:
-            for composition in ("", "owner/repo#1"):
-                with self.subTest(config=config, composition=composition), \
+            for context in ("queue", "composition"):
+                with self.subTest(config=config, context=context), \
                         mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
-                        mock.patch.dict("os.environ", {"DEV_PLATFORM_COMPOSITION_FINALIZATION": composition}), \
                         mock.patch.object(lifecycle, "require_existing_archive_target") as target:
                     with self.assertRaises(common.PlatformConfigError):
-                        lifecycle.finalize_change(Path("/unused"), "work", context="queue")
+                        lifecycle.finalize_change(Path("/unused"), "work", context=context)
                     target.assert_called_once()
 
     def test_portable_composition_finalize_rejected_before_coordinator_import(self) -> None:
@@ -239,9 +238,8 @@ class DownstreamCheckoutTests(unittest.TestCase):
             from pathlib import Path
             sys.path.insert(0, "scripts")
             import openspec_lifecycle
-            os.environ["DEV_PLATFORM_COMPOSITION_FINALIZATION"] = "owner/repo#1"
             try:
-                openspec_lifecycle.finalize_change(Path.cwd(), "work", context="queue")
+                openspec_lifecycle.finalize_change(Path.cwd(), "work", context="composition", requirement="owner/repo#1")
             except SystemExit as error:
                 assert "coordinator source contract" in str(error), error
             else:

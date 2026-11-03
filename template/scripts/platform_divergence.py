@@ -462,8 +462,8 @@ def main(argv: list[str] | None = None) -> int:
     if result.problems:
         for problem in result.problems:
             print(problem)
-        protected = [line for line in result.problems if line.startswith(f"[{PROTECTED}]")]
-        other = [line for line in result.problems if not line.startswith(f"[{PROTECTED}]")]
+        protected = [problem for problem in result.problems if problem.kind == PROTECTED]
+        other = [problem for problem in result.problems if problem.kind != PROTECTED]
         if other:
             print(gate_message("platform-divergence", f"{len(other)} divergence problem(s) outside the protected surface"))
         if protected:

@@ -30,6 +30,11 @@ ORIGINAL_RUN = subprocess.run
 
 class RequirementFlowEndToEndTests(unittest.TestCase):
     def setUp(self) -> None:
+        import publication_queue
+        for name, value in (("_repo", "acme/project"), ("_gh", [])):
+            patcher = mock.patch.object(publication_queue, name, return_value=value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         patcher = mock.patch.object(
             execution.managed_project_status, "ensure_item", return_value=SimpleNamespace(status="Backlog"))
         patcher.start()
@@ -58,6 +63,8 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
                                  (execution.requirement_integration, "compose_candidate"),
                                  (execution.requirement_retrospective, "require_checkpoint")):
                 stubs.enter_context(mock.patch.object(target, name))
+            stubs.enter_context(mock.patch.object(execution.managed_task, "discover_task", return_value=SimpleNamespace(
+                artifacts=("proposal.md",), contents={"proposal.md": "proposal\n"})))
             stubs.enter_context(mock.patch.object(execution, "_merged_composition", return_value=[]))
             stubs.enter_context(mock.patch.object(requirement_contributions, "in_flight_children", return_value={}))
             stubs.enter_context(mock.patch.object(execution, "_done_child_is_delivered"))
@@ -164,6 +171,12 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
         for name in ("first", "second"):
             add_intents.prepare_handoff(self.root, add_path=add_file, intents_path=intents_file,
                                         intent_ids=[name], out=orch.handoff_dir(directory) / f"{name}.json")
+            bundle = directory / "bundles" / name
+            bundle.mkdir(parents=True)
+            (bundle / "manifest.json").write_text(json.dumps({"title": name, "change": name,
+                                                              "artifacts": ["proposal.md"]}))
+            (bundle / "issue.md").write_text("issue\n")
+            (bundle / "proposal.md").write_text("proposal\n")
         result, assembled, terminal = self._run_with_linked(
             {"first": "acme/backlog#8", "second": "acme/backlog#9"},
             [(self.root / "first.json", object()), (self.root / "second.json", object())], publish=True,

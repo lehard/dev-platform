@@ -39,7 +39,7 @@ A quick task runs `start_task.py` → `finish` → queue → post-merge and skip
 
 - **Archive** happens in three places: the developer (`AGENTS.md`, `execute_requirement.py`, `task-intake.md`), the finalize job ([agent workflow](agent-workflow.md)) and composition finalization. Archive also starts a second review. Missing archive prerequisites surface one at a time.
 - **Start** has six entries plus board registration, each leaving different local state.
-- **Requirement retrospective** has three moments and three actors: the agent before publication, the post-merge job, and the pre-merge composition retrospective. **Terminal close** has three entries: `advance`, `requirement_terminal.py reconcile` and the worker job.
+- **Requirement retrospective** is recorded by the post-merge job before terminal close for coordinator-managed delivery; other delivery paths record it before terminal reconciliation. **Terminal close** has three entries: `advance`, `requirement_terminal.py reconcile` and the worker job.
 - **Recovery** is spread over five tools: `publication_queue.py` (`resume`, `switch-provider`, `reoffer-post-merge`, `restore-gates`), `requirement_integration.py recover`, `requirement_merge_recovery.py`, `dogfood_task.py reconcile` and `finish_task.py --reconcile`.
 - **Candidate state** is held in Issue and PR labels, the Project card, v1 admission comments and v2 records, the `publication:*` and `lifecycle:*` labels, local JSON, the board and journals.
 - **The coordinator role** is documented as starting review and post-merge workers. In practice those run automatically and only repair is coordinator-started.

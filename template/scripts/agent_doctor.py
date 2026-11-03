@@ -173,13 +173,13 @@ def run_multi_agent_hygiene(integration: Path) -> int:
         check=False,
     )
     if cleanup.returncode != 0:
-        report("warn", "worktree hygiene scan could not complete: " + (cleanup.stderr.strip() or cleanup.stdout.strip() or f"exit {cleanup.returncode}"))
-        return
+        report("fail", "worktree hygiene scan could not complete: " + (cleanup.stderr.strip() or cleanup.stdout.strip() or f"exit {cleanup.returncode}"))
+        return board_failures + 1
     try:
         payload = json.loads(cleanup.stdout.strip().splitlines()[-1])
     except (json.JSONDecodeError, IndexError):
-        report("warn", "worktree hygiene scan returned unreadable output")
-        return
+        report("fail", "worktree hygiene scan returned unreadable output")
+        return board_failures + 1
     pending = int(payload.get("pending", 0))
     eligible = int(payload.get("eligible", 0))
     pending_report = payload.get("pending_report")

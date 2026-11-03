@@ -938,7 +938,7 @@ def result_body(job: dict, worker: str, outcome: str, pushed_head: str | None = 
     return RESULT_PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))
 
 
-def harness_git(repo: Path, *args: str) -> str:
+def harness_git(repo: Path, *args: str, binary: bool = False) -> str | bytes:
     """Harness git for a harness-owned repository, with no credential and no operator git config.
 
     Every git command that runs after a writer or reviewer touched a checkout uses this (and only
@@ -948,10 +948,13 @@ def harness_git(repo: Path, *args: str) -> str:
     env = {key: value for key, value in credential_free_env(dict(os.environ), repo.parent / "harness-home").items()
            if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
                           "CLAUDE_CODE_OAUTH_TOKEN"}}
-    done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True, check=False,
+    done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=not binary, capture_output=True, check=False,
                           stdin=subprocess.DEVNULL, env=env)
     if done.returncode:
-        raise WorkerError(f"git {' '.join(args)} failed: {done.stderr.strip() or done.stdout.strip()}")
+        detail = done.stderr.strip() or done.stdout.strip()
+        if binary:
+            detail = repr(detail)
+        raise WorkerError(f"git {' '.join(args)} failed: {detail}")
     return done.stdout
 
 
@@ -1094,6 +1097,34 @@ def worktree_changes(repo: Path) -> list[str]:
     return sorted(entry[3:] for entry in out.split("\0") if entry)
 
 
+def regenerate_declared_files(stage: Path, trusted_root: Path, head: str) -> str:
+    """Regenerate every declared generated file over ``stage`` at ``head``; commit any change on top.
+
+    The declaration and the commands come from the trusted default-branch checkout, as for a derived
+    merge. A generator that fails, cannot start or produces no file raises ``WorkerError``.
+    """
+    from _platform_common import generated_files
+    from post_review_finalization import RederivationEnvironmentFailed, run_regeneration
+
+    declared = generated_files(trusted_root, "HEAD")
+    for item in declared:
+        try:
+            command, done = run_regeneration(stage, trusted_root, item)
+        except RederivationEnvironmentFailed as exc:
+            raise WorkerError(str(exc)) from exc
+        if done.returncode:
+            raise WorkerError(f"regeneration of {item.path} failed ({' '.join(command)}): "
+                              + (done.stderr or done.stdout).strip()[-300:])
+        if not (stage / item.path).is_file():
+            raise WorkerError(f"regeneration of {item.path} produced no file ({' '.join(command)})")
+    paths = [item.path for item in declared]
+    if not paths or not harness_git(stage, "status", "--porcelain", "--", *paths).strip():
+        return head
+    harness_git(stage, "--literal-pathspecs", "add", "--", *paths)
+    harness_git(stage, *HARNESS_IDENTITY, "commit", "-q", "--no-verify", "-m", "Regenerate declared generated files")
+    return harness_git(stage, "rev-parse", "HEAD").strip()
+
+
 def commit_writer_worktree(stage: Path, checkout: Path, expected_head: str, result_head: str, allowed_paths,
                            message: str) -> str:
     """The writer's result head, committing edits it left uncommitted (a sandbox may keep ``.git`` read-only).
@@ -1128,7 +1159,7 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
                 before_push: Callable[[Path, str], None] | None = None,
                 claim_current: Callable[[], bool] = lambda: True,
                 runtime_check: Callable[[], str | None] | None = None,
-                launch: Callable[..., Any] | None = None) -> dict:
+                launch: Callable[..., Any] | None = None, trusted_root: Path | None = None) -> dict:
     """Run one claimed job. The LLM only ever touches its own disposable checkout.
 
     Validation and the only push happen in a separate harness-owned clone that
@@ -1140,6 +1171,8 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     kind = kind or job["kind"]
     if kind != job["kind"] or kind not in WRITE_KINDS | {"review"}:
         raise WorkerError(f"no executor for {kind} jobs")
+    identity = job["task_identity"]
+    composition_repair = kind == "repair" and isinstance(identity, dict) and identity.get("kind") == "requirement-composition"
     if kind in WRITE_KINDS:
         require_job_provider(job, provider)
     result_provider = provider if kind in WRITE_KINDS else None
@@ -1199,7 +1232,7 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     if isinstance(proposal, dict) and proposal.get("reject_material") is True:
         return finish("proposed-rejection", status="proposed-rejection")
     result_head = harness_git(checkout, "rev-parse", "HEAD").strip()
-    if result_head == job["head"] and after == before[1]:
+    if result_head == job["head"] and after == before[1] and not composition_repair:
         return finish("no-change", status="no-change")
     if current_head() != job["head"]:
         return finish("discarded: head moved", status="discarded")
@@ -1209,6 +1242,25 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
         stage = prepare_harness(source_repo, checkout, root, result_head, name="writer-stage")
         result_head = commit_writer_worktree(stage, checkout, job["head"], result_head, allowed_paths,
                                              f"Apply {kind} writer edits for {job_id(job)}")
+        if composition_repair and result_head != job["head"]:
+            # Check writer scope before trusted generators add declared outputs.
+            validate_worker_result(stage, job["head"], result_head, allowed_paths, kind=kind)
+    except WorkerError as exc:
+        return finish(f"rejected: {exc}", status="rejected")
+    if result_head != job["head"] or composition_repair:
+        if trusted_root is None:
+            raise WorkerError(f"{kind} job needs the trusted default-branch checkout to regenerate generated files")
+        try:
+            # The writer's result must pass the same cheap gates as any candidate: declared generated files
+            # are regenerated by their default-branch command over it, never left stale for a developer fix.
+            result_head = regenerate_declared_files(stage, trusted_root, result_head)
+            if composition_repair:
+                import requirement_composition as composition
+                result_head, allowed_paths = composition.prepare_repaired_composition(
+                    stage, trusted_root, job, branch, allowed_paths)
+        except WorkerError as exc:
+            return finish(f"failed: {exc}"[:300], status="failed")
+    try:
         harness = prepare_harness(source_repo, stage, root, result_head) if result_head != job["head"] else None
     except WorkerError as exc:
         return finish(f"rejected: {exc}", status="rejected")
@@ -1534,7 +1586,7 @@ def main(argv: list[str] | None = None) -> int:
                             llm_command=args.llm_command, worker=args.worker, provider=args.provider, workdir=workdir,
                             home_files=args.llm_home_file,
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                            post_result=lambda body: post_comment(job["number"], body))
+                            post_result=lambda body: post_comment(job["number"], body), trusted_root=Path.cwd())
             except Exception as exc:
                 # A failed run releases its claim at once (counted per job) instead of holding it until expiry.
                 trust = _coordinator_trust(Path.cwd(), repo)

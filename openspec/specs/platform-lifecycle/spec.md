@@ -1677,7 +1677,8 @@ A shared Requirement candidate manifest SHALL list the expected mandatory change
 
 - **GIVEN** every mandatory child is present
 - **WHEN** the candidate is made ready
-- **THEN** the retrospective checkpoint exists and full checks pass on the exact final head before the existing protected merge path runs
+- **THEN** full checks are valid for the exact final head under the composition gate rules and required CI passes on that head before the protected merge path runs
+- **AND** the Requirement retrospective checkpoint is not a ready or merge precondition
 
 ### Requirement: Affected-group precheck precedes full validation
 
@@ -2506,12 +2507,20 @@ A new manifest revision SHALL keep earlier children as an exact prefix with iden
 
 ### Requirement: A shared candidate leaves draft only when complete and finalized
 
-Marking the shared candidate PR ready, arming merge, publication-queue admission and terminal reconciliation SHALL require a complete manifest, composition-level review of cross-child properties, a single finalization of all children, the Requirement retrospective checkpoint and full checks on the exact final head.
+Ready, merge arming and queue admission SHALL require a complete manifest, composition-level review of cross-child properties, a single finalization of all children and full checks valid on the final head, allowing proven main-only gate carry. Required CI SHALL pass on the exact head before ready. These pre-merge steps SHALL NOT require the Requirement retrospective. Terminal reconciliation SHALL require the same final gates and the retrospective checkpoint.
 
 #### Scenario: A candidate is marked ready
 
-- **WHEN** the shared candidate PR is to be marked ready, armed for merge, admitted to the publication queue or terminally reconciled
-- **THEN** a complete manifest, composition-level review of cross-child properties, a single finalization of all children, the Requirement retrospective checkpoint and full checks on the exact final head are required
+- **WHEN** the shared candidate PR is marked ready, armed for merge or admitted to the publication queue
+- **THEN** a complete manifest, composition-level review of cross-child properties, a single finalization of all children and valid final-head full checks are required
+- **AND** required CI has passed on the exact head
+- **AND** the Requirement retrospective checkpoint is not required for these pre-merge steps
+
+#### Scenario: Terminal close requires the retrospective
+
+- **WHEN** terminal reconciliation closes the Requirement after delivery
+- **THEN** the final composition gates and Requirement retrospective checkpoint remain mandatory
+- **AND** a missing or stale checkpoint prevents terminal close
 
 ### Requirement: An unavailable affected-group precheck stops before the full set
 
@@ -2826,3 +2835,85 @@ A lifecycle record or job of kind `retrospective` with phase `pre-merge` SHALL N
 #### Scenario: Old pre-merge job on an open composition
 - **WHEN** a worker or the overview derives a composition PR whose record carries a pre-merge retrospective job
 - **THEN** derivation fails naming the PR and no job is offered
+
+### Requirement: An assembled Requirement branch has a standard repair entry
+
+A repository command SHALL request repair of an assembled Requirement composition as a queue repair job. The writer SHALL NOT edit child receipts; generated files SHALL be regenerated; every child receipt SHALL be validated byte-for-byte before the repaired head is pushed. Manual commits to the Requirement branch SHALL NOT be the repair path.
+
+#### Scenario: Composition needs a fix
+- **WHEN** the coordinator requests repair of a composition with a reason
+- **THEN** a repair job edits the branch, regenerates generated files and validates child receipts before pushing
+
+#### Scenario: A child receipt would change
+- **WHEN** the repaired head changes a child verification receipt or automated-check evidence
+- **THEN** the job fails naming the child and the receipt, and nothing is pushed
+
+### Requirement: A composition keeps its gates across a proven main-only update
+
+A composition SHALL reuse review, finalization and full checks on a new head only when the existing main-only proof binds trusted passed-gate evidence to that head. Proof-bound full-check evidence SHALL remain valid without a new run despite its original evidence head. Required CI SHALL pass on the exact new head before ready or admission.
+
+#### Scenario: Unrelated merge into main
+
+- **GIVEN** a finalized composition with trusted passed gates and full checks
+- **WHEN** its head absorbs main and the existing main-only proof holds
+- **THEN** review, finalization and full checks remain valid without a rerun
+- **AND** the carried evidence preserves its original check head and records its proof binding to the new head
+
+#### Scenario: Proof does not hold
+
+- **WHEN** the new head changes own content outside a proven main-only integration
+- **THEN** the gates are not reused and the existing repair and full-review rules apply
+
+#### Scenario: Trusted full-check evidence is missing
+
+- **WHEN** the old gated head or passed full-check evidence cannot be proven
+- **THEN** reuse is refused with a reason and no new successful check run is claimed
+
+#### Scenario: Required CI does not prove the new head
+
+- **WHEN** required CI is pending, failed, unavailable or passed only on another head
+- **THEN** the composition is not made ready or admitted
+
+### Requirement: Integration repair re-checks a composition exactly once
+
+After genuine composition integration repair, the repair path SHALL complete final publication once: unchanged own content gets one full-check pass and admission; changed own content gets full composition review, finalization and one full-check pass before admission. No manual advance or conflict-only review SHALL be used. Proven main-only integration SHALL retain the existing gate-carry rule.
+
+#### Scenario: Repair keeps the identity
+
+- **WHEN** genuine integration repair finishes without changing composition own-content identity
+- **THEN** final publication runs full checks once and admits the composition without advance
+
+#### Scenario: Repair changes the identity
+
+- **WHEN** integration repair changes composition own content
+- **THEN** a full composition review is offered
+- **AND** finalization, one full-check pass and admission follow automatically after review
+
+#### Scenario: Repair result only integrates main
+
+- **WHEN** the repair result satisfies the accepted main-only proof
+- **THEN** it keeps the proven gate-carry behavior and still waits for exact-head required CI before ready
+
+### Requirement: Requirement advance refuses a queue-owned composition
+
+While the publication queue owns a Requirement composition, Requirement advance SHALL fail explicitly, naming the queue state, and SHALL run no checks or publication steps. Queue lifecycle state establishes ownership only when the exact-head manifest contains every `expected_changes` entry in `children`; a QUEUE or ACTIVE label establishes ownership regardless. Unreadable or malformed ownership evidence SHALL fail explicitly.
+
+#### Scenario: Advance on a queued composition
+
+- **WHEN** advance runs for a Requirement whose composition is in the queue
+- **THEN** it fails naming the queue state and starts no checks
+
+#### Scenario: Incomplete draft retains a stale review job
+
+- **WHEN** an incomplete draft composition is review-pending and has neither QUEUE nor ACTIVE label
+- **THEN** advance continues so it can migrate the mandatory graph and resume its children
+
+#### Scenario: Complete composition awaits review
+
+- **WHEN** every expected change is integrated and the composition is review-pending
+- **THEN** advance refuses naming the queue state
+
+#### Scenario: Queue label owns an incomplete composition
+
+- **WHEN** an incomplete composition carries a QUEUE or ACTIVE label
+- **THEN** advance refuses regardless of manifest completeness

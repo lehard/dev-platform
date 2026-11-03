@@ -1,6 +1,8 @@
 """Autonomous integration contour: integration repair, non-blocking queue, friction attribution, post-merge jobs."""
 from __future__ import annotations
 
+import io
+
 from contextlib import ExitStack
 from datetime import datetime, timedelta, timezone
 import json
@@ -324,7 +326,7 @@ class ComposeGeneratedManifestConflictTests(unittest.TestCase):
             # Each boundary below has its own coverage; this scenario proves the integration path between them.
             enter(mock.patch.object(queue, "_require_finalized"))
             composition_gates = enter(mock.patch.object(queue, "require_composition_finalized"))
-            refreshed = enter(mock.patch.object(queue, "refresh_composition_checks"))
+            refreshed = enter(mock.patch.object(queue, "refresh_composition_checks", return_value={"status": "ready"}))
             enter(mock.patch.object(queue, "required_check_state_for_ref",
                                     return_value=SimpleNamespace(kind="passed", detail="validate")))
             derived = enter(mock.patch.object(final, "prepare_derived_specs", side_effect=prepare_locally))
@@ -339,7 +341,7 @@ class ComposeGeneratedManifestConflictTests(unittest.TestCase):
         self.assertEqual(candidate["state"], "merged")
         derived.assert_called_once()
         self.assertEqual(replayed, ["first", "second"])  # the composition derivation, in manifest child order
-        refreshed.assert_called_once_with(trusted, "o/r", self.NUMBER, merged)
+        refreshed.assert_called_once_with(trusted, "o/r", self.NUMBER, merged, self.main)
         composition_gates.assert_any_call(trusted, "o/r", self.NUMBER, merged)
         # One coordinator merge of the admitted head and main, fast-forwarded onto the branch.
         self.assertEqual(git(self.remote, "rev-list", "--parents", "-n", "1", merged).split()[1:], [self.head, self.main])
@@ -535,6 +537,40 @@ def resolve_value(checkout: Path) -> None:
 
 
 class IntegrationRepairTests(RepairFixture):
+    def test_composition_genuine_repair_runs_one_final_publication_pass(self):
+        identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                    "children": [{"change": "example"}]}
+        gates = {name: {"result": "passed", "identity": identity, "evidence": {"head": "a" * 40}}
+                 for name in ("review", "finalization", "full-checks", "required-checks")}
+        candidate = {"number": 7, "head": "a" * 40, "task_identity": identity, "gates": gates}
+        with mock.patch.object(contour, "equivalent_proofs", return_value=True), \
+             mock.patch.object(contour, "main_only_reason", return_value="real conflict"), \
+             mock.patch.object(contour.review_gate, "reusable", return_value=True), \
+             mock.patch("requirement_composition.candidate_manifest", return_value={"children": []}), \
+             mock.patch("requirement_composition.advance_final_publication", return_value={"status": "waiting-ci"}) as publish:
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, identity,
+                                                self.repo.root, base="c" * 40)
+        self.assertEqual(state, "waiting-ci")
+        publish.assert_called_once()
+        self.assertTrue(publish.call_args.kwargs["force_full_checks"])
+        self.assertFalse(publish.call_args.kwargs["enqueue"])
+        self.assertNotIn("full-checks", publish.call_args.kwargs["candidate"]["gates"])
+        self.assertNotIn("required-checks", publish.call_args.kwargs["candidate"]["gates"])
+
+    def test_composition_repair_changing_own_content_returns_to_full_review(self):
+        identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                    "children": [{"change": "example"}]}
+        candidate = {"number": 7, "head": "a" * 40, "task_identity": identity, "gates": {}}
+        with mock.patch.object(contour, "equivalent_proofs", return_value=False), \
+             mock.patch.object(contour, "main_only_reason", return_value="own content changed"), \
+             mock.patch.object(contour.final, "return_to_review") as review, \
+             mock.patch("requirement_composition.advance_final_publication") as publish:
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, identity,
+                                                self.repo.root, base="c" * 40)
+        self.assertEqual(state, "review-pending")
+        review.assert_called_once()
+        publish.assert_not_called()
+
     def test_conflict_changing_task_content_returns_through_review_and_finalization(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer(fixture)
@@ -553,6 +589,38 @@ class IntegrationRepairTests(RepairFixture):
             self.assertNotIn("review", candidate["gates"])
             # The coordinator can prove the pushed head (update marker), so preparation will accept it.
             self.assertIn(after, [e.get("head") for e in queue._events(self.repo.root, "o/r", 7) if e.get("kind") == "update"])
+
+    def _generator(self, body: str):
+        from _platform_common import GeneratedFile
+
+        script = Path(self.tmp.name) / "gen.py"
+        script.write_text(body)
+        return (GeneratedFile("src.gen", (sys.executable, str(script), "{tree}"), ("true",)),)
+
+    def test_integration_repair_regenerates_declared_files_before_push(self):
+        # The integrated result ships with current declared generated files, like a repair writer's result.
+        declared = self._generator("import pathlib, sys\ntree = pathlib.Path(sys.argv[1])\n"
+                                   "(tree / 'src.gen').write_text('gen:' + (tree / 'src.py').read_text())\n")
+        with RemoteFixture(self.repo) as fixture, mock.patch("_platform_common.generated_files", return_value=declared):
+            self.offer(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.repair(fixture, resolve_value, allowed_paths=["src.gen"])
+            self.assertEqual(outcome["status"], "integrated")
+            after = self.repo.head("agent/example")
+            main = git(self.repo.remote, "rev-parse", "refs/heads/main")
+            self.assertEqual(git(self.repo.remote, "show", f"{after}:src.gen"), "gen:value = 12")
+            self.assertEqual(git(self.repo.remote, "log", "-1", "--format=%s", after), "Regenerate declared generated files")
+            self.assertEqual(git(self.repo.remote, "rev-list", "--parents", "-n", "1", f"{after}^").split()[1:], [before, main])
+
+    def test_failing_generator_fails_the_integration_repair_without_push(self):
+        declared = self._generator("import sys\nsys.exit('generator broke')\n")
+        with RemoteFixture(self.repo) as fixture, mock.patch("_platform_common.generated_files", return_value=declared):
+            self.offer(fixture)
+            before = self.repo.head("agent/example")
+            outcome = self.repair(fixture, resolve_value)
+            self.assertEqual(outcome["status"], "failed")
+            self.assertIn("regeneration of src.gen failed", outcome["reason"])
+            self.assertEqual(self.repo.head("agent/example"), before)
 
     def test_out_of_scope_or_workflow_edits_are_refused_and_a_new_bounded_attempt_is_offered(self):
         def tamper(checkout: Path) -> None:
@@ -800,6 +868,25 @@ class IntegrationRepairTests(RepairFixture):
             self.assertFalse(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
             self.assertEqual(len(fixture.comments), count)
 
+    def test_interrupted_composition_repair_never_recovers_directly_as_ready(self):
+        self.identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                         "children": [{"change": "example"}]}
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            job = workers.build_job(fixture.candidate())
+            git(self.repo.root, "commit", "-q", "--allow-empty", "-m", "repair")
+            self.repo.push("agent/example")
+            fixture.comments.append({"id": 100, "author_association": "OWNER", "body": workers.result_body(
+                job, "w", "validated-push", self.repo.head("agent/example"), task_identity=self.identity)})
+            recovered = fixture.candidate()
+            self.assertEqual(recovered["state"], "blocked-retryable")
+            self.assertNotIn("full-checks", recovered["gates"])
+            pr = queue._pr(self.repo.root, "o/r", 7)
+            self.assertTrue(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
+            recorded = fixture.candidate()
+            self.assertEqual(recorded["state"], "blocked-retryable")
+            self.assertIn("interrupted", recorded["red_gate"]["evidence"])
+
     def test_validated_integration_merge_push_is_recovered_by_its_own_job(self):
         with RemoteFixture(self.repo) as fixture:
             self.offer_merge(fixture)
@@ -840,6 +927,50 @@ class IntegrationRepairTests(RepairFixture):
             candidate = fixture.candidate()
             self.assertEqual(sorted(candidate["gates"]), ["review"])
             self.assertIsNone(candidate["red_gate"])
+
+    def test_main_only_integration_keeps_gates_bound_to_the_gated_identity(self):
+        # BR-969: content changed only by merging main keeps the receipt; the reason is None.
+        changed = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "f" * 64}}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            good = {"result": "passed", "identity": IDENTITY, "evidence": {}}
+            queue._transition(ROOT, "o/r", 7, "integration-repair-pending", HEAD, task_identity=IDENTITY,
+                              inherit_identity=False, gates={"semantic-verification": good})
+            new_head = "d" * 40
+            fixture.head = new_head
+            with mock.patch.object(contour, "main_only_reason", return_value=None) as proof:
+                state = contour.advance_after_repair(
+                    ROOT, "o/r", {**fixture.candidate(), "head": HEAD, "task_identity": IDENTITY,
+                                  "gates": {"semantic-verification": good, "required-checks": good}},
+                    new_head, changed, None, base="e" * 40)
+            self.assertEqual(state, "ready")
+            proof.assert_called_once()
+            self.assertEqual(proof.call_args.args[2:4], (new_head, "e" * 40))
+            candidate = fixture.candidate()
+            self.assertEqual(sorted(candidate["gates"]), ["semantic-verification"])
+            self.assertEqual(candidate["gates"]["semantic-verification"]["identity"], changed)
+
+    def test_unproven_integration_returns_to_review_naming_the_reason(self):
+        changed = {**IDENTITY, "task_content": {**IDENTITY["task_content"], "digest": "f" * 64}}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            good = {"result": "passed", "identity": IDENTITY, "evidence": {}}
+            new_head = "d" * 40
+            fixture.head = new_head
+            with mock.patch.object(contour, "main_only_reason", return_value="the new head differs"), \
+                 mock.patch.object(contour.final, "return_to_review") as back, \
+                 mock.patch("sys.stderr", new_callable=io.StringIO) as err:
+                state = contour.advance_after_repair(
+                    ROOT, "o/r", {**fixture.candidate(), "number": 7, "head": HEAD, "task_identity": IDENTITY,
+                                  "gates": {"semantic-verification": good}},
+                    new_head, changed, None, base="e" * 40)
+            self.assertEqual(state, "review-pending")
+            back.assert_called_once()
+            self.assertIn("receipt reset after integration repair: the new head differs", err.getvalue())
+
+    def test_main_only_reason_needs_a_trusted_gated_head(self):
+        self.assertEqual(contour.main_only_reason(ROOT, {"head": None, "gates": {"review": {}}}, "d" * 40, "e" * 40, None),
+                         "no trusted queue record names the head on which the gates passed")
+        self.assertEqual(contour.main_only_reason(ROOT, {"head": HEAD, "gates": {}}, "d" * 40, "e" * 40, None),
+                         "no trusted queue record names the head on which the gates passed")
 
     def test_validation_refuses_results_that_skip_main_or_escape_scope(self):
         root = self.repo.root
@@ -1125,6 +1256,7 @@ class CompositionPostMergeRetrospectiveTests(unittest.TestCase):
                 mock.patch.object(requirement_composition, "candidate_manifest", return_value=manifest), \
                 mock.patch.object(requirement_contributions, "private_manifest", return_value=exact), \
                 mock.patch.object(contour, "run_retrospective", side_effect=lambda ops, root, n, b, h: calls.append(n) or "task-recorded"), \
+                mock.patch("_platform_common.read_platform_config", return_value={}), \
                 mock.patch.object(contour, "ensure_requirement_checkpoint") as checkpoint:
             ops = mock.Mock()
             result = contour.run_claimed_post_merge(Path("/root"), "o/r", candidate, job, branch="requirement/BR-7",
@@ -1461,18 +1593,59 @@ class PostMergeJobTests(FrictionFixture):
                 receipt("terminal-reconciliation", 0, outcome["outcome"], 3)]
         self.assertEqual(lifecycle.derive_candidate(merged_pr(), rows)["next_job"]["kind"], "cleanup")
 
-    def test_a_managed_candidate_that_lost_its_lineage_stays_blocked(self):
-        ops = FakeOps()
-        ops._lineage = None
+    def _direct_terminal(self, ops):
         merged = lifecycle.derive_candidate(merged_pr(), [record(
             "merged", attempts={"post-merge": 1}, identity={"change": "managed-change", "task_content": {"digest": "d"}})])
         job = {"number": 7, "kind": "terminal-reconciliation", "head": HEAD, "task_identity": merged["task_identity"], "attempt": 0}
         with mock.patch.object(workers, "build_job", return_value=job):
-            outcome = contour.run_claimed_post_merge(ROOT, "o/r", merged, job, branch="agent/managed-change",
-                                                     post_result=lambda body: None, ops=ops,
-                                                     claim_current=lambda: True, worker="w")
+            return contour.run_claimed_post_merge(ROOT, "o/r", merged, job, branch="agent/managed-change",
+                                                  post_result=lambda body: None, ops=ops,
+                                                  claim_current=lambda: True, worker="w")
+
+    def test_a_direct_managed_candidate_resolves_its_source_through_the_lineage_handle(self):
+        # BR-975: no BR branch identity; the source Issue comes from the archived handle, not the branch.
+        ops = FakeOps()
+        ops._lineage = None
+        ops.terminal_recorded = mock.Mock(return_value=False)
+        ops.direct_source = mock.Mock(return_value="acme/backlog#960")
+        outcome = self._direct_terminal(ops)
+        self.assertEqual(outcome["status"], "done")
+        self.assertEqual(outcome["outcome"], "task-recorded: Issue #960")
+        ops.direct_source.assert_called_once_with(ROOT, 7, HEAD, "managed-change")
+        self.assertIn(("child", "acme/backlog#960"), ops.calls)
+
+    def test_a_recorded_direct_terminal_exits_before_the_walk(self):
+        ops = FakeOps()
+        ops._lineage = None
+        ops.terminal_recorded = mock.Mock(return_value=True)
+        ops.direct_source = mock.Mock()
+        outcome = self._direct_terminal(ops)
+        self.assertEqual(outcome["outcome"], "task-recorded: already reconciled")
+        ops.direct_source.assert_not_called()
+
+    def test_an_unprovable_direct_lineage_blocks_without_naming_the_backlog(self):
+        ops = FakeOps()
+        ops._lineage = None
+        ops.terminal_recorded = mock.Mock(return_value=False)
+        ops.direct_source = mock.Mock(side_effect=contour.JobBlocked(
+            "no open Issue carries this handle (already closed or missing)"))
+        outcome = self._direct_terminal(ops)
         self.assertEqual(outcome["status"], "blocked")
-        self.assertIn("cannot resolve the task's source Issue", outcome["outcome"])
+        self.assertIn("no open Issue carries this handle", outcome["outcome"])
+        self.assertNotIn(("child", "acme/backlog#960"), ops.calls)
+
+    def test_terminal_recorded_reads_only_trusted_successful_results(self):
+        ok = {"id": 1, "author_association": "OWNER", "body": workers.RESULT_PREFIX + json.dumps(
+            {"job": f"pr7:terminal-reconciliation:{HEAD}:a1", "outcome": "task-recorded: Issue #960"})}
+        forged = {**ok, "id": 2, "author_association": "NONE"}
+        failed = {**ok, "id": 3, "body": ok["body"].replace("task-recorded: Issue #960", "blocked: x")}
+        ops = contour.LifecycleOps()
+        for comments, expected in (([ok], True), ([forged], False), ([failed], False)):
+            with mock.patch.object(queue, "_comments", return_value=comments), \
+                    mock.patch.object(queue, "_repo", return_value="o/r"), \
+                    mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
+                    mock.patch.object(queue, "trusted_writers", return_value=frozenset()):
+                self.assertIs(ops.terminal_recorded(ROOT, 7), expected)
 
     def test_operator_errors_are_failed_receipts_that_get_retried(self):
         ops = FakeOps()
@@ -1480,6 +1653,26 @@ class PostMergeJobTests(FrictionFixture):
         outcome, posted = self.run_job("terminal-reconciliation", ops)
         self.assertEqual(outcome["status"], "failed")
         self.assertIn("failed: no GitHub authentication", posted[0])
+
+    def test_public_receipts_name_private_backlog_issues_only_by_number(self):
+        # A post-merge receipt is a public PR comment: a private Backlog reference becomes "Issue #N".
+        config = {"development_backlog": {"repository": "acme/backlog"}}
+        for effect, expected in (
+                (contour.JobBlocked("acme/backlog#960 Project Done reconciliation failed"),
+                 "blocked: Issue #960 Project Done reconciliation failed"),
+                (RuntimeError("cannot read Acme/Backlog#12 or acme/backlog itself"),
+                 "failed: cannot read Issue #12 or the private Backlog itself")):
+            with self.subTest(expected=expected):
+                ops = FakeOps()
+                ops.reconcile_child = mock.Mock(side_effect=effect)
+                with mock.patch("_platform_common.read_platform_config", return_value=config):
+                    outcome, posted = self.run_job("terminal-reconciliation", ops)
+                self.assertEqual(outcome["outcome"], expected)
+                self.assertNotIn("acme/backlog", posted[0].lower())
+
+    def test_public_text_without_a_configured_backlog_is_unchanged(self):
+        with mock.patch("_platform_common.read_platform_config", return_value={}):
+            self.assertEqual(contour.public_text(ROOT, "plain text #7"), "plain text #7")
 
     def test_cleanup_reports_removed_clean_and_refused_states(self):
         ops = FakeOps()
@@ -1653,6 +1846,69 @@ class PostMergeReleaseLimitTests(unittest.TestCase):
                 self.assertEqual(fake_queue.ensure_post_merge_attention.called, attempt == workers.MAX_RELEASES)
         fake_queue.ensure_post_merge_attention.assert_called_once_with(mock.ANY, "o/r", 7)
         fake_queue._transition.assert_not_called()  # a merged PR never moves to blocked-escalation
+
+class DirectLineageWalkTests(unittest.TestCase):
+    """BR-975: the opaque handle of a direct managed task resolves through a capped trusted walk."""
+
+    HANDLE = "pln_" + "1" * 32
+
+    def marker(self, change="managed-change", association="OWNER", handle=None):
+        return {"id": 1, "author_association": association, "user": {"login": "o"},
+                "body": f"<!-- dev-platform-private-lineage:v1:{handle or self.HANDLE}:{change} -->\nPrivate lineage."}
+
+    def resolve(self, pages, comments, *, max_pages=20, require=None):
+        import private_lineage
+
+        def walk(_root, _repo, cap):
+            for index, nodes in enumerate(pages, start=1):
+                if index > cap:
+                    raise private_lineage.PrivateLineageError(f"lineage walk exceeded {cap} pages of open private Issues")
+                yield nodes
+        with mock.patch.object(private_lineage, "read_platform_config",
+                               return_value={"development_backlog": {"repository": "acme/backlog"}}), \
+                mock.patch.object(private_lineage, "_open_issue_pages", side_effect=walk), \
+                mock.patch.object(private_lineage, "_comments", side_effect=lambda _r, _repo, n: comments.get(n, [])), \
+                mock.patch.object(private_lineage, "require_handle", require or mock.Mock()), \
+                mock.patch.object(queue, "trusted_apps", return_value=frozenset()), \
+                mock.patch.object(queue, "trusted_writers", return_value=frozenset()):
+            return private_lineage.issue_for_handle(ROOT, self.HANDLE, "managed-change", max_pages=max_pages)
+
+    @staticmethod
+    def node(number, body="", more=False):
+        return {"number": number, "comments": {"pageInfo": {"hasNextPage": more}, "nodes": [{"body": body}]}}
+
+    def test_one_trusted_marker_resolves_after_require_handle(self):
+        require = mock.Mock()
+        source = self.resolve([[self.node(5)], [self.node(960, self.HANDLE)]], {"960": [self.marker()]}, require=require)
+        self.assertEqual(source, "acme/backlog#960")
+        require.assert_called_once_with(ROOT, "acme/backlog#960", "managed-change", self.HANDLE)
+
+    def test_issue_with_more_comments_is_read_in_full(self):
+        source = self.resolve([[self.node(948, "unrelated", more=True)]], {"948": [self.marker()]})
+        self.assertEqual(source, "acme/backlog#948")
+
+    def test_untrusted_marker_is_not_counted(self):
+        import private_lineage
+
+        with self.assertRaisesRegex(private_lineage.PrivateLineageError, "no open Issue carries this handle"):
+            self.resolve([[self.node(960, self.HANDLE)]], {"960": [self.marker(association="NONE")]})
+
+    def test_marker_for_another_change_or_several_markers_stop(self):
+        import private_lineage
+
+        with self.assertRaisesRegex(private_lineage.PrivateLineageError, "Issue #960 is assigned to another change"):
+            self.resolve([[self.node(960, self.HANDLE)]], {"960": [self.marker(change="other")]})
+        with self.assertRaisesRegex(private_lineage.PrivateLineageError, "several trusted markers"):
+            self.resolve([[self.node(1, self.HANDLE), self.node(2, self.HANDLE)]],
+                         {"1": [self.marker()], "2": [self.marker()]})
+
+    def test_page_cap_is_an_explicit_error_and_messages_never_name_the_handle(self):
+        import private_lineage
+
+        with self.assertRaisesRegex(private_lineage.PrivateLineageError, "exceeded 1 pages") as caught:
+            self.resolve([[self.node(1)], [self.node(2)]], {}, max_pages=1)
+        self.assertNotIn(self.HANDLE, str(caught.exception))
+
 
 if __name__ == "__main__":
     unittest.main()

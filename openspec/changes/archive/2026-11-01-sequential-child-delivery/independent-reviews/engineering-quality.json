@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "base_ref": "c24f2b3691d586b828e5bab4f80cc46195988a40",
+    "candidate_head": "aef363925e7386a7134ec78627a9dd56f9c80875",
+    "diff_sha256": "70ad23f8d947ea9e4d3dba4d36e054675c8c2de0bed4918256a95dc26bebc19c"
+  },
+  "completed_at": "2026-11-01T00:06:22+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py, in the `if not ordered:` branch of the sequential block, `_await_post_merge(..., rebind=rebound)` carries it. The `_retrospective_pending(...)` and `reconcile_parent(...)` returns on the lines after it do not. A rebind that happens on the pass that finishes the chain is therefore not reported to the operator on those paths. The receipt file is still written.",
+      "id": "rebind-receipt-dropped-on-terminal-paths",
+      "severity": "advisory",
+      "summary": "The rebind audit record is surfaced in only some return paths of advance."
+    },
+    {
+      "evidence": "In `_rebind_sequential`, `json.loads(manifest.read_text(...)).get(\"change\")` is not wrapped in try/except. A malformed or unreadable manifest raises JSONDecodeError or OSError instead of RequirementExecutionError. A manifest whose JSON is not an object also raises AttributeError. The other new readers (`_sequential_order`, `rank`) convert these errors explicitly. `orchestrate_pre_authoring._affected_sources` does use the guarded `_load_json`.",
+      "id": "rebind-unguarded-manifest-read",
+      "severity": "advisory",
+      "summary": "`_rebind_sequential` reads bundle manifests without error handling, so a bad manifest raises a raw exception."
+    }
+  ],
+  "launched_at": "2026-11-01T00:06:10+00:00",
+  "output_sha256": "46b3e7da6151e82bd98ed00770d5eef3cd99ee70218ce12774861181a3c2475d",
+  "perspective": "engineering-quality",
+  "request_id": "d102d512-561b-42de-99a0-6dd09da686e6",
+  "reviewer": {
+    "context_id": "f4b8a0c5-a17e-4507-a6de-a31228536c4e",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9aee2682-1e5c-4f60-a7a1-7b04b684c695",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26017
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46876
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11344
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11613
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1329
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a386c25daa6ed23eb67a38f868fcd592ddcc720547528548cf09ac27d5e627ac"
+}

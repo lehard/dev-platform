@@ -64,6 +64,9 @@ def creation_calls(scripts: Path = SCRIPTS) -> collections.Counter[str]:
 # Existing direct creation sites, reviewed when this guard was introduced.
 # Keep the counts exact: adding a call inside an existing function also fails.
 REVIEWED_BASELINE: dict[str, int] = {
+    # Sequential rebind: backs up this Requirement's machine-local pre-authoring files into a private
+    # temporary directory and restores exactly those files if the rebind fails; no shared state is written.
+    'orchestrate_pre_authoring.py:rebind:copy2': 2,
     # Hotfix friction export: one explicit operator command writes the sanitized, committed copy of one
     # machine-local friction event at a fixed project path (dev-platform/hotfix-friction/<id>.json); the
     # event id is validated against a strict pattern, so the path cannot escape that directory.

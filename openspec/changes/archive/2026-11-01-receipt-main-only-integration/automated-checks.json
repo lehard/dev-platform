@@ -1,0 +1,127 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.171,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.597,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.208,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.258,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1939.909,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/integration_contour.py",
+        "template/scripts/task_content_identity.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_task_content_identity.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_19ec58d25e02b51eb8e6831b3e484497",
+    "change": "receipt-main-only-integration",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/receipt-main-only-integration",
+    "branch": "agent/br-969-t2-receipt-main-only-integration",
+    "head": "1f7198b619360039963981c55a038a318755eaf4",
+    "task_content": {
+      "version": 1,
+      "digest": "b258b6edb62204cc4dee1c1087f086f47acd34081316710603a76c996d713463",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_e968c5a1fd45acf2acac691137636335-integration.json": "cbdae7ebb18f93fb9b5c51ae09e3c206ff366a0e",
+        "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+        "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/receipt-main-only-integration/automated-checks.json": "befbea460e2c4f071cfc3cbd07ee3acde6ff5b52",
+        "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+        "openspec/changes/receipt-main-only-integration/independent-review-dispositions.json": "e9f97cd66692227294a7991bafd17aebe0d69d7d",
+        "openspec/changes/receipt-main-only-integration/independent-review-request.json": "4a17804d58384c89a1db08d80bb9d09e75fe286b",
+        "openspec/changes/receipt-main-only-integration/independent-reviews/engineering-quality.json": "eb38f3761f7210763088ea8d8f359b1d8b77a2b9",
+        "openspec/changes/receipt-main-only-integration/independent-reviews/spec-fidelity.json": "810b47ca8f8b13e0ee7e8d36398b6d6d4a210477",
+        "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+        "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+        "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+        "openspec/changes/receipt-main-only-integration/verification.md": "2f2150d02d4a78274f35c186a2107637c6f3f7cd",
+        "template/dev-platform/platform-manifest.json": "c856d916e9e031bcd3c567dcd62abf0b1444097f",
+        "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+        "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+        "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+        "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+      },
+      "base": "551062d9163983e6556d61b18b41ec14178423cc"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "e7a6776de3c623a2c4c11b10343f0edad10e049c42b6dc370e2a1bfa5b09d9f0",
+    "paths": {
+      "openspec/changes/receipt-main-only-integration/.managed-task.json": "d40af0580600b3557b7dd0425d8cc870df2e47b3",
+      "openspec/changes/receipt-main-only-integration/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/receipt-main-only-integration/design.md": "3e13ebd07959a06ca5ef47d80407c43b32f0b719",
+      "openspec/changes/receipt-main-only-integration/proposal.md": "ed25456e9f3602e681762ec798d7cc6668abdcb5",
+      "openspec/changes/receipt-main-only-integration/specs/completion-lifecycle/spec.md": "0a8ab039bc4ead8723a85a36f98a60a34da306cf",
+      "openspec/changes/receipt-main-only-integration/tasks.md": "ed5c46eb2939317247f3060a2122c2e33baa5ddd",
+      "template/scripts/integration_contour.py": "163beca004a158fccb4895a12f3aacb96b5aaf03",
+      "template/scripts/task_content_identity.py": "92e5328b5293692d4275f3d04b65020850f596a3",
+      "tests/test_autonomous_integration_contour.py": "32a6b11726f794e92b533dfe481cab9fdc22f88a",
+      "tests/test_task_content_identity.py": "0397527217343b89eb1e433093d80a37f98b1c19"
+    },
+    "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/integration_contour.py --changed-file template/scripts/task_content_identity.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_task_content_identity.py",
+    "duration_seconds": 411.785,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

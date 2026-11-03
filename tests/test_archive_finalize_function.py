@@ -76,9 +76,73 @@ class FinalizePreconditionTests(unittest.TestCase):
 
     def test_unknown_context_fails_before_any_work(self) -> None:
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(lifecycle, "require_existing_archive_target") as target:
-            with self.assertRaisesRegex(SystemExit, "unknown finalize context 'composition'.*queue, developer"):
-                lifecycle.finalize_change(Path(tmp), "work", context="composition")
+            with self.assertRaisesRegex(SystemExit, "unknown finalize context 'invalid'.*queue, developer, composition"):
+                lifecycle.finalize_change(Path(tmp), "work", context="invalid")
         target.assert_not_called()
+
+    def test_composition_requires_an_explicit_requirement(self) -> None:
+        config = tomllib.loads(platform_config_text(platform_version="source"))
+        for requirement in (None, "", "   "):
+            with self.subTest(requirement=requirement), \
+                    mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
+                    mock.patch.object(lifecycle, "require_existing_archive_target"), \
+                    mock.patch.object(lifecycle, "static_archive_problems") as readiness:
+                with self.assertRaisesRegex(SystemExit, "explicit Requirement identity"):
+                    lifecycle.finalize_change(Path("/r"), "work", context="composition", requirement=requirement)
+            readiness.assert_not_called()
+
+    def test_composition_uses_shared_queue_preconditions_and_requirement_review(self) -> None:
+        import private_lineage
+        import requirement_composition
+        config = tomllib.loads(platform_config_text(platform_version="source"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_change(root, tasks="- [x] done\n- [ ] open\n", verification=None)
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
+                    mock.patch.object(private_lineage, "require_clean_candidate"), \
+                    mock.patch.object(lifecycle, "require_review_evidence") as child_review, \
+                    mock.patch.object(lifecycle, "require_committed_package") as committed, \
+                    mock.patch.object(lifecycle, "require_managed_routing_evidence") as routing, \
+                    mock.patch.object(requirement_composition, "require_archive_evidence",
+                                      side_effect=requirement_composition.workers.WorkerError("composition review stale")) as review, \
+                    mock.patch.object(lifecycle, "archive_with_recovery") as archive:
+                with self.assertRaises(SystemExit) as error:
+                    lifecycle.finalize_change(root, "work", context="composition", requirement="owner/repo#1")
+            for expected in ("task(s) remain incomplete", "semantic verification receipt", "composition review stale"):
+                self.assertIn(expected, str(error.exception))
+            review.assert_called_once_with(root, "work", "owner/repo#1")
+            child_review.assert_not_called()
+            committed.assert_not_called()
+            routing.assert_not_called()
+            archive.assert_not_called()
+
+    def test_composition_success_reuses_evidence_and_preserves_command_environment(self) -> None:
+        import private_lineage
+        import requirement_composition
+        config = tomllib.loads(platform_config_text(platform_version="source"))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_change(root, tasks="- [x] done\n", verification="OpenSpec-Verify: PASS\nVerification-Method: fixture\n"
+                        "Automated-Checks-Evidence: automated-checks.json\n")
+            env = {"PATH": "/fixture/bin"}
+            with mock.patch.object(lifecycle, "read_platform_config", return_value=config), \
+                    mock.patch.object(private_lineage, "require_clean_candidate"), \
+                    mock.patch.object(lifecycle, "require_review_evidence") as child_review, \
+                    mock.patch.object(requirement_composition, "require_archive_evidence") as review, \
+                    mock.patch.object(lifecycle, "require_automated_evidence") as checks, \
+                    mock.patch.object(lifecycle.shutil, "which", return_value="/fixture/bin/openspec"), \
+                    mock.patch.object(lifecycle, "run_checked") as run, \
+                    mock.patch.object(lifecycle, "rehearse_archive") as rehearse, \
+                    mock.patch.object(lifecycle, "archive_with_recovery") as archive:
+                self.assertEqual(lifecycle.finalize_change(root, "work", context="composition",
+                                                          requirement="owner/repo#1", env=env), 0)
+            review.assert_called_once_with(root, "work", "owner/repo#1")
+            child_review.assert_not_called()
+            checks.assert_not_called()
+            run.assert_called_once_with(["/fixture/bin/openspec", "validate", "work", "--strict", "--no-interactive"],
+                                        root, env=env)
+            rehearse.assert_called_once_with(root, "work", "/fixture/bin/openspec", env=env)
+            archive.assert_called_once_with(root, "work", "/fixture/bin/openspec", env=env)
 
     def test_cli_selects_the_finalize_context(self) -> None:
         for argv, context in ((["archive", "work", "--finalize"], "queue"), (["archive", "work"], "developer")):

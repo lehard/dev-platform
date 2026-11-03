@@ -1,0 +1,85 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "base_ref": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "candidate_head": "54a282072170ba81309de5cee715ca109a70ec48",
+    "diff_sha256": "0dd1e6d01eac376a5a0a55ad5e36ab6cd6c1c036940b94588885085525710f6c"
+  },
+  "completed_at": "2026-11-01T02:49:56+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py:1049 calls sync_queue_merged_task. Lines 1060-1082 run queue_local_status and sync_merged_task again for the same merged state. The updated test side_effect=[waiting, waiting] / [None, None, waiting] shows the doubled read.",
+      "id": "merged-sync-repeated-downstream",
+      "severity": "advisory",
+      "summary": "The merged queue state is observed and synchronized twice per finish. The new early helper and the existing queue block both call local_status and sync_merged_task. The design says only 'one extra PR read' and does not describe the second synchronization. It also leaves duplicate logic and error messages in finish_task.main."
+    },
+    {
+      "evidence": "sync_queue_merged_task returns False when `not queue_enabled(work)`. The new spec says 'When the exact PR of the task branch is merged, finish SHALL run the post-merge reconcile path ... An unreadable PR state SHALL stop finish explicitly.' The proposal Impact lists '`lifecycle_preflight` board condition'. The diff leaves the preflight code unchanged.",
+      "id": "merged-detection-queue-only",
+      "severity": "advisory",
+      "summary": "The spec requires reconcile ahead of handoff whenever the exact PR of the task branch is merged. The implementation detects this only through publication_queue.enabled and local_status. The proposal also lists a lifecycle_preflight board-condition change in its Impact section, but the diff has no such change; the design instead relies on the preflight being skipped."
+    }
+  ],
+  "launched_at": "2026-11-01T02:49:45+00:00",
+  "output_sha256": "40421be650a41dc5ec3db950105753a384ccf6f36cc5f4d225e7e2dab59adc2c",
+  "perspective": "spec-fidelity",
+  "request_id": "d455231c-957c-4efa-b6c2-9aaa8eac7905",
+  "reviewer": {
+    "context_id": "f8cfc93a-699e-45e6-8b05-c0a266dd9aba",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c04b0d00-dc41-471c-8a27-0ec528ceafdb",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18734
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34202
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9723
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9883
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1271
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "416e2d35ca9268a7f37e651b953a6fa87f65e8e5b79ef2ca5d52d5f5bb70018d"
+}

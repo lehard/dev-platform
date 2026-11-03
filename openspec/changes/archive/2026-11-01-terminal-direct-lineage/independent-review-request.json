@@ -1,0 +1,78 @@
+{
+  "candidate": {
+    "base_head": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "base_ref": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "candidate_head": "b62de86de6e121325d034ad23ea02d3abe08057f",
+    "diff_sha256": "7fa2e1fe627cf183205c455e049d5eb903c2ab6a6f4b2a2ebad1cc8c7c38711d"
+  },
+  "change": "openspec/changes/terminal-direct-lineage",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/terminal-direct-lineage/automated-checks.json",
+    "openspec/changes/terminal-direct-lineage/independent-review-request.json",
+    "openspec/changes/terminal-direct-lineage/independent-reviews/engineering-quality.json",
+    "openspec/changes/terminal-direct-lineage/independent-reviews/spec-fidelity.json",
+    "openspec/changes/terminal-direct-lineage/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/terminal-direct-lineage/design.md",
+        "openspec/changes/terminal-direct-lineage/proposal.md",
+        "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md",
+        "openspec/changes/terminal-direct-lineage/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/terminal-direct-lineage/proposal.md",
+        "openspec/changes/terminal-direct-lineage/design.md",
+        "openspec/changes/terminal-direct-lineage/tasks.md",
+        "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-01T02:59:50+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/terminal-direct-lineage/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "31e8b3ba-05d6-4451-8afd-d9a27ce35dc6",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "2a9514823aba41a9818eb940f77aa242f25bb902",
+    "digest": "2c1eb5606fe87a089829885030542afa395b034beaef670f50ed98338acec961",
+    "paths": {
+      "openspec/changes/terminal-direct-lineage/.managed-task.json": "00cb508b0a1e0108390489ad04818d93e58c55ee",
+      "openspec/changes/terminal-direct-lineage/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/terminal-direct-lineage/design.md": "aed75a470883c02e38a920b9001e27e2d16c6525",
+      "openspec/changes/terminal-direct-lineage/proposal.md": "f468e1730f307a4297e84f9a6bd310f0a33feae6",
+      "openspec/changes/terminal-direct-lineage/specs/publication-queue/spec.md": "acb360ca4cbb846bf4fdcf7cd1272a22298ff351",
+      "openspec/changes/terminal-direct-lineage/tasks.md": "50be2ddbef6d607551d9566864d47fecb037fa63",
+      "template/scripts/integration_contour.py": "8f1d21ecc071e78b0efc4476025fe4347ffadc8a",
+      "template/scripts/private_lineage.py": "641e0d59b5f372ac4d5a8cd1dde4ec55fa553e83",
+      "tests/test_autonomous_integration_contour.py": "7b9101ca1782713c69cc32208ac6d2a953e17a8b"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

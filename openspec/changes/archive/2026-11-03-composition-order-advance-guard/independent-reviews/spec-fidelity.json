@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "base_ref": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "candidate_head": "80cc9cf9b0e33fe899604a71c409f5b0df4b2c1d",
+    "diff_sha256": "b79efa8945243e1e533f1ed59c71ec92d8220b308fda4f62eb227937d8b1bba0"
+  },
+  "completed_at": "2026-11-03T08:28:28+00:00",
+  "findings": [
+    {
+      "evidence": "candidate.diff adds `handoff_renames` handling to `ensure_integration_branch` in template/scripts/requirement_contributions.py, including a manifest reseal and a fast-forward push. It also adds the bundle-resolution and renames block in `_advance_contributions` in template/scripts/execute_requirement.py. design.md ('Inherited from main') says this is inherited from main #863 and 'not introduced by this change'. The diff against base 469a224 nonetheless shows it as new. Neither the proposal, the two spec deltas, nor tasks.md mention it. This is a drift between the stated contract and the diff, though the behavior itself looks bounded by the new tests.",
+      "id": "handoff-rename-migration-outside-delta",
+      "severity": "advisory",
+      "summary": "The candidate diff contains graph-migration behavior that no spec or task in this change covers: the `handoff_renames` rewrite of an existing integration manifest, and bundle-based change-key normalization in `_advance_contributions`."
+    }
+  ],
+  "launched_at": "2026-11-03T08:28:05+00:00",
+  "output_sha256": "f0dfe272244b4936b291ad7dec50784c9cd174452a0f0b1b4c4fa22adc81f07a",
+  "perspective": "spec-fidelity",
+  "request_id": "4756409a-fb1b-41be-9f02-0d7b6f650d3a",
+  "reviewer": {
+    "context_id": "f561918a-22e6-4e8a-aa8f-1529d5f77a3c",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-2eb5a0be-b2ce-428d-a115-a98889e0fef4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41715
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 92688
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21106
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21794
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2010
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be"
+}

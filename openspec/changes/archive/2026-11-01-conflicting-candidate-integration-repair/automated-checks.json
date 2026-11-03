@@ -1,0 +1,125 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.919,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.843,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.242,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.168,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1813.734,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/publication_queue.py",
+        "tests/test_candidate_lifecycle.py",
+        "tests/test_publication_queue.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_a9e0e9e64e8fd362434cc390c6425304",
+    "change": "conflicting-candidate-integration-repair",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/conflicting-candidate-integration-repair",
+    "branch": "agent/br-969-t1-conflicting-candidate-integration-repair",
+    "head": "f3e67fa0c30f2d20d6fd7f098684fe7635c2d988",
+    "task_content": {
+      "version": 1,
+      "digest": "0f9ca3fae9300a15bde2422125ae0011d1e63a283ccf6f445a06ff2ec490d653",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_e968c5a1fd45acf2acac691137636335-integration.json": "cbdae7ebb18f93fb9b5c51ae09e3c206ff366a0e",
+        "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+        "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+        "openspec/changes/conflicting-candidate-integration-repair/independent-review-request.json": "88446ba9e970cfc8be90991ac5026d6d6f95904a",
+        "openspec/changes/conflicting-candidate-integration-repair/independent-reviews/engineering-quality.json": "5f3e2fb9ab7645e3a0fb60d20f29e33b0a7bc9fd",
+        "openspec/changes/conflicting-candidate-integration-repair/independent-reviews/spec-fidelity.json": "1ba09c0ac069b7a238dde495d17860c2ef1ebe62",
+        "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+        "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+        "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+        "openspec/changes/conflicting-candidate-integration-repair/verification.md": "9ca75ea0df818543ad039d70140ead29c9c34d07",
+        "template/dev-platform/platform-manifest.json": "2241de06d7e50c85cdc006a1e692bc20e7cd5d90",
+        "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+        "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+        "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+        "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+      },
+      "base": "551062d9163983e6556d61b18b41ec14178423cc"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "19ea98face613952c043232366d929c7530d87e9525fed25e4b9ea346d6aa727",
+    "paths": {
+      "openspec/changes/conflicting-candidate-integration-repair/.managed-task.json": "ee84b99e80b3cd0f655f93248405e89e7514b1bb",
+      "openspec/changes/conflicting-candidate-integration-repair/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/conflicting-candidate-integration-repair/design.md": "e5c6c8447f25c987021a39f6e52957ba7c0dfcc1",
+      "openspec/changes/conflicting-candidate-integration-repair/proposal.md": "b6102b0c5e7dbb7eeaca646563388e827fa51d40",
+      "openspec/changes/conflicting-candidate-integration-repair/specs/publication-queue/spec.md": "be5a0b592622060fc92067f0035e8b1c771172aa",
+      "openspec/changes/conflicting-candidate-integration-repair/tasks.md": "cfd40c35a3c47a2ac348679b661b579d834208e6",
+      "template/scripts/candidate_lifecycle.py": "ea01119a9233427ead4f720f968ea6601c0e71ed",
+      "template/scripts/publication_queue.py": "2236d59851a044a06e7f80f652b847e4c04c46b4",
+      "tests/test_candidate_lifecycle.py": "f328be9d5be9a83e4d483131b7b806526a3b740d",
+      "tests/test_publication_queue.py": "84aa13e76a2f19ed5f877cd9494c687b9c91a0b7"
+    },
+    "base": "5cc8d9b051702b2a6b4e8397ca0d7259ff541d6b",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/publication_queue.py --changed-file tests/test_candidate_lifecycle.py --changed-file tests/test_publication_queue.py",
+    "duration_seconds": 186.255,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

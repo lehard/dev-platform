@@ -227,6 +227,18 @@ class AdmissionTests(unittest.TestCase):
             self.assertEqual(queue.status(ROOT_PATH, 2)["position"], 2)
             self.assertEqual([item[1] for item in queue._queued(ROOT_PATH, REPO)], [1, 2])
 
+    def test_readmitted_composition_keeps_first_slot_after_block(self) -> None:
+        branch = "requirement/BR-7"
+        old = {**admission(1, 10), "branch": branch}
+        new = {**admission(1, 30, NEW_HEAD), "branch": branch}
+        events = {1: [old, {"kind": "block", "comment_id": 15}, new], 2: [admission(2, 20)]}
+        rows = [{"number": n, "labels": [{"name": queue.QUEUE}]} for n in (1, 2)]
+        with patch.object(queue, "_gh", return_value=rows), \
+             patch.object(queue, "_events", side_effect=lambda _root, _repo, number: events[number]):
+            result = queue._queued(ROOT_PATH, REPO)
+        self.assertEqual([(key, number) for key, number, _ in result], [(10, 1), (20, 2)])
+        self.assertEqual(result[0][2]["head"], NEW_HEAD)
+
     def test_active_owner_requires_coordinator_label(self) -> None:
         with patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_pr", return_value=pr(1, labels=(queue.QUEUE, queue.ACTIVE))), \
@@ -669,6 +681,17 @@ class DerivedMergeEnvironmentTests(unittest.TestCase):
         self.assertIn("No module named 'yaml'", str(exc))
         gh.assert_not_called()
 
+    def test_unavailable_derived_merge_with_a_real_conflict_needs_integration_repair(self) -> None:
+        # BR-969 item 3: a candidate that really conflicts is repaired by a job, never parked on the coordinator.
+        import post_review_finalization as final
+
+        exc, gh = self._prepare_generated(final.RederivationEnvironmentFailed("OpenSpec CLI is required"),
+                                          conflicts=["src.py"])
+        self.assertIsInstance(exc, queue.IntegrationRepairNeeded)
+        self.assertEqual(str(exc), "merge of current main conflicts in: src.py "
+                                   "(derived merge unavailable on this coordinator: OpenSpec CLI is required)")
+        gh.assert_not_called()
+
     def test_candidate_regeneration_failure_stays_integration_repair(self) -> None:
         import post_review_finalization as final
 
@@ -689,12 +712,81 @@ class DerivedMergeEnvironmentTests(unittest.TestCase):
         with patch.object(queue, "_label", side_effect=lambda *a, present: labels.append((a[3], present))), \
              patch.object(queue, "_require_finalized"), \
              patch.object(queue, "_prepare", side_effect=queue.QueueEnvironmentError("PR #1 derived merge cannot run")), \
+             patch.object(queue, "_note_environment_error") as note, \
              patch.object(queue, "_transition") as transition, patch.object(queue, "publish_job") as publish, \
              patch.object(queue, "_block") as block:
             with self.assertRaisesRegex(queue.QueueEnvironmentError, "cannot run"):
                 queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
         self.assertEqual(labels, [(queue.ACTIVE, True), (queue.ACTIVE, False)])
         transition.assert_not_called(), publish.assert_not_called(), block.assert_not_called()
+        # BR-969: only a visible note on the exact head; no state, block or attempt.
+        note.assert_called_once_with(ROOT_PATH, REPO, 1, HEAD, "PR #1 derived merge cannot run")
+
+    def test_environment_note_is_posted_only_while_not_already_the_reason(self) -> None:
+        import candidate_lifecycle
+
+        posted: list[dict] = []
+        shown = {"head": HEAD, "reason": "required checks not yet reported on head: validate"}
+        with patch.object(queue, "_pr", return_value=pr(1)), patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_derive", side_effect=lambda *_a: dict(shown)), \
+             patch.object(queue, "_comment", side_effect=lambda _r, _repo, _n, payload: posted.append(payload)):
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+            shown["reason"] = candidate_lifecycle.environment_reason("OpenSpec CLI is required")
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+            shown["reason"] = "superseded by a later record"
+            queue._note_environment_error(ROOT_PATH, REPO, 1, HEAD, "OpenSpec CLI is required")
+        self.assertEqual([(p["kind"], p["head"]) for p in posted], [(queue.ENVIRONMENT_ERROR_KIND, HEAD)] * 2)
+        with self.assertRaisesRegex(queue.QueueError, "head is unavailable"):
+            queue._note_environment_error(ROOT_PATH, REPO, 1, None, "x")
+
+    def test_a_failed_note_keeps_the_environment_error_and_names_both(self) -> None:
+        with patch.object(queue, "_label"), patch.object(queue, "_require_finalized"), \
+             patch.object(queue, "_prepare", side_effect=queue.QueueEnvironmentError("no OpenSpec CLI")), \
+             patch.object(queue, "_note_environment_error", side_effect=queue.QueueError("comment API down")):
+            with self.assertRaisesRegex(queue.QueueEnvironmentError, "no OpenSpec CLI; .*comment API down"):
+                queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+
+    def test_conflict_outside_generated_files_needs_integration_repair(self) -> None:
+        # BR-969 regression: a real conflict of a waiting candidate is detected by merge-tree, not GitHub mergeability.
+        from subprocess import CompletedProcess
+
+        def git(args: list[str], **_kwargs: object) -> CompletedProcess[str]:
+            if args[0] == "merge-tree":
+                return CompletedProcess(args, 1, "tree\nsrc.py\n", "")
+            if args[0] == "merge-base":
+                return CompletedProcess(args, 0 if args[2] == BASE else 1, "", "")
+            if args[0] == "diff":
+                return CompletedProcess(args, 0, "src.py\n", "")
+            return CompletedProcess(args, 0, "", "")
+        with patch.object(queue, "_events", return_value=[admission(1, 20)]), \
+             patch.object(queue, "_main", return_value=NEW_HEAD), \
+             patch.object(queue, "run_git", side_effect=git), \
+             patch.object(queue, "_task_paths", return_value={"src.py"}), \
+             patch.object(queue, "_raise_if_owned_elsewhere"), \
+             patch("_platform_common.generated_files", return_value=()), \
+             patch.object(queue, "_gh") as gh:
+            with self.assertRaisesRegex(queue.IntegrationRepairNeeded, "conflicts in: src.py"):
+                queue._prepare(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        gh.assert_not_called()
+
+    def test_generated_only_conflict_takes_the_derived_merge(self) -> None:
+        exc, _ = self._prepare_generated(queue.QueueError("derived merge reached"), conflicts=["manifest.json"])
+        self.assertEqual(str(exc), "derived merge reached")
+
+    def test_integration_repair_needed_routes_to_counted_integration_repair(self) -> None:
+        needed = queue.IntegrationRepairNeeded("merge of current main conflicts in: src.py")
+        with patch.object(queue, "_label"), patch.object(queue, "_require_finalized"), \
+             patch.object(queue, "_prepare", side_effect=needed), \
+             patch.object(queue, "_integration_repair", return_value={"state": "integration-repair-pending"}) as repair:
+            result = queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        repair.assert_called_once_with(ROOT_PATH, REPO, 1, admission(1, 20), needed)
+        self.assertEqual(result["state"], "integration-repair-pending")
+
+    def test_waiting_candidate_without_red_gate_is_integrable(self) -> None:
+        waiting = {"state": "blocked-retryable", "red_gate": None, "next_job": None, "gates": {}}
+        self.assertFalse(queue.red_retry_blocks_integration(waiting))
+        self.assertFalse(queue.review_owned(waiting))
+        self.assertNotIn(waiting["state"], queue.NOT_INTEGRABLE)
 
     def test_worker_tries_the_rest_and_fails_the_run_naming_the_cause(self) -> None:
         seen: list[int] = []
@@ -1100,6 +1192,21 @@ class PerCandidateIsolationTests(unittest.TestCase):
                 with self.assertRaises(kind) as caught:
                     queue._gh(ROOT_PATH, "api", "-X", "PUT", "repos/o/r/pulls/1/update-branch")
                 self.assertIs(type(caught.exception), kind)
+
+    def test_gh_classifies_too_many_files_on_a_pr_read_only(self):
+        from subprocess import CompletedProcess
+
+        stderr = "gh: The request could not be processed because too many files changed (HTTP 422)"
+        failed = CompletedProcess([], 1, "", stderr)
+        for args, kind in ((("api", "repos/o/r/pulls/1"), queue.TransientQueueError),
+                           (("api", "repos/o/r/pulls/1/files"), queue.QueueError),
+                           (("api", "-X", "PATCH", "repos/o/r/pulls/1"), queue.QueueError)):
+            with self.subTest(args=args), patch.object(queue.subprocess, "run", return_value=failed), \
+                    patch("_platform_common.run_github_with_retry", return_value=failed):
+                with self.assertRaises(kind) as caught:
+                    queue._gh(ROOT_PATH, *args)
+                self.assertIs(type(caught.exception), kind)
+                self.assertEqual(str(caught.exception), stderr)
 
 
 TOO_MANY_FILES = "gh: The request could not be processed because too many files changed (HTTP 422)"
@@ -2099,6 +2206,19 @@ class RequiredCheckObservationMappingTests(unittest.TestCase):
                           "-f", "merge_method=squash", "-f", f"sha={HEAD}"])
         self.assertEqual(result["reason"], "merge accepted; awaiting GitHub confirmation")
 
+    def test_integration_records_complete_exact_head_ci_evidence(self) -> None:
+        identity = {"kind": "requirement-composition", "task_content": {"digest": "proof"}}
+        with patch.object(queue, "_label"), patch.object(queue, "_prepare", return_value=(HEAD, BASE)), \
+             patch.object(queue, "_transition", side_effect=[{"task_identity": identity}, None]) as transition, \
+             patch.object(queue, "_checks_proven_on", return_value=False), \
+             patch.object(queue, "required_check_state_for_ref", return_value=RequiredCheckState("passed", "validate")), \
+             patch.object(queue, "_main", return_value=NEW_HEAD):
+            result = queue._integrate(ROOT_PATH, REPO, 1, admission(1, 20), pr(1))
+        self.assertEqual(result["state"], "waiting")
+        gate = transition.call_args.kwargs["gates"]["required-checks"]
+        self.assertEqual(gate, {"result": "passed", "identity": identity,
+                                "evidence": {"kind": "passed", "detail": "validate", "main": BASE, "head": HEAD}})
+
     def test_protected_ref_refusal_waits_without_a_merged_transition(self) -> None:
         from subprocess import CompletedProcess
         refusal = '{"message":"Repository rule violations found\\n\\nCannot update this protected ref.","status":"405"}'
@@ -2265,16 +2385,50 @@ class CompositionUpdateLineageTests(unittest.TestCase):
                 queue._composition_lineage(ROOT_PATH, REPO, 1, NEW_HEAD)
 
     def test_final_head_refresh_reestablishes_the_replaced_heads_gates(self) -> None:
-        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY, "gates": {"review": {}}}
+        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY,
+                 "gates": {"review": {}, "full-checks": {"result": "passed"}}}
         with patch.object(queue, "_composition_lineage", return_value=ready) as lineage, \
              patch("lifecycle_workers.prepare_checkout"), \
              patch("requirement_composition.candidate_manifest", return_value={"work_identity": "BR-576"}), \
              patch("requirement_composition.advance_final_publication", return_value={"status": "ready"}) as advance:
-            queue.refresh_composition_checks(ROOT_PATH, REPO, 1, NEW_HEAD)
+            queue.refresh_composition_checks(ROOT_PATH, REPO, 1, NEW_HEAD, HEAD)
+        self.assertEqual(advance.call_args.kwargs["main_base"], HEAD)
         lineage.assert_called_once_with(ROOT_PATH, REPO, 1, NEW_HEAD)
         self.assertIs(advance.call_args.kwargs["candidate"], ready)
         self.assertEqual(advance.call_args.args[3], NEW_HEAD)
         self.assertFalse(advance.call_args.kwargs["enqueue"])
+
+    def test_ci_event_resumes_only_the_saved_wait_with_its_admission_intent(self) -> None:
+        identity = {**self.IDENTITY, "kind": "requirement-composition"}
+        candidate = {"head": HEAD, "state": "blocked-retryable", "task_identity": identity,
+                     "gates": {"full-checks": {"result": "passed"},
+                               "required-checks": {"evidence": {"phase": "composition-final-ci",
+                                                                 "head": HEAD, "enqueue": True}}}}
+        pr = {"head": {"sha": HEAD}}
+        with patch.object(queue, "_gh", return_value=[{"number": 1, "headRefName": "requirement/BR-576"}]), \
+             patch.object(queue, "_pr", return_value=pr), patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_derive", return_value=candidate), \
+             patch("lifecycle_workers.prepare_checkout"), \
+             patch("requirement_composition.candidate_manifest", return_value={"children": []}), \
+             patch("requirement_composition.advance_final_publication", return_value={"status": "queued"}) as resume:
+            queue.resume_composition_ci(ROOT_PATH, REPO)
+        self.assertIs(resume.call_args.kwargs["candidate"], candidate)
+        self.assertTrue(resume.call_args.kwargs["enqueue"])
+        self.assertNotIn("full_checks", resume.call_args.kwargs)
+
+    def test_ci_event_rejects_inventory_without_a_branch(self) -> None:
+        with patch.object(queue, "_gh", return_value=[{"number": 1}]):
+            with self.assertRaisesRegex(queue.QueueError, "invalid number or branch"):
+                queue.resume_composition_ci(ROOT_PATH, REPO)
+
+    def test_ci_event_rejects_a_wait_without_admission_intent(self) -> None:
+        candidate = {"head": HEAD, "state": "blocked-retryable", "task_identity": self.IDENTITY,
+                     "gates": {"required-checks": {"evidence": {"phase": "composition-final-ci", "head": HEAD}}}}
+        with patch.object(queue, "_gh", return_value=[{"number": 1, "headRefName": "requirement/BR-576"}]), \
+             patch.object(queue, "_pr", return_value={"head": {"sha": HEAD}}), \
+             patch.object(queue, "_comments", return_value=[]), patch.object(queue, "_derive", return_value=candidate):
+            with self.assertRaisesRegex(queue.QueueError, "lacks its admission intent"):
+                queue.resume_composition_ci(ROOT_PATH, REPO)
 
     def test_integration_preparation_proves_gates_through_the_update_but_merge_needs_the_exact_head(self) -> None:
         source = Path(queue.__file__).read_text(encoding="utf-8")

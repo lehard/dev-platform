@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "604cfb23c119fa099c17061ae47abd22c326c73a",
+    "base_ref": "604cfb23c119fa099c17061ae47abd22c326c73a",
+    "candidate_head": "5efdac53c84c9339df3a955c66150c785494f3dc",
+    "diff_sha256": "581ab7cbfd042cd4aed645db9b63371b8bd6f075a532b62298db179ded7ddb12"
+  },
+  "completed_at": "2026-10-31T21:42:33+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py `_archive_delivered_task_state`: `local, remote = _git(integration, \"rev-parse\", \"HEAD\").lower(), managed_task.target_main(integration)`. The error text reads 'local main {local} differs from origin main'. The `advance` caller does not appear to verify the branch inside this helper.",
+      "id": "archive-compares-head-not-main-branch",
+      "severity": "advisory",
+      "summary": "The archive guard compares `git rev-parse HEAD` with origin/main, so it does not check that the checkout is on the main branch. A detached or feature-branch HEAD that happens to equal origin/main is treated as 'local main'. The refusal message also says 'local main' for what is really HEAD."
+    }
+  ],
+  "launched_at": "2026-10-31T21:42:22+00:00",
+  "output_sha256": "82282fbd3c0ce99b04cc946bb270e17f53f61355cb17f7fac8d3a13b4d3c7b0e",
+  "perspective": "engineering-quality",
+  "request_id": "35861572-9631-4627-9789-389195c31daf",
+  "reviewer": {
+    "context_id": "9de38f78-3f6a-4e79-bf42-02dceea5db98",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-789a2595-f229-43fa-86ff-ea9ad715c3be",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23588
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 43717
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9467
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9750
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 983
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "4ecb9de7040bb900a7b8db3bb8190fac20ffd297bf62bf3c33619997bb750e63"
+}
