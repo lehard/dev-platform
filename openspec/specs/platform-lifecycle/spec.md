@@ -2896,7 +2896,7 @@ After genuine composition integration repair, the repair path SHALL complete fin
 
 ### Requirement: Requirement advance refuses a queue-owned composition
 
-While the publication queue owns a Requirement composition, Requirement advance SHALL fail explicitly, naming the queue state, and SHALL run no checks or publication steps. Queue lifecycle state establishes ownership only when the composition's exact-head manifest contains every `expected_changes` entry in `children`. An incomplete draft with a stale review-pending state SHALL remain advanceable. A QUEUE or ACTIVE label SHALL establish ownership regardless of manifest completeness. Unreadable or malformed ownership evidence SHALL fail explicitly.
+While the publication queue owns a Requirement composition, Requirement advance SHALL fail explicitly, naming the queue state, and SHALL run no checks or publication steps. Queue lifecycle state establishes ownership only when the exact-head manifest contains every `expected_changes` entry in `children`; a QUEUE or ACTIVE label establishes ownership regardless. Unreadable or malformed ownership evidence SHALL fail explicitly.
 
 #### Scenario: Advance on a queued composition
 
