@@ -1613,6 +1613,208 @@ class ManagedPackageTests(unittest.TestCase):
                 )
 
 
+class ManagedPackageLimitTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = self.enterContext(tempfile.TemporaryDirectory())
+        self.root = Path(self.tmp)
+        authoring_config(self.root)
+        self.bundle_root = self.root / "bundle"
+        authoring_bundle(self.bundle_root)
+        self.issue = {"updated_at": "2026-11-04T12:34:56Z", "title": "Title", "body": "Scope"}
+        self.number = 7
+        self.writes: list[list[str]] = []
+        self.process_evidence = ("example-org/process#831",)
+        self.routing = managed_task.recommend_start_tier(strong_trigger=None)
+        for name, value in (
+            ("origin_repository", "lehard/dev-platform"),
+            ("target_main", "f" * 40),
+            ("open_backlog_issues", []),
+            ("issue_bodies", []),
+            ("github_cli_env", {}),
+        ):
+            self.enterContext(patch.object(managed_task, name, return_value=value))
+        self.enterContext(patch.object(managed_task, "fetch_issue", side_effect=lambda *args: dict(self.issue)))
+        for name in (
+            "validate_backlog_labels", "validate_process_evidence", "validate_authoring_bundle",
+            "verify_published_managed_task", "reconcile_process_evidence_linkage",
+        ):
+            self.enterContext(patch.object(managed_task, name))
+        self.enterContext(patch.object(managed_task, "run", side_effect=self.transport))
+        self.enterContext(patch.object(managed_task, "run_json", side_effect=AssertionError("unexpected GitHub operation")))
+        self.repair = self.enterContext(patch.object(managed_task, "repair_authoring_labels"))
+
+    def transport(self, command, root, env=None, input_text=None):
+        self.assertEqual(root, self.root)
+        if command[:3] == ["gh", "issue", "create"]:
+            self.writes.append(command)
+            return SimpleNamespace(stdout=f"https://github.com/example-org/development-backlog/issues/{self.number}\n")
+        if command[:4] == ["gh", "api", "--method", "POST"]:
+            self.assertEqual(command[4], f"repos/example-org/development-backlog/issues/{self.number}/comments")
+            self.writes.append(command)
+            return SimpleNamespace(stdout="{}")
+        self.fail(f"unexpected transport operation: {command[:4]}")
+
+    def package(self, number: int) -> managed_task.Package:
+        return managed_task.package_for_bundle(
+            managed_task.load_authoring_bundle(str(self.bundle_root)),
+            f"example-org/development-backlog#{number}", "lehard/dev-platform", "f" * 40,
+            self.routing, managed_task.issue_revision_evidence(self.issue), None, self.process_evidence,
+        )
+
+    def tune_estimate(self, characters: int, character: str) -> None:
+        # Tune the complete real serialization, not a source-file size or a
+        # hand-counted manifest. The newline preserves artifact round-tripping.
+        proposal = self.bundle_root / "proposal.md"
+        proposal.write_text(character + "\n", encoding="utf-8")
+        overhead = len(managed_task.serialize_package(self.package(managed_task.GITHUB_ISSUE_NUMBER_MAX)))
+        self.assertGreaterEqual(characters, overhead)
+        proposal.write_text(character * (characters - overhead + 1) + "\n", encoding="utf-8")
+        self.assertEqual(len(managed_task.serialize_package(self.package(managed_task.GITHUB_ISSUE_NUMBER_MAX))), characters)
+
+    def create(self, **routing_args):
+        return managed_task.create_task(
+            self.root, str(self.bundle_root), "P1", False,
+            process_evidence_values=list(self.process_evidence), **routing_args,
+        )
+
+    def test_exact_estimated_limit_and_comfortably_fitting_packages_publish_unchanged(self) -> None:
+        for character in ("a", "я", "🧠"):
+            for characters in (4096, 65_536):
+                with self.subTest(character=character, characters=characters):
+                    self.writes.clear()
+                    self.tune_estimate(characters, character)
+                    expected = self.package(self.number)
+                    package, resumed, already = self.create()
+                    self.assertFalse(resumed)
+                    self.assertFalse(already)
+                    self.assertEqual(package, expected)
+                    self.assertEqual(len(self.writes), 2)
+                    self.assertIn("--label", self.writes[0])
+                    self.assertEqual(self.writes[1][5:], ["--raw-field", "body=" + managed_task.serialize_package(package)])
+                    serialized = managed_task.serialize_package(package)
+                    self.assertEqual(len(serialized), characters - 9)
+                    self.assertEqual(managed_task.parse_package([serialized], package.source_issue), package)
+                    if character != "a":
+                        self.assertGreater(len(serialized.encode("utf-8")), characters)
+                    self.repair.assert_not_called()
+
+    def test_estimated_limit_plus_one_and_large_packages_reject_before_all_writes(self) -> None:
+        for character in ("a", "я", "🧠"):
+            for characters in (65_537, 100_000):
+                with self.subTest(character=character, characters=characters):
+                    self.tune_estimate(characters, character)
+                    with self.assertRaises(managed_task.ManagedTaskError) as raised:
+                        self.create()
+                    message = str(raised.exception)
+                    for text in ("author-managed-task", str(characters), "65536", "Issue-number upper bound", "10 digits"):
+                        self.assertIn(text, message)
+                    self.assertEqual(self.writes, [])
+                    self.repair.assert_not_called()
+
+    def test_estimate_includes_escaped_routing_and_present_or_absent_process_evidence(self) -> None:
+        routing_args = {"strong_trigger": "unresolved_architecture", "task_family": 'я "quoted"\n🧠'}
+        self.routing = managed_task.recommend_start_tier(**routing_args)
+        for references in ((), tuple(f"example-org/process#{number}" for number in range(1, 21))):
+            with self.subTest(references=references):
+                self.writes.clear()
+                self.process_evidence = references
+                self.tune_estimate(65_536, "я")
+                package, _, _ = self.create(**routing_args)
+                self.assertEqual(package, self.package(self.number))
+                serialized = self.writes[1][6].removeprefix("body=")
+                self.assertEqual(serialized, managed_task.serialize_package(package))
+                self.assertEqual(len(serialized), 65_536 - 9)
+                self.assertIn(r"\u044f \"quoted\"\n\ud83e\udde0", serialized)
+
+    def test_issue_number_bound_and_every_decimal_transition_have_only_the_proven_zone(self) -> None:
+        # Authoritative GitHub contract, not a sampled current Issue number:
+        # https://docs.github.com/en/graphql/reference/issues#issue (number: Int!)
+        # https://docs.github.com/en/graphql/reference/other#int (signed 32-bit)
+        maximum = managed_task.GITHUB_ISSUE_NUMBER_MAX
+        self.assertEqual(maximum, 2**31 - 1)
+        self.assertEqual(maximum, 2_147_483_647)
+        self.assertEqual(len(str(maximum)), 10)
+        for number in [maximum, *(10**power - 1 for power in range(1, 10)), *(10**power for power in range(10))]:
+            for character in ("x", "я", "🧠"):
+                zone = 10 - len(str(number))
+                with self.subTest(number=number, character=character):
+                    self.number = number
+                    self.writes.clear()
+                    self.tune_estimate(65_536, character)
+                    actual = len(managed_task.serialize_package(self.package(number)))
+                    self.assertEqual(actual, 65_536 - zone)
+                    self.create()  # Fits at the edge outside the rejection zone.
+                    self.assertEqual(len(self.writes), 2)
+                    self.writes.clear()
+                    self.tune_estimate(65_537, character)
+                    actual = len(managed_task.serialize_package(self.package(number)))
+                    self.assertEqual(actual, 65_537 - zone)
+                    if zone:
+                        self.assertLessEqual(actual, 65_536)
+                    with self.assertRaises(managed_task.ManagedTaskError):
+                        self.create()
+                    self.assertEqual(self.writes, [])
+                    if zone:
+                        # The other endpoint: actual fits exactly, E = L + zone.
+                        self.tune_estimate(65_536 + zone, character)
+                        self.assertEqual(len(managed_task.serialize_package(self.package(number))), 65_536)
+                        with self.assertRaises(managed_task.ManagedTaskError):
+                            self.create()
+                        self.assertEqual(self.writes, [])
+
+    def test_all_post_create_evidence_has_exact_serialized_lengths(self) -> None:
+        # REST explicitly promises this format, not merely ISO-8601 generally:
+        # https://docs.github.com/en/rest/using-the-rest-api/getting-started-with-the-rest-api#about-the-response-body
+        for timestamp in ("0001-01-01T00:00:00Z", "2026-11-04T12:34:56Z", "9999-12-31T23:59:59Z"):
+            with self.subTest(timestamp=timestamp):
+                self.issue.update(updated_at=timestamp, title='я " title', body="🧠\nScope")
+                evidence = managed_task.issue_revision_evidence(self.issue)
+                self.assertEqual(len(json.dumps(evidence["updated_at"])), 22)  # quotes + 20
+                self.assertRegex(evidence["body_sha256"], r"\A[0-9a-f]{64}\Z")
+                self.assertEqual(len(json.dumps(evidence["body_sha256"])), 66)  # quotes + 64
+                estimate = managed_task.check_creation_package_size(
+                    managed_task.load_authoring_bundle(str(self.bundle_root)),
+                    "example-org/development-backlog", "lehard/dev-platform", "f" * 40,
+                    self.routing, self.process_evidence,
+                )
+                self.assertEqual(estimate - len(managed_task.serialize_package(self.package(7))), 9)
+
+    def test_upstream_bound_or_evidence_length_drift_fails_before_package_publication(self) -> None:
+        for number, timestamp, error in (
+            (2**31, "2026-11-04T12:34:56Z", "Issue-number upper bound"),
+            (10**10, "2026-11-04T12:34:56Z", "Issue-number upper bound"),
+            (7, "2026-11-04T12:34:56.123Z", "exact-length contract"),
+            (7, "2026-11-04T12:34:56+00:00", "exact-length contract"),
+            (7, "я" * 20, "exact-length contract"),
+            (7, '"' * 20, "exact-length contract"),
+        ):
+            with self.subTest(number=number, timestamp=timestamp):
+                self.writes.clear()
+                self.number = number
+                self.issue["updated_at"] = timestamp
+                with self.assertRaisesRegex(managed_task.ManagedTaskError, error):
+                    self.create()
+                self.assertEqual(len(self.writes), 1)  # Issue already exists; no recovery.
+
+    def test_github_422_remains_explicit_without_retry_or_substitution(self) -> None:
+        original = managed_task.ManagedTaskError("gh api failed: HTTP 422 maximum is 65536 characters")
+        for failing_operation in (0, 1):
+            with self.subTest(failing_operation=failing_operation):
+                self.writes.clear()
+
+                def fail_write(command, root, env=None, input_text=None):
+                    result = self.transport(command, root, env, input_text)
+                    if len(self.writes) == failing_operation + 1:
+                        raise original
+                    return result
+
+                with patch.object(managed_task, "run", side_effect=fail_write):
+                    with self.assertRaises(managed_task.ManagedTaskError) as raised:
+                        self.create()
+                self.assertIs(raised.exception, original)
+                self.assertEqual(len(self.writes), failing_operation + 1)
+
+
 class SupersedeTaskTests(unittest.TestCase):
     def setup_supersede(self, tmp: str, *, predecessor_body: str | None, issue_state: str = "open", issue_body: str = ""):
         root = Path(tmp)

@@ -71,6 +71,13 @@ PROCESS_LABEL = "process"
 PROCESS_MANAGED_LABEL = "process:managed"
 PROCESS_BACKLINK_PREFIX = "dev-platform-process-managed"
 PROCESS_DISPOSITION_PREFIX = "dev-platform-process-disposition:v1"
+# Coordinator decision: GitHub HTTP 422 "maximum is 65536 characters";
+# observed publication failure: lehard/dev-platform#831.
+PACKAGE_COMMENT_CHARACTER_LIMIT = 65_536
+# Issue.number: Int!; GitHub Int is signed 32-bit, so B = 10 decimal digits.
+# https://docs.github.com/en/graphql/reference/issues#issue
+# https://docs.github.com/en/graphql/reference/other#int
+GITHUB_ISSUE_NUMBER_MAX = (1 << 31) - 1
 
 
 class ManagedTaskError(RuntimeError):
@@ -657,6 +664,50 @@ def serialize_package(package: Package) -> str:
     for path in package.artifacts:
         parts.extend((f"\n### OpenSpec artifact: `{path}`\n<!-- managed-openspec:file:{path} -->\n", package.contents[path], "<!-- managed-openspec:endfile -->\n"))
     return "".join(parts)
+
+
+def check_creation_package_size(
+    bundle: AuthoringBundle,
+    repository: str,
+    target_repository: str,
+    prepared_against: str,
+    routing_receipt: dict[str, Any],
+    process_evidence: tuple[str, ...],
+) -> int:
+    # These are exact-length witnesses, never published evidence. GitHub's REST
+    # response contract specifies YYYY-MM-DDTHH:MM:SSZ (20 unescaped ASCII
+    # characters); SHA-256 hexdigest is 64 unescaped ASCII characters.
+    # https://docs.github.com/en/rest/using-the-rest-api/getting-started-with-the-rest-api#about-the-response-body
+    evidence = {"updated_at": "2000-01-01T00:00:00Z", "body_sha256": hashlib.sha256(b"").hexdigest()}
+    estimate = package_for_bundle(
+        bundle, f"{repository}#{GITHUB_ISSUE_NUMBER_MAX}", target_repository,
+        prepared_against, routing_receipt, evidence, None, process_evidence,
+    )
+    characters = len(serialize_package(estimate))
+    if characters > PACKAGE_COMMENT_CHARACTER_LIMIT:
+        raise ManagedTaskError(
+            f"managed package {bundle.change!r} estimated serialized comment has {characters} Python characters, "
+            f"exceeding limit {PACKAGE_COMMENT_CHARACTER_LIMIT}; includes the Issue-number upper bound "
+            f"of {len(str(GITHUB_ISSUE_NUMBER_MAX))} digits; no GitHub write was performed"
+        )
+    return characters
+
+
+def check_created_package_size(package: Package, estimate: int) -> None:
+    """Fail on upstream contract drift, without publishing guessed evidence."""
+    _, number = issue_ref(package.source_issue)
+    if number > GITHUB_ISSUE_NUMBER_MAX:
+        raise ManagedTaskError(
+            f"created Issue {package.source_issue} violates GitHub's Issue-number upper bound "
+            f"{GITHUB_ISSUE_NUMBER_MAX}; package was not published"
+        )
+    expected = estimate - (len(str(GITHUB_ISSUE_NUMBER_MAX)) - len(str(number)))
+    actual = len(serialize_package(package))
+    if actual != expected:
+        raise ManagedTaskError(
+            f"created package {package.change!r} serialized length {actual} differs from proven length {expected}; "
+            "GitHub source Issue evidence violated the exact-length contract; package was not published"
+        )
 
 
 def authoring_receipt(
@@ -1517,11 +1568,15 @@ def create_task(
             + summarize_candidates(candidates)
             + "; review them, then rerun with --confirm-distinct if this is a separate change"
         )
+    estimate = check_creation_package_size(
+        bundle, config.repository, target_repository, prepared_against, routing_receipt, process_evidence,
+    )
     number = create_issue(root, config, bundle, target_repository, priority, receipt)
     package = package_for_bundle(
         bundle, f"{config.repository}#{number}", target_repository, prepared_against,
         routing_receipt, issue_revision_evidence(fetch_issue(root, config.repository, number)), None, process_evidence,
     )
+    check_created_package_size(package, estimate)
     already_published = publish_package(root, config, package)
     verify_published_managed_task(root, config, package, priority)
     reconcile_process_evidence_linkage(root, package)

@@ -1,0 +1,115 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.127,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.444,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.17,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.15,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1421.533,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/managed_task.py",
+        "tests/test_managed_task.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_7bb9209752cf47f9e45e123efb36a4d1",
+    "change": "prewrite-package-limit",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/prewrite-package-limit",
+    "branch": "agent/br-982-t1-prewrite-package-limit",
+    "head": "4208e59da503d3256d35baf824f198c0338b02d6",
+    "task_content": {
+      "version": 1,
+      "digest": "00ac81c662b225ab87867daedf988879d68021b2a0fc8c271f7af5f2409f350f",
+      "paths": {
+        "openspec/changes/prewrite-package-limit/.managed-task.json": "87f3cdeea83f326cc37a0d790fe16c99fb60275f",
+        "openspec/changes/prewrite-package-limit/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+        "openspec/changes/prewrite-package-limit/design.md": "85f6667599f351ac16b32a41b40aa43eaef17056",
+        "openspec/changes/prewrite-package-limit/proposal.md": "5d27da5e3f926d867c25f6a40799cc4ab55f84b8",
+        "openspec/changes/prewrite-package-limit/specs/managed-task-intake/spec.md": "fd2c19617dd54ae6d76ea2f436578810c53655e3",
+        "openspec/changes/prewrite-package-limit/tasks.md": "51b5fbec12c9e57f5c9dc05640c2b69232275a2a",
+        "openspec/changes/prewrite-package-limit/verification.md": "adf5d7cf8490cee68bce2b640fdfb5c5a8c0bc7c",
+        "template/dev-platform/platform-manifest.json": "75e8a35383d742466ff0dd10763b33effab00d50",
+        "template/scripts/managed_task.py": "9fbde3079b496ebaa13eba3a2c8ec35e83da2f67",
+        "tests/test_managed_task.py": "71876d7a7e1597fdd4f18dfcd28e4b1883f42fd6"
+      },
+      "base": "abce3d9584fd60c34a6431d13092b3a7ff27a565"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "d0dbbb55e7b0af11ec3d3adb1dd949b8dd01d65f7c37a07e1f1c987589706ca5",
+    "paths": {
+      "openspec/changes/prewrite-package-limit/.managed-task.json": "87f3cdeea83f326cc37a0d790fe16c99fb60275f",
+      "openspec/changes/prewrite-package-limit/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+      "openspec/changes/prewrite-package-limit/design.md": "85f6667599f351ac16b32a41b40aa43eaef17056",
+      "openspec/changes/prewrite-package-limit/proposal.md": "5d27da5e3f926d867c25f6a40799cc4ab55f84b8",
+      "openspec/changes/prewrite-package-limit/specs/managed-task-intake/spec.md": "fd2c19617dd54ae6d76ea2f436578810c53655e3",
+      "openspec/changes/prewrite-package-limit/tasks.md": "51b5fbec12c9e57f5c9dc05640c2b69232275a2a",
+      "template/scripts/managed_task.py": "9fbde3079b496ebaa13eba3a2c8ec35e83da2f67",
+      "tests/test_managed_task.py": "71876d7a7e1597fdd4f18dfcd28e4b1883f42fd6"
+    },
+    "base": "abce3d9584fd60c34a6431d13092b3a7ff27a565",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/managed_task.py --changed-file tests/test_managed_task.py",
+    "duration_seconds": 309.791,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
