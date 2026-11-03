@@ -530,6 +530,27 @@ def _publish_early_draft(
     return requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
 
 
+def _composition_manifest_complete(root: Path, repo: str, pr: dict, requirement: str) -> bool:
+    """Read the owned manifest at the observed PR head, never a stale local branch."""
+    import tempfile
+    import lifecycle_workers as workers
+    import requirement_contributions as contributions
+
+    head = pr["head"].get("sha")
+    if not isinstance(head, str) or not workers.HEAD.fullmatch(head):
+        raise RequirementExecutionError("composition PR has no readable exact head")
+    public = requirement_integration._public_requirement(root, requirement)
+    try:
+        with tempfile.TemporaryDirectory(prefix="composition-ownership-") as temporary:
+            checkout = workers.prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
+            manifest = contributions.read_manifest(checkout, public, ref=head)
+        if manifest["repository"] != repo or manifest["integration_branch"] != pr["head"]["ref"]:
+            raise RequirementExecutionError("composition manifest repository or branch ownership changed")
+        return requirement_integration.manifest_complete(manifest)
+    except (workers.WorkerError, contributions.ContributionError) as exc:
+        raise RequirementExecutionError(f"cannot read composition manifest at {head}: {exc}") from exc
+
+
 def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
     """Refuse before advancing any child when the shared PR belongs to the queue."""
     _, number = requirement_intake.issue_ref(requirement)
@@ -563,7 +584,8 @@ def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
             raise RequirementExecutionError(f"composition PR #{number} has malformed queue state")
         state = candidate.get("state")
         owned = queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}
-        if queue.QUEUE in names or queue.ACTIVE in names or state in owned:
+        if (queue.QUEUE in names or queue.ACTIVE in names
+                or (state in owned and _composition_manifest_complete(root, repo, pr, requirement))):
             raise RequirementExecutionError(f"composition PR #{number} is queue-owned: state {state}; owner publication-queue")
     except queue.QueueError as exc:
         raise RequirementExecutionError(f"cannot observe queue ownership for {branch}: {exc}") from exc
