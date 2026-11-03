@@ -2,18 +2,18 @@
   "base": "551062d9163983e6556d61b18b41ec14178423cc",
   "children": [],
   "dependencies": {
-    "composition-finalize": [
-      "finalize-function"
+    "archive-finalize-function": [],
+    "composition-archive-finalize": [
+      "archive-finalize-function"
     ],
-    "finalize-function": [],
     "portable-finish-finalize": [
-      "composition-finalize"
+      "composition-archive-finalize"
     ]
   },
-  "digest": "da13cd2c0ab8239021fcf480dfbe40da31656dc88857f22c60285bff85d9bc43",
+  "digest": "4c59307ef54f9e4316e2c5a7e57588bef20336a3461e9674b7c73a36577c09c3",
   "expected_changes": [
-    "finalize-function",
-    "composition-finalize",
+    "archive-finalize-function",
+    "composition-archive-finalize",
     "portable-finish-finalize"
   ],
   "integration_branch": "requirement/BR-949",
