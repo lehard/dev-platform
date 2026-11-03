@@ -2,11 +2,15 @@
   "candidate": {
     "base_head": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
     "base_ref": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
-    "candidate_head": "4107d81f71baffbbf2bed867b1f930aeed38d1cb",
-    "diff_sha256": "0c16c382bb9348dec0879a46529cb41f7f7817e66b85355419c86643e95e8bfd"
+    "candidate_head": "1fd15a7b8084ba108f206821a9f44e2deaf68d00",
+    "diff_sha256": "a004a3ecc0b3174822c7db71ed9b9c8dede9c332fe71550d3cd228c124304cc7"
   },
   "change": "openspec/changes/composition-archive-finalize",
   "excluded_lifecycle_paths": [
+    "openspec/changes/composition-archive-finalize/independent-review-request.json",
+    "openspec/changes/composition-archive-finalize/independent-reviews/engineering-quality.json",
+    "openspec/changes/composition-archive-finalize/independent-reviews/spec-fidelity.json",
+    "openspec/changes/composition-archive-finalize/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -33,7 +37,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-03T20:32:00+00:00",
+  "prepared_at": "2026-11-03T21:17:45+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/composition-archive-finalize/independent-reviews",
     "required_perspectives": [
@@ -42,7 +46,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "bce78a6d-c8f9-4b00-9196-f1eeb9366886",
+  "request_id": "b80bf13f-de99-42c6-bdcb-3f71b4b3bdce",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -55,7 +59,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
-    "digest": "47dce801c4b9d0a72d8ac16b2764234b4a266b38ceed7fc7635cd5a20acd269b",
+    "digest": "4c9cbcb5e8fd89bc9390e619da8f4e5f402cfbdd4ab2f4620cce76a7241e534d",
     "paths": {
       "dev-platform/checks.toml": "9b3e24c9540c3d7947950e9d52caa07117e4811e",
       "dev-platform/requirement-evidence/private-lineage-pln_2d7a62fc4bdeaafff4418d8ad898890a-integration/engineering-quality.json": "cc98ca59147fbe05f3e92ea8cbf60e37a2055033",
@@ -184,7 +188,7 @@
       "openspec/changes/composition-archive-finalize/design.md": "becfafafda8899739775caf40f258a3b9aa7f0de",
       "openspec/changes/composition-archive-finalize/proposal.md": "24964c9f596a0f439a8933599053dfa9f1c5f64e",
       "openspec/changes/composition-archive-finalize/specs/platform-lifecycle/spec.md": "89527c27dd085a5d54cf2b9841fc32bfb0b1e011",
-      "openspec/changes/composition-archive-finalize/tasks.md": "1ca32a630df454d30399260bedb5bf358917bdb9",
+      "openspec/changes/composition-archive-finalize/tasks.md": "8bf8fccae2cfc05798a0eb8a8fb2e97a26d25655",
       "openspec/specs/agent-workflow/spec.md": "611c1c84e093b2076b883c3fa287359fc7a20201",
       "openspec/specs/completion-lifecycle/spec.md": "81db51901bcf4aa7387fee6c311315824f241496",
       "openspec/specs/platform-lifecycle/spec.md": "a49a84fc92ae703e0cb4036b46e6f1632355834b",

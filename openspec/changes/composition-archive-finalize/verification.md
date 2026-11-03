@@ -14,12 +14,14 @@ Automated-Checks-Evidence: automated-checks.json
 ## Executed checks
 
 - Delegated executor: all 60 composition tests and final 15 focused finalize/composition tests passed; Ruff, compilation, strict validation of this OpenSpec delta, manifest and diff checks passed.
-- Delegated broader tests encountered three sandbox environment refusals (machine pool and temporary shared-workspace permissions). Those failures are not counted as passing tests; the authoritative full selected-check run in the task environment must establish their results.
-- After merging current main: candidate lifecycle hygiene and managed-project registry validation passed.
-- Independent Claude Sonnet review: spec-fidelity and engineering-quality available, zero findings in each perspective.
-- Full selected-check execution is recorded in automated-checks.json after this receipt is committed; its result is not asserted here before execution.
+- Delegated broader tests encountered three sandbox environment refusals (machine pool and temporary shared-workspace permissions). The authoritative affected-module precheck subsequently passed in the task environment (679.657 seconds), and the full test-group run passed (2373.522 seconds). The sandbox refusals are not counted as passing executor tests.
+- After merging current main: candidate lifecycle hygiene, managed-project registry validation and strict validation of all 53 OpenSpec objects passed. The factual linked-worktree scope gate was checked explicitly and passed; select_checks currently waives that gate whenever contribution-base is supplied (recorded as friction).
+- Independent Claude Sonnet review of the final task content: spec-fidelity and engineering-quality available, zero findings in each perspective. Marking the final task checkbox after the first review invalidated that earlier review; the repeated review passed and is recorded as validation-order friction.
+- Full selected-check execution passed all five selected commands: compileall, CI Python compile coverage, Ruff, generated manifest check and all test groups. automated-checks.json records their actual results, durations and content-bound proof.
 
 ## Reconciliation and limits
 
 - Reconciled current main with a merge commit. Conflicts in the test registry and composition fixture preserve both sides; regenerated the derived platform manifest. No history rewrite or queue state mutation.
 - This child does not move portable finish onto finalize; that remains the next approved child.
+
+- Existing import-time compatibility functions for a missing independent_review module remain outside the edited sections of openspec_lifecycle.py. Required-review configurations explicitly refuse that missing module. This pre-existing compatibility branch was neither extended nor exercised and is recorded separately as friction.

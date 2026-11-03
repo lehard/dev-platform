@@ -3,23 +3,23 @@
   "candidate": {
     "base_head": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
     "base_ref": "664c3f4bd5ed3cfd7331742fbf328763389aabea",
-    "candidate_head": "4107d81f71baffbbf2bed867b1f930aeed38d1cb",
-    "diff_sha256": "0c16c382bb9348dec0879a46529cb41f7f7817e66b85355419c86643e95e8bfd"
+    "candidate_head": "1fd15a7b8084ba108f206821a9f44e2deaf68d00",
+    "diff_sha256": "a004a3ecc0b3174822c7db71ed9b9c8dede9c332fe71550d3cd228c124304cc7"
   },
-  "completed_at": "2026-11-03T20:32:46+00:00",
+  "completed_at": "2026-11-03T21:18:22+00:00",
   "findings": [],
-  "launched_at": "2026-11-03T20:32:10+00:00",
+  "launched_at": "2026-11-03T21:17:54+00:00",
   "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "bce78a6d-c8f9-4b00-9196-f1eeb9366886",
+  "request_id": "b80bf13f-de99-42c6-bdcb-3f71b4b3bdce",
   "reviewer": {
-    "context_id": "e7be59e3-e680-43c1-9403-6d4059cd878e",
+    "context_id": "04536716-c17c-4b1a-854f-d7cd45144c76",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3aafe9e4-aaf9-4c0b-a488-87c194141287",
+    "launch_id": "platform-launch-38076d89-f16a-4122-993a-40c7d16a9bf0",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -35,22 +35,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 40231
+        "value": 32935
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 143156
+        "value": 133710
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 28459
+        "value": 20035
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32387
+        "value": 24125
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -60,16 +60,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13
+        "value": 12
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2280
+        "value": 2070
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "47dce801c4b9d0a72d8ac16b2764234b4a266b38ceed7fc7635cd5a20acd269b"
+  "task_content_digest": "4c9cbcb5e8fd89bc9390e619da8f4e5f402cfbdd4ab2f4620cce76a7241e534d"
 }
