@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from contextlib import nullcontext
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,7 +69,7 @@ class FreshMainTerminalTests(unittest.TestCase):
         commit_archive(self.merger, **archive)
         git("push", "-q", "origin", "main", cwd=self.merger)
 
-    def reconcile(self) -> tuple[dict, mock.Mock]:
+    def reconcile(self, *, actual_checkpoint: bool = False) -> tuple[dict, mock.Mock]:
         issues = {
             REQUIREMENT: {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}], "state": "OPEN"},
             CHILD: {"body": f"Requirement: {REQUIREMENT}\n", "labels": [{"name": "type:internal-change"}], "state": "CLOSED"},
@@ -77,7 +78,7 @@ class FreshMainTerminalTests(unittest.TestCase):
         with mock.patch.object(requirement_terminal.requirement_intake, "fetch_issue",
                                side_effect=lambda _root, repository, number: issues[f"{repository}#{number}"]), \
              mock.patch.object(requirement_terminal.requirement_target_lifecycle, "require_local_target_support"), \
-             mock.patch.object(requirement_terminal.requirement_retrospective, "require_checkpoint"), \
+             (nullcontext() if actual_checkpoint else mock.patch.object(requirement_terminal.requirement_retrospective, "require_checkpoint")), \
              mock.patch.object(requirement_terminal.managed_task, "discover_task", return_value=SimpleNamespace(change=CHANGE)), \
              mock.patch.object(requirement_terminal.managed_project_status, "observe", return_value=done), \
              mock.patch.object(requirement_terminal.managed_project_status, "reconcile", return_value=done) as project, \
@@ -85,6 +86,21 @@ class FreshMainTerminalTests(unittest.TestCase):
             result = requirement_terminal.reconcile_parent(self.integration, requirement=REQUIREMENT)
         close.assert_called_once_with(self.integration.resolve(), REQUIREMENT)
         return result, project
+
+    def test_terminal_close_requires_a_real_checkpoint(self) -> None:
+        self.merge_on_origin()
+        with self.assertRaisesRegex(requirement_terminal.requirement_retrospective.RequirementRetrospectiveError, "missing"):
+            self.reconcile(actual_checkpoint=True)
+        parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}], "state": "OPEN"}
+        retrospective = requirement_terminal.requirement_retrospective
+        with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent), \
+             mock.patch.object(retrospective.agent_friction, "read_events", return_value=[]), \
+             mock.patch.object(retrospective.agent_friction, "read_durable_events", return_value=[]):
+            retrospective.checkpoint(self.integration, requirement=REQUIREMENT, result="none", event_ids=[],
+                                     review_note="Reviewed full Requirement delivery.")
+            result, project = self.reconcile(actual_checkpoint=True)
+        self.assertEqual(result["status"], "done")
+        project.assert_called_once()
 
     def test_archive_merged_only_on_origin_main_proves_delivery_without_moving_local_main(self) -> None:
         local_head = git("rev-parse", "HEAD", cwd=self.integration)

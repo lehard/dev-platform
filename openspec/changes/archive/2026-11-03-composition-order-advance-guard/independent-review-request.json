@@ -1,0 +1,90 @@
+{
+  "candidate": {
+    "base_head": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "base_ref": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "candidate_head": "80cc9cf9b0e33fe899604a71c409f5b0df4b2c1d",
+    "diff_sha256": "b79efa8945243e1e533f1ed59c71ec92d8220b308fda4f62eb227937d8b1bba0"
+  },
+  "change": "openspec/changes/composition-order-advance-guard",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/composition-order-advance-guard/automated-checks.json",
+    "openspec/changes/composition-order-advance-guard/independent-review-request.json",
+    "openspec/changes/composition-order-advance-guard/independent-reviews/engineering-quality.json",
+    "openspec/changes/composition-order-advance-guard/independent-reviews/spec-fidelity.json",
+    "openspec/changes/composition-order-advance-guard/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/composition-order-advance-guard/design.md",
+        "openspec/changes/composition-order-advance-guard/proposal.md",
+        "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md",
+        "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md",
+        "openspec/changes/composition-order-advance-guard/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/composition-order-advance-guard/proposal.md",
+        "openspec/changes/composition-order-advance-guard/design.md",
+        "openspec/changes/composition-order-advance-guard/tasks.md",
+        "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md",
+        "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-03T08:27:58+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/composition-order-advance-guard/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "4756409a-fb1b-41be-9f02-0d7b6f650d3a",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "469a224bee1798a40ca45e430d77137994b0efb5",
+    "digest": "3781099ff00ab44e8433302c3bc9899685f62e2463c42042952cb4d0707fa2be",
+    "paths": {
+      "docs/engineering/lifecycle-map.md": "49785c2bbf8f89bcf105d6c3d10da100f38bfeb1",
+      "docs/engineering/task-intake.md": "2c426fe3290bbdd5b41971887c83a9bf2c86d750",
+      "openspec/changes/composition-order-advance-guard/.managed-task.json": "f8f92f2e24c60c1635c65a2c058622bdc0cd929e",
+      "openspec/changes/composition-order-advance-guard/.openspec.yaml": "a7587c5f07bdc91709ad9b053e28487c68d7e10b",
+      "openspec/changes/composition-order-advance-guard/design.md": "2b4f6b17f79eead4197e1d3265cf8d270d8aad6b",
+      "openspec/changes/composition-order-advance-guard/proposal.md": "4b93692ca7df73fcf768eea9e10bcafcf02bd367",
+      "openspec/changes/composition-order-advance-guard/specs/platform-lifecycle/spec.md": "fc5e1c534eb6637a902d3d54229216b2b5454cff",
+      "openspec/changes/composition-order-advance-guard/specs/publication-queue/spec.md": "16e737ff0540a6bc7ccb2f607b5fc85a02f0c604",
+      "openspec/changes/composition-order-advance-guard/tasks.md": "f70da84e157ff6ec63ecc0ad606513f5b841bc18",
+      "template/scripts/execute_requirement.py": "13e11f6b8cff91ee29792cf4b47ff5456652b831",
+      "template/scripts/publication_queue.py": "28cfce1e4500925136c5f84d67ece2038954e00b",
+      "template/scripts/requirement_contributions.py": "cc89772a5b3f6d7900a0c8902df74839fc2da92c",
+      "tests/test_publication_queue.py": "8a5a4801c573196b73f7d8ab1742849b989e6d44",
+      "tests/test_requirement_card_claim.py": "65fe1a620d688fa3beaaeee23f3939c962ed43c9",
+      "tests/test_requirement_contribution_composition.py": "3f21fa288604d19cceb41281982843632cb26038",
+      "tests/test_requirement_execution.py": "b535c5270f5a37132ba06055e2f371b30222878c",
+      "tests/test_requirement_flow_e2e.py": "fd229755bba2c06a5b11200bff8216b4b4814e7a",
+      "tests/test_requirement_sequential_delivery.py": "d7b9218b6974b8293aa254b9bd0213f843a8553f",
+      "tests/test_requirement_terminal_fresh_main.py": "8b583437da002b48ac681829315f8d839731fac4"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

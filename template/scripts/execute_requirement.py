@@ -530,6 +530,45 @@ def _publish_early_draft(
     return requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
 
 
+def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
+    """Refuse before advancing any child when the shared PR belongs to the queue."""
+    _, number = requirement_intake.issue_ref(requirement)
+    if not _contribution_publication_supported(root):
+        return
+    import publication_queue as queue
+
+    branch = f"requirement/BR-{number}"
+    try:
+        repo = queue._repo(root)
+        rows = queue._gh(root, "pr", "list", "--state", "open", "--head", branch,
+                         "--base", "main", "--limit", "100", "--json", "number")
+        if not isinstance(rows, list) or len(rows) >= 100 or any(
+                not isinstance(row, dict) or not isinstance(row.get("number"), int) for row in rows):
+            raise RequirementExecutionError(f"composition PR inventory for {branch} is unavailable or ambiguous")
+        if len(rows) > 1:
+            raise RequirementExecutionError(f"multiple open composition PRs for {branch}")
+        if not rows:
+            return
+        number = rows[0]["number"]
+        pr = queue._pr(root, repo, number)
+        if pr.get("head", {}).get("ref") != branch or pr.get("base", {}).get("ref") != "main" or pr.get("state") != "open":
+            raise RequirementExecutionError(f"composition PR #{number} identity changed during queue observation")
+        labels = pr.get("labels")
+        if not isinstance(labels, list) or any(not isinstance(label, dict) or not isinstance(label.get("name"), str) for label in labels):
+            raise RequirementExecutionError(f"composition PR #{number} has unreadable labels")
+        names = {label["name"] for label in labels}
+        comments = queue._comments(root, repo, number)
+        candidate = queue._derive(root, pr, comments)
+        if queue._malformed(candidate):
+            raise RequirementExecutionError(f"composition PR #{number} has malformed queue state")
+        state = candidate.get("state")
+        owned = queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}
+        if queue.QUEUE in names or queue.ACTIVE in names or state in owned:
+            raise RequirementExecutionError(f"composition PR #{number} is queue-owned: state {state}; owner publication-queue")
+    except queue.QueueError as exc:
+        raise RequirementExecutionError(f"cannot observe queue ownership for {branch}: {exc}") from exc
+
+
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
     from _platform_common import lifecycle_mode, read_platform_config
@@ -538,6 +577,7 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     lifecycle_mode(read_platform_config(integration))
     if current_worktree_root().resolve() != integration or _git(integration, "branch", "--show-current") != "main":
         raise RequirementExecutionError("Execute Requirement must run from the integration main checkout")
+    _refuse_queue_owned_composition(integration, requirement)
     parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
     if requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
         raise RequirementExecutionError(f"{requirement} is not a Business Requirement")
@@ -751,8 +791,6 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                 return audited(reconcile_parent(integration, requirement=requirement))
             return audited({"status": "already-delivered", "requirement": requirement, "children": completed})
         raise RequirementExecutionError("shared delivery requires at least two verified nonterminal child receipts")
-    if not coordinator and (pending := _retrospective_pending(integration, requirement, completed)):
-        return audited(pending)
     expected = _expected_changes(ordered, linked_by_change, completed)
     manifest, candidate, branch = _candidate_for(integration, requirement, ready, expected)
     requirement_integration.compose_candidate(
@@ -884,16 +922,35 @@ def _await_post_merge(parent: dict[str, Any], requirement: str, children: list[s
                       "retrospective and closes the Requirement"}
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Resume one Business Requirement through managed child and shared delivery.")
-    parser.add_argument("advance", choices=["advance"])
-    parser.add_argument("--requirement", required=True)
-    parser.add_argument("--base-dir", type=Path)
-    parser.add_argument("--confirm-distinct", action="store_true", help="Confirm that reviewed similar Issues are distinct before creating a missing child")
-    add_defer_rollout_argument(parser)
-    args = parser.parse_args()
-    apply_defer_rollout(args)
+    commands = parser.add_subparsers(dest="command", required=True)
+    resume = commands.add_parser("advance")
+    resume.add_argument("--requirement", required=True)
+    resume.add_argument("--base-dir", type=Path)
+    resume.add_argument("--confirm-distinct", action="store_true", help="Confirm that reviewed similar Issues are distinct before creating a missing child")
+    add_defer_rollout_argument(resume)
+    repair = commands.add_parser("repair", help="enqueue the existing repair job for a complete Requirement composition PR")
+    repair.add_argument("--pr", type=int, required=True)
+    repair.add_argument("--expected-head", required=True)
+    repair.add_argument("--reason", required=True)
+    args = parser.parse_args(argv)
     integration = current_worktree_root().resolve()
+    if args.command == "repair":
+        import publication_queue
+        from requirement_composition import request_repair
+        from requirement_contributions import ContributionError
+        import lifecycle_workers
+
+        try:
+            result = request_repair(integration, managed_task.origin_repository(integration), args.pr,
+                                    expected_head=args.expected_head, reason=args.reason)
+        except (ContributionError, publication_queue.QueueError, lifecycle_workers.WorkerError) as exc:
+            print(json.dumps({"status": "blocked", "pr": args.pr, "reason": str(exc)}, ensure_ascii=False))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    apply_defer_rollout(args)
     base_dir = (args.base_dir or orchestrate_pre_authoring.default_base_dir(integration)).resolve()
     try:
         result = advance(integration, requirement=args.requirement, base_dir=base_dir, confirm_distinct=args.confirm_distinct)

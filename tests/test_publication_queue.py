@@ -227,6 +227,18 @@ class AdmissionTests(unittest.TestCase):
             self.assertEqual(queue.status(ROOT_PATH, 2)["position"], 2)
             self.assertEqual([item[1] for item in queue._queued(ROOT_PATH, REPO)], [1, 2])
 
+    def test_readmitted_composition_keeps_first_slot_after_block(self) -> None:
+        branch = "requirement/BR-7"
+        old = {**admission(1, 10), "branch": branch}
+        new = {**admission(1, 30, NEW_HEAD), "branch": branch}
+        events = {1: [old, {"kind": "block", "comment_id": 15}, new], 2: [admission(2, 20)]}
+        rows = [{"number": n, "labels": [{"name": queue.QUEUE}]} for n in (1, 2)]
+        with patch.object(queue, "_gh", return_value=rows), \
+             patch.object(queue, "_events", side_effect=lambda _root, _repo, number: events[number]):
+            result = queue._queued(ROOT_PATH, REPO)
+        self.assertEqual([(key, number) for key, number, _ in result], [(10, 1), (20, 2)])
+        self.assertEqual(result[0][2]["head"], NEW_HEAD)
+
     def test_active_owner_requires_coordinator_label(self) -> None:
         with patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_pr", return_value=pr(1, labels=(queue.QUEUE, queue.ACTIVE))), \
@@ -2360,16 +2372,50 @@ class CompositionUpdateLineageTests(unittest.TestCase):
                 queue._composition_lineage(ROOT_PATH, REPO, 1, NEW_HEAD)
 
     def test_final_head_refresh_reestablishes_the_replaced_heads_gates(self) -> None:
-        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY, "gates": {"review": {}}}
+        ready = {"head": HEAD, "state": "ready", "task_identity": self.IDENTITY,
+                 "gates": {"review": {}, "full-checks": {"result": "passed"}}}
         with patch.object(queue, "_composition_lineage", return_value=ready) as lineage, \
              patch("lifecycle_workers.prepare_checkout"), \
              patch("requirement_composition.candidate_manifest", return_value={"work_identity": "BR-576"}), \
              patch("requirement_composition.advance_final_publication", return_value={"status": "ready"}) as advance:
-            queue.refresh_composition_checks(ROOT_PATH, REPO, 1, NEW_HEAD)
+            queue.refresh_composition_checks(ROOT_PATH, REPO, 1, NEW_HEAD, HEAD)
+        self.assertEqual(advance.call_args.kwargs["main_base"], HEAD)
         lineage.assert_called_once_with(ROOT_PATH, REPO, 1, NEW_HEAD)
         self.assertIs(advance.call_args.kwargs["candidate"], ready)
         self.assertEqual(advance.call_args.args[3], NEW_HEAD)
         self.assertFalse(advance.call_args.kwargs["enqueue"])
+
+    def test_ci_event_resumes_only_the_saved_wait_with_its_admission_intent(self) -> None:
+        identity = {**self.IDENTITY, "kind": "requirement-composition"}
+        candidate = {"head": HEAD, "state": "blocked-retryable", "task_identity": identity,
+                     "gates": {"full-checks": {"result": "passed"},
+                               "required-checks": {"evidence": {"phase": "composition-final-ci",
+                                                                 "head": HEAD, "enqueue": True}}}}
+        pr = {"head": {"sha": HEAD}}
+        with patch.object(queue, "_gh", return_value=[{"number": 1, "headRefName": "requirement/BR-576"}]), \
+             patch.object(queue, "_pr", return_value=pr), patch.object(queue, "_comments", return_value=[]), \
+             patch.object(queue, "_derive", return_value=candidate), \
+             patch("lifecycle_workers.prepare_checkout"), \
+             patch("requirement_composition.candidate_manifest", return_value={"children": []}), \
+             patch("requirement_composition.advance_final_publication", return_value={"status": "queued"}) as resume:
+            queue.resume_composition_ci(ROOT_PATH, REPO)
+        self.assertIs(resume.call_args.kwargs["candidate"], candidate)
+        self.assertTrue(resume.call_args.kwargs["enqueue"])
+        self.assertNotIn("full_checks", resume.call_args.kwargs)
+
+    def test_ci_event_rejects_inventory_without_a_branch(self) -> None:
+        with patch.object(queue, "_gh", return_value=[{"number": 1}]):
+            with self.assertRaisesRegex(queue.QueueError, "invalid number or branch"):
+                queue.resume_composition_ci(ROOT_PATH, REPO)
+
+    def test_ci_event_rejects_a_wait_without_admission_intent(self) -> None:
+        candidate = {"head": HEAD, "state": "blocked-retryable", "task_identity": self.IDENTITY,
+                     "gates": {"required-checks": {"evidence": {"phase": "composition-final-ci", "head": HEAD}}}}
+        with patch.object(queue, "_gh", return_value=[{"number": 1, "headRefName": "requirement/BR-576"}]), \
+             patch.object(queue, "_pr", return_value={"head": {"sha": HEAD}}), \
+             patch.object(queue, "_comments", return_value=[]), patch.object(queue, "_derive", return_value=candidate):
+            with self.assertRaisesRegex(queue.QueueError, "lacks its admission intent"):
+                queue.resume_composition_ci(ROOT_PATH, REPO)
 
     def test_integration_preparation_proves_gates_through_the_update_but_merge_needs_the_exact_head(self) -> None:
         source = Path(queue.__file__).read_text(encoding="utf-8")
