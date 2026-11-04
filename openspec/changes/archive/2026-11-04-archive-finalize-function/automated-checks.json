@@ -1,0 +1,154 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.187,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.517,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.154,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.204,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1889.676,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/execute_requirement.py",
+        "template/scripts/independent_review.py",
+        "template/scripts/openspec_lifecycle.py",
+        "tests/test_archive_finalize_function.py",
+        "tests/test_downstream_boundary.py",
+        "tests/test_early_private_reference_guard.py",
+        "tests/test_independent_review.py",
+        "tests/test_machine_pool.py",
+        "tests/test_openspec_lifecycle.py",
+        "tests/test_portable_finish_check_reuse.py",
+        "tests/test_post_review_finalization.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_22587cdf6892823685d0bc0fc71750a1",
+    "change": "archive-finalize-function",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/archive-finalize-function",
+    "branch": "agent/br-949-t1-archive-finalize-function",
+    "head": "afea39fa3f0a95b73402aaaca4b2aedce5d0c43a",
+    "task_content": {
+      "version": 1,
+      "digest": "f14af911c838e08d279a21828a151f4503bf7d8c17cc7034821f3bb19d88a003",
+      "paths": {
+        "dev-platform/checks.toml": "30a8bf69e97b0e01e8db8952aa8a68559c936bc6",
+        "dev-platform/requirement-integrations/private-lineage-pln_4d302215cbbf15ae1bc0be792f437de8-integration.json": "6e80e2932cbdd1807a4b7831bc88899f63aa0e83",
+        "docs/engineering/openspec-workflow.md": "8be9b303c5dd1a6d2c1f7ab6d655ab8fa3199c2a",
+        "openspec/changes/archive-finalize-function/.managed-task.json": "e881245272f981476c2032c0954a0189bf4449e0",
+        "openspec/changes/archive-finalize-function/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+        "openspec/changes/archive-finalize-function/automated-checks.json": "a01d8b05e8d64a5fac3636de2987f52509220a12",
+        "openspec/changes/archive-finalize-function/design.md": "b67db4464c6f893bdc98913c55bbee9cacf734fe",
+        "openspec/changes/archive-finalize-function/independent-review-request.json": "a8d9e352275fa26d274e11c21a98821e09d88c93",
+        "openspec/changes/archive-finalize-function/independent-reviews/engineering-quality.json": "5dd747c8a89d9d334f607a98a963a98cea476c5a",
+        "openspec/changes/archive-finalize-function/independent-reviews/spec-fidelity.json": "e3d8a9753b69a686d295019c1e1c8169ee7654c8",
+        "openspec/changes/archive-finalize-function/proposal.md": "1ed91db6b64a1661b8a862685d03b74b11ff40a6",
+        "openspec/changes/archive-finalize-function/specs/completion-lifecycle/spec.md": "25e4be921c789fdbe15b701d34041dfa21f6d467",
+        "openspec/changes/archive-finalize-function/tasks.md": "4bd689c3f3db29b68aee0484c0a28419eb10be22",
+        "openspec/changes/archive-finalize-function/verification.md": "d69f2c6a3397d9540d7b0962a1132b9df236b2c2",
+        "template/dev-platform/platform-manifest.json": "5642a5d410bf3ef1443ce43bdecaac39eaa4038d",
+        "template/docs/engineering/openspec-workflow.md": "c6afc18ea83b9b15517a8c8ef3e93a3d6f09433a",
+        "template/scripts/execute_requirement.py": "94c49ec2043f200fcdd679db4780f3fd54365cf9",
+        "template/scripts/independent_review.py": "545d13bb8348848db615eac5b2b056026f5423a6",
+        "template/scripts/openspec_lifecycle.py": "2243ddd08a6d1cb0155884264ce0e6d9c741a9ab",
+        "tests/test_archive_finalize_function.py": "5fd99e69a01b755d1b8aa4e3f3d3cf26b208c323",
+        "tests/test_downstream_boundary.py": "1ed2f7c96d77b395d5cd2797a66858077762f077",
+        "tests/test_early_private_reference_guard.py": "57e5a7e65d36ebeee87e037dfb042f58441cafdb",
+        "tests/test_independent_review.py": "7dab83a220631eeaaccb98ca91e7adb68d564c20",
+        "tests/test_machine_pool.py": "336a889dce4ac8247f3d7cb91d30db5c093468c8",
+        "tests/test_openspec_lifecycle.py": "8904debaa97b4f538bcb32f2e0df88c4290b0d75",
+        "tests/test_portable_finish_check_reuse.py": "d1f3444be7f978543b2600b681e43cbcc3ec81da",
+        "tests/test_post_review_finalization.py": "3853df21a66be8f38716f490644084bfccfd28cd"
+      },
+      "base": "551062d9163983e6556d61b18b41ec14178423cc"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "f0afeae2488789a9fbfe7e0edb470a1a8bb10721e1a0e9931b427a8222591dfb",
+    "paths": {
+      "dev-platform/checks.toml": "30a8bf69e97b0e01e8db8952aa8a68559c936bc6",
+      "docs/engineering/openspec-workflow.md": "8be9b303c5dd1a6d2c1f7ab6d655ab8fa3199c2a",
+      "openspec/changes/archive-finalize-function/.managed-task.json": "e881245272f981476c2032c0954a0189bf4449e0",
+      "openspec/changes/archive-finalize-function/.openspec.yaml": "25002a8e8151998b10d369d4a0ccd578f8ba97f9",
+      "openspec/changes/archive-finalize-function/design.md": "b67db4464c6f893bdc98913c55bbee9cacf734fe",
+      "openspec/changes/archive-finalize-function/proposal.md": "1ed91db6b64a1661b8a862685d03b74b11ff40a6",
+      "openspec/changes/archive-finalize-function/specs/completion-lifecycle/spec.md": "25e4be921c789fdbe15b701d34041dfa21f6d467",
+      "openspec/changes/archive-finalize-function/tasks.md": "4bd689c3f3db29b68aee0484c0a28419eb10be22",
+      "template/docs/engineering/openspec-workflow.md": "c6afc18ea83b9b15517a8c8ef3e93a3d6f09433a",
+      "template/scripts/execute_requirement.py": "94c49ec2043f200fcdd679db4780f3fd54365cf9",
+      "template/scripts/independent_review.py": "545d13bb8348848db615eac5b2b056026f5423a6",
+      "template/scripts/openspec_lifecycle.py": "2243ddd08a6d1cb0155884264ce0e6d9c741a9ab",
+      "tests/test_archive_finalize_function.py": "5fd99e69a01b755d1b8aa4e3f3d3cf26b208c323",
+      "tests/test_downstream_boundary.py": "1ed2f7c96d77b395d5cd2797a66858077762f077",
+      "tests/test_early_private_reference_guard.py": "57e5a7e65d36ebeee87e037dfb042f58441cafdb",
+      "tests/test_independent_review.py": "7dab83a220631eeaaccb98ca91e7adb68d564c20",
+      "tests/test_machine_pool.py": "336a889dce4ac8247f3d7cb91d30db5c093468c8",
+      "tests/test_openspec_lifecycle.py": "8904debaa97b4f538bcb32f2e0df88c4290b0d75",
+      "tests/test_portable_finish_check_reuse.py": "d1f3444be7f978543b2600b681e43cbcc3ec81da",
+      "tests/test_post_review_finalization.py": "3853df21a66be8f38716f490644084bfccfd28cd"
+    },
+    "base": "281e24835174258ee56702723fba59e81bbcb4fd",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/execute_requirement.py --changed-file template/scripts/independent_review.py --changed-file template/scripts/openspec_lifecycle.py --changed-file tests/test_archive_finalize_function.py --changed-file tests/test_downstream_boundary.py --changed-file tests/test_early_private_reference_guard.py --changed-file tests/test_independent_review.py --changed-file tests/test_machine_pool.py --changed-file tests/test_openspec_lifecycle.py --changed-file tests/test_portable_finish_check_reuse.py --changed-file tests/test_post_review_finalization.py",
+    "duration_seconds": 276.414,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

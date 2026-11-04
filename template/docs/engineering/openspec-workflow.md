@@ -42,8 +42,7 @@ When implementation shows the plan must change, update the owning artifact first
 2. Perform semantic verification: re-read the change and the implementation and assess completeness, correctness and coherence. This is distinct from structural validation (`openspec validate`), which checks only artifact format.
 3. Record the result in `verification.md`, stating what was checked and by which method.
 4. Commit the package (tasks, delta specs, `verification.md`); archive rejects uncommitted authored package files before review or checks.
-5. Archive with `python3 scripts/openspec_lifecycle.py archive <change>`; verify hygiene with `python3 scripts/openspec_lifecycle.py check`.
-6. Publish with `python3 scripts/finish_task.py`.
+5. Run `python3 scripts/finish_task.py`: without a queue it requires independent review, finalizes the change through the shared function, commits the archive and publishes. Requirement advance finalizes a ready portable child before recording its ready receipt.
 
 Managed tasks start with `python3 scripts/start_managed_task.py`. Check the installed OpenSpec version against the policy below with `python3 scripts/platform_doctor.py`.
 
@@ -124,11 +123,12 @@ Semantic verification and `openspec validate` are different. The former checks i
 
 ### Independent review evidence
 
-For a material managed change, independent review is required when the
-repository sets `[independent_review] enabled = true` (the central repository
-does; the downstream template default stays `false`, so Copier updates do not
-change a project until it opts in). Quick tasks without managed provenance are
-never reviewed.
+Portable finish and portable Requirement advance require independent review for
+every managed change, including light projects. Outside those executors,
+`[independent_review] enabled = true` requires review for material managed
+changes (the central repository enables it; the downstream template default is
+`false`). The optional setting cannot disable portable finalization review.
+Quick tasks without managed provenance are never reviewed.
 
 The platform launches the reviewer itself. Each of the two perspectives
 (`spec-fidelity` and `engineering-quality`) runs as a fresh, non-resumable
@@ -164,7 +164,7 @@ missing binary, nonzero exit, error result or timeout names the CLI's own
 bounded error and the next step: log the CLI in, point
 `DEV_PLATFORM_CLAUDE_BIN` at the Claude Code CLI, or change the
 `[model_routing]` / `[independent_review]` binding for this account. No other
-model or provider is ever tried. `run` (and therefore archive) performs the
+model or provider is ever tried. `run` performs the
 same preflight first; when it fails, both perspectives are recorded as
 `unavailable` with that limitation and no perspective is launched.
 
@@ -212,10 +212,10 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-When review is required, the archive helper runs a missing, stale or
-unavailable review automatically after its cheap deterministic checks and
-before expensive validation, then stops with the findings and the exact next
-commands if the evidence does not validate. `finish` re-validates the evidence
+Archive never launches review. Without a queue, finish runs the required independent review stage before shared finalization; the queue review job owns that stage for coordinator candidates. Finalization requires its evidence. Archive evaluates every precondition
+(tasks, receipt, review evidence, routing, automated-check evidence, committed
+package, private lineage, checkout identity) before any archive work and fails
+once listing each unmet one with its fix. `finish` re-validates the evidence
 against the current task content before any publication step. Task status
 (`finish_task.py --status`) and Requirement
 `advance` report the derived `independent_review` state (`not-required`,
@@ -243,17 +243,13 @@ Automated-Checks-Evidence: automated-checks.json
 
 Archive preflight checks this exact marker before it runs selected checks or writes evidence, so a missing receipt is actionable before archive mutation. The archive helper creates that file from the selected commands it actually runs, then refuses to archive if the selection is empty/invalid, any command fails, or the receipt does not cite the generated evidence. Add the marker only when the generated evidence will truthfully name the checks the helper ran. This is intentionally not required for `harness_mode=project`, where repository CI remains the product-verification authority.
 
-Then archive through the platform entrypoint:
-
-```bash
-python3 scripts/openspec_lifecycle.py archive <change>
-```
+Run `python3 scripts/finish_task.py` to review, finalize, commit and publish. `openspec_lifecycle.py archive` without `--finalize` refuses before work; the flag is reserved for the trusted queue archiver.
 
 The helper requires all tasks to be complete, the PASS receipt plus method, a committed package and an authored `## Purpose` in every delta that creates a capability absent from `openspec/specs` (a missing, empty or `TBD`/`TODO`/`FIXME` Purpose is rejected before any mutation, because OpenSpec otherwise writes a placeholder Purpose that strict validation rejects). It runs strict validation, rehearses the archive and `validate --all --strict` on a disposable copy of `openspec/`, then invokes the OpenSpec CLI archive and validates the resulting OpenSpec state. If the real archive or its post-validation still fails, it restores the exact pre-archive `openspec/` tree and reports the failing items, so the same command can be rerun after the fix. It does not emulate semantic verification and does not install or upgrade OpenSpec.
 
-`finish_task.py` and CI run lifecycle hygiene. If all task checkboxes in an active change are complete but the change is still active, publication is blocked. This turns “remember to archive” into a repository invariant rather than a human reminder.
+`finish_task.py` and CI run lifecycle hygiene. If all task checkboxes in an active change are complete but the change is still active, publication is blocked. Finish finalizes its verified active change before this strict publication gate.
 
-While `archive <change>` runs the mandatory selected or protected checks, the hygiene check inside them (`openspec_lifecycle.py check`, which stays in the check groups) exempts exactly that archive target, so a verified change does not deadlock on its own archive. The helper validates the target (a valid name of an existing, completed active change) before any state changes and passes it only through the reserved `DEV_PLATFORM_ARCHIVE_TARGET` and `DEV_PLATFORM_ARCHIVE_ROOT` (the archiving checkout's real path) variables in the environment of that single validation subprocess. Hygiene applies the exemption only in that checkout: a context issued for a different checkout is ignored and the ordinary check runs (scoping, not a masked failure), exactly one variable of the pair set, an empty value, or a relative root path fails explicitly, and a pair for this checkout whose target is not a completed active change fails explicitly. Any other completed-but-active change still blocks, and nothing persists after a failed archive: the next ordinary `check` blocks again. Do not export these variables by hand.
+While portable finalization runs the mandatory selected or protected checks, the hygiene check inside them (`openspec_lifecycle.py check`, which stays in the check groups) exempts exactly that archive target, so a verified change does not deadlock on its own archive. The helper validates the target (a valid name of an existing, completed active change) before any state changes and passes it only through the reserved `DEV_PLATFORM_ARCHIVE_TARGET` and `DEV_PLATFORM_ARCHIVE_ROOT` (the archiving checkout's real path) variables in the environment of that single validation subprocess. Hygiene applies the exemption only in that checkout: a context issued for a different checkout is ignored and the ordinary check runs (scoping, not a masked failure), exactly one variable of the pair set, an empty value, or a relative root path fails explicitly, and a pair for this checkout whose target is not a completed active change fails explicitly. Any other completed-but-active change still blocks, and nothing persists after a failed archive: the next ordinary `check` blocks again. Do not export these variables by hand.
 
 Where `/opsx:verify` is the selected method, the expanded OpenSpec verify workflow must be enabled for the repository (`openspec config profile`, then `openspec update`). `platform_doctor.py` detects whether that generated workflow is present, but absence is not a reason to skip semantic verification: use the documented equivalent review if the current agent surface cannot invoke it.
 

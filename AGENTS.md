@@ -38,7 +38,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 
 - **No silent divergence.** If implementation changes intent, behavior, design, or execution dependencies, update the corresponding proposal/spec/design/tasks artifact *first*. Do not knowingly let code drift from the active contract.
 - **Follow code over stale docs; report every mismatch.** When descriptive documentation (READMEs, `docs/`) contradicts existing code on conventions (structure, naming, commands, libraries, style), follow the code and do not rewrite working code to match the docs; `AGENTS.md` process and safety rules are not conventions and still apply. When code contradicts accepted specs or an active delta, do not silently pick a side: stop and report it. List every docs-vs-code mismatch found in the final report.
-- **Verification is not a checkbox count.** A platform change is complete only after relevant tests, semantic OpenSpec verification, a truthful `verification.md` receipt, archive through the lifecycle helper, committed spec/archive changes, and publication — in that order. For coordinator-managed source candidates, developer completion is an earlier handoff: content-bound selected checks, semantic verification receipt, exact-head PR and developer friction checkpoint; admission releases the developer claim. Review and bounded repair run as candidate jobs. Terminal delivery still requires verification, archive, committed specs and publication. Completed-but-active changes outside that handoff remain lifecycle debt and are blocked by platform CI.
+- **Verification is not a checkbox count.** A platform change is complete only after relevant tests, semantic OpenSpec verification, a truthful `verification.md` receipt, finalization by finish or the queue finalize job, committed spec/archive changes, and publication — in that order. For coordinator-managed source candidates, developer completion is an earlier handoff: content-bound selected checks, semantic verification receipt, exact-head PR and developer friction checkpoint; admission releases the developer claim. Review and bounded repair run as candidate jobs. Terminal delivery still requires verification, archive, committed specs and publication. Completed-but-active changes outside that handoff remain lifecycle debt and are blocked by platform CI.
 - **Never fabricate a verification receipt.** The report must state what was actually checked and which method was used.
 - **Managed contract conflicts stop.** Repair formal/schema mismatches in an imported package; a material product-contract conflict returns to the user.
 - **Quick tasks do not silently grow.** If one expands into a material behavior, architecture, compatibility, data-contract or scope change, stop and enter requirement-first intake by default; use direct managed fixation only for explicit technical intent.
@@ -64,7 +64,6 @@ python3 scripts/execute_managed_task.py --bundle <directory>
 python3 scripts/dogfood_task.py route-claude --tier <R1|R2|R3> --rationale "..." --evidence "..."
 python3 scripts/dogfood_task.py status
 python3 scripts/dogfood_task.py reconcile
-python3 template/scripts/openspec_lifecycle.py archive <change>
 python3 scripts/dogfood_task.py finish
 ```
 

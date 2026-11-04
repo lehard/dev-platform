@@ -51,4 +51,4 @@ operations:
       - When a verification check fails, classify it as introduced, pre-existing, or unknown relative to the authoritative base; claim pre-existing only with trustworthy baseline evidence, otherwise leave it unknown.
       - 'After material findings are resolved, record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change verification.md.'
       - Commit the package (tasks, delta specs, verification receipt) before archive; archive rejects uncommitted authored package files before review or checks.
-      - Archive central platform changes through `python3 template/scripts/openspec_lifecycle.py archive <change>` so completion requirements are mechanically checked.
+      - Run `python3 scripts/dogfood_task.py finish` or Requirement advance with the verified active change; the queue review and finalize jobs own central platform finalization. Developers do not run archive.

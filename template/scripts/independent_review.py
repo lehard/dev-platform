@@ -558,8 +558,8 @@ def review_state(root: Path, change: Path | None) -> dict[str, Any]:
     }
     if result["state"] in {STATE_MISSING, STATE_STALE} and change.parent.name != "archive":
         payload["note"] = (
-            "the archive helper runs a missing or stale review automatically before expensive validation; "
-            f"check reviewer runtime readiness first with {preflight_command(canonical_change_name(change))}"
+            "archive never runs a review: run it with the review command (the queue review job does so), and archive "
+            f"only requires its evidence; check reviewer runtime readiness first with {preflight_command(canonical_change_name(change))}"
         )
     if result["blockers"]:
         payload["blockers"] = [{key: item[key] for key in ("perspective", "id", "summary", "next")} for item in result["blockers"]]
@@ -596,9 +596,9 @@ def require_review_evidence(root: Path, change: Path) -> None:
         raise SystemExit(_blocking_message(change, result))
 
 
-def ensure_review_evidence(root: Path, change: Path, *, launcher: Any = None) -> None:
-    """Archive preflight: run a missing/stale/unavailable review, then enforce it."""
-    if not review_is_required(root, change):
+def ensure_review_evidence(root: Path, change: Path, *, launcher: Any = None, required: bool = False) -> None:
+    """Review stage: run missing/stale/unavailable evidence, then enforce it."""
+    if not required and not review_is_required(root, change):
         return
     result = evaluate(root, change, required=True)
     if result["state"] in {STATE_MISSING, STATE_STALE} or (result["state"] == STATE_BLOCKED and result["unavailable"] and not result["blockers"]):
@@ -612,7 +612,9 @@ def ensure_review_evidence(root: Path, change: Path, *, launcher: Any = None) ->
                 f"{canonical_change_name(change)}: independent review could not run: {exc}\n"
                 f"Next command after resolving it: {run_command(canonical_change_name(change))}"
             ) from exc
-    require_review_evidence(root, change)
+    result = evaluate(root, change, required=True)
+    if result["state"] != STATE_READY:
+        raise SystemExit(_blocking_message(change, result))
 
 
 def dispose(root: Path, change: Path, *, perspective: str, finding: str, status: str, rationale: str) -> Path:

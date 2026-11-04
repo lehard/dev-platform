@@ -1,7 +1,7 @@
 """Finish reuses check evidence for unchanged task content (portable managed path; BR-692, BR-785).
 
 The decision tests and the execution-count tests run the real ``select_checks.py`` (as a subprocess,
-exactly as ``openspec_lifecycle.archive_change`` and ``finish_task.run_checks`` do), the real
+exactly as ``openspec_lifecycle.finalize_change`` and ``finish_task.run_checks`` do), the real
 ``openspec_lifecycle.require_automated_evidence`` / ``automated_evidence_reuse`` and the real
 ``finish_task.validate_or_reuse`` in temporary Git repositories with a bare ``origin``.  Only the
 OpenSpec CLI archive move (done by hand, mirroring what archive commits) and the independent review
@@ -114,7 +114,7 @@ class PortableProject:
         git(self.worktree, "commit", "-qm", "implement")
 
     def validate_for_archive(self) -> None:
-        """The command archive_change runs for a portable, platform-owned change."""
+        """The command finalize_change runs for a portable, platform-owned change."""
         result = subprocess.run(
             ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute",
              "--evidence", str(self.change / "automated-checks.json")],
@@ -189,6 +189,69 @@ class ProjectTestCase(unittest.TestCase):
 
     def project(self, **kwargs) -> PortableProject:
         return PortableProject(self.base, **kwargs)
+
+
+class PortableFinalizationTests(ProjectTestCase):
+    def test_light_finalize_reviews_archives_and_commits_before_finish_validation(self) -> None:
+        import independent_review
+        project = self.project()
+        project.implement()
+        # Exercise the light contract; the selected-check fixture remains the same.
+        config = (project.worktree / ".dev-platform.toml").read_text()
+        (project.worktree / ".dev-platform.toml").write_text(config.replace('workflow_profile = "standard"', 'workflow_profile = "light"'))
+        (project.change / "verification.md").write_text(
+            "OpenSpec-Verify: PASS\nVerification-Method: fixture\nAutomated-Checks-Evidence: automated-checks.json\n")
+        git(project.worktree, "add", "-A")
+        git(project.worktree, "commit", "-qm", "verify light candidate")
+        events = []
+
+        def archive(root, name, executable, *, env):
+            events.append("archive")
+            project.archived.parent.mkdir(parents=True)
+            project.change.rename(project.archived)
+
+        real_run = lifecycle.run_checked
+        with mock.patch.object(lifecycle, "finalize_change_problems", return_value=[]), \
+                mock.patch.object(independent_review, "ensure_review_evidence", side_effect=lambda *a, **kw: events.append("review")) as review, \
+                mock.patch.object(lifecycle, "require_ready"), \
+                mock.patch.object(lifecycle.shutil, "which", return_value="openspec"), \
+                mock.patch.object(lifecycle, "rehearse_archive"), \
+                mock.patch.object(lifecycle, "archive_with_recovery", side_effect=archive), \
+                mock.patch.object(lifecycle, "run_checked", wraps=lifecycle.run_checked) as run:
+            # Only OpenSpec CLI validate is stubbed; selected checks execute as a real subprocess.
+            def checked(command, root, **kwargs):
+                if command[0] != "openspec":
+                    return real_run(command, root, **kwargs)
+            run.side_effect = checked
+            finish_task.finalize_portable_change(project.worktree)
+        self.assertEqual(events, ["review", "archive"])
+        review.assert_called_once_with(project.worktree, project.change.resolve(), required=True)
+        self.assertFalse(project.change.exists())
+        self.assertTrue(project.archived.is_dir())
+        self.assertEqual(git(project.worktree, "status", "--porcelain"), "")
+        self.assertIn("Finalize verified OpenSpec change", git(project.worktree, "log", "-1", "--format=%s"))
+        self.assertEqual(project.executions(), 1)
+        project.require_evidence()
+        finish_task.validate_or_reuse(project.worktree, "origin/main", False, "portable",
+                                      types.SimpleNamespace(path=project.archived), quick_task=False)
+        self.assertEqual(project.executions(), 1, "finish reuses finalization's check evidence")
+
+    def test_review_failure_stops_before_finalization_and_commit(self) -> None:
+        import independent_review
+        import managed_task
+        project = self.project()
+        project.implement()
+        before = git(project.worktree, "rev-parse", "HEAD")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=types.SimpleNamespace(
+                lifecycle="active", path=project.change, change=CHANGE)), \
+                mock.patch.object(lifecycle, "finalize_change_problems", return_value=[]), \
+                mock.patch.object(independent_review, "ensure_review_evidence", side_effect=SystemExit("review unavailable")), \
+                mock.patch.object(lifecycle, "finalize_change") as finalize:
+            with self.assertRaisesRegex(SystemExit, "review unavailable"):
+                finish_task.finalize_portable_change(project.worktree)
+        finalize.assert_not_called()
+        self.assertTrue(project.change.exists())
+        self.assertEqual(git(project.worktree, "rev-parse", "HEAD"), before)
 
 
 class ReuseDecisionTests(ProjectTestCase):

@@ -318,13 +318,20 @@ class TemplateContractTests(unittest.TestCase):
         # Root guidance keeps the always-on invariants and the entrypoints; the
         # verification/archive mechanics live in the linked canonical document.
         self.assertIn("no silent divergence", lower)
-        self.assertIn("scripts/openspec_lifecycle.py archive", text)
+        self.assertIn("scripts/finish_task.py", text)
+        self.assertNotIn("scripts/openspec_lifecycle.py archive", text)
         self.assertIn("scripts/managed_task.py", text)
         self.assertIn("scripts/execute_managed_task.py", text)
         self.assertIn("docs/engineering/openspec-workflow.md", text)
         self.assertIn("/opsx:verify", openspec_doc)
         self.assertIn("OpenSpec-Verify: PASS", openspec_doc)
-        self.assertIn("scripts/openspec_lifecycle.py archive", openspec_doc)
+        self.assertIn("without `--finalize` refuses", openspec_doc)
+        for relative, command in (("openspec/config.yaml", "scripts/dogfood_task.py finish"),
+                                  ("template/openspec/config.yaml.jinja", "scripts/finish_task.py")):
+            with self.subTest(config=relative):
+                guidance = (ROOT / relative).read_text(encoding="utf-8")
+                self.assertIn(command, guidance)
+                self.assertNotIn("openspec_lifecycle.py archive", guidance)
 
     def test_managed_task_intake_is_universal_and_quick_tasks_remain_lightweight(self) -> None:
         agents = (ROOT / "template" / "AGENTS.md.jinja").read_text(encoding="utf-8")
