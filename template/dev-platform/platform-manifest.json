@@ -93,7 +93,7 @@
     "scripts/integration_contour.py": "348cd565c86498cf8c7c755c4583cece00961ea576dd61c0577a18de8e388367",
     "scripts/integration_state.py": "4a16d543146cdf4150c9fdfb9488febf071bc59b70d95992d27c6a68ab391f84",
     "scripts/lifecycle_overview.py": "8e613351c11397db4b69755c94f25c5c393959cbd041a0d3c2450db344471b0d",
-    "scripts/lifecycle_preflight.py": "5ca0d37fd06937e3ddcc31f4f1f6600a6206b34cd8542e385ada9018efadc965",
+    "scripts/lifecycle_preflight.py": "14d17fb1c7b3c16acfca4e96ae42de6ad5de170d49400672e6590bc00aacf8cb",
     "scripts/lifecycle_workers.py": "b95115cfb21565d347049c9e104ec299b9f96c57e3c55ff13e15799617cbe0a2",
     "scripts/local_workspace.py": "e24f3f088fb725415a7f58af1799935f427422d61dd15a63f01803f73fcef654",
     "scripts/machine_pool.py": "a197ae256b5fbb4e0b43cd558152d04749d32b858ff26609fb4a5309bd58a9ff",
@@ -143,7 +143,7 @@
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
     "scripts/task_content_identity.py": "931755acf14b979be752ebb52f4ed1253a7295d55a6b3d40ba64b59bc18497d0",
-    "scripts/task_reconciliation.py": "60c5175a1c47f8d35dfd235f5351197b3f36deaec0608953f967aec1ed567fd5",
+    "scripts/task_reconciliation.py": "01b04de8bd3e08a14e30f2da8f939a7e104fa78ada81c36f16deeb412e228b21",
     "scripts/worktree_cleanup.py": "92e7fc2c3811ed1963cca598f38dd2b8bafd8a51dd784717545e03bb4f25ee8a"
   },
   "project_harness_owned": [

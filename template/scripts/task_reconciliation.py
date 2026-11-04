@@ -49,6 +49,8 @@ RECONCILE_MERGE_INTENT = "dev-platform-reconcile-merge"
 class Freshness:
     state: str
     authoritative_sha: str
+    # The branch this was measured against: main, or the recorded target of a contribution.
+    target: str
     # Set for a coordinator candidate's head that does not contain main: the
     # merge base of ``behind-mergeable``, or why reconciliation is required.
     merge_base: str | None = None
@@ -78,8 +80,9 @@ def freshness_branch(root: Path) -> str:
 def observe(root: Path, *, read_only: bool = False) -> Freshness:
     """Fetch the authoritative freshness branch and classify the exact checked-out task head."""
     helper = observe_task_base_freshness_readonly if read_only else observe_task_base_freshness
-    state, authoritative_sha = helper(root, "origin", freshness_branch(root))
-    return Freshness(state=state, authoritative_sha=authoritative_sha)
+    target = freshness_branch(root)
+    state, authoritative_sha = helper(root, "origin", target)
+    return Freshness(state=state, authoritative_sha=authoritative_sha, target=target)
 
 
 def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
@@ -93,14 +96,14 @@ def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
     freshness = observe(root, read_only=read_only)
     if not freshness.reconcile_required or not queue_integrated(root):
         return freshness
-    target = freshness_branch(root)
+    target = freshness.target
     if read_only:
         fetch_commit_objects(root, "origin", target, freshness.authoritative_sha)
     currency = classify_task_base_currency(root, freshness.authoritative_sha)
     if currency.state == TASK_BASE_BEHIND_MERGEABLE:
-        return Freshness(state=TASK_BASE_BEHIND_MERGEABLE, authoritative_sha=currency.main, merge_base=currency.base)
+        return Freshness(state=TASK_BASE_BEHIND_MERGEABLE, authoritative_sha=currency.main, target=target, merge_base=currency.base)
     # Main's objects are now present, so the exact relation replaces a read-only "behind".
-    return Freshness(state=relation(root, "HEAD", currency.main), authoritative_sha=currency.main,
+    return Freshness(state=relation(root, "HEAD", currency.main), authoritative_sha=currency.main, target=target,
                      merge_base=currency.base, detail=currency.describe(f"origin/{target}"))
 
 
@@ -109,7 +112,7 @@ def status_payload(root: Path) -> dict[str, object]:
     freshness = observe_candidate(root, read_only=True)
     payload: dict[str, object] = {
         "task_freshness": freshness.state,
-        "freshness_target": freshness_branch(root),
+        "freshness_target": freshness.target,
         "authoritative_main": freshness.authoritative_sha,
         "reconcile_required": freshness.reconcile_required,
         "reconcile_command": RECONCILE_COMMAND if freshness.reconcile_required else None,
