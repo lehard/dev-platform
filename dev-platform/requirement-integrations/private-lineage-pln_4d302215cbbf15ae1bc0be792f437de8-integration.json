@@ -1505,6 +1505,391 @@
         "work_identity": "BR-949/T2"
       },
       "work_identity": "BR-949/T2"
+    },
+    {
+      "change": "portable-finish-finalize",
+      "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/portable-finish-finalize/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "81d7a17ac888af90499308bb978e12d701ac3c84"
+          },
+          "identity": {
+            "change": "portable-finish-finalize",
+            "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+            "kind": "contribution",
+            "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+            "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+            "target_branch": "requirement/BR-949",
+            "task_content": {
+              "base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+              "digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2",
+              "paths": {
+                "AGENTS.md": "a12bc4a3efc64d3a43585360665a176583fe62db",
+                "docs/engineering/agent-workflow.md": "454a34688802844874021e6e3b74b3b8e20df974",
+                "docs/engineering/openspec-workflow.md": "412fbfe69e796cc651b89177e910fb7c8a843de4",
+                "docs/engineering/task-intake.md": "a37c8e5025d871bab63bab2204783386ee98905c",
+                "explorer/nodes/add-openspec.toml": "cca6112e735cb8e34c95ace08b741ac569534f2b",
+                "openspec/changes/portable-finish-finalize/.managed-task.json": "b21481386524dace0bfaa4e92275eafdccdaa840",
+                "openspec/changes/portable-finish-finalize/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+                "openspec/changes/portable-finish-finalize/design.md": "04d328970c3fa422bf332595271da633dafe9ead",
+                "openspec/changes/portable-finish-finalize/proposal.md": "eea5a013c9c87d8a89fe15f4038d5bd1f7bdfb3a",
+                "openspec/changes/portable-finish-finalize/specs/completion-lifecycle/spec.md": "6688c2b596fd2e13dd640a30699eb2945885dc52",
+                "openspec/changes/portable-finish-finalize/tasks.md": "fd7320a6625c22df2e27d551e44498d233dcedee",
+                "openspec/config.yaml": "36a79de5dc76195724975d22aea5d33ae2212441",
+                "template/AGENTS.md.jinja": "11dc09a6d98b5d801913fda89ee2b275be8bb6ed",
+                "template/docs/engineering/agent-workflow.md.jinja": "62090d3e009fa2f8191aad2592c61ebe6460473c",
+                "template/docs/engineering/openspec-workflow.md": "72ac0c54485c6db31abb4457061fda7817bafecf",
+                "template/docs/engineering/task-intake.md.jinja": "d50bcdcd583f3f184f29e2e8a98b904026bec72e",
+                "template/openspec/config.yaml.jinja": "df6dde4afdc546c31722ab5c69dce5510ede56c8",
+                "template/scripts/execute_requirement.py": "b24af8526f1db13cbf17b96edc00b970dc12c967",
+                "template/scripts/finish_task.py": "9d37c78f3554ae7a208fabfa7cc579fe74c03d10",
+                "template/scripts/independent_review.py": "1c2f1a9ede2a234abec66d7c645c5a1ed2c7db98",
+                "template/scripts/independent_review_runner.py": "5165bd0415d3fadc31698bd390838b90d5e53b53",
+                "template/scripts/openspec_lifecycle.py": "1134c0a710a83240f662d55f0d1e65e5afef9f49",
+                "template/scripts/requirement_composition.py": "6967fe6c7cbc7fb3578d205eb8e08050277b5e8c",
+                "tests/test_archive_finalize_function.py": "fd6ddda6fffcd17cd2e681ed47dd30ce591cae64",
+                "tests/test_downstream_boundary.py": "8d6fa807cfc2fb3f75c028992dc7cd628b1d9964",
+                "tests/test_independent_review.py": "4ea22b3a285e32e5ec73236c3d3585d620a23253",
+                "tests/test_portable_finish_check_reuse.py": "22f7f2b97fd9cb34c45c392164eb94952559773d",
+                "tests/test_requirement_execution.py": "875afcf219fa19b3636c884f56b3fc15894fb2f2",
+                "tests/test_shared_writer_guard.py": "8aafbe927fbbac3969a8fdb9e665959ac87dd0f9",
+                "tests/test_template_contract.py": "9af9abdf07f73ad3b8adc040cdfcd585abfa3162"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-949/T3"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "abc401590f72474e92e3d73dd3a7d33d381b2a56",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "portable-finish-finalize",
+            "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+            "kind": "contribution",
+            "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+            "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+            "target_branch": "requirement/BR-949",
+            "task_content": {
+              "base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+              "digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2",
+              "paths": {
+                "AGENTS.md": "a12bc4a3efc64d3a43585360665a176583fe62db",
+                "docs/engineering/agent-workflow.md": "454a34688802844874021e6e3b74b3b8e20df974",
+                "docs/engineering/openspec-workflow.md": "412fbfe69e796cc651b89177e910fb7c8a843de4",
+                "docs/engineering/task-intake.md": "a37c8e5025d871bab63bab2204783386ee98905c",
+                "explorer/nodes/add-openspec.toml": "cca6112e735cb8e34c95ace08b741ac569534f2b",
+                "openspec/changes/portable-finish-finalize/.managed-task.json": "b21481386524dace0bfaa4e92275eafdccdaa840",
+                "openspec/changes/portable-finish-finalize/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+                "openspec/changes/portable-finish-finalize/design.md": "04d328970c3fa422bf332595271da633dafe9ead",
+                "openspec/changes/portable-finish-finalize/proposal.md": "eea5a013c9c87d8a89fe15f4038d5bd1f7bdfb3a",
+                "openspec/changes/portable-finish-finalize/specs/completion-lifecycle/spec.md": "6688c2b596fd2e13dd640a30699eb2945885dc52",
+                "openspec/changes/portable-finish-finalize/tasks.md": "fd7320a6625c22df2e27d551e44498d233dcedee",
+                "openspec/config.yaml": "36a79de5dc76195724975d22aea5d33ae2212441",
+                "template/AGENTS.md.jinja": "11dc09a6d98b5d801913fda89ee2b275be8bb6ed",
+                "template/docs/engineering/agent-workflow.md.jinja": "62090d3e009fa2f8191aad2592c61ebe6460473c",
+                "template/docs/engineering/openspec-workflow.md": "72ac0c54485c6db31abb4457061fda7817bafecf",
+                "template/docs/engineering/task-intake.md.jinja": "d50bcdcd583f3f184f29e2e8a98b904026bec72e",
+                "template/openspec/config.yaml.jinja": "df6dde4afdc546c31722ab5c69dce5510ede56c8",
+                "template/scripts/execute_requirement.py": "b24af8526f1db13cbf17b96edc00b970dc12c967",
+                "template/scripts/finish_task.py": "9d37c78f3554ae7a208fabfa7cc579fe74c03d10",
+                "template/scripts/independent_review.py": "1c2f1a9ede2a234abec66d7c645c5a1ed2c7db98",
+                "template/scripts/independent_review_runner.py": "5165bd0415d3fadc31698bd390838b90d5e53b53",
+                "template/scripts/openspec_lifecycle.py": "1134c0a710a83240f662d55f0d1e65e5afef9f49",
+                "template/scripts/requirement_composition.py": "6967fe6c7cbc7fb3578d205eb8e08050277b5e8c",
+                "tests/test_archive_finalize_function.py": "fd6ddda6fffcd17cd2e681ed47dd30ce591cae64",
+                "tests/test_downstream_boundary.py": "8d6fa807cfc2fb3f75c028992dc7cd628b1d9964",
+                "tests/test_independent_review.py": "4ea22b3a285e32e5ec73236c3d3585d620a23253",
+                "tests/test_portable_finish_check_reuse.py": "22f7f2b97fd9cb34c45c392164eb94952559773d",
+                "tests/test_requirement_execution.py": "875afcf219fa19b3636c884f56b3fc15894fb2f2",
+                "tests/test_shared_writer_guard.py": "8aafbe927fbbac3969a8fdb9e665959ac87dd0f9",
+                "tests/test_template_contract.py": "9af9abdf07f73ad3b8adc040cdfcd585abfa3162"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-949/T3"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/execute_requirement.py (diff lines ~402-465): inside `_ready_receipt`, `finalize_portable_change(worktree)` runs review, `finalize_change` and a git commit before `create_receipt`. A reader or caller of a receipt function does not expect this. Moving finalization to an explicit step in `advance` would make the ordering and error handling visible.",
+                  "id": "ready-receipt-hidden-mutation",
+                  "severity": "advisory",
+                  "summary": "`_ready_receipt` in execute_requirement.py now launches the reviewer, archives and commits as a side effect, which hides heavy mutation inside a receipt-building helper."
+                },
+                {
+                  "evidence": "template/scripts/finish_task.py `finalize_portable_change`: `finalize_change(...)` is followed by `run_git(['add',...])` and `run_git(['commit',...])`. If the commit fails (hook, identity), the tree holds an uncommitted archive. A rerun resolves the provenance as `archived` and returns at `canonical.lifecycle == 'archived'` without committing. Finish then proceeds with a dirty tree or fails later with a less direct diagnostic.",
+                  "id": "portable-finalize-commit-partial-failure",
+                  "severity": "advisory",
+                  "summary": "`finalize_portable_change` is not resumable if the archive succeeds but the commit fails."
+                },
+                {
+                  "evidence": "template/scripts/finish_task.py: the module-level `from managed_task import (... resolve_canonical_provenance ...)` is added in the same diff, and `finalize_portable_change` still has `from managed_task import resolve_canonical_provenance`. The local import shadows the global one, so tests that patch `managed_task.resolve_canonical_provenance` and callers that patch `finish_task.resolve_canonical_provenance` get different behaviour in `main` and in the function.",
+                  "id": "redundant-local-import",
+                  "severity": "advisory",
+                  "summary": "`finalize_portable_change` re-imports `resolve_canonical_provenance` locally even though the same patch adds it to the module-level import."
+                },
+                {
+                  "evidence": "template/scripts/independent_review.py: the final `require_review_evidence(root, change)` was replaced by a second `evaluate(root, change, required=True)` plus a ready check, which duplicates `require_review_evidence`'s logic. `finalize_change` then re-runs `finalize_change_problems` with `review=True`. This is an extra evaluation and a second copy of the blocking rule that can drift.",
+                  "id": "review-evaluated-repeatedly",
+                  "severity": "advisory",
+                  "summary": "`ensure_review_evidence` now calls `evaluate` twice, and `finalize_change_problems` evaluates the review evidence again inside `finalize_change`."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "3b6cd3fe5fb33424a2006fb52315f2f97f0d33d1880cf2b2b8a8a0536dba18eb"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/execute_requirement.py:405-419 gates only on lifecycle_mode == 'portable' and an active, verified change; specs/completion-lifecycle/spec.md:21 says 'ready portable multi-child child'.",
+                  "id": "advance-finalize-scope-broader-than-spec",
+                  "severity": "advisory",
+                  "summary": "Advance finalization is applied in _ready_receipt for any portable ready child, whereas the delta spec only names a 'ready portable multi-child child'. The single-child portable path is not distinguished in the spec."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "06bef123aba00d6926c8201c3a99a702970109a31ad209c3a6bc0a48240ddec5"
+            }
+          },
+          "identity": {
+            "change": "portable-finish-finalize",
+            "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+            "kind": "contribution",
+            "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+            "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+            "target_branch": "requirement/BR-949",
+            "task_content": {
+              "base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+              "digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2",
+              "paths": {
+                "AGENTS.md": "a12bc4a3efc64d3a43585360665a176583fe62db",
+                "docs/engineering/agent-workflow.md": "454a34688802844874021e6e3b74b3b8e20df974",
+                "docs/engineering/openspec-workflow.md": "412fbfe69e796cc651b89177e910fb7c8a843de4",
+                "docs/engineering/task-intake.md": "a37c8e5025d871bab63bab2204783386ee98905c",
+                "explorer/nodes/add-openspec.toml": "cca6112e735cb8e34c95ace08b741ac569534f2b",
+                "openspec/changes/portable-finish-finalize/.managed-task.json": "b21481386524dace0bfaa4e92275eafdccdaa840",
+                "openspec/changes/portable-finish-finalize/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+                "openspec/changes/portable-finish-finalize/design.md": "04d328970c3fa422bf332595271da633dafe9ead",
+                "openspec/changes/portable-finish-finalize/proposal.md": "eea5a013c9c87d8a89fe15f4038d5bd1f7bdfb3a",
+                "openspec/changes/portable-finish-finalize/specs/completion-lifecycle/spec.md": "6688c2b596fd2e13dd640a30699eb2945885dc52",
+                "openspec/changes/portable-finish-finalize/tasks.md": "fd7320a6625c22df2e27d551e44498d233dcedee",
+                "openspec/config.yaml": "36a79de5dc76195724975d22aea5d33ae2212441",
+                "template/AGENTS.md.jinja": "11dc09a6d98b5d801913fda89ee2b275be8bb6ed",
+                "template/docs/engineering/agent-workflow.md.jinja": "62090d3e009fa2f8191aad2592c61ebe6460473c",
+                "template/docs/engineering/openspec-workflow.md": "72ac0c54485c6db31abb4457061fda7817bafecf",
+                "template/docs/engineering/task-intake.md.jinja": "d50bcdcd583f3f184f29e2e8a98b904026bec72e",
+                "template/openspec/config.yaml.jinja": "df6dde4afdc546c31722ab5c69dce5510ede56c8",
+                "template/scripts/execute_requirement.py": "b24af8526f1db13cbf17b96edc00b970dc12c967",
+                "template/scripts/finish_task.py": "9d37c78f3554ae7a208fabfa7cc579fe74c03d10",
+                "template/scripts/independent_review.py": "1c2f1a9ede2a234abec66d7c645c5a1ed2c7db98",
+                "template/scripts/independent_review_runner.py": "5165bd0415d3fadc31698bd390838b90d5e53b53",
+                "template/scripts/openspec_lifecycle.py": "1134c0a710a83240f662d55f0d1e65e5afef9f49",
+                "template/scripts/requirement_composition.py": "6967fe6c7cbc7fb3578d205eb8e08050277b5e8c",
+                "tests/test_archive_finalize_function.py": "fd6ddda6fffcd17cd2e681ed47dd30ce591cae64",
+                "tests/test_downstream_boundary.py": "8d6fa807cfc2fb3f75c028992dc7cd628b1d9964",
+                "tests/test_independent_review.py": "4ea22b3a285e32e5ec73236c3d3585d620a23253",
+                "tests/test_portable_finish_check_reuse.py": "22f7f2b97fd9cb34c45c392164eb94952559773d",
+                "tests/test_requirement_execution.py": "875afcf219fa19b3636c884f56b3fc15894fb2f2",
+                "tests/test_shared_writer_guard.py": "8aafbe927fbbac3969a8fdb9e665959ac87dd0f9",
+                "tests/test_template_contract.py": "9af9abdf07f73ad3b8adc040cdfcd585abfa3162"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-949/T3"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 11926,
+            "path": "openspec/changes/portable-finish-finalize/automated-checks.json",
+            "sha256": "2fd787a67ca86cb82a429059ce8a74842f334cc1b2336dff3569b6885a084b0b"
+          },
+          "identity": {
+            "change": "portable-finish-finalize",
+            "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+            "kind": "contribution",
+            "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+            "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+            "target_branch": "requirement/BR-949",
+            "task_content": {
+              "base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+              "digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2",
+              "paths": {
+                "AGENTS.md": "a12bc4a3efc64d3a43585360665a176583fe62db",
+                "docs/engineering/agent-workflow.md": "454a34688802844874021e6e3b74b3b8e20df974",
+                "docs/engineering/openspec-workflow.md": "412fbfe69e796cc651b89177e910fb7c8a843de4",
+                "docs/engineering/task-intake.md": "a37c8e5025d871bab63bab2204783386ee98905c",
+                "explorer/nodes/add-openspec.toml": "cca6112e735cb8e34c95ace08b741ac569534f2b",
+                "openspec/changes/portable-finish-finalize/.managed-task.json": "b21481386524dace0bfaa4e92275eafdccdaa840",
+                "openspec/changes/portable-finish-finalize/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+                "openspec/changes/portable-finish-finalize/design.md": "04d328970c3fa422bf332595271da633dafe9ead",
+                "openspec/changes/portable-finish-finalize/proposal.md": "eea5a013c9c87d8a89fe15f4038d5bd1f7bdfb3a",
+                "openspec/changes/portable-finish-finalize/specs/completion-lifecycle/spec.md": "6688c2b596fd2e13dd640a30699eb2945885dc52",
+                "openspec/changes/portable-finish-finalize/tasks.md": "fd7320a6625c22df2e27d551e44498d233dcedee",
+                "openspec/config.yaml": "36a79de5dc76195724975d22aea5d33ae2212441",
+                "template/AGENTS.md.jinja": "11dc09a6d98b5d801913fda89ee2b275be8bb6ed",
+                "template/docs/engineering/agent-workflow.md.jinja": "62090d3e009fa2f8191aad2592c61ebe6460473c",
+                "template/docs/engineering/openspec-workflow.md": "72ac0c54485c6db31abb4457061fda7817bafecf",
+                "template/docs/engineering/task-intake.md.jinja": "d50bcdcd583f3f184f29e2e8a98b904026bec72e",
+                "template/openspec/config.yaml.jinja": "df6dde4afdc546c31722ab5c69dce5510ede56c8",
+                "template/scripts/execute_requirement.py": "b24af8526f1db13cbf17b96edc00b970dc12c967",
+                "template/scripts/finish_task.py": "9d37c78f3554ae7a208fabfa7cc579fe74c03d10",
+                "template/scripts/independent_review.py": "1c2f1a9ede2a234abec66d7c645c5a1ed2c7db98",
+                "template/scripts/independent_review_runner.py": "5165bd0415d3fadc31698bd390838b90d5e53b53",
+                "template/scripts/openspec_lifecycle.py": "1134c0a710a83240f662d55f0d1e65e5afef9f49",
+                "template/scripts/requirement_composition.py": "6967fe6c7cbc7fb3578d205eb8e08050277b5e8c",
+                "tests/test_archive_finalize_function.py": "fd6ddda6fffcd17cd2e681ed47dd30ce591cae64",
+                "tests/test_downstream_boundary.py": "8d6fa807cfc2fb3f75c028992dc7cd628b1d9964",
+                "tests/test_independent_review.py": "4ea22b3a285e32e5ec73236c3d3585d620a23253",
+                "tests/test_portable_finish_check_reuse.py": "22f7f2b97fd9cb34c45c392164eb94952559773d",
+                "tests/test_requirement_execution.py": "875afcf219fa19b3636c884f56b3fc15894fb2f2",
+                "tests/test_shared_writer_guard.py": "8aafbe927fbbac3969a8fdb9e665959ac87dd0f9",
+                "tests/test_template_contract.py": "9af9abdf07f73ad3b8adc040cdfcd585abfa3162"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-949/T3"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 5193,
+            "path": "openspec/changes/portable-finish-finalize/verification.md",
+            "sha256": "7b34d605f5f5787df8d0b4aa0bfb272b88eb0f6afcad2e7a63b88b21f9789d26"
+          },
+          "identity": {
+            "change": "portable-finish-finalize",
+            "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+            "kind": "contribution",
+            "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+            "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+            "target_branch": "requirement/BR-949",
+            "task_content": {
+              "base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+              "digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2",
+              "paths": {
+                "AGENTS.md": "a12bc4a3efc64d3a43585360665a176583fe62db",
+                "docs/engineering/agent-workflow.md": "454a34688802844874021e6e3b74b3b8e20df974",
+                "docs/engineering/openspec-workflow.md": "412fbfe69e796cc651b89177e910fb7c8a843de4",
+                "docs/engineering/task-intake.md": "a37c8e5025d871bab63bab2204783386ee98905c",
+                "explorer/nodes/add-openspec.toml": "cca6112e735cb8e34c95ace08b741ac569534f2b",
+                "openspec/changes/portable-finish-finalize/.managed-task.json": "b21481386524dace0bfaa4e92275eafdccdaa840",
+                "openspec/changes/portable-finish-finalize/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+                "openspec/changes/portable-finish-finalize/design.md": "04d328970c3fa422bf332595271da633dafe9ead",
+                "openspec/changes/portable-finish-finalize/proposal.md": "eea5a013c9c87d8a89fe15f4038d5bd1f7bdfb3a",
+                "openspec/changes/portable-finish-finalize/specs/completion-lifecycle/spec.md": "6688c2b596fd2e13dd640a30699eb2945885dc52",
+                "openspec/changes/portable-finish-finalize/tasks.md": "fd7320a6625c22df2e27d551e44498d233dcedee",
+                "openspec/config.yaml": "36a79de5dc76195724975d22aea5d33ae2212441",
+                "template/AGENTS.md.jinja": "11dc09a6d98b5d801913fda89ee2b275be8bb6ed",
+                "template/docs/engineering/agent-workflow.md.jinja": "62090d3e009fa2f8191aad2592c61ebe6460473c",
+                "template/docs/engineering/openspec-workflow.md": "72ac0c54485c6db31abb4457061fda7817bafecf",
+                "template/docs/engineering/task-intake.md.jinja": "d50bcdcd583f3f184f29e2e8a98b904026bec72e",
+                "template/openspec/config.yaml.jinja": "df6dde4afdc546c31722ab5c69dce5510ede56c8",
+                "template/scripts/execute_requirement.py": "b24af8526f1db13cbf17b96edc00b970dc12c967",
+                "template/scripts/finish_task.py": "9d37c78f3554ae7a208fabfa7cc579fe74c03d10",
+                "template/scripts/independent_review.py": "1c2f1a9ede2a234abec66d7c645c5a1ed2c7db98",
+                "template/scripts/independent_review_runner.py": "5165bd0415d3fadc31698bd390838b90d5e53b53",
+                "template/scripts/openspec_lifecycle.py": "1134c0a710a83240f662d55f0d1e65e5afef9f49",
+                "template/scripts/requirement_composition.py": "6967fe6c7cbc7fb3578d205eb8e08050277b5e8c",
+                "tests/test_archive_finalize_function.py": "fd6ddda6fffcd17cd2e681ed47dd30ce591cae64",
+                "tests/test_downstream_boundary.py": "8d6fa807cfc2fb3f75c028992dc7cd628b1d9964",
+                "tests/test_independent_review.py": "4ea22b3a285e32e5ec73236c3d3585d620a23253",
+                "tests/test_portable_finish_check_reuse.py": "22f7f2b97fd9cb34c45c392164eb94952559773d",
+                "tests/test_requirement_execution.py": "875afcf219fa19b3636c884f56b3fc15894fb2f2",
+                "tests/test_shared_writer_guard.py": "8aafbe927fbbac3969a8fdb9e665959ac87dd0f9",
+                "tests/test_template_contract.py": "9af9abdf07f73ad3b8adc040cdfcd585abfa3162"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-949/T3"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "abc401590f72474e92e3d73dd3a7d33d381b2a56",
+      "integrated_head": "3aebcd7a326bd2736b2687683f9ba33c7d26337f",
+      "pr_number": 881,
+      "reviewed_evidence_digest": "f188fafa7c359c023963572c7319c65f058bd455f9edbbb5424539e74d1c0856",
+      "source_branch": "agent/br-949-t3-portable-finish-finalize",
+      "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+      "task_identity": {
+        "change": "portable-finish-finalize",
+        "contribution_base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+        "kind": "contribution",
+        "requirement": "pln_4d302215cbbf15ae1bc0be792f437de8",
+        "source_issue": "pln_6d93f8aa647e9daf501da48eda85c6a5",
+        "target_branch": "requirement/BR-949",
+        "task_content": {
+          "base": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+          "digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2",
+          "paths": {
+            "AGENTS.md": "a12bc4a3efc64d3a43585360665a176583fe62db",
+            "docs/engineering/agent-workflow.md": "454a34688802844874021e6e3b74b3b8e20df974",
+            "docs/engineering/openspec-workflow.md": "412fbfe69e796cc651b89177e910fb7c8a843de4",
+            "docs/engineering/task-intake.md": "a37c8e5025d871bab63bab2204783386ee98905c",
+            "explorer/nodes/add-openspec.toml": "cca6112e735cb8e34c95ace08b741ac569534f2b",
+            "openspec/changes/portable-finish-finalize/.managed-task.json": "b21481386524dace0bfaa4e92275eafdccdaa840",
+            "openspec/changes/portable-finish-finalize/.openspec.yaml": "4ccb2b41aa2b40f7b35d576c812cbd2fd5b90a2b",
+            "openspec/changes/portable-finish-finalize/design.md": "04d328970c3fa422bf332595271da633dafe9ead",
+            "openspec/changes/portable-finish-finalize/proposal.md": "eea5a013c9c87d8a89fe15f4038d5bd1f7bdfb3a",
+            "openspec/changes/portable-finish-finalize/specs/completion-lifecycle/spec.md": "6688c2b596fd2e13dd640a30699eb2945885dc52",
+            "openspec/changes/portable-finish-finalize/tasks.md": "fd7320a6625c22df2e27d551e44498d233dcedee",
+            "openspec/config.yaml": "36a79de5dc76195724975d22aea5d33ae2212441",
+            "template/AGENTS.md.jinja": "11dc09a6d98b5d801913fda89ee2b275be8bb6ed",
+            "template/docs/engineering/agent-workflow.md.jinja": "62090d3e009fa2f8191aad2592c61ebe6460473c",
+            "template/docs/engineering/openspec-workflow.md": "72ac0c54485c6db31abb4457061fda7817bafecf",
+            "template/docs/engineering/task-intake.md.jinja": "d50bcdcd583f3f184f29e2e8a98b904026bec72e",
+            "template/openspec/config.yaml.jinja": "df6dde4afdc546c31722ab5c69dce5510ede56c8",
+            "template/scripts/execute_requirement.py": "b24af8526f1db13cbf17b96edc00b970dc12c967",
+            "template/scripts/finish_task.py": "9d37c78f3554ae7a208fabfa7cc579fe74c03d10",
+            "template/scripts/independent_review.py": "1c2f1a9ede2a234abec66d7c645c5a1ed2c7db98",
+            "template/scripts/independent_review_runner.py": "5165bd0415d3fadc31698bd390838b90d5e53b53",
+            "template/scripts/openspec_lifecycle.py": "1134c0a710a83240f662d55f0d1e65e5afef9f49",
+            "template/scripts/requirement_composition.py": "6967fe6c7cbc7fb3578d205eb8e08050277b5e8c",
+            "tests/test_archive_finalize_function.py": "fd6ddda6fffcd17cd2e681ed47dd30ce591cae64",
+            "tests/test_downstream_boundary.py": "8d6fa807cfc2fb3f75c028992dc7cd628b1d9964",
+            "tests/test_independent_review.py": "4ea22b3a285e32e5ec73236c3d3585d620a23253",
+            "tests/test_portable_finish_check_reuse.py": "22f7f2b97fd9cb34c45c392164eb94952559773d",
+            "tests/test_requirement_execution.py": "875afcf219fa19b3636c884f56b3fc15894fb2f2",
+            "tests/test_shared_writer_guard.py": "8aafbe927fbbac3969a8fdb9e665959ac87dd0f9",
+            "tests/test_template_contract.py": "9af9abdf07f73ad3b8adc040cdfcd585abfa3162"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-949/T3"
+      },
+      "work_identity": "BR-949/T3"
     }
   ],
   "dependencies": {
@@ -1516,7 +1901,7 @@
       "composition-archive-finalize"
     ]
   },
-  "digest": "89cfb86106b39f732fa043f237eb7777bf653c2e087845c8fc81088157739c4e",
+  "digest": "fe7086634613651f201a79843a9883d750920d35fe878d49b53dc31bd2973138",
   "expected_changes": [
     "archive-finalize-function",
     "composition-archive-finalize",
