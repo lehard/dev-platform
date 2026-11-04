@@ -2,11 +2,15 @@
   "candidate": {
     "base_head": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
     "base_ref": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
-    "candidate_head": "3afb947963d9627f60ac05fbe4c544ef6e6eacfa",
-    "diff_sha256": "e6c08d799d20b656c1ab064156bcd511c011d11a04baa4161f68c60a0552cd1d"
+    "candidate_head": "81d7a17ac888af90499308bb978e12d701ac3c84",
+    "diff_sha256": "e0520080f18a42a6221a25630165526b34f532a1170a9b666e7f9a5d3ce31fbe"
   },
   "change": "openspec/changes/portable-finish-finalize",
   "excluded_lifecycle_paths": [
+    "openspec/changes/portable-finish-finalize/automated-checks.json",
+    "openspec/changes/portable-finish-finalize/independent-review-request.json",
+    "openspec/changes/portable-finish-finalize/independent-reviews/engineering-quality.json",
+    "openspec/changes/portable-finish-finalize/independent-reviews/spec-fidelity.json",
     "openspec/changes/portable-finish-finalize/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -34,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-04T05:55:31+00:00",
+  "prepared_at": "2026-11-04T06:32:36+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/portable-finish-finalize/independent-reviews",
     "required_perspectives": [
@@ -43,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "11ea00d4-bb52-4bed-a1fc-17a21ba2c47b",
+  "request_id": "a8d25fe2-b32c-49cb-aa6b-afc2a29c73b1",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
