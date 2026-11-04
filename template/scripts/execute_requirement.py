@@ -4,7 +4,7 @@
 This is a supervisor adapter, not an autonomous code author or a task queue.
 Each invocation performs safe deterministic transitions until bounded child
 implementation is needed, then returns the exact worktree to the agent. The
-agent reruns this same command after committing and archiving that child.
+agent reruns this same command after committing the verified child.
 """
 from __future__ import annotations
 
@@ -402,6 +402,20 @@ def _ready_receipt(
     if not branch or _git(worktree, "branch", "--show-current") != branch:
         return None
     canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
+    if canonical is not None and canonical.lifecycle == "active":
+        from _platform_common import lifecycle_mode, read_platform_config
+        from openspec_lifecycle import task_state, verification_passed
+        if lifecycle_mode(read_platform_config(worktree)) == "portable":
+            total, incomplete = task_state(canonical.path)
+            if total and not incomplete and verification_passed(canonical.path):
+                from finish_task import finalize_portable_change
+                try:
+                    finalize_portable_change(worktree)
+                except SystemExit as exc:
+                    raise RequirementExecutionError(f"{change}: portable finalization refused: {exc}") from exc
+                canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
+                if canonical is None or canonical.lifecycle != "archived":
+                    raise RequirementExecutionError(f"{change}: portable finalization did not produce archived canonical provenance")
     if canonical is None or canonical.lifecycle != "archived":
         return None
     archive = canonical.path
@@ -766,8 +780,8 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
                 "Perform routed bounded implementation, establish selected checks and semantic verification, and commit; "
                 "rerun execute_requirement.py advance to publish the active child for coordinator review and finalization."
                 if len(ordered) == 1 and _contribution_publication_supported(integration) else
-                "Perform routed bounded implementation, verify, archive and commit; rerun execute_requirement.py advance. "
-                "When independent review is required, archive never runs it: run independent_review.next first and follow it if it is blocked. "
+                "Perform routed bounded implementation, verify and commit; rerun execute_requirement.py advance to review and finalize the ready child. "
+                "Review blockers stop finalization and name their next command. "
                 f"Check reviewer runtime readiness after routing with: python3 scripts/independent_review.py preflight {change}"
             ),
         })

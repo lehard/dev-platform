@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+    "base_ref": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+    "candidate_head": "81d7a17ac888af90499308bb978e12d701ac3c84",
+    "diff_sha256": "e0520080f18a42a6221a25630165526b34f532a1170a9b666e7f9a5d3ce31fbe"
+  },
+  "completed_at": "2026-11-04T06:32:57+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py:405-419 gates only on lifecycle_mode == 'portable' and an active, verified change; specs/completion-lifecycle/spec.md:21 says 'ready portable multi-child child'.",
+      "id": "advance-finalize-scope-broader-than-spec",
+      "severity": "advisory",
+      "summary": "Advance finalization is applied in _ready_receipt for any portable ready child, whereas the delta spec only names a 'ready portable multi-child child'. The single-child portable path is not distinguished in the spec."
+    }
+  ],
+  "launched_at": "2026-11-04T06:32:42+00:00",
+  "output_sha256": "8aa2c9483e37b912cde34448f8685e99ef4d4e92394f5fa95a4fbbc172897c7b",
+  "perspective": "spec-fidelity",
+  "request_id": "a8d25fe2-b32c-49cb-aa6b-afc2a29c73b1",
+  "reviewer": {
+    "context_id": "8be187c8-faf3-443f-a4e4-eff2665d858a",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-ba8b2497-6f3e-49ea-979d-aad754d6fbc3",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42909
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 99791
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12849
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13519
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1210
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2"
+}

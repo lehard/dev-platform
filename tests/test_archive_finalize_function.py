@@ -145,12 +145,25 @@ class FinalizePreconditionTests(unittest.TestCase):
             archive.assert_called_once_with(root, "work", "/fixture/bin/openspec", env=env)
 
     def test_cli_selects_the_finalize_context(self) -> None:
-        for argv, context in ((["archive", "work", "--finalize"], "queue"), (["archive", "work"], "developer")):
+        for argv, context in ((["archive", "work", "--finalize"], "queue"),):
             with self.subTest(argv=argv), mock.patch.object(sys, "argv", ["openspec_lifecycle.py", *argv]), \
                     mock.patch.object(lifecycle, "current_worktree_root", return_value=Path("/r")), \
                     mock.patch.object(lifecycle, "finalize_change", return_value=0) as finalize:
                 self.assertEqual(lifecycle.main(), 0)
             finalize.assert_called_once_with(Path("/r"), "work", context=context)
+
+    def test_developer_archive_refuses_before_target_or_archive_work(self) -> None:
+        for mode, executor in (("portable", "finish"), ("coordinator", "queue finalize job")):
+            with self.subTest(mode=mode), mock.patch.object(sys, "argv", ["lifecycle", "archive", "work"]), \
+                    mock.patch.object(lifecycle, "current_worktree_root", return_value=Path("/r")), \
+                    mock.patch.object(lifecycle, "read_platform_config", return_value={}), \
+                    mock.patch.object(lifecycle, "lifecycle_mode", return_value=mode), \
+                    mock.patch.object(lifecycle, "finalize_change") as finalize, \
+                    mock.patch.object(lifecycle, "require_existing_archive_target") as target:
+                with self.assertRaisesRegex(SystemExit, "developer archive is refused.*" + executor):
+                    lifecycle.main()
+            finalize.assert_not_called()
+            target.assert_not_called()
 
     def test_finalize_job_archives_through_the_same_function(self) -> None:
         finalization = load_platform_module("post_review_finalization", SCRIPTS / "post_review_finalization.py")

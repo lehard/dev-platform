@@ -763,27 +763,39 @@ def run_review(
             # A reused request records the exclusions this run actually applied.
             request["excluded_lifecycle_paths"] = excluded
             atomic_write_text(review.request_path(change), json.dumps(request, indent=2, sort_keys=True) + "\n")
-    # Runtime readiness is proven before any perspective launches.
+    diff, diff_error = candidate_diff(root, merge_base, reviewed_paths)
+    reports = run_review_stage(root, request, config=config, launcher=launcher, diff=diff,
+                               limitation=diff_limitation or diff_error, watched=workspaces(root))
+    for perspective, report in reports.items():
+        atomic_write_text(review.report_path(change, perspective), json.dumps(report, indent=2, sort_keys=True) + "\n")
+    return reports
+
+
+def run_review_stage(root: Path, request: dict[str, Any], *, config: dict[str, Any],
+                     launcher: Launcher | None, diff: str, limitation: str | None,
+                     watched: list[Path]) -> dict[str, dict[str, Any]]:
+    """Shared portable/queue review stage: runtime preflight and independent perspectives.
+
+    Callers own candidate preparation, containment and evidence persistence. No archive
+    executor invokes this function: review remains a required stage before finalization.
+    """
     readiness = preflight(root, config=config, launcher=launcher)
-    provider, model, binary = readiness["provider"], readiness["model"], readiness["binary"]
-    limitation: str | None = None if readiness["ready"] else readiness["limitation"]
-    watched = workspaces(root)
+    if not readiness["ready"]:
+        limitation = limitation or readiness["limitation"]
     reports: dict[str, dict[str, Any]] = {}
     with tempfile.TemporaryDirectory(prefix="dev-platform-review-") as temporary:
         scratch = Path(temporary).resolve()
         (scratch / "findings-schema.json").write_text(json.dumps(FINDINGS_SCHEMA), encoding="utf-8")
         diff_path = scratch / "candidate.diff"
-        diff, diff_error = candidate_diff(root, merge_base, reviewed_paths)
-        limitation = limitation or diff_limitation or diff_error
         diff_path.write_text(diff, encoding="utf-8")
         for perspective in review.PERSPECTIVES:
             report = run_perspective(
-                root, request, perspective, provider=provider, model=model, binary=binary, limitation=limitation,
+                root, request, perspective, provider=readiness["provider"], model=readiness["model"],
+                binary=readiness["binary"], limitation=limitation,
                 launcher=launcher or subprocess_launcher, timeout=timeout_seconds(config), scratch=scratch,
                 diff_path=diff_path, watched=watched,
             )
             report["reviewer"].update({key: readiness.get(key) for key in
                                        ("requested_provider", "executed_provider", "fallback_reason")})
-            atomic_write_text(review.report_path(change, perspective), json.dumps(report, indent=2, sort_keys=True) + "\n")
             reports[perspective] = report
     return reports

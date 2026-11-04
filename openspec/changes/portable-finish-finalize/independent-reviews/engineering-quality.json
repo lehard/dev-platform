@@ -1,0 +1,97 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+    "base_ref": "2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3",
+    "candidate_head": "81d7a17ac888af90499308bb978e12d701ac3c84",
+    "diff_sha256": "e0520080f18a42a6221a25630165526b34f532a1170a9b666e7f9a5d3ce31fbe"
+  },
+  "completed_at": "2026-11-04T06:33:36+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/execute_requirement.py (diff lines ~402-465): inside `_ready_receipt`, `finalize_portable_change(worktree)` runs review, `finalize_change` and a git commit before `create_receipt`. A reader or caller of a receipt function does not expect this. Moving finalization to an explicit step in `advance` would make the ordering and error handling visible.",
+      "id": "ready-receipt-hidden-mutation",
+      "severity": "advisory",
+      "summary": "`_ready_receipt` in execute_requirement.py now launches the reviewer, archives and commits as a side effect, which hides heavy mutation inside a receipt-building helper."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py `finalize_portable_change`: `finalize_change(...)` is followed by `run_git(['add',...])` and `run_git(['commit',...])`. If the commit fails (hook, identity), the tree holds an uncommitted archive. A rerun resolves the provenance as `archived` and returns at `canonical.lifecycle == 'archived'` without committing. Finish then proceeds with a dirty tree or fails later with a less direct diagnostic.",
+      "id": "portable-finalize-commit-partial-failure",
+      "severity": "advisory",
+      "summary": "`finalize_portable_change` is not resumable if the archive succeeds but the commit fails."
+    },
+    {
+      "evidence": "template/scripts/finish_task.py: the module-level `from managed_task import (... resolve_canonical_provenance ...)` is added in the same diff, and `finalize_portable_change` still has `from managed_task import resolve_canonical_provenance`. The local import shadows the global one, so tests that patch `managed_task.resolve_canonical_provenance` and callers that patch `finish_task.resolve_canonical_provenance` get different behaviour in `main` and in the function.",
+      "id": "redundant-local-import",
+      "severity": "advisory",
+      "summary": "`finalize_portable_change` re-imports `resolve_canonical_provenance` locally even though the same patch adds it to the module-level import."
+    },
+    {
+      "evidence": "template/scripts/independent_review.py: the final `require_review_evidence(root, change)` was replaced by a second `evaluate(root, change, required=True)` plus a ready check, which duplicates `require_review_evidence`'s logic. `finalize_change` then re-runs `finalize_change_problems` with `review=True`. This is an extra evaluation and a second copy of the blocking rule that can drift.",
+      "id": "review-evaluated-repeatedly",
+      "severity": "advisory",
+      "summary": "`ensure_review_evidence` now calls `evaluate` twice, and `finalize_change_problems` evaluates the review evidence again inside `finalize_change`."
+    }
+  ],
+  "launched_at": "2026-11-04T06:32:57+00:00",
+  "output_sha256": "e9efe9d0c880bcd0a6ddd4643df9284226bb3633787e5773d03b5c16ee7df872",
+  "perspective": "engineering-quality",
+  "request_id": "a8d25fe2-b32c-49cb-aa6b-afc2a29c73b1",
+  "reviewer": {
+    "context_id": "ee393fea-24c3-4252-bfee-aaeb774bc732",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-52728a52-58f4-46a8-a9ff-d347a2afb323",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 45249
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 194800
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36088
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 37753
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3222
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "5f675bf72f448cc18b83c29adb66f73f36972066fe56b2901c50d4f9f220dce2"
+}

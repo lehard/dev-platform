@@ -65,11 +65,12 @@ Before archiving a non-trivial platform change, run relevant tests plus semantic
 
 ### Independent review evidence
 
-For a material managed change, independent review is required when the
-repository sets `[independent_review] enabled = true` (the central repository
-does; the downstream template default stays `false`, so Copier updates do not
-change a project until it opts in). Quick tasks without managed provenance are
-never reviewed.
+Portable finish and portable Requirement advance require independent review for
+every managed change, including light projects. Outside those executors,
+`[independent_review] enabled = true` requires review for material managed
+changes (the central repository enables it; the downstream template default is
+`false`). The optional setting cannot disable portable finalization review.
+Quick tasks without managed provenance are never reviewed.
 
 The platform launches the reviewer itself. Each of the two perspectives
 (`spec-fidelity` and `engineering-quality`) runs as a fresh, non-resumable
@@ -104,7 +105,7 @@ run it right after routing a managed task and before implementation. A
 missing binary, nonzero exit, error result or timeout names the CLI's own
 bounded error and the next step: log the CLI in, point
 `DEV_PLATFORM_CLAUDE_BIN` at the Claude Code CLI, or change the
-`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, coordinator candidates become `blocked-retryable` with a fresh review job. `run` (and therefore archive) performs the
+`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, coordinator candidates become `blocked-retryable` with a fresh review job. `run` performs the
 same preflight first; when it fails, both perspectives are recorded as
 `unavailable` with that limitation and no perspective is launched.
 
@@ -152,9 +153,7 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-When review is required, archive never runs it: a missing, stale or
-unavailable review is run outside archive (the queue review job, or the
-review command), and archive only requires its evidence. Archive evaluates every precondition
+Archive never launches review. Without a queue, finish runs the required independent review stage before shared finalization; the queue review job owns that stage for coordinator candidates. Finalization requires its evidence. Archive evaluates every precondition
 (tasks, receipt, review evidence, routing, automated-check evidence, committed
 package, private lineage, checkout identity) before any archive work and fails
 once listing each unmet one with its fix. `finish` re-validates the evidence
@@ -174,9 +173,7 @@ A platform change is not done merely because its task checkboxes are complete. A
 
 1. record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change's `verification.md`;
 2. commit the package (tasks, delta specs, receipt);
-3. archive through the platform lifecycle helper;
-4. commit the resulting current-spec/archive changes;
-5. only then publish.
+3. run finish, which requires independent review, invokes shared finalization, commits the archive and publishes; coordinator candidates hand off to the queue review and finalize jobs.
 
 A delta that creates a capability absent from `openspec/specs` must carry an
 authored `## Purpose` section before its `## ADDED Requirements`. OpenSpec reads
@@ -212,17 +209,13 @@ Automated-Checks-Evidence: automated-checks.json
 
 Archive preflight checks this exact marker before it runs selected checks or writes evidence, so a missing receipt is actionable before archive mutation. Add the marker only when the generated evidence will truthfully name the checks the helper ran. This requirement does not apply to `harness_mode=project`, where repository CI remains the product-verification authority.
 
-For the central repository, the lifecycle helper is invoked as:
-
-```bash
-python3 template/scripts/openspec_lifecycle.py archive <change>
-```
+Developers run finish or Requirement advance. `openspec_lifecycle.py archive` without `--finalize` refuses before archive work and names finish or the queue finalize job. `--finalize` is reserved for the trusted archiver.
 
 Completed-but-active changes are treated as lifecycle debt and are blocked by platform CI.
 
-While `archive <change>` runs the mandatory selected or protected checks, the hygiene check inside them (`openspec_lifecycle.py check`, which stays in the check groups) exempts exactly that archive target, so a verified change does not deadlock on its own archive. The helper validates the target (a valid name of an existing, completed active change) before any state changes and passes it only through the reserved `DEV_PLATFORM_ARCHIVE_TARGET` and `DEV_PLATFORM_ARCHIVE_ROOT` (the archiving checkout's real path) variables in the environment of that single validation subprocess. Hygiene applies the exemption only in that checkout: a context issued for a different checkout is ignored and the ordinary check runs (scoping, not a masked failure), exactly one variable of the pair set, an empty value, or a relative root path fails explicitly, and a pair for this checkout whose target is not a completed active change fails explicitly. Any other completed-but-active change still blocks, and nothing persists after a failed archive: the next ordinary `check` blocks again. Do not export these variables by hand.
+While portable finalization runs the mandatory selected or protected checks, the hygiene check inside them (`openspec_lifecycle.py check`, which stays in the check groups) exempts exactly that archive target, so a verified change does not deadlock on its own archive. The helper validates the target (a valid name of an existing, completed active change) before any state changes and passes it only through the reserved `DEV_PLATFORM_ARCHIVE_TARGET` and `DEV_PLATFORM_ARCHIVE_ROOT` (the archiving checkout's real path) variables in the environment of that single validation subprocess. Hygiene applies the exemption only in that checkout: a context issued for a different checkout is ignored and the ordinary check runs (scoping, not a masked failure), exactly one variable of the pair set, an empty value, or a relative root path fails explicitly, and a pair for this checkout whose target is not a completed active change fails explicitly. Any other completed-but-active change still blocks, and nothing persists after a failed archive: the next ordinary `check` blocks again. Do not export these variables by hand.
 
-When `[private_lineage] enabled = true`, `archive <change>` first runs the existing `scripts/check_private_backlog_refs.py` over the current candidate, before review, selected checks, evidence writes or any OpenSpec mutation; the shared Requirement publisher runs the same gate before full candidate validation, including draft candidates. A private Issue reference in a child proposal, design or archived artifact therefore fails at the child archive with the guard's opaque diagnostic, and a missing guard fails explicitly with no substitute scanner. Finish preflight, the developer handoff and publication keep their own recheck under the same rule: where private lineage is enabled a missing guard is a blocker naming it, and where it is not enabled the guard does not run and the run prints `private-reference guard: not applicable by configuration (private_lineage not enabled)`.
+When `[private_lineage] enabled = true`, portable finalization first runs the existing `scripts/check_private_backlog_refs.py` over the current candidate, before review, selected checks, evidence writes or any OpenSpec mutation; the shared Requirement publisher runs the same gate before full candidate validation, including draft candidates. A private Issue reference in a child proposal, design or archived artifact therefore fails at the child archive with the guard's opaque diagnostic, and a missing guard fails explicitly with no substitute scanner. Finish preflight, the developer handoff and publication keep their own recheck under the same rule: where private lineage is enabled a missing guard is a blocker naming it, and where it is not enabled the guard does not run and the run prints `private-reference guard: not applicable by configuration (private_lineage not enabled)`.
 
 Do not fabricate a verification receipt. The verification report must state what was actually checked and which method was used.
 

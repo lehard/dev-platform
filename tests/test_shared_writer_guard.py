@@ -82,7 +82,6 @@ REVIEWED_BASELINE: dict[str, int] = {
     'lifecycle_workers.py:install_source_contract:open': 1,
     # Trusted harness manifests/evidence and private reviewer scratch inputs.
     'requirement_composition.py:_execute_composition_review:write_text': 4,
-    'requirement_composition.py:run_child_review:write_text': 2,
     'requirement_contributions.py:write_manifest:write_text': 1,
     '_platform_common.py:locked_json:open': 1,
     'agent_doctor.py:ensure_git_hooks:write_bytes': 1,
@@ -121,7 +120,7 @@ REVIEWED_BASELINE: dict[str, int] = {
     'lifecycle_workers.py:prepare_checkout:open': 1,
     'lifecycle_workers.py:scratch_home:copy2': 1,
     # Reviewer schema and candidate diff go to a private temporary directory outside the repository.
-    'independent_review_runner.py:run_review:write_text': 2,
+    'independent_review_runner.py:run_review_stage:write_text': 2,
     'integration_state.py:local_state_matches_remote_target:mkstemp': 1,
     'integration_state.py:serialized_integration:open': 1,
     # Operator-local generated artifacts: atomic, explicit modes, cooperative generated-state replacement.

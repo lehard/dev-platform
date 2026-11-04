@@ -869,6 +869,39 @@ class IndependentReviewTests(unittest.TestCase):
             review.ensure_review_evidence(self.root, self.change)
         self.assertEqual(launcher.calls, [])
 
+    def test_portable_required_stage_runs_when_optional_review_is_disabled(self) -> None:
+        self.write_config('provider = "codex"\n', enabled="false")
+        self.commit("portable review setting")
+        launcher = FakeLauncher()
+        review.ensure_review_evidence(self.root, self.change, launcher=launcher, required=True)
+        self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2))
+        self.assertEqual(review.evaluate(self.root, self.change, required=True)["state"], "ready")
+        review.ensure_review_evidence(self.root, self.change, launcher=launcher, required=True)
+        self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2), "reuse the unchanged review")
+
+    def test_queue_child_review_uses_the_shared_stage_and_perspectives(self) -> None:
+        import requirement_composition
+        launcher = FakeLauncher()
+        with mock.patch.object(runner, "run_review_stage", wraps=runner.run_review_stage) as stage:
+            reports = requirement_composition.run_child_review(
+                self.root, self.change, base_ref="origin/main", launcher=launcher, config={"provider": "codex"})
+        stage.assert_called_once()
+        self.assertEqual(stage.call_args.kwargs["watched"], [])
+        self.assertEqual(set(reports), set(review.PERSPECTIVES))
+        self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2))
+        self.assertEqual(self.state()["state"], "ready")
+
+    def test_queue_child_review_preserves_its_tree_snapshot_guard(self) -> None:
+        import lifecycle_workers
+        import requirement_composition
+        mutated = self.root / "reviewer-output.txt"
+        with self.assertRaisesRegex(lifecycle_workers.WorkerError, "child reviewer modified the checkout"):
+            requirement_composition.run_child_review(
+                self.root, self.change, base_ref="origin/main", launcher=FakeLauncher(mutate=mutated),
+                config={"provider": "codex"})
+        self.assertTrue(mutated.is_file(), "the executor must not clean a reviewer mutation")
+        self.assertFalse(review.report_path(self.change, "spec-fidelity").exists())
+
     def test_template_default_disables_review(self) -> None:
         self.write_config("", enabled="false")
         self.assertFalse(review.review_is_required(self.root, self.change))
@@ -900,7 +933,8 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(state["state"], "missing")
         source = (SCRIPTS / "execute_requirement.py").read_text(encoding="utf-8")
         self.assertIn('"independent_review": _child_review_state(', source)
-        self.assertIn("archive never runs it", source)
+        self.assertIn("rerun execute_requirement.py advance to review and finalize the ready child", source)
+        self.assertIn("Review blockers stop finalization and name their next command", source)
 
     # Boundaries ---------------------------------------------------------------
 
