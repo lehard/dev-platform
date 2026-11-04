@@ -1,0 +1,20 @@
+{
+  "base": "4b51d8f522493e5bf06556b619ab8387002a082a",
+  "children": [],
+  "dependencies": {
+    "contribution-integration-contract": [],
+    "delegation-abandon-recovery": [],
+    "requirement-retrospective-refresh": []
+  },
+  "digest": "67d14a78d18d2e166a1895bb65253695fe8a88029db617fd728192168deb6282",
+  "expected_changes": [
+    "contribution-integration-contract",
+    "delegation-abandon-recovery",
+    "requirement-retrospective-refresh"
+  ],
+  "integration_branch": "requirement/BR-987",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+  "version": 2,
+  "work_identity": "BR-987"
+}
