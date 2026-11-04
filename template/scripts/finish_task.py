@@ -58,6 +58,7 @@ from managed_task import (
     require_managed_checkout_identity,
     require_no_orphan_active_openspec,
     require_delivery_provenance,
+    resolve_canonical_provenance,
     resolve_process_evidence_after_delivery,
 )
 
@@ -928,13 +929,14 @@ def finish_developer_handoff(work: Path, integration: Path, config: dict, branch
 
 def finalize_portable_change(work: Path) -> None:
     """Portable executor: review, shared finalize, and commit before publication/receipts."""
-    from independent_review import ensure_review_evidence
     from managed_task import resolve_canonical_provenance
-    from openspec_lifecycle import FINALIZE_DEVELOPER, finalize_change, finalize_change_problems
 
     canonical = resolve_canonical_provenance(work)
     if canonical is None or canonical.lifecycle == "archived":
         return
+    from independent_review import ensure_review_evidence
+    from openspec_lifecycle import FINALIZE_DEVELOPER, finalize_change, finalize_change_problems
+
     if not clean(work):
         raise SystemExit("Portable finalization requires a clean worktree; commit the verified candidate first.")
     # Report deterministic prerequisites before starting a reviewer. Review itself belongs
@@ -1073,7 +1075,8 @@ def main() -> int:
             return finish_developer_handoff(work, integration, config, branch, args.title, args.body)
     try:
         require_no_orphan_active_openspec(work)
-        if selected_mode == "portable":
+        canonical = resolve_canonical_provenance(work) if selected_mode == "portable" else None
+        if canonical is not None and canonical.lifecycle == "active":
             run_finish_preflight(work, integration, branch, consolidated=False)
             finalize_portable_change(work)
         delivery = require_delivery_provenance(work)

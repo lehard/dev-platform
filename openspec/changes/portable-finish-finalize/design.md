@@ -7,3 +7,5 @@
 - **Shipped guidance.** Central and rendered OpenSpec config and explorer instructions point developers to finish or Requirement advance. Template contract tests assert the new instructions and the explicit refusal of manual archive.
 
 - **Shared review launch stage.** `independent_review_runner.run_review_stage` owns runtime preflight and both perspective launches for portable review and queue child review. Existing callers retain their containment checks and evidence writes; portable finish requires the stage even when the optional review setting is disabled.
+
+- **Managed-only boundary.** Finish resolves canonical provenance before entering the new finalization preflight. Only an active managed change enters that path; quick tasks and archived delivery recovery keep the established publication gates. The finalizer imports required review machinery only after proving an active managed change.

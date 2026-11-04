@@ -8,5 +8,7 @@
 - [x] 2.2 Tests: light finish archives through finalize; developer archive refuses; portable multi-child child finalized by advance; manifest.
 - [x] 2.3 Review repair: align shipped OpenSpec config and explorer guidance, update template contract expectations, and preserve structured advance refusals before receipt creation.
 
+- [x] 2.4 Preserve quick-task and archived-recovery gate ordering; do not load managed review machinery for tasks without an active change.
+
 ## 3. Verification
 - [x] 3.1 Full validation and semantic OpenSpec verification (results and remaining gates recorded in verification.md).

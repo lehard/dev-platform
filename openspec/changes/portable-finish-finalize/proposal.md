@@ -14,3 +14,5 @@ In portable and light projects the developer archives by hand before finish, whi
 
 - `template/scripts/{finish_task,execute_requirement,openspec_lifecycle,independent_review,independent_review_runner,requirement_composition}.py`, AGENTS.md, template AGENTS, docs, tests, manifest.
 - Spec: completion-lifecycle (one requirement modified, two added).
+
+- Portable finalization applies only to active managed changes. Quick-task publication and already-archived recovery retain their existing preflight and recovery ordering, without requiring the optional review module.
