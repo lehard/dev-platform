@@ -40,6 +40,20 @@ def cached_contribution(root: Path, change: str, *, requirement: str) -> dict:
     return contribution
 
 
+def move_contribution_base(root: Path, change: str, base: str) -> None:
+    """Record the target head a reconcile merged as the new contribution base of this child worktree."""
+    path = context_path(root, change)
+    context = json.loads(path.read_text())
+    contribution = context.get("contribution")
+    if not contribution:
+        raise ManagedTaskError(f"Requirement child context {path} records no contribution to move")
+    for ancestor, descendant, what in ((contribution["head"], base, "the recorded contribution base"), (base, "HEAD", "HEAD")):
+        if run_git(["merge-base", "--is-ancestor", ancestor, descendant], cwd=root, check=False).returncode:
+            raise ManagedTaskError(f"contribution base cannot move to {base}: {ancestor} is not contained in {what}")
+    updated = {**context, "contribution": {**contribution, "head": base}}
+    atomic_write_text(path, json.dumps(updated, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+
+
 def derive_context(
     root: Path, package: Package, *, issue_body: str | None = None,
     predecessor: ReadyForIntegrationReceipt | None = None, contribution: dict | None = None,

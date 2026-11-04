@@ -20,6 +20,10 @@ class ContributionError(integration.RequirementIntegrationError):
     pass
 
 
+class RequiredChecksWait(ContributionError):
+    """A conflict-free reviewed head has no exact-head required checks yet: nothing failed, nothing merged."""
+
+
 def in_flight_children(root: Path, repo: str, requirement: str, target: str, *, adapter=None) -> dict:
     """Trusted coordinator ownership, including merged children awaiting manifest recovery."""
     if adapter is None:
@@ -208,16 +212,25 @@ def ensure_integration_branch(root: Path, *, requirement: str, repository: str, 
     return {"manifest": manifest, "branch": branch, "head": head}
 
 
-def require_gates(candidate: dict) -> None:
+def require_content_gates(candidate: dict) -> None:
     identity = candidate.get("task_identity")
     for name in ("review", "selected-checks", "semantic-verification"):
         gate = candidate.get("gates", {}).get(name, {})
         if gate.get("result") != "passed" or gate.get("identity") != identity or not gate.get("evidence"):
             raise ContributionError(f"contribution lacks current {name}")
+
+
+def require_required_checks(candidate: dict) -> None:
     checks = candidate.get("gates", {}).get("required-checks", {})
-    if (checks.get("result") != "passed" or checks.get("identity") != identity
+    if (checks.get("result") != "passed" or checks.get("identity") != candidate.get("task_identity")
             or checks.get("evidence", {}).get("head") != candidate.get("head")):
-        raise ContributionError("contribution lacks exact-head required checks")
+        raise RequiredChecksWait(f"contribution lacks exact-head required checks at {candidate.get('head')}: nothing was "
+                                 "merged; wait for them, then the publication queue integrates this head")
+
+
+def require_gates(candidate: dict) -> None:
+    require_content_gates(candidate)
+    require_required_checks(candidate)
 
 
 def recover_contribution_merge(checkout: Path, manifest: dict, pr: dict, candidate: dict) -> dict:
@@ -270,11 +283,15 @@ def _reoffer_on_moved_target(root: Path, repo: str, candidate: dict, checkout: P
 def merge_reviewed_contribution(root: Path, repo: str, candidate: dict, *, adapter=None,
                                 source_repo: str | None = None, runner=subprocess.run, expected_target_head: str | None = None,
                                 claim_current=lambda: True) -> dict:
-    """Coordinator-only ancestry preserving merge followed by a fast-forward manifest append."""
+    """Coordinator-only ancestry preserving merge followed by a fast-forward manifest append.
+
+    A conflict with the target is evaluated before required checks: GitHub runs no checks on a
+    conflicted PR, so that head reaches integration repair instead of waiting for them forever.
+    """
     if adapter is None:
         import publication_queue as adapter
     identity, number = candidate["task_identity"], candidate["number"]
-    require_gates(candidate)
+    require_content_gates(candidate)
     if not claim_current():
         return {"state": "discarded"}
     target = identity["target_branch"]
@@ -298,7 +315,7 @@ def merge_reviewed_contribution(root: Path, repo: str, candidate: dict, *, adapt
             fresh = adapter.candidate_status(root, number, repo=repo)
             if fresh.get("task_identity") != identity or fresh.get("head") != candidate["head"]:
                 return {"state": "discarded"}
-            require_gates(fresh)
+            require_content_gates(fresh)
             workers.harness_git(checkout, "fetch", "origin", f"pull/{number}/head")
             if workers.harness_git(checkout, "rev-parse", "FETCH_HEAD").strip() != candidate["head"]:
                 return {"state": "discarded"}
@@ -311,14 +328,19 @@ def merge_reviewed_contribution(root: Path, repo: str, candidate: dict, *, adapt
                 raise ContributionError("contribution dependencies are not integrated")
             conflicts = adapter.merge_conflicts(checkout, candidate["head"], target_head)
             if conflicts:
-                adapter._integration_repair(root, repo, number, {},
-                                            adapter.IntegrationRepairNeeded("contribution conflicts: " + ", ".join(conflicts)))
+                if not claim_current():
+                    return {"state": "discarded"}
+                offered = adapter._integration_repair(
+                    root, repo, number, {}, adapter.IntegrationRepairNeeded("contribution conflicts: " + ", ".join(conflicts)))
+                if offered["state"] != "waiting":
+                    return offered  # the integration-repair budget is spent: blocked, naming the conflict
                 return {"state": "integration-repair-pending", "number": number}
             if workers.harness_git(checkout, "ls-remote", "origin", f"refs/heads/{target}").split()[0] != target_head:
                 workers.harness_git(checkout, "fetch", "origin", target)
                 moved = workers.harness_git(checkout, "rev-parse", "FETCH_HEAD").strip()
                 return _reoffer_on_moved_target(root, repo, candidate, checkout, moved,
                                                 adapter=adapter, claim_current=claim_current)
+            require_required_checks(fresh)
             if not claim_current():
                 return {"state": "discarded"}
             adapter._transition(root, repo, number, "contribution-integration-pending", candidate["head"],
@@ -356,6 +378,69 @@ def push_fast_forward(checkout: Path, branch: str, expected: str, head: str, *, 
     except workers.WorkerError as exc:
         raise ContributionError(str(exc)) from exc
 
+
+
+def _require_composition_unowned(root: Path, repo: str, branch: str, main_branch: str, adapter) -> None:
+    """Refuse while the queue owns the composition: its integration repair moves that branch."""
+    rows = adapter._gh(root, "pr", "list", "--state", "open", "--head", branch, "--base", main_branch,
+                       "--json", "number")
+    if not isinstance(rows, list):
+        raise ContributionError(f"composition PR inventory of {branch} is unavailable; retry absorb-main")
+    for row in rows:
+        number = row["number"]
+        record = adapter._latest(root, number, adapter._comments(root, repo, number))
+        if record is not None or adapter.queued(root, repo, number):
+            state = record["state"] if record is not None else "queued"
+            raise ContributionError(f"composition PR #{number} of {branch} is queue-owned ({state}); "
+                                    "main reaches it through the queue integration repair, not absorb-main")
+
+
+def absorb_main(root: Path, repo: str, requirement: str, *, adapter=None, source_repo: str | None = None,
+                runner=subprocess.run) -> dict:
+    """Merge current main into the requirement branch and push it by fast-forward from the observed head.
+
+    The manifest and every contribution identity stay unchanged: a contribution base remains an
+    ancestor of the branch, and the moved-target re-offer covers open contribution jobs.
+    """
+    from _platform_common import read_platform_config
+
+    if adapter is None:
+        import publication_queue as adapter
+    main_branch = read_platform_config(root).get("main_branch")
+    if not isinstance(main_branch, str) or not main_branch:
+        raise ContributionError(".dev-platform.toml main_branch is required to absorb main")
+    branch = f"requirement/BR-{requirement.rsplit('#', 1)[1]}"
+    source_repo = source_repo or f"https://github.com/{repo}.git"
+    with tempfile.TemporaryDirectory(prefix="absorb-main-") as temporary:
+        checkout = workers.prepare_checkout(source_repo, temporary, "harness", f"origin/{main_branch}")
+        main_head = workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+        observed = workers.harness_git(checkout, "ls-remote", "origin", f"refs/heads/{branch}").split()
+        if not observed:
+            raise ContributionError(f"requirement branch {branch} does not exist; create it with "
+                                    f"`python3 scripts/execute_requirement.py advance --requirement {requirement}`")
+        head = observed[0]
+        _require_composition_unowned(root, repo, branch, main_branch, adapter)
+        workers.harness_git(checkout, "fetch", "origin", branch)
+        workers.harness_git(checkout, "checkout", "--detach", head)
+        manifest = read_manifest(checkout, integration._public_requirement(root, requirement))
+        if manifest.get("repository") != repo or manifest["integration_branch"] != branch:
+            raise ContributionError(f"requirement branch {branch} belongs to another repository or owner")
+        result = {"branch": branch, "previous_head": head, "main": main_head}
+        if subprocess.run(["git", *workers.SAFE_GIT, "merge-base", "--is-ancestor", main_head, head], cwd=checkout,
+                          capture_output=True, check=False, stdin=subprocess.DEVNULL).returncode == 0:
+            return {**result, "status": "current", "head": head}
+        conflicts = adapter.merge_conflicts(checkout, head, main_head)
+        if conflicts:
+            raise ContributionError(f"main {main_head} conflicts with {branch} in: {', '.join(conflicts)}; nothing was "
+                                    "pushed; the composition repair resolves it once every contribution is integrated")
+        workers.harness_git(checkout, *workers.HARNESS_IDENTITY, "merge", "--no-ff", "--no-edit", main_head)
+        merged = workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+        current = workers.harness_git(checkout, "ls-remote", "origin", f"refs/heads/{branch}").split()
+        if not current or current[0] != head:
+            raise ContributionError(f"requirement branch {branch} moved from {head} while main was merged; "
+                                    "nothing was pushed; rerun absorb-main")
+        push_fast_forward(checkout, branch, head, merged, runner=runner)
+    return {**result, "status": "absorbed", "head": merged}
 
 
 def private_requirement(root: Path, manifest: dict) -> str:

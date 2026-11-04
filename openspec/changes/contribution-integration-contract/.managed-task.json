@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/publication-queue/spec.md",
+    "specs/platform-lifecycle/spec.md",
+    "specs/completion-lifecycle/spec.md",
+    "tasks.md"
+  ],
+  "change": "contribution-integration-contract",
+  "imported_at": "2026-11-04T21:53:13+00:00",
+  "package_revision": "8c18e0b8c1212ef308d2c593d6c0dd714bf0f047d9cfadfd89b9c1583655e76a",
+  "prepared_against": "4b51d8f522493e5bf06556b619ab8387002a082a",
+  "private_lineage_handle": "pln_02363ec31756ab370a7c9d3ec92d9727",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "90adba3493cfe44c947da0c21b103af9c5d4996808208ab61a2111a4f58a326b",
+    "updated_at": "2026-11-04T21:39:19Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-987/T1"
+}

@@ -3,10 +3,11 @@
 # Platform-owned multi-agent workflow integrates task branches with fast-forward
 # only through scripts/finish_task.py. Inside a task worktree the only admitted
 # merge commit is the one scripts/reconcile_task.py (finish_task.py --reconcile)
-# makes when it merges authoritative main into its own task branch: reconcile
+# makes when it merges its authoritative branch into its own task branch: main,
+# or for a Requirement contribution its origin/requirement/BR-<n> target. Reconcile
 # records a one-shot intent in this worktree's own git directory naming the
-# branch and the commit of origin/<main_branch>, and this hook admits the merge
-# only when the intent, the branch, the merged ref and that commit all match.
+# branch, the merged ref and its commit, and this hook admits the merge only when
+# the intent, the branch, the merged ref and that commit all match.
 
 if [ "$DEV_PLATFORM_ALLOW_MERGE_COMMIT" = "1" ]; then
     exit 0
@@ -26,15 +27,24 @@ else
         main_branch=$(sed -n 's/^main_branch = "\(.*\)"$/\1/p' "$top/.dev-platform.toml" 2>/dev/null)
         intent_branch=$(sed -n 's/^branch //p' "$intent")
         intent_target=$(sed -n 's/^target //p' "$intent")
+        intent_ref=$(sed -n 's/^ref //p' "$intent")
         branch=$(git symbolic-ref --short -q HEAD)
         if [ -z "$main_branch" ]; then
             reason="main_branch is not readable from $top/.dev-platform.toml"
         elif [ -z "$intent_branch" ] || [ "$intent_branch" != "$branch" ]; then
             reason="the reconcile intent names branch '$intent_branch', not the current branch '$branch'"
-        elif [ "$GIT_REFLOG_ACTION" != "merge origin/$main_branch" ]; then
-            reason="this merge is '$GIT_REFLOG_ACTION', not the reconcile merge of origin/$main_branch"
-        elif [ -z "$intent_target" ] || [ "$(git rev-parse -q --verify "origin/$main_branch^{commit}")" != "$intent_target" ]; then
-            reason="origin/$main_branch no longer points to the commit the reconcile intent recorded"
+        else
+            case "$intent_ref" in
+                "origin/$main_branch"|origin/requirement/BR-[1-9]*) ;;
+                *) reason="the reconcile intent names ref '$intent_ref', neither origin/$main_branch nor a requirement branch" ;;
+            esac
+        fi
+        if [ -n "$reason" ]; then
+            :
+        elif [ "$GIT_REFLOG_ACTION" != "merge $intent_ref" ]; then
+            reason="this merge is '$GIT_REFLOG_ACTION', not the reconcile merge of $intent_ref"
+        elif [ -z "$intent_target" ] || [ "$(git rev-parse -q --verify "$intent_ref^{commit}")" != "$intent_target" ]; then
+            reason="$intent_ref no longer points to the commit the reconcile intent recorded"
         fi
         if [ -z "$reason" ]; then
             rm -f "$intent"

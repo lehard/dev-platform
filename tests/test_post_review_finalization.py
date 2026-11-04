@@ -217,6 +217,8 @@ class ContributionFreshnessTests(unittest.TestCase):
         self.assertNotIn("--contribution-base", proven_command)
         self.assertIn("--execute", proven_command)
         self.assertEqual(contribution["freshness"], {"contract": "contribution-base", "base": "abc123"})
+        self.assertEqual(contribution["command"], ["select_checks.py", "--base", "abc123", "--execute",
+                                                   "--contribution-base", "abc123"])
         self.assertEqual(proven["freshness"], {"contract": "proven-base", "base": "f" * 40})
         self.assertEqual(proven["command"], ["select_checks.py", "--base", "origin/main", "--execute",
                                              "--proven-base", "f" * 40])
@@ -262,10 +264,30 @@ class ContributionFreshnessTests(unittest.TestCase):
         return seen
 
     def test_contribution_finalize_checks_freshness_against_its_contribution_base(self):
-        identity = {"kind": "contribution", "change": "c", "task_content": {}, "contribution_base": "abc123"}
-        runner, = self.finalize_runner(identity)
+        identity = {"kind": "contribution", "change": "c", "task_content": {}, "contribution_base": "abc123",
+                    "target_branch": "requirement/BR-7"}
+        with mock.patch.object(final, "require_base_in_target") as contained:
+            runner, = self.finalize_runner(identity)
+        contained.assert_called_once_with(Path("/checkout").resolve(), "abc123", "requirement/BR-7")
         self.assertIs(runner.func, final.trusted_checks_runner)
         self.assertEqual(runner.keywords, {"contribution_base": "abc123"})
+
+    def test_contribution_base_outside_its_target_is_refused_before_checks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            remote, checkout = root / "remote", root / "checkout"
+            remote.mkdir()
+            git(remote, "init", "-qb", "requirement/BR-7")
+            git(remote, "config", "user.name", "t"); git(remote, "config", "user.email", "t@example.test")
+            git(remote, "commit", "-q", "--allow-empty", "-m", "target")
+            inside = git(remote, "rev-parse", "HEAD").strip()
+            git(remote, "checkout", "-qb", "other")
+            git(remote, "commit", "-q", "--allow-empty", "-m", "elsewhere")
+            outside = git(remote, "rev-parse", "HEAD").strip()
+            subprocess.run(["git", "clone", "-q", str(remote), str(checkout)], check=True)
+            final.require_base_in_target(checkout, inside, "requirement/BR-7")
+            with self.assertRaisesRegex(workers.WorkerError, f"{outside} is not contained in requirement/BR-7"):
+                final.require_base_in_target(checkout, outside, "requirement/BR-7")
 
     def test_contribution_without_base_fails_loudly(self):
         identity = {"kind": "contribution", "change": "c", "task_content": {}}

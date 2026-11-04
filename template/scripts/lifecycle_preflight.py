@@ -113,14 +113,15 @@ def check_task_base(ctx: PreflightContext) -> ConditionResult:
         return ConditionResult(NOT_APPLICABLE, ctx.task_base_waiver)
     try:
         freshness = task_reconciliation.observe_candidate(ctx.root)
+        target = task_reconciliation.freshness_branch(ctx.root)
     except TaskFreshnessError as exc:
         raise PreflightRefusal(f"task freshness cannot be determined: {exc}") from exc
     if freshness.reconcile_required:
         detail = f" ({freshness.detail})" if freshness.detail else ""
         raise PreflightRefusal(
-            f"{ctx.branch} is {freshness.state} relative to freshly observed main{detail}. Reconcile: {RECONCILE_COMMAND}"
+            f"{ctx.branch} is {freshness.state} relative to freshly observed {target}{detail}. Reconcile: {RECONCILE_COMMAND}"
         )
-    return ConditionResult(PASSED, f"task is {freshness.state} relative to main ({freshness.authoritative_sha})")
+    return ConditionResult(PASSED, f"task is {freshness.state} relative to {target} ({freshness.authoritative_sha})")
 
 
 def check_task_evidence(ctx: PreflightContext) -> ConditionResult:

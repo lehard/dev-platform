@@ -86,10 +86,11 @@ def task_identity(root: Path, change: str) -> dict:
 
 
 def reusable(root: Path, gate: dict | None, identity: dict) -> bool:
+    """Whether a passed gate proves ``identity``; a moved contribution base needs ``equivalent_proofs``."""
     return (isinstance(gate, dict) and gate.get("result") == "passed"
             and isinstance(gate.get("identity"), dict)
             and all(gate["identity"].get(k) == identity.get(k) for k in
-                    ("change", "kind", "requirement", "source_issue", "work_identity", "contribution_base", "target_branch", "children"))
+                    ("change", "kind", "requirement", "source_issue", "work_identity", "target_branch", "children"))
             and equivalent_proofs(root, gate["identity"].get("task_content"), identity.get("task_content")))
 
 

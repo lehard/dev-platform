@@ -9,7 +9,10 @@ import sys
 from pathlib import Path
 
 from _platform_common import (
+    GitCommandError,
     TASK_BASE_BEHIND_MERGEABLE,
+    TaskFreshnessError,
+    task_freshness_branch,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -472,11 +475,12 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         for obligation in obligations:
             print(f"terminal obligation: {obligation['kind']} {obligation['state']} ({obligation['detail']})")
         if freshness["task_freshness"] == "unavailable":
-            print("task freshness: unavailable (authoritative main could not be observed)")
+            print(f"task freshness: unavailable ({freshness['freshness_detail']})")
         else:
-            print(f"task freshness: {freshness['task_freshness']} relative to origin/{main_branch}")
+            target = freshness["freshness_target"]
+            print(f"task freshness: {freshness['task_freshness']} relative to origin/{target}")
             if freshness["task_freshness"] == "behind-mergeable":
-                print(f"no reconcile required: merge base {freshness['task_merge_base']}; the publication queue merges main into this coordinator candidate")
+                print(f"no reconcile required: merge base {freshness['task_merge_base']}; the publication queue merges {target} into this coordinator candidate")
             if freshness["reconcile_required"]:
                 if freshness.get("freshness_detail"):
                     print(f"task freshness detail: {freshness['freshness_detail']}")
@@ -834,6 +838,21 @@ def observe_completion_blockers(
     return blockers
 
 
+def fetch_freshness_branch(work: Path, main_branch: str) -> str:
+    """The freshness branch of this task; a contribution target's remote-tracking ref is refreshed in ``work``."""
+    try:
+        branch = task_freshness_branch(work, main_branch)
+    except TaskFreshnessError as exc:
+        raise SystemExit(f"Task freshness cannot be determined: {exc}") from exc
+    if branch == main_branch:
+        return branch
+    try:
+        fetch_main(work, "origin", branch)
+    except (OSError, GitCommandError) as exc:
+        raise SystemExit(f"Task freshness target origin/{branch} cannot be observed: {exc}") from exc
+    return branch
+
+
 def require_publication_task_base(work: Path, branch: str, remote_main: str) -> None:
     """Publication's fresh-base gate: the same classification as the preflight ``task-freshness`` blocker.
 
@@ -1174,7 +1193,8 @@ def main() -> int:
         return result.returncode
     emit_finish_stage("preflight: observing completion blockers")
     fetch_main(integration, "origin", main_branch)
-    remote_main = f"origin/{main_branch}"
+    # A contribution is measured and validated against its recorded target; ``work`` observes that ref.
+    remote_main = f"origin/{fetch_freshness_branch(work, main_branch)}"
 
     # Recovery is intentionally checked before local validation against the new
     # remote base. A squash-merged task branch is no longer an ancestor of main,

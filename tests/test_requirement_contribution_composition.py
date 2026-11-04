@@ -26,6 +26,7 @@ import execute_requirement as execution
 import pr_review_gate as review_gate
 import candidate_lifecycle as lifecycle
 import lifecycle_workers as workers
+import publication_queue as queue
 import requirement_integration as integration
 from task_content_identity import review_content_identity
 
@@ -652,9 +653,190 @@ class ContributionTests(unittest.TestCase):
             adapter.publish_job.assert_not_called()
             adapter._gh.assert_called_once()
 
+    def _without_required_checks(self, candidate):
+        return {**candidate, "gates": {k: v for k, v in candidate["gates"].items() if k != "required-checks"}}
+
+    def test_conflicted_contribution_without_required_checks_reaches_integration_repair(self):
+        # GitHub runs no checks on a conflicted PR: the conflict is evaluated first, with no manual CI dispatch.
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            candidate = self._without_required_checks(candidate)
+            adapter.candidate_status.return_value = candidate
+            adapter.merge_conflicts.return_value = ["shared.txt"]
+            adapter.IntegrationRepairNeeded = RuntimeError
+            adapter._integration_repair.return_value = {"state": "waiting", "number": 8}
+            outcome = contributions.merge_reviewed_contribution(
+                fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                expected_target_head=fixture.boundary)
+            self.assertEqual(outcome, {"state": "integration-repair-pending", "number": 8})
+            self.assertIn("shared.txt", str(adapter._integration_repair.call_args.args[4]))
+            adapter._gh.assert_not_called()
+
+    def test_conflict_with_a_spent_repair_budget_reports_the_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            adapter.merge_conflicts.return_value = ["shared.txt"]
+            adapter.IntegrationRepairNeeded = RuntimeError
+            adapter._integration_repair.return_value = {"state": "blocked-escalation", "number": 8}
+            outcome = contributions.merge_reviewed_contribution(
+                fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                expected_target_head=fixture.boundary)
+            self.assertEqual(outcome["state"], "blocked-escalation")
+            adapter._gh.assert_not_called()
+
+    def test_conflict_free_head_without_required_checks_is_refused_naming_the_wait(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            candidate = self._without_required_checks(candidate)
+            adapter.candidate_status.return_value = candidate
+            with self.assertRaisesRegex(contributions.RequiredChecksWait, f"required checks at {candidate['head']}.*wait"):
+                contributions.merge_reviewed_contribution(
+                    fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri(),
+                    expected_target_head=fixture.boundary)
+            adapter._gh.assert_not_called()
+            adapter._transition.assert_not_called()
+            adapter._integration_repair.assert_not_called()
+
+    def test_missing_content_gate_stops_before_the_conflict_is_evaluated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, candidate, remote, _, adapter = self._moved_target_fixture(Path(tmp))
+            candidate = {**candidate, "gates": {k: v for k, v in candidate["gates"].items() if k != "review"}}
+            with self.assertRaisesRegex(contributions.ContributionError, "lacks current review"):
+                contributions.merge_reviewed_contribution(
+                    fixture.root, "acme/project", candidate, adapter=adapter, source_repo=remote.as_uri())
+            adapter.merge_conflicts.assert_not_called()
+
+    def _absorb_fixture(self, root):
+        """A requirement branch and a main that moved on with ``main.txt``, on a bare remote."""
+        seed = root / "seed"; seed.mkdir()
+        fixture = Repository(seed)
+        git(seed, "switch", "main")
+        (seed / "main.txt").write_text("main\n")
+        main_head = fixture.commit("main moved")
+        git(seed, "switch", "requirement/BR-7")
+        remote = root / "remote.git"
+        git(root, "clone", "--bare", str(seed), str(remote))
+        adapter = SimpleNamespace(_gh=mock.Mock(return_value=[]), _comments=mock.Mock(return_value=[]),
+                                  _latest=mock.Mock(return_value=None), queued=mock.Mock(return_value=False),
+                                  merge_conflicts=mock.Mock(side_effect=queue.merge_conflicts))
+        return fixture, remote, adapter, main_head
+
+    def _absorb(self, fixture, remote, adapter):
+        return contributions.absorb_main(fixture.root, "acme/project", REQUIREMENT, adapter=adapter,
+                                         source_repo=remote.as_uri())
+
+    def test_absorb_main_merges_by_fast_forward_and_leaves_the_manifest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, remote, adapter, main_head = self._absorb_fixture(Path(tmp))
+            result = self._absorb(fixture, remote, adapter)
+            self.assertEqual(result["status"], "absorbed")
+            self.assertEqual(result["previous_head"], fixture.boundary)
+            head = git(remote, "rev-parse", "requirement/BR-7")
+            self.assertEqual(head, result["head"])
+            git(remote, "merge-base", "--is-ancestor", fixture.boundary, head)
+            git(remote, "merge-base", "--is-ancestor", main_head, head)
+            manifest_path = next(line for line in git(remote, "ls-tree", "-r", "--name-only", head).splitlines()
+                                 if line.startswith("dev-platform/requirement-integrations/"))
+            self.assertEqual(git(remote, "show", f"{fixture.boundary}:{manifest_path}"),
+                             git(remote, "show", f"{head}:{manifest_path}"))
+            self.assertEqual(self._absorb(fixture, remote, adapter)["status"], "current")
+
+    def test_absorb_main_conflict_pushes_nothing_and_names_paths_and_repair(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, remote, adapter, _ = self._absorb_fixture(Path(tmp))
+            adapter.merge_conflicts = mock.Mock(return_value=["main.txt"])
+            with self.assertRaisesRegex(contributions.ContributionError, "main.txt.*composition repair"):
+                self._absorb(fixture, remote, adapter)
+            self.assertEqual(git(remote, "rev-parse", "requirement/BR-7"), fixture.boundary)
+
+    def test_absorb_main_refuses_a_queue_owned_composition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, remote, adapter, _ = self._absorb_fixture(Path(tmp))
+            adapter._gh.return_value = [{"number": 5}]
+            adapter._latest.return_value = {"state": "review-pending"}
+            with self.assertRaisesRegex(contributions.ContributionError, "#5 .*queue-owned \\(review-pending\\)"):
+                self._absorb(fixture, remote, adapter)
+            adapter._latest.return_value = None
+            adapter.queued.return_value = True
+            with self.assertRaisesRegex(contributions.ContributionError, "queue-owned \\(queued\\)"):
+                self._absorb(fixture, remote, adapter)
+            self.assertEqual(git(remote, "rev-parse", "requirement/BR-7"), fixture.boundary)
+
+    def test_absorb_main_refuses_a_missing_branch_naming_advance(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, remote, adapter, _ = self._absorb_fixture(Path(tmp))
+            git(remote, "update-ref", "-d", "refs/heads/requirement/BR-7")
+            with self.assertRaisesRegex(contributions.ContributionError, "does not exist.*advance"):
+                self._absorb(fixture, remote, adapter)
+
+    def test_absorb_main_refuses_a_head_that_moved_during_the_merge(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture, remote, adapter, _ = self._absorb_fixture(Path(tmp))
+            def race(*args):
+                self._advance_remote(fixture, remote, "racing")
+                return []
+            adapter.merge_conflicts = mock.Mock(side_effect=race)
+            with self.assertRaisesRegex(contributions.ContributionError, "moved from .*rerun absorb-main"):
+                self._absorb(fixture, remote, adapter)
+
+    def test_absorb_main_cli_reports_a_refusal(self):
+        with mock.patch.object(execution, "current_worktree_root", return_value=Path("/repo")), \
+             mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \
+             mock.patch.object(contributions, "absorb_main", side_effect=contributions.ContributionError("queue-owned")), \
+             mock.patch("builtins.print") as printed:
+            status = execution.main(["absorb-main", "--requirement", REQUIREMENT])
+        self.assertEqual(status, 2)
+        self.assertEqual(json.loads(printed.call_args.args[0])["reason"], "queue-owned")
+
+    def _reconciled_child(self, fixture, candidate):
+        """``candidate`` after merging the moved target: its base and proof move, its gates are rebound."""
+        change = candidate["task_identity"]["change"]
+        target = git(fixture.root, "rev-parse", "requirement/BR-7")
+        git(fixture.root, "switch", f"agent/{change}")
+        git(fixture.root, "merge", "--no-ff", "--no-edit", target)
+        head = git(fixture.root, "rev-parse", "HEAD")
+        identity = {**candidate["task_identity"], "contribution_base": target,
+                    "task_content": review_content_identity(fixture.root, change, target)}
+        gates = {name: {**gate, "identity": identity} for name, gate in candidate["gates"].items()}
+        gates["required-checks"]["evidence"] = {"head": head, "kind": "passed"}
+        return {**candidate, "head": head, "task_identity": identity, "gates": gates}
+
+    def test_composition_recomputes_a_moved_base_and_refuses_a_changed_identity(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp))
+            first, second = fixture.child("first", 8), fixture.child("second", 9)
+            fixture.integrate(first)
+            moved = self._reconciled_child(fixture, second)
+            self.assertNotEqual(moved["task_identity"]["contribution_base"], fixture.boundary)
+            self.assertEqual(sorted(moved["task_identity"]["task_content"]["paths"]),
+                             sorted(second["task_identity"]["task_content"]["paths"]))
+            fixture.integrate(moved)
+            composition.validate_children(fixture.root, fixture.manifest)
+            child = fixture.manifest["children"][-1]
+            forged = {**child, "task_identity": {**child["task_identity"],
+                      "task_content": {**child["task_identity"]["task_content"], "digest": "0" * 64}}}
+            forged["gates"] = {name: {**gate, "identity": forged["task_identity"]} for name, gate in child["gates"].items()}
+            forged["reviewed_evidence_digest"] = integration._digest(forged["gates"])
+            tampered = contributions.seal({**fixture.manifest, "children": [fixture.manifest["children"][0], forged]})
+            with self.assertRaisesRegex(contributions.ContributionError, "reviewed identity changed: second"):
+                composition.validate_children(fixture.root, tampered)
+
+    def test_a_proven_base_move_keeps_gates_and_an_overlapping_move_does_not(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            fixture = Repository(Path(tmp))
+            first, second = fixture.child("first", 8), fixture.child("second", 9)
+            fixture.integrate(first)
+            moved = self._reconciled_child(fixture, second)
+            gate = second["gates"]["review"]
+            self.assertTrue(review_gate.reusable(fixture.root, gate, moved["task_identity"]))
+            changed = {**moved["task_identity"], "task_content": {**moved["task_identity"]["task_content"], "digest": "0" * 64}}
+            self.assertFalse(review_gate.reusable(fixture.root, gate, changed))
+            other_target = {**moved["task_identity"], "target_branch": "requirement/BR-8"}
+            self.assertFalse(review_gate.reusable(fixture.root, gate, other_target))
+
     def test_lost_claim_refuses_merge_before_network_or_checkout(self):
         candidate = {"number": 1, "head": "a" * 40, "task_identity": {}, "gates": {}}
-        with mock.patch.object(contributions, "require_gates"), mock.patch.object(workers, "prepare_checkout") as checkout:
+        with mock.patch.object(contributions, "require_content_gates"), mock.patch.object(workers, "prepare_checkout") as checkout:
             result = contributions.merge_reviewed_contribution(Path("/unused"), "acme/project", candidate, claim_current=lambda: False)
         self.assertEqual(result["state"], "discarded")
         checkout.assert_not_called()
