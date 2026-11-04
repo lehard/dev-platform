@@ -1,36 +1,36 @@
 # Verification: portable-finish-finalize
 
-OpenSpec-Verify: BLOCKED
-Verification-Method: documented equivalent manual review of the proposal, design, completion-lifecycle delta, tasks and implementation; targeted regression tests and structural OpenSpec validation. Required full validation and independent runtime review remain blocked.
+OpenSpec-Verify: PASS
+Verification-Method: documented equivalent semantic review across the authored outcome, completeness, correctness and coherence; canonical regression tests and independent Claude review. Full selected validation passed on the unchanged authored head.
+Automated-Checks-Evidence: automated-checks.json
 
 ## Semantic assessment
 
-- Portable finish invokes required independent review and shared developer-context `finalize_change` before archived-provenance/publication gates, then commits the archive.
-- Portable Requirement advance finalizes completed, verified active children before creating ready receipts. It re-resolves canonical provenance and explicitly fails if finalization did not produce an archive.
-- Developer archive refuses in both lifecycle modes before target validation or archive work. The trusted `--finalize` queue entry remains available.
-- Selected checks use the existing finish evidence-reuse rule. The light-project regression executes checks once, commits the archive and reuses that evidence during finish validation.
-- Portable review remains required with the optional setting disabled. Queue and portable review share runtime preflight and perspective launches. Queue snapshot containment still rejects reviewer writes.
-- No material conflict with the authored contract was found. This assessment is not an independent model review or a terminal-delivery receipt.
+- Portable finish enters the new preflight and finalization path only for an active managed change. Required independent review and the shared developer-context `finalize_change` run before archived-provenance/publication gates; finish commits the archive. Quick-task publication and archived delivery recovery preserve their existing gate order and do not import managed review machinery.
+- Portable Requirement advance finalizes completed, verified active children before creating ready receipts. It re-resolves canonical provenance and refuses if no archive was produced. SystemExit refusals preserve their exact diagnostic and cause through RequirementExecutionError; no receipt is written after refusal.
+- Developer archive without `--finalize` refuses before target validation or archive work, naming finish or the queue finalize job. The trusted `--finalize` entry remains available.
+- Portable finalization uses the existing selected-check reuse rule. The light-project regression runs checks once, commits the archive, then reuses the same content-bound evidence in finish validation.
+- Review remains required with the optional setting disabled. Queue and portable review share runtime preflight and both perspective launches; queue snapshot containment still rejects reviewer writes.
+- Central/rendered OpenSpec config, explorer guidance, AGENTS and workflow/intake docs point to the executable finish/advance/queue path. Rendering contract assertions cover those instructions and manual archive refusal.
+- No material conflict with the accepted specs plus the active delta was found. This semantic assessment is a documented equivalent manual review; it does not claim an unavailable opsx tool invocation or terminal publication.
 
-## Passed checks
+## Review and regression evidence
 
-- `python3 -m compileall -q template/scripts scripts tests`
-- `python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests` (Python 3.11 compilation checked from the local Python 3.13 environment)
-- `python3 -m ruff check scripts template/scripts tests`
-- `python3 scripts/generate_platform_manifest.py --check`
-- `python3 scripts/managed_projects.py validate`
-- `python3 template/scripts/openspec_lifecycle.py check`
-- `python3 scripts/check_docs_links.py`
-- `openspec validate portable-finish-finalize --strict --no-interactive`
-- `git diff --check`
-- `PYTHONPATH=tests python3 -m unittest tests.test_archive_finalize_function tests.test_requirement_execution tests.test_portable_finish_check_reuse tests.test_independent_review tests.test_shared_writer_guard tests.test_finish_merged_queue` — 155 tests passed.
-- `PYTHONPATH=tests python3 -m unittest -v tests.test_requirement_contribution_composition.ContributionTests` — 27 tests passed.
+- Initial R2 Codex execution completed with clean delegated containment. Its sandbox could not access the canonical OAuth runtime, integration checkpoint lock or machine-pool directory; none of those sandbox refusals was counted as a passing canonical check.
+- Initial canonical independent review found material shipped-guidance/assertion omissions. Bounded repair used the supported prior_balanced_failure escalation to retained R3 execution after the already-completed R2 child; real delegation evidence was preserved.
+- Canonical affected tests then exposed quick-task regressions from unconditional managed finalization. The active design was clarified before code repair. All four previously failing groups now pass: git_lifecycle, merge_lifecycle_resilience, protected_main_zero_handoff, publication_recovery_cli.
+- 124 portable-finish/template-contract/Requirement-execution tests passed after the managed-only boundary repair.
+- Fresh independent Claude review of 3afb947963d9627f60ac05fbe4c544ef6e6eacfa against the exact contribution base: spec-fidelity and engineering-quality available, zero findings; independent review ready. Earlier advisory reports are superseded by this fresh review, without claiming unrelated advisory behavior was changed.
+- compileall; CI Python 3.11 compilation; Ruff; generated manifest check; managed registry validation; candidate-stage OpenSpec hygiene; strict validation of all 54 OpenSpec items; factual agent_board scope gate all passed.
 
-## Unresolved validation gates
+## Full validation status
 
-- `python3 scripts/run_test_groups.py --all` refused before test execution: private managed-task lineage could not be verified by the early routing gate. Coverage discovery completed; the full suite did not run.
-- A broader direct diagnostic run executed 241 tests and had five failures. The two change-caused failures (writer-site registry and obsolete guidance assertion) were repaired and pass in the final scoped run. The other three reproduce on an untouched snapshot of starting HEAD: two shared-workspace setgid/permission refusals and a configured machine-pool directory inaccessible from this sandbox.
-- `python3 scripts/independent_review.py preflight portable-finish-finalize` failed because the configured Claude CLI was not logged in. No provider was switched and no independent runtime review was claimed.
-- The friction checkpoint could not acquire the integration-owned lock outside the writable sandbox. The supervisor must review/record the observed lifecycle friction and resolve the checkpoint.
+Canonical protected-full selected checks passed against authored head 3afb947963d9627f60ac05fbe4c544ef6e6eacfa and exact contribution base 2a1b22304a5178ce0ad3f7715dc58d3f0cc2f7d3. The evidence records all five mandatory commands as success; the complete test-group run took 1626.2 seconds. Documentation links, three-profile AGENTS rendering, Explorer validation and git diff whitespace checks also passed. Explorer reported editorial drift warnings, without validation errors.
 
-Task 3.1 remains open. No archive, commit, PR, publication or terminal-delivery claim was made for this task.
+The first obsolete run was interrupted after material review findings; the next affected precheck failed on the quick-task regression and did not start the full suite. Neither is counted as a pass. After fixing the boundary and passing all four affected groups, the canonical protected-full run executes the complete mandatory check set.
+
+## Friction and limits
+
+Recorded T3 events: c0537e0beae2 (sandbox limits), 36d76055c073 (validation order), b06769243369 (completed-child review repair routing), 431f886185cf (contribution selector scope waiver), 100ed0b7b686 (bounded verification missed the quick-task matrix). The factual scope gate passed independently. The task checkpoint links all five events after reviewing the complete execution path; the parent Requirement retrospective remains queue-owned after merge.
+
+An existing compatibility import in openspec_lifecycle is unchanged; no new fallback was introduced or exercised. This task does not claim archive, merge or terminal Requirement closure at the developer handoff.
