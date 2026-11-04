@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "56a3b338d1c54d9868538a039297106d5a80a4c4",
+    "diff_sha256": "7063de1e883e9b5a41eb771fde55fd795a436937d3eb8f5b7eb2b47392787330"
+  },
+  "completed_at": "2026-11-04T23:24:32+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1589-1592 posts `result_body(job, worker, 'waiting-required-checks')`. `job_completed` (lifecycle_workers.py:317-320) returns True for any outcome that is not validated-push, discarded*, unavailable* or released*, so the job is never re-offered. Previously the ContributionError failed the run and `release_claim` retried it up to MAX_RELEASES. The queue path at publication_queue.py:2382-2390 does re-run `merge_reviewed_contribution`, so this is a coupling to be aware of rather than a proven stall. No test shows a worker-only deployment, with no queued PR label, still reaching merge.",
+      "id": "required-checks-wait-completes-worker-job",
+      "severity": "advisory",
+      "summary": "A contribution-integration worker job that hits RequiredChecksWait now records a result with outcome `waiting-required-checks`, and the worker treats that as a completed job. The job is not retried or released. Delivery then depends entirely on the publication-queue path (`_worker_candidate`) picking the PR up again once checks pass."
+    }
+  ],
+  "launched_at": "2026-11-04T23:24:04+00:00",
+  "output_sha256": "2fd0280c209e3855fb4c61245c3263168d6b029a86fc342ca7ba845a5a95791d",
+  "perspective": "engineering-quality",
+  "request_id": "b5709443-f2a5-4d0a-98b0-8a8fce9ecc8c",
+  "reviewer": {
+    "context_id": "dddfab31-5b91-437c-b5e7-c8794a0e0bee",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a169470c-d40b-410a-9d11-6b9a0f0ef31f",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 53366
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 262437
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26652
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27023
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3200
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2703309f3a0cbda3f07333737d2b1342325338d704a1e2c3222b86179dc086eb"
+}

@@ -1,0 +1,104 @@
+{
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "56a3b338d1c54d9868538a039297106d5a80a4c4",
+    "diff_sha256": "7063de1e883e9b5a41eb771fde55fd795a436937d3eb8f5b7eb2b47392787330"
+  },
+  "change": "openspec/changes/contribution-integration-contract",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/contribution-integration-contract/automated-checks.json",
+    "openspec/changes/contribution-integration-contract/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/contribution-integration-contract/design.md",
+        "openspec/changes/contribution-integration-contract/proposal.md",
+        "openspec/changes/contribution-integration-contract/specs/completion-lifecycle/spec.md",
+        "openspec/changes/contribution-integration-contract/specs/platform-lifecycle/spec.md",
+        "openspec/changes/contribution-integration-contract/specs/publication-queue/spec.md",
+        "openspec/changes/contribution-integration-contract/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/contribution-integration-contract/proposal.md",
+        "openspec/changes/contribution-integration-contract/design.md",
+        "openspec/changes/contribution-integration-contract/tasks.md",
+        "openspec/changes/contribution-integration-contract/specs/completion-lifecycle/spec.md",
+        "openspec/changes/contribution-integration-contract/specs/platform-lifecycle/spec.md",
+        "openspec/changes/contribution-integration-contract/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-04T23:23:35+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/contribution-integration-contract/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "b5709443-f2a5-4d0a-98b0-8a8fce9ecc8c",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "digest": "2703309f3a0cbda3f07333737d2b1342325338d704a1e2c3222b86179dc086eb",
+    "paths": {
+      "docs/engineering/agent-workflow.md": "c0067dab9173aaba7edfa7c2ce7fd0cdb8d02b39",
+      "docs/engineering/chat-coordinator.md": "5c6d192299ad55a43b9f8fa44b769a1a5f886664",
+      "docs/engineering/openspec-workflow.md": "ebe7d70d80cd8005e14e9215aca6a5169242e26b",
+      "openspec/changes/contribution-integration-contract/.managed-task.json": "9d5fa6e8b458ef90873c0faaa7c06f39a972dd0d",
+      "openspec/changes/contribution-integration-contract/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+      "openspec/changes/contribution-integration-contract/design.md": "db8636f602b697d6dafca2b07abdfc9f3c218535",
+      "openspec/changes/contribution-integration-contract/proposal.md": "d9530edbd3c11054cde18d6fd64bd41b13ac67d0",
+      "openspec/changes/contribution-integration-contract/specs/completion-lifecycle/spec.md": "c1c72c993d6922ace5c8158f1764b95713f909e0",
+      "openspec/changes/contribution-integration-contract/specs/platform-lifecycle/spec.md": "c9c74eacdc998e7d214b648eafa194ddfd78d72e",
+      "openspec/changes/contribution-integration-contract/specs/publication-queue/spec.md": "a42013b62201167e6908eb4af2743e4b49aaff71",
+      "openspec/changes/contribution-integration-contract/tasks.md": "de6cb38a2ff3e9c65b447b8989576ff5b5f70e12",
+      "template/scripts/_platform_common.py": "d7557c982a7ba078d150e456ffcb15f5cc791bdb",
+      "template/scripts/candidate_lifecycle.py": "69cff812dd9377c85bf27b7f4e53a6ef78ac9e29",
+      "template/scripts/execute_requirement.py": "94143f5a35e76c172ae477f02a0e529738f5c646",
+      "template/scripts/finish_task.py": "324cefb08b1d91fcf5245e0b26cdf3fd676b4aec",
+      "template/scripts/git_hooks/pre-merge-commit": "edce8bf265f6bdc1d97302406b383cc3f5ca0839",
+      "template/scripts/integration_contour.py": "7d800fc43517ab73a11fda02ede764e9a0eb13e6",
+      "template/scripts/lifecycle_preflight.py": "c0d4afbcfd46611c63177c164aaf91a235f5e8f1",
+      "template/scripts/lifecycle_workers.py": "dc2de9c2c7a5bba90bed7335c77c72fd516ce072",
+      "template/scripts/post_review_finalization.py": "63f65a237972025bfdfd9b4cadf5fe89f2890acf",
+      "template/scripts/pr_review_gate.py": "90c869d7affae86d7461d783f7403f8ad391201a",
+      "template/scripts/project_publish.py": "ed26041d82be639341969bb06ffdef3bfdb7cad4",
+      "template/scripts/publication_queue.py": "99b61544cd4988a155a25fe25817a39a1b1b9c3b",
+      "template/scripts/requirement_child_context.py": "389630ae0ab9d6c76c30d501a610c9be15378698",
+      "template/scripts/requirement_contributions.py": "e92a4adc5182eb9e4c4527fc02502d97279aae22",
+      "template/scripts/select_checks.py": "c46363e5bf103a35d390449e7cb94b117c209d5c",
+      "template/scripts/task_reconciliation.py": "6dd13905873e96676857bc25205d0e69c6d07f9d",
+      "tests/test_autonomous_integration_contour.py": "62792667707a7a6ba5b7f6d813354615a479f219",
+      "tests/test_blocking_gates.py": "5ab9abeabb0e87ceb56ff814168bcf8f406054db",
+      "tests/test_post_review_finalization.py": "bc4e77ebc59df40ad5d409e555c6faf66a8b28eb",
+      "tests/test_publication_queue.py": "d190f32b473a303fe09fabfc12351e4fc43f6346",
+      "tests/test_requirement_contribution_composition.py": "6f0373d4b627e2376dcb35c2a1ddea76cb989c40",
+      "tests/test_task_base_matrix.py": "425a04090a1400e1e80dece23ad42fcf9997b848",
+      "tests/test_task_reconciliation.py": "86fb79bd7683616651aa3eb28d9c344057e6b1b2"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
