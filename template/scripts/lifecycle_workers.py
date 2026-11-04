@@ -568,13 +568,38 @@ def needs_private_backlog(job: dict) -> bool:
             and not ISSUE_RE.fullmatch(str(identity.get("requirement", ""))))
 
 
-def job_eligible(job: dict, *, review_ready=None, repair_ready=None, backlog_configured: bool | None = None) -> bool:
+OPERATOR_REGISTRY_REFUSAL = ("Requirement composition finalize runs the full candidate checks, which need the "
+                             "trusted managed project registry of an enabled [operator] configuration; it runs "
+                             "only on the local operator node")
+
+
+def needs_operator_node(job: dict) -> bool:
+    """A composition finalize ends in the full checks, which read the operator-only managed project registry."""
+    identity = job.get("task_identity")
+    return (job["kind"] == "finalize" and isinstance(identity, dict)
+            and identity.get("kind") == "requirement-composition")
+
+
+def operator_enabled(root: Path) -> bool:
+    """Whether this checkout opts into the operator configuration (``[operator] enabled = true``)."""
+    operator = read_platform_config(root).get("operator")
+    return isinstance(operator, dict) and operator.get("enabled") is True
+
+
+def job_eligible(job: dict, *, review_ready=None, repair_ready=None, backlog_configured: bool | None = None,
+                 operator_node: bool | None = None, refused: list[dict] | None = None) -> bool:
     """Whether a worker that proved these providers can run the job; ``None`` means that kind is unfiltered.
 
     ``backlog_configured=False`` names a worker without a Development Backlog (a hosted runner): it
-    skips, before any claim, a job it could not finish.
+    skips, before any claim, a job it could not finish. ``operator_node=False`` names a worker without
+    the operator configuration: it refuses a composition finalize before any claim and lists it in
+    ``refused`` with the reason, never trying another placement.
     """
     if backlog_configured is False and needs_private_backlog(job):
+        return False
+    if operator_node is False and needs_operator_node(job):
+        if refused is not None:
+            refused.append({"number": job["number"], "kind": job["kind"], "error": OPERATOR_REGISTRY_REFUSAL})
         return False
     ready = {"review": review_ready, "repair": repair_ready}.get(job["kind"])
     if ready is None:
@@ -1486,16 +1511,25 @@ def main(argv: list[str] | None = None) -> int:
             if args.repair_provider:
                 repair_ready = frozenset([args.repair_provider]) if readiness[args.repair_provider] is None else frozenset()
         backlog_configured = bool(read_platform_config(Path.cwd()).get("development_backlog", {}).get("repository"))
+        operator_node = operator_enabled(Path.cwd())
+        refused: list[dict] = []
         result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
                            only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
                            eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
-                                                             backlog_configured=backlog_configured),
+                                                             backlog_configured=backlog_configured,
+                                                             operator_node=operator_node, refused=refused),
                            comments_for=comments_for, post_comment=post_comment, worker=args.worker,
                            ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                            current_head=lambda n: pr_info(n)["head"]["sha"],
                            settle=settle if include_merged and not args.dry_run else None,
                            resolve_pr=lambda pr: resolve_candidate(repo, pr),
                            **_coordinator_trust(Path.cwd(), repo))
+        if refused:
+            # A job this placement may not run is an explicit refusal, never a quiet skip.
+            result["refused"] = list({(item["number"], item["kind"]): item for item in refused}.values())
+            if result["status"] == "idle":
+                raise WorkerError("no job claimed; refused " + "; ".join(
+                    f"PR #{item['number']} {item['kind']}: {item['error']}" for item in result["refused"]))
         if args.run and result["status"] == "claimed":
             job = result["job"]
             # The platform writer is bounded by the candidate's own changed paths unless --allow narrows it.

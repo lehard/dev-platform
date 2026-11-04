@@ -234,6 +234,48 @@ class ProviderSelectionTests(unittest.TestCase):
         self.assertEqual(work(private(), True)[0]["job"]["number"], 5)
         self.assertEqual(work({5: [composition(5, "acme/backlog#7")]}, False)[0]["job"]["number"], 5)
 
+    def test_composition_finalize_runs_only_on_the_operator_node(self):
+        composed = {"kind": "requirement-composition", "change": "br-7", "requirement": "pln_x",
+                    "task_content": "c" * 64, "children": [{"change": "a"}]}
+        def finalize(number, identity):
+            record = lifecycle.build_handoff_record(
+                number=number, state="finalize-pending", head=HEAD, gates={}, red_gate=None, not_reverified=[],
+                task_identity=identity, attempts={}, next_job=workers.job_record("finalize", HEAD, identity, 0),
+                at="2026-10-05T08:00:00Z")
+            return {"id": 1, "author_association": "OWNER", "body": lifecycle.marker_body(record)}
+        def work(store, operator_node):
+            posted, refused = [], []
+            def post(number, body):
+                posted.append(number)
+                store[number].append({"id": 50 + len(posted), "author_association": "OWNER", "body": body})
+            prs = [{"number": n, "head": {"sha": HEAD}, "state": "open"} for n in store]
+            result = workers.work_next(frozenset({"finalize"}), list_prs=lambda: prs, comments_for=lambda n: list(store[n]),
+                                       post_comment=post, worker="w", now=NOW,
+                                       eligible=lambda job: workers.job_eligible(job, operator_node=operator_node,
+                                                                                 refused=refused))
+            return result, posted, refused
+        # A hosted placement refuses the composition finalize before any claim, naming the operator registry.
+        result, posted, refused = work({5: [finalize(5, composed)], 9: [finalize(9, "t")]}, False)
+        self.assertEqual((result["status"], result["job"]["number"], posted), ("claimed", 9, [9]))
+        self.assertEqual({(item["number"], item["kind"]) for item in refused}, {(5, "finalize")})
+        self.assertIn("managed project registry", refused[0]["error"])
+        result, posted, refused = work({5: [finalize(5, composed)]}, False)
+        self.assertEqual((result["status"], posted), ("idle", []))
+        self.assertTrue(refused)
+        # The operator node claims it.
+        result, posted, refused = work({5: [finalize(5, composed)]}, True)
+        self.assertEqual((result["status"], posted, refused), ("claimed", [5], []))
+
+    def test_operator_placement_is_read_from_the_explicit_opt_in(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            with mock.patch.object(workers, "read_platform_config", return_value={}):
+                self.assertFalse(workers.operator_enabled(root))
+            with mock.patch.object(workers, "read_platform_config", return_value={"operator": {"enabled": "yes"}}):
+                self.assertFalse(workers.operator_enabled(root))
+            with mock.patch.object(workers, "read_platform_config", return_value={"operator": {"enabled": True}}):
+                self.assertTrue(workers.operator_enabled(root))
+
     def test_repair_eligibility_uses_the_declared_writer_provider(self):
         job = {"kind": "repair", "providers": ["codex"]}
         self.assertTrue(workers.job_eligible(job, repair_ready=frozenset({"codex"})))

@@ -552,6 +552,34 @@ class ReofferRefused(ValueError):
     """The supported re-offer contract refuses this candidate; the message names what a human can do."""
 
 
+COMPOSITION_FULL_CHECKS = "composition-full-checks"
+
+
+def composition_full_checks_refusal(candidate: dict) -> str | None:
+    """Why a blocked-retryable red full-checks gate is not the exact resumable case (``None``: it is).
+
+    The case: a Requirement composition, red gate ``full-checks`` bound to the composition identity,
+    a full-checks gate that did not pass and names the current head, and no offered job.
+    """
+    identity = candidate.get("task_identity")
+    if not isinstance(identity, dict) or identity.get("kind") != "requirement-composition":
+        return "the candidate is not a Requirement composition"
+    if candidate.get("next_job"):
+        return "the candidate already offers a job"
+    red = candidate.get("red_gate") or {}
+    if red.get("identity") != identity:
+        return "the red gate is not bound to the current composition identity"
+    gate = (candidate.get("gates") or {}).get("full-checks")
+    if not isinstance(gate, dict):
+        return "no full-checks gate is recorded"
+    if gate.get("result") == "passed":
+        return "the full-checks gate already passed"
+    evidence = gate.get("evidence")
+    if not isinstance(evidence, dict) or evidence.get("head") != candidate.get("head"):
+        return "the full-checks gate does not name the current head"
+    return None
+
+
 def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: int, retry_kind: str | None,
                  job_completed: bool = False) -> str:
     """The job kind a ``resume``/``switch-provider`` re-offers for this candidate, or ``ReofferRefused``.
@@ -586,6 +614,13 @@ def reoffer_plan(candidate: dict, claim: dict | None, *, action: str, number: in
         # evidence, changed identity, archive leftovers), but resume is safe: the re-offered finalize
         # job re-verifies every gate from scratch at the exact head and escalates again if one fails.
         kind = "finalize"
+    elif state == "blocked-retryable" and red.get("name") == "full-checks" and action == "resume":
+        # Only the exact case: a composition whose final full checks did not pass at its current head and
+        # that offers no job. Full checks need the operator registry, so they are re-run by a local job.
+        refusal = composition_full_checks_refusal(candidate)
+        if refusal is not None:
+            raise ReofferRefused(f"PR #{number} red full-checks gate cannot be resumed: {refusal}")
+        kind = COMPOSITION_FULL_CHECKS
     elif state == "finalize-pending" and job_completed and action == "resume":
         # The finalize job of this head already holds a result (for example it stopped on gates that
         # restore-gates later restored), so it is never claimed again; the re-offer gives it a fresh id
@@ -802,6 +837,40 @@ def reoffer(root: Path, repo: str, number: int, *, action: str, providers, reaso
         raise adapter.QueueError(str(refusal)) from refusal
     attempts = candidate.get("attempts", {})
     identity_event = {"actor": actor.strip(), **({"via": via.strip()} if via and via.strip() else {})}
+    if kind == COMPOSITION_FULL_CHECKS:
+        if providers is not None:
+            raise adapter.QueueError(f"PR #{number} composition full checks run on the operator node; omit --provider")
+        seq = attempts.get("reoffers", 0) + 1
+        event = {"seq": seq, "action": action, "reason": reason.strip()[:300], **identity_event, "head": head,
+                 "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+        if adapter.head_contains_main(root, repo, head):
+            # The finalize job re-verifies finalization (idempotent on a finalized head) and runs the full checks.
+            record = adapter._transition(
+                root, repo, number, "finalize-pending", head, task_identity=identity, inherit_identity=False,
+                set_attempts={"reoffers": seq},
+                next_job=job_record("finalize", head, identity, attempts.get("finalize", 0), reoffer=event))
+        else:
+            # Exact-head CI never runs on a head that conflicts with main: integrate main first; the
+            # repaired head then gets its full checks run once (advance_after_repair).
+            spent = attempts.get("integration-repair", 0)
+            if spent >= adapter.MAX_INTEGRATION_REPAIRS:
+                raise adapter.QueueError(f"PR #{number} integration repair attempts are exhausted ({spent})")
+            # An integration-repair job carries no re-offer event: the fresh attempt is its id, and the
+            # operator's decision is kept in the red gate evidence.
+            red_gate = {"name": "full-checks", "identity": identity,
+                        "evidence": ("composition full checks are unproven and the head does not contain current main; "
+                                     f"resumed by {identity_event['actor']}"
+                                     + (f" via {identity_event['via']}" if "via" in identity_event else "")
+                                     + f": {reason.strip()}")[:1000]}
+            record = adapter._transition(
+                root, repo, number, "integration-repair-pending", head, task_identity=identity,
+                inherit_identity=False, red_gate=red_gate, set_attempts={"reoffers": seq, "integration-repair": spent + 1})
+            if record is not None:
+                record = adapter.publish_job(root, repo, number, "integration-repair", head, task_identity=identity,
+                                             attempt=spent + 1)
+        if record is None:
+            raise adapter.QueueError(f"PR #{number} head moved; rerun")
+        return {"state": record["state"], "number": number, "changed": True, "job": record["next_job"]}
     if kind == "finalize":
         if providers is not None:
             raise adapter.QueueError(f"PR #{number} finalize job runs in the trusted harness; omit --provider")

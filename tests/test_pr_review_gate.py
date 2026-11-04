@@ -1146,6 +1146,94 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(fixture.candidate()["state"], "blocked-escalation")
 
 
+class CompositionFullChecksResumeTests(unittest.TestCase):
+    """A composition left blocked-retryable on a red full-checks gate is resumed only in the exact case."""
+
+    COMPOSED = {"kind": "requirement-composition", "change": "example", "requirement": "pln_x",
+                "task_content": {"digest": "proof"}, "children": [{"change": "child"}]}
+
+    def red_full_checks(self, *, gate_head=HEAD, red_identity=None, identity=None):
+        identity = identity or self.COMPOSED
+        passed = {"result": "passed", "identity": identity, "evidence": "ok"}
+        running = {"result": "pending", "identity": identity, "evidence": {"head": gate_head, "phase": "running"}}
+        queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=identity, inherit_identity=False,
+                          gates={"review": passed, "finalization": passed, "full-checks": running},
+                          red_gate={"name": "full-checks", "identity": red_identity or identity,
+                                    "evidence": "full candidate validation failed: registry unavailable"})
+
+    def resume(self, contains_main=True):
+        with mock.patch.object(queue, "head_contains_main", return_value=contains_main) as compare:
+            result = gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="full checks on operator node",
+                                  actor="test-operator", via="chat-coordinator", expected_head=HEAD)
+        compare.assert_called_once_with(ROOT, "o/r", HEAD)
+        return result
+
+    def test_exact_case_on_a_head_with_main_reoffers_the_finalize_job(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.red_full_checks()
+            result = self.resume(contains_main=True)
+            resumed = fixture.candidate()
+            job = workers.build_job(resumed)
+            self.assertEqual((result["state"], resumed["state"], resumed["red_gate"]), ("finalize-pending", "finalize-pending", None))
+            self.assertEqual((job["kind"], job["head"], job["task_identity"]), ("finalize", HEAD, self.COMPOSED))
+            self.assertEqual((job["reoffer"]["action"], job["reoffer"]["via"]), ("resume", "chat-coordinator"))
+            self.assertEqual(resumed["gates"]["review"]["result"], "passed")
+
+    def test_exact_case_on_a_head_behind_main_offers_integration_repair_first(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.red_full_checks()
+            result = self.resume(contains_main=False)
+            resumed = fixture.candidate()
+            job = workers.build_job(resumed)
+            self.assertEqual((result["state"], resumed["state"]), ("integration-repair-pending", "integration-repair-pending"))
+            self.assertEqual((job["kind"], job["head"], job["attempt"]), ("integration-repair", HEAD, 1))
+            self.assertEqual(resumed["attempts"]["integration-repair"], 1)
+            self.assertEqual(resumed["red_gate"]["name"], "full-checks")
+            self.assertIn("resumed by test-operator via chat-coordinator: full checks on operator node",
+                          resumed["red_gate"]["evidence"])
+
+    def test_resume_refuses_every_other_case_with_its_reason(self):
+        cases = [
+            (dict(gate_head="b" * 40), "does not name the current head"),
+            (dict(red_identity={**self.COMPOSED, "change": "other"}), "not bound to the current composition identity"),
+            (dict(identity=IDENTITY), "not a Requirement composition"),
+        ]
+        for kwargs, reason in cases:
+            with self.subTest(reason=reason), QueueFixture(ROOT, HEAD) as fixture:
+                self.red_full_checks(**kwargs)
+                with mock.patch.object(queue, "head_contains_main") as compare, \
+                        self.assertRaisesRegex(queue.QueueError, "red full-checks gate cannot be resumed: .*" + reason):
+                    gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="test-operator")
+                compare.assert_not_called()
+                self.assertEqual(fixture.candidate()["state"], "blocked-retryable")
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.red_full_checks()
+            with self.assertRaisesRegex(queue.QueueError, "omit --provider"), \
+                    mock.patch.object(queue, "head_contains_main", return_value=True):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=["claude"], reason="x", actor="test-operator")
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="switch-provider", providers=["claude"], reason="x", actor="test-operator")
+            with self.assertRaisesRegex(queue.QueueError, "not the expected"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="test-operator",
+                             expected_head="b" * 40)
+            # Another red gate keeps the existing refusal.
+            queue._transition(ROOT, "o/r", 7, "blocked-retryable", HEAD, task_identity=self.COMPOSED, inherit_identity=False,
+                              red_gate={"name": "publication", "identity": self.COMPOSED, "evidence": "x"})
+            with self.assertRaisesRegex(queue.QueueError, "applies only to an unfinished review or repair job"):
+                gate.reoffer(ROOT, "o/r", 7, action="resume", providers=None, reason="x", actor="test-operator")
+
+    def test_permitted_actions_list_resume_only_for_the_exact_case(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            self.red_full_checks()
+            actions = gate.permitted_actions(fixture.candidate(), None, number=7, retry_kind=None)
+            self.assertEqual([(item["action"], item["kind"]) for item in actions["actions"]],
+                             [("resume", gate.COMPOSITION_FULL_CHECKS)])
+            self.red_full_checks(gate_head="b" * 40)
+            actions = gate.permitted_actions(fixture.candidate(), None, number=7, retry_kind=None)
+            self.assertEqual(actions["actions"], [])
+            self.assertIn("does not name the current head", actions["human_decision"])
+
+
 class RemovedPremergeRetrospectiveTests(unittest.TestCase):
     """BR-950: the pre-merge composition retrospective is gone; a stored job of it is never work."""
 

@@ -1087,6 +1087,25 @@ def _reset_transient(root: Path, repo: str, number: int) -> None:
         return  # the claiming lifecycle work owns the record now; its next transient failure counts on
 
 
+def queued(root: Path, repo: str, number: int) -> bool:
+    """Whether PR #number carries the publication queue label (it was admitted and not dequeued)."""
+    labels = _pr(root, repo, number).get("labels")
+    if not isinstance(labels, list):
+        raise QueueError(f"PR #{number} labels are unavailable")
+    return QUEUE in {label.get("name") for label in labels if isinstance(label, dict)}
+
+
+def head_contains_main(root: Path, repo: str, head: str) -> bool:
+    """Whether GitHub proves ``head`` contains current ``main`` (identical or strictly ahead)."""
+    compared = _gh(root, "api", f"repos/{repo}/compare/main...{head}")
+    status = compared.get("status") if isinstance(compared, dict) else None
+    if status in {"identical", "ahead"}:
+        return True
+    if status in {"behind", "diverged"}:
+        return False
+    raise QueueError(f"GitHub compare of main...{head[:12]} returned no known status: {status!r}")
+
+
 def _main(root: Path) -> str:
     from _platform_common import GitCommandError, github_retry_attempts, is_transient_github_failure
 
