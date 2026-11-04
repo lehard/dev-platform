@@ -333,7 +333,11 @@ def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fres
             final.return_to_review(harness, repo, candidate, head, fresh, adapter=adapter)
             return "review-pending"
         manifest = candidate_manifest(harness, fresh["requirement"])
-        if reason is None:
+        # A main-only proof carries passed full checks only; unproven ones (a resumed red full-checks gate)
+        # are run once on the repaired head.
+        full = (candidate.get("gates") or {}).get("full-checks")
+        unproven = not (isinstance(full, dict) and full.get("result") == "passed")
+        if reason is None and not unproven:
             current = candidate
         else:
             gates = {name: {**gate, "identity": fresh} for name, gate in candidate.get("gates", {}).items()
@@ -341,7 +345,8 @@ def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fres
             current = {**candidate, "head": head, "task_identity": fresh, "gates": gates}
         result = advance_final_publication(root, repo, manifest, head, candidate["number"], adapter=adapter,
                                            source_repo=str(harness), candidate=current, main_base=base,
-                                           force_full_checks=reason is not None, enqueue=False)
+                                           force_full_checks=reason is not None or unproven,
+                                           enqueue=not adapter.queued(root, repo, candidate["number"]))
         return result["status"]
     unchanged = (managed and isinstance(fresh.get("task_content"), dict)
                  and equivalent_proofs(harness or root, old["task_content"], fresh["task_content"]))

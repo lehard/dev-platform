@@ -546,6 +546,7 @@ class IntegrationRepairTests(RepairFixture):
         with mock.patch.object(contour, "equivalent_proofs", return_value=True), \
              mock.patch.object(contour, "main_only_reason", return_value="real conflict"), \
              mock.patch.object(contour.review_gate, "reusable", return_value=True), \
+             mock.patch.object(contour.queue, "queued", return_value=True), \
              mock.patch("requirement_composition.candidate_manifest", return_value={"children": []}), \
              mock.patch("requirement_composition.advance_final_publication", return_value={"status": "waiting-ci"}) as publish:
             state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, identity,
@@ -556,6 +557,29 @@ class IntegrationRepairTests(RepairFixture):
         self.assertFalse(publish.call_args.kwargs["enqueue"])
         self.assertNotIn("full-checks", publish.call_args.kwargs["candidate"]["gates"])
         self.assertNotIn("required-checks", publish.call_args.kwargs["candidate"]["gates"])
+
+    def test_composition_main_only_repair_with_unproven_full_checks_runs_them_and_admits(self):
+        # A resumed red full-checks gate: main-only proof carries no unproven full checks.
+        identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
+                    "children": [{"change": "example"}]}
+        gates = {name: {"result": "passed", "identity": identity, "evidence": {"head": "a" * 40}}
+                 for name in ("review", "finalization")}
+        gates["full-checks"] = {"result": "pending", "identity": identity, "evidence": {"head": "a" * 40, "phase": "running"}}
+        candidate = {"number": 7, "head": "a" * 40, "task_identity": identity, "gates": gates}
+        with mock.patch.object(contour, "equivalent_proofs", return_value=True), \
+             mock.patch.object(contour, "main_only_reason", return_value=None), \
+             mock.patch.object(contour.review_gate, "reusable", return_value=True), \
+             mock.patch.object(contour.queue, "queued", return_value=False), \
+             mock.patch("requirement_composition.candidate_manifest", return_value={"children": []}), \
+             mock.patch("requirement_composition.advance_final_publication", return_value={"status": "waiting-ci"}) as publish:
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, identity,
+                                                self.repo.root, base="c" * 40)
+        self.assertEqual(state, "waiting-ci")
+        kwargs = publish.call_args.kwargs
+        self.assertTrue(kwargs["force_full_checks"])
+        self.assertTrue(kwargs["enqueue"])  # never admitted, so the passed CI admits it
+        self.assertEqual(kwargs["candidate"]["head"], "b" * 40)
+        self.assertEqual(sorted(kwargs["candidate"]["gates"]), ["finalization", "review"])
 
     def test_composition_repair_changing_own_content_returns_to_full_review(self):
         identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",

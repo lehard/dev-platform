@@ -212,6 +212,12 @@ Hosted execution SHALL run only for job kinds named by an explicit repository se
 - **THEN** the run is refused naming the kind and its basis
 - **AND** no worker starts and the kind remains on the local operator node
 
+#### Scenario: Composition finalize offered to a hosted worker
+
+- **WHEN** a worker whose checkout has no enabled `[operator]` configuration selects a Requirement composition finalize job
+- **THEN** it refuses the job before any claim, naming the operator-only managed project registry the full checks need
+- **AND** a run that claims nothing else fails naming that refusal, and the job stays for the local operator node
+
 #### Scenario: LLM-free integration merge enabled
 
 - **WHEN** the setting names `integration-merge`

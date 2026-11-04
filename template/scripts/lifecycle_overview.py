@@ -190,6 +190,16 @@ def idle_reason(candidate: dict, *, job: dict | None, winning: dict | None, comp
     if state in {"ready", "integrating"}:
         return idle("publication-queue", "the publication queue to integrate the candidate", "the publication queue",
                     f"state {state} in the latest lifecycle record")
+    if state == "blocked-retryable" and red.get("name") == "full-checks":
+        from pr_review_gate import composition_full_checks_refusal
+
+        refusal = composition_full_checks_refusal(candidate)
+        if refusal is None:
+            return idle("human-decision", "an operator resume: the composition's full checks did not pass on this head "
+                        "and nothing retries them automatically; resume re-offers them to the local operator node",
+                        "an operator running publication_queue.py resume", "red full-checks gate in the latest lifecycle record")
+        return idle("unknown", f"idle reason unknown: red full-checks gate that resume does not accept ({refusal})",
+                    "unknown", "red full-checks gate in the latest lifecycle record")
     if state == "blocked-retryable":
         return idle("retry-pending", f"the automatic retry of the red {red.get('name') or 'gate'}", "the publication queue",
                     "state blocked-retryable in the latest lifecycle record")

@@ -226,7 +226,14 @@ wait for required CI on that exact head, and admits it only once CI passes. The
 existing publication queue resumes the recorded wait on a CI completion event;
 it does not repeat the full checks. A clean, proven main-only update retains the
 original full-check evidence and requires new exact-head CI. An interrupted
-integration-repair push without final-check proof is explicitly blocked. The
+integration-repair push without final-check proof is explicitly blocked. A
+composition left `blocked-retryable` on a red `full-checks` gate at its current
+head with no job (for example its full checks could not run) is moved only by
+`resume`: it re-offers the finalize job when the head contains current main, and
+otherwise one integration-repair job whose repaired head runs the full checks once
+and is admitted after exact-head CI. Any other red full-checks case is refused
+naming why. Composition finalize and full checks run only on the local operator
+node, which has the managed project registry. The
 post-merge retrospective job records the Requirement checkpoint after the merge. A record still carrying a pre-merge retrospective job fails
 derivation naming the PR; re-offer finalization or recover the candidate.
 A review or repair escalated only because its worker kept failing (the claim was
