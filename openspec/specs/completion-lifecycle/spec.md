@@ -415,13 +415,13 @@ A required independent review SHALL be accepted only when the platform observed 
 
 ### Requirement: Required independent review is an automatic, resumable lifecycle gate
 
-When independent review is required, the lifecycle SHALL run a missing or stale review automatically during archive preflight before expensive validation, SHALL re-validate current review evidence before publication, and SHALL expose the derived review state and next command through task status and Requirement advance from file-backed evidence without a separate state store.
+When independent review is required, a missing or stale review SHALL be run outside archive before finalize; finalize SHALL only require current review evidence and never launch a review. The lifecycle SHALL re-validate current review evidence before publication and SHALL expose the derived review state and next command through task status and Requirement advance from file-backed evidence without a separate state store.
 
 #### Scenario: Archive runs without prior review
 - **GIVEN** a required managed change with no current review evidence
 - **WHEN** the archive helper runs
-- **THEN** it launches the independent review before expensive validation
-- **AND** continues only if the evidence validates, otherwise stops with findings and next commands
+- **THEN** it launches no review
+- **AND** it fails listing the missing review evidence among the unmet preconditions
 
 #### Scenario: Finish with stale review
 - **GIVEN** the candidate changed after review
@@ -1671,16 +1671,16 @@ When existing evidence at the path of an evidence-producing `select_checks.py --
 
 ### Requirement: Portable archive reuses selected-check evidence by the finish rule
 
-Portable `archive` SHALL decide by the rule finish uses (`check_evidence_reuse`) before running the selected checks: reusable evidence SHALL be reused and the decision printed, and otherwise the selected checks SHALL run as before.
+Portable finalize, run by finish, SHALL decide by the rule finish uses (`check_evidence_reuse`) before running the selected checks: reusable evidence SHALL be reused and the decision printed, and otherwise the selected checks SHALL run as before.
 
 #### Scenario: Portable archive with reusable evidence
 
-- **WHEN** portable `archive` finds reusable evidence
+- **WHEN** portable finalize finds reusable evidence
 - **THEN** it reuses the evidence and prints the decision
 
 #### Scenario: Portable archive without reusable evidence
 
-- **WHEN** portable `archive` finds no reusable evidence
+- **WHEN** portable finalize finds no reusable evidence
 - **THEN** the selected checks run as before
 
 ### Requirement: A failure while deciding evidence reuse stops explicitly
@@ -1830,3 +1830,35 @@ When the exact PR of the task branch is merged, finish SHALL run the post-merge 
 - **GIVEN** a task worktree at a pre-finalize head whose exact PR is merged and whose board claim was released
 - **WHEN** finish runs
 - **THEN** it reconciles delivery without a scope claim and starts no developer handoff
+
+### Requirement: One finalize function archives a change
+
+An OpenSpec change SHALL be archived only through one finalize function that checks its preconditions, validates, rehearses and archives with recovery. The queue finalize job SHALL archive through it.
+
+#### Scenario: Finalize job archives
+- **WHEN** the queue finalize job archives a reviewed candidate
+- **THEN** it calls the finalize function and the archive, commit and path checks are as before
+
+### Requirement: Finalize reports every unmet archive precondition at once
+
+Before any archive work, finalize SHALL evaluate every archive precondition (tasks, verification receipt, review evidence, routing, automated-check evidence, committed package, private lineage, checkout identity) and SHALL fail once, listing each unmet precondition with its fix.
+
+#### Scenario: Several preconditions are missing
+- **WHEN** a change lacks review evidence and has an unticked task
+- **THEN** finalize fails once naming both with their fixes and archives nothing
+
+### Requirement: Without a queue finish finalizes the change
+
+Without the publication queue, finish SHALL run a required independent review and then the shared finalize function on the verified active change before publication, and Requirement advance SHALL finalize a ready portable multi-child child the same way.
+
+#### Scenario: Light project finishes
+- **WHEN** finish runs in a light project on a verified active change
+- **THEN** the change is archived through finalize and committed before publication
+
+### Requirement: The developer archive command refuses
+
+`openspec_lifecycle.py archive` without `--finalize` SHALL refuse before any work, naming finish or the queue finalize job as the archive executor.
+
+#### Scenario: Developer runs archive
+- **WHEN** a developer runs archive for an active change
+- **THEN** it fails naming the executor and the change stays active
