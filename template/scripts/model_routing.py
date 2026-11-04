@@ -84,6 +84,8 @@ BALANCED_PARENT_POLICY = "balanced-parent"
 # A historical Claude recovery the platform cannot prove: an explicit owner risk acceptance, never a verified advance.
 CLASSIFICATION_OWNER_AUTHORIZED_RECOVERY = "owner-authorized-historical-recovery"
 DELEGATION_STATES = ("open", "closed")
+# A dead delegation closed on proven process evidence: no execution exists, so nothing claims the child finished.
+OUTCOME_ABANDONED = "abandoned"
 LAUNCH_EVIDENCE_SELF_REPORTED = "self-reported"
 LAUNCH_EVIDENCE_PLATFORM_OBSERVED = "platform-observed"
 # Single source of truth for task-worktree paths that are lifecycle state, not
@@ -371,6 +373,13 @@ def _validate_execution_plan(plan: Any) -> None:
             raise RoutingError("routing record execution_plan.delegation.task_content_post is missing")
         if delegation["provider"] == "codex" and not (isinstance(delegation.get("outcome"), str) and delegation["outcome"]):
             raise RoutingError("routing record execution_plan.delegation.outcome is missing")
+    if delegation.get("outcome") == OUTCOME_ABANDONED:
+        abandonment = delegation.get("abandonment")
+        if delegation["state"] != "closed" or delegation["provider"] != "codex":
+            raise RoutingError("routing record execution_plan.delegation outcome abandoned requires a closed Codex delegation")
+        if (not isinstance(abandonment, dict) or not (isinstance(abandonment.get("reason"), str) and abandonment["reason"].strip())
+                or not isinstance(abandonment.get("observation"), dict)):
+            raise RoutingError("routing record execution_plan.delegation.abandonment must carry a reason and its observation")
 
 
 def _validate_owner_approved_plan(plan: dict[str, Any]) -> None:
@@ -1333,12 +1342,22 @@ def _require_no_open_codex_delegation(route: Route) -> None:
             raise RoutingError("recovery requires a released Codex writer; the child delegation is still open")
 
 
+def _abandoned_delegation(route: Route) -> bool:
+    plan = route.execution_plan
+    delegation = plan.get("delegation") if isinstance(plan, dict) else None
+    return isinstance(delegation, dict) and delegation.get("outcome") == OUTCOME_ABANDONED
+
+
 def _require_recovery_safety(route: Route) -> None:
     """Keep the original child safety boundary through recovery transitions."""
     execution = route.execution
     if execution is None:
         _require_no_open_codex_delegation(route)
-        postcheck(route)
+        # The abandoned writer is proven dead, so integration may only have advanced by a verified fast-forward.
+        if _abandoned_delegation(route):
+            _postcheck(route, supervisor=True)
+        else:
+            postcheck(route)
         return
     if route.provider == "codex":
         if execution.get("writer_state") != "released":
@@ -1354,11 +1373,11 @@ def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> di
     """Allow re-routing over existing content only for a provably attributable failed Codex child.
 
     Permitted solely when the current route record carries a platform-observed
-    Codex delegation whose recorded outcome is ``failed`` or ``abnormal`` and
-    whose recorded post-content equals the current task content, so the
-    divergence is attributable to that child. A self-reported Claude
-    delegation, a completed child, a supervisor write or any content change
-    after the child ended never qualifies.
+    Codex delegation whose recorded outcome is ``failed`` or ``abnormal``, or a
+    Codex delegation closed as abandoned, and whose recorded post-content equals
+    the current task content, so the divergence is attributable to that child. A
+    self-reported Claude delegation, a completed child, a supervisor write or any
+    content change after the child ended never qualifies.
     """
     path = _record_path(root, change)
     if not path.is_file():
@@ -1371,6 +1390,12 @@ def _reroute_attribution(root: Path, change: str, content: dict[str, Any]) -> di
     plan = previous.execution_plan
     execution = previous.execution
     delegation = plan.get("delegation") if isinstance(plan, dict) else None
+    if previous.provider == "codex" and execution is None and _abandoned_delegation(previous):
+        if _content_differences(delegation["task_content_post"], content):
+            return None
+        _require_recovery_safety(previous)
+        return {"provider": previous.provider, "outcome": OUTCOME_ABANDONED, "opened_at": delegation.get("opened_at"),
+                "closed_at": delegation.get("closed_at"), "prior_route": asdict(previous)}
     if (
         previous.provider != "codex"
         or not isinstance(execution, dict)
@@ -1411,7 +1436,8 @@ def escalate(root: Path, reason: str) -> Route:
     if plan.get("policy") == OWNER_APPROVED_POLICY:
         raise RoutingError("the plan is already supervisor-retained by an owner-approved retention; escalation does not apply, finalize with record-retained-execution")
     _require_recovery_safety(route)
-    if plan["mode"] == PLAN_DELEGATED and not _has_real_delegation(route):
+    child_ran = _has_real_delegation(route) or _abandoned_delegation(route)
+    if plan["mode"] == PLAN_DELEGATED and not child_ran:
         diverged = _task_content_diverged(route)
         if diverged:
             raise RoutingError(
@@ -1422,10 +1448,82 @@ def escalate(root: Path, reason: str) -> Route:
             )
     next_plan = {**plan, "mode": PLAN_RETAINED, "policy": "complex-parent"}
     if plan["mode"] == PLAN_DELEGATED:
-        next_plan["switched_from"] = {"mode": PLAN_DELEGATED, "at": utc_now(), "delegation_recorded": _has_real_delegation(route)}
+        next_plan["switched_from"] = {"mode": PLAN_DELEGATED, "at": utc_now(), "delegation_recorded": child_ran}
     next_route = Route(**{**asdict(route), "profile": "complex", "executor_model": _model_for(read_platform_config(root), route.provider, "complex"), "freshness": "escalated", "escalations": route.escalations + ({"at": utc_now(), "from": route.profile, "reason": reason.strip()},), "execution_plan": next_plan})
     _write_route(path, next_route)
     return next_route
+
+
+def _caller_ancestry() -> set[int]:
+    """This process and every ancestor: the caller's own shells never count as a live writer."""
+    ancestry, pid = set(), os.getpid()
+    while pid > 1 and pid not in ancestry:
+        ancestry.add(pid)
+        done = subprocess.run(["ps", "-o", "ppid=", "-p", str(pid)], text=True, capture_output=True, check=False)
+        if done.returncode or not done.stdout.strip().isdigit():
+            raise RoutingError(f"cannot observe the caller's process ancestry at pid {pid}: {done.stderr.strip() or 'ps failed'}; "
+                               "the delegation stays open, retry where ps works")
+        pid = int(done.stdout.strip())
+    return ancestry
+
+
+def _worktree_processes(worktree: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Processes outside the caller's ancestry with their working directory in ``worktree``, and the observation."""
+    lsof = shutil.which("lsof")
+    if lsof is None:
+        raise RoutingError("lsof is unavailable, so process liveness cannot be observed; the delegation stays open, "
+                           "install lsof or retry on a host that has it")
+    done = subprocess.run([lsof, "-n", "-P", "-d", "cwd", "-F", "pcn"], text=True, capture_output=True, check=False)
+    if done.returncode:
+        raise RoutingError(f"lsof failed with exit {done.returncode}, so process liveness cannot be observed: "
+                           f"{done.stderr.strip()[:200]}; the delegation stays open, retry when it succeeds")
+    ancestry = _caller_ancestry()
+    assigned = worktree.resolve()
+    found: list[dict[str, Any]] = []
+    pid, command = 0, ""
+    for line in done.stdout.splitlines():
+        if line.startswith("p"):
+            pid, command = int(line[1:]), ""
+        elif line.startswith("c"):
+            command = line[1:]
+        elif line.startswith("n") and pid not in ancestry:
+            path = Path(line[1:])
+            if path == assigned or assigned in path.parents:
+                found.append({"pid": pid, "command": command})
+    return found, {"method": "lsof -d cwd", "worktree": str(assigned), "observed_at": utc_now(),
+                   "excluded_ancestry": sorted(ancestry), "processes": found}
+
+
+def close_abandoned_delegation(root: Path, reason: str) -> dict[str, Any]:
+    """Close a dead open Codex delegation on proven evidence, so a new route can be prepared.
+
+    No execution evidence is created: the record states that the child never reported an outcome.
+    """
+    route, path = _read_route(root)
+    if not reason.strip():
+        raise RoutingError("closing an abandoned delegation requires a concrete non-empty reason")
+    plan = _require_plan(route, "closing an abandoned delegation")
+    delegation = plan.get("delegation")
+    if not isinstance(delegation, dict):
+        raise RoutingError("this route has no delegation to close; prepare a route or record its real execution instead")
+    if delegation.get("provider") != "codex":
+        raise RoutingError(f"this delegation belongs to {delegation.get('provider')}; a Claude delegation closes through "
+                           "`model_routing.py record-claude-execution`")
+    if delegation.get("state") != "open" or route.execution is not None:
+        raise RoutingError(f"this Codex delegation is {delegation.get('state')} with outcome {delegation.get('outcome')}; "
+                           "only an open delegation without an execution is abandoned; route again with `model_routing.py prepare`")
+    worktree = Path(route.task_worktree)
+    processes, observation = _worktree_processes(worktree)
+    if processes:
+        named = ", ".join(f"{item['pid']} ({item['command']})" for item in processes[:8])
+        raise RoutingError(f"processes still run in {worktree}: {named}; the delegation stays open, "
+                           "let them finish or stop them, then rerun close-abandoned-delegation")
+    content = _task_content_state(worktree, route.change)
+    closed = {**delegation, "state": "closed", "outcome": OUTCOME_ABANDONED, "closed_at": utc_now(), "task_content_post": content,
+              "abandonment": {"reason": reason.strip(), "observation": observation}}
+    _write_route(path, Route(**{**asdict(route), "execution_plan": {**plan, "delegation": closed}}))
+    return {"delegation": closed, "task_content_left": _content_differences(plan["task_content_pre"], content),
+            "next": "route again with `model_routing.py prepare`; the content above stays ordinary task content"}
 
 
 def _no_delegated_child_ran(route: Route, plan: dict[str, Any]) -> bool:
@@ -1734,6 +1832,13 @@ def _failed_codex_execution(execution: dict[str, Any]) -> bool:
     return execution.get("outcome") in {"abnormal", "failed"} or execution.get("writer_state") == "ambiguous"
 
 
+def _writer_statement(route: Route) -> str:
+    """Who writes task content on a Codex route: the delegated child on R1 and R2, the retained parent on R3."""
+    if route.profile == "complex":
+        return "Writer: the retained parent writes task content; no Codex child is launched."
+    return f"Writer: the delegated Codex child writes task content in {route.task_worktree}; the supervisor does not write task content."
+
+
 def dispatch_codex(
     root: Path,
     *,
@@ -1750,7 +1855,9 @@ def dispatch_codex(
     degrading into a recorded-but-never-executed routine/standard route.
     """
     route = prepare(root, provider="codex", profile=profile, rationale=rationale, evidence=evidence, delegate=True)
-    output: dict[str, Any] = {"route": asdict(route), "delegated": False}
+    writer = _writer_statement(route)
+    print(writer, file=sys.stderr, flush=True)  # before the launch: a child run lasts as long as the task
+    output: dict[str, Any] = {"route": asdict(route), "delegated": False, "writer": writer}
     if route.profile == "complex":
         output["reason"] = "complex profile remains on the strong Codex supervisor"
         return output
@@ -4146,6 +4253,9 @@ def main() -> int:
     dispatch_parser.add_argument("--evidence", action="append", default=[])
     dispatch_parser.add_argument("--prompt", required=True)
     dispatch_parser.add_argument("--codex-bin")
+    abandon_parser = subparsers.add_parser(
+        "close-abandoned-delegation", help="close a dead open Codex delegation on proven process evidence")
+    abandon_parser.add_argument("--reason", required=True)
     subparsers.add_parser("claude-agent", help="emit a native Claude Code worktree-agent definition")
     dispatch_claude_parser = subparsers.add_parser(
         "dispatch-claude",
@@ -4282,6 +4392,8 @@ def main() -> int:
                 root, friction_event=args.friction_event, before_head=args.before_head, after_head=args.after_head,
                 owner_approval=args.owner_approval,
             )
+        elif args.command == "close-abandoned-delegation":
+            output = close_abandoned_delegation(root, args.reason)
         elif args.command == "verify-routing":
             _early_routing_gate(root, args.source_issue, args.change)
             output = asdict(require_routing_gate(root, args.source_issue, args.change))
