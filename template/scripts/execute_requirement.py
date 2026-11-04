@@ -578,14 +578,23 @@ def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
         if not isinstance(labels, list) or any(not isinstance(label, dict) or not isinstance(label.get("name"), str) for label in labels):
             raise RequirementExecutionError(f"composition PR #{number} has unreadable labels")
         names = {label["name"] for label in labels}
+        head = pr["head"].get("sha")
+        if not isinstance(head, str) or not re.fullmatch(r"[0-9a-f]{40}", head):
+            raise RequirementExecutionError(f"composition PR #{number} has no readable exact head")
         comments = queue._comments(root, repo, number)
-        candidate = queue._derive(root, pr, comments)
-        if queue._malformed(candidate):
-            raise RequirementExecutionError(f"composition PR #{number} has malformed queue state")
-        state = candidate.get("state")
+        record = queue._latest(root, number, comments)
+        if record is not None and record["head"] != head:
+            raise RequirementExecutionError(
+                f"composition PR #{number} coordinator record head {record['head']} differs from current head {head}")
+        if queue.QUEUE in names or queue.ACTIVE in names:
+            raise RequirementExecutionError(
+                f"composition PR #{number} is queue-owned: labels {sorted(names & {queue.QUEUE, queue.ACTIVE})}; "
+                "owner publication-queue")
+        if record is None:
+            return
+        state = record["state"]
         owned = queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}
-        if (queue.QUEUE in names or queue.ACTIVE in names
-                or (state in owned and _composition_manifest_complete(root, repo, pr, requirement))):
+        if state in owned and _composition_manifest_complete(root, repo, pr, requirement):
             raise RequirementExecutionError(f"composition PR #{number} is queue-owned: state {state}; owner publication-queue")
     except queue.QueueError as exc:
         raise RequirementExecutionError(f"cannot observe queue ownership for {branch}: {exc}") from exc
