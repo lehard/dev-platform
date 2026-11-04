@@ -2896,7 +2896,7 @@ After genuine composition integration repair, the repair path SHALL complete fin
 
 ### Requirement: Requirement advance refuses a queue-owned composition
 
-While the publication queue owns a Requirement composition, Requirement advance SHALL fail explicitly, naming the queue state, and SHALL run no checks or publication steps. Queue lifecycle state establishes ownership only when the exact-head manifest contains every `expected_changes` entry in `children`; a QUEUE or ACTIVE label establishes ownership regardless. Unreadable or malformed ownership evidence SHALL fail explicitly.
+Requirement advance SHALL refuse queue-owned compositions before checks or publication, naming the state. Lifecycle ownership requires a trusted exact-head coordinator record and every `expected_changes` entry in `children`. QUEUE or ACTIVE labels always establish ownership. Without a record, advance SHALL continue without using a derived default. Unreadable, malformed or wrong-head records SHALL cause explicit refusal naming the reason.
 
 #### Scenario: Advance on a queued composition
 
@@ -2910,8 +2910,23 @@ While the publication queue owns a Requirement composition, Requirement advance 
 
 #### Scenario: Complete composition awaits review
 
-- **WHEN** every expected change is integrated and the composition is review-pending
+- **WHEN** every expected change is integrated and a coordinator record for the exact composition head is review-pending
 - **THEN** advance refuses naming the queue state
+
+#### Scenario: Complete composition has no coordinator record
+
+- **WHEN** every expected change is integrated and the composition has no coordinator record and neither QUEUE nor ACTIVE label
+- **THEN** advance continues to publish the composition without treating a derived default review-pending state as queue ownership
+
+#### Scenario: Coordinator record names a stale head
+
+- **WHEN** a composition has a coordinator record bound to another head
+- **THEN** advance refuses explicitly naming the recorded and current heads
+
+#### Scenario: Coordinator record is damaged
+
+- **WHEN** a trusted coordinator record cannot be read or validated
+- **THEN** advance refuses with the cause instead of substituting a default lifecycle state
 
 #### Scenario: Queue label owns an incomplete composition
 

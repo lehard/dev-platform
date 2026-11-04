@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "abce3d9584fd60c34a6431d13092b3a7ff27a565",
+    "base_ref": "origin/main",
+    "candidate_head": "80acb0a665c325b2455c30c42e7691db57b3f5b0",
+    "diff_sha256": "703bad89f28fe968cedbb07a160e187f0b8689c2f2005839631e2c50ee68c647"
+  },
+  "completed_at": "2026-11-03T22:30:53+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/managed_task.py:1574-1579 calls create_issue and then check_created_package_size, which can raise ManagedTaskError. The resume branch at lines 1552-1562 calls publish_package without any size check. The design explicitly accepts this risk, so the only consequence is that a rerun publishes unchecked and may hit the original HTTP 422.",
+      "id": "post-create-drift-orphan-issue",
+      "severity": "advisory",
+      "summary": "If the post-create contract-drift check fails, the Issue already exists with no package comment. The next run enters the resume path, which has no size or length check."
+    }
+  ],
+  "launched_at": "2026-11-03T22:30:36+00:00",
+  "output_sha256": "05ca2c956b482ce2564d8c2ce46f9de366ad544e6a147e29ea297d57ed6350a2",
+  "perspective": "engineering-quality",
+  "request_id": "48473ac0-b668-4e20-8599-894658717d5d",
+  "reviewer": {
+    "context_id": "0bd07159-7241-4a26-bd9e-63dc209b86e3",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9ee8a71a-7259-4ea6-bcaf-dd3ba08bb3dc",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21060
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 64166
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15589
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 15926
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 912
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "d0dbbb55e7b0af11ec3d3adb1dd949b8dd01d65f7c37a07e1f1c987589706ca5"
+}

@@ -318,6 +318,22 @@ class IdleReasonTests(unittest.TestCase):
         self.assertIn("idle reason unknown", item["idle"]["waiting_for"])
         self.assertIn("idle reason unknown", overview.render_candidate(item, detail=False))
 
+    def test_red_composition_full_checks_name_the_operator_resume_not_an_automatic_retry(self):
+        composed = {"kind": "requirement-composition", "change": "example", "requirement": "pln_x",
+                    "task_content": {"digest": "proof"}, "children": [{"change": "child"}]}
+        head = pull()["head"]["sha"]
+        full = {"result": "pending", "identity": composed, "evidence": {"head": head, "phase": "running"}}
+        candidate = {"number": 7, "head": head, "state": "blocked-retryable", "task_identity": composed,
+                     "gates": {"full-checks": full}, "red_gate": {"name": "full-checks", "identity": composed, "evidence": "x"}}
+        idle = overview.idle_reason(candidate, job=None, winning=None, completed=False, open_pr=True)
+        self.assertEqual(idle["kind"], "human-decision")
+        self.assertIn("nothing retries them automatically", idle["waiting_for"])
+        self.assertIn("publication_queue.py resume", idle["moved_by"])
+        stale = {**candidate, "gates": {"full-checks": {**full, "evidence": {"head": "b" * 40}}}}
+        idle = overview.idle_reason(stale, job=None, winning=None, completed=False, open_pr=True)
+        self.assertEqual(idle["kind"], "unknown")
+        self.assertIn("does not name the current head", idle["waiting_for"])
+
     def test_every_candidate_state_gets_an_explicit_reason(self):
         for state in sorted(lifecycle.STATES):
             with self.subTest(state=state):

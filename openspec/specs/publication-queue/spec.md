@@ -104,6 +104,26 @@ Each coordinator transition SHALL publish a record naming the candidate head, ta
 - **WHEN** a review finding moves the candidate to repair-pending
 - **THEN** the record names the finding, the reviewed identity and the checks already satisfied
 
+### Requirement: Repeated child content uses verified record-local references
+
+Repeated child task-content maps in composition identities and gate evidence SHALL use record-local references bound to a SHA-256 digest of the entire map. Reading SHALL restore the maps and refuse missing targets or digest mismatches explicitly. Existing records without references SHALL remain readable. The serialized record SHALL still refuse content exceeding 60000 characters after compaction.
+
+#### Scenario: A multi-child record fits after compaction
+- **WHEN** repeated child maps make a composition record exceed 60000 characters before compaction but fit after compaction
+- **THEN** the record round-trips with identical identities and evidence bound to the exact candidate head
+
+#### Scenario: A referenced child map was changed or removed
+- **WHEN** a record-local child reference has a missing target or a target whose SHA-256 differs
+- **THEN** reading refuses explicitly naming the invalid reference
+
+#### Scenario: An existing record has inline child maps
+- **WHEN** a record contains child maps without record-local references
+- **THEN** reading preserves the original identities and evidence
+
+#### Scenario: Compaction cannot meet the bound
+- **WHEN** the serialized record still exceeds 60000 characters after compaction
+- **THEN** writing refuses with the existing size-bound error
+
 ### Requirement: Candidate and Requirement status is read-only and actionable
 
 A read-only status SHALL show for a candidate and for a Requirement the current state, active job or claim, attempts, red gate, evidence bindings and the next automatic or human action, from any execution location.
@@ -181,6 +201,25 @@ The coordinator SHALL provide a supported operator command that resumes a blocke
 #### Scenario: Exhausted rounds
 - **WHEN** the operator resumes a candidate escalated for exhausted repair rounds
 - **THEN** the command refuses and names pushing a fix, recording a disposition or closing the PR
+
+### Requirement: A composition red full-checks gate is resumed only in the exact case
+
+The operator resume command SHALL accept a blocked-retryable Requirement composition whose red `full-checks` gate is bound to its current identity, whose full-checks gate did not pass at the current head, and which offers no job. It SHALL re-offer finalize when the head contains current main, else one integration-repair job within budget. Every other red full-checks case SHALL be refused naming its reason.
+
+#### Scenario: Head contains main
+- **GIVEN** a composition blocked-retryable on red full-checks at its current head, with no job
+- **WHEN** the operator resumes it with a reason and the head contains current main
+- **THEN** it becomes finalize-pending with a finalize job at that head carrying the re-offer event
+
+#### Scenario: Head is behind main
+- **GIVEN** the same composition whose head does not contain current main
+- **WHEN** the operator resumes it
+- **THEN** it becomes integration-repair-pending with one integration-repair job, the operator's reason, actor and label kept in the red gate
+- **AND** the repaired head runs its full checks once before exact-head CI, and a composition that was never admitted is admitted when that CI passes
+
+#### Scenario: Not the exact case
+- **WHEN** the full-checks gate names another head, the red gate is bound to another identity, the candidate is not a composition, or a job is offered
+- **THEN** the resume command refuses naming that reason and writes nothing
 
 ### Requirement: Coordinator configuration preflight
 

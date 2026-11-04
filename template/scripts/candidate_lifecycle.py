@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import datetime
+import hashlib
 import json
 import re
 
@@ -112,6 +113,82 @@ def build_handoff_record(*, number: int, state: str, head: str,
 
 MAX_MARKER_CHARS = 60000  # GitHub caps a comment at 65536 characters
 _IDENTITY_REF = {"$ref": "task_identity"}
+_CHILD_CONTENT_REF = "child_task_contents"
+
+
+def _content_map_digest(content: dict) -> str:
+    return hashlib.sha256(json.dumps(content, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _map_task_contents(value, visit):
+    """Copy a JSON tree, visiting task-content maps without mutating the input."""
+    if isinstance(value, list):
+        return [_map_task_contents(item, visit) for item in value]
+    if isinstance(value, dict):
+        return {key: visit(item) if key == "task_content" and isinstance(item, dict)
+                else _map_task_contents(item, visit) for key, item in value.items()}
+    return value
+
+
+def _compact_child_contents(record: dict) -> dict:
+    identity = record["task_identity"]
+    if identity.get("kind") != "requirement-composition":
+        return record
+    maps: dict[str, dict] = {}
+
+    def collect(content):
+        maps[_content_map_digest(content)] = content
+        return content
+
+    _map_task_contents(identity["children"], collect)
+    counts = dict.fromkeys(maps, 0)
+
+    def count(content):
+        digest = _content_map_digest(content)
+        if digest in counts:
+            counts[digest] += 1
+        return content
+
+    _map_task_contents(record, count)
+    targets = {digest: content for digest, content in maps.items() if counts[digest] > 1}
+    if not targets:
+        return record
+
+    def reference(content):
+        digest = _content_map_digest(content)
+        return {"$ref": _CHILD_CONTENT_REF, "digest": digest} if digest in targets else content
+
+    compact = _map_task_contents(record, reference)
+    compact[_CHILD_CONTENT_REF] = targets
+    return compact
+
+
+def _expand_child_contents(record: dict) -> dict:
+    targets = record.get(_CHILD_CONTENT_REF)
+    if _CHILD_CONTENT_REF in record:
+        if not isinstance(targets, dict) or not targets:
+            raise ValueError("invalid child task-content reference targets")
+        for digest, content in targets.items():
+            if (not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest)
+                    or not isinstance(content, dict) or not content or "$ref" in content
+                    or _content_map_digest(content) != digest):
+                raise ValueError(f"child task-content reference digest mismatch: {digest}")
+
+    def expand(content):
+        if "$ref" not in content:
+            return content
+        if content["$ref"] != _CHILD_CONTENT_REF:
+            raise ValueError("invalid child task-content reference")
+        digest = content.get("digest")
+        if set(content) != {"$ref", "digest"} or not isinstance(digest, str):
+            raise ValueError("invalid child task-content reference")
+        if not isinstance(targets, dict) or digest not in targets:
+            raise ValueError(f"missing child task-content reference target: {digest}")
+        return deepcopy(targets[digest])
+
+    expanded = _map_task_contents(record, expand)
+    expanded.pop(_CHILD_CONTENT_REF, None)
+    return expanded
 
 
 def _compact_identity(record: dict) -> dict:
@@ -128,11 +205,14 @@ def _compact_identity(record: dict) -> dict:
     job = record.get("next_job")
     if isinstance(job, dict) and job.get("task_identity") == identity:
         compact["next_job"] = {**job, "task_identity": _IDENTITY_REF}
-    return compact
+    return _compact_child_contents(compact)
 
 
 def _expand_identity(record):
-    if not isinstance(record, dict) or not isinstance(record.get("task_identity"), dict):
+    if not isinstance(record, dict):
+        return record
+    record = _expand_child_contents(record)
+    if not isinstance(record.get("task_identity"), dict):
         return record
     identity = record["task_identity"]
     if isinstance(record.get("gates"), dict):
