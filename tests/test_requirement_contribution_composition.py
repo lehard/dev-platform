@@ -1584,21 +1584,80 @@ class QueueOwnershipGuardTests(unittest.TestCase):
     def setUp(self):
         import publication_queue
         self.queue = publication_queue
+        self.pr = {"number": 11, "state": "open", "draft": True,
+                   "head": {"ref": "requirement/BR-7", "sha": "a" * 40},
+                   "base": {"ref": "main"}, "labels": []}
+        self.comments = []
+        patches = [
+            mock.patch.object(execution, "_contribution_publication_supported", return_value=True),
+            mock.patch.object(self.queue, "_repo", return_value="acme/project"),
+            mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]),
+            mock.patch.object(self.queue, "_pr", return_value=self.pr),
+            mock.patch.object(self.queue, "_comments", return_value=self.comments),
+            mock.patch.object(self.queue, "trusted_apps", return_value=frozenset()),
+            mock.patch.object(self.queue, "trusted_writers", return_value=frozenset()),
+        ]
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.complete_patch = mock.patch.object(execution, "_composition_manifest_complete", return_value=True)
+        self.complete = self.complete_patch.start()
+        self.addCleanup(self.complete_patch.stop)
+
+    def record(self, *, head=None, state="review-pending"):
+        record = lifecycle.build_handoff_record(
+            number=11, state=state, head=self.pr["head"]["sha"] if head is None else head,
+            task_identity="composition-fixture", gates={}, red_gate=None,
+            not_reverified=[], attempts={}, next_job=None, at="2026-11-04T00:00:00Z")
+        self.comments.append({"id": len(self.comments) + 1, "author_association": "OWNER",
+                              "body": lifecycle.marker_body(record)})
+
+    def guard(self):
+        execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+
+    def test_complete_composition_without_record_allows_advance(self):
+        self.assertEqual(self.queue._derive(Path("/unused"), self.pr, self.comments)["state"], "review-pending")
+        self.guard()
+        self.complete.assert_not_called()
+
+    def test_stale_record_refuses_with_both_heads(self):
+        self.record(head="b" * 40)
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "b{40}.*a{40}"):
+            self.guard()
+        self.complete.assert_not_called()
+
+    def test_current_record_complete_composition_refuses(self):
+        self.record()
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned: state review-pending"):
+            self.guard()
+        self.complete.assert_called_once()
+
+    def test_corrupt_record_refuses_with_cause(self):
+        self.comments.append({"id": 5, "author_association": "OWNER", "body": lifecycle.PREFIX + "{broken"})
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "malformed.*5"):
+            self.guard()
+        self.complete.assert_not_called()
+
+    def test_unreadable_records_refuse_with_cause(self):
+        with mock.patch.object(self.queue, "_comments", side_effect=self.queue.QueueError("comments unavailable")):
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "comments unavailable"):
+                self.guard()
+
+    def test_queue_label_without_record_refuses(self):
+        for label in (self.queue.QUEUE, self.queue.ACTIVE):
+            with self.subTest(label=label):
+                self.pr["labels"] = [{"name": label}]
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+                    self.guard()
+        self.complete.assert_not_called()
 
     def test_incomplete_draft_review_pending_allows_advance(self):
-        pr = {"state": "open", "draft": True, "head": {"ref": "requirement/BR-7"},
-              "base": {"ref": "main"}, "labels": []}
-        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
-             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
-             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
-             mock.patch.object(self.queue, "_pr", return_value=pr), \
-             mock.patch.object(self.queue, "_comments", return_value=[]), \
-             mock.patch.object(self.queue, "_derive", return_value={"state": "review-pending"}), \
-             mock.patch.object(self.queue, "_malformed", return_value=False), \
-             mock.patch.object(execution, "_composition_manifest_complete", return_value=False):
-            execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+        self.record()
+        self.complete.return_value = False
+        self.guard()
 
     def test_manifest_completeness_uses_exact_pr_head(self):
+        self.complete_patch.stop()
         with tempfile.TemporaryDirectory() as tmp:
             fixture = Repository(Path(tmp))
             incomplete = fixture.boundary
@@ -1616,17 +1675,18 @@ class QueueOwnershipGuardTests(unittest.TestCase):
                     execution._composition_manifest_complete(fixture.root, "acme/project", pr, REQUIREMENT)
 
     def test_owned_composition_refuses_before_advance_side_effects(self):
-        pr = {"state": "open", "head": {"ref": "requirement/BR-7"}, "base": {"ref": "main"},
-              "labels": [{"name": self.queue.QUEUE}]}
-        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
-             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
-             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
-             mock.patch.object(self.queue, "_pr", return_value=pr), \
-             mock.patch.object(self.queue, "_comments", return_value=[]), \
-             mock.patch.object(self.queue, "_derive", return_value={"state": "integrating"}), \
-             mock.patch.object(self.queue, "_malformed", return_value=False):
-            with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned: state integrating"):
-                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+        import _platform_common
+        self.record()
+        root = Path("/unused").resolve()
+        with mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
+             mock.patch.object(execution, "current_worktree_root", return_value=root), \
+             mock.patch.object(execution, "_git", return_value="main"), \
+             mock.patch.object(execution.requirement_intake, "fetch_issue") as fetch, \
+             mock.patch.object(execution.requirement_board, "claim_started") as claim:
+            with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned: state review-pending"):
+                execution.advance(root, requirement=REQUIREMENT, base_dir=root)
+        fetch.assert_not_called()
+        claim.assert_not_called()
 
     def test_advance_refuses_unavailable_queue_before_mutations(self):
         import _platform_common
@@ -1634,7 +1694,6 @@ class QueueOwnershipGuardTests(unittest.TestCase):
         with mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
              mock.patch.object(execution, "current_worktree_root", return_value=root), \
              mock.patch.object(execution, "_git", return_value="main"), \
-             mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
              mock.patch.object(self.queue, "_repo", side_effect=self.queue.QueueError("queue unavailable")), \
              mock.patch.object(execution.requirement_intake, "fetch_issue") as fetch, \
              mock.patch.object(execution.requirement_board, "claim_started") as claim:
@@ -1645,31 +1704,20 @@ class QueueOwnershipGuardTests(unittest.TestCase):
         claim.assert_not_called()
 
     def test_ambiguous_composition_inventory_refuses(self):
-        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
-             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
-             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}, {"number": 12}]):
+        with mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}, {"number": 12}]):
             with self.assertRaisesRegex(execution.RequirementExecutionError, "multiple open"):
-                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+                self.guard()
 
     def test_all_claims_and_active_queue_label_refuse(self):
-        pr = {"state": "open", "head": {"ref": "requirement/BR-7"}, "base": {"ref": "main"}, "labels": []}
-        with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
-             mock.patch.object(self.queue, "_repo", return_value="acme/project"), \
-             mock.patch.object(self.queue, "_gh", return_value=[{"number": 11}]), \
-             mock.patch.object(self.queue, "_pr", return_value=pr), \
-             mock.patch.object(self.queue, "_comments", return_value=[]), \
-             mock.patch.object(self.queue, "_derive") as derive, \
-             mock.patch.object(self.queue, "_malformed", return_value=False), \
-             mock.patch.object(execution, "_composition_manifest_complete", return_value=True):
-            for state in self.queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}:
-                with self.subTest(state=state):
-                    derive.return_value = {"state": state}
-                    with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
-                        execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
-            derive.return_value = {"state": "blocked-retryable"}
-            pr["labels"] = [{"name": self.queue.ACTIVE}]
-            with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
-                execution._refuse_queue_owned_composition(Path("/unused"), REQUIREMENT)
+        for state in self.queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}:
+            with self.subTest(state=state):
+                self.record(state=state)
+                with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+                    self.guard()
+        self.record(state="blocked-retryable")
+        self.pr["labels"] = [{"name": self.queue.ACTIVE}]
+        with self.assertRaisesRegex(execution.RequirementExecutionError, "queue-owned"):
+            self.guard()
 
     def test_invalid_requirement_is_rejected_before_queue_observation(self):
         with mock.patch.object(execution, "_contribution_publication_supported") as supported:
