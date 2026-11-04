@@ -27,6 +27,15 @@ class RetrospectivePending(RequirementRetrospectiveError):
         self.command = command
 
 
+class RetrospectiveStale(RequirementRetrospectiveError):
+    """Friction recorded after the retrospective is not linked to it: a refresh, keyed by those events, closes this."""
+
+    def __init__(self, message: str, events: list[str]) -> None:
+        super().__init__(message)
+        self.events = sorted(events)
+        self.key = hashlib.sha256(",".join(self.events).encode()).hexdigest()[:16]
+
+
 _CHILD_CHECKBOX_RE = re.compile(r"^([ \t]*- \[)[xX](\] \S+/\S+#\d+\s*)$", re.MULTILINE)
 
 
@@ -132,7 +141,8 @@ def _explain_signals(requirement: str, event_ids: list[str], dispositions: dict[
         raise RequirementRetrospectiveError(agent_friction.lifecycle_checkpoint_instruction(unresolved))
     unlinked = agent_friction.unlinked_retrospective_signals(requirement, event_ids, dispositions)
     if unlinked:
-        raise RequirementRetrospectiveError(agent_friction.retrospective_signal_instruction(unlinked))
+        raise RetrospectiveStale(agent_friction.retrospective_signal_instruction(unlinked),
+                                 [str(event.get("id")) for event in unlinked])
     gaps = agent_friction.unaccepted_gaps(agent_friction.evidence_source_status(requirement), accepted_gaps)
     if gaps:
         raise RequirementRetrospectiveError(agent_friction.gap_instruction(gaps))
