@@ -71,7 +71,7 @@
     "scripts/agent_sessions.py": "5c3dc9a16adb5296c354e7b9f0fd0c5eddd611d5c0fbcccd59216b2c404c75dd",
     "scripts/agent_signal.py": "468c5ae500a0563f101c45b759f4012fc24a7bc7a29c7d84163d03218b4038ca",
     "scripts/browser_verification.py": "24dd49549b7bd9976ec548c78fa8ea6b2930d48eac6750bda9e52c9156c20b92",
-    "scripts/candidate_lifecycle.py": "de43d2c84cfa863b236adb88df76bc8cd0223c6054af77ec00ac7a3018891b20",
+    "scripts/candidate_lifecycle.py": "a950856860f8b14adeb79a7bcb58181b4c73a4870fa8d5f75891f6e654d07257",
     "scripts/capability_evals.py": "d5526d3570f8381142b7536fd548151045c87b2c6450261a3b2d0d123afbd988",
     "scripts/capability_manager.py": "6c10483f00c91f5ad1390b0410a1a9f1c9e1c31cc9d3e0021782fba6980dcb5c",
     "scripts/check_docs_links.py": "112e027ce1dc8799e766bff8cc339b0976378093a3a60d10c2a1e0b4b71298e6",
