@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import io
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -327,6 +328,108 @@ class CandidateLifecycleTests(unittest.TestCase):
 
 
 class MarkerSizeTests(unittest.TestCase):
+    def composition_record(self):
+        children = []
+        for index in range(3):
+            change = f"child-{index}"
+            paths = {f"src/{change}/module{number}.py": "e" * 40 for number in range(160)}
+            payload = {"version": 1, "change": change, "paths": paths}
+            digest = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+            identity = {"change": change, "task_content": {
+                "version": 1, "digest": digest, "base": NEW_HEAD, "paths": paths}}
+            children.append({"change": change, "head": HEAD, "identity": identity,
+                             "reviewed_evidence_digest": "f" * 64})
+        identity = {"kind": "requirement-composition", "change": "br-7", "requirement": "BR-7",
+                    "task_content": {"version": 1, "digest": "d" * 64, "base": NEW_HEAD,
+                                     "paths": {"shared.py": "c" * 40}}, "children": children}
+        gate = {"result": "passed", "identity": identity, "evidence": {"children": children}}
+        return lifecycle.build_handoff_record(
+            number=7, state="review-pending", head=HEAD, task_identity=identity,
+            gates={name: gate for name in ("selected-checks", "semantic-verification")},
+            red_gate=None, not_reverified=[], attempts={},
+            next_job={"kind": "review", "head": HEAD, "task_identity": identity, "attempt": 1},
+            at="2026-10-05T08:00:00Z")
+
+    def raw_comment(self, record):
+        return {"id": 1, "author_association": "OWNER",
+                "body": lifecycle.PREFIX + json.dumps(record, sort_keys=True, separators=(",", ":"))}
+
+    def test_large_composition_round_trips_and_keeps_exact_head_gates(self):
+        record = self.composition_record()
+        original = deepcopy(record)
+        with patch.object(lifecycle, "_compact_child_contents", side_effect=lambda value: value):
+            with self.assertRaisesRegex(ValueError, "above the 60000 bound"):
+                lifecycle.marker_body(record)
+        row = comment(record)
+        self.assertGreater(len(self.raw_comment(record)["body"]), 60000)
+        self.assertLess(len(row["body"]), 60000)
+        compact = json.loads(row["body"][len(lifecycle.PREFIX):])
+        self.assertEqual(len(compact["child_task_contents"]), 3)
+        self.assertEqual(lifecycle.latest_record(7, [row], head=HEAD), record)
+        candidate = lifecycle.derive_candidate(pr(), [row])
+        self.assertEqual(candidate["task_identity"], record["task_identity"])
+        self.assertEqual(candidate["gates"], record["gates"])
+        self.assertEqual(candidate["next_job"], record["next_job"])
+        self.assertEqual(lifecycle.derive_candidate(pr(NEW_HEAD), [row])["gates"], {})
+        self.assertEqual(record, original)
+
+    def test_changed_child_target_is_rejected(self):
+        compact = json.loads(lifecycle.marker_body(self.composition_record())[len(lifecycle.PREFIX):])
+        target = next(iter(compact["child_task_contents"].values()))
+        target["paths"]["injected.py"] = "0" * 40
+        row = self.raw_comment(compact)
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "child task-content reference digest mismatch"):
+            lifecycle.latest_record(7, [row])
+        candidate = lifecycle.derive_candidate(pr(), [row])
+        self.assertEqual(candidate["state"], "blocked-escalation")
+        self.assertIn("digest mismatch", candidate["reason"])
+
+    def test_missing_child_target_is_rejected(self):
+        original = json.loads(lifecycle.marker_body(self.composition_record())[len(lifecycle.PREFIX):])
+        without_target = deepcopy(original)
+        del without_target["child_task_contents"][next(iter(without_target["child_task_contents"]))]
+        without_table = deepcopy(original)
+        del without_table["child_task_contents"]
+        for compact in (without_target, without_table):
+            with self.subTest(table="child_task_contents" in compact):
+                with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "missing child task-content reference target"):
+                    lifecycle.latest_record(7, [self.raw_comment(compact)])
+
+    def test_invalid_reference_and_target_table_are_rejected(self):
+        original = json.loads(lifecycle.marker_body(self.composition_record())[len(lifecycle.PREFIX):])
+        for reference in ({"$ref": "unknown"}, {"$ref": "child_task_contents"},
+                          {"$ref": "child_task_contents", "digest": []}):
+            compact = deepcopy(original)
+            compact["task_identity"]["children"][0]["identity"]["task_content"] = reference
+            with self.subTest(reference=reference):
+                with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "invalid child task-content reference"):
+                    lifecycle.latest_record(7, [self.raw_comment(compact)])
+        for targets in (None, [], {}, {"not-a-digest": {"paths": {}}}):
+            compact = deepcopy(original)
+            compact["child_task_contents"] = targets
+            with self.subTest(targets=targets):
+                with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "child task-content reference"):
+                    lifecycle.latest_record(7, [self.raw_comment(compact)])
+
+    def test_child_reference_binds_metadata_as_well_as_paths(self):
+        compact = json.loads(lifecycle.marker_body(self.composition_record())[len(lifecycle.PREFIX):])
+        next(iter(compact["child_task_contents"].values()))["base"] = HEAD
+        with self.assertRaisesRegex(lifecycle.MalformedMarkerError, "digest mismatch"):
+            lifecycle.latest_record(7, [self.raw_comment(compact)])
+
+    def test_existing_composition_without_references_still_reads(self):
+        record = self.composition_record()
+        with patch.object(lifecycle, "_compact_child_contents", side_effect=lambda value: value):
+            old_compact = lifecycle._compact_identity(record)
+        for old_record in (record, old_compact):
+            self.assertEqual(lifecycle.latest_record(7, [self.raw_comment(old_record)]), record)
+
+    def test_composition_too_large_after_compaction_keeps_size_refusal(self):
+        record = self.composition_record()
+        record["gates"]["selected-checks"]["evidence"]["log"] = "x" * 60000
+        with self.assertRaisesRegex(ValueError, "above the 60000 bound; store compact evidence references"):
+            lifecycle.marker_body(record)
+
     def record(self, evidence="ok"):
         identity = {"change": "c", "task_content": {"version": 1, "digest": "d", "base": HEAD,
                                                     "paths": {f"src/file{i}.py": "x" * 40 for i in range(100)}}}
