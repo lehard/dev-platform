@@ -3,7 +3,7 @@ repository = "lehard/dev-platform-sandbox"
 coordinator_app = "dev-platform-sandbox-lehard"
 coordinator_app_id = 5627860
 required_check = "validate"
-hosted_kinds = "finalize,integrate"
+hosted_kinds = "finalize,integration-merge"
 # Workflows the snapshot keeps from the platform head; every other platform workflow stays out.
 kept_workflows = ["publication-queue.yml", "lifecycle-workers.yml"]
 # Snapshot paths that the fixture owns or that have no role in the sandbox.

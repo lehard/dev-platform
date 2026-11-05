@@ -131,6 +131,16 @@ def compose_snapshot(head: str, destination: Path, config: Config, source: Path 
     (destination / HEAD_MARKER).write_text(head + "\n", encoding="utf-8")
 
 
+def share_with_group(root: Path) -> None:
+    """Give the checkout the group modes the shared-workspace preflight requires of a platform checkout."""
+    for directory, _, files in os.walk(root):
+        os.chmod(directory, os.stat(directory).st_mode | 0o2770)
+        for name in files:
+            path = Path(directory) / name
+            if not path.is_symlink():
+                os.chmod(path, path.stat().st_mode | 0o040 if ".git/objects/" in str(path) else path.stat().st_mode | 0o060)
+
+
 class Lock:
     """One live run per sandbox: an Actions variable holding the run id and its lease expiry.
 
@@ -215,7 +225,7 @@ class Sandbox:
         env = self.env()
         checkout = self.checkout
         checkout.mkdir()
-        run(["git", "init", "-q", "-b", "main"], checkout)
+        run(["git", "init", "-q", "--shared=group", "-b", "main"], checkout)
         run(["git", "remote", "add", "origin", self.clone_url], checkout)
         run(["git", "config", "user.name", "Live scenario runner"], checkout)
         run(["git", "config", "user.email", "live-scenarios@localhost"], checkout)
@@ -237,6 +247,7 @@ class Sandbox:
             run(["git", "commit", "-q", "-m", f"Sandbox baseline at {self.head}"], checkout)
             run(["git", "push", "-q", "origin", "HEAD:refs/heads/main"], checkout, env)
         self.install_local_contract()
+        share_with_group(self.workdir)
 
     def install_local_contract(self) -> None:
         """Install the runner-owned contract: the committed one plus operator sections naming only this sandbox."""
