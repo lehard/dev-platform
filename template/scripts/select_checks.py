@@ -7,6 +7,7 @@ import shlex
 import subprocess
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -359,8 +360,15 @@ def execute(
                            base_contract=base_contract, quick_gate=quick_gate)
         return 0
 
-    from run_test_groups import resolve_jobs
+    from run_test_groups import TestGroupError, require_early_routing_gate, resolve_jobs
 
+    # The test runner would refuse here anyway: refuse before queueing for the machine pool.
+    if precheck or any("run_test_groups.py" in command for command in commands):
+        try:
+            require_early_routing_gate(root)
+        except TestGroupError as exc:
+            print(f"Early routing gate blocked validation before any command started: {exc}", file=sys.stderr, flush=True)
+            return 2
     # One lease around the whole execution (affected-test precheck and command loop): the precheck's and the
     # commands' test-group runs are nested and reuse it, so a top-level run acquires exactly once. A selection of
     # light commands only (no parallel test run) holds a single token.
@@ -575,13 +583,13 @@ def refuse_repeated_run(root: Path, managed_change: str | None, quick: bool) -> 
     )
 
 
-def require_disposable_checkout(root: Path) -> None:
-    """Refuse ``--scope-gate not-applicable`` in a task checkout: only a plain, disposable checkout may declare it.
+def require_disposable_checkout(root: Path, flag: str) -> None:
+    """Refuse a scope-waiving ``flag`` in a task checkout: only a plain, disposable checkout may declare it.
 
     A linked task worktree (git dir differs from the common git dir) or a checkout holding managed task
     state is a local task worktree, which always enforces the multi-agent scope gate.
     """
-    refused = "--scope-gate not-applicable is refused: "
+    refused = f"{flag} is refused: "
     git_dir = run_git(["rev-parse", "--absolute-git-dir"], cwd=root).stdout.strip()
     common_dir = run_git(["rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=root).stdout.strip()
     if Path(git_dir).resolve() != Path(common_dir).resolve():
@@ -592,12 +600,24 @@ def require_disposable_checkout(root: Path) -> None:
                          "checkout that always enforces the scope gate")
 
 
+def require_committed_task_content(root: Path, exclude: Callable[[str, str], bool]) -> None:
+    """Evidence proves committed content only: refuse uncommitted task content before any command starts."""
+    listed = run_git(["diff", "--name-only", "-z", "HEAD"], cwd=root).stdout
+    listed += run_git(["ls-files", "--others", "--exclude-standard", "-z"], cwd=root).stdout
+    uncommitted = sorted({path for path in listed.split("\0") if path and not exclude(path, path)})
+    if uncommitted:
+        raise SystemExit(
+            "Evidence-producing checks blocked before any expensive command started: the evidence binds HEAD, so "
+            "commit the task content first. Uncommitted: " + lifecycle_preflight.summarize_paths(uncommitted)
+        )
+
+
 def selector_scope_waiver(root: Path, args: argparse.Namespace, expensive: bool) -> str | None:
     """The declared reason the board claim and scope condition does not apply to this run, or ``None``."""
     if args.proven_base is not None or args.contribution_base is not None:
         return "coordinator disposable checkout (--proven-base/--contribution-base)"
     if args.scope_gate == "not-applicable":
-        require_disposable_checkout(root)
+        require_disposable_checkout(root, "--scope-gate not-applicable")
         return "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
     if not expensive:
         return "selection neither starts the full validation set nor produces handoff evidence"
@@ -717,6 +737,8 @@ def main() -> int:
     if args.task_evidence and (not args.execute or args.evidence or args.proven_base or args.contribution_base):
         raise SystemExit("--task-evidence requires --execute and is refused with --evidence, --proven-base and --contribution-base")
     if args.execute:
+        if args.contribution_base is not None:
+            require_disposable_checkout(root, "--contribution-base")
         evidence_path = (root / args.evidence).resolve() if args.evidence else None
         # Managed task state makes this a protected evidence-producing path,
         # even if the selected group is narrower than protected-full.  The
@@ -747,6 +769,7 @@ def main() -> int:
                 raise SystemExit("Quick-task check evidence blocked before any expensive command started: "
                                  "HEAD has no merge base with origin/main")
             quick_gate = {"head": run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip(), "proof": proof}
+            require_committed_task_content(root, lambda canonical, raw: False)
         if managed_checkout is not None and evidence_path is not None:
             from managed_task import require_task_content
 
@@ -754,6 +777,9 @@ def main() -> int:
                 require_task_content(managed_checkout.evidence_payload(), "selected-check evidence")
             except ManagedTaskError as exc:
                 raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
+            from task_content_identity import review_exclusion
+
+            require_committed_task_content(root, review_exclusion(root, managed_checkout.change))
         if quick_gate is not None or (managed_checkout is not None and evidence_path is not None):
             refuse_repeated_run(root, managed_checkout.change if managed_checkout is not None else None, quick_gate is not None)
         base_contract = None
