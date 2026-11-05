@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
@@ -78,6 +79,21 @@ class GateTest(unittest.TestCase):
         path.write_text(json.dumps({"results": [{"scenario": "one", **red}, {"scenario": "two", "result": "passed"}]}), encoding="utf-8")
         with self.assertRaisesRegex(gate.LiveGateError, "one is red at step 'merge'"):
             gate.require_receipt(self.root, "main")
+
+
+class HandoffTest(unittest.TestCase):
+    def test_finish_refuses_through_the_gate_error(self):
+        dogfood = load_platform_module("dogfood_task", ROOT / "scripts" / "dogfood_task.py")
+        with mock.patch.object(gate, "require_receipt", side_effect=gate.LiveGateError("no receipt")), \
+                self.assertRaisesRegex(SystemExit, "Live scenario gate blocked publication: no receipt"):
+            dogfood.require_live_receipt(ROOT)
+
+    def test_finish_prints_a_known_failure(self):
+        dogfood = load_platform_module("dogfood_task", ROOT / "scripts" / "dogfood_task.py")
+        with mock.patch.object(gate, "require_receipt", return_value=["known live scenario failure two: defect 7"]), \
+                mock.patch("builtins.print") as printed:
+            dogfood.require_live_receipt(ROOT)
+        printed.assert_called_once_with("known live scenario failure two: defect 7")
 
 
 class DeclarationTest(unittest.TestCase):

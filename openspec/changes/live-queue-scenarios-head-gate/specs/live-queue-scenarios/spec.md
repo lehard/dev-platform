@@ -1,3 +1,7 @@
+## Purpose
+
+Prove the queue paths on real GitHub and bind a queue or lifecycle change to a scenario result on its own head.
+
 ## ADDED Requirements
 
 ### Requirement: Queue path scenarios run on real GitHub
