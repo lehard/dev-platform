@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -130,6 +131,24 @@ class WorktreeCleanupTests(WorktreeHarnessCase):
             now=activity + 8 * 86400,
         )
         self.assertEqual(process_decision.reason, "active-process")
+
+    def test_a_worktree_removed_after_listing_is_reported_vanished(self) -> None:
+        vanished = self.add_worktree("vanished")
+        listed = self.listed(vanished)
+        shutil.rmtree(vanished)
+        decision = worktree_cleanup.classify(
+            self.root,
+            listed,
+            config=PLATFORM_CONFIG,
+            managed_root=self.managed,
+            main_branch="main",
+            active_board=set(),
+            active_cwds=set(),
+            older_than_days=7,
+            now=10**10,
+        )
+        self.assertEqual(decision.reason, "vanished")
+        self.assertFalse(decision.eligible)
 
     def test_dirty_and_unmerged_worktrees_are_reported_not_deleted(self) -> None:
         dirty = self.add_worktree("dirty")

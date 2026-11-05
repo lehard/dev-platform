@@ -16,7 +16,7 @@ SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 sys.path.insert(0, str(ROOT / "tests"))
 from _platform_config import platform_config_text  # noqa: E402
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, load_platform_module  # noqa: E402
 
 common = load_platform_module("_platform_common", SCRIPTS / "_platform_common.py")
 execution = load_platform_module("execute_requirement", SCRIPTS / "execute_requirement.py")
@@ -72,6 +72,10 @@ IMPORT_DRIVER = BLOCKER + textwrap.dedent(
     print("IMPORT-OK")
     """
 ) % (COORDINATOR_MODULES,)
+
+
+def setUpModule() -> None:
+    isolate_machine_pool_environment()
 
 
 def contract(version: str, **extra: str) -> str:

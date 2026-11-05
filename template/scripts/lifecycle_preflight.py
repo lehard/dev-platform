@@ -4,7 +4,8 @@
 expensive operation. Each condition calls the function the corresponding gate uses, so a gate and its
 preflight cannot answer differently. A condition reports ``passed``, ``repaired`` or ``not-applicable``
 with the fact that makes it so, or refuses; a condition that cannot be evaluated refuses. Every
-blocking gate in ``dev-platform/blocking-gates.toml`` names the condition that fronts it
+blocking gate in the shipped ``dev-platform/blocking-gates.toml`` (``template/dev-platform/`` in the
+platform source) names the condition that fronts it
 (``preflight``) or states why none can (``no_preflight``).
 """
 from __future__ import annotations
