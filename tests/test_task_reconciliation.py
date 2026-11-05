@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 
 import json  # noqa: E402
 
+import _platform_common  # noqa: E402
 import finish_task  # noqa: E402
 from _platform_config import write_platform_config  # noqa: E402
 import managed_task  # noqa: E402
@@ -186,6 +187,113 @@ class TaskReconciliationTests(unittest.TestCase):
              self.assertRaisesRegex(task_reconciliation.TaskFreshnessError, "no contribution target branch"):
             task_reconciliation.freshness_branch(self.task)
 
+    def lost_context(self, *, work_identity: str | None = "BR-7/T1", workflow_profile: str = "multi-agent",
+                     ) -> managed_task.CanonicalProvenance:
+        """A managed task whose child context is gone; only committed provenance is left."""
+        write_platform_config(self.task, workflow_profile=workflow_profile)
+        change = self.task / "openspec/changes/demo"
+        change.mkdir(parents=True)
+        (change / ".managed-task.json").write_text(json.dumps(
+            {"change": "demo", **({"work_identity": work_identity} if work_identity else {})}), encoding="utf-8")
+        git("add", ".dev-platform.toml", "openspec", cwd=self.task); git("commit", "-m", "managed task", cwd=self.task)
+        git("push", "origin", "origin/main:refs/heads/requirement/BR-7", cwd=self.task)
+        return managed_task.CanonicalProvenance("owner/backlog#8", "demo", change, "active")
+
+    def open_prs(self, *bases: str, returncode: int = 0, stderr: str = ""):
+        """The ``gh pr list`` answer for the task branch."""
+        prs = [{"number": 40 + i, "baseRefName": base, "headRefName": "agent/task"} for i, base in enumerate(bases)]
+        done = subprocess.CompletedProcess([], returncode, json.dumps(prs), stderr)
+        return (mock.patch.object(_platform_common, "github_cli_env", return_value={}),
+                mock.patch.object(_platform_common, "run_github_with_retry", return_value=done))
+
+    def target_with(self, provenance: managed_task.CanonicalProvenance, *bases: str, **answer: object) -> str:
+        env, listed = self.open_prs(*bases, **answer)
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance):
+            return task_reconciliation.freshness_branch(self.task)
+
+    def test_lost_context_takes_the_target_from_the_open_pr_base(self) -> None:
+        provenance = self.lost_context()
+        self.assertEqual(self.target_with(provenance, "requirement/BR-7"), "requirement/BR-7")
+        self.assertEqual(self.target_with(provenance, "main"), "main")
+
+    def test_lost_context_without_proof_refuses_naming_cause_and_next_action(self) -> None:
+        provenance = self.lost_context()
+        for bases, answer, cause in (((), {}, "has 0 open PRs"), (("main", "requirement/BR-7"), {}, "has 2 open PRs"),
+                                     (("requirement/BR-8",), {}, "targets 'requirement/BR-8'"),
+                                     ((), {"returncode": 1, "stderr": "HTTP 502"}, "unreadable: HTTP 502")):
+            with self.subTest(cause), self.assertRaises(task_reconciliation.TaskFreshnessError) as refused:
+                self.target_with(provenance, *bases, **answer)
+            self.assertIn(cause, str(refused.exception))
+            self.assertIn("BR-7/T1 has no child context", str(refused.exception))
+            self.assertIn("execute_requirement.py advance", str(refused.exception))
+
+    def test_lost_context_refuses_without_the_gh_cli_or_a_branch(self) -> None:
+        provenance = self.lost_context()
+        with mock.patch.object(_platform_common, "github_cli_env", return_value=None), \
+             mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(task_reconciliation.TaskFreshnessError, "gh CLI is unavailable"):
+            task_reconciliation.freshness_branch(self.task)
+        git("checkout", "--detach", cwd=self.task)
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(task_reconciliation.TaskFreshnessError, "HEAD is detached"):
+            task_reconciliation.freshness_branch(self.task)
+
+    def test_a_task_that_cannot_be_a_contribution_needs_no_context(self) -> None:
+        provenance = self.lost_context(work_identity=None)
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(_platform_common, "run_github_with_retry", side_effect=AssertionError):
+            self.assertEqual(task_reconciliation.freshness_branch(self.task), "main")
+
+    def test_a_requirement_child_without_isolated_worktrees_needs_no_context(self) -> None:
+        provenance = self.lost_context(workflow_profile="standard")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(_platform_common, "run_github_with_retry", side_effect=AssertionError):
+            self.assertEqual(task_reconciliation.freshness_branch(self.task), "main")
+
+    def test_reconcile_of_a_proven_contribution_without_its_base_refuses_before_merging(self) -> None:
+        provenance = self.lost_context()
+        before = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        env, listed = self.open_prs("requirement/BR-7")
+        with env, listed, mock.patch.object(task_reconciliation, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(SystemExit, "Task reconciliation blocked: .*demo.json is missing"):
+            self.reconcile()
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), before)
+
+    def test_a_resume_never_recreates_a_lost_contribution_as_a_main_target_task(self) -> None:
+        import start_managed_task
+
+        provenance = self.lost_context()
+        package = mock.Mock(change="demo")
+        env, listed = self.open_prs("requirement/BR-7")
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(managed_task.ManagedTaskError, "demo.json is missing"):
+            start_managed_task._require_resumable_context(self.task, package)
+        env, listed = self.open_prs()
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(managed_task.ManagedTaskError, "has 0 open PRs"):
+            start_managed_task._require_resumable_context(self.task, package)
+        env, listed = self.open_prs("main")
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance):
+            start_managed_task._require_resumable_context(self.task, package)
+
+    def test_a_handoff_of_a_contribution_without_its_base_is_refused(self) -> None:
+        import lifecycle_workers
+        import pr_review_gate
+
+        provenance = self.lost_context()
+        env, listed = self.open_prs("requirement/BR-7")
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(lifecycle_workers.WorkerError, "developer handoff refused: .*demo.json is missing"):
+            pr_review_gate.require_main_target(self.task, "demo")
+        env, listed = self.open_prs()
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(lifecycle_workers.WorkerError, "developer handoff refused: .*has 0 open PRs"):
+            pr_review_gate.require_main_target(self.task, "demo")
+        env, listed = self.open_prs("main")
+        with env, listed, mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance):
+            pr_review_gate.require_main_target(self.task, "demo")
+
     def archived_change_with_evidence(self) -> managed_task.CanonicalProvenance:
         """An archived managed change whose committed evidence proves the current task content."""
         from task_content_identity import review_content_identity
@@ -199,6 +307,7 @@ class TaskReconciliationTests(unittest.TestCase):
         change = self.task / "openspec" / "changes" / "archive" / "2026-10-30-demo"
         change.mkdir(parents=True)
         (change / "tasks.md").write_text("- [x] 1.1 demo\n", encoding="utf-8")
+        (change / ".managed-task.json").write_text(json.dumps({"change": "demo"}), encoding="utf-8")
         git("add", ".", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
         proof = review_content_identity(self.task, "demo")
         (change / "automated-checks.json").write_text(json.dumps({"outcome": "success", "gate_task_content": proof}), encoding="utf-8")
