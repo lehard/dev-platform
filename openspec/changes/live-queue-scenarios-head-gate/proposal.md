@@ -5,7 +5,8 @@ Managed delivery, red CI and integration repair are the paths where recent dead 
 ## What Changes
 
 - Scenarios for a managed task through review, finalize and queue, a red CI and its exit, and a conflict with main through integration repair.
-- Scripted review and repair executors behind the worker `--llm-command` path, so findings and repairs reproduce on every run.
+- A scripted reviewer behind the documented reviewer binary override and a scripted repair writer behind `--llm-command`, so findings and repairs reproduce on every run.
+- The sandbox gets its own labels and Backlog Project, which a managed task needs.
 - A run on a candidate head writes a receipt bound to task content.
 - Handoff of a queue or lifecycle change is refused without a receipt or with a new red scenario.
 

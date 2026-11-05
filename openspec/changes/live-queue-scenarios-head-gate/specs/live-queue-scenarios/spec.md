@@ -2,7 +2,7 @@
 
 ### Requirement: Queue path scenarios run on real GitHub
 
-The scenarios SHALL include a managed task through review, finalize and queue to MERGED, a red required CI with its exit, and a conflict with main through integration repair. Review and repair SHALL run through the worker `--llm-command` path with scripted executors. GitHub, queue, claims, labels and CI SHALL be real.
+The scenarios SHALL include a managed task through review, finalize and queue to MERGED, a red required CI with its exit, and a conflict with main through integration repair. Review SHALL run through the real worker with a scripted reviewer behind the documented reviewer binary override, and repair SHALL run through the worker `--llm-command` path with a scripted writer. GitHub, queue, claims, labels and CI SHALL be real.
 
 #### Scenario: Red CI recovers
 

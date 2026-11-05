@@ -1,5 +1,5 @@
 ## 1. Executors and scenarios
-- [ ] 1.1 Scripted review and repair executors behind `--llm-command`.
+- [ ] 1.1 Scripted reviewer behind the binary override, scripted repair writer behind `--llm-command`; sandbox labels and Project.
 - [ ] 1.2 Managed task, red CI and conflict integration-repair scenarios on the real sandbox.
 
 ## 2. Head gate
