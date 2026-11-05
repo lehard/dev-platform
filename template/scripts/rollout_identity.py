@@ -4,7 +4,7 @@ from __future__ import annotations
 
 This is the single source of truth for what counts as a Dev Platform-owned
 managed rollout pull request. Central rollout automation
-(`scripts/rollout_supersession.py`) and downstream pre-task reconciliation
+(`scripts/rollout_supersession.py`) and the downstream doctor report
 (`rollout_preflight.py`) both import this module instead of re-deriving their
 own notion of ownership. Ownership is always established from GitHub's own
 structured PR metadata -- repository/base, the reserved exact-version branch

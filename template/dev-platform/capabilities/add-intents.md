@@ -104,12 +104,14 @@ tool -- a human cannot hand-compute a SHA-256 of canonical JSON, so approval
 always goes through the CLI:
 
 ```bash
-python3 scripts/add_intents.py approve-add <add-path> [--approved-by <name>]
+python3 scripts/add_intents.py approve-add <add-path> --approved-by <name>
 ```
 
-`approve-add` refuses to approve while any unresolved consequential choice or
-contradiction remains, exactly like the `approved: true` gate it now also
-enforces on any hand-edit. If the ADD's material content (elements,
+The preparer records their name in the ADD's `prepared_by` field. `approve-add`
+refuses when that field is empty or names the approver, because an ADD author
+cannot approve their own ADD. It also refuses to approve while any unresolved
+consequential choice or contradiction remains, exactly like the `approved: true`
+gate it now also enforces on any hand-edit. If the ADD's material content (elements,
 evidence, assumptions, reused constraints, requirement digest, ...) changes
 *after* approval, `validate-add` detects that the approval's recorded digest
 no longer matches the current content and rejects it as a **stale

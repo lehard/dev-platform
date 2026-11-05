@@ -96,6 +96,14 @@ def snapshot_evidence_entry(root: Path, snapshot_path: Path, snapshot: dict, con
     }
 
 
+def approve_prepared_add(root: Path, add_file: Path) -> None:
+    """Approve a fixture ADD the way the workflow does: its preparer recorded, a different approver named."""
+    document = json.loads(add_file.read_text(encoding="utf-8"))
+    document["prepared_by"] = "author"
+    add_file.write_text(json.dumps(document), encoding="utf-8")
+    add_intents.approve_add(root, add_file, approved_by="owner")
+
+
 class OrchestratorFlowTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = init_repo()
@@ -285,7 +293,7 @@ class OrchestratorFlowTests(unittest.TestCase):
         result = self._status()
         self.assertEqual(result["stages"]["add"]["state"], "needs-approval")
 
-        add_intents.approve_add(self.root, add_file)
+        approve_prepared_add(self.root, add_file)
         result = self._status()
         self.assertEqual(result["current_stage"], "intents")
         self.assertEqual(result["stages"]["intents"]["state"], "missing")
@@ -385,7 +393,7 @@ class OrchestratorFlowTests(unittest.TestCase):
         # A subagent cannot self-approve: attempting approve-add while the
         # choice is still open fails closed.
         with self.assertRaises(add_intents.AddIntentsError):
-            add_intents.approve_add(self.root, add_file)
+            approve_prepared_add(self.root, add_file)
 
         # Resume: apply the accepted human answer through the canonical path.
         orch.record_decision(
@@ -437,7 +445,7 @@ class OrchestratorFlowTests(unittest.TestCase):
             {"id": "element-tier-boundary", "category": "boundary", "status": "new", "statement": "New boundary."},
         ]
         add_file.write_text(json.dumps(document), encoding="utf-8")
-        add_intents.approve_add(self.root, add_file)
+        approve_prepared_add(self.root, add_file)
         (self.root / "unrelated.bin").write_text("unbound content\n", encoding="utf-8")
         git(self.root, "add", "unrelated.bin")
         git(self.root, "commit", "-q", "-m", "unrelated")
@@ -456,7 +464,7 @@ class OrchestratorFlowTests(unittest.TestCase):
             {"id": "element-tier-boundary", "category": "boundary", "status": "new", "statement": "New pricing tier boundary."},
         ]
         add_file.write_text(json.dumps(add_document), encoding="utf-8")
-        add_intents.approve_add(self.root, add_file)
+        approve_prepared_add(self.root, add_file)
         result = self._status()
         self.assertEqual(result["stages"]["add"]["state"], "ready")
 
@@ -484,7 +492,7 @@ class OrchestratorFlowTests(unittest.TestCase):
             {"id": "element-a", "category": "boundary", "status": "new", "statement": "A"},
         ]
         add_file.write_text(json.dumps(add_document), encoding="utf-8")
-        add_intents.approve_add(self.root, add_file)
+        approve_prepared_add(self.root, add_file)
         intents_file = orch.intents_path(directory)
         add_intents.decompose(self.root, add_path=add_file, out=intents_file)
 

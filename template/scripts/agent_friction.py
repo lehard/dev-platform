@@ -54,6 +54,14 @@ SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?token|secret)\s*[:=]\s*\S+"),
 )
+FIXES_FRICTION_PROMPT = "a task that fixes a recorded friction Issue names it with a `Fixes-Friction: owner/repo#N` commit trailer; the merge closes it"
+PRIVATE_ID_MASK = "[private ID removed]"
+# A bare Issue number cannot be told apart from a private Backlog number; a PR or Project number is not an Issue.
+BARE_ISSUE_REF_RE = re.compile(r"(?i)(?<![\w/#.-])(?<!pr )(?<!prs )(?<!pull request )(?<!project )#[1-9][0-9]*\b")
+QUALIFIED_ISSUE_REF_RE = re.compile(
+    r"(?i)(?:https?://)?(?:www\.)?github\.com/(?P<url>[\w.-]+/[\w.-]+)/issues/[1-9][0-9]*\b"
+    r"|(?<![\w./-])(?P<short>[\w.-]+/[\w.-]+)#[1-9][0-9]*\b"
+)
 FINGERPRINT_PREFIX = "dev-platform-friction"
 DEFAULT_PROCESS_LABEL = "process"
 MAX_OPEN_ISSUE_PAGES = 10
@@ -920,12 +928,21 @@ def sanitize(value: str) -> str:
     return value[:4000]
 
 
+def mask_private_references(text: str) -> str:
+    """Remove Issue numbers that may be private; only a reference to this repository's origin stays public."""
+    def mask_foreign(match: re.Match[str]) -> str:
+        repository = match.group("url") or match.group("short")
+        return match.group(0) if repository.lower() == origin_repository() else PRIVATE_ID_MASK
+
+    return BARE_ISSUE_REF_RE.sub(PRIVATE_ID_MASK, QUALIFIED_ISSUE_REF_RE.sub(mask_foreign, text))
+
+
 def sanitize_for_route(value: object, max_length: int = 500) -> str:
     """Return a bounded public representation without trusting legacy events."""
     text = " ".join(str(value or "").split())
     if any(pattern.search(text) for pattern in SECRET_PATTERNS):
         return "[REDACTED]"
-    return sanitize(text)[:max_length] or "[not supplied]"
+    return sanitize(mask_private_references(text))[:max_length] or "[not supplied]"
 
 
 def context_markdown_lines(event: dict) -> list[str]:
@@ -1451,6 +1468,7 @@ def _review_path(args: argparse.Namespace) -> int:
         "ambiguous_attribution": [str(event.get("id")) for event in ambiguous_attribution_events()][:10],
         "no_task_events": no_task_events()[:10],
         "evidence_sources": evidence_source_status(),
+        "fixes_friction": FIXES_FRICTION_PROMPT,
         **review_guidance(current_worktree_root(), changed_paths(current_worktree_root())),
     }
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
@@ -1716,7 +1734,7 @@ def cmd_promote(args: argparse.Namespace) -> int:
         raise SystemExit("Promotion requires operator-owned promotion.repo configuration.")
     config = read_platform_config(main_root())
     project_slug = config["project_slug"]
-    title = f"[platform-candidate] {sanitize(str(event.get('proposal', event.get('category', 'friction'))))[:120]}"
+    title = f"[platform-candidate] {sanitize(mask_private_references(str(event.get('proposal', event.get('category', 'friction')))))[:120]}"
     body = "\n".join(
         [
             "## Sanitized platform candidate",
@@ -1728,13 +1746,13 @@ def cmd_promote(args: argparse.Namespace) -> int:
             f"- Recorded at: `{event.get('at')}`",
             "",
             "### Observation",
-            sanitize(str(event.get("observation", ""))),
+            sanitize(mask_private_references(str(event.get("observation", "")))),
             "",
             "### Hypothesis",
-            sanitize(str(event.get("hypothesis", ""))),
+            sanitize(mask_private_references(str(event.get("hypothesis", "")))),
             "",
             "### Proposed reusable change",
-            sanitize(str(event.get("proposal", ""))),
+            sanitize(mask_private_references(str(event.get("proposal", "")))),
             "",
             "> Evidence is intentionally omitted from cross-project promotion to reduce leakage of machine-local, customer, credential, or domain-sensitive context. Review the source event locally if needed.",
         ]
@@ -1989,6 +2007,8 @@ def close_fixed(pr_number: int, repository: str) -> dict:
     if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise SystemExit(f"PR #{pr_number} has no valid merge commit")
     numbers = parse_fix_references(str(pr.get("body") or ""), f"PR #{pr_number} body", repo)
+    for commit in gh_paged(f"repos/{repo}/pulls/{pr_number}/commits"):
+        numbers += parse_fix_references(commit["commit"]["message"], f"commit {commit['sha']}", repo)
     for changed in gh_paged(f"repos/{repo}/pulls/{pr_number}/files"):
         path = changed.get("filename")
         if not isinstance(path, str) or not PROPOSAL_PATH_RE.fullmatch(path) or changed.get("status") == "removed":

@@ -36,6 +36,7 @@ class FakeGitHub:
         self.comments: dict[int, list[str]] = {}
         self.pulls: dict[int, dict] = {}
         self.files: dict[int, list[dict]] = {}
+        self.commits: dict[int, list[dict]] = {}
         self.contents: dict[str, str] = {}
         self.next_number = 100
         self.calls: list[list[str]] = []
@@ -109,6 +110,9 @@ class FakeGitHub:
         m = re.fullmatch(rf"repos/{REPO}/pulls/(\d+)", path)
         if m:
             return ok(self.pulls[int(m.group(1))])
+        m = re.fullmatch(rf"repos/{REPO}/pulls/(\d+)/commits", path)
+        if m:
+            return ok(self.commits.get(int(m.group(1)), [])[(page - 1) * 100:page * 100])
         m = re.fullmatch(rf"repos/{REPO}/pulls/(\d+)/files", path)
         if m:
             items = self.files[int(m.group(1))]
@@ -338,6 +342,18 @@ class CloseFixedTests(ConvergenceTestCase):
         self.assertEqual(self.gh.issues[20]["state"], "closed")
         self.assertEqual(self.gh.issues[20]["state_reason"], "completed")
         self.assertIn(f"PR #7 (merge commit {SHA})", self.gh.comments[20][0])
+
+    def test_commit_trailer_reference_closes_issue(self) -> None:
+        self.gh.friction(20, "a")
+        self.pull()
+        self.gh.commits[7] = [{"sha": "c" * 40, "commit": {"message": f"Fix it\n\nFixes-Friction: {REPO}#20\n"}}]
+        self.assertEqual(self.run_close()["closed"], [20])
+
+    def test_malformed_commit_trailer_names_the_commit(self) -> None:
+        self.pull()
+        self.gh.commits[7] = [{"sha": "c" * 40, "commit": {"message": "Fix it\n\nFixes-Friction: #20\n"}}]
+        with self.assertRaisesRegex(SystemExit, "commit " + "c" * 40):
+            self.run_close()
 
     def test_proposal_reference_and_rerun_do_not_duplicate_comment(self) -> None:
         self.gh.friction(20, "a")

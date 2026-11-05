@@ -91,6 +91,7 @@ def _valid_add(**overrides: object) -> dict[str, object]:
         "requirement": {"digest": "a" * 64, "summary": ""},
         "target_repository": "acme/billing",
         "prepared_against": "0" * 40,
+        "prepared_by": "author",
         "evidence": [{"source": "openspec/specs/billing/spec.md", "kind": "accepted-spec", "digest": "b" * 64}],
         "reused_constraints": [],
         "elements": [
@@ -240,6 +241,16 @@ class ValidateAddTests(unittest.TestCase):
 
     # -- Approval receipt / content-digest binding --------------------------
 
+    def test_approve_add_refuses_the_author_a_missing_preparer_and_a_blank_approver(self) -> None:
+        self._write(_valid_add())
+        with self.assertRaisesRegex(add_intents.AddIntentsError, "cannot approve their own ADD"):
+            add_intents.approve_add(self.root, self.path, approved_by=" Author ")
+        with self.assertRaisesRegex(add_intents.AddIntentsError, "must name the approver"):
+            add_intents.approve_add(self.root, self.path, approved_by="  ")
+        self._write(_valid_add(prepared_by=""))
+        with self.assertRaisesRegex(add_intents.AddIntentsError, "records no prepared_by"):
+            add_intents.approve_add(self.root, self.path, approved_by="owner")
+
     def test_approve_add_writes_a_digest_bound_receipt(self) -> None:
         self._write(_valid_add())
         payload = add_intents.approve_add(self.root, self.path, approved_by="alexx")
@@ -253,7 +264,7 @@ class ValidateAddTests(unittest.TestCase):
         document = _valid_add(unresolved_choices=[{"question": "Undecided?", "status": "open"}])
         self._write(document)
         with self.assertRaises(AddIntentsError):
-            add_intents.approve_add(self.root, self.path)
+            add_intents.approve_add(self.root, self.path, approved_by="alexx")
 
     def test_approved_true_without_receipt_is_rejected(self) -> None:
         # A hand-edited `approved: true` with no `approval` object is not a valid approval.
@@ -287,7 +298,7 @@ class ValidateAddTests(unittest.TestCase):
             {"id": "element-extra", "category": "boundary", "status": "new", "statement": "Reviewed addition."}
         )
         self._write(document)
-        add_intents.approve_add(self.root, self.path)
+        add_intents.approve_add(self.root, self.path, approved_by="alexx")
         report = add_intents.validate_add(self.root, self.path, check_freshness=False)
         self.assertTrue(report.ok, report.errors)
 
@@ -790,6 +801,7 @@ class HandoffTests(unittest.TestCase):
             {"id": "element-tier-boundary", "category": "boundary", "status": "new", "statement": "New pricing tier boundary."},
             {"id": "element-currency", "category": "invariant", "status": "preserved", "statement": "Currency remains USD."},
         ]
+        document["prepared_by"] = "author"
         self.add_path.write_text(json.dumps(document), encoding="utf-8")
 
         add_intents.approve_add(self.root, self.add_path, approved_by="alexx")
@@ -1005,7 +1017,9 @@ class CliTests(unittest.TestCase):
         ]
         add_path.write_text(json.dumps(document), encoding="utf-8")
 
-        approve_result = self._run("approve-add", str(add_path))
+        document["prepared_by"] = "author"
+        add_path.write_text(json.dumps(document), encoding="utf-8")
+        approve_result = self._run("approve-add", str(add_path), "--approved-by", "owner")
         self.assertEqual(approve_result.returncode, 0, approve_result.stdout + approve_result.stderr)
 
         validate_result = self._run("validate-add", str(add_path))
@@ -1052,7 +1066,9 @@ class CliTests(unittest.TestCase):
         document = json.loads(add_path.read_text(encoding="utf-8"))
         document["unresolved_choices"] = [{"question": "Undecided?", "status": "open"}]
         add_path.write_text(json.dumps(document), encoding="utf-8")
-        result = self._run("approve-add", str(add_path))
+        document["prepared_by"] = "author"
+        add_path.write_text(json.dumps(document), encoding="utf-8")
+        result = self._run("approve-add", str(add_path), "--approved-by", "owner")
         self.assertEqual(result.returncode, 2)
 
 
@@ -1145,7 +1161,7 @@ class RenderAddTests(unittest.TestCase):
         self.assertIn("**Состояние:** требует актуализации", self._render(document))
         document["unresolved_choices"] = []  # type: ignore[index]
         self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
-        add_intents.approve_add(self.root, self.path)
+        add_intents.approve_add(self.root, self.path, approved_by="alexx")
         output = add_intents.render_add(self.root, self.path, requirement=self.REQ)
         self.assertIn("**Состояние:** утверждён", output)
         self.assertIn("Changed after approval.", output)
@@ -1199,7 +1215,7 @@ class RenderAddTests(unittest.TestCase):
         document = self._doc(unresolved_choices=[{"question": "q", "status": "open", "kind": "product"}])
         self.path.write_text(json.dumps(document, ensure_ascii=False), encoding="utf-8")
         with self.assertRaises(AddIntentsError):
-            add_intents.approve_add(self.root, self.path)
+            add_intents.approve_add(self.root, self.path, approved_by="alexx")
 
     def test_cli_exposes_render_add_only_as_new_command(self) -> None:
         self.path.write_text(json.dumps(self._doc(), ensure_ascii=False), encoding="utf-8")

@@ -147,6 +147,15 @@ def ensure_quick_evidence_directory(root: Path) -> Path:
     return directory
 
 
+def is_lifecycle_receipt(change: str, path: str) -> bool:
+    """Whether ``path`` is a receipt or review evidence of the active change, not candidate content."""
+    active = f"openspec/changes/{change}/"
+    if not path.startswith(active):
+        return False
+    relative = path[len(active):]
+    return relative in REVIEW_EXCLUDED_FILES or relative.startswith(REVIEW_EXCLUDED_DIRS)
+
+
 def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> Callable[[str, str], bool]:
     """Exclude lifecycle receipts, review evidence and own spec materialization.
 
@@ -180,8 +189,7 @@ def review_exclusion(root: Path, change: str, base_ref: str = "origin/main") -> 
         if canonical in generated:
             return True
         if canonical.startswith(active):
-            relative = canonical[len(active):]
-            return relative in REVIEW_EXCLUDED_FILES or relative.startswith(REVIEW_EXCLUDED_DIRS)
+            return is_lifecycle_receipt(change, canonical)
         if canonical.startswith("openspec/specs/") and archived:
             parts = canonical[len("openspec/specs/"):].split("/")
             return len(parts) == 2 and parts[0] in capabilities and parts[1] == "spec.md"

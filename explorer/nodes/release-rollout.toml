@@ -15,7 +15,7 @@ sources = [
   "docs/release-policy.md#Managed rollout",
   "docs/release-policy.md#Version publication",
   "docs/managed-rollout.md#Release rollout",
-  "docs/managed-rollout.md#Downstream adoption at task start",
+  "docs/managed-rollout.md#Downstream adoption",
 ]
 
 [[transitions]]
@@ -153,5 +153,5 @@ steps = [
   { text = "PR слит. Установка проверена, workflow создаёт тег v1.5.0 на этом коммите и убеждается, что такого тега ещё нет.", emphasis = ["v1.5.0"] },
   { text = "Оператор раньше включил управляемую раскатку, поэтому диспетчеризация разрешена и запускается раскатка для этого тега." },
   { text = "Для проекта в состоянии `managed` Copier на ветке `dev-platform/rollout-v1.5.0` обновляет проект до тега, проходят платформенные проверки, и открывается обычный PR." },
-  { text = "PR остаётся на ревью проекта. Когда в проекте начинается следующая задача, платформенный `start_task.py` может влить PR с зелёными проверками до создания новой ветки, и задача начинается на новой версии.", emphasis = ["на новой версии"] },
+  { text = "PR остаётся на ревью проекта и сливается только явным выкатом; старт задачи его не трогает, а `agent_doctor.py` лишь сообщает об открытом PR." },
 ]
