@@ -85,7 +85,7 @@ The publication queue workflow SHALL execute only code from the protected defaul
 
 ### Requirement: Coordinator tracks durable candidate lifecycle states
 
-The publication coordinator SHALL derive each candidate's state (review-pending, reviewing, repair-pending, repairing, finalize-pending, ready, integrating, integration-repair-pending, merged, blocked-retryable, blocked-escalation) from GitHub PR head, checks, labels and immutable versioned marker comments, without a second journal or state store. Existing v1 queue markers SHALL remain readable.
+The publication coordinator SHALL derive each candidate's state (review-pending, reviewing, repair-pending, repairing, finalize-pending, ready, integrating, integration-repair-pending, merged, blocked-retryable, blocked-escalation, contribution-integration-pending, contribution-integrated) from GitHub PR head, checks, labels and immutable versioned marker comments, without a second journal or state store. Existing v1 queue markers SHALL remain readable.
 
 #### Scenario: Coordinator restarts mid-review
 - **GIVEN** a candidate marked reviewing for its exact head
@@ -1091,13 +1091,13 @@ A remaining conflict, a conflict in any file other than declared generated files
 - **WHEN** a merge of current main conflicts in a file that is neither declared generated nor an archive-derived current-spec path
 - **THEN** the candidate becomes integration repair
 
-### Requirement: A coordinator environment failure is not integration repair
+### Requirement: A coordinator environment failure without a conflict is not integration repair
 
-A failure of the coordinator's own environment — the OpenSpec CLI is unavailable, a declared regeneration command cannot start, or the command fails on the pristine checkout of main as well — SHALL NOT become integration repair: the coordinator SHALL leave the candidate's state unchanged, publish no job, still evaluate the other candidates, and end the run as a failure naming each cause.
+A failure of the coordinator's own environment — the OpenSpec CLI is unavailable, a declared regeneration command cannot start, or the command fails on the pristine checkout of main as well — with no merge-tree conflict SHALL NOT become integration repair: the coordinator SHALL leave the candidate's state unchanged, publish no job, still evaluate the other candidates, and end the run as a failure naming each cause.
 
 #### Scenario: The OpenSpec CLI is unavailable during regeneration
 
-- **WHEN** the OpenSpec CLI is unavailable while preparing a candidate
+- **WHEN** the OpenSpec CLI is unavailable while preparing a candidate that merge-tree reports without a conflict
 - **THEN** the candidate's state is unchanged and no job is published
 - **AND** the other candidates are still evaluated
 - **AND** the run ends as a failure naming the cause
