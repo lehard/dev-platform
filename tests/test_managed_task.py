@@ -667,6 +667,7 @@ class ManagedPackageTests(unittest.TestCase):
                 patch.object(start_managed_task, "_registered_worktree_branches", return_value={task_root.resolve(): "agent/resumed"}),
                 patch.object(start_managed_task, "run_git", return_value=SimpleNamespace(stdout="agent/resumed\n")),
                 patch.object(start_managed_task, "refresh_context", return_value=None) as refresh,
+                patch.object(start_managed_task, "_require_resumable_context"),
                 patch.object(start_managed_task, "admit_task", return_value={"decision": "RUN", "claims": []}),
                 patch.object(start_managed_task, "reconcile", return_value=SimpleNamespace(changed=False)),
                 patch.object(managed_task, "_allocate_work_identity", allocator) as allocate,
