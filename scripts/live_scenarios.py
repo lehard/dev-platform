@@ -30,6 +30,7 @@ WORKDIR_MARKER = ".live-sandbox-workdir"
 LOCK_VARIABLE = "LIVE_SCENARIO_LOCK"
 LOCK_LEASE_SECONDS = 3 * 3600
 POLL_SECONDS = 15
+QUEUED = "Publication queued; rerun finish after GitHub reports the exact PR MERGED."
 OWNER_SECRET = "DEV_PLATFORM_APP_PRIVATE_KEY"
 OWNER_VARIABLE = "DEV_PLATFORM_APP_CLIENT_ID"
 
@@ -314,6 +315,17 @@ class Scenario:
         except SandboxError as error:
             raise self.fail(str(error)) from error
 
+    def finish_until_queued(self, worktree: Path, title: str) -> None:
+        """First finish publishes and hands the PR to the queue, which it reports by exiting 2 with QUEUED."""
+        try:
+            run(["python3", "scripts/dogfood_task.py", "finish", "--title", title, "--body", "Live scenario."],
+                worktree, self.sandbox.env())
+        except SandboxError as error:
+            if QUEUED not in str(error):
+                raise self.fail(str(error)) from error
+        else:
+            raise self.fail("finish returned without queueing the PR")
+
     def wait(self, read: Callable[[], Any], done: Callable[[Any], bool], limit: int) -> Any:
         deadline = time.monotonic() + limit
         while True:
@@ -345,10 +357,12 @@ def scenario_quick_task(scenario: Scenario) -> None:
     scenario.step("friction checkpoint")
     scenario.platform("agent_friction.py", "checkpoint", "--result", "none", "--review-note", "Live scenario", cwd=worktree)
     scenario.step("finish")
-    scenario.platform("dogfood_task.py", "finish", "--title", f"Quick {slug}", "--body", "Live scenario.", cwd=worktree)
     branch = run(["git", "branch", "--show-current"], worktree).strip()
+    scenario.finish_until_queued(worktree, f"Quick {slug}")
     scenario.step("queue merges")
     final = scenario.wait(lambda: scenario.pr_state(branch), lambda pr: pr.get("state") == "MERGED", 900)
+    scenario.step("finish after merge")
+    scenario.platform("dogfood_task.py", "finish", cwd=worktree)
     scenario.step("final state")
     merger = (final.get("mergedBy") or {}).get("login", "")
     if sandbox.config.coordinator_app not in merger:
