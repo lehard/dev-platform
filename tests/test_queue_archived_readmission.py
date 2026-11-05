@@ -54,7 +54,7 @@ class LocalStatusDeveloperFixTests(unittest.TestCase):
     def test_descendant_fix_over_each_waiting_state_is_observed_for_readmission(self) -> None:
         for state in WAITING_STATES:
             with self.subTest(state=state):
-                observed = self.observe({"state": state, "head": PROVEN})
+                observed = self.observe({"state": state, "head": PROVEN, "task_identity": {"change": "example"}})
                 self.descends.assert_called_once_with(ROOT_PATH, PROVEN, FIX)
                 self.assertEqual((observed["state"], observed["proven_head"], observed["head"]),
                                  ("readmission", PROVEN, FIX))
@@ -74,7 +74,7 @@ class LocalStatusDeveloperFixTests(unittest.TestCase):
 
 
     def test_semantic_blocked_retryable_proven_head_is_observed_for_readmission(self) -> None:
-        observed = self.observe({"state": "blocked-retryable", "head": PROVEN,
+        observed = self.observe({"state": "blocked-retryable", "head": PROVEN, "task_identity": {"change": "example"},
                                  "red_gate": {"name": "semantic-verification"}})
         self.descends.assert_called_once_with(ROOT_PATH, PROVEN, FIX)
         self.assertEqual((observed["state"], observed["proven_head"], observed["head"]),

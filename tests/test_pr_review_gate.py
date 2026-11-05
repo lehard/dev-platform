@@ -996,7 +996,7 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(len(fixture.comments), count)
             # Without a developer handoff a changed head never supersedes an admission.
             with mock.patch.object(queue, "_admission_handoff", return_value={"task_identity": self.NEW_IDENTITY, "gates": {}}), \
-                    self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous admission; resolve"):
+                    self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous admission; a task without a managed change has no re-admission"):
                 queue.admit(ROOT, 7, self.NEW_HEAD)
 
     def test_worker_block_between_push_and_admit_never_strands_the_handoff(self):

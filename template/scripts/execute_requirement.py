@@ -1138,7 +1138,8 @@ def _advance_contributions(integration: Path, requirement: str, ordered: list[tu
     requirement_board.reconcile_nonterminal(integration, requirement=requirement)
     draft = publish_composition(integration, repository, manifest, head)
     return {"status": draft["status"] if draft["status"] == "await-post-merge" else
-            "implement-children" if actions else "await-contributions", "requirement": requirement,
+            "implement-children" if actions else "await-contributions" if waiting else draft["status"],
+            "requirement": requirement,
             "actions": actions, "waiting": waiting, "shared_draft": draft}
 
 
