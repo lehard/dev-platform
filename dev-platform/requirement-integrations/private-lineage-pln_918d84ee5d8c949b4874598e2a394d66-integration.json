@@ -1,0 +1,24 @@
+{
+  "base": "a7ec8c7ff7b035a5e063db5428207df6548f1e7b",
+  "children": [],
+  "dependencies": {
+    "live-queue-scenarios-head-gate": [
+      "live-sandbox-quick-scenario"
+    ],
+    "live-requirement-scenarios": [
+      "live-sandbox-quick-scenario"
+    ],
+    "live-sandbox-quick-scenario": []
+  },
+  "digest": "3c58ffe062d689fc180f0fed30c16e44323b5ddccc7925ffa9dc4e6d68fbadcc",
+  "expected_changes": [
+    "live-sandbox-quick-scenario",
+    "live-queue-scenarios-head-gate",
+    "live-requirement-scenarios"
+  ],
+  "integration_branch": "requirement/BR-993",
+  "repository": "lehard/dev-platform",
+  "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+  "version": 2,
+  "work_identity": "BR-993"
+}
