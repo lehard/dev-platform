@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
     "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
-    "candidate_head": "0163533bcf61d48aa847d5d2a47a504b2d5def59",
-    "diff_sha256": "b7ddef3c969bc6c19c90535d9b389f5ee0728964c64fc53ccaa27c84c7773587"
+    "candidate_head": "26e3737b03a6f0a6a4e7ecc782b812dd3b6afcf1",
+    "diff_sha256": "d2512041be09e144858b385d66adfa7ae5b98e672212beb852ed84a393ac7615"
   },
   "change": "openspec/changes/live-sandbox-quick-scenario",
   "excluded_lifecycle_paths": [
     "openspec/changes/live-sandbox-quick-scenario/automated-checks.json",
+    "openspec/changes/live-sandbox-quick-scenario/independent-review-request.json",
+    "openspec/changes/live-sandbox-quick-scenario/independent-reviews/engineering-quality.json",
+    "openspec/changes/live-sandbox-quick-scenario/independent-reviews/spec-fidelity.json",
     "openspec/changes/live-sandbox-quick-scenario/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -39,7 +42,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-05T20:02:24+00:00",
+  "prepared_at": "2026-11-05T20:09:26+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/live-sandbox-quick-scenario/independent-reviews",
     "required_perspectives": [
@@ -48,7 +51,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "f9ca0e17-67a4-49a4-99bb-0d4723d37811",
+  "request_id": "2c57da03-9a0a-4c87-ad41-a7fdb70c993b",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +64,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
-    "digest": "0fac55924570c4353701f727efa3dfe27a0495c2dde7ad0456241c39ff87d596",
+    "digest": "65211b760d59b85861e28787ff71f5c2508e2d67ff80b12cdc0882cad3194d15",
     "paths": {
       "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
       "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
@@ -77,7 +80,7 @@
       "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
       "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
       "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "2fbda6e5cf3ea478b052fb2c3ee3ae3faeb51b5d",
-      "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "c828519748fc7c868d583a460171710b5e3dc577",
+      "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
       "openspec/changes/live-sandbox-quick-scenario/tasks.md": "1e9e1d6080f75d1abee310f065e0058dd43eb72e",
       "scripts/live_scenarios.py": "d8429e3f4840289d69f386198cb411af7f1668d1",
       "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",

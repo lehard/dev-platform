@@ -3,72 +3,48 @@
   "candidate": {
     "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
     "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
-    "candidate_head": "0163533bcf61d48aa847d5d2a47a504b2d5def59",
-    "diff_sha256": "b7ddef3c969bc6c19c90535d9b389f5ee0728964c64fc53ccaa27c84c7773587"
+    "candidate_head": "26e3737b03a6f0a6a4e7ecc782b812dd3b6afcf1",
+    "diff_sha256": "d2512041be09e144858b385d66adfa7ae5b98e672212beb852ed84a393ac7615"
   },
-  "completed_at": "2026-11-05T20:03:56+00:00",
+  "completed_at": "2026-11-05T20:10:39+00:00",
   "findings": [
     {
-      "evidence": "specs/publication-queue/spec.md says a queue on a private repository SHALL hold Checks read and Actions read, and that a missing grant SHALL fail the queue run instead of being treated as absent checks. The diff changes no queue or workflow code under template/ or .github/. `grant_token_reads` in scripts/live_scenarios.py:594 patches the copied workflows with `permission-checks/actions: read` only for the sandbox. `check_app_token` only checks that the token step succeeds. Nothing makes a queue fail on unreadable checks. Archiving this delta would put a requirement into accepted specs that no code satisfies. Either the spec should be scoped to the sandbox snapshot, or the behaviour should be implemented and tested.",
-      "id": "queue-spec-not-implemented",
-      "severity": "material",
-      "summary": "The publication-queue delta requires queue behaviour that no production code provides. The only implementation is a sandbox-only text rewrite of the snapshot workflows."
+      "evidence": "scripts/live_scenarios.py:700 `gh_json([\"api\", \"--paginate\", f\"repos/{repo}/branches?per_page=100\"], ...)` -> json.loads(run(...)). Without `--slurp`, gh prints one array per page. Failed runs that leave work branches make this reachable.",
+      "id": "paginated-branch-list-not-valid-json",
+      "severity": "advisory",
+      "summary": "close_open_work parses `gh api --paginate` output as a single JSON document. Once the sandbox has more than 100 branches, the output is concatenated arrays and json.loads fails. That breaks reset, which is the recovery path for failed runs."
     },
     {
-      "evidence": "specs/live-lifecycle-sandbox/spec.md: the runner SHALL refuse before any write 'when the configuration names a production resource', and production App keys SHALL NOT be stored in the sandbox. `assert_target` (scripts/live_scenarios.py:541) compares only the repository name, privacy and origin. `check_owner_setup` checks that the secret exists but not which App it belongs to. `coordinator_app` and the backlog binding are never compared with production values.",
-      "id": "isolation-spec-guards-missing",
+      "evidence": "template/scripts/lifecycle_workers.py: prepare_checkout calls `github_git_env(source, Path(root))` for every non-local source, and `_git` calls `harness_push_env(repo)` for any `fetch`/`ls-remote` of `origin`. github_git_env raises 'requires an uncredentialed GitHub HTTPS origin' for any other scheme or host. It calls `gh auth token` for every GitHub HTTPS source, public or private. The new tests only cover the private-repo and github.com cases.",
+      "id": "git-credential-now-mandatory-for-all-github-origins",
       "severity": "advisory",
-      "summary": "The isolation requirement is only partly enforced by the target guard."
+      "summary": "Public GitHub clones and fetches now require an authenticated gh credential. Non-GitHub-HTTPS origins that previously worked in `_git` and `prepare_checkout` now raise WorkerError. This contradicts the stated task 1.2 ('public behaviour unchanged'), and the test suite does not cover it."
     },
     {
-      "evidence": "`run_scenarios` catches only StepFailure. In `scenario_quick_task`, the direct `run([...git add/commit...])` calls and `pr_state` (via `gh_json`, which raises SandboxError on a transient gh error) propagate to `main`. There the SandboxError becomes a bare 'live scenarios: ...' message with no scenario or step name, and no JSON results. This contradicts the 'fails naming scenario, step and observed state' requirement.",
-      "id": "scenario-errors-bypass-step-report",
+      "evidence": "scripts/live_scenarios.py:531 `detail = (done.stderr.strip() or done.stdout.strip())[-2000:]`, and finish_until_queued tests `QUEUED not in str(error)`.",
+      "id": "queued-detection-depends-on-stderr-precedence",
       "severity": "advisory",
-      "summary": "Errors inside a scenario that are not StepFailure abort the run without the per-step report and discard earlier scenario results."
+      "summary": "The runner decides whether `finish` queued the PR by searching the QUEUED text in the error from `run()`. That error contains only stderr when stderr is non-empty, otherwise stdout, and is truncated to the last 2000 characters. If finish prints the queued message on stdout and any warning on stderr, a correct queue handoff is reported as a step failure."
     },
     {
-      "evidence": "`run()` builds its error detail as `done.stderr.strip() or done.stdout.strip()`. `finish_until_queued` then checks `QUEUED not in str(error)`. If finish writes any warning to stderr and prints the queued message to stdout, the message is dropped from the detail. The scenario fails as an unexpected error. Subprocesses also run with no timeout, so a hung finish blocks the run until the 3h lease expires.",
-      "id": "queued-detection-stderr-masking",
+      "evidence": "scripts/live_scenarios.py:768-773 and 780: reset order is install_baseline -> apply_settings -> check_app_token, and the dispatch is a single `gh workflow run` with no retry. scripts/live_scenarios.py:760 `if not any(rule[\"name\"] == name ...)` skips an existing ruleset.",
+      "id": "queue-token-check-races-workflow-registration",
       "severity": "advisory",
-      "summary": "Detection of the QUEUED handoff can miss the message and fail the scenario."
-    },
-    {
-      "evidence": "`prepare_checkout` now calls `github_git_env(source, Path(root))` for every non-local source. `_git` and `harness_git` call it for fetch and ls-remote of origin. `github_git_env` raises WorkerError 'requires an uncredentialed GitHub HTTPS origin' for ssh, scp-style or GHE hosts. It also raises for a scheme-less relative path that is not a directory under `cwd`. These reads worked before, when only push was restricted.",
-      "id": "non-github-origin-regression",
-      "severity": "advisory",
-      "summary": "Clone and fetch now fail for any origin that is not an uncredentialed github.com HTTPS URL or a local path."
-    },
-    {
-      "evidence": "`compose_snapshot` extracts the tree with `git archive head`, but copies `source / 'dev-platform' / 'live-sandbox' / 'overlay'` from the current checkout (scripts/live_scenarios.py:589). With `--head <other commit>` or a dirty tree, the overlay (source contract, checks, CI) may not match the installed scripts. The spec says 'reproducible snapshot of an exact platform head'.",
-      "id": "overlay-not-from-head",
-      "severity": "advisory",
-      "summary": "The snapshot is not fully reproducible from the head being installed: the overlay comes from the working tree, not the head."
-    },
-    {
-      "evidence": "tests/test_lifecycle_workers.py `test_private_clone_uses_a_process_scoped_credential` mocks subprocess.run, so no git config is written. It then asserts `assertFalse(config.exists())`, which is trivially true.",
-      "id": "weak-private-clone-config-assertion",
-      "severity": "advisory",
-      "summary": "The 'no credential in checkout config' assertion cannot fail."
-    },
-    {
-      "evidence": "`apply_settings` skips creation when a ruleset named 'main: sandbox coordinator only' exists. A drifted or edited ruleset therefore persists across 'idempotent' resets. The same method hard-codes `actor_id: 5` for the repository admin role.",
-      "id": "ruleset-not-idempotently-updated",
-      "severity": "advisory",
-      "summary": "The ruleset is created only if one with the same name is absent, and an existing one is never reconciled."
+      "summary": "check_app_token dispatches publication-queue.yml right after the baseline push. GitHub may not have registered the new workflow file for workflow_dispatch yet, so the first reset on a fresh sandbox can fail with a transient 'workflow not found' error. The ruleset in apply_settings is also created only if absent and is never updated, so later changes to its bypass actors are not applied."
     }
   ],
-  "launched_at": "2026-11-05T20:02:51+00:00",
-  "output_sha256": "48576ab18901b5e4a93f1611d20df84e00a0e7e159c8686739a5263f12421d6e",
+  "launched_at": "2026-11-05T20:10:03+00:00",
+  "output_sha256": "a0e210ea0da946846682f89082e905a94d1666dd33b8489367bf3a286e86fd93",
   "perspective": "engineering-quality",
-  "request_id": "f9ca0e17-67a4-49a4-99bb-0d4723d37811",
+  "request_id": "2c57da03-9a0a-4c87-ad41-a7fdb70c993b",
   "reviewer": {
-    "context_id": "953645a6-f11d-4652-8bab-ea29255433d4",
+    "context_id": "fb789b47-e755-4068-88bd-70cfa345520e",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-730cf443-25bc-4b22-93f3-c47f74d1d579",
+    "launch_id": "platform-launch-eb4b1431-788d-4dfe-a2b8-d5f43210dfc9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -84,22 +60,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37409
+        "value": 37572
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52132
+        "value": 52440
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 64350
+        "value": 35062
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 64572
+        "value": 35291
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -114,11 +90,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7169
+        "value": 3757
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "0fac55924570c4353701f727efa3dfe27a0495c2dde7ad0456241c39ff87d596"
+  "task_content_digest": "65211b760d59b85861e28787ff71f5c2508e2d67ff80b12cdc0882cad3194d15"
 }
