@@ -421,7 +421,7 @@ the developer friction checkpoint (it is bound to the task content, so a later m
 `review-pending`, and hands the developer board claim off without waiting for CI,
 review or merge: the claim stays on the board with its overlap acknowledgments and handed-off head but claims no scope; finish fails unless the exact head reached `review-pending` with its published review job (or later
 lifecycle progress). A new developer head pushed to the same PR while it is `review-pending` (unclaimed),
-`repair-pending`, `blocked-retryable`, `blocked-escalation`, `integration-repair-pending` or `finalize-pending` (its job unclaimed) is re-admitted by the next finish on that PR: the v1
+`repair-pending`, `blocked-retryable`, `blocked-escalation`, `integration-repair-pending`, `finalize-pending` or `contribution-integration-pending` (its job unclaimed) is re-admitted by the next finish on that PR: the v1
 admission comment records `supersedes` (the previously admitted head, its state and the reason) and a fresh review job
 is published for the new head; until then the coordinator skips the pushed head instead of integrating or blocking it,
 and `status` reports "new head awaits developer re-admission" with the proven and the pushed head.
