@@ -132,7 +132,7 @@ class ResultTest(unittest.TestCase):
 
         with mock.patch.dict(live.SCENARIOS, {"dead-end": dead_end}):
             results = live.run_scenarios(mock.Mock(), ["dead-end"])
-        self.assertEqual(results, [{"scenario": "dead-end", "result": "failed", "step": "queue merges", "observed": "still open"}])
+        self.assertEqual(results, [{"scenario": "dead-end", "result": "failed", "step": "queue merges", "observed": "still open", "seconds": 0}])
 
     def test_a_command_error_inside_a_scenario_names_the_step_and_keeps_results(self):
         def broken(scenario):
@@ -141,8 +141,8 @@ class ResultTest(unittest.TestCase):
 
         with mock.patch.dict(live.SCENARIOS, {"broken": broken, "next": lambda scenario: None}):
             results = live.run_scenarios(mock.Mock(), ["broken", "next"])
-        self.assertEqual(results, [{"scenario": "broken", "result": "failed", "step": "change", "observed": "git commit exited 1"},
-                                   {"scenario": "next", "result": "passed"}])
+        self.assertEqual(results, [{"scenario": "broken", "result": "failed", "step": "change", "observed": "git commit exited 1", "seconds": 0},
+                                   {"scenario": "next", "result": "passed", "seconds": 0}])
 
 
 class CommandErrorTest(unittest.TestCase):
@@ -150,7 +150,7 @@ class CommandErrorTest(unittest.TestCase):
         script = "import sys; print('queued on stdout'); print('warning', file=sys.stderr); sys.exit(2)"
         with self.assertRaises(live.SandboxError) as caught:
             live.run([sys.executable, "-c", script], ROOT)
-        self.assertIn("queued on stdout", str(caught.exception))
+        self.assertIn("queued on stdout", caught.exception.output)
         self.assertIn("warning", str(caught.exception))
 
 

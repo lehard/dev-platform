@@ -25,6 +25,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import live_scenario_gate  # noqa: E402
+
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 SANDBOX_DIR = SOURCE_ROOT / "dev-platform" / "live-sandbox"
 HEAD_MARKER = Path("dev-platform") / "live-sandbox-head.txt"
@@ -94,8 +97,10 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None, *, inp
     done = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False, input=input_text,
                           stdin=None if input_text is not None else subprocess.DEVNULL)
     if done.returncode:
-        detail = "\n".join(part for part in (done.stderr.strip(), done.stdout.strip()) if part)[-2000:]
-        raise SandboxError(f"{' '.join(command[:4])} exited {done.returncode}: {detail}")
+        output = "\n".join(part for part in (done.stdout.strip(), done.stderr.strip()) if part)
+        error = SandboxError(f"{' '.join(command[:4])} exited {done.returncode}: {output[-2000:]}")
+        error.output = output
+        raise error
     return done.stdout
 
 
@@ -441,7 +446,7 @@ class Scenario:
             run(["python3", "scripts/dogfood_task.py", "finish", "--title", title, "--body", "Live scenario."],
                 worktree, self.sandbox.env())
         except SandboxError as error:
-            if QUEUED not in str(error):
+            if QUEUED not in getattr(error, "output", ""):
                 raise self.fail(str(error)) from error
         else:
             raise self.fail("finish returned without queueing the PR")
@@ -584,27 +589,28 @@ def scenario_red_ci(scenario: Scenario) -> None:
 
 
 def scenario_conflict(scenario: Scenario) -> None:
-    """Two admitted candidates change one line; the queue merges one and offers integration repair for the other."""
-    token = uuid.uuid4().hex[:8]
-    first, second = f"conflict-a-{token}", f"conflict-b-{token}"
-    scenario.step("two conflicting changes")
-    tasks = {slug: quick_change(scenario, slug, {"fixture/shared.txt": slug + "\n"}) for slug in (first, second)}
-    scenario.step("finish both")
-    for slug, (worktree, _) in tasks.items():
-        scenario.finish_until_queued(worktree, f"Conflict {slug}")
-    branches = [branch for _, branch in tasks.values()]
-    scenario.step("queue merges one and offers integration repair")
-    states = scenario.wait(lambda: [scenario.pr_state(branch) for branch in branches],
-                           lambda prs: any(pr.get("state") == "MERGED" for pr in prs), 900)
-    loser = next(pr for pr in states if pr.get("state") != "MERGED")
-    scenario.wait_queue(loser["number"], {"integration-repair-pending"}, 600)
+    """Main moves with a conflicting line after admission; the queue offers integration repair."""
+    sandbox, slug = scenario.sandbox, f"conflict-{uuid.uuid4().hex[:8]}"
+    repo, path = sandbox.config.repository, "fixture/shared.txt"
+    scenario.step("start, change and friction checkpoint")
+    worktree, branch = quick_change(scenario, slug, {path: f"{slug} candidate\n"})
+    scenario.step("finish")
+    scenario.finish_until_queued(worktree, f"Conflict {slug}")
+    number = scenario.pr_state(branch)["number"]
+    scenario.step("main moves with a conflicting change")
+    current = gh_json(["api", f"repos/{repo}/contents/{path}?ref=main"], SOURCE_ROOT)
+    moved = base64.b64encode(f"{slug} main\n".encode()).decode()
+    run(["gh", "api", "-X", "PUT", f"repos/{repo}/contents/{path}", "-f", f"message=Move main for {slug}", "-f", f"content={moved}",
+         "-f", f"sha={current['sha']}", "-f", "branch=main", "--jq", ".commit.sha"], SOURCE_ROOT)
+    scenario.step("queue offers integration repair")
+    scenario.wait_queue(number, {"integration-repair-pending"}, 600)
     scenario.step("integration repair")
-    resolved = f"{first}\n{second}\n"
-    scenario.repair_worker("integration-repair", loser["number"], {"fixture/shared.txt": resolved}, ["fixture"])
+    resolved = f"{slug} main\n{slug} candidate\n"
+    scenario.repair_worker("integration-repair", number, {path: resolved}, ["fixture"])
     scenario.step("queue merges the repaired head")
-    scenario.expect_merged(branches[states.index(loser)], 900)
+    scenario.expect_merged(branch, 900)
     scenario.step("final state")
-    scenario.expect_on_main("fixture/shared.txt", resolved)
+    scenario.expect_on_main(path, resolved)
 
 
 def scenario_managed_task(scenario: Scenario) -> None:
@@ -640,18 +646,20 @@ def resolve_head(value: str) -> str:
     return head
 
 
-def run_scenarios(sandbox: Sandbox, selected: list[str]) -> list[dict[str, str]]:
-    results: list[dict[str, str]] = []
+def run_scenarios(sandbox: Sandbox, selected: list[str]) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
     for name in selected:
         scenario = Scenario(name, sandbox)
+        started = time.monotonic()
         try:
             SCENARIOS[name](scenario)
         except StepFailure as failure:
-            results.append({"scenario": name, "result": "failed", "step": failure.step, "observed": failure.observed})
+            outcome = {"result": "failed", "step": failure.step, "observed": failure.observed}
         except SandboxError as error:
-            results.append({"scenario": name, "result": "failed", "step": scenario.current, "observed": str(error)})
+            outcome = {"result": "failed", "step": scenario.current, "observed": str(error)}
         else:
-            results.append({"scenario": name, "result": "passed"})
+            outcome = {"result": "passed"}
+        results.append({"scenario": name, **outcome, "seconds": round(time.monotonic() - started)})
     return results
 
 
@@ -680,6 +688,7 @@ def main() -> int:
         print(f"live scenarios: {error}", file=sys.stderr)
         return 1
     print(json.dumps({"head": sandbox.head, "results": results}, indent=2))
+    print(f"receipt: {live_scenario_gate.write_receipt(SOURCE_ROOT, sandbox.head, results)}")
     return 1 if any(item["result"] != "passed" for item in results) else 0
 
 
