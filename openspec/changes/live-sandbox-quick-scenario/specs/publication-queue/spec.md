@@ -1,17 +1,16 @@
 ## ADDED Requirements
 
-### Requirement: A queue on a private repository reads checks and logs
+### Requirement: The live sandbox queue reads checks and logs of its private repository
 
-A publication queue running on a private repository SHALL hold Checks read and Actions read in addition to its contents and pull requests write, because check data and job logs of a private repository are not readable without them. The token scope of a queue on a public repository is unchanged, and no other permission is added.
+The live sandbox snapshot SHALL grant the coordinator token of each queue workflow it installs Checks read and Actions read in addition to contents and pull requests write, because check data and job logs of a private repository are not readable without them. The grant is applied to the sandbox snapshot only; the platform's own queue workflows and their token scope are unchanged, and no other permission is added.
 
-#### Scenario: Private repository
+#### Scenario: Sandbox snapshot
 
-- **GIVEN** a queue on a private repository
-- **WHEN** its coordinator token is minted
-- **THEN** it also holds Checks read and Actions read
-- **AND** a missing grant fails the queue run instead of being treated as absent checks
+- **GIVEN** a snapshot composed for the private live sandbox repository
+- **WHEN** its queue workflows are installed
+- **THEN** each App token step also requests Checks read and Actions read
 
-#### Scenario: Public repository
+#### Scenario: Platform repository
 
 - **GIVEN** the queue on the public platform repository
 - **WHEN** its coordinator token is minted
