@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "2afee08e403356a6d5b101955e3ebe6cdf8b7e21",
+    "base_ref": "origin/main",
+    "candidate_head": "33a0e81934e5d6be4c00632207d17380e386c971",
+    "diff_sha256": "db96bbd6d5804fdaa6ba39488cc145f1aca4b655c237fe326620bfbe07609a7e"
+  },
+  "completed_at": "2026-11-05T22:14:35+00:00",
+  "findings": [
+    {
+      "evidence": "design.md:11 says both the skip in a re-admission state and the block as a change outside coordinator control otherwise stay, with tests for the quick case. specs/publication-queue/spec.md:73-77 has the scenario 'Raw push over an admitted quick head'. tests/test_pr_review_gate.py `test_a_pushed_quick_head_is_never_integrated_until_finish_records_it` only runs from the `integration-repair-pending` state set up by `quick_red`. No added test pushes a head over a quick task in `ready` or another non-re-admission state, so the blocking half of the promise rests on pre-existing, unverified behavior.",
+      "id": "raw-push-quick-non-readmission-state-untested",
+      "severity": "advisory",
+      "summary": "The spec and design promise that a raw-pushed head over an admitted quick head never integrates or merges, with tests for the quick case. The candidate tests only the re-admission-state branch of that promise."
+    }
+  ],
+  "launched_at": "2026-11-05T22:14:15+00:00",
+  "output_sha256": "18fa910448a560df3b479bc138dbe7435d18280ca3bd29e85c83239574ef3f6f",
+  "perspective": "spec-fidelity",
+  "request_id": "97670cf5-0fee-40c7-89e9-8bf7e0ab9b6e",
+  "reviewer": {
+    "context_id": "e448a06a-b6d6-4287-a0a7-75c5ff7ac63f",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-17526d4d-fd2b-42a5-9d8d-fe93cdb764d4",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35045
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 51872
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18504
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18671
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2229
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "6edd5cef336bcf87cb0d287416ee6f9ea7b40f152b155fde209e31b0a8f393aa"
+}
