@@ -48,6 +48,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 - **Keep CI providers thin.** Put portable test, build, verification, release, and deploy behavior behind repository-owned executable entrypoints; use provider workflows for their native orchestration. See [release-policy.md](docs/release-policy.md).
 - **Resolve the friction checkpoint** before reporting a non-trivial task complete: `python3 scripts/agent_friction.py checkpoint --result none --review-note "Reviewed actual task path"`, or the id of a recorded event.
 - **Review the whole Requirement before terminal delivery.** With the coordinator queue the post-merge retrospective job records the bounded parent retrospective and the terminal job closes the Requirement; developers do neither. Without the queue, record it after the mandatory children with `python3 scripts/requirement_retrospective.py checkpoint --requirement owner/repo#N --result none --review-note "Reviewed actual Requirement path"` or linked friction event ids. This covers pre-authoring and cross-child work; child retrospectives remain required. A new lifecycle stage must record meaningful friction itself or expose it to its nearest enclosing retrospective.
+- **Fail explicitly.** Missing or invalid input, configuration or state stops with an error naming it; no default, substitute or degraded path stands in for it.
 - **Report blockers.** If a required completion step is blocked, say so instead of reporting the task as done.
 - **Don't busy-poll background processes.** Wait out a long-running background command with one long timeout — for Codex, a single `write_stdin` call with `yield_time_ms` up to the runtime's max (around 300000) — instead of repeated short `sleep`/`ps` checks or empty stdin polls; poll again only once that wait elapses. Genuine interactive input is unaffected.
 
@@ -70,7 +71,6 @@ python3 scripts/dogfood_task.py finish
 `status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable. A coordinator-managed developer handoff ends at the admitted review-pending PR without waiting for CI or merge; report it as a handoff. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
 
 Minimum validation before finishing:
-
 ```bash
 python3 -m compileall -q template/scripts scripts
 python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests
@@ -79,6 +79,7 @@ python3 scripts/generate_platform_manifest.py --check
 python3 scripts/managed_projects.py validate
 python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check
+npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive
 ```
 
 ## Where the detailed contract lives

@@ -3,8 +3,8 @@
 The **chat coordinator** is a role the owner can assign to any new Codex or Claude
 session. It is the **delivery orchestrator** of Dev Platform: it keeps the backlog
 roadmap, starts and holds the development streams, and after every developer
-handoff launches the review, repair and post-merge workers and runs the LLM-free
-lifecycle jobs itself until no job remains. It tells the owner, in ordinary words,
+handoff sees that each job has an executor: it starts the jobs that run only on the
+operator node (see *Job placement*) and any job left unclaimed, until no job remains. It tells the owner, in ordinary words,
 where every Requirement and PR stands, why it waits and what happens next. It is
 not the CI *publication coordinator* (the App that runs `publication-queue`).
 
@@ -19,7 +19,7 @@ The coordinator decides on its own:
 - the roadmap: which Requirement is taken into work next and in which order;
 - starting and holding development streams: at most **two** code streams at a time;
   a third only on the owner's decision;
-- launching review, repair and post-merge workers and draining LLM-free jobs;
+- launching operator-node workers (see *Job placement*) and draining unclaimed jobs;
 - routine recovery after a technical failure: `resume`, `switch-provider`,
   `reoffer-post-merge`, `restore-gates` (below), once the cause the overview names is understood.
 
@@ -45,17 +45,20 @@ One cycle, repeated until the roadmap is done:
 2. **Pick the next work** from the roadmap and start or continue at most two code
    streams. A stream is a session that follows `AGENTS.md` itself (intake, routing,
    implementation, validation, developer handoff) and reports a PR number.
-3. **After a handoff, run the workers** from the integration checkout (never from a
-   task worktree), with both tokens in the environment and never printed:
+3. **After a handoff, see that every job has an executor** (see *Job placement*).
+   Run an operator-node job from the integration checkout (never from a task
+   worktree), with both tokens in the environment and never printed:
 
    ```bash
    GH_TOKEN="$(gh auth token)" CLAUDE_CODE_OAUTH_TOKEN="$(cat ~/.config/dev-platform/claude-oauth-token)" \
      python3 scripts/lifecycle_workers.py work-next --repo owner/repo --pr N --kinds review --run
    ```
 
-   Review and finalize may already be claimed by the hosted workers
+   Review and finalize are normally claimed by the hosted workers
    ([hosted-lifecycle-workers.md](hosted-lifecycle-workers.md)); check the overview
-   before launching. Repair kinds need `--provider` and a writer; post-merge kinds
+   before launching. Repair kinds take `--writer claude-sandboxed`, which names its
+   own provider, or `--provider` with `--llm-command`; `--writer` exists only for
+   `repair` and `integration-repair`. Post-merge kinds
    (retrospective, terminal reconciliation, cleanup) run every 10 minutes through the
    local post-merge runner (LaunchAgent `dev.platform.post-merge-runner`, journal:
    `python3 scripts/post_merge_runner.py journal --journal-dir <dir> --last 50`); the
@@ -87,6 +90,21 @@ state and the next step without the previous chat.
 A heartbeat is rare: at most every 30 minutes while streams are active, and none
 while nothing is in flight. Long commands are waited on with one long timeout, never
 polled in short loops.
+
+## Job placement
+
+| Job | Runs on | Started by |
+| --- | --- | --- |
+| `review` | hosted worker | automatically |
+| `review` of a composition of a private Requirement | operator node | coordinator |
+| `finalize` | hosted worker | automatically |
+| `finalize` of a composition, with its full checks | operator node only | coordinator |
+| `integration-merge` | hosted worker | automatically |
+| `contribution-integration` | publication queue | automatically |
+| `repair`, `integration-repair` | operator node | coordinator |
+| `retrospective`, `terminal-reconciliation`, `cleanup` | post-merge runner on the operator machine | LaunchAgent, every 10 minutes |
+
+The operator node is `lifecycle_workers.py work-next --run` on the operator machine. The coordinator also runs there a job that an automatic executor left unclaimed. Hosted kinds are the ones enabled in `DEV_PLATFORM_HOSTED_KINDS`.
 
 ## Reading the state
 

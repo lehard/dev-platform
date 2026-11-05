@@ -75,9 +75,13 @@ commits, publishes, resets, stashes or edits source content.
 `core.hooksPath` points to the generated dispatcher. The original setting and
 resolved hooks directory are retained in an attachment receipt. Delegation reads
 the original hook dynamically, preserving its arguments, stdin, stdout and
-failure status. Refreshing doctor-managed hooks in that directory keeps working.
-When operator hooks use a custom directory, marked doctor pre-commit and
-pre-merge hooks in the normal Git directory are also invoked. Non-terminal stdin
+failure status. `agent_doctor.py` copies `scripts/git_hooks/*`, when that directory
+exists, into `.git/hooks` of the integration checkout and does not read
+`core.hooksPath`, so on an attached checkout Git never runs those copies directly:
+they run only through the dispatcher. Without a custom hooks directory `.git/hooks`
+is the resolved directory, so a doctor refresh applies at the next hook. When
+operator hooks use a custom directory, marked doctor `pre-commit` and
+`pre-merge-commit` hooks in `.git/hooks` are also invoked. Non-terminal stdin
 is replayed to both hooks; the first failure is returned. After a successful
 hook, an owner repair/audit runs; a remaining finding blocks
 the hook. Updating the hooks configuration outside this runtime requires operator
