@@ -1931,7 +1931,7 @@ A friction issue SHALL be able to carry several fingerprint markers, and routing
 
 ### Requirement: A merged fix closes the friction records it references
 
-When a pull request is merged, the friction issues referenced by `Fixes-Friction: owner/repo#N` lines in its body or in an OpenSpec `proposal.md` changed by it SHALL be closed with a comment naming the pull request and merge commit. Friction issues without such a reference SHALL NOT be closed automatically. A malformed reference, a reference to another repository or a reference to an issue that is not a router-generated friction issue SHALL fail the run with an error naming the reference.
+When a pull request is merged, the friction issues referenced by `Fixes-Friction: owner/repo#N` lines in its body, a commit message or a changed OpenSpec `proposal.md` SHALL be closed with a comment naming the pull request and merge commit. Friction issues without such a reference SHALL NOT be closed automatically. A reference that is malformed, names another repository or names a non-friction issue SHALL fail the run naming the reference.
 
 #### Scenario: Fix references a friction record
 
@@ -1939,6 +1939,12 @@ When a pull request is merged, the friction issues referenced by `Fixes-Friction
 - **WHEN** the close-on-merge run executes for that PR
 - **THEN** issue #405 is closed with a comment naming the PR and its merge commit
 - **AND** a rerun does not comment again
+
+#### Scenario: Commit trailer references a friction record
+
+- **GIVEN** a merged PR with a commit whose message contains `Fixes-Friction: lehard/dev-platform#405`
+- **WHEN** the close-on-merge run executes for that PR
+- **THEN** issue #405 is closed with a comment naming the PR and its merge commit
 
 #### Scenario: No reference
 
@@ -1977,11 +1983,6 @@ A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`,
 - **GIVEN** the coordinator schedules a bounded retry of PR candidate 42 at head `abc` because a gate was unavailable
 - **WHEN** the event is routed
 - **THEN** the published body names the candidate (task branch, PR 42, head `abc`) and the reason
-
-#### Scenario: Validation failure carries the failing check
-- **WHEN** `finish` records `lifecycle-validation-failure`
-- **THEN** the event reason names the failure class and failing check from the selector descriptor
-- **AND** the candidate names the current branch and head
 
 #### Scenario: Faceless coordinator event
 - **GIVEN** a locally retained coordinator event with no reason or no candidate
