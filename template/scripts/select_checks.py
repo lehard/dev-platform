@@ -22,6 +22,7 @@ from _platform_common import (
     read_platform_config,
     require_fresh_task_base,
     require_handoff_task_base,
+    task_freshness_branch,
     require_main_branch,
     require_proven_task_base,
     resolve_changed_file_base,
@@ -776,10 +777,12 @@ def main() -> int:
                 print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
             elif args.mode == "local-affected" and coordinator_contract(root):
                 # Under the coordinator contract a task the queue integrates (a coordinator
-                # candidate or a quick task) behind a mergeable main passes; the queue merges
-                # main and gates on the integrated head. Any other head keeps the fresh-base rule.
+                # candidate or a quick task) behind a mergeable target passes; the queue merges
+                # it and gates on the integrated head. Any other head keeps the fresh-base rule.
+                # The target is main, or the recorded requirement branch of a contribution.
                 main_branch = require_main_branch(read_platform_config(root), SystemExit)
                 try:
+                    main_branch = task_freshness_branch(root, main_branch)
                     currency = require_handoff_task_base(root, "origin", main_branch)
                 except TaskFreshnessError as exc:
                     raise SystemExit(

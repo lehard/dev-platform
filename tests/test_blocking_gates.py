@@ -539,7 +539,7 @@ class MergeCommitHookTests(unittest.TestCase):
     def intent(self, worktree: Path, branch: str, target: str) -> Path:
         path = Path(self.git(worktree, "rev-parse", "--path-format=absolute", "--git-dir").stdout.strip())
         path = path / "dev-platform-reconcile-merge"
-        path.write_text(f"branch {branch}\ntarget {target}\n", encoding="utf-8")
+        path.write_text(f"branch {branch}\ntarget {target}\nref origin/main\n", encoding="utf-8")
         return path
 
     def assert_refused(self, worktree: Path, ref: str, message: str) -> None:

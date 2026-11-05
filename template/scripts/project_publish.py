@@ -635,8 +635,8 @@ def publish_pr(
     # (open with an older head) already proves first publication, so no fresh-base rule applies.
     grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
-        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing
-                            and not (developer_handoff and handoff_identity.get("kind") == "contribution"),
+        # ``main_branch`` is already the recorded target of a contribution handoff.
+        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing,
                             coordinator_handoff=developer_handoff or (selected_mode == "coordinator" and queue_integrated(root)))
         if grows_existing:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)

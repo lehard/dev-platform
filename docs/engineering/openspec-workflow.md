@@ -186,6 +186,16 @@ same archive-content predicate (tasks complete, new-capability Purpose in
 contribution order) runs at developer handoff, before a composition review is
 offered or launched, and before composition finalization archives any child.
 
+A Requirement contribution binds review, task-content identity, selected checks
+and finalization to one contribution base. The base moves only to a head of the
+requirement branch that descends from it: `reconcile`, or an integration repair
+that merged the target. Earlier evidence survives the move only when task content
+is proven equivalent or the head is proven to be the merge of the target alone;
+anything else returns to review on the new base. Selected checks of a contribution
+run under `--contribution-base`, scoped to that base; the proven-base merge-base
+rule with `origin/<main>` applies only to main-target candidates. Composition
+recomputes each child identity from its recorded base and exact head.
+
 Outside coordinator finalization, archive also rejects uncommitted or untracked
 authored package files (proposal, design, tasks, delta specs, `verification.md`)
 and main-spec files before review or checks, listing the paths and the commit

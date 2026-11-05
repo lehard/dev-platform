@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "9756bb48f105c58e8906b1c07c28cf6a9555c88d",
+    "base_ref": "9756bb48f105c58e8906b1c07c28cf6a9555c88d",
+    "candidate_head": "7e61615cd0f74db2c00ea330710965de678a4875",
+    "diff_sha256": "dd3780ab7f516d49b2e3e3dda513997507cc0476c874382a42722df9a9212d8a"
+  },
+  "completed_at": "2026-11-05T01:33:13+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/_platform_common.py, new task_freshness_branch: `contribution = json.loads(context.read_text(...)).get(\"contribution\") if context.is_file() else None; if not contribution: return main_branch`. A contribution child worktree that has lost its context is then measured against main, which is the behavior this change removes. The spec scenario \"Target cannot be observed\" says freshness must refuse rather than report fresh. Only a missing branch field raises TaskFreshnessError. Missing context for a task whose provenance identifies a Requirement child, and unparseable JSON, are not handled.",
+      "id": "freshness-target-fails-open-to-main",
+      "severity": "advisory",
+      "summary": "task_freshness_branch silently falls back to main when a managed task's requirement-child-context file is absent. A malformed context file raises an unhandled JSONDecodeError instead of TaskFreshnessError."
+    }
+  ],
+  "launched_at": "2026-11-05T01:32:41+00:00",
+  "output_sha256": "8aaac2bae58a9a6231d6eaba0b2606f1432a8cd3b9ac62ee39303be889f3c1e6",
+  "perspective": "engineering-quality",
+  "request_id": "dbd5dfec-f9ab-4b68-a19b-32d7cd21e0fa",
+  "reviewer": {
+    "context_id": "e9f10845-ec1c-4b1d-8e24-f50e88833383",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3222dc8c-8d6d-4520-b352-43273ea20f43",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 55491
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 156217
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30737
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 31182
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3249
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ad19fa77043e64c6446026f3b7553ace133424d01ff30992cc0ae1650028b26b"
+}

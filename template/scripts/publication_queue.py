@@ -1243,13 +1243,14 @@ def _handoff_route(root: Path, identity: Any) -> dict[str, str]:
 # a retry or an unclaimed head-bound job (which can never run once the head moved), not on an
 # in-flight job. Every other state keeps the admitted head. A developer fix of a red integrated
 # check supersedes the unclaimed integration-repair job of the integrated head; a reconciled
-# head supersedes the unclaimed finalize job of the reviewed head.
+# head supersedes the unclaimed finalize job of the reviewed head, and a contribution reconciled onto
+# its moved target supersedes the unclaimed integration job of the conflicted head.
 READMISSION_STATES = frozenset({"review-pending", "repair-pending", "blocked-retryable", "blocked-escalation",
-                                "integration-repair-pending", "finalize-pending"})
+                                "integration-repair-pending", "finalize-pending", "contribution-integration-pending"})
 # Waiting states a developer fix on top of the proven head answers directly: the local head is
 # handed off again (fresh review) instead of waiting for the coordinator job of the proven head.
 DEVELOPER_FIX_STATES = frozenset({"integration-repair-pending", "repair-pending", "blocked-escalation",
-                                  "finalize-pending"})
+                                  "finalize-pending", "contribution-integration-pending"})
 
 
 def _awaits_developer_fix(lineage: dict[str, Any]) -> bool:
@@ -1262,7 +1263,7 @@ def _awaits_developer_fix(lineage: dict[str, Any]) -> bool:
         return True
     return (lineage.get("state") == "blocked-retryable"
             and (lineage.get("red_gate") or {}).get("name") == "semantic-verification")
-_SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
+_SAME_TASK_KEYS = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch")
 
 
 def _material_findings(evidence: Any) -> bool:
@@ -1287,6 +1288,21 @@ def _is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
         return False
     raise QueueError(f"cannot prove that {descendant} descends from {ancestor}: git {' '.join(command)} "
                      f"exited {done.returncode}: " + (done.stderr or done.stdout).strip()[:200])
+
+
+def _require_contribution_base_move(root: Path, old: dict[str, Any], new: dict[str, Any]) -> None:
+    """Refuse a re-admission whose contribution base moved anywhere but along its target branch."""
+    from _platform_common import fetch_commit_objects
+
+    before, after = old.get("contribution_base"), new.get("contribution_base")
+    if before == after:
+        return
+    target = new["target_branch"]
+    head = branch_head(root, target)
+    fetch_commit_objects(root, "origin", target, head)
+    if not (_is_ancestor(root, str(before), str(after)) and _is_ancestor(root, str(after), head)):
+        raise QueueError(f"contribution base moved from {before} to {after}, which does not descend from it inside "
+                         f"{target}; run `python3 scripts/dogfood_task.py reconcile`, then hand off again")
 
 
 def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven: str, head: str,
@@ -1325,6 +1341,10 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
     if (not isinstance(old, dict) or not old.get("change") or not isinstance(identity, dict)
             or any(old.get(key) != identity.get(key) for key in _SAME_TASK_KEYS)):
         raise refuse("the handoff does not name the same task as the admitted candidate")
+    try:
+        _require_contribution_base_move(root, old, identity)
+    except QueueError as exc:
+        raise refuse(str(exc)) from exc
     red = lineage.get("red_gate") or {}
     review = (lineage.get("gates") or {}).get("review") or {}
     finding_level = (lineage["state"] == "blocked-escalation" and red.get("name") in {"review", "repair"}
@@ -1459,19 +1479,19 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if admitted and handoff:
         prior = _latest(root, number, _comments(root, repo, number))
         old_identity = prior.get("task_identity") if prior else None
-        keys = ("kind", "change", "requirement", "source_issue", "work_identity", "target_branch", "contribution_base")
         proven = _proven_head(events, admitted)
         if (prior and prior.get("head") == proven and prior.get("head") != expected_head
                 and prior.get("state") == "blocked-retryable"
                 and (prior.get("red_gate") or {}).get("name") == "semantic-verification"
                 and isinstance(old_identity, dict) and old_identity.get("kind") == "contribution"
-                and all(old_identity.get(k) == identity.get(k) for k in keys)
+                and all(old_identity.get(k) == identity.get(k) for k in _SAME_TASK_KEYS)
                 and prior["red_gate"].get("identity") == old_identity
                 and handoff.get("gates", {}).get("developer-friction", {}).get("evidence", {}).get("head") == expected_head
                 and all(handoff.get("gates", {}).get(g, {}).get("result") == "passed"
                         and handoff["gates"][g].get("identity") == identity
                         and handoff["gates"][g].get("evidence")
                         for g in ("developer-friction", "selected-checks", "semantic-verification"))):
+            _require_contribution_base_move(root, old_identity, identity)
             _comment(root, repo, number, {"kind": "block", "head": prior["head"],
                                         "reason": "fresh semantic-verification developer handoff"})
             events = _events(root, repo, number)
@@ -2366,7 +2386,8 @@ def _worker_candidate(root: Path, repo: str, number: int, admission: dict[str, A
             except (ContributionError, QueueError) as exc:
                 skipped.append(f"#{number} contribution: {exc}")
                 return None, None
-            _label(root, repo, number, QUEUE, present=False)
+            if outcome["state"] != "integration-repair-pending":
+                _label(root, repo, number, QUEUE, present=False)
             return outcome, None
         skipped.append(f"#{number} contribution: {current['state']}")
         return None, None

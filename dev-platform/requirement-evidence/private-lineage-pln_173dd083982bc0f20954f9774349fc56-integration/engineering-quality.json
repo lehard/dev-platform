@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4b51d8f522493e5bf06556b619ab8387002a082a",
+    "base_ref": "4b51d8f522493e5bf06556b619ab8387002a082a",
+    "candidate_head": "a97e6157df5fee62f741d53a473e30cff17d2d29",
+    "diff_sha256": "1e72c1c0da032a5e242e1110f50113e66057ce36e7a2244f950f7d12071a047d"
+  },
+  "completed_at": "2026-11-05T01:54:39+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/integration_contour.py:617-624 `requirement_checkpointed` catches RequirementRetrospectiveError, and RetrospectiveStale subclasses it, so stale returns False. Lines 765-766 then call `ensure_requirement_checkpoint`, which re-records the checkpoint over all events. `RetrospectiveStale` can therefore only escape from `reconcile_parent` (lines 957-960 of the diff) if friction arrives between those two calls. I read the diff and this file only and ran no tests. The tests in tests/test_autonomous_integration_contour.py may cover the path with a stubbed `reconcile_parent`.",
+      "id": "retrospective-refresh-reachability",
+      "severity": "advisory",
+      "summary": "The retrospective-refresh path may rarely fire. `run_terminal` already re-records the Requirement checkpoint whenever `requirement_checkpointed` is false, and that includes the stale case. I did not confirm whether `RetrospectiveStale` can still reach the keyed block other than through a race. I also did not confirm that the BR-987 scenario (friction recorded after the retrospective blocks terminal) actually exercises it."
+    }
+  ],
+  "launched_at": "2026-11-05T01:54:03+00:00",
+  "output_sha256": "d2749334aad0456d19c7360916e7184c55666747dab86b71d0a81b437cebf4f4",
+  "perspective": "engineering-quality",
+  "request_id": "95afa680-0dee-4f0b-b172-8a9466d97288",
+  "reviewer": {
+    "context_id": "384ba7aa-a9cc-4acb-bd5e-8e7b6b2d4ecf",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-3d1750e4-543b-43c9-bf7c-d507ba89bf6e",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 56613
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 261097
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 30767
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34044
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2900
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9b4907b34799b7907c8105b3a5cdeaf5c274220c22d5aa84f1820512e1aeda09"
+}

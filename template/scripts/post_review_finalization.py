@@ -145,7 +145,8 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
     if (contribution_base is None) == (proven_base is None):
         raise workers.WorkerError("trusted selected checks need exactly one of contribution_base or proven_base")
     contract, base = ("contribution-base", contribution_base) if contribution_base is not None else ("proven-base", proven_base)
-    arguments = ["--base", "origin/main", "--execute", f"--{contract}", base]
+    # A contribution is scoped to its own base: a target that absorbed main must not widen its diff.
+    arguments = ["--base", base if contribution_base is not None else "origin/main", "--execute", f"--{contract}", base]
     script = Path(__file__).resolve().with_name("select_checks.py")
     # Finalization checks are admitted ahead of development runs by the machine pool.
     env = {**env, "DEV_PLATFORM_CHECK_CLASS": "finalize"}
@@ -157,6 +158,15 @@ def trusted_checks_runner(checkout: Path, env: dict[str, str], *, contribution_b
     if done.returncode:
         raise workers.WorkerError("selected checks failed: " + done.stdout.strip()[-400:])
     return {"command": ["select_checks.py", *arguments], "freshness": {"contract": contract, "base": base}}
+
+
+def require_base_in_target(checkout: Path, base: str, target: str) -> None:
+    """Refuse a contribution base its target branch does not contain: that base is unproven."""
+    workers.harness_git(checkout, "fetch", "--no-tags", "origin", target)
+    target_head = workers.harness_git(checkout, "rev-parse", "FETCH_HEAD").strip()
+    if subprocess.run(["git", *workers.SAFE_GIT, "merge-base", "--is-ancestor", base, target_head], cwd=checkout,
+                      capture_output=True, check=False, stdin=subprocess.DEVNULL).returncode:
+        raise workers.WorkerError(f"contribution base {base} is not contained in {target} ({target_head})")
 
 
 POOL_DIAGNOSTIC_PREFIX = "DEV_PLATFORM_MACHINE_POOL"
@@ -232,6 +242,7 @@ def execute_finalize(checkout: Path, job: dict, gates: dict, *, source_repo: str
         base = actual.get("contribution_base")
         if not isinstance(base, str) or not base:
             raise workers.WorkerError("contribution candidate identity lacks its exact contribution base")
+        require_base_in_target(checkout, base, actual["target_branch"])
         freshness = {"contribution_base": base}
     else:
         # ``actual`` is proven equivalent to the recorded identity, so its base is the

@@ -59,7 +59,11 @@ One cycle, repeated until the roadmap is done:
    (retrospective, terminal reconciliation, cleanup) run every 10 minutes through the
    local post-merge runner (LaunchAgent `dev.platform.post-merge-runner`, journal:
    `python3 scripts/post_merge_runner.py journal --journal-dir <dir> --last 50`); the
-   overview names the run-now command for an unclaimed one. Keep the integration
+   overview names the run-now command for an unclaimed one. Friction recorded after
+   the Requirement retrospective blocks the terminal job with a key of those events;
+   the runner then repeats retrospective and terminal under that key, up to three
+   times, with no hand-run checkpoint. Past that the overview reports the block and
+   `reoffer-post-merge` gives a new bound. Keep the integration
    checkout on current `main` with `python3 scripts/project_sync.py`, because the
    runner executes its code. Read the first failure before any rerun; never drive a
    failing job in a loop.
@@ -156,6 +160,21 @@ rule explains prints `idle reason unknown` with the state; it is never shown as
 healthy. The line explains the wait and takes no action.
 
 ## Acting on an exception
+
+A contribution conflicted by a sibling merge needs no CI dispatch: GitHub runs no
+checks on a conflicted PR, so the contribution-integration job evaluates the
+conflict before required checks and offers an integration repair naming the
+paths. A conflict-free head without required checks is refused naming the wait,
+and the publication queue integrates it once they pass. To bring main into a requirement branch before
+its composition is queue-owned:
+
+```bash
+python3 scripts/execute_requirement.py absorb-main --requirement owner/repo#N
+```
+
+It merges main in a disposable checkout and pushes by fast-forward from the exact
+observed head. Open contributions keep their base. Once the queue owns the
+composition, main arrives through its integration repair instead.
 
 An assembled Requirement branch is repaired only through its composition PR's
 queue job. From the coordinator checkout, request the existing repair writer:

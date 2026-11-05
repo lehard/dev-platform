@@ -863,6 +863,30 @@ def queue_integrated(root: Path) -> bool:
     return coordinator_candidate(root)
 
 
+def task_freshness_branch(root: Path, main_branch: str) -> str:
+    """The branch this task's freshness is measured against: its contribution target, or main.
+
+    A contribution integrates into its recorded requirement branch; main reaches that branch through
+    composition. Any other task, including a checkout without child context, keeps the main rule.
+    """
+    from managed_task import ManagedTaskError, resolve_canonical_provenance
+
+    try:
+        provenance = resolve_canonical_provenance(root)
+    except ManagedTaskError as exc:
+        raise TaskFreshnessError(f"cannot resolve the task's freshness target: {exc}") from exc
+    if provenance is None:
+        return main_branch
+    context = root / ".claude" / "requirement-child-context" / f"{provenance.change}.json"
+    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution") if context.is_file() else None
+    if not contribution:
+        return main_branch
+    target = contribution.get("target_branch")
+    if not isinstance(target, str) or not target:
+        raise TaskFreshnessError(f"Requirement child context {context} records no contribution target branch")
+    return target
+
+
 def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> TaskBaseCurrency:
     """Fresh-base gate of validation under the coordinator contract.
 

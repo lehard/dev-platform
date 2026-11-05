@@ -212,7 +212,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
                                llm_command, current_head: Callable[[], str], workdir: str,
                                runner=workers.run_in_session, env: dict[str, str] | None = None,
                                push_env: dict[str, str] | None = None, home_files=(),
-                               before_push: Callable[[Path, str], None] | None = None,
+                               before_push: Callable[[Path, str, str], None] | None = None,
                                claim_current: Callable[[], bool] = lambda: True,
                                launch: Callable[..., object] | None = None, trusted_root: Path | None = None) -> dict:
     """Merge current main into a disposable checkout, let the writer resolve it, validate, push once."""
@@ -289,7 +289,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     scope = [*allowed_paths, *sorted(candidate_paths), *brief.get("conflicts", []), *conflicted]
     validate_integration_result(harness, job["head"], result_head, main_sha, scope)
     if before_push is not None:
-        before_push(harness, result_head)
+        before_push(harness, result_head, main_sha)
     if not claim_current():
         return {"status": "discarded"}
     workers.push_validated(harness, branch, job["head"], result_head, runner=runner, env=push_env)
@@ -365,6 +365,9 @@ def advance_after_repair(root: Path, repo: str, candidate: dict, head: str, fres
         state = "contribution-integration-pending" if fresh.get("kind") == "contribution" else "ready"
         adapter._transition(root, repo, candidate["number"], state, head, task_identity=fresh,
                             inherit_identity=False, gates=gates)
+        if fresh.get("kind") == "contribution":
+            adapter.publish_job(root, repo, candidate["number"], "contribution-integration", head, task_identity=fresh,
+                                target_head=adapter.branch_head(root, fresh["target_branch"]))
         return state
     if managed:
         final.return_to_review(harness or root, repo, candidate, head, fresh, adapter=adapter)
@@ -410,12 +413,18 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
     spent = observed.get("attempts", {}).get("integration-repair", 0)
     runner = runner or workers.run_in_session  # the writer's process group never outlives it
 
-    def before_push(harness, head):
+    def repaired_identity(harness, head, target_head):
+        """A contribution repair merged its target, so that target head is its new contribution base."""
+        if not (isinstance(identity, dict) and identity.get("change")):
+            return {"branch": branch, "head": head}
+        bound = {**identity, "contribution_base": target_head} if identity.get("kind") == "contribution" else identity
+        return review_gate.refresh_identity(harness, bound)
+
+    def before_push(harness, head, target_head):
         if not claim_current():
             return
         workers.checkout_harness(harness, head)
-        fresh = (review_gate.refresh_identity(harness, identity)
-                 if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
+        fresh = repaired_identity(harness, head, target_head)
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh, provider=provider))
 
     def fail(reason: str) -> dict:
@@ -456,8 +465,7 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
                                           "base": outcome["main"], "worker_job": workers.job_id(job)})
     harness = Path(workdir).resolve() / "harness"
     workers.checkout_harness(harness, head)
-    fresh = (review_gate.refresh_identity(harness, identity)
-             if isinstance(identity, dict) and identity.get("change") else {"branch": branch, "head": head})
+    fresh = repaired_identity(harness, head, outcome["main"])
     state = advance_after_repair(root, repo, observed, head, fresh, harness, base=outcome["main"], adapter=adapter)
     post_result(workers.result_body(job, worker, "integrated", head, provider=provider))
     return {"status": "integrated", "pushed_head": head, "state": state}
@@ -757,11 +765,14 @@ def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: 
         return "child-reconciled; requirement awaits remaining children"
     if not ops.requirement_checkpointed(root, requirement):
         ensure_requirement_checkpoint(ops, root, requirement, children)
+    from requirement_retrospective import RetrospectiveStale
     from requirement_terminal import OwnerAcceptancePending
     try:
         ops.reconcile_parent(root, requirement, {child})
     except OwnerAcceptancePending as exc:
         return awaits_owner_acceptance(exc)
+    except RetrospectiveStale:
+        raise  # keyed below: the queue offers a refresh instead of spending the terminal budget
     except RuntimeError as exc:
         raise JobBlocked(str(exc)) from exc
     return "requirement-reconciled"
@@ -820,6 +831,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
         return {"status": "discarded"}
     if candidate.get("state") != "merged" or workers.build_job(candidate) != job:
         return {"status": "discarded"}
+    from requirement_retrospective import RetrospectiveStale
+
     ops = ops or LifecycleOps()
     run = {"retrospective": run_retrospective, "cleanup": run_cleanup,
            "terminal-reconciliation": functools.partial(run_terminal, task_identity=job["task_identity"])}[kind]
@@ -858,6 +871,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
             outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
     except JobBlocked as exc:
         outcome, status = "blocked: " + public_text(root, str(exc))[:200], "blocked"
+    except RetrospectiveStale as exc:
+        outcome, status = f"blocked: retrospective-stale {exc.key}: later friction " + ", ".join(exc.events)[:160], "blocked"
     except PostMergeEnvironmentError:
         raise  # no receipt: the caller releases the claim and fails visibly
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal

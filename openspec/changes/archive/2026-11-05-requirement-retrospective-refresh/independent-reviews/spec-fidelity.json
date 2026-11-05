@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "17574023e44f0f20ebe517048c183c9ad181a7b9",
+    "diff_sha256": "940e9b94f524200ab90d689809dcb3a532793267666bfc466b7adabfa5777ce6"
+  },
+  "completed_at": "2026-11-05T00:20:42+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/pr_review_gate.py hunk @@ -687,6 +687,8: `kind = \"terminal-reconciliation\"`, then `job = {\"number\": number, \"kind\": kind, \"head\": ..., \"attempt\": attempt, ...}` with no refresh. job_id in lifecycle_workers.py now appends `:f<refresh>`, so the probe ids differ from the offered ids. I did not check whether the reoffer event itself carries the key.",
+      "id": "reoffer-plan-ignores-refresh-key",
+      "severity": "advisory",
+      "summary": "post_merge_reoffer_plan rewrites an exhausted `retrospective-refresh` to `terminal-reconciliation` and builds its probe jobs without the `refresh` key. A live claim on a refresh-keyed job id (`...:f<key>`) is therefore not seen by the 'no unexpired claim holds one of those attempts' check."
+    },
+    {
+      "evidence": "template/scripts/pr_review_gate.py adds `if kind == RETROSPECTIVE_REFRESH: kind = \"terminal-reconciliation\"`. proposal.md Impact lists only requirement_retrospective, integration_contour, candidate_lifecycle and lifecycle_workers. The spec scenario 'Refresh bound is reached' says only 'no job is offered and the candidate reports the blocked retrospective with its reason and next action'.",
+      "id": "reoffer-of-refresh-bound-not-in-contract",
+      "severity": "advisory",
+      "summary": "The candidate changes the operator `reoffer-post-merge` behavior for the exhausted refresh obligation, but no artifact records this. The proposal's Impact list omits pr_review_gate.py, and the spec and design never say that a re-offer gives the refresh chain a new bound. The docs only say `reoffer-post-merge` 'gives a new bound'."
+    }
+  ],
+  "launched_at": "2026-11-05T00:20:06+00:00",
+  "output_sha256": "7a9ee5add0e73256da15e542ce85c981b45a6bb4693ca49051b55db1d9a43a8c",
+  "perspective": "spec-fidelity",
+  "request_id": "59fbdcc1-4606-441c-acf2-e10a294de81e",
+  "reviewer": {
+    "context_id": "8df53046-a53e-4c4e-83b8-0f09e07a5a94",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-5932a4ac-3959-40e4-a201-c33e6278a8b8",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36389
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 222111
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35521
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35716
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 11
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4525
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46"
+}

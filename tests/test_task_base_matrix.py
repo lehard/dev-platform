@@ -95,7 +95,7 @@ class TaskBaseMatrixTests(unittest.TestCase):
 
     def integrated(self, managed: bool) -> ExitStack:
         """queue_integrated's own inputs for a managed candidate or a quick task."""
-        provenance = object() if managed else None
+        provenance = mock.Mock(change="matrix") if managed else None
         stack = ExitStack()
         stack.enter_context(mock.patch.object(_platform_common, "lifecycle_mode", return_value="coordinator"))
         stack.enter_context(mock.patch.object(publication_queue, "enabled", return_value=True))
