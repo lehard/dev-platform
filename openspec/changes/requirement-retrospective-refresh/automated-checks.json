@@ -1,0 +1,131 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.251,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.159,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.134,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.224,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1640.118,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/requirement_retrospective.py",
+        "tests/test_autonomous_integration_contour.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_5397817f5113292c2da4403c1fdda13c",
+    "change": "requirement-retrospective-refresh",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/requirement-retrospective-refresh",
+    "branch": "agent/br-987-t3-requirement-retrospective-refresh",
+    "head": "b0e331d0172c69362c5fc3e338ea880c07a781f6",
+    "task_content": {
+      "version": 1,
+      "digest": "bcb952d425a2b41209f8bd465dac5ef1619a17c8fba431effceec7552dbc5f9b",
+      "paths": {
+        "dev-platform/requirement-integrations/private-lineage-pln_173dd083982bc0f20954f9774349fc56-integration.json": "915e99956d8006755c4629b0d9753dc4e4f01680",
+        "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+        "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+        "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+        "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+        "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+        "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+        "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+        "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+        "template/dev-platform/platform-manifest.json": "0f4225360e7416ac1fc66eac86a17047db0fdede",
+        "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+        "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+        "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+        "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+        "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+        "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+      },
+      "base": "4b51d8f522493e5bf06556b619ab8387002a082a"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+      "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+      "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+      "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+      "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+      "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+      "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+      "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+      "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+      "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+      "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+      "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+      "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+      "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+    },
+    "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/requirement_retrospective.py --changed-file tests/test_autonomous_integration_contour.py",
+    "duration_seconds": 606.007,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
