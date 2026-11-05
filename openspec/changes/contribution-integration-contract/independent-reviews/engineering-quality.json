@@ -3,30 +3,36 @@
   "candidate": {
     "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
     "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
-    "candidate_head": "56a3b338d1c54d9868538a039297106d5a80a4c4",
-    "diff_sha256": "7063de1e883e9b5a41eb771fde55fd795a436937d3eb8f5b7eb2b47392787330"
+    "candidate_head": "ccf552b20e4766a692862ba9d676365a60a654e4",
+    "diff_sha256": "54d009487a3d43557ffb337129a1de0ced21ed0d98ccb72de4249a8ee099ba0c"
   },
-  "completed_at": "2026-11-04T23:24:32+00:00",
+  "completed_at": "2026-11-05T00:46:09+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py:1589-1592 posts `result_body(job, worker, 'waiting-required-checks')`. `job_completed` (lifecycle_workers.py:317-320) returns True for any outcome that is not validated-push, discarded*, unavailable* or released*, so the job is never re-offered. Previously the ContributionError failed the run and `release_claim` retried it up to MAX_RELEASES. The queue path at publication_queue.py:2382-2390 does re-run `merge_reviewed_contribution`, so this is a coupling to be aware of rather than a proven stall. No test shows a worker-only deployment, with no queued PR label, still reaching merge.",
-      "id": "required-checks-wait-completes-worker-job",
+      "evidence": "template/scripts/requirement_contributions.py, absorb_main: `branch = f\"requirement/BR-{requirement.rsplit('#', 1)[1]}\"`. template/scripts/execute_requirement.py, the absorb-main handler, catches only (ContributionError, QueueError, WorkerError).",
+      "id": "absorb-main-requirement-ref-parse",
       "severity": "advisory",
-      "summary": "A contribution-integration worker job that hits RequiredChecksWait now records a result with outcome `waiting-required-checks`, and the worker treats that as a completed job. The job is not retried or released. Delivery then depends entirely on the publication-queue path (`_worker_candidate`) picking the PR up again once checks pass."
+      "summary": "absorb_main derives the branch from `requirement.rsplit('#', 1)[1]` with no validation, so a reference without `#` fails with a raw IndexError instead of a ContributionError. The CLI only catches ContributionError, QueueError and WorkerError, so it prints a traceback instead of the structured `blocked` JSON."
+    },
+    {
+      "evidence": "template/scripts/_platform_common.py, task_freshness_branch: `contribution = json.loads(context.read_text(...)).get(\"contribution\") if context.is_file() else None; if not contribution: return main_branch`.",
+      "id": "freshness-target-fails-open-without-context",
+      "severity": "advisory",
+      "summary": "task_freshness_branch falls back to main when the child-context file is missing, so a contribution task whose context file is absent or deleted is measured against main with no error. It also calls json.loads on the context file without handling malformed JSON, which gives an unstructured traceback rather than TaskFreshnessError. The spec says an unobservable target must refuse, not report fresh."
     }
   ],
-  "launched_at": "2026-11-04T23:24:04+00:00",
-  "output_sha256": "2fd0280c209e3855fb4c61245c3263168d6b029a86fc342ca7ba845a5a95791d",
+  "launched_at": "2026-11-05T00:45:49+00:00",
+  "output_sha256": "09bb70c4641a5f464e9ea02d527e4766ff1b577c808dc0b57637343792648b76",
   "perspective": "engineering-quality",
-  "request_id": "b5709443-f2a5-4d0a-98b0-8a8fce9ecc8c",
+  "request_id": "44bdcb52-72b6-4e59-ab13-87d77737bb65",
   "reviewer": {
-    "context_id": "dddfab31-5b91-437c-b5e7-c8794a0e0bee",
+    "context_id": "fa61c5ec-58cd-417c-8e9f-c4dcbe4de497",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a169470c-d40b-410a-9d11-6b9a0f0ef31f",
+    "launch_id": "platform-launch-3965bdb8-dfd4-4858-be27-febf4d2771d9",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 53366
+        "value": 48118
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 262437
+        "value": 111740
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 26652
+        "value": 19164
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 27023
+        "value": 19744
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 14
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 9
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3200
+        "value": 1996
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2703309f3a0cbda3f07333737d2b1342325338d704a1e2c3222b86179dc086eb"
+  "task_content_digest": "4c1141e47b7eb38294d4cdad2196340020f00ffebdc0fd9d6ef7fabc9c947242"
 }

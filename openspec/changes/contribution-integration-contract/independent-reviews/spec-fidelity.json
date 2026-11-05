@@ -3,36 +3,23 @@
   "candidate": {
     "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
     "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
-    "candidate_head": "56a3b338d1c54d9868538a039297106d5a80a4c4",
-    "diff_sha256": "7063de1e883e9b5a41eb771fde55fd795a436937d3eb8f5b7eb2b47392787330"
+    "candidate_head": "ccf552b20e4766a692862ba9d676365a60a654e4",
+    "diff_sha256": "54d009487a3d43557ffb337129a1de0ced21ed0d98ccb72de4249a8ee099ba0c"
   },
-  "completed_at": "2026-11-04T23:24:04+00:00",
-  "findings": [
-    {
-      "evidence": "template/scripts/candidate_lifecycle.py (diff lines 336-337) sets state = \"contribution-integration-pending\" for any contribution validated-push receipt. The live path in integration_contour.advance_after_repair decides between pending and review using main_only_reason/equivalent_proofs. The recovery path has no such check, so gates bound to the old identity no longer match. merge_reviewed_contribution would then refuse with \"contribution lacks current review\" instead of returning the candidate to review. This contradicts publication-queue spec 'Writer resolved a conflict in task content'. The only added test covers the clean recovery case.",
-      "id": "recovered-validated-push-skips-review-on-changed-content",
-      "severity": "advisory",
-      "summary": "Recovery of an interrupted contribution integration repair goes straight to contribution-integration-pending without checking whether the writer changed task content. The spec says changed content must return to review on the new base."
-    },
-    {
-      "evidence": "template/scripts/post_review_finalization.py require_base_in_target (diff lines 613-619) runs `git merge-base --is-ancestor base target_head` only. The head-containment check is left to the select_checks --contribution-base gate, and none of the new code or tests shows finalization failing closed on it. Spec: 'scoped to that base, which the head and the target SHALL contain. An unproven contribution base SHALL be refused.'",
-      "id": "contribution-base-head-containment-unchecked-in-finalize",
-      "severity": "advisory",
-      "summary": "The platform-lifecycle spec says the contribution base must be contained in both the head and the target. The new finalize guard checks only the target."
-    }
-  ],
-  "launched_at": "2026-11-04T23:23:38+00:00",
-  "output_sha256": "c271eaf91c6d1b56eb80f2b4bc2a691cfa11ddff1d78950f1a27ccf581188810",
+  "completed_at": "2026-11-05T00:45:49+00:00",
+  "findings": [],
+  "launched_at": "2026-11-05T00:45:17+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "b5709443-f2a5-4d0a-98b0-8a8fce9ecc8c",
+  "request_id": "44bdcb52-72b6-4e59-ab13-87d77737bb65",
   "reviewer": {
-    "context_id": "4132ef04-2ace-42f4-beb3-53160cf741d4",
+    "context_id": "b0ee6582-9234-4d69-b2d5-d45b8205c020",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-e257243c-198c-47cd-b8f6-2b6d9a6d23fb",
+    "launch_id": "platform-launch-9a7d3c0b-f50b-40fc-bcc3-6d4b467cf255",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 51022
+        "value": 49553
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 193834
+        "value": 214127
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25049
+        "value": 31471
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 25303
+        "value": 31940
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 14
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 12
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2790
+        "value": 3726
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2703309f3a0cbda3f07333737d2b1342325338d704a1e2c3222b86179dc086eb"
+  "task_content_digest": "4c1141e47b7eb38294d4cdad2196340020f00ffebdc0fd9d6ef7fabc9c947242"
 }
