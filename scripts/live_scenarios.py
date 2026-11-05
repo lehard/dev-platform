@@ -31,6 +31,7 @@ LOCK_VARIABLE = "LIVE_SCENARIO_LOCK"
 LOCK_LEASE_SECONDS = 3 * 3600
 POLL_SECONDS = 15
 QUEUED = "Publication queued; rerun finish after GitHub reports the exact PR MERGED."
+TOKEN_ANCHOR = "permission-pull-requests: write"
 OWNER_SECRET = "DEV_PLATFORM_APP_PRIVATE_KEY"
 OWNER_VARIABLE = "DEV_PLATFORM_APP_CLIENT_ID"
 
@@ -56,13 +57,15 @@ class Config:
     hosted_kinds: str
     kept_workflows: tuple[str, ...]
     dropped_paths: tuple[str, ...]
+    token_read_permissions: tuple[str, ...]
 
 
 def load_config(path: Path = SANDBOX_DIR / "sandbox.toml") -> Config:
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     try:
         return Config(data["repository"], data["coordinator_app"], data["coordinator_app_id"], data["required_check"],
-                      data["hosted_kinds"], tuple(data["kept_workflows"]), tuple(data["dropped_paths"]))
+                      data["hosted_kinds"], tuple(data["kept_workflows"]), tuple(data["dropped_paths"]),
+                      tuple(data["token_read_permissions"]))
     except KeyError as missing:
         raise SandboxError(f"{path} lacks required key {missing}") from missing
 
@@ -127,9 +130,29 @@ def compose_snapshot(head: str, destination: Path, config: Config, source: Path 
     missing = [name for name in config.kept_workflows if not (workflows / name).is_file()]
     if missing:
         raise SandboxError(f"head {head} lacks workflows {missing}")
+    for name in config.kept_workflows:
+        grant_token_reads(workflows / name, config.token_read_permissions)
     overlay = (source / "dev-platform" / "live-sandbox" / "overlay")
     shutil.copytree(overlay, destination, dirs_exist_ok=True)
     (destination / HEAD_MARKER).write_text(head + "\n", encoding="utf-8")
+
+
+def grant_token_reads(workflow: Path, permissions: tuple[str, ...]) -> None:
+    """Add the private-repository reads to every App token a kept workflow mints.
+
+    This is the one deliberate difference from the platform's workflows, and a workflow whose
+    token step changed shape stops the snapshot rather than running without the grant.
+    """
+    lines, found = [], 0
+    for line in workflow.read_text(encoding="utf-8").splitlines(keepends=True):
+        lines.append(line)
+        if line.strip() == TOKEN_ANCHOR:
+            found += 1
+            indent = line[:len(line) - len(line.lstrip())]
+            lines.extend(f"{indent}permission-{name}: read\n" for name in permissions)
+    if not found:
+        raise SandboxError(f"{workflow.name} has no `{TOKEN_ANCHOR}` line to extend with {list(permissions)}")
+    workflow.write_text("".join(lines), encoding="utf-8")
 
 
 def share_with_group(root: Path) -> None:
@@ -294,6 +317,30 @@ class Sandbox:
         self.close_open_work()
         self.install_baseline()
         self.apply_settings()
+        self.check_app_token()
+
+
+    def check_app_token(self) -> None:
+        """Run the queue once: the token step fails when the App lacks a permission the snapshot requests."""
+        repo = self.config.repository
+        before = {item["databaseId"] for item in self.queue_runs()}
+        run(["gh", "workflow", "run", "publication-queue.yml", "--repo", repo], SOURCE_ROOT)
+        deadline = time.monotonic() + 300
+        while time.monotonic() < deadline:
+            fresh = [item for item in self.queue_runs() if item["databaseId"] not in before]
+            if fresh and fresh[0]["status"] == "completed":
+                if fresh[0]["conclusion"] == "success":
+                    return
+                view = gh_json(["run", "view", str(fresh[0]["databaseId"]), "--repo", repo, "--json", "jobs"], SOURCE_ROOT)
+                failed = [step["name"] for job in view["jobs"] for step in job["steps"] if step["conclusion"] == "failure"]
+                raise SandboxError(f"queue run {fresh[0]['databaseId']} failed at {failed}: the App "
+                                   f"{self.config.coordinator_app} must grant {list(self.config.token_read_permissions)} read")
+            time.sleep(POLL_SECONDS)
+        raise SandboxError("the queue token check run did not complete within 300s")
+
+    def queue_runs(self) -> list[dict[str, Any]]:
+        return gh_json(["run", "list", "--repo", self.config.repository, "--workflow", "publication-queue.yml",
+                        "--event", "workflow_dispatch", "--limit", "5", "--json", "databaseId,status,conclusion"], SOURCE_ROOT)
 
 
 class Scenario:

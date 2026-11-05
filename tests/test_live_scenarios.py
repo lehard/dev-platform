@@ -48,7 +48,26 @@ class SnapshotTest(unittest.TestCase):
             self.assertEqual((destination / live.HEAD_MARKER).read_text(encoding="utf-8").strip(), head)
             self.assertIn("dev-platform-sandbox", (destination / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"))
             self.assertFalse((destination / "dev-platform" / "live-sandbox").exists())
+            queue = (destination / ".github" / "workflows" / "publication-queue.yml").read_text(encoding="utf-8")
+            self.assertIn("permission-checks: read", queue)
             self.assertTrue((destination / "template" / "scripts" / "publication_queue.py").is_file())
+
+
+class TokenReadsTest(unittest.TestCase):
+    def test_every_token_step_gets_the_reads(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = Path(temporary) / "queue.yml"
+            workflow.write_text("        with:\n          permission-pull-requests: write\n", encoding="utf-8")
+            live.grant_token_reads(workflow, ("checks", "actions"))
+            self.assertEqual(workflow.read_text(encoding="utf-8").splitlines()[2:],
+                             ["          permission-checks: read", "          permission-actions: read"])
+
+    def test_a_workflow_without_the_token_step_stops_the_snapshot(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            workflow = Path(temporary) / "queue.yml"
+            workflow.write_text("jobs: {}\n", encoding="utf-8")
+            with self.assertRaisesRegex(live.SandboxError, "no `permission-pull-requests: write` line"):
+                live.grant_token_reads(workflow, ("checks",))
 
 
 class WorkdirTest(unittest.TestCase):

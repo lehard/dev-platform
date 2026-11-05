@@ -14,4 +14,4 @@ Every lifecycle dead end of recent deliveries was found on a live delivery while
 
 - New runner under `scripts/` and `template/scripts/` as the source layout requires, fixture files, `docs/engineering/live-scenarios.md`, tests, manifest.
 - `prepare_checkout` and its callers.
-- Specs: new `live-lifecycle-sandbox`, `lifecycle-workers`.
+- Specs: new `live-lifecycle-sandbox`, `lifecycle-workers`, `publication-queue`.

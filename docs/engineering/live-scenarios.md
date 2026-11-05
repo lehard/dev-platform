@@ -15,17 +15,17 @@ The sandbox is not in the production managed registry, so rollout never sees it.
 - Its own Backlog binding. Nothing is written to the production Backlog.
 - The runner refuses before any write unless the target is exactly the configured private sandbox.
 
-The sandbox differs from production main in one way: the repository admin may write main directly, because the runner commits the baseline that way. The gh login's REST budget is shared with real deliveries.
+The sandbox differs from production in two ways. The repository admin may write main directly, because the runner commits the baseline that way. Its queue and worker workflows also request Checks read and Actions read: `token_read_permissions` in `dev-platform/live-sandbox/sandbox.toml` lists them and the runner adds them to each App token step of the snapshot. Check data and job logs of a private repository are unreadable without them; the production token on the public repository keeps contents and pull requests write only. The gh login's REST budget is shared with real deliveries.
 
 ## Owner setup
 
 Done once, by the owner:
 
-1. Create the GitHub App with Contents, Pull requests and Workflows write, Metadata and Issues read.
+1. Create the GitHub App with Contents, Pull requests and Workflows write, Metadata, Issues, Checks and Actions read.
 2. Install it only on the sandbox.
 3. Set `DEV_PLATFORM_APP_CLIENT_ID` and the secret `DEV_PLATFORM_APP_PRIVATE_KEY` on the sandbox. `DEV_PLATFORM_APP_CLIENT_ID` takes the numeric App id: the queue and worker workflows pass it to `app-id`.
 
-A missing secret or variable stops the runner with its name.
+A missing secret or variable stops the runner with its name. After each reset the runner runs the queue once, so an App lacking a requested permission stops the run with the failed step.
 
 ## Running
 
