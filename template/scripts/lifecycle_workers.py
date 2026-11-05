@@ -771,11 +771,16 @@ def push_command(branch: str, expected_head: str, result_head: str) -> list[str]
 
 
 def active_gh_token(checkout: Path, env: dict[str, str]) -> str:
-    """The candidate-branch push credential."""
-    try:
-        return worker_credentials.active_gh_token(checkout, env)
-    except worker_credentials.CredentialError as exc:
-        raise WorkerError(str(exc)) from exc
+    """The candidate-branch push credential: gh's active token (an exported GH_TOKEN, else the gh login).
+
+    gh output is never echoed, so a failure cannot leak a credential.
+    """
+    done = subprocess.run(["gh", "auth", "token"], cwd=checkout, env={**env, "GH_PROMPT_DISABLED": "1"},
+                          stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
+    token = done.stdout.strip() if done.returncode == 0 else ""
+    if not token:
+        raise WorkerError("harness GitHub push requires an authenticated gh credential (gh auth token failed)")
+    return token
 
 
 def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[str, str]:

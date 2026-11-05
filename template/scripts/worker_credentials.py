@@ -1,7 +1,6 @@
-"""The one credential mechanism of lifecycle workers.
+"""The Claude credential of lifecycle workers; GitHub access stays ``lifecycle_workers.active_gh_token``.
 
-GitHub access is the active ``gh`` credential. The Claude credential has exactly one source per placement:
-an enabled ``[operator]`` selects ``[independent_review.login.claude] token_file``, anything else (a hosted
+The Claude credential has exactly one source per placement: an enabled ``[operator]`` selects ``[independent_review.login.claude] token_file``, anything else (a hosted
 runner) the ``CLAUDE_CODE_OAUTH_TOKEN`` of the job's environment. Placement selects the source; which value
 happens to be present never does. A missing or invalid source raises, naming the setting and never the value.
 """
@@ -9,7 +8,6 @@ from __future__ import annotations
 
 import os
 import stat
-import subprocess
 from collections.abc import Iterable, Mapping, MutableMapping
 from pathlib import Path
 from typing import Any
@@ -77,13 +75,3 @@ def llm_env(config: Mapping[str, Any], providers: Iterable[str], environ: Mappin
     if CLAUDE_PROVIDER not in providers:
         return {}
     return {TOKEN_ENV: resolve_claude_token(config, environ)}
-
-
-def active_gh_token(checkout: Path, env: Mapping[str, str]) -> str:
-    """gh's active token (an exported GH_TOKEN, else the gh login). gh output is never echoed."""
-    done = subprocess.run(["gh", "auth", "token"], cwd=checkout, env={**env, "GH_PROMPT_DISABLED": "1"},
-                          stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
-    token = done.stdout.strip() if done.returncode == 0 else ""
-    if not token:
-        raise CredentialError("harness GitHub push requires an authenticated gh credential (gh auth token failed)")
-    return token
