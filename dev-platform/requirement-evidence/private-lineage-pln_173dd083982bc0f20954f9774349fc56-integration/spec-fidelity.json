@@ -1,0 +1,79 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4b51d8f522493e5bf06556b619ab8387002a082a",
+    "base_ref": "4b51d8f522493e5bf06556b619ab8387002a082a",
+    "candidate_head": "a97e6157df5fee62f741d53a473e30cff17d2d29",
+    "diff_sha256": "1e72c1c0da032a5e242e1110f50113e66057ce36e7a2244f950f7d12071a047d"
+  },
+  "completed_at": "2026-11-05T01:54:03+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/pr_review_gate.py:694-697 and :725-729 build the job dict as {number, kind, head, attempt, reoffer?} with no \"refresh\". After the retrospective-refresh change, job_id() appends \":f<key>\" (lifecycle_workers.py job_id) and post_merge_progress offers keyed jobs. So `winning_claim` and `job_outcomes(...).get(job_id(last))` look up keyless ids. An unexpired claim on a keyed terminal job is not seen by the claim guard. The human-decision text for a retrospective-refresh exhaustion reports outcome \"unknown\" instead of the last keyed outcome. The remedy still works, because the re-offer raises the sequence and widens the refresh bound, but the safety check and the explanation are weaker than for unkeyed jobs.",
+      "id": "reoffer-plan-ignores-refresh-key",
+      "severity": "advisory",
+      "summary": "The re-offer eligibility check and the decision text do not account for the refresh key that the retrospective-refresh change added to post-merge job ids. This is a gap between that change and the existing re-offer code. It does not block the Requirement outcome."
+    }
+  ],
+  "launched_at": "2026-11-05T01:53:23+00:00",
+  "output_sha256": "c0ea3432bf56c1bcd80b36a4863ae4c397dc03f5da118f50304c67dbd21562a6",
+  "perspective": "spec-fidelity",
+  "request_id": "95afa680-0dee-4f0b-b172-8a9466d97288",
+  "reviewer": {
+    "context_id": "9ded7872-aee7-4e3d-866e-05a14ddbcb23",
+    "context_id_source": "runtime",
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c93a5e4d-dac5-4ac2-bfcf-0ef8b6644c51",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 83758
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 284827
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34551
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39141
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 9
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3926
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9b4907b34799b7907c8105b3a5cdeaf5c274220c22d5aa84f1820512e1aeda09"
+}
