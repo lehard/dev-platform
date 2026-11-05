@@ -75,7 +75,7 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None, *, inp
     done = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False, input=input_text,
                           stdin=None if input_text is not None else subprocess.DEVNULL)
     if done.returncode:
-        detail = (done.stderr.strip() or done.stdout.strip())[-2000:]
+        detail = "\n".join(part for part in (done.stderr.strip(), done.stdout.strip()) if part)[-2000:]
         raise SandboxError(f"{' '.join(command[:4])} exited {done.returncode}: {detail}")
     return done.stdout
 
@@ -117,6 +117,11 @@ def compose_snapshot(head: str, destination: Path, config: Config, source: Path 
     with tarfile.open(archive) as tar:
         tar.extractall(destination, filter="data")
     archive.unlink()
+    overlay = destination / "dev-platform" / "live-sandbox" / "overlay"
+    if not overlay.is_dir():
+        raise SandboxError(f"head {head} lacks the fixture overlay")
+    staged_overlay = destination.parent / f"{destination.name}.overlay"
+    shutil.move(overlay, staged_overlay)
     for relative in config.dropped_paths:
         target = destination / relative
         if target.is_dir():
@@ -132,8 +137,8 @@ def compose_snapshot(head: str, destination: Path, config: Config, source: Path 
         raise SandboxError(f"head {head} lacks workflows {missing}")
     for name in config.kept_workflows:
         grant_token_reads(workflows / name, config.token_read_permissions)
-    overlay = (source / "dev-platform" / "live-sandbox" / "overlay")
-    shutil.copytree(overlay, destination, dirs_exist_ok=True)
+    shutil.copytree(staged_overlay, destination, dirs_exist_ok=True)
+    shutil.rmtree(staged_overlay)
     (destination / HEAD_MARKER).write_text(head + "\n", encoding="utf-8")
 
 
@@ -432,10 +437,13 @@ def resolve_head(value: str) -> str:
 def run_scenarios(sandbox: Sandbox, selected: list[str]) -> list[dict[str, str]]:
     results: list[dict[str, str]] = []
     for name in selected:
+        scenario = Scenario(name, sandbox)
         try:
-            SCENARIOS[name](Scenario(name, sandbox))
+            SCENARIOS[name](scenario)
         except StepFailure as failure:
             results.append({"scenario": name, "result": "failed", "step": failure.step, "observed": failure.observed})
+        except SandboxError as error:
+            results.append({"scenario": name, "result": "failed", "step": scenario.current, "observed": str(error)})
         else:
             results.append({"scenario": name, "result": "passed"})
     return results

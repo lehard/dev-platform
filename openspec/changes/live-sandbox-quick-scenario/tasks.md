@@ -15,3 +15,4 @@
 ## 4. Docs and verification
 - [x] 4.1 `docs/engineering/live-scenarios.md`: shape, owner setup, command, limits; manifest.
 - [x] 4.2 Full validation, strict `openspec validate`, a recorded real run and semantic OpenSpec verification.
+- [x] 4.3 Keep the sandbox identity out of public snapshots; scenario errors name their step; the overlay comes from the installed head.

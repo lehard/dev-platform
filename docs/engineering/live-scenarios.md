@@ -4,7 +4,7 @@ Offline acceptance proves transitions with fake GitHub adapters. These scenarios
 
 ## Shape
 
-`lehard/dev-platform-sandbox` runs in source mode. A rendered project cannot host these scenarios: it has no queue. The runner composes the sandbox tree from an exact platform head and the fixture overlay in `dev-platform/live-sandbox/`, and commits it forward on the sandbox main branch. The sandbox CI and checks are the fast fixture, not the platform suite, so coverage is lifecycle behaviour, not platform test duration.
+The sandbox repository runs in source mode. A rendered project cannot host these scenarios: it has no queue. The runner composes the sandbox tree from an exact platform head and the fixture overlay in `dev-platform/live-sandbox/`, and commits it forward on the sandbox main branch. The sandbox CI and checks are the fast fixture, not the platform suite, so coverage is lifecycle behaviour, not platform test duration.
 
 The sandbox is not in the production managed registry, so rollout never sees it.
 
@@ -14,6 +14,8 @@ The sandbox is not in the production managed registry, so rollout never sees it.
 - Its own operator configuration and one-entry registry, written by the runner into its working directory.
 - Its own Backlog binding. Nothing is written to the production Backlog.
 - The runner refuses before any write unless the target is exactly the configured private sandbox.
+
+`dev-platform/live-sandbox/sandbox.toml` names the sandbox and its App. That is operator identity, so the file stays out of public snapshots and the runner works only from the operator checkout.
 
 The sandbox differs from production in two ways. The repository admin may write main directly, because the runner commits the baseline that way. Its queue and worker workflows also request Checks read and Actions read: `token_read_permissions` in `dev-platform/live-sandbox/sandbox.toml` lists them and the runner adds them to each App token step of the snapshot. Check data and job logs of a private repository are unreadable without them; the production token on the public repository keeps contents and pull requests write only. The gh login's REST budget is shared with real deliveries.
 

@@ -21,7 +21,7 @@ Dev Platform SHALL provide a private sandbox repository in source mode whose def
 
 ### Requirement: Sandbox is isolated from production resources
 
-The sandbox SHALL use a dedicated GitHub App installed only on it, its own operator configuration and registry and its own Backlog binding. Production App keys and provider tokens SHALL NOT be stored in it. The runner SHALL refuse before any write when the target repository is not the configured sandbox or the configuration names a production resource.
+The sandbox SHALL use a dedicated GitHub App installed only on it, its own operator configuration and registry and its own Backlog binding. Production App keys and provider tokens SHALL NOT be stored in it. The runner SHALL refuse before any write when the target repository is not the configured sandbox or is the origin of the platform checkout.
 
 #### Scenario: Runner is pointed at another repository
 
