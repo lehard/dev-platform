@@ -22,18 +22,23 @@ Automated-Checks-Evidence: automated-checks.json
 
 ## Evidence
 
-- Selected checks passed on committed head d73286b9; record in `automated-checks.json`.
+- Selected checks passed on committed head beaa78f2; record in `automated-checks.json`.
 - `openspec validate --all --strict`: 52 passed, 0 failed. `openspec_lifecycle.py check`: OK. Ruff and manifest check passed.
 - New tests cover the BR-978 T1 sequence, spent budget, the required-checks wait, every absorb-main refusal, moved-base composition, gate reuse across a move, repair rebinding, recovery state, base-move refusals, base outside the target, target freshness, reconcile moving the base, and the main-target rule.
 
 ## Required-checks repair round
 
-CI on head c91af5d6 failed two preflight tests: `check_task_base` resolved the target a second time, which fails in a checkout without task state. The offered repair job briefed its writer with advisory review findings and ended no-change, so the candidate went to blocked-escalation. The fix is a developer re-handoff on the same PR: `Freshness` carries its target and preflight reads it. Those tests, reconciliation and the task-base matrix passed in a clean clone without task state, and selected checks passed again on d73286b9.
+CI on head c91af5d6 failed two preflight tests: `check_task_base` resolved the target a second time, which fails in a checkout without task state. The offered repair job briefed its writer with advisory review findings and ended no-change, so the candidate went to blocked-escalation. The fix is a developer re-handoff on the same PR: `Freshness` carries its target and preflight reads it. Those tests, reconciliation and the task-base matrix passed in a clean clone without task state, and selected checks passed on that head before the round below.
 
 Advisory review findings: the wait result relies on the queue to integrate the head, which the queue path does while the label stays. The recovered push path is reached only with an equal content digest. Finalization checks the target; the head stays checked by the `--contribution-base` gate in `select_checks.py`. None needs a change.
+
+## Live reconcile round
+
+Siblings merged first and #896 conflicted with its target only in the generated manifest. The queue on main still runs the earlier gate order, so it waited for checks a conflicted PR never gets. This change's `dogfood_task.py reconcile`, run from the worktree, merged `origin/requirement/BR-987`, stopped at the conflict, and after the regenerated manifest was committed moved the base to 9756bb48. Status then named the target, and the PR became mergeable. Two gaps showed on that path and are fixed here: a conflicted reconcile did not move the base after the developer's merge, and `contribution-integration-pending` refused a re-handoff. The second is required by the re-admission scenario. Selected checks passed on beaa78f2 against the moved base. absorb-main also refuses a malformed reference.
 
 ## Not verified
 
 - No direct test covers the one-line `select_checks.py` target selection, the `RequiredChecksWait` catch in `work-next`, or the `finish_task.py` target ref; they rest on the tested helpers.
 - The installed `pre-merge-commit` hook of an existing checkout updates through `agent_doctor.py`. An older hook refuses a contribution reconcile explicitly; a main reconcile is unaffected.
-- The live GitHub path is exercised only by this delivery itself.
+- The live GitHub path is exercised only by this delivery itself, and the queue side only after this change reaches main.
+- A contribution whose child context file was deleted is measured against main: a missing context cannot be told from a main-target task. Reported as a follow-up.
