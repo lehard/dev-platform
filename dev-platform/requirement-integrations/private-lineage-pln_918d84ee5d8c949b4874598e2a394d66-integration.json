@@ -1,6 +1,350 @@
 {
   "base": "a7ec8c7ff7b035a5e063db5428207df6548f1e7b",
-  "children": [],
+  "children": [
+    {
+      "change": "live-sandbox-quick-scenario",
+      "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/live-sandbox-quick-scenario/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "07c85cb3ece88bbd1cc1913c20a7108441b7acd3"
+          },
+          "identity": {
+            "change": "live-sandbox-quick-scenario",
+            "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+            "kind": "contribution",
+            "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+            "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+            "target_branch": "requirement/BR-993",
+            "task_content": {
+              "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+              "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+              "paths": {
+                "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+                "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+                "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+                "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+                "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+                "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+                "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+                "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+                "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+                "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+                "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+                "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+                "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+                "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+                "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+                "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+                "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+                "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+                "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+                "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+                "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+                "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-993/T1"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "fa5a5e45a74e47de0e5a576e3068c926891b2fe9",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "live-sandbox-quick-scenario",
+            "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+            "kind": "contribution",
+            "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+            "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+            "target_branch": "requirement/BR-993",
+            "task_content": {
+              "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+              "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+              "paths": {
+                "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+                "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+                "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+                "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+                "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+                "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+                "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+                "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+                "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+                "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+                "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+                "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+                "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+                "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+                "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+                "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+                "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+                "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+                "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+                "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+                "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+                "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-993/T1"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/lifecycle_workers.py: prepare_checkout calls `env = github_git_env(source, Path(root))` for every non-local source. github_git_env raises WorkerError('harness git access requires an uncredentialed GitHub HTTPS origin') for any other scheme or host, and calls active_gh_token unconditionally. A public clone with no gh login, or an ssh or other-host source that cloned before, now fails. The added tests cover only the private and missing-token cases; none checks that a public reposi",
+                  "id": "clone-requires-token-for-public-github",
+                  "severity": "advisory",
+                  "summary": "prepare_checkout and prepare_harness now require a gh credential for every GitHub HTTPS source, public ones included. They also reject any non-GitHub or non-file remote. The spec only requires the credential for a private repository, and the tasks claim public behaviour is unchanged."
+                },
+                {
+                  "evidence": "scripts/live_scenarios.py close_open_work: `gh_json([\"api\", \"--paginate\", f\"repos/{repo}/branches?per_page=100\"], SOURCE_ROOT)`, where gh_json is `json.loads(run(...))`. The code adds no `--slurp` and does no per-page handling.",
+                  "id": "close-open-work-paginate-json",
+                  "severity": "advisory",
+                  "summary": "close_open_work parses `gh api --paginate` output with json.loads. For a repository with more than 100 branches, gh prints one JSON array per page, so the concatenated output is not valid JSON and reset would crash. Leftover work branches build up across failed runs."
+                },
+                {
+                  "evidence": "scripts/live_scenarios.py Lock.acquire does `DELETE` then `_create()` without comparing the holder value before the delete. Sandbox.env sets `env[\"GH_TOKEN\"] = run([\"gh\",\"auth\",\"token\"], ...)`, and Scenario.platform and finish_until_queued pass that env to scripts executed from sandbox.checkout.",
+                  "id": "lock-takeover-race-and-operator-token",
+                  "severity": "advisory",
+                  "summary": "Two minor robustness gaps in the runner. First, the expired-lock takeover is not atomic: two runners that both see an expired lease can each delete the other's freshly created variable, and both then believe they hold the lock. Second, the operator's full gh login token is exported as GH_TOKEN to ev"
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "f9e8b72f8fcbf2cfec6abb899e97feb30ca32ca53daab339d939a69bca4d16bc"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "tasks.md 2.2 says 'Idempotent bootstrap of the repository, settings, protection and labels; target guard.' In scripts/live_scenarios.py, `Sandbox.apply_settings` covers merge settings, the HOSTED_KINDS variable, branch protection and a ruleset. `check_target` fails if the repository does not exist. Nothing creates labels (grep the diff for 'label'). docs/engineering/live-scenarios.md lists the repository and labels in neither the owner setup nor the runner steps.",
+                  "id": "bootstrap-repo-and-labels-not-implemented",
+                  "severity": "advisory",
+                  "summary": "Task 2.2 is marked done as an idempotent bootstrap of the repository, settings, protection and labels. The runner only does settings, protection and a ruleset. It does not create the repository or any labels."
+                },
+                {
+                  "evidence": "specs/publication-queue/spec.md: 'grant the coordinator token of each queue workflow it installs Checks read and Actions read'. sandbox.toml has kept_workflows = [publication-queue.yml, lifecycle-workers.yml], and compose_snapshot calls grant_token_reads on every kept workflow. design.md and docs say 'snapshot workflows'. The delta spec should name the worker workflow too, or the runner should not touch it.",
+                  "id": "token-read-grant-scope-wider-than-spec",
+                  "severity": "advisory",
+                  "summary": "The spec limits the Checks and Actions read grant to the queue workflows. The runner applies it to every kept workflow, including lifecycle-workers.yml."
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "3d30b56af7bd3fb754694642722fc6d3fcc8814a079c70ea5c8dd9efdeea63a5"
+            }
+          },
+          "identity": {
+            "change": "live-sandbox-quick-scenario",
+            "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+            "kind": "contribution",
+            "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+            "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+            "target_branch": "requirement/BR-993",
+            "task_content": {
+              "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+              "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+              "paths": {
+                "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+                "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+                "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+                "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+                "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+                "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+                "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+                "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+                "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+                "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+                "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+                "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+                "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+                "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+                "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+                "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+                "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+                "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+                "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+                "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+                "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+                "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-993/T1"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 9547,
+            "path": "openspec/changes/live-sandbox-quick-scenario/automated-checks.json",
+            "sha256": "98320524c9c4e776702113aad1aa6e1debfb40c9105a4e0ab9dd58f77e6aa3f3"
+          },
+          "identity": {
+            "change": "live-sandbox-quick-scenario",
+            "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+            "kind": "contribution",
+            "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+            "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+            "target_branch": "requirement/BR-993",
+            "task_content": {
+              "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+              "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+              "paths": {
+                "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+                "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+                "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+                "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+                "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+                "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+                "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+                "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+                "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+                "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+                "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+                "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+                "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+                "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+                "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+                "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+                "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+                "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+                "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+                "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+                "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+                "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-993/T1"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 3973,
+            "path": "openspec/changes/live-sandbox-quick-scenario/verification.md",
+            "sha256": "2e524d0332c674fa09b795753cb477049dd10bd0dfb891862554a9d590fbf067"
+          },
+          "identity": {
+            "change": "live-sandbox-quick-scenario",
+            "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+            "kind": "contribution",
+            "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+            "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+            "target_branch": "requirement/BR-993",
+            "task_content": {
+              "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+              "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+              "paths": {
+                "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+                "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+                "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+                "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+                "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+                "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+                "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+                "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+                "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+                "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+                "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+                "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+                "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+                "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+                "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+                "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+                "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+                "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+                "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+                "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+                "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+                "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-993/T1"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "fa5a5e45a74e47de0e5a576e3068c926891b2fe9",
+      "integrated_head": "8508ef75ee14fe844a53615bca417692aa6f0906",
+      "pr_number": 917,
+      "reviewed_evidence_digest": "a24129d74ed91d70f04dd0e8114216612cf8d9b4c68f1588d3e309380cb8409b",
+      "source_branch": "agent/br-993-t1-live-sandbox-quick-scenario",
+      "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+      "task_identity": {
+        "change": "live-sandbox-quick-scenario",
+        "contribution_base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+        "kind": "contribution",
+        "requirement": "pln_918d84ee5d8c949b4874598e2a394d66",
+        "source_issue": "pln_6de8d1d469da41744a072caecece49e4",
+        "target_branch": "requirement/BR-993",
+        "task_content": {
+          "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+          "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+          "paths": {
+            "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+            "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+            "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+            "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+            "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+            "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+            "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+            "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+            "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+            "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+            "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+            "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+            "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+            "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+            "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+            "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+            "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+            "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+            "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+            "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+            "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+            "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+            "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-993/T1"
+      },
+      "work_identity": "BR-993/T1"
+    }
+  ],
   "dependencies": {
     "live-queue-scenarios-head-gate": [
       "live-sandbox-quick-scenario"
@@ -10,7 +354,7 @@
     ],
     "live-sandbox-quick-scenario": []
   },
-  "digest": "3c58ffe062d689fc180f0fed30c16e44323b5ddccc7925ffa9dc4e6d68fbadcc",
+  "digest": "4d18c8c7231bbd21eac6579eaca84576b333b820a12f61dc89cfc8673f835e95",
   "expected_changes": [
     "live-sandbox-quick-scenario",
     "live-queue-scenarios-head-gate",
