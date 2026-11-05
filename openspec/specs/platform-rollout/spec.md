@@ -630,21 +630,20 @@ Managed rollout SHALL use only the reserved service-branch form `dev-platform/ro
 - **AND** no interactive `agent/<task>` branch precondition is required
 - **AND** ordinary task creation/publication continues to use its existing agent branch contract
 
-### Requirement: Pending rollout identity is reusable by downstream task preflight
+### Requirement: Pending rollout identity is reusable by the downstream doctor
 
-The platform SHALL expose one structured eligibility contract for determining whether an open downstream PR is a platform-owned rollout. Central rollout automation and downstream pre-task reconciliation SHALL use the same ownership semantics based on configured repository/base, reserved rollout branch/version contract, and expected automation identity. PR title or body text SHALL NOT establish ownership.
+The platform SHALL expose one structured eligibility contract for determining whether an open downstream PR is a platform-owned rollout. Central rollout automation and the downstream `agent_doctor.py` report SHALL use the same ownership semantics based on configured repository/base, reserved rollout branch/version contract, and expected automation identity. PR title or body text SHALL NOT establish ownership.
 
-#### Scenario: Pre-task reconciliation sees an old and a new rollout PR
+#### Scenario: The doctor sees an old and a new rollout PR
 
 - **GIVEN** multiple historical rollout records exist for the repository
-- **WHEN** pre-task reconciliation chooses a candidate for automatic adoption
-- **THEN** only the newest authoritative eligible pending rollout may be selected
-- **AND** an older superseded rollout is not merged
+- **WHEN** the doctor reports a pending rollout
+- **THEN** only the newest authoritative eligible pending rollout is reported
 
 #### Scenario: Similar-looking PR is not owned by rollout automation
 
 - **WHEN** an open PR has a rollout-like title or body but does not satisfy the structured branch/base/automation identity contract
-- **THEN** pre-task reconciliation does not treat it as an automatically adoptable platform rollout
+- **THEN** the doctor does not report it as an authoritative platform rollout
 
 ### Requirement: Automatic release rollout remains reviewable
 
