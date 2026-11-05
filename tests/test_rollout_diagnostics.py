@@ -42,7 +42,7 @@ class RolloutDiagnosticsTests(unittest.TestCase):
 
     def test_rollout_node_matches_generated_platform_gate(self) -> None:
         self.assertEqual(node_version(WORKFLOW), node_version(GENERATED_GATE))
-        self.assertEqual(node_version(WORKFLOW), "20.19.0")
+        self.assertEqual(node_version(WORKFLOW), "24.22.2")
 
     def test_failed_prepare_cannot_push_or_open_pr(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
