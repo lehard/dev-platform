@@ -38,7 +38,7 @@
     "docs/release-policy.md#Copier version": "5b1291a7a99e757d563df3996d8afdd82f3422189eee2c5d209981a7f98e85a5"
   },
   "copier-rollout": {
-    "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
+    "docs/managed-rollout.md#Downstream adoption": "ff0ce0a193bc1958c43225581af0bbf04449e4c440e1d1f77d0bba8d8639c68a",
     "docs/managed-rollout.md#Failed-run alarm": "02a5ded2f2b5d479f31aefce0a3d910ed8325a5f8edad7cb212d2e5ebc106f98",
     "docs/managed-rollout.md#Failure handling": "1d9cbbe8de447a780ca2ae4612c144c34ecafe86d71303f7c6ecb333c3ddb0ac",
     "docs/managed-rollout.md#Registry": "b1978656f36395451fc9560c96cca0211ed517704aeaf27ec4c2109ab1809461",
@@ -164,8 +164,8 @@
     "docs/engineering/task-intake.md#Escalating quick work": "3fd1df769cbaa2b394b589d8f4c17faa5cba18faf00b878a844cb26e72615b0d"
   },
   "release-rollout": {
-    "docs/managed-rollout.md#Downstream adoption at task start": "fb2823ef5049783ee461007e8fae1de2ddd3133d7a896cdff5cb250b85914967",
-    "docs/managed-rollout.md#Release rollout": "d6d3c55c8eff029f38b8c982479e46c9f37d9eff6d49dcc110d6ff66e8ffb482",
+    "docs/managed-rollout.md#Downstream adoption": "ff0ce0a193bc1958c43225581af0bbf04449e4c440e1d1f77d0bba8d8639c68a",
+    "docs/managed-rollout.md#Release rollout": "3fa43e0413dfc858ceba1c636f3b2194a746b6785e5b64d374f18d1af60605dd",
     "docs/release-policy.md#Choosing the version": "cefd837530445a2b799e482db7791d8f8db4a6f617077e7e9d5acbd9930d72c4",
     "docs/release-policy.md#Managed rollout": "3ea8bbb3feb99390295c3026fc47e2b4ebe4769f116d5998eab8f26eb538920f",
     "docs/release-policy.md#Release identity": "8eba03c35056e7362908d50d1661668af7a1fa47ccd81948d0461639927d8b18",
