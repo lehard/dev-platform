@@ -334,9 +334,6 @@ def scenario_quick_task(scenario: Scenario) -> None:
     worktree = sandbox.checkout / ".claude" / "worktrees" / slug
     if not worktree.is_dir():
         raise scenario.fail(f"no task worktree after start: {output[-500:]}")
-    scenario.step("route")
-    scenario.platform("dogfood_task.py", "route-claude", "--tier", "R1", "--rationale", "Live scenario fixture edit",
-                      "--evidence", "fixture/check.py", cwd=worktree)
     scenario.step("change")
     (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
     run(["git", "add", "-A"], worktree)
