@@ -4,6 +4,7 @@ import importlib.util
 import json
 import re
 import shutil
+import os
 import subprocess
 import sys
 import tempfile
@@ -2229,6 +2230,120 @@ class EarlyRoutingGateTests(unittest.TestCase):
             return {"outcome": outcome, "launched": True, "returncode": 0 if outcome == "completed" else 1, "violation": False, "writer_state": "released"}
 
         return patch.object(routing, "run_codex", side_effect=run)
+
+    # --- abandoned Codex delegation
+
+    def open_codex_delegation(self) -> None:
+        self.prepare()
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        payload["execution_plan"]["delegation"] = {
+            "state": "open", "provider": "codex", "launch_evidence": routing.LAUNCH_EVIDENCE_PLATFORM_OBSERVED,
+            "opened_at": "2026-11-01T00:00:00+00:00"}
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+
+    def close_abandoned(self, processes=()):
+        observation = {"method": "lsof -d cwd", "processes": list(processes)}
+        with patch.object(routing, "_worktree_processes", return_value=(list(processes), observation)):
+            return routing.close_abandoned_delegation(self.task, "supervisor process was killed")
+
+    def assert_close_refused(self, pattern: str) -> None:
+        before = self.record_path().read_text(encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, pattern):
+            routing.close_abandoned_delegation(self.task, "reason")
+        self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
+
+    def test_abandoned_delegation_closes_without_execution_and_can_be_rerouted(self) -> None:
+        self.open_codex_delegation()
+        self.write_content()
+        result = self.close_abandoned()
+        delegation = self.plan()["delegation"]
+        self.assertEqual((delegation["state"], delegation["outcome"]), ("closed", "abandoned"))
+        self.assertEqual(delegation["abandonment"]["reason"], "supervisor process was killed")
+        self.assertEqual(result["task_content_left"], ["implemented.txt"])
+        record = json.loads(self.record_path().read_text(encoding="utf-8"))
+        self.assertIsNone(record["execution"])
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = routing.prepare(self.task, provider="claude", profile="standard", rationale="reroute", evidence=[])
+        self.assertEqual(route.execution_plan["rerouted_from"]["outcome"], "abandoned")
+
+    def test_content_changed_after_the_closure_is_not_attributed_to_the_dead_child(self) -> None:
+        self.open_codex_delegation()
+        self.close_abandoned()
+        self.write_content("later.txt")
+        with patch.object(routing, "main_root", return_value=self.integration), \
+             self.assertRaisesRegex(routing.RoutingError, "routing must precede task content"):
+            routing.prepare(self.task, provider="claude", profile="standard", rationale="reroute", evidence=[])
+
+    def test_escalation_accepts_an_abandoned_delegation_with_its_content(self) -> None:
+        self.open_codex_delegation()
+        self.write_content()
+        self.close_abandoned()
+        with patch.object(routing, "main_root", return_value=self.integration):
+            route = routing.escalate(self.task, "the child died mid-task")
+        self.assertEqual(route.execution_plan["mode"], routing.PLAN_RETAINED)
+        self.assertTrue(route.execution_plan["switched_from"]["delegation_recorded"])
+
+    def test_a_live_process_in_the_worktree_is_named_and_writes_nothing(self) -> None:
+        self.open_codex_delegation()
+        before = self.record_path().read_text(encoding="utf-8")
+        with self.assertRaisesRegex(routing.RoutingError, "4242 \\(codex\\)"):
+            self.close_abandoned([{"pid": 4242, "command": "codex"}])
+        self.assertEqual(self.record_path().read_text(encoding="utf-8"), before)
+
+    def test_a_real_process_with_its_cwd_in_the_worktree_is_observed(self) -> None:
+        child = subprocess.Popen(["sleep", "60"], cwd=self.task)
+        self.addCleanup(child.wait)
+        self.addCleanup(child.kill)
+        found, observation = routing._worktree_processes(self.task)
+        self.assertIn(child.pid, [item["pid"] for item in found])
+        self.assertEqual(observation["method"], "lsof -d cwd")
+        self.assertIn(os.getpid(), observation["excluded_ancestry"])
+
+    def test_the_callers_own_ancestry_is_never_a_live_writer(self) -> None:
+        previous = os.getcwd()
+        os.chdir(self.task)
+        self.addCleanup(os.chdir, previous)
+        found, _ = routing._worktree_processes(self.task)
+        self.assertNotIn(os.getpid(), [item["pid"] for item in found])
+
+    def test_unobservable_liveness_refuses_naming_the_cause(self) -> None:
+        self.open_codex_delegation()
+        with patch.object(routing.shutil, "which", return_value=None):
+            self.assert_close_refused("lsof is unavailable")
+        failed = subprocess.CompletedProcess(["lsof"], 2, "", "denied")
+        with patch.object(routing.shutil, "which", return_value="/usr/sbin/lsof"), \
+             patch.object(routing.subprocess, "run", return_value=failed):
+            self.assert_close_refused("lsof failed with exit 2.*denied")
+
+    def test_closure_refuses_every_other_delegation_state(self) -> None:
+        self.prepare()
+        self.assert_close_refused("no delegation to close")
+        payload = json.loads(self.record_path().read_text(encoding="utf-8"))
+        payload["execution_plan"]["delegation"] = {
+            "state": "open", "provider": "claude", "launch_evidence": routing.LAUNCH_EVIDENCE_SELF_REPORTED,
+            "opened_at": "2026-11-01T00:00:00+00:00"}
+        self.record_path().write_text(json.dumps(payload), encoding="utf-8")
+        self.assert_close_refused("record-claude-execution")
+
+    def test_closure_refuses_an_already_closed_delegation(self) -> None:
+        self.open_codex_delegation()
+        self.close_abandoned()
+        self.assert_close_refused("is closed with outcome abandoned")
+
+    def test_abandoned_record_needs_its_reason_and_observation(self) -> None:
+        self.open_codex_delegation()
+        self.close_abandoned()
+        plan = self.plan()
+        del plan["delegation"]["abandonment"]
+        with self.assertRaisesRegex(routing.RoutingError, "abandonment must carry"):
+            routing._validate_execution_plan(plan)
+
+    def test_codex_route_names_its_writer(self) -> None:
+        route = self.prepare()
+        self.assertIn("delegated Codex child writes task content", routing._writer_statement(route))
+        self.assertIn("supervisor does not write task content", routing._writer_statement(route))
+        retained = routing.Route(**{**routing.asdict(route), "profile": "complex"})
+        self.assertIn("retained parent writes task content", routing._writer_statement(retained))
 
     # --- 1. execution plan and pre-snapshot
 
