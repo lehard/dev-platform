@@ -133,11 +133,14 @@ def compose_snapshot(head: str, destination: Path, config: Config, source: Path 
 
 def share_with_group(root: Path) -> None:
     """Give the checkout the group modes the shared-workspace preflight requires of a platform checkout."""
+    group = os.getgid()  # setgid is cleared on a group the account is not in, as with a temporary directory
     for directory, _, files in os.walk(root):
+        os.chown(directory, -1, group)
         os.chmod(directory, os.stat(directory).st_mode | 0o2770)
         for name in files:
             path = Path(directory) / name
             if not path.is_symlink():
+                os.chown(path, -1, group)
                 os.chmod(path, path.stat().st_mode | 0o040 if ".git/objects/" in str(path) else path.stat().st_mode | 0o060)
 
 
