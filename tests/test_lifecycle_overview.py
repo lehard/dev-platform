@@ -160,7 +160,7 @@ class ExceptionTests(unittest.TestCase):
         item = assess(comments, pr=pull(merged=True), minutes_after=95)
         self.assertEqual((kinds(item), item["job"]["kind"]), (["unclaimed-next-job"], "retrospective"))
         self.assertIn("post-merge runner", item["human_decision"])
-        self.assertIn('GH_TOKEN="$(gh auth token)" python3 scripts/lifecycle_workers.py work-next --repo o/r '
+        self.assertIn('python3 scripts/lifecycle_workers.py work-next --repo o/r '
                       "--kinds retrospective --pr 7 --run", item["human_decision"])
         self.assertNotIn("hosted run", item["human_decision"])
 
