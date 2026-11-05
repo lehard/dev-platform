@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "candidate_head": "07c85cb3ece88bbd1cc1913c20a7108441b7acd3",
+    "diff_sha256": "3b0f6b4199df3f31f279ca75112bac63eac93b76faa1fc8614bb43e42fabbcc4"
+  },
+  "completed_at": "2026-11-05T21:29:14+00:00",
+  "findings": [
+    {
+      "evidence": "tasks.md 2.2 says 'Idempotent bootstrap of the repository, settings, protection and labels; target guard.' In scripts/live_scenarios.py, `Sandbox.apply_settings` covers merge settings, the HOSTED_KINDS variable, branch protection and a ruleset. `check_target` fails if the repository does not exist. Nothing creates labels (grep the diff for 'label'). docs/engineering/live-scenarios.md lists the repository and labels in neither the owner setup nor the runner steps.",
+      "id": "bootstrap-repo-and-labels-not-implemented",
+      "severity": "advisory",
+      "summary": "Task 2.2 is marked done as an idempotent bootstrap of the repository, settings, protection and labels. The runner only does settings, protection and a ruleset. It does not create the repository or any labels."
+    },
+    {
+      "evidence": "specs/publication-queue/spec.md: 'grant the coordinator token of each queue workflow it installs Checks read and Actions read'. sandbox.toml has kept_workflows = [publication-queue.yml, lifecycle-workers.yml], and compose_snapshot calls grant_token_reads on every kept workflow. design.md and docs say 'snapshot workflows'. The delta spec should name the worker workflow too, or the runner should not touch it.",
+      "id": "token-read-grant-scope-wider-than-spec",
+      "severity": "advisory",
+      "summary": "The spec limits the Checks and Actions read grant to the queue workflows. The runner applies it to every kept workflow, including lifecycle-workers.yml."
+    }
+  ],
+  "launched_at": "2026-11-05T21:28:49+00:00",
+  "output_sha256": "a8a158cd9156d423313f34015e890e8c9cacfcfb549400eebc4bb8a8c6cfe168",
+  "perspective": "spec-fidelity",
+  "request_id": "6082ffac-6adc-48be-95d2-3a0c52c87777",
+  "reviewer": {
+    "context_id": "cdd9315f-47ca-43bf-8e3f-372ed5fe216e",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-8e233574-55d0-4ec1-919c-f364b96da1e1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 49667
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 142143
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23587
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23879
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2697
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02"
+}

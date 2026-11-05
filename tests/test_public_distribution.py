@@ -281,6 +281,20 @@ class PublicDistributionTests(unittest.TestCase):
             with tarfile.open(root / "snapshot.tar") as archive:
                 self.assertNotIn("dev-platform/requirement-integrations/requirement-207.json", archive.getnames())
 
+    def test_live_sandbox_identity_is_absent_from_the_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "README.md").write_text("safe\n", encoding="utf-8")
+            identity = root / "dev-platform" / "live-sandbox" / "sandbox.toml"
+            identity.parent.mkdir(parents=True)
+            identity.write_text('repository = "lehard' + '/private-sandbox"\n', encoding="utf-8")
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(["git", "add", "-A"], cwd=root, check=True)
+
+            receipt = public_distribution.audit_tree(root)
+            self.assertFalse(public_distribution.has_findings(receipt))
+            self.assertNotIn("dev-platform/live-sandbox/sandbox.toml", receipt["candidate_files"])
+
     def test_noncanonical_owner_reference_in_product_file_still_blocks_audit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

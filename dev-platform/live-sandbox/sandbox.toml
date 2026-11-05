@@ -1,0 +1,13 @@
+# The only repository the live scenario runner may write to, and the identity it runs under.
+repository = "lehard/dev-platform-sandbox"
+coordinator_app = "dev-platform-sandbox-lehard"
+coordinator_app_id = 5627860
+required_check = "validate"
+hosted_kinds = "finalize,integration-merge"
+# Workflows the snapshot keeps from the platform head; every other platform workflow stays out.
+kept_workflows = ["publication-queue.yml", "lifecycle-workers.yml"]
+# Snapshot paths that the fixture owns or that have no role in the sandbox.
+dropped_paths = ["openspec/changes", "dev-platform/live-sandbox"]
+# Private-repository reads the production queue token does not request. The snapshot adds them to
+# the kept workflows; this is the only difference between those workflows and the platform head.
+token_read_permissions = ["checks", "actions"]

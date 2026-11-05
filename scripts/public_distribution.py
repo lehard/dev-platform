@@ -33,6 +33,9 @@ EXCLUDED_PATHS = {
     # Shared Requirement integration manifests record protected operator
     # reconciliation provenance, not reusable platform product source.
     "dev-platform/requirement-integrations",
+    # Names the operator's private sandbox repository and its App: operator
+    # identity for the live scenario runner, not reusable product source.
+    "dev-platform/live-sandbox/sandbox.toml",
     "openspec/changes/archive",
 }
 # `.managed-task.json` is the per-task Development Backlog provenance receipt

@@ -1,0 +1,6 @@
+# Fast fixture checks of the live scenario sandbox.
+[settings]
+full_commands = ["python3 fixture/check.py"]
+full_evidence_types = ["test"]
+full_required_evidence_types = ["test"]
+full_trigger_patterns = ["**"]

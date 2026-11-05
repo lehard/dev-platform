@@ -842,6 +842,60 @@ class ValidationTests(unittest.TestCase):
         self.assertIn("authenticated gh credential", str(error.exception))
         self.assertNotIn("gh-diagnostic-canary", str(error.exception))
 
+    def test_private_clone_uses_a_process_scoped_credential(self):
+        origin = "https://github.com/acme/private.git"
+        token = "private-clone-token"
+        calls = []
+
+        def run(command, **kwargs):
+            calls.append((command, kwargs))
+            if command[:1] == ["gh"]:
+                return subprocess.CompletedProcess(command, 0, token + "\n", "")
+            if "clone" in command:
+                Path(command[-1]).mkdir()
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with tempfile.TemporaryDirectory() as root, \
+                mock.patch.object(workers.subprocess, "run", run), mock.patch.object(workers, "install_source_contract"):
+            checkout = workers.prepare_checkout(origin, root, "harness", "a" * 40)
+            config = checkout / ".git" / "config"
+            self.assertFalse(config.exists())
+        git_calls = [(command, kwargs) for command, kwargs in calls if command[0] == "git"]
+        self.assertEqual([next(arg for arg in ("clone", "fetch", "checkout") if arg in command) for command, _ in git_calls],
+                         ["clone", "fetch", "checkout"])
+        for command, kwargs in git_calls:
+            self.assertNotIn(token, " ".join(command))
+            self.assertEqual(kwargs["env"]["GIT_CONFIG_KEY_1"], f"http.{origin}.extraheader")
+            self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", kwargs["env"])
+
+    def test_private_clone_without_a_credential_fails_by_name(self):
+        with tempfile.TemporaryDirectory() as root, \
+                mock.patch.dict(os.environ, {"PATH": fake_gh_bin(self, leak="canary") + os.pathsep + os.environ["PATH"]}), \
+                mock.patch.dict(os.environ):
+            os.environ.pop("GH_TOKEN", None)
+            with self.assertRaises(workers.WorkerError) as error:
+                workers.prepare_checkout("https://github.com/acme/private.git", root, "harness", "main")
+        self.assertIn("authenticated gh credential", str(error.exception))
+        self.assertNotIn("canary", str(error.exception))
+
+    def test_only_origin_reads_receive_the_credential(self):
+        git(self.repo, "remote", "set-url", "origin", "https://github.com/acme/private.git")
+        seen = []
+        real = subprocess.run
+
+        def run(command, **kwargs):
+            if command[0] == "git" and ("fetch" in command or "ls-remote" in command):
+                seen.append(kwargs["env"].get("GIT_CONFIG_KEY_1"))
+                return subprocess.CompletedProcess(command, 0, "", "")
+            return real(command, **kwargs)
+
+        with mock.patch.dict(os.environ, {"GH_TOKEN": "t", "PATH": fake_gh_bin(self) + os.pathsep + os.environ["PATH"]}), \
+                mock.patch.object(workers.subprocess, "run", run):
+            workers._git(self.repo, "fetch", "--no-tags", "origin", "main")
+            workers.harness_git(self.repo, "ls-remote", "origin", "refs/heads/main")
+            workers.harness_git(self.repo, "fetch", "--no-tags", str(self.repo), "main")
+        self.assertEqual(seen, ["http.https://github.com/acme/private.git.extraheader"] * 2 + [None])
+
     def test_push_uses_expected_head_lease(self):
         calls = []
         def runner(command, **kwargs):

@@ -1,0 +1,163 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 6,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.179,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.522,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.163,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.372,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1608.595,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 3.899,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/live_scenarios.py",
+        "scripts/public_distribution.py",
+        "template/scripts/lifecycle_workers.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_live_scenarios.py",
+        "tests/test_public_distribution.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test",
+        "configuration"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_6de8d1d469da41744a072caecece49e4",
+    "change": "live-sandbox-quick-scenario",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/live-sandbox-quick-scenario",
+    "branch": "agent/br-993-t1-live-sandbox-quick-scenario",
+    "head": "899ef6e8b1a082ffe67c32a6ab0a91a933dfb042",
+    "task_content": {
+      "version": 1,
+      "digest": "ad479095507022f2c84ada74beb78466514674c35321f78ee67177dd951bafbb",
+      "paths": {
+        "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+        "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+        "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+        "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+        "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+        "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+        "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+        "dev-platform/requirement-integrations/private-lineage-pln_918d84ee5d8c949b4874598e2a394d66-integration.json": "f46f988731abc4463ecb529b0ed2069a03618467",
+        "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+        "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+        "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+        "openspec/changes/live-sandbox-quick-scenario/automated-checks.json": "1805f5028844914c8ed3ac0a5e6c6f5be11f5aaa",
+        "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+        "openspec/changes/live-sandbox-quick-scenario/independent-review-request.json": "5da70f4a60929f7c2d24f86bf36db79eaf06f499",
+        "openspec/changes/live-sandbox-quick-scenario/independent-reviews/engineering-quality.json": "4b0172e6e8ab65ef8cb7a343011a1de724b13ad0",
+        "openspec/changes/live-sandbox-quick-scenario/independent-reviews/spec-fidelity.json": "3913f2f4228bb3d44af43b1655cfd40fb728d2b2",
+        "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+        "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+        "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+        "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+        "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+        "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+        "openspec/changes/live-sandbox-quick-scenario/verification.md": "15fe359feab32f428d3337e4297f4400aa272da0",
+        "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+        "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+        "template/dev-platform/platform-manifest.json": "2c04e94f8e5aff0c8c5844943dae4cda7ed136dd",
+        "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+        "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+        "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+        "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+      },
+      "base": "a7ec8c7ff7b035a5e063db5428207df6548f1e7b"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+    "paths": {
+      "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+      "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+      "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+      "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+      "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+      "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+      "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+      "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+      "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+      "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+      "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+      "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+      "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+      "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+      "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+      "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+      "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+      "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+      "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+      "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+      "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+      "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+      "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+    },
+    "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/live_scenarios.py --changed-file scripts/public_distribution.py --changed-file template/scripts/lifecycle_workers.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_live_scenarios.py --changed-file tests/test_public_distribution.py",
+    "duration_seconds": 368.687,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

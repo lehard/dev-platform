@@ -1,0 +1,73 @@
+# Source contract of the live scenario sandbox: the platform contract with its own identity.
+schema_version = 2
+platform_version = "source"
+platform_ci_ref = "source"
+project_name = "dev-platform-sandbox"
+project_slug = "dev-platform-sandbox"
+main_branch = "main"
+workflow_profile = "multi-agent"
+harness_mode = "platform"
+protected_main = true
+publish_mode = "pr"
+pr_merge_mode = "auto"
+scm_provider = "github"
+agent_tools = "claude"
+project_required_files = []
+source_required_paths = [
+  "scripts/dogfood_task.py",
+  "scripts/source_adapter.py",
+  "scripts/shared_workspace.py",
+  "scripts/agent_doctor.py",
+  "scripts/model_routing.py",
+  "scripts/start_task.py",
+  "scripts/managed_project_status.py",
+  "scripts/capability_manager.py",
+  "scripts/finish_task.py",
+  "scripts/reconcile_task.py",
+  "scripts/openspec_lifecycle.py",
+  "scripts/independent_review.py",
+]
+
+[capabilities]
+openspec = true
+github_sync = true
+feature_branches = true
+worktrees = true
+agent_board = true
+platform_git_lifecycle = true
+
+[paths]
+worktrees = ".claude/worktrees"
+agent_board = ".claude/agents-board.json"
+main_merge_lock = ".claude/main-merge.lock"
+pending_worktrees = ".claude/pending-worktrees.md"
+pending_completed_worktree_cleanup = ".claude/pending-completed-worktree-cleanup.json"
+friction_log = ".claude/agent-friction.jsonl"
+friction_state = ".claude/agent-friction-state.json"
+friction_reports = ".claude/reports/process-improvement"
+checks = "dev-platform/checks.toml"
+
+[chat_coordinator]
+# Read-only lifecycle overview (scripts/lifecycle_overview.py): a published lifecycle job with
+# no claim for longer than this is reported as an unclaimed-next-job exception. Required, no
+# default; matches the 30-minute worker claim TTL.
+unclaimed_job_after_minutes = 30
+
+[tools.openspec]
+min_version = "1.15.0"
+tested_version = "1.15.0"
+verify_required = true
+
+[model_routing]
+enabled = true
+
+[model_routing.claude]
+routine_model = "haiku"
+standard_model = "sonnet"
+complex_model = "opus"
+
+[context_delegation]
+enabled = true
+
+[independent_review]
+enabled = true

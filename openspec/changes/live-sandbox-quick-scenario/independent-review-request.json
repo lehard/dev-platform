@@ -1,0 +1,98 @@
+{
+  "candidate": {
+    "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "candidate_head": "07c85cb3ece88bbd1cc1913c20a7108441b7acd3",
+    "diff_sha256": "3b0f6b4199df3f31f279ca75112bac63eac93b76faa1fc8614bb43e42fabbcc4"
+  },
+  "change": "openspec/changes/live-sandbox-quick-scenario",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/live-sandbox-quick-scenario/automated-checks.json",
+    "openspec/changes/live-sandbox-quick-scenario/independent-review-request.json",
+    "openspec/changes/live-sandbox-quick-scenario/independent-reviews/engineering-quality.json",
+    "openspec/changes/live-sandbox-quick-scenario/independent-reviews/spec-fidelity.json",
+    "openspec/changes/live-sandbox-quick-scenario/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/live-sandbox-quick-scenario/design.md",
+        "openspec/changes/live-sandbox-quick-scenario/proposal.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/live-sandbox-quick-scenario/proposal.md",
+        "openspec/changes/live-sandbox-quick-scenario/design.md",
+        "openspec/changes/live-sandbox-quick-scenario/tasks.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md",
+        "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-05T21:28:47+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/live-sandbox-quick-scenario/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "6082ffac-6adc-48be-95d2-3a0c52c87777",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02",
+    "paths": {
+      "dev-platform/checks.toml": "a0472814d9aadba423943c24d44c8a5e6df2713c",
+      "dev-platform/live-sandbox/overlay/.github/workflows/ci.yml": "b991cea48ac5481f4203ad9156d584b44b839f98",
+      "dev-platform/live-sandbox/overlay/dev-platform/checks.toml": "45a87dc8d3681e580558c271e02ae1bfd1ff5a1e",
+      "dev-platform/live-sandbox/overlay/dev-platform/source-contract.toml": "1cd71e39db4efdf799b781e90d543fc902e2296f",
+      "dev-platform/live-sandbox/overlay/fixture/check.py": "4ccf6ffc8c6179197a1353d5a4502cb8fc7a0a3d",
+      "dev-platform/live-sandbox/overlay/fixture/verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+      "dev-platform/live-sandbox/sandbox.toml": "8e3c35d826a295fc4bf9de0b625553c5809bf385",
+      "docs/engineering/live-scenarios.md": "a0ac2f63236ad2620bee23b1daf10b3a527f626e",
+      "openspec/changes/live-sandbox-quick-scenario/.managed-task.json": "54eb848758f80981dc790193cfee6b3979aeeedf",
+      "openspec/changes/live-sandbox-quick-scenario/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+      "openspec/changes/live-sandbox-quick-scenario/design.md": "c2cc4b8722c367f09ff95f2bdd1392ab6cb30db2",
+      "openspec/changes/live-sandbox-quick-scenario/proposal.md": "5520c137b7b468587ea7084327c1e4c9104ae613",
+      "openspec/changes/live-sandbox-quick-scenario/specs/lifecycle-workers/spec.md": "117558bdf3d28676b556492f685de885315bc53d",
+      "openspec/changes/live-sandbox-quick-scenario/specs/live-lifecycle-sandbox/spec.md": "129b4d299fb962f581e104a9eb1da3efa1330496",
+      "openspec/changes/live-sandbox-quick-scenario/specs/public-distribution/spec.md": "5895de7e5c5f4245f20c37c218740ef31d258250",
+      "openspec/changes/live-sandbox-quick-scenario/specs/publication-queue/spec.md": "e0c0c4ab5ec9b37d93fa9cc95110d3a3aec24dec",
+      "openspec/changes/live-sandbox-quick-scenario/tasks.md": "ec7bc585d9c7e8755232be962a991b2decd0e149",
+      "scripts/live_scenarios.py": "808af776355a7d230fe604bf60f51c17d1462073",
+      "scripts/public_distribution.py": "31d2bef9ee8b4dac1bf919a4b17c3849aa4a3015",
+      "template/scripts/lifecycle_workers.py": "b30a0b0271faac4decde4ad5a5cfcd03dded9b94",
+      "tests/test_lifecycle_workers.py": "14983696f32c81fb79853cf1d290b85ea15fd3ce",
+      "tests/test_live_scenarios.py": "f7f8b8d643e95798622461c8d0ddce5f54011823",
+      "tests/test_public_distribution.py": "84dce6e6686b100dab2b00301c2f1680ec2e8c0e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

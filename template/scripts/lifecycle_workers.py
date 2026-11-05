@@ -615,6 +615,7 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
     ``contract_from`` names the trusted installed contract to give a checkout that commits
     none, instead of the head's own public contract (a historical head may predate it).
     """
+    env = None
     if Path(source).is_absolute() and Path(source).is_dir():
         create = disposable_repository_sandbox.create
         path = create(source, root, name)
@@ -623,6 +624,7 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
         steps = [["checkout", "--detach", head]]
     else:
         path = Path(root) / name
+        env = github_git_env(source, Path(root))
         steps = [["clone", "--no-local", "--no-checkout", source, str(path)]]
         if re.fullmatch(r"[0-9a-f]{40}", head):
             # A merged PR's branch may be deleted while its head commit stays reachable only
@@ -631,7 +633,7 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
         steps.append(["checkout", "--detach", head])
     for step in steps:
         done = subprocess.run(["git", *SAFE_GIT, *step], cwd=path if path.exists() else root, text=True,
-                              capture_output=True, check=False, stdin=subprocess.DEVNULL)
+                              capture_output=True, check=False, stdin=subprocess.DEVNULL, env=env)
         if done.returncode:
             raise WorkerError(f"git {step[0]} failed for {head}: {done.stderr.strip()}")
     install_source_contract(path, contract_from)
@@ -678,9 +680,15 @@ def install_source_contract(checkout: Path, contract_from: Path | None = None) -
 
 # ---- harness validation and push -------------------------------------------
 
+def fetches_origin(args: tuple[str, ...]) -> bool:
+    """Whether a git command reads the GitHub remote, as opposed to a local path or the object store."""
+    return args[0] in ("fetch", "ls-remote") and "origin" in args
+
+
 def _git(repo: Path, *args: str) -> str:
+    env = harness_push_env(repo) if fetches_origin(args) else None
     done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=True, capture_output=True,
-                          check=False, stdin=subprocess.DEVNULL)
+                          check=False, stdin=subprocess.DEVNULL, env=env)
     if done.returncode:
         raise WorkerError(f"git {' '.join(args)} failed: {done.stderr.strip() or done.stdout.strip()}")
     return done.stdout
@@ -753,7 +761,7 @@ def push_command(branch: str, expected_head: str, result_head: str) -> list[str]
 
 
 def active_gh_token(checkout: Path, env: dict[str, str]) -> str:
-    """The candidate-branch push credential: gh's active token (an exported GH_TOKEN, else the gh login).
+    """The GitHub git credential: gh's active token (an exported GH_TOKEN, else the gh login).
 
     gh output is never echoed, so a failure cannot leak a credential.
     """
@@ -761,32 +769,39 @@ def active_gh_token(checkout: Path, env: dict[str, str]) -> str:
                           stdin=subprocess.DEVNULL, capture_output=True, text=True, check=False)
     token = done.stdout.strip() if done.returncode == 0 else ""
     if not token:
-        raise WorkerError("harness GitHub push requires an authenticated gh credential (gh auth token failed)")
+        raise WorkerError("harness GitHub git access requires an authenticated gh credential (gh auth token failed)")
     return token
 
 
-def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[str, str]:
-    """One push process only; no token in argv, config files or writer checkouts."""
+def github_git_env(source: str, cwd: Path, env: dict[str, str] | None = None) -> dict[str, str]:
+    """Environment of one git process reaching ``source``; no token in argv, config files or writer checkouts.
+
+    A private repository cannot be read without it, so clone, fetch and push share this credential.
+    """
     from urllib.parse import urlsplit
 
     result = {k: v for k, v in (os.environ if env is None else env).items() if k != "CLAUDE_CODE_OAUTH_TOKEN"}
-    origin = harness_git(checkout, "remote", "get-url", "--push", "origin").strip()
-    parsed = urlsplit(origin)
-    if not origin:
-        raise WorkerError("harness push origin is missing")
-    if parsed.scheme == "file" or (not parsed.scheme and (checkout / origin).is_dir()):
+    parsed = urlsplit(source)
+    if not source:
+        raise WorkerError("harness git origin is missing")
+    if parsed.scheme == "file" or (not parsed.scheme and (cwd / source).is_dir()):
         return result  # local harness repositories do not require hosted credentials
     if parsed.scheme != "https" or parsed.hostname != "github.com" or parsed.username or parsed.password:
-        raise WorkerError("harness push requires an uncredentialed GitHub HTTPS origin")
-    token = active_gh_token(checkout, result)
+        raise WorkerError("harness git access requires an uncredentialed GitHub HTTPS origin")
+    token = active_gh_token(cwd, result)
     result = {k: v for k, v in result.items() if not k.startswith("GIT_CONFIG_")}
     encoded = base64.b64encode(("x-access-token:" + token).encode()).decode()
     result.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_GLOBAL=os.devnull,
                   GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_COUNT="2",
                   GIT_CONFIG_KEY_0="credential.helper", GIT_CONFIG_VALUE_0="",
-                  GIT_CONFIG_KEY_1=f"http.{origin}.extraheader",
+                  GIT_CONFIG_KEY_1=f"http.{source}.extraheader",
                   GIT_CONFIG_VALUE_1="AUTHORIZATION: basic " + encoded)
     return result
+
+
+def harness_push_env(checkout: Path, env: dict[str, str] | None = None) -> dict[str, str]:
+    """One network git process of ``checkout``, authenticated for its push origin."""
+    return github_git_env(harness_git(checkout, "remote", "get-url", "--push", "origin").strip(), checkout, env)
 
 
 def push_validated(repo: Path, branch: str, expected_head: str, result_head: str, *,
@@ -974,6 +989,8 @@ def harness_git(repo: Path, *args: str, binary: bool = False) -> str | bytes:
     env = {key: value for key, value in credential_free_env(dict(os.environ), repo.parent / "harness-home").items()
            if key not in {"GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL", "GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL",
                           "CLAUDE_CODE_OAUTH_TOKEN"}}
+    if fetches_origin(args):
+        env = {**env, **{key: value for key, value in harness_push_env(repo).items() if key.startswith("GIT_CONFIG_")}}
     done = subprocess.run(["git", *SAFE_GIT, *args], cwd=repo, text=not binary, capture_output=True, check=False,
                           stdin=subprocess.DEVNULL, env=env)
     if done.returncode:
@@ -1106,11 +1123,13 @@ def import_worktree(source: Path, target: Path) -> None:
 def prepare_harness(source_repo: str, checkout: Path, root: Path, result_head: str, name: str = "harness") -> Path:
     """Import only result commits into a separate trusted clone for validation/push."""
     harness = root / name
+    clone_env = github_git_env(source_repo, root)
     for step in (["clone", "--no-local", "--no-checkout", source_repo, str(harness)],
                  ["fetch", "--no-tags", str(checkout), result_head]):
         cwd = harness if step[0] == "fetch" else root
         proc = subprocess.run(["git", *SAFE_GIT, "-c", "protocol.file.allow=always", *step],
-                              cwd=cwd, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL)
+                              cwd=cwd, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL,
+                              env=clone_env if step[0] == "clone" else None)
         if proc.returncode:
             raise WorkerError(proc.stderr.strip()[:200])
     return harness
