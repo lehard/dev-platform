@@ -357,13 +357,37 @@ class LocalStatusTests(unittest.TestCase):
         observed = self.observe(NEW_HEAD, self.awaiting(NEW_HEAD))
         self.assertEqual((observed["state"], observed["head"]), ("readmission", NEW_HEAD))
 
+    def test_a_quick_task_fix_is_refused_before_finish_pushes_it(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        quick = {"state": "integration-repair-pending", "head": NEW_HEAD, "task_identity": NEW_HEAD}
+        with self.assertRaisesRegex(queue.QueueError, "has no re-admission: finish refuses .*take the job offered"):
+            self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick)
+
+    def test_status_names_a_coordinator_decision_for_a_quick_task_head_already_pushed(self) -> None:
+        pr = {"number": 1, "head": {"sha": NEW_HEAD}}
+
+        def awaiting(identity: object) -> dict:
+            newest = {"state": "integration-repair-pending", "head": HEAD, "task_identity": identity}
+            with patch.object(queue, "_latest", return_value=newest), patch.object(queue, "_events", return_value=[]), \
+                 patch.object(queue, "_proven_head", return_value=HEAD):
+                return queue._awaiting_readmission(ROOT_PATH, "o/r", 1, pr, [], admission(1, 20))
+
+        quick = awaiting(HEAD)
+        self.assertEqual(quick["owner"], "coordinator decision")
+        self.assertNotIn("rerun finish", quick["next_action"])
+        self.assertIn("needs a coordinator decision", quick["reason"])
+        managed = awaiting({"change": "example"})
+        self.assertEqual(managed["owner"], "developer re-admission")
+        self.assertIn("rerun finish", managed["next_action"])
+
     def test_unpushed_fix_on_an_integration_repair_wait_is_observed_for_admission(self) -> None:
         # Regression: a developer fix of a red integrated check could not be handed off until the
         # integration-repair rounds ran out; it now re-admits over the unclaimed job.
         fix = "d" * 40
         plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
         update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
-        waiting = {"state": "integration-repair-pending", "head": NEW_HEAD}
+        waiting = {"state": "integration-repair-pending", "head": NEW_HEAD, "task_identity": {"change": "example"}}
         observed = self.observe(fix, plain, [admission(1, 20), update], lineage=waiting)
         self.descends.assert_called_once_with(ROOT_PATH, NEW_HEAD, fix)
         self.assertEqual((observed["state"], observed["proven_head"], observed["head"]), ("readmission", NEW_HEAD, fix))

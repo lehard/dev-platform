@@ -2109,6 +2109,14 @@ class SupervisorTests(unittest.TestCase):
             with self.assertRaisesRegex(contributions.ContributionError, "malformed coordinator ownership"):
                 contributions.in_flight_children(root, "acme/project", REQUIREMENT, "requirement/BR-7", adapter=adapter)
 
+    def test_a_fully_integrated_requirement_reports_its_composition_not_contributions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            integrated = {"change": "first", "integrated_head": "b" * 40}
+            result, start = self.advance(root, {"first": []}, [integrated])
+            start.assert_not_called()
+            self.assertEqual((result["status"], result["waiting"], result["actions"]), ("draft-published", [], []))
+
     def test_closed_unmerged_contribution_releases_its_change(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

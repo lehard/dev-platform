@@ -978,7 +978,7 @@ For checkouts with private lineage enabled, `select_checks.py --execute` SHALL r
 
 - **GIVEN** a managed task whose committed selected-check evidence is a publication gate and whose content proof no longer matches after main moved under the task
 - **WHEN** `finish_task.py` runs the preflight
-- **THEN** it refuses before validation naming the evidence path and the exact `select_checks.py --base origin/main --execute --evidence <path>` refresh command
+- **THEN** it refuses before validation naming the evidence path and the exact `select_checks.py --base <base> --execute --evidence <path>` refresh command, whose base is `origin/main` or a contribution's recorded base
 
 ### Requirement: Reconcile reports committed evidence a base move invalidated
 
@@ -1741,14 +1741,14 @@ A `lifecycle_preflight.py` condition that cannot be evaluated SHALL refuse; no c
 
 ### Requirement: Reconcile fails when gating evidence no longer proves the content
 
-When a managed task's committed selected-check evidence is a publication gate (the change is archived, or the task is a coordinator-managed candidate) and no longer proves the task content, `reconcile` SHALL exit non-zero after the merge, naming the evidence path, its recorded base and the current base, and printing the exact refresh command `python3 scripts/select_checks.py --base origin/main --execute --evidence <path>` followed by committing the refreshed evidence.
+When a managed task's committed selected-check evidence is a publication gate (the change is archived, or the task is a coordinator-managed candidate) and no longer proves the task content, `reconcile` SHALL exit non-zero after the merge, naming the evidence path, its recorded base and the current base, and printing the exact refresh command `python3 scripts/select_checks.py --base <base> --execute --evidence <path>` followed by committing the refreshed evidence.
 
 #### Scenario: Gating evidence invalidated by the base move
 
 - **GIVEN** an archived change or a coordinator-managed candidate
 - **WHEN** `reconcile` merges authoritative main and the committed selected-check evidence no longer proves the task content
 - **THEN** `reconcile` exits non-zero after the merge naming the evidence path, its recorded base and the current base
-- **AND** it prints `python3 scripts/select_checks.py --base origin/main --execute --evidence <path>` followed by committing the refreshed evidence
+- **AND** it prints `python3 scripts/select_checks.py --base <base> --execute --evidence <path>`, whose base is `origin/main` or a contribution's recorded base, followed by committing the refreshed evidence
 
 ### Requirement: Reconcile passes evidence that still proves the content
 

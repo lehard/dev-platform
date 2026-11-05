@@ -5,6 +5,7 @@ full_commands = [
   "python3 -m ruff check scripts template/scripts tests",
   "python3 scripts/generate_platform_manifest.py --check",
   "python3 scripts/run_test_groups.py --all",
+  "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
 ]
 # Cheap project gates run by the lifecycle preflight before any expensive run: the same test the full
 # suite runs (an unregistered direct file-creation site fails here in a second, not after the full run).
@@ -12,7 +13,7 @@ preflight_commands = [
   "python3 -m unittest tests.test_shared_writer_guard",
   "python3 scripts/generate_platform_manifest.py --check",
 ]
-full_evidence_types = ["syntax", "syntax", "syntax", "configuration", "test"]
+full_evidence_types = ["syntax", "syntax", "syntax", "configuration", "test", "configuration"]
 full_required_evidence_types = ["test"]
 # Early feedback before the full set: run only test modules that directly
 # reference changed Python paths (see run_test_groups.py --changed-file).
@@ -51,12 +52,13 @@ instruction_behavior_surface_patterns = [
 # agent-behavior change. Bounded structure/link/anchor/render checks only;
 # does not by itself run the full Python suite. A `template/AGENTS.md.jinja`
 # change also gets a Jinja render smoke so a broken template still fails.
+# The strict OpenSpec validation is the command CI runs; run here so a spec rule fails before publication.
 [checks.docs]
 patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "template/**/*.md", "template/**/*.md.jinja"]
 # Template docs and prose are in the release manifest, so a docs-only template edit
 # must also keep it current (a cheap digest comparison, no test suite).
-commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check"]
-evidence_types = ["configuration", "configuration", "configuration"]
+commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check", "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"]
+evidence_types = ["configuration", "configuration", "configuration", "configuration"]
 
 # explorer: every file an Explorer editorial node binds is an Explorer input. Renaming a bound heading must fail
 # here, not only in the Explorer workflow. Stale explanations (editorial drift) are reported but never fail.
@@ -75,6 +77,10 @@ patterns = ["**/*.py"]
 commands = ["python3 -m compileall -q template/scripts scripts", "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests", "python3 -m ruff check scripts template/scripts tests", "python3 scripts/run_test_groups.py --all"]
 evidence_types = ["syntax", "syntax", "syntax", "test"]
 required_evidence_types = ["test"]
+
+# Composition full checks run in the project-check environment; a missing tool fails before the first command.
+[runtime]
+required_tools = ["npx"]
 
 # Canonical mandatory test groups. `mode = "parallel"` groups run concurrently
 # (their mutable resources are per-run temp roots, proven isolated by

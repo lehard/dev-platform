@@ -28,7 +28,7 @@ NEXT_ACTION = {
     "integrating": "continue integration", "integration-repair-pending": "repair integration",
     "contribution-integration-pending": "integrate contribution",
     "contribution-integrated": "await Requirement composition",
-    "merged": "reconcile delivery", "blocked-retryable": "retry red gate",
+    "merged": "reconcile delivery", "blocked-retryable": "clear red gate",
     "blocked-escalation": "human escalation required",
 }
 
