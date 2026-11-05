@@ -192,8 +192,9 @@ class Sandbox:
         return f"https://github.com/{self.config.repository}.git"
 
     def env(self) -> dict[str, str]:
+        # Fixture checks take seconds and must not queue behind real validation on the machine pool.
         env = {key: value for key, value in os.environ.items()
-               if key not in {"CLAUDE_CODE_OAUTH_TOKEN", "DEV_PLATFORM_POOL_CONFIG"}}
+               if key not in {"CLAUDE_CODE_OAUTH_TOKEN", "DEV_PLATFORM_MACHINE_POOL", "DEV_PLATFORM_MACHINE_POOL_LEASE"}}
         env["GH_TOKEN"] = run(["gh", "auth", "token"], SOURCE_ROOT).strip()
         env["DEV_PLATFORM_OPERATOR_CONFIG"] = str(self.workdir / "operator.toml")
         return env
