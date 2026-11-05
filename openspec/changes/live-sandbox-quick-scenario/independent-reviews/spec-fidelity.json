@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
+    "candidate_head": "0163533bcf61d48aa847d5d2a47a504b2d5def59",
+    "diff_sha256": "b7ddef3c969bc6c19c90535d9b389f5ee0728964c64fc53ccaa27c84c7773587"
+  },
+  "completed_at": "2026-11-05T20:02:51+00:00",
+  "findings": [
+    {
+      "evidence": "specs/publication-queue/spec.md: 'A publication queue running on a private repository SHALL hold Checks read and Actions read'. The diff has no change to .github/workflows or template/scripts/publication_queue.py. Only scripts/live_scenarios.py:594-609 (grant_token_reads) adds `permission-checks/actions: read` to the copied workflows. design.md says production workflows stay unchanged. The spec requirement is therefore broader than what is implemented. Either the spec should be scoped to the sandbox, or the platform queue should derive the grant from repository privacy. The spec's 'fails the queue run instead of being treated as absent checks' behaviour has no corresponding code or test.",
+      "id": "private-queue-token-scope-not-in-platform",
+      "severity": "material",
+      "summary": "The publication-queue delta requires any queue on a private repository to hold Checks read and Actions read, and a missing grant to fail the queue run. The candidate adds the grant only to the sandbox snapshot, by rewriting copied workflows in the runner. It changes no queue workflow or code in the platform."
+    },
+    {
+      "evidence": "scripts/live_scenarios.py:541-548 (assert_target) and :551-554 (check_target). Nothing validates coordinator_app or coordinator_app_id against production, and nothing checks that the sandbox holds no production secrets. The spec text is in specs/live-lifecycle-sandbox/spec.md, 'Sandbox is isolated from production resources'.",
+      "id": "production-resource-config-guard-missing",
+      "severity": "advisory",
+      "summary": "The isolation requirement says the runner refuses before any write when the configuration names a production resource. assert_target only compares the repository name, checks that it is private, and checks that it is not the checkout's origin."
+    },
+    {
+      "evidence": "scripts/live_scenarios.py:856-857 call run() directly. run_scenarios (:886-895) catches only StepFailure. main (:919-921) prints only `live scenarios: {error}`. The spec requires that a failed step exit non-zero naming scenario, step and observed state.",
+      "id": "non-step-errors-lack-scenario-step-report",
+      "severity": "advisory",
+      "summary": "A SandboxError raised inside a scenario outside Scenario.platform or finish_until_queued is not turned into a StepFailure. Examples are the raw `run(['git','add'...])` and `git commit` calls in scenario_quick_task. It propagates out of run_scenarios and main, so the output names no scenario, step or observed state, and any results already gathered are lost."
+    }
+  ],
+  "launched_at": "2026-11-05T20:02:27+00:00",
+  "output_sha256": "39da9e31e87966f9a82e4ca826ea35533cfce21e7697f2d4b01af3b642078799",
+  "perspective": "spec-fidelity",
+  "request_id": "f9ca0e17-67a4-49a4-99bb-0d4723d37811",
+  "reviewer": {
+    "context_id": "c278b2ff-e21c-4c73-894e-5212993fcf51",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-0a36060c-b1c9-4f6a-9ff3-f2a0be8752af",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 48597
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 94131
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23428
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 23554
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2769
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "0fac55924570c4353701f727efa3dfe27a0495c2dde7ad0456241c39ff87d596"
+}
