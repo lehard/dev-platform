@@ -15,7 +15,7 @@ live = load_platform_module("live_scenarios", ROOT / "scripts" / "live_scenarios
 # The real sandbox.toml is operator state and absent from public snapshots.
 CONFIG = live.Config("owner/sandbox", "sandbox-app", 1, "validate", "finalize",
                      ("publication-queue.yml", "lifecycle-workers.yml"),
-                     ("openspec/changes", "dev-platform/live-sandbox"), ("checks", "actions"))
+                     ("openspec/changes", "dev-platform/live-sandbox"), ("checks", "actions"), "Sandbox Project")
 
 
 class TargetGuardTest(unittest.TestCase):
