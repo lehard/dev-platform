@@ -47,6 +47,8 @@ def move_contribution_base(root: Path, change: str, base: str) -> None:
     contribution = context.get("contribution")
     if not contribution:
         raise ManagedTaskError(f"Requirement child context {path} records no contribution to move")
+    if contribution["head"] == base:
+        return
     for ancestor, descendant, what in ((contribution["head"], base, "the recorded contribution base"), (base, "HEAD", "HEAD")):
         if run_git(["merge-base", "--is-ancestor", ancestor, descendant], cwd=root, check=False).returncode:
             raise ManagedTaskError(f"contribution base cannot move to {base}: {ancestor} is not contained in {what}")

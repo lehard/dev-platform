@@ -122,9 +122,9 @@
     "scripts/render_agents_md_smoke.py": "7ec0984551f1e9425af25fd4933d87da825d96825a410fbe69a4b15e9863a5c1",
     "scripts/repository_goal_scan.py": "86202eaaec0c2e0faf9c8af140fc4cad630b84f39012029db46e130bd54a4969",
     "scripts/requirement_board.py": "c0266b4b67413e699c28f05639d1c553ac9200cbce4e3f88de071067e58a47b6",
-    "scripts/requirement_child_context.py": "b28cc2f23ce20fa58eff5668553498caaaaec8cccfdd5491620987f5e1b350f5",
+    "scripts/requirement_child_context.py": "1a81b39255a8de5c7412720e038fc25d2471d2ba5d7e83a575eb3eb4c1553744",
     "scripts/requirement_composition.py": "47ab8366a44a78b04b53501413be7fdb8b1c835504ed8f14a1aeb445ac21ef0d",
-    "scripts/requirement_contributions.py": "970530bacc62523d83ea22977a06f6489aca8e0cacea7c36b2e1abc755cdeead",
+    "scripts/requirement_contributions.py": "6eae276f776a857913122410b4b78ecb39d42a1d29b9c0c59fa5d6f415466dcd",
     "scripts/requirement_intake.py": "24741b18c746a8ea71954236a71f4a800df887ef79d2b5962746bc30b1b349fd",
     "scripts/requirement_integration.py": "d0680259acfa35f1633a0864715c678b5d526f4cdcf55cd70b5d986a561a3ad1",
     "scripts/requirement_merge_recovery.py": "0b557925babc07605010a77b3f582062daf221c2d490ff89b46690c8971109b0",
@@ -143,7 +143,7 @@
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
     "scripts/task_content_identity.py": "931755acf14b979be752ebb52f4ed1253a7295d55a6b3d40ba64b59bc18497d0",
-    "scripts/task_reconciliation.py": "01b04de8bd3e08a14e30f2da8f939a7e104fa78ada81c36f16deeb412e228b21",
+    "scripts/task_reconciliation.py": "a7c4f8ff590b4346e632944bac485a31a7ed9812481b1c99ef5c8991795ad4ea",
     "scripts/worktree_cleanup.py": "92e7fc2c3811ed1963cca598f38dd2b8bafd8a51dd784717545e03bb4f25ee8a"
   },
   "project_harness_owned": [

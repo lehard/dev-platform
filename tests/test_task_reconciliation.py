@@ -152,6 +152,21 @@ class TaskReconciliationTests(unittest.TestCase):
         from task_content_identity import review_content_identity
         self.assertEqual(sorted(review_content_identity(self.task, "demo", target)["paths"]), ["task.txt"])
 
+    def test_conflicted_reconcile_moves_the_base_after_the_developers_merge(self) -> None:
+        base, provenance = self.contribution()
+        target = self.advance_target("task.txt", "sibling\n")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "require_committed_evidence_current"):
+            with self.assertRaisesRegex(SystemExit, "merge conflicts.*task.txt"):
+                self.reconcile()
+            context = self.task / ".claude/requirement-child-context/demo.json"
+            self.assertEqual(json.loads(context.read_text(encoding="utf-8"))["contribution"]["head"], base)
+            (self.task / "task.txt").write_text("both\n", encoding="utf-8")
+            git("add", "task.txt", cwd=self.task); git("commit", "--no-edit", cwd=self.task)
+            self.reconcile()
+        self.assertEqual(json.loads(context.read_text(encoding="utf-8"))["contribution"]["head"], target)
+
     def test_unreadable_target_refuses_naming_the_branch(self) -> None:
         _, provenance = self.contribution()
         git("push", "origin", "--delete", "requirement/BR-7", cwd=self.task)

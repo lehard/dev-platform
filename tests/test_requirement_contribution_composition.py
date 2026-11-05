@@ -779,6 +779,10 @@ class ContributionTests(unittest.TestCase):
             with self.assertRaisesRegex(contributions.ContributionError, "moved from .*rerun absorb-main"):
                 self._absorb(fixture, remote, adapter)
 
+    def test_absorb_main_refuses_a_malformed_requirement_reference(self):
+        with self.assertRaisesRegex(contributions.ContributionError, "invalid Requirement reference"):
+            contributions.absorb_main(Path("/unused"), "acme/project", "BR-7", adapter=SimpleNamespace())
+
     def test_absorb_main_cli_reports_a_refusal(self):
         with mock.patch.object(execution, "current_worktree_root", return_value=Path("/repo")), \
              mock.patch.object(execution.managed_task, "origin_repository", return_value="acme/project"), \

@@ -275,6 +275,12 @@ def _conflict_paths(root: Path) -> list[str]:
     return sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
 
 
+def _move_base_to_target(root: Path, target_head: str) -> None:
+    from requirement_child_context import move_contribution_base
+
+    move_contribution_base(root, resolve_canonical_provenance(root).change, target_head)
+
+
 def reconcile(root: Path | None = None) -> Freshness:
     """Incorporate the freshness branch by normal merge only; never reset, stash, or rebase.
 
@@ -315,6 +321,9 @@ def reconcile(root: Path | None = None) -> Freshness:
             _require_exact_open_pr(root, branch, target_branch, local_head)
 
     if not before.reconcile_required:
+        # A conflicted reconcile ends with the developer's merge commit, so its base moves on this rerun.
+        if target_branch != main_branch:
+            _move_base_to_target(root, before.authoritative_sha)
         print(f"Task branch is already current relative to origin/{target_branch} ({before.state}); reconcile is a no-op.")
         return before
 
@@ -343,9 +352,7 @@ def reconcile(root: Path | None = None) -> Freshness:
     if after.reconcile_required:
         raise SystemExit(f"Task is still behind authoritative {target_branch} after reconciliation; rerun reconcile before validation.")
     if target_branch != main_branch:
-        from requirement_child_context import move_contribution_base
-
-        move_contribution_base(root, resolve_canonical_provenance(root).change, after.authoritative_sha)
+        _move_base_to_target(root, after.authoritative_sha)
     if published:
         if _remote_branch_head(root, branch) != local_head:
             raise SystemExit("Remote task branch head changed during reconciliation; refusing to publish the new descendant automatically.")

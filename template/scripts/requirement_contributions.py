@@ -406,6 +406,8 @@ def absorb_main(root: Path, repo: str, requirement: str, *, adapter=None, source
 
     if adapter is None:
         import publication_queue as adapter
+    if not integration.ISSUE_RE.fullmatch(requirement):
+        raise ContributionError(f"invalid Requirement reference {requirement!r}; expected owner/repo#N")
     main_branch = read_platform_config(root).get("main_branch")
     if not isinstance(main_branch, str) or not main_branch:
         raise ContributionError(".dev-platform.toml main_branch is required to absorb main")
