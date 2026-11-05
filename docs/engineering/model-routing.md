@@ -39,7 +39,7 @@ python3 scripts/dogfood_task.py route-codex --rationale "..." --evidence "..."
 python3 scripts/dogfood_task.py route-codex --tier <R1|R2|R3> --rationale "..." --evidence "..."
 ```
 
-The command records the decision through `scripts/model_routing.py`. `R1` and `R2` (authored `R2`, or `--tier R1|R2`) immediately launch the configured lower-cost Codex executor through native `workspace-write` containment, while `R3` (authored or `--tier R3`) records the route and remains on the current session without a cheap-model attempt.
+The command records the decision through `scripts/model_routing.py dispatch-codex`. Codex dispatch is itself an explicit delegation request, so the supervisor-retained default for `R1` and `R2` never applies to `route-codex`: `R1` and `R2` (authored `R2`, or `--tier R1|R2`) record a `delegated-child` plan and immediately launch the configured lower-cost Codex executor through native `workspace-write` containment, while `R3` (authored or `--tier R3`) records the route and remains on the current session without a cheap-model attempt. To keep `R1` or `R2` work on the current Codex session, route with `python3 scripts/model_routing.py prepare --provider codex --rationale "..."` instead, which records the retained `balanced-parent` plan, and finalize with `record-retained-execution`.
 
 `route-codex` states who writes task content: the delegated Codex child on `R1` and `R2`, the retained parent on `R3`. On `R1` and `R2` the supervisor does not write task content.
 

@@ -7,11 +7,27 @@ This document maps how one unit of work moves from a Business Requirement to mer
 | Actor | What it is | Decides or does |
 | --- | --- | --- |
 | Owner | the human | product meaning, ADD approval, risk acceptance, release and rollout |
-| Coordinator | the chat coordinator session | stream allocation, starting repair, owner escalations; writes no task code |
+| Coordinator | the chat coordinator session | stream allocation, starting operator-node jobs, recovery, owner escalations; writes no task code |
 | Developer | an agent in the task worktree | pre-authoring, OpenSpec authoring, implementation, checks, handoff |
-| Hosted worker | `lifecycle-workers.yml` on GitHub Actions (every 10 minutes and after the queue) | review, finalize, integration-merge (`DEV_PLATFORM_HOSTED_KINDS`) |
-| Queue | `publication-queue.yml` with the GitHub App | merge into `main` |
+| Hosted worker | `lifecycle-workers.yml` on GitHub Actions (every 10 minutes and after the queue) | review, finalize, integration-merge (`DEV_PLATFORM_HOSTED_KINDS`), except the composition jobs below |
+| Operator node | `work-next --run` on the operator machine, started by the coordinator | repair, integration repair, a composition's finalize and full checks |
+| Queue | `publication-queue.yml` with the GitHub App | merge into `main`, contribution integration |
 | Post-merge runner | the LaunchAgent on the operator machine, every 10 minutes | retrospective, terminal reconciliation, cleanup |
+
+### Job placement
+
+| Job | Runs on | Started by |
+| --- | --- | --- |
+| `review` | hosted worker | automatically |
+| `review` of a composition of a private Requirement | operator node | coordinator |
+| `finalize` | hosted worker | automatically |
+| `finalize` of a composition, with its full checks | operator node only | coordinator |
+| `integration-merge` | hosted worker | automatically |
+| `contribution-integration` | publication queue | automatically |
+| `repair`, `integration-repair` | operator node | coordinator |
+| `retrospective`, `terminal-reconciliation`, `cleanup` | post-merge runner on the operator machine | LaunchAgent, every 10 minutes |
+
+The operator node is `lifecycle_workers.py work-next --run` on the operator machine. The coordinator also runs there a job that an automatic executor left unclaimed. Hosted kinds are the ones enabled in `DEV_PLATFORM_HOSTED_KINDS`.
 
 ## Current lifecycle
 
@@ -24,12 +40,12 @@ This document maps how one unit of work moves from a Business Requirement to mer
 | 5 | Routing | `dogfood_task.py route-claude --tier R1/R2/R3` | developer | routing receipt |
 | 6 | Implementation and checks | `select_checks.py --execute --evidence`, then `verification.md` | developer | content-bound evidence |
 | 7 | Handoff | `dogfood_task.py finish` → `finish_developer_handoff` → `publication_queue.py admit`; friction checkpoint | developer | exact-head PR, v2 record, `lifecycle:review-pending`; claim released |
-| 8 | Review | `lifecycle_workers.py work-next --kinds review` | hosted worker | disposition or `repair-pending` |
-| 9 | Repair | `work-next --kinds repair` | local, started by the coordinator | repair commit, re-review |
-| 10 | Finalize | `work-next --kinds finalize` | hosted worker | archive and re-run checks → `ready` |
+| 8 | Review | `lifecycle_workers.py work-next --kinds review` | hosted worker; operator node for a composition of a private Requirement | disposition or `repair-pending` |
+| 9 | Repair | `work-next --kinds repair` | operator node, started by the coordinator | repair commit, re-review |
+| 10 | Finalize | `work-next --kinds finalize` | hosted worker; operator node only for a composition | archive and re-run checks → `ready` |
 | 11 | Merge | queue and `integration-merge` | queue, hosted worker | `lifecycle:merged` |
 | 12 | Post-merge | `post_merge_runner.py` → retrospective → terminal reconciliation → cleanup | runner | `post-merge:settled`, Requirement Done, worktree removed |
-| 13 | Composition (two or more children) | `requirement_integration.py` and `requirement_composition.py`, driven by `advance` | developer, local review | shared `requirement/BR-N` PR through the queue |
+| 13 | Composition (two or more children) | `requirement_integration.py` and `requirement_composition.py`, driven by `advance` | developer assembles; review and finalize as in stages 8 and 10 | shared `requirement/BR-N` PR through the queue |
 | 14 | Release | release PR changing `VERSION` → `publish-version.yml` | owner | immutable tag |
 | 15 | Rollout | manual **Roll Out Platform** dispatch | owner | downstream PRs |
 
@@ -37,13 +53,13 @@ A quick task runs `start_task.py` → `finish` → queue → post-merge and skip
 
 ## Where the current lifecycle is tangled
 
-- **Archive** happens in three places: the developer (`AGENTS.md`, `execute_requirement.py`, `task-intake.md`), the finalize job ([agent workflow](agent-workflow.md)) and composition finalization. Archive also starts a second review. Missing archive prerequisites surface one at a time.
+- **Archive** is one function, `finalize_change`, which reports every unmet prerequisite at once and starts no review. It still has three callers: the finalize job, composition finalization (per child, in manifest order) and portable `finish`/`advance`. A developer does not archive: `openspec_lifecycle.py archive` without `--finalize` refuses.
 - **Start** has six entries plus board registration, each leaving different local state.
-- **Requirement retrospective** is recorded by the post-merge job before terminal close for coordinator-managed delivery; other delivery paths record it before terminal reconciliation. **Terminal close** has three entries: `advance`, `requirement_terminal.py reconcile` and the worker job.
-- **Recovery** is spread over five tools: `publication_queue.py` (`resume`, `switch-provider`, `reoffer-post-merge`, `restore-gates`), `requirement_integration.py recover`, `requirement_merge_recovery.py`, `dogfood_task.py reconcile` and `finish_task.py --reconcile`.
+- **Requirement retrospective and close** run only in the post-merge jobs under the queue, where `advance` stops at `await-post-merge`. Portable delivery still closes in session through the same functions, and `requirement_terminal.py reconcile` remains a coordinator recovery entry.
+- **Recovery** is spread over five tools: `publication_queue.py` (`resume`, `switch-provider`, `reoffer-post-merge`, `restore-gates`), `requirement_integration.py recover`, `requirement_merge_recovery.py`, `dogfood_task.py reconcile` and `finish_task.py --reconcile`. A requirement branch adds `execute_requirement.py absorb-main` and `repair`.
 - **Candidate state** is held in Issue and PR labels, the Project card, v1 admission comments and v2 records, the `publication:*` and `lifecycle:*` labels, local JSON, the board and journals.
-- **The coordinator role** is documented as starting review and post-merge workers. In practice those run automatically and only repair is coordinator-started.
-- **Routing tiers** had two names until BR-953 made `--tier R1/R2/R3` the route commands' only one.
+- **Job placement** depends on the candidate as well as the job: a finalize runs hosted, but a composition's finalize and full checks need the operator node, because they read the managed project registry. So a composition waits for a coordinator-started run (see [Job placement](#job-placement)).
+- **The task base** depends on what the task integrates into: `main`, or for a contribution its recorded `requirement/BR-N` target and contribution base. The evidence refresh hint still prints `--base origin/main` for a contribution, which widens its selection (see [agent workflow](agent-workflow.md#validation)).
 - **Accepted specs** overlap: four lifecycle specs (`platform-`, `completion-`, `central-dogfood-` and `standard-profile-lifecycle`), three shared-workspace specs, and `publication-queue` beside `publication-recovery`.
 
 ## Target lifecycle
@@ -114,3 +130,5 @@ The target lifecycle is delivered by small Requirements, at most two code stream
 | 7 | BR-954: merge overlapping spec families | all of BR-799 | none |
 | 8 | BR-955 with BR-850: one `start` | slices 2–5 | MAJOR, after v4.0.0 |
 | 9 | BR-946: documentation follows this map, including the coordinator role | slices 2–7 | none |
+
+Delivered so far: slices 0 to 3 and BR-953 of slice 6. The rest is open.
