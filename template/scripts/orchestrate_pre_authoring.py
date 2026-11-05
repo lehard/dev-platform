@@ -21,7 +21,7 @@ Directory layout per requirement id (default root: .claude/pre-authoring/<id>/):
     direct-handoff.json -- normal OpenSpec authoring input for a skipped path
     add.json        -- an ADD document (add_intents.py; material paths only)
     intents.json    -- an intent-set document (add_intents.py)
-    handoff/<intent-or-group>.json -- OpenSpec authoring-input envelopes
+    handoff/<intent-id>.json -- OpenSpec authoring-input envelopes
     rebind-<n>.json -- sequential delivery: an unchanged chain re-anchored to a newer main
     receipt.json    -- last computed status(), written for external inspection only
 
@@ -357,7 +357,9 @@ def _decision_request(item: dict[str, Any], index: int) -> dict[str, Any]:
 def _add_status(root: Path, directory: Path, state: dict[str, Any]) -> dict[str, Any]:
     path = add_path(directory)
     if not path.is_file():
-        return {"stage": "add", "state": "missing", "action": "re-run select-depth --depth material-design with the recorded reason"}
+        return {"stage": "add", "state": "missing", "action": (
+            f"orchestrate_pre_authoring.py --id {state['id']} select-depth --depth material-design "
+            '--reason "<recorded reason>"')}
     document = _load_json(path, "ADD document")
     open_decisions = [
         _decision_request(item, index)
@@ -381,13 +383,13 @@ def _add_status(root: Path, directory: Path, state: dict[str, Any]) -> dict[str,
                 "state": "needs-drafting",
                 "action": (
                     "draft elements/assumptions/evidence/unresolved_choices onto the ADD from the requirement "
-                    f"and fresh snapshot projections, then approve: add_intents.py approve-add {path}"
+                    f"and fresh snapshot projections, then approve: add_intents.py approve-add {path} --approved-by <name>"
                 ),
             }
         report = add_intents.validate_add(root, path, check_freshness=False)
         if not report.ok:
             return {"stage": "add", "state": "invalid", "errors": list(report.errors)}
-        return {"stage": "add", "state": "needs-approval", "action": f"add_intents.py approve-add {path}"}
+        return {"stage": "add", "state": "needs-approval", "action": f"add_intents.py approve-add {path} --approved-by <name>"}
     report = add_intents.validate_add(root, path, check_freshness=True)
     if not report.ok:
         return {"stage": "add", "state": "invalid", "errors": list(report.errors)}
@@ -667,6 +669,9 @@ def rebind(root: Path, *, requirement_id: str, base_dir: Path | None = None,
     old_add_digest = add_intents.add_content_digest(add_document)
     if add_document.get("approved") is not True or approval.get("digest") != old_add_digest:
         raise RebindStop(f"{requirement_id}: {add_file} changed since its approval; {reapprove}")
+    approver = approval.get("approved_by")
+    if not isinstance(approver, str) or not approver.strip():
+        raise RebindStop(f"{requirement_id}: {add_file} records no approver to carry; {reapprove}")
     intents_document = _load_json(intents_file, "intent-set document")
     old_intents_digest = add_intents._content_digest(intents_document)
     if intents_document.get("approved_add_digest") != old_add_digest:
@@ -720,9 +725,8 @@ def rebind(root: Path, *, requirement_id: str, base_dir: Path | None = None,
             _write_json(snapshot_path(directory), rebuilt)
             _write_json(add_file, {**add_document, "prepared_against": head, "evidence": evidence,
                                    "approved": False, "approval": None})
-            new_add = add_intents.approve_add(root, add_file, approved_by=(
-                f"carried from {old_add_digest} by {receipt_file.name}; "
-                f"approved by {approval.get('approved_by', 'an unrecorded approver')}"))
+            new_add = add_intents.carry_approval(root, add_file, carried_from=(
+                f"carried from {old_add_digest} by {receipt_file.name}; approved by {approver}"))
             _write_json(intents_file, {**intents_document, "approved_add_digest": new_add["approval"]["digest"],
                                        "snapshot_refs": [item for item in evidence if isinstance(item, dict)
                                                          and item.get("kind") == add_intents.EVIDENCE_KIND_SNAPSHOT]})

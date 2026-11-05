@@ -28,6 +28,14 @@ REQ = "acme/backlog#7"
 ORIGINAL_RUN = subprocess.run
 
 
+def approve_prepared_add(root: Path, add_file: Path) -> None:
+    """Approve a fixture ADD the way the workflow does: its preparer recorded, a different approver named."""
+    document = json.loads(add_file.read_text(encoding="utf-8"))
+    document["prepared_by"] = "author"
+    add_file.write_text(json.dumps(document), encoding="utf-8")
+    add_intents.approve_add(root, add_file, approved_by="owner")
+
+
 class RequirementFlowEndToEndTests(unittest.TestCase):
     def setUp(self) -> None:
         import publication_queue
@@ -158,7 +166,7 @@ class RequirementFlowEndToEndTests(unittest.TestCase):
             {"id": "element-two", "category": "boundary", "status": "new", "statement": "Second boundary"},
         ]
         add_file.write_text(json.dumps(add), encoding="utf-8")
-        add_intents.approve_add(self.root, add_file)
+        approve_prepared_add(self.root, add_file)
         intents_file = orch.intents_path(directory)
         add_intents.decompose(self.root, add_path=add_file, out=intents_file)
         intents = json.loads(intents_file.read_text(encoding="utf-8"))

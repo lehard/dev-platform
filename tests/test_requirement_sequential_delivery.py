@@ -55,6 +55,14 @@ def intents_for(order: list[str] | None, *, ready: bool = True, dependencies: di
     return document
 
 
+def approve_prepared_add(root: Path, add_file: Path) -> None:
+    """Approve a fixture ADD the way the workflow does: its preparer recorded, a different approver named."""
+    document = json.loads(add_file.read_text(encoding="utf-8"))
+    document["prepared_by"] = "author"
+    add_file.write_text(json.dumps(document), encoding="utf-8")
+    add_intents.approve_add(root, add_file, approved_by="owner")
+
+
 class DeliveryDeclarationTests(unittest.TestCase):
     def _errors(self, document: dict) -> list[str]:
         by_id = {item["id"]: item for item in document["intents"]}
@@ -118,7 +126,7 @@ class RebindTests(unittest.TestCase):
         add_document["elements"] = [{"id": "payments-rule", "category": "capability", "status": "new", "statement": "Payments."},
                                     {"id": "billing-rule", "category": "capability", "status": "new", "statement": "Billing."}]
         add_file.write_text(json.dumps(add_document), encoding="utf-8")
-        add_intents.approve_add(self.root, add_file, approved_by="owner")
+        approve_prepared_add(self.root, add_file)
         intents_file = orch.intents_path(self.directory)
         add_intents.decompose(self.root, add_path=add_file, out=intents_file)
         intents_document = json.loads(intents_file.read_text(encoding="utf-8"))

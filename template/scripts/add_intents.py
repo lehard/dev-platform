@@ -164,6 +164,7 @@ def new_add(
         "requirement": {"digest": _digest(requirement_text), "summary": ""},
         "target_repository": target_repository,
         "prepared_against": revision,
+        "prepared_by": "",
         "created_at": utc_now(),
         "evidence": [],
         "reused_constraints": [],
@@ -519,20 +520,36 @@ def validate_add(root: Path, path: Path, *, check_freshness: bool = True) -> Val
     return _validate_add_document(root, document, check_freshness=check_freshness)
 
 
-def approve_add(root: Path, path: Path, *, approved_by: str | None = None) -> dict[str, Any]:
+def approve_add(root: Path, path: Path, *, approved_by: str) -> dict[str, Any]:
     """Bind human approval to the ADD's exact current content digest.
 
     Refuses to approve while a structural gate (schema, open unresolved
-    choice, unresolved contradiction) is not yet satisfied. A human cannot
-    hand-compute the digest, so this is the only supported way to produce a
-    valid approval receipt; hand-editing `approved: true` without a matching
-    `approval` object is rejected by `validate_add`.
+    choice, unresolved contradiction) is not yet satisfied, without a named
+    approver, without a recorded `prepared_by`, or when the approver prepared
+    the ADD. A human cannot hand-compute the digest, so this is the only
+    supported way to produce a valid approval receipt; hand-editing
+    `approved: true` without a matching `approval` object is rejected by
+    `validate_add`.
     """
+    approver = approved_by.strip()
+    if not approver:
+        raise AddIntentsError("cannot approve ADD: --approved-by must name the approver")
     document = _load_json(path, "ADD document")
-    digest = add_content_digest(document)
-    approval: dict[str, Any] = {"digest": digest, "approved_at": utc_now()}
-    if isinstance(approved_by, str) and approved_by.strip():
-        approval["approved_by"] = approved_by.strip()
+    preparer = document.get("prepared_by")
+    if not isinstance(preparer, str) or not preparer.strip():
+        raise AddIntentsError(f"cannot approve ADD: {path} records no prepared_by; the preparer sets it before approval")
+    if preparer.strip().casefold() == approver.casefold():
+        raise AddIntentsError(f"cannot approve ADD: {approver!r} prepared it, and an ADD author cannot approve their own ADD")
+    return _bind_approval(root, path, document, approver)
+
+
+def carry_approval(root: Path, path: Path, *, carried_from: str) -> dict[str, Any]:
+    """Re-bind an already approved, unchanged ADD to a new revision, naming the approval it carries."""
+    return _bind_approval(root, path, _load_json(path, "ADD document"), carried_from)
+
+
+def _bind_approval(root: Path, path: Path, document: dict[str, Any], approved_by: str) -> dict[str, Any]:
+    approval = {"digest": add_content_digest(document), "approved_at": utc_now(), "approved_by": approved_by}
     candidate = dict(document)
     candidate["approved"] = True
     candidate["approval"] = approval
@@ -1169,7 +1186,7 @@ def main() -> int:
 
     approve_add_parser = sub.add_parser("approve-add", help="bind human approval to the ADD's exact current content digest")
     approve_add_parser.add_argument("path", type=Path)
-    approve_add_parser.add_argument("--approved-by", default=None)
+    approve_add_parser.add_argument("--approved-by", required=True)
 
     render_add_parser = sub.add_parser("render-add", help="print the standard read-only Russian presentation of the current ADD")
     render_add_parser.add_argument("path", type=Path)
