@@ -7,4 +7,4 @@ hosted_kinds = "finalize,integration-merge"
 # Workflows the snapshot keeps from the platform head; every other platform workflow stays out.
 kept_workflows = ["publication-queue.yml", "lifecycle-workers.yml"]
 # Snapshot paths that the fixture owns or that have no role in the sandbox.
-dropped_paths = ["tests", "openspec/changes", "dev-platform/live-sandbox"]
+dropped_paths = ["openspec/changes", "dev-platform/live-sandbox"]

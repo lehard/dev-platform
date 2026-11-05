@@ -47,7 +47,7 @@ class SnapshotTest(unittest.TestCase):
             self.assertEqual(workflows, ["ci.yml", "lifecycle-workers.yml", "publication-queue.yml"])
             self.assertEqual((destination / live.HEAD_MARKER).read_text(encoding="utf-8").strip(), head)
             self.assertIn("dev-platform-sandbox", (destination / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"))
-            self.assertFalse((destination / "tests").exists())
+            self.assertFalse((destination / "dev-platform" / "live-sandbox").exists())
             self.assertTrue((destination / "template" / "scripts" / "publication_queue.py").is_file())
 
 
