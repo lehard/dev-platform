@@ -60,6 +60,12 @@ patterns = ["*.md", "docs/**", "openspec/**", "AGENTS.md", "template/**/*.md", "
 commands = ["git diff --check", "python3 scripts/check_docs_links.py", "python3 scripts/generate_platform_manifest.py --check", "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"]
 evidence_types = ["configuration", "configuration", "configuration", "configuration"]
 
+# root-guidance: the line budget of the always-loaded root instructions fails here, not after admission in CI.
+[checks.root-guidance]
+patterns = ["AGENTS.md"]
+commands = ["python3 -m unittest tests.test_root_guidance_contract"]
+evidence_types = ["test"]
+
 # explorer: every file an Explorer editorial node binds is an Explorer input. Renaming a bound heading must fail
 # here, not only in the Explorer workflow. Stale explanations (editorial drift) are reported but never fail.
 [checks.explorer]

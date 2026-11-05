@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from contextlib import redirect_stdout
 from io import StringIO
 from unittest import mock
@@ -772,11 +773,35 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         self.assertNotIn("Scope gate not applicable", output)
         self.assertFalse((linked / "validation-ran.txt").exists())
 
+
+    def test_contribution_base_is_refused_in_a_linked_task_worktree(self) -> None:
+        linked = self.task.parent / "contribution-linked"
+        self.git(self.task, "worktree", "add", "-q", "--detach", str(linked), "HEAD")
+        with self.assertRaisesRegex(SystemExit, "--contribution-base is refused.*linked task worktree"):
+            select_checks.require_disposable_checkout(linked, "--contribution-base")
+
+    def test_uncommitted_task_content_is_refused_naming_the_paths(self) -> None:
+        select_checks.require_committed_task_content(self.task, lambda canonical, raw: False)  # a clean tree passes
+        (self.task / "edited.txt").write_text("not committed\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "before any expensive command started.*edited.txt"):
+            select_checks.require_committed_task_content(self.task, lambda canonical, raw: False)
+        select_checks.require_committed_task_content(self.task, lambda canonical, raw: raw == "edited.txt")
+
+    def test_early_routing_gate_stops_before_the_machine_pool(self) -> None:
+        import run_test_groups
+
+        checks = [{"id": "c", "commands": ["python3 scripts/run_test_groups.py --all"]}]
+        with mock.patch.object(run_test_groups, "require_early_routing_gate", side_effect=run_test_groups.TestGroupError("diverged")), \
+                mock.patch.object(select_checks.machine_pool, "lease") as lease, redirect_stderr(StringIO()) as err:
+            code = select_checks.execute(self.task, checks)
+        self.assertEqual(code, 2)
+        self.assertIn("Early routing gate blocked validation before any command started: diverged", err.getvalue())
+        lease.assert_not_called()
     def test_disposable_checkout_requirement_refuses_managed_task_state_and_allows_a_plain_clone(self) -> None:
-        select_checks.require_disposable_checkout(self.task)  # a plain clone is allowed
+        select_checks.require_disposable_checkout(self.task, "--scope-gate not-applicable")  # a plain clone is allowed
         (self.task / ".managed-task-state.json").write_text("{}", encoding="utf-8")
         with self.assertRaisesRegex(SystemExit, "--scope-gate not-applicable is refused.*holds managed task state"):
-            select_checks.require_disposable_checkout(self.task)
+            select_checks.require_disposable_checkout(self.task, "--scope-gate not-applicable")
 
     def test_scope_gate_capability_is_required_to_be_a_boolean(self) -> None:
         self.commit(self.task, "task.txt", "task\n")

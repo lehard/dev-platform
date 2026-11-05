@@ -1592,6 +1592,17 @@ A quick task's selected-check evidence SHALL be recorded machine-locally in its 
 - **THEN** it is recorded in the worktree's git directory and never in the tree
 - **AND** it carries a quick-task content proof of its own diff from the merge base with the remote main excluding declared generated files
 
+### Requirement: Evidence-producing checks refuse uncommitted task content
+
+An evidence-producing `select_checks.py --execute` (a managed run with `--evidence`, or a quick run with `--task-evidence`) SHALL refuse before the affected-test precheck and before any selected command starts when the checkout holds uncommitted task content, naming the paths. Lifecycle receipts excluded from the managed task-content proof SHALL NOT count as task content.
+
+#### Scenario: Checks start before the implementation commit
+
+- **GIVEN** a task with a modified or new file that is not committed
+- **WHEN** an evidence-producing selected-check run starts
+- **THEN** it exits non-zero before any selected command starts
+- **AND** the message names the uncommitted paths
+
 ### Requirement: Finish requests quick task check evidence
 
 Finish SHALL request quick-task selected-check evidence when it runs a quick task's checks, and an absent quick-task evidence record SHALL be a named reason to run the checks.
