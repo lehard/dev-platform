@@ -1,3 +1,7 @@
+## Purpose
+
+Prove the lifecycle on real GitHub in a private sandbox running the real queue at an exact platform head, isolated from production resources.
+
 ## ADDED Requirements
 
 ### Requirement: Sandbox runs the real queue at an exact platform head
