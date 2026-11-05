@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "17574023e44f0f20ebe517048c183c9ad181a7b9",
+    "diff_sha256": "940e9b94f524200ab90d689809dcb3a532793267666bfc466b7adabfa5777ce6"
+  },
+  "completed_at": "2026-11-05T00:21:18+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/pr_review_gate.py:690-696 maps RETROSPECTIVE_REFRESH to \"terminal-reconciliation\" and calls winning_claim with a job that has no `refresh`. job_id() now appends `:f<key>` (lifecycle_workers.py job_id). So an unexpired claim on the keyed terminal job is not detected, and the operator can re-offer while a worker still holds it. The same missing key at pr_review_gate.py:724-728 makes the last-outcome lookup return \"unknown\" instead of the stale-block receipt. Nothing in the tests exercises reoffer-post-merge with post_merge_exhausted == RETROSPECTIVE_REFRESH.",
+      "id": "reoffer-plan-ignores-refresh-key",
+      "severity": "advisory",
+      "summary": "For the exhausted refresh state, the re-offer plan and the permitted-actions text build their job ids without the `refresh` key. The live jobs they should match carry `:f<key>`."
+    },
+    {
+      "evidence": "template/scripts/candidate_lifecycle.py:238 `if len(keys) > MAX_RETROSPECTIVE_REFRESHES * (seq + 1)`. design.md:85 says \"Refreshes per candidate are limited by MAX_RETROSPECTIVE_REFRESHES\". The post_merge_progress docstring says \"per re-offer sequence\". Because exhaustion triggers at 4 keys, re-offered budgets are consistent only by coincidence of the arithmetic. The wording of the three artifacts should be aligned, and the re-offer interaction needs a test; none exists.",
+      "id": "refresh-bound-counts-keys-cumulatively",
+      "severity": "advisory",
+      "summary": "The refresh bound compares the cumulative number of keys with MAX_RETROSPECTIVE_REFRESHES*(seq+1). Each operator re-offer therefore grants a fixed three more refreshes, but only if the keys already used did not exceed the earlier budget. The design says \"per candidate\", the docs and spec say \"up to three times\", and the code docstring says \"per re-offer sequence\"."
+    }
+  ],
+  "launched_at": "2026-11-05T00:20:42+00:00",
+  "output_sha256": "f49fb1329e48400faf19ce7de8cde7e1aafd994b7cc7e3137582eb4cab4b9ea1",
+  "perspective": "engineering-quality",
+  "request_id": "59fbdcc1-4606-441c-acf2-e10a294de81e",
+  "reviewer": {
+    "context_id": "a8e00f66-7807-46e4-aa75-592697b947ef",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-c83deb4a-faea-4401-b340-5cda6e5e0c73",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32300
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 142200
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35215
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 35657
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 12
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3600
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46"
+}

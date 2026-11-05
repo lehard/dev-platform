@@ -679,7 +679,7 @@ def post_merge_reoffer_plan(candidate: dict, comments: list[dict], *, number: in
     merged, one post-merge obligation spent its attempts under the current re-offer sequence, and no
     unexpired claim holds one of those attempts.
     """
-    from candidate_lifecycle import MAX_POST_MERGE_ATTEMPTS, post_merge_reoffer_seq
+    from candidate_lifecycle import MAX_POST_MERGE_ATTEMPTS, RETROSPECTIVE_REFRESH, post_merge_reoffer_seq
     from lifecycle_workers import winning_claim
 
     if candidate.get("state") != "merged":
@@ -687,6 +687,8 @@ def post_merge_reoffer_plan(candidate: dict, comments: list[dict], *, number: in
     kind = candidate.get("post_merge_exhausted")
     if not kind:
         raise ReofferRefused(f"PR #{number} has no exhausted post-merge obligation; nothing to re-offer")
+    if kind == RETROSPECTIVE_REFRESH:
+        kind = "terminal-reconciliation"  # a re-offer gives the refresh chain a new bound through its terminal job
     seq = post_merge_reoffer_seq(candidate)
     for attempt in range(MAX_POST_MERGE_ATTEMPTS):
         job = {"number": number, "kind": kind, "head": candidate["head"], "attempt": attempt,

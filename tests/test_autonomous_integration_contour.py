@@ -1031,8 +1031,8 @@ def record(state, *, attempts=None, head=HEAD, identity=None, number=7):
     return {"id": 1, "author_association": "OWNER", "body": body}
 
 
-def receipt(job_kind, attempt, outcome, row_id, head=HEAD, number=7):
-    job = {"number": number, "kind": job_kind, "head": head, "attempt": attempt}
+def receipt(job_kind, attempt, outcome, row_id, head=HEAD, number=7, refresh=None):
+    job = {"number": number, "kind": job_kind, "head": head, "attempt": attempt, **({"refresh": refresh} if refresh else {})}
     return {"id": row_id, "author_association": "OWNER", "body": workers.result_body(job, "w", outcome)}
 
 
@@ -1049,6 +1049,69 @@ class PostMergeDerivationTests(unittest.TestCase):
         self.assertEqual(self.derive(*rows)["next_job"]["kind"], "cleanup")
         rows.append(receipt("cleanup", 0, "cleaned", 4))
         self.assertIsNone(self.derive(*rows)["next_job"])
+
+    def stale(self, attempt, row_id, key, refresh=None):
+        return receipt("terminal-reconciliation", attempt, f"blocked: retrospective-stale {key}: later friction e1",
+                       row_id, refresh=refresh)
+
+    def test_later_friction_offers_keyed_retrospective_then_terminal_then_cleanup(self):
+        key = "a" * 16
+        rows = [receipt("retrospective", 0, "task-recorded", 2), self.stale(0, 3, key)]
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual((job["kind"], job["attempt"], job["refresh"]), ("retrospective", 0, key))
+        self.assertIn(f":f{key}", workers.job_id({**job, "number": 7}))
+        rows.append(receipt("retrospective", 0, "task-and-requirement-recorded", 4, refresh=key))
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual((job["kind"], job["attempt"], job["refresh"]), ("terminal-reconciliation", 0, key))
+        rows.append(receipt("terminal-reconciliation", 0, "merged-and-reconciled", 5, refresh=key))
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual(job["kind"], "cleanup")
+        self.assertNotIn("refresh", job)
+
+    def test_newer_friction_during_the_refresh_gets_a_new_key(self):
+        first, second = "a" * 16, "b" * 16
+        rows = [receipt("retrospective", 0, "task-recorded", 2), self.stale(0, 3, first),
+                receipt("retrospective", 0, "task-and-requirement-recorded", 4, refresh=first),
+                self.stale(0, 5, second, refresh=first)]
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual((job["kind"], job["refresh"]), ("retrospective", second))
+
+    def test_the_same_event_set_is_refreshed_once_and_stays_in_its_attempts(self):
+        key = "a" * 16
+        rows = [receipt("retrospective", 0, "task-recorded", 2), self.stale(0, 3, key),
+                receipt("retrospective", 0, "task-and-requirement-recorded", 4, refresh=key),
+                self.stale(0, 5, key, refresh=key)]
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual((job["kind"], job["attempt"], job["refresh"]), ("terminal-reconciliation", 1, key))
+
+    def test_a_receipt_of_an_earlier_key_does_not_satisfy_the_current_one(self):
+        first, second = "a" * 16, "b" * 16
+        rows = [receipt("retrospective", 0, "task-recorded", 2), self.stale(0, 3, first),
+                receipt("retrospective", 0, "task-and-requirement-recorded", 4, refresh=first),
+                self.stale(0, 5, second, refresh=first),
+                receipt("terminal-reconciliation", 1, "merged-and-reconciled", 6, refresh=first)]
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual((job["kind"], job["refresh"]), ("retrospective", second))
+
+    def test_the_refresh_bound_offers_nothing_and_reports_the_reason(self):
+        keys = [str(index) * 16 for index in range(lifecycle.MAX_RETROSPECTIVE_REFRESHES + 1)]
+        rows, row_id, previous = [receipt("retrospective", 0, "task-recorded", 2)], 3, None
+        for key in keys:
+            rows.append(self.stale(0, row_id, key, refresh=previous))
+            rows.append(receipt("retrospective", 0, "task-and-requirement-recorded", row_id + 1, refresh=key))
+            row_id, previous = row_id + 2, key
+        exhausted = self.derive(*rows)
+        self.assertIsNone(exhausted["next_job"])
+        self.assertEqual(exhausted["post_merge_exhausted"], lifecycle.RETROSPECTIVE_REFRESH)
+        self.assertIn("friction kept arriving", exhausted["reason"])
+        self.assertIn("reoffer-post-merge", exhausted["reason"])
+
+    def test_another_terminal_block_offers_no_refresh(self):
+        rows = [receipt("retrospective", 0, "task-recorded", 2),
+                receipt("terminal-reconciliation", 0, "blocked: child still open", 3)]
+        job = self.derive(*rows)["next_job"]
+        self.assertEqual((job["kind"], job["attempt"]), ("terminal-reconciliation", 1))
+        self.assertNotIn("refresh", job)
 
     def test_candidate_not_merged_by_this_contour_offers_nothing(self):
         self.assertIsNone(self.derive(flagged=False)["next_job"])
@@ -1264,6 +1327,30 @@ class FreshFirstSelectionTests(unittest.TestCase):
 
 class CompositionPostMergeRetrospectiveTests(unittest.TestCase):
     """BR-950: the merged composition's post-merge retrospective job is the only Requirement checkpoint."""
+
+    def test_composition_terminal_blocked_by_later_friction_records_a_keyed_receipt(self):
+        import requirement_composition
+        from requirement_retrospective import RetrospectiveStale
+
+        identity = {"kind": "requirement-composition", "requirement": "pln_x", "task_content": {"digest": "d"},
+                    "children": [{"change": "first"}]}
+        job = {"kind": "terminal-reconciliation", "number": 11, "head": HEAD, "task_identity": identity, "attempt": 0}
+        candidate = {"number": 11, "head": HEAD, "state": "merged", "task_identity": identity}
+        stale = RetrospectiveStale("not linked", ["e2", "e1"])
+        posted = []
+        with mock.patch.object(workers, "build_job", return_value=job), \
+                mock.patch.object(workers, "prepare_checkout", return_value=Path("/c")), \
+                mock.patch.object(requirement_composition, "candidate_manifest", return_value={"children": []}), \
+                mock.patch.object(requirement_composition, "reconcile_composition", side_effect=stale), \
+                mock.patch("_platform_common.read_platform_config", return_value={}):
+            result = contour.run_claimed_post_merge(Path("/root"), "o/r", candidate, job, branch="requirement/BR-7",
+                                                    post_result=posted.append, ops=mock.Mock(), worker="w",
+                                                    claim_current=lambda: True)
+        self.assertEqual(result["status"], "blocked")
+        self.assertEqual(result["outcome"], f"blocked: retrospective-stale {stale.key}: later friction e1, e2")
+        self.assertEqual(lifecycle.STALE_RETROSPECTIVE.match(result["outcome"]).group(1), stale.key)
+        self.assertEqual(stale.key, RetrospectiveStale("x", ["e1", "e2"]).key)
+        self.assertNotEqual(stale.key, RetrospectiveStale("x", ["e1", "e3"]).key)
 
     def test_composition_retrospective_records_the_requirement_checkpoint_after_every_child(self):
         identity = {"kind": "requirement-composition", "requirement": "pln_x", "task_content": {"digest": "d"},
