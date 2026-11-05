@@ -504,7 +504,11 @@ class Scenario:
         return self.wait(lambda: self.queue_state(number), done, limit)
 
     def expect_merged(self, branch: str, limit: int = 1200) -> dict[str, Any]:
-        final = self.wait(lambda: self.pr_state(branch), lambda pr: pr.get("state") == "MERGED", limit)
+        def done(pr: dict[str, Any]) -> bool:
+            if "lifecycle:blocked-escalation" in {label["name"] for label in pr.get("labels", [])}:
+                raise self.fail(f"escalated: {str(self.queue_state(pr['number']).get('red_gate'))[:800]}")
+            return pr.get("state") == "MERGED"
+        final = self.wait(lambda: self.pr_state(branch), done, limit)
         merger = (final.get("mergedBy") or {}).get("login", "")
         if self.sandbox.config.coordinator_app not in merger:
             raise self.fail(f"merged by {merger!r}, not the coordinator App")
@@ -532,34 +536,75 @@ class Scenario:
         return prs[0] if prs else {}
 
 
-def scenario_quick_task(scenario: Scenario) -> None:
-    sandbox = scenario.sandbox
-    slug = f"quick-{uuid.uuid4().hex[:8]}"
-    scenario.step("start")
-    output = scenario.platform("dogfood_task.py", "start", slug, "--task", "Live scenario quick task")
-    worktree = sandbox.checkout / ".claude" / "worktrees" / slug
+def quick_change(scenario: Scenario, slug: str, edits: dict[str, str]) -> tuple[Path, str]:
+    """Start a quick task and commit ``edits`` through the developer entrypoints, up to the friction checkpoint."""
+    output = scenario.platform("dogfood_task.py", "start", slug, "--task", f"Live scenario {slug}")
+    worktree = scenario.sandbox.checkout / ".claude" / "worktrees" / slug
     if not worktree.is_dir():
         raise scenario.fail(f"no task worktree after start: {output[-500:]}")
-    scenario.step("change")
-    (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
+    for relative, content in edits.items():
+        (worktree / relative).write_text(content, encoding="utf-8")
     run(["git", "add", "-A"], worktree)
-    run(["git", "commit", "-q", "-m", f"Add {slug}"], worktree)
-    scenario.step("friction checkpoint")
+    run(["git", "commit", "-q", "-m", f"Change {slug}"], worktree)
     scenario.platform("agent_friction.py", "checkpoint", "--result", "none", "--review-note", "Live scenario", cwd=worktree)
+    return worktree, run(["git", "branch", "--show-current"], worktree).strip()
+
+
+def scenario_quick_task(scenario: Scenario) -> None:
+    slug = f"quick-{uuid.uuid4().hex[:8]}"
+    scenario.step("start, change and friction checkpoint")
+    worktree, branch = quick_change(scenario, slug, {f"fixture/{slug}.txt": slug + "\n"})
     scenario.step("finish")
-    branch = run(["git", "branch", "--show-current"], worktree).strip()
     scenario.finish_until_queued(worktree, f"Quick {slug}")
     scenario.step("queue merges")
-    final = scenario.wait(lambda: scenario.pr_state(branch), lambda pr: pr.get("state") == "MERGED", 900)
+    scenario.expect_merged(branch, 900)
     scenario.step("finish after merge")
     scenario.platform("dogfood_task.py", "finish", cwd=worktree)
     scenario.step("final state")
-    merger = (final.get("mergedBy") or {}).get("login", "")
-    if sandbox.config.coordinator_app not in merger:
-        raise scenario.fail(f"merged by {merger!r}, not the coordinator App")
-    content = gh_json(["api", f"repos/{sandbox.config.repository}/contents/fixture/{slug}.txt?ref=main"], SOURCE_ROOT)
-    if not content.get("sha"):
-        raise scenario.fail("the change is not on main")
+    scenario.expect_on_main(f"fixture/{slug}.txt", slug)
+
+
+def scenario_red_ci(scenario: Scenario) -> None:
+    """Required CI fails on the admitted head; the queue's own exit brings the candidate to MERGED."""
+    slug = f"red-{uuid.uuid4().hex[:8]}"
+    scenario.step("start, change and friction checkpoint")
+    worktree, branch = quick_change(scenario, slug, {f"fixture/{slug}.txt": slug + "\n", "fixture/ci-verdict.txt": "red\n"})
+    scenario.step("finish")
+    scenario.finish_until_queued(worktree, f"Red {slug}")
+    number = scenario.pr_state(branch)["number"]
+    scenario.step("queue offers repair of the red check")
+    scenario.wait_queue(number, {"integration-repair-pending"}, 600)
+    scenario.step("integration repair")
+    scenario.repair_worker("integration-repair", number, {"fixture/ci-verdict.txt": "green\n"}, ["fixture"])
+    scenario.step("queue merges")
+    scenario.expect_merged(branch, 900)
+    scenario.step("final state")
+    scenario.expect_on_main("fixture/ci-verdict.txt", "green")
+    scenario.expect_on_main(f"fixture/{slug}.txt", slug)
+
+
+def scenario_conflict(scenario: Scenario) -> None:
+    """Two admitted candidates change one line; the queue merges one and offers integration repair for the other."""
+    token = uuid.uuid4().hex[:8]
+    first, second = f"conflict-a-{token}", f"conflict-b-{token}"
+    scenario.step("two conflicting changes")
+    tasks = {slug: quick_change(scenario, slug, {"fixture/shared.txt": slug + "\n"}) for slug in (first, second)}
+    scenario.step("finish both")
+    for slug, (worktree, _) in tasks.items():
+        scenario.finish_until_queued(worktree, f"Conflict {slug}")
+    branches = [branch for _, branch in tasks.values()]
+    scenario.step("queue merges one and offers integration repair")
+    states = scenario.wait(lambda: [scenario.pr_state(branch) for branch in branches],
+                           lambda prs: any(pr.get("state") == "MERGED" for pr in prs), 900)
+    loser = next(pr for pr in states if pr.get("state") != "MERGED")
+    scenario.wait_queue(loser["number"], {"integration-repair-pending"}, 600)
+    scenario.step("integration repair")
+    resolved = f"{first}\n{second}\n"
+    scenario.repair_worker("integration-repair", loser["number"], {"fixture/shared.txt": resolved}, ["fixture"])
+    scenario.step("queue merges the repaired head")
+    scenario.expect_merged(branches[states.index(loser)], 900)
+    scenario.step("final state")
+    scenario.expect_on_main("fixture/shared.txt", resolved)
 
 
 def scenario_managed_task(scenario: Scenario) -> None:
@@ -582,7 +627,10 @@ def scenario_managed_task(scenario: Scenario) -> None:
     scenario.expect_on_main(f"fixture/{slug}.txt", slug)
 
 
-SCENARIOS: dict[str, Callable[[Scenario], None]] = {"quick-task": scenario_quick_task, "managed-task": scenario_managed_task}
+SCENARIOS: dict[str, Callable[[Scenario], None]] = {
+    "quick-task": scenario_quick_task, "managed-task": scenario_managed_task,
+    "red-ci": scenario_red_ci, "conflict": scenario_conflict,
+}
 
 
 def resolve_head(value: str) -> str:

@@ -1,6 +1,6 @@
 ## Purpose
 
-Prove the managed path.
+Keep one fixture note so a live scenario proves the managed lifecycle path on real GitHub.
 
 ## ADDED Requirements
 
