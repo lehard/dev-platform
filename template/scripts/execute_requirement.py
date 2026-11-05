@@ -979,8 +979,22 @@ def main(argv: list[str] | None = None) -> int:
     repair.add_argument("--pr", type=int, required=True)
     repair.add_argument("--expected-head", required=True)
     repair.add_argument("--reason", required=True)
+    absorb = commands.add_parser("absorb-main", help="merge current main into the requirement branch by fast-forward push")
+    absorb.add_argument("--requirement", required=True)
     args = parser.parse_args(argv)
     integration = current_worktree_root().resolve()
+    if args.command == "absorb-main":
+        import publication_queue
+        from requirement_contributions import ContributionError, absorb_main
+        import lifecycle_workers
+
+        try:
+            result = absorb_main(integration, managed_task.origin_repository(integration), args.requirement)
+        except (ContributionError, publication_queue.QueueError, lifecycle_workers.WorkerError) as exc:
+            print(json.dumps({"status": "blocked", "requirement": args.requirement, "reason": str(exc)}, ensure_ascii=False))
+            return 2
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
     if args.command == "repair":
         import publication_queue
         from requirement_composition import request_repair

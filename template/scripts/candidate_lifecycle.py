@@ -538,6 +538,8 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
                         if receipt["task_identity"].get("kind") == "requirement-composition":
                             result["state"] = "blocked-retryable"
                             result["gates"].pop("full-checks", None)
+                        elif receipt["task_identity"].get("kind") == "contribution":
+                            result["state"] = "contribution-integration-pending"
                         break
                 if kind == "finalize":
                     # The harness pushed the archive of this exact task content: it is ready,

@@ -172,17 +172,17 @@ class TaskBaseTests(unittest.TestCase):
             return preflight.check_task_base(context(Path("."), **overrides))
 
     def test_behind_mergeable_passes_like_the_gate(self) -> None:
-        self.assertEqual(preflight.PASSED, self.check(task_reconciliation.Freshness("behind-mergeable", "abc", merge_base="def")).state)
+        self.assertEqual(preflight.PASSED, self.check(task_reconciliation.Freshness("behind-mergeable", "abc", "main", merge_base="def")).state)
 
     def test_a_conflict_with_main_is_refused_with_the_files_and_the_reconcile_command(self) -> None:
-        freshness = task_reconciliation.Freshness("diverged", "abc", detail="a trial merge conflicts in a.py, b.py")
+        freshness = task_reconciliation.Freshness("diverged", "abc", "main", detail="a trial merge conflicts in a.py, b.py")
         with self.assertRaises(preflight.PreflightRefusal) as refused:
             self.check(freshness)
         self.assertIn("a.py, b.py", str(refused.exception))
         self.assertIn(RECONCILE_COMMAND, str(refused.exception))
 
     def test_a_waiver_is_reported_not_silently_skipped(self) -> None:
-        result = self.check(task_reconciliation.Freshness("diverged", "abc"), task_base_waiver="declared")
+        result = self.check(task_reconciliation.Freshness("diverged", "abc", "main"), task_base_waiver="declared")
         self.assertEqual((preflight.NOT_APPLICABLE, "declared"), (result.state, result.detail))
 
 

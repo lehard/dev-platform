@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "9756bb48f105c58e8906b1c07c28cf6a9555c88d",
+    "base_ref": "9756bb48f105c58e8906b1c07c28cf6a9555c88d",
+    "candidate_head": "7e61615cd0f74db2c00ea330710965de678a4875",
+    "diff_sha256": "dd3780ab7f516d49b2e3e3dda513997507cc0476c874382a42722df9a9212d8a"
+  },
+  "completed_at": "2026-11-05T01:32:41+00:00",
+  "findings": [
+    {
+      "evidence": "proposal.md Impact lists `scripts/dogfood_task.py`, and tasks.md 3.1 lists `dogfood_task.py` among the freshness and reconcile changes. The diff contains no change under scripts/. The freshness work landed in template/scripts/task_reconciliation.py and finish_task.py. If dogfood_task.py only delegates to those, the artifact lists are inaccurate. If it carries its own main-based freshness, that path is not covered.",
+      "id": "impact-lists-unchanged-dogfood-task",
+      "severity": "advisory",
+      "summary": "proposal.md and tasks.md 3.1 name scripts/dogfood_task.py as changed, but the candidate diff does not touch it."
+    },
+    {
+      "evidence": "completion-lifecycle/spec.md requires composition to recompute each child's identity from its recorded base and exact head. design.md says 'Identity checks keep using the child's recorded base'. The diff has no change to requirement_composition.py. The visible tests cover only integration_contour, post_review_finalization and the pre-merge hook. I saw no test of composition after a moved base, but I did not read the last ~440 lines of the diff, which may contain one.",
+      "id": "composition-base-move-no-code-change",
+      "severity": "advisory",
+      "summary": "The completion-lifecycle scenarios 'Composition after a base move' and 'Identity differs' rest on existing composition code. The diff shows no composition code change and no composition test for them."
+    }
+  ],
+  "launched_at": "2026-11-05T01:32:18+00:00",
+  "output_sha256": "a8f7c466a87b512b3c2a073499b2eee9869a5fea730303e59a7350d6ce156c94",
+  "perspective": "spec-fidelity",
+  "request_id": "dbd5dfec-f9ab-4b68-a19b-32d7cd21e0fa",
+  "reviewer": {
+    "context_id": "b3f42367-c616-49e2-a47a-367259c706f3",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-e7d444d4-ca7b-458a-96b3-21a3f0f3ab4a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 47884
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 150162
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21933
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 22442
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2165
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "ad19fa77043e64c6446026f3b7553ace133424d01ff30992cc0ae1650028b26b"
+}

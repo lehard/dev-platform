@@ -79,6 +79,113 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(git("merge-base", "--is-ancestor", task_head, "HEAD", cwd=self.task).returncode, 0)
         self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", "HEAD", cwd=self.task).returncode, 0)
 
+    def contribution(self) -> tuple[str, managed_task.CanonicalProvenance]:
+        """A contribution of the task worktree, based on the published requirement branch."""
+        (self.task / "dev-platform").mkdir()
+        (self.task / "dev-platform" / "checks.toml").write_text("", encoding="utf-8")
+        git("add", "dev-platform", cwd=self.task); git("commit", "-m", "declare checks", cwd=self.task)
+        base = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        git("push", "origin", f"{base}:refs/heads/requirement/BR-7", f"{base}:refs/heads/main", cwd=self.task)
+        git("fetch", "origin", cwd=self.task)
+        context = self.task / ".claude" / "requirement-child-context" / "demo.json"
+        context.parent.mkdir(parents=True)
+        context.write_text(json.dumps({"contribution": {
+            "requirement": "owner/backlog#7", "branch": "origin/requirement/BR-7", "dependencies": [],
+            "head": base, "target_branch": "requirement/BR-7"}}), encoding="utf-8")
+        (self.task / ".git" / "info" / "exclude").write_text(".claude/\n", encoding="utf-8")
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        return base, managed_task.CanonicalProvenance("owner/backlog#8", "demo", self.task / "openspec/changes/demo", "active")
+
+    def advance_target(self, filename: str, content: str) -> str:
+        other = self.base / "target"
+        if not other.exists():
+            run("git", "clone", str(self.remote), str(other), cwd=self.base); configure(other)
+            git("switch", "requirement/BR-7", cwd=other)
+        (other / filename).write_text(content, encoding="utf-8")
+        git("add", filename, cwd=other); git("commit", "-m", "advance target", cwd=other); git("push", cwd=other)
+        return git("rev-parse", "HEAD", cwd=other).stdout.strip()
+
+    def test_contribution_is_fresh_against_its_target_while_main_moves(self) -> None:
+        _, provenance = self.contribution()
+        self.advance_main()
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
+            payload = task_reconciliation.status_payload(self.task)
+        self.assertEqual(payload["task_freshness"], "ahead")
+        self.assertEqual(payload["freshness_target"], "requirement/BR-7")
+        self.assertFalse(payload["reconcile_required"])
+
+    def test_contribution_conflicting_with_its_target_requires_reconcile_naming_both(self) -> None:
+        _, provenance = self.contribution()
+        self.advance_target("task.txt", "sibling\n")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
+            payload = task_reconciliation.status_payload(self.task)
+        self.assertTrue(payload["reconcile_required"])
+        self.assertEqual(payload["freshness_target"], "requirement/BR-7")
+        self.assertIn("task.txt", payload["freshness_detail"])
+        self.assertIn("origin/requirement/BR-7", payload["freshness_detail"])
+
+    def test_contribution_behind_a_mergeable_target_needs_no_reconcile(self) -> None:
+        _, provenance = self.contribution()
+        self.advance_target("sibling.txt", "sibling\n")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
+            payload = task_reconciliation.status_payload(self.task)
+        self.assertEqual(payload["task_freshness"], "behind-mergeable")
+        self.assertFalse(payload["reconcile_required"])
+
+    def test_reconcile_merges_the_target_and_moves_the_contribution_base(self) -> None:
+        base, provenance = self.contribution()
+        target = self.advance_target("sibling.txt", "sibling\n")
+        self.advance_main("main-only.txt")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "require_committed_evidence_current"):
+            self.reconcile()
+        self.assertEqual(git("merge-base", "--is-ancestor", target, "HEAD", cwd=self.task).returncode, 0)
+        self.assertFalse((self.task / "main-only.txt").exists())
+        context = json.loads((self.task / ".claude/requirement-child-context/demo.json").read_text(encoding="utf-8"))
+        self.assertEqual(context["contribution"]["head"], target)
+        self.assertNotEqual(context["contribution"]["head"], base)
+        from task_content_identity import review_content_identity
+        self.assertEqual(sorted(review_content_identity(self.task, "demo", target)["paths"]), ["task.txt"])
+
+    def test_conflicted_reconcile_moves_the_base_after_the_developers_merge(self) -> None:
+        base, provenance = self.contribution()
+        target = self.advance_target("task.txt", "sibling\n")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "resolve_canonical_provenance", return_value=provenance), \
+             mock.patch.object(task_reconciliation, "require_committed_evidence_current"):
+            with self.assertRaisesRegex(SystemExit, "merge conflicts.*task.txt"):
+                self.reconcile()
+            context = self.task / ".claude/requirement-child-context/demo.json"
+            self.assertEqual(json.loads(context.read_text(encoding="utf-8"))["contribution"]["head"], base)
+            (self.task / "task.txt").write_text("both\n", encoding="utf-8")
+            git("add", "task.txt", cwd=self.task); git("commit", "--no-edit", cwd=self.task)
+            self.reconcile()
+        self.assertEqual(json.loads(context.read_text(encoding="utf-8"))["contribution"]["head"], target)
+
+    def test_unreadable_target_refuses_naming_the_branch(self) -> None:
+        _, provenance = self.contribution()
+        git("push", "origin", "--delete", "requirement/BR-7", cwd=self.task)
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(task_reconciliation.TaskFreshnessError, "requirement/BR-7"):
+            task_reconciliation.status_payload(self.task)
+
+    def test_main_target_task_keeps_the_main_rule(self) -> None:
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=None):
+            self.assertEqual(task_reconciliation.freshness_branch(self.task), "main")
+
+    def test_contribution_context_without_a_target_refuses(self) -> None:
+        _, provenance = self.contribution()
+        path = self.task / ".claude/requirement-child-context/demo.json"
+        path.write_text(json.dumps({"contribution": {"head": "a" * 40}}), encoding="utf-8")
+        with mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
+             self.assertRaisesRegex(task_reconciliation.TaskFreshnessError, "no contribution target branch"):
+            task_reconciliation.freshness_branch(self.task)
+
     def archived_change_with_evidence(self) -> managed_task.CanonicalProvenance:
         """An archived managed change whose committed evidence proves the current task content."""
         from task_content_identity import review_content_identity

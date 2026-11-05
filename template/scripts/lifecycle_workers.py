@@ -1567,7 +1567,7 @@ def main(argv: list[str] | None = None) -> int:
                             post_result=lambda body: post_comment(job["number"], body),
                             workdir=workdir, worker=args.worker)
                     elif job["kind"] == "contribution-integration":
-                        from requirement_contributions import merge_reviewed_contribution
+                        from requirement_contributions import RequiredChecksWait, merge_reviewed_contribution
                         import publication_queue
 
                         candidate = publication_queue.candidate_status(Path.cwd(), job["number"], repo=repo)
@@ -1578,9 +1578,13 @@ def main(argv: list[str] | None = None) -> int:
                                          trusted_writers=publication_queue.trusted_writers(
                                              Path.cwd(), comments, (CLAIM_PREFIX,), repo=repo))
 
-                        outcome = merge_reviewed_contribution(Path.cwd(), repo, candidate,
-                                                              source_repo=args.source, expected_target_head=job["target_head"],
-                                                              claim_current=contribution_claim_current)
+                        try:
+                            outcome = merge_reviewed_contribution(Path.cwd(), repo, candidate,
+                                                                  source_repo=args.source, expected_target_head=job["target_head"],
+                                                                  claim_current=contribution_claim_current)
+                        except RequiredChecksWait as wait:
+                            # A wait is no failed run: the queue integrates the head once its checks pass.
+                            outcome = {"state": "waiting-required-checks", "reason": str(wait)}
                         post_comment(job["number"], result_body(job, args.worker, outcome["state"]))
                     elif job["kind"] in {"integration-repair", MERGE_ONLY_KIND}:
                         from integration_contour import run_claimed_integration_repair

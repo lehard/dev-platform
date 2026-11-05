@@ -118,9 +118,9 @@ def check_task_base(ctx: PreflightContext) -> ConditionResult:
     if freshness.reconcile_required:
         detail = f" ({freshness.detail})" if freshness.detail else ""
         raise PreflightRefusal(
-            f"{ctx.branch} is {freshness.state} relative to freshly observed main{detail}. Reconcile: {RECONCILE_COMMAND}"
+            f"{ctx.branch} is {freshness.state} relative to freshly observed {freshness.target}{detail}. Reconcile: {RECONCILE_COMMAND}"
         )
-    return ConditionResult(PASSED, f"task is {freshness.state} relative to main ({freshness.authoritative_sha})")
+    return ConditionResult(PASSED, f"task is {freshness.state} relative to {freshness.target} ({freshness.authoritative_sha})")
 
 
 def check_task_evidence(ctx: PreflightContext) -> ConditionResult:

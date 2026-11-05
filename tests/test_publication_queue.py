@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import io
@@ -110,6 +111,27 @@ class AdmissionTests(unittest.TestCase):
             self.assertEqual([e["kind"] for e in events], ["admit", "block", "admit"])
             self.assertEqual(self.transition.call_args.args[3], "review-pending")
             offer.assert_called_once()
+
+    def test_refused_base_move_writes_nothing_on_the_semantic_stop_path(self):
+        old = {"kind": "contribution", "change": "first", "requirement": "owner/backlog#7",
+               "source_issue": "owner/backlog#8", "target_branch": "requirement/BR-7",
+               "contribution_base": BASE, "task_content": {"digest": "old"}}
+        identity = {**old, "contribution_base": "d" * 40, "task_content": {"digest": "repaired"}}
+        handoff = {"task_identity": identity, "gates": {g: {"result": "passed", "identity": identity,
+                   "evidence": {"receipt": "fresh"}} for g in ("developer-friction", "selected-checks", "semantic-verification")}}
+        handoff["gates"]["developer-friction"]["evidence"]["head"] = NEW_HEAD
+        prior = {"head": HEAD, "state": "blocked-retryable", "task_identity": old,
+                 "red_gate": {"name": "semantic-verification", "identity": old}}
+        observed = pr(1, NEW_HEAD); observed["base"]["ref"] = "requirement/BR-7"
+        with patch.object(queue, "_repo", return_value=REPO), patch.object(queue, "_pr", return_value=observed), \
+             patch.object(queue, "_events", return_value=[admission(1, 17)]), patch.object(queue, "_comment") as comment, \
+             patch.object(queue, "_latest", return_value=prior), patch.object(queue, "_derive", return_value={}), \
+             patch.object(queue, "_ensure_labels"), patch.object(queue, "_label") as label, \
+             patch.object(queue, "_require_contribution_base_move", side_effect=queue.QueueError("reconcile")):
+            with self.assertRaisesRegex(queue.QueueError, "reconcile"):
+                queue.admit(ROOT_PATH, 1, NEW_HEAD, handoff=handoff)
+        comment.assert_not_called()
+        label.assert_not_called()
 
     def test_historical_pr_inventory_does_not_consume_queued_bound(self):
         history = [{"number": n, "labels": [], "state": "closed"} for n in range(150)]
@@ -268,6 +290,41 @@ class AdmissionTests(unittest.TestCase):
              patch.object(queue, "_queued", return_value=[]):
             observed = queue.status(ROOT_PATH, 2)
         self.assertEqual((observed["state"], observed["reason"]), ("blocked", "admitted PR lacks queue label"))
+
+
+class ContributionBaseMoveTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        def git(*args):
+            return subprocess.run(["git", *args], cwd=self.root, text=True, capture_output=True, check=True).stdout.strip()
+        git("init", "-qb", "main")
+        git("config", "user.name", "t"); git("config", "user.email", "t@example.test")
+        self.commits = []
+        for name in ("recorded", "moved", "target"):
+            git("commit", "-q", "--allow-empty", "-m", name)
+            self.commits.append(git("rev-parse", "HEAD"))
+        git("checkout", "-qb", "side", self.commits[0])
+        git("commit", "-q", "--allow-empty", "-m", "outside")
+        self.outside = git("rev-parse", "HEAD")
+
+    def move(self, old, new):
+        identity = {"contribution_base": old, "target_branch": "requirement/BR-7"}
+        with patch.object(queue, "branch_head", return_value=self.commits[2]):
+            queue._require_contribution_base_move(self.root, identity, {**identity, "contribution_base": new})
+
+    def test_a_later_target_head_is_accepted(self):
+        self.move(self.commits[0], self.commits[1])
+        self.move(self.commits[0], self.commits[0])
+
+    def test_a_base_outside_the_target_is_refused_naming_both_and_reconcile(self):
+        with self.assertRaisesRegex(queue.QueueError, f"{self.commits[0]} to {self.outside}.*dogfood_task.py reconcile"):
+            self.move(self.commits[0], self.outside)
+
+    def test_an_older_base_is_refused(self):
+        with self.assertRaisesRegex(queue.QueueError, "dogfood_task.py reconcile"):
+            self.move(self.commits[1], self.commits[0])
 
 
 class LocalStatusTests(unittest.TestCase):

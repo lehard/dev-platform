@@ -537,6 +537,72 @@ def resolve_value(checkout: Path) -> None:
 
 
 class IntegrationRepairTests(RepairFixture):
+    def contribution(self):
+        """A gated contribution candidate and the identity of its repaired head on the merged target."""
+        old = {**self.identity, "kind": "contribution", "requirement": "o/backlog#7", "source_issue": "o/backlog#8",
+               "target_branch": "requirement/BR-7", "contribution_base": "d" * 40}
+        gates = {name: {"result": "passed", "identity": old, "evidence": {"head": "a" * 40}}
+                 for name in ("review", "selected-checks", "semantic-verification", "required-checks")}
+        adapter = SimpleNamespace(_transition=mock.Mock(), publish_job=mock.Mock(),
+                                  branch_head=mock.Mock(return_value="e" * 40))
+        return ({"number": 7, "head": "a" * 40, "task_identity": old, "gates": gates},
+                {**old, "contribution_base": "c" * 40}, adapter)
+
+    def test_contribution_target_only_merge_keeps_content_gates_on_the_moved_base(self):
+        candidate, fresh, adapter = self.contribution()
+        with mock.patch.object(contour, "equivalent_proofs", return_value=False), \
+             mock.patch.object(contour, "main_only_reason", return_value=None), \
+             mock.patch.object(contour.review_gate, "reusable", return_value=True):
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, fresh, self.repo.root,
+                                                base="c" * 40, adapter=adapter)
+        self.assertEqual(state, "contribution-integration-pending")
+        kwargs = adapter._transition.call_args.kwargs
+        self.assertEqual(kwargs["task_identity"]["contribution_base"], "c" * 40)
+        self.assertEqual(sorted(kwargs["gates"]), ["review", "selected-checks", "semantic-verification"])
+        self.assertTrue(all(gate["identity"] == fresh for gate in kwargs["gates"].values()))
+        adapter.publish_job.assert_called_once_with(self.repo.root, "o/r", 7, "contribution-integration", "b" * 40,
+                                                    task_identity=fresh, target_head="e" * 40)
+
+    def test_contribution_writer_change_returns_to_review_on_the_moved_base(self):
+        candidate, fresh, adapter = self.contribution()
+        with mock.patch.object(contour, "equivalent_proofs", return_value=False), \
+             mock.patch.object(contour, "main_only_reason", return_value="the writer changed task content"), \
+             mock.patch.object(contour.final, "return_to_review") as review:
+            state = contour.advance_after_repair(self.repo.root, "o/r", candidate, "b" * 40, fresh, self.repo.root,
+                                                base="c" * 40, adapter=adapter)
+        self.assertEqual(state, "review-pending")
+        self.assertEqual(review.call_args.args[5 - 1]["contribution_base"], "c" * 40)
+        adapter._transition.assert_not_called()
+        adapter.publish_job.assert_not_called()
+
+    def test_contribution_repair_binds_the_merged_target_head_as_its_base(self):
+        identity = self.contribution()[0]["task_identity"]
+        observed = {"number": 7, "head": "a" * 40, "task_identity": identity, "state": "integration-repair-pending",
+                    "attempts": {}, "red_gate": {"name": "integration", "evidence": "conflict", "merge_only": True},
+                    "next_job": {"kind": workers.MERGE_ONLY_KIND, "head": "a" * 40, "attempt": 1}}
+        job = workers.build_job(observed)
+        adapter = SimpleNamespace(_derive=mock.Mock(return_value=observed), _pr=mock.Mock(), _comments=mock.Mock(),
+                                  _comment=mock.Mock())
+        seen, posted = [], []
+        def refresh(_harness, bound):
+            seen.append(bound["contribution_base"])
+            return bound
+        def execute(*_args, before_push, **_kwargs):
+            before_push(Path("/harness"), "b" * 40, "c" * 40)
+            return {"status": "pushed", "pushed_head": "b" * 40, "main": "c" * 40}
+        with mock.patch.object(contour, "execute_integration_repair", side_effect=execute), \
+             mock.patch.object(contour.review_gate, "refresh_identity", side_effect=refresh), \
+             mock.patch.object(workers, "checkout_harness"), \
+             mock.patch.object(contour, "advance_after_repair", return_value="contribution-integration-pending") as advance:
+            outcome = contour.run_claimed_integration_repair(
+                self.repo.root, "o/r", observed, job, source_repo="r", branch="b", allowed_paths=[], llm_command=None,
+                current_head=lambda: "b" * 40, post_result=posted.append, workdir=self.tmp.name, worker="w",
+                adapter=adapter, claim_current=lambda: True)
+        self.assertEqual(outcome["state"], "contribution-integration-pending")
+        self.assertEqual(seen, ["c" * 40, "c" * 40])
+        self.assertEqual(advance.call_args.args[4]["contribution_base"], "c" * 40)
+        self.assertEqual(advance.call_args.kwargs["base"], "c" * 40)
+
     def test_composition_genuine_repair_runs_one_final_publication_pass(self):
         identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
                     "children": [{"change": "example"}]}
@@ -891,6 +957,23 @@ class IntegrationRepairTests(RepairFixture):
             count = len(fixture.comments)
             self.assertFalse(contour.recover_integration_repair(self.repo.root, "o/r", 7, pr, list(fixture.comments)))
             self.assertEqual(len(fixture.comments), count)
+
+    def test_interrupted_contribution_repair_recovers_to_integration_not_ready(self):
+        self.identity = {**self.identity, "kind": "contribution", "requirement": "o/backlog#7",
+                         "source_issue": "o/backlog#8", "target_branch": "requirement/BR-7",
+                         "contribution_base": "d" * 40}
+        with RemoteFixture(self.repo) as fixture:
+            self.offer(fixture)
+            job = workers.build_job(fixture.candidate())
+            git(self.repo.root, "commit", "-q", "--allow-empty", "-m", "repair")
+            self.repo.push("agent/example")
+            moved = {**self.identity, "contribution_base": "c" * 40}
+            fixture.comments.append({"id": 100, "author_association": "OWNER", "body": workers.result_body(
+                job, "w", "validated-push", self.repo.head("agent/example"), task_identity=moved)})
+            recovered = fixture.candidate()
+            self.assertEqual(recovered["state"], "contribution-integration-pending")
+            self.assertEqual(recovered["task_identity"]["contribution_base"], "c" * 40)
+            self.assertNotIn("required-checks", recovered["gates"])
 
     def test_interrupted_composition_repair_never_recovers_directly_as_ready(self):
         self.identity = {**self.identity, "kind": "requirement-composition", "requirement": "o/backlog#7",
