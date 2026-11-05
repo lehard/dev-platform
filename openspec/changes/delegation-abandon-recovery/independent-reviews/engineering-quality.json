@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "0da1aa3bd669da18921bd2cf48d328dba4208a30",
+    "diff_sha256": "d6d46925cca91b14994ef6164d1feb6e91df851ae0979de47b76e0471a2ea651"
+  },
+  "completed_at": "2026-11-05T00:15:04+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/model_routing.py `_worktree_processes` only matches `n` cwd lines under the assigned worktree. It treats exit 0 with no match as proof of death and does not check that lsof could inspect other users' processes. design.md says there is 'no weaker proof', but the proof is bounded by lsof visibility. Consider documenting this limit or cross-checking with the recorded pid or the writer lock receipt.",
+      "id": "abandon-liveness-lsof-visibility",
+      "severity": "advisory",
+      "summary": "Abandonment proof relies on `lsof -d cwd` seeing every live writer. A process that is invisible to the caller, such as another user, another PID namespace or a restricted lsof, or one whose cwd is outside the worktree is read as dead. The delegation would then be closed as abandoned while a child may still be writing."
+    },
+    {
+      "evidence": "tests/test_model_routing.py `test_a_real_process_with_its_cwd_in_the_worktree_is_observed` and `test_the_callers_own_ancestry_is_never_a_live_writer` call `routing._worktree_processes` unpatched. That function raises RoutingError when `lsof` is absent.",
+      "id": "abandon-tests-host-dependent",
+      "severity": "advisory",
+      "summary": "The new real-process tests need `lsof`, `ps` and `sleep` on the host and fail rather than skip where `lsof` is missing."
+    }
+  ],
+  "launched_at": "2026-11-05T00:14:45+00:00",
+  "output_sha256": "e5eae8a83e2e33573fe8428f2348a42bbf589720b556de5006819ba271b0119d",
+  "perspective": "engineering-quality",
+  "request_id": "cb808850-28cd-4e5a-871d-ff2f6e412623",
+  "reviewer": {
+    "context_id": "e58cf190-0e73-40d0-b60d-55f8f8261412",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-16617144-6ca9-4c7f-8847-9f3024694a41",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 21733
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41477
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17727
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18038
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1994
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098"
+}

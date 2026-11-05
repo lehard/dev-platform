@@ -1,0 +1,75 @@
+{
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "0da1aa3bd669da18921bd2cf48d328dba4208a30",
+    "diff_sha256": "d6d46925cca91b14994ef6164d1feb6e91df851ae0979de47b76e0471a2ea651"
+  },
+  "change": "openspec/changes/delegation-abandon-recovery",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/delegation-abandon-recovery/automated-checks.json",
+    "openspec/changes/delegation-abandon-recovery/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/delegation-abandon-recovery/design.md",
+        "openspec/changes/delegation-abandon-recovery/proposal.md",
+        "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md",
+        "openspec/changes/delegation-abandon-recovery/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/delegation-abandon-recovery/proposal.md",
+        "openspec/changes/delegation-abandon-recovery/design.md",
+        "openspec/changes/delegation-abandon-recovery/tasks.md",
+        "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-05T00:14:24+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/delegation-abandon-recovery/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "cb808850-28cd-4e5a-871d-ff2f6e412623",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+    "paths": {
+      "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+      "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+      "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+      "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+      "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+      "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+      "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+      "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+      "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
