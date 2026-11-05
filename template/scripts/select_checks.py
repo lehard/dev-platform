@@ -777,9 +777,10 @@ def main() -> int:
                 require_task_content(managed_checkout.evidence_payload(), "selected-check evidence")
             except ManagedTaskError as exc:
                 raise SystemExit("Managed checkout identity gate blocked validation before any expensive command started: " + str(exc)) from exc
-            from task_content_identity import review_exclusion
+            from task_content_identity import is_lifecycle_receipt
 
-            require_committed_task_content(root, review_exclusion(root, managed_checkout.change))
+            change = managed_checkout.change
+            require_committed_task_content(root, lambda canonical, raw: is_lifecycle_receipt(change, raw))
         if quick_gate is not None or (managed_checkout is not None and evidence_path is not None):
             refuse_repeated_run(root, managed_checkout.change if managed_checkout is not None else None, quick_gate is not None)
         base_contract = None
