@@ -1,5 +1,4 @@
 """Local guards of the live scenario runner. The scenarios themselves run only on real GitHub."""
-import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -8,10 +7,10 @@ from pathlib import Path
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("live_scenarios", ROOT / "scripts" / "live_scenarios.py")
-live = importlib.util.module_from_spec(spec)
-sys.modules["live_scenarios"] = live
-spec.loader.exec_module(live)
+sys.path.insert(0, str(ROOT / "tests"))
+from _platform_modules import load_platform_module  # noqa: E402
+
+live = load_platform_module("live_scenarios", ROOT / "scripts" / "live_scenarios.py")
 
 
 class TargetGuardTest(unittest.TestCase):
