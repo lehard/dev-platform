@@ -43,6 +43,8 @@ MANAGED_PROVENANCE_FILE = ".managed-task.json"
 # names the current branch and the commit origin/<main_branch> still points to,
 # and the merge is exactly ``merge origin/<main_branch>``.
 RECONCILE_MERGE_INTENT = "dev-platform-reconcile-merge"
+HELD_HEAD_NOTE = ("The publication queue holds the admitted head of this quick task, so nothing was pushed: "
+                  "finish pushes this head and records the transition once the queue accepts a new head.")
 
 
 @dataclass(frozen=True)
@@ -270,6 +272,15 @@ def _continue_exact_pr_from_local_descendant(
     )
 
 
+def _queue_holds_head(root: Path, branch: str, kind: str) -> bool:
+    """Whether the queue holds this quick task's admitted head: then only ``finish`` may move it."""
+    if kind != TASK_KIND_QUICK or not queue_integrated(root):
+        return False
+    from publication_queue import holds_admitted_head
+
+    return holds_admitted_head(root, branch)
+
+
 def _conflict_paths(root: Path) -> list[str]:
     result = run_git(["diff", "--name-only", "--diff-filter=U"], cwd=root, check=False)
     return sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
@@ -323,8 +334,14 @@ def reconcile(root: Path | None = None) -> Freshness:
     local_head = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
     remote_branch_head = _remote_branch_head(root, branch)
     published = remote_branch_head is not None
+    # An admitted quick head moves only with its recorded transition, which finish writes.
+    held = published and _queue_holds_head(root, branch, kind)
     if published:
-        if remote_branch_head != local_head:
+        if held:
+            if remote_branch_head != local_head and relation(root, remote_branch_head, local_head) != "behind":
+                raise SystemExit("Task reconciliation blocked: remote task branch head differs from the local exact task head.")
+            _require_exact_open_pr(root, branch, target_branch, remote_branch_head)
+        elif remote_branch_head != local_head:
             _continue_exact_pr_from_local_descendant(
                 root, branch, target_branch, remote_branch_head, local_head
             )
@@ -337,6 +354,8 @@ def reconcile(root: Path | None = None) -> Freshness:
         if target_branch != main_branch:
             _move_base_to_target(root, before.authoritative_sha)
         print(f"Task branch is already current relative to origin/{target_branch} ({before.state}); reconcile is a no-op.")
+        if held:
+            print(HELD_HEAD_NOTE)
         return before
 
     intent = Path(run_git(["rev-parse", "--path-format=absolute", "--git-dir"], cwd=root).stdout.strip()) / RECONCILE_MERGE_INTENT
@@ -366,15 +385,18 @@ def reconcile(root: Path | None = None) -> Freshness:
     if target_branch != main_branch:
         _move_base_to_target(root, after.authoritative_sha)
     if published:
-        if _remote_branch_head(root, branch) != local_head:
+        if _remote_branch_head(root, branch) != remote_branch_head:
             raise SystemExit("Remote task branch head changed during reconciliation; refusing to publish the new descendant automatically.")
-        _require_exact_open_pr(root, branch, target_branch, local_head)
-        pushed = run_git(["push", "origin", branch], cwd=root, check=False)
-        if pushed.returncode != 0:
-            detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
-            raise SystemExit(
-                "Reconciled task head was retained locally but not pushed because the remote branch may have changed: " + detail
-            )
+        _require_exact_open_pr(root, branch, target_branch, remote_branch_head)
+        if held:
+            print(HELD_HEAD_NOTE)
+        else:
+            pushed = run_git(["push", "origin", branch], cwd=root, check=False)
+            if pushed.returncode != 0:
+                detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
+                raise SystemExit(
+                    "Reconciled task head was retained locally but not pushed because the remote branch may have changed: " + detail
+                )
     print(
         f"Reconciled {branch} with origin/{target_branch} at {after.authoritative_sha} using normal Git history. "
         "The resulting head is new execution state: rerun validation and then resume the existing exact-head publication flow."

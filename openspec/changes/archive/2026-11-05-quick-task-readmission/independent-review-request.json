@@ -1,0 +1,79 @@
+{
+  "candidate": {
+    "base_head": "2afee08e403356a6d5b101955e3ebe6cdf8b7e21",
+    "base_ref": "origin/main",
+    "candidate_head": "33a0e81934e5d6be4c00632207d17380e386c971",
+    "diff_sha256": "db96bbd6d5804fdaa6ba39488cc145f1aca4b655c237fe326620bfbe07609a7e"
+  },
+  "change": "openspec/changes/quick-task-readmission",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/quick-task-readmission/automated-checks.json",
+    "openspec/changes/quick-task-readmission/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/quick-task-readmission/design.md",
+        "openspec/changes/quick-task-readmission/proposal.md",
+        "openspec/changes/quick-task-readmission/specs/publication-queue/spec.md",
+        "openspec/changes/quick-task-readmission/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/quick-task-readmission/proposal.md",
+        "openspec/changes/quick-task-readmission/design.md",
+        "openspec/changes/quick-task-readmission/tasks.md",
+        "openspec/changes/quick-task-readmission/specs/publication-queue/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-05T22:14:13+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/quick-task-readmission/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "97670cf5-0fee-40c7-89e9-8bf7e0ab9b6e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "2afee08e403356a6d5b101955e3ebe6cdf8b7e21",
+    "digest": "6edd5cef336bcf87cb0d287416ee6f9ea7b40f152b155fde209e31b0a8f393aa",
+    "paths": {
+      "AGENTS.md": "a3416ac442a6e4893bdd9df42bbc8a2b625ba42d",
+      "docs/engineering/agent-workflow.md": "09304903d8500b8c3bfc13f017c115a1b01cc557",
+      "openspec/changes/quick-task-readmission/.managed-task.json": "ada8464bd6e4cafe6a24674c6a8a7353becc7e9b",
+      "openspec/changes/quick-task-readmission/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+      "openspec/changes/quick-task-readmission/design.md": "5b3a69c41c82f2dfeef32087ba46018d87ebcfaa",
+      "openspec/changes/quick-task-readmission/proposal.md": "cd057fa4f6296a791a3d1896a32a0ff0e3f66b91",
+      "openspec/changes/quick-task-readmission/specs/publication-queue/spec.md": "57510cf3fff1d4eacf30f07274f4abd72405c06d",
+      "openspec/changes/quick-task-readmission/tasks.md": "19eef252d280de405d04784ddd74cd92781204af",
+      "template/scripts/publication_queue.py": "5ea054dab31f44f7a0122e2458ed9b9b3633585f",
+      "template/scripts/task_reconciliation.py": "68bd12f7f4d215e09d0fcabd93ec6a1f9a2b532e",
+      "tests/test_pr_review_gate.py": "8e9fb77565f25651ba429a497a184310c7481c72",
+      "tests/test_publication_queue.py": "1cc52600928fef142334e751b6b321c9f0a006d1",
+      "tests/test_task_reconciliation.py": "d7ec9b0ef872407e9a8c9d398bf9627e5cdb9f8d"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

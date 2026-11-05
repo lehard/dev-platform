@@ -996,8 +996,130 @@ class ReadmissionAndFinalizeResumeTests(unittest.TestCase):
             self.assertEqual(len(fixture.comments), count)
             # Without a developer handoff a changed head never supersedes an admission.
             with mock.patch.object(queue, "_admission_handoff", return_value={"task_identity": self.NEW_IDENTITY, "gates": {}}), \
-                    self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous admission; a task without a managed change has no re-admission"):
+                    self.assertRaisesRegex(queue.QueueError, "earlier or ambiguous admission; only a developer handoff or a quick task re-admits"):
                 queue.admit(ROOT, 7, self.NEW_HEAD)
+
+    QUICK = {"branch": "agent/example", "head": HEAD}
+    RED = {"name": "required-checks", "identity": HEAD,
+           "evidence": {"detail": "required check failed", "failed_checks": [{"name": "validate", "state": "FAILURE"}]}}
+
+    def quick_red(self, fixture, stack):
+        """A quick task admitted without a handoff whose integrated head failed a required check."""
+        stack.enter_context(mock.patch.object(queue, "_repo", return_value="o/r"))
+        stack.enter_context(mock.patch.object(queue, "_ensure_labels"))
+        self.labels = stack.enter_context(mock.patch.object(queue, "_label"))
+        stack.enter_context(mock.patch.object(queue, "_main", return_value=HEAD))
+        self.descends = stack.enter_context(mock.patch.object(queue, "_is_ancestor", return_value=True))
+        stack.enter_context(mock.patch.object(queue, "_managed_state", return_value=None))
+        stack.enter_context(mock.patch.object(queue, "_touches_openspec_change", return_value=False))
+        original_pr = queue._pr.side_effect
+        queue._pr.side_effect = lambda *a: {**original_pr(*a), "base": {"ref": "main"}}
+        queue.admit(ROOT, 7, HEAD)
+        queue._transition(ROOT, "o/r", 7, "integration-repair-pending", HEAD, task_identity=self.QUICK,
+                          red_gate=self.RED, set_attempts={"integration-repair": 1})
+
+    def test_quick_task_fix_supersedes_its_red_head_and_returns_to_ready(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.quick_red(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD)
+            candidate = fixture.candidate()
+            self.assertEqual((candidate["state"], candidate["head"]), ("ready", self.NEW_HEAD))
+            self.assertEqual(candidate["task_identity"], {"branch": "agent/example", "head": self.NEW_HEAD})
+            self.assertIsNone(workers.build_job(candidate))  # no review job for a quick task
+            self.assertEqual(candidate["attempts"]["integration-repair"], 1)  # no budget is reset
+            admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            self.assertEqual((admission["head"], admission["supersedes"]["head"], admission["supersedes"]["state"]),
+                             (self.NEW_HEAD, HEAD, "integration-repair-pending"))
+            self.assertTrue(admission["supersedes"]["reason"])
+            queued = [call.kwargs["present"] for call in self.labels.call_args_list if call.args[3] == queue.QUEUE]
+            self.assertEqual(queued[-2:], [False, True])
+
+    def test_quick_task_goes_from_red_ci_to_merged_on_the_same_pr(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.quick_red(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            queue.admit(ROOT, 7, self.NEW_HEAD)
+            merged = {"done": False}
+            original_pr = queue._pr.side_effect
+            queue._pr.side_effect = lambda *a: {**original_pr(*a), "merged": merged["done"]}
+
+            def merge(*args, **kwargs):
+                merged["done"] = True
+                return subprocess.CompletedProcess([], 0, "", "")
+
+            passed = mock.Mock(kind="passed", detail="green", checks=[], cause=None)
+            admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            with mock.patch.object(queue, "_queued", return_value=[(1, 7, admission)]), \
+                    mock.patch.object(queue, "_prepare", return_value=(self.NEW_HEAD, HEAD)), \
+                    mock.patch.object(queue, "_require_finalized"), \
+                    mock.patch.object(queue, "required_check_state_for_ref", return_value=passed), \
+                    mock.patch.object(queue.subprocess, "run", side_effect=merge) as run:
+                result = queue.worker(ROOT)
+            self.assertEqual(result["state"], "merged")
+            self.assertIn(f"sha={self.NEW_HEAD}", run.call_args.args[0])
+
+    def test_a_pushed_quick_head_is_never_integrated_until_finish_records_it(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.quick_red(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            admission = queue._admission(queue._events(ROOT, "o/r", 7), 7)
+            with mock.patch.object(queue, "_queued", return_value=[(1, 7, admission)]), \
+                    mock.patch.object(queue, "_integrate") as integrate:
+                queue.worker(ROOT)
+            integrate.assert_not_called()
+            awaiting = queue._awaiting_readmission(ROOT, "o/r", 7, queue._pr(ROOT, "o/r", 7), fixture.comments)
+            self.assertEqual(awaiting["owner"], "developer re-admission")
+            queue.admit(ROOT, 7, self.NEW_HEAD)  # an interrupted finish resumes for the same head
+            self.assertEqual(fixture.candidate()["state"], "ready")
+
+    def test_quick_supersession_refusals_write_nothing(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.quick_red(fixture, stack)
+            fixture.head = self.NEW_HEAD
+            count = len(fixture.comments)
+            self.descends.return_value = False
+            with self.assertRaisesRegex(queue.QueueError, "does not descend from the admitted head"):
+                queue.admit(ROOT, 7, self.NEW_HEAD)
+            self.descends.return_value = True
+            claim = {"worker": "w", "expires_at": "later"}
+            with mock.patch("lifecycle_workers.winning_claim", return_value=claim), \
+                    mock.patch("lifecycle_workers.build_job", return_value={"kind": "integration-repair"}), \
+                    self.assertRaisesRegex(queue.QueueError, "job is claimed by w"):
+                queue.admit(ROOT, 7, self.NEW_HEAD)
+            with mock.patch.object(queue, "_admission_handoff",
+                                   return_value={"task_identity": {"branch": "agent/other", "head": self.NEW_HEAD}, "gates": {}}), \
+                    self.assertRaisesRegex(queue.QueueError, "only a developer handoff or a quick task"):
+                queue.admit(ROOT, 7, self.NEW_HEAD)
+            self.assertEqual(len(fixture.comments), count)
+
+    def test_quick_status_names_the_developer_path(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            self.quick_red(fixture, stack)
+            pr = queue._pr(ROOT, "o/r", 7)
+            recorded = queue.candidate_from_snapshot(ROOT, "o/r", pr, fixture.comments, None)
+            self.assertTrue(recorded["next_action"].startswith("developer fix: "))
+            self.assertIn(f"proven head {HEAD[:12]}", recorded["next_action"])
+            self.assertIn("run finish", recorded["next_action"])
+            self.assertNotIn("coordinator", recorded["next_action"])
+            fixture.head = self.NEW_HEAD
+            pushed = queue.candidate_from_snapshot(ROOT, "o/r", queue._pr(ROOT, "o/r", 7), fixture.comments, None)
+            self.assertEqual(pushed["next_action"], "developer re-admission: rerun finish for the pushed head")
+
+    def test_quick_status_waits_for_the_queue_to_record_a_red_check(self):
+        with QueueFixture(ROOT, HEAD) as fixture, ExitStack() as stack:
+            stack.enter_context(mock.patch.object(queue, "_awaiting_readmission", return_value=None))
+            queue._transition(ROOT, "o/r", 7, "ready", HEAD, task_identity=self.QUICK, inherit_identity=False)
+            checks = {"head": HEAD, "kind": "failed", "detail": "red", "checks": []}
+            observed = queue.candidate_from_snapshot(ROOT, "o/r", queue._pr(ROOT, "o/r", 7), fixture.comments, checks)
+            self.assertEqual(observed["state"], "repair-pending")
+            self.assertTrue(observed["next_action"].startswith("wait for the queue to record the failed required check"))
+
+    def test_a_managed_red_status_keeps_its_job(self):
+        with QueueFixture(ROOT, HEAD) as fixture:
+            queue._transition(ROOT, "o/r", 7, "integration-repair-pending", HEAD, task_identity=IDENTITY, red_gate=self.RED)
+            observed = queue.candidate_from_snapshot(ROOT, "o/r", queue._pr(ROOT, "o/r", 7), fixture.comments, None)
+            self.assertEqual(observed["next_action"], "repair integration")
 
     def test_worker_block_between_push_and_admit_never_strands_the_handoff(self):
         # Reviewer's sequence: a worker blocked the pushed head before the developer's finish admitted it.

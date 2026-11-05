@@ -331,7 +331,7 @@ class LocalStatusTests(unittest.TestCase):
     """finish observes its own PR through local_status before (re-)admission."""
 
     def observe(self, local_head: str, observed: dict, events: list[dict] | None = None, *,
-                lineage: dict | None = None, descends: bool = True) -> dict | None:
+                lineage: dict | None = None, descends: bool = True, run_git=None) -> dict | None:
         import subprocess
         import _platform_common
 
@@ -340,7 +340,7 @@ class LocalStatusTests(unittest.TestCase):
         with patch.object(_platform_common, "run_github_with_retry", return_value=view), \
              patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_events", return_value=events if events is not None else [admission(1, 20)]), \
-             patch.object(queue, "run_git", return_value=git), \
+             patch.object(queue, "run_git", side_effect=run_git or (lambda *a, **k: git)), \
              patch.object(queue, "_comments", return_value=[]), \
              patch.object(queue, "_latest", return_value=lineage), \
              patch.object(queue, "_is_ancestor", return_value=descends) as self.descends, \
@@ -357,15 +357,50 @@ class LocalStatusTests(unittest.TestCase):
         observed = self.observe(NEW_HEAD, self.awaiting(NEW_HEAD))
         self.assertEqual((observed["state"], observed["head"]), ("readmission", NEW_HEAD))
 
-    def test_a_quick_task_fix_is_refused_before_finish_pushes_it(self) -> None:
+    def test_a_quick_task_fix_is_observed_for_recorded_readmission(self) -> None:
         plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
         update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
-        quick = {"state": "integration-repair-pending", "head": NEW_HEAD, "task_identity": NEW_HEAD}
-        with self.assertRaisesRegex(queue.QueueError, "has no re-admission: finish refuses .*take the job offered"):
-            self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick)
+        quick = {"state": "integration-repair-pending", "head": NEW_HEAD,
+                 "task_identity": {"branch": "agent/1", "head": HEAD}}
+        observed = self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick)
+        self.assertEqual((observed["state"], observed["proven_head"], observed["head"]), ("readmission", NEW_HEAD, "d" * 40))
 
-    def test_status_names_a_coordinator_decision_for_a_quick_task_head_already_pushed(self) -> None:
-        pr = {"number": 1, "head": {"sha": NEW_HEAD}}
+    def test_a_quick_task_head_off_the_proven_head_names_how_to_reach_it(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        quick = {"state": "integration-repair-pending", "head": NEW_HEAD,
+                 "task_identity": {"branch": "agent/1", "head": HEAD}}
+        with self.assertRaisesRegex(queue.QueueError, f"does not descend from proven head {NEW_HEAD[:12]}.*git rebase origin/agent/1"):
+            self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick, descends=False)
+
+    def test_a_quick_task_without_the_proven_commit_locally_is_told_to_fetch_it(self) -> None:
+        import subprocess
+
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        quick = {"state": "integration-repair-pending", "head": NEW_HEAD,
+                 "task_identity": {"branch": "agent/1", "head": HEAD}}
+        missing = subprocess.CompletedProcess([], 1, "", "")
+        with self.assertRaisesRegex(queue.QueueError, "git fetch origin agent/1"):
+            self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick,
+                         run_git=lambda args, **kwargs: missing if args[0] == "cat-file"
+                         else subprocess.CompletedProcess([], 0, "d" * 40 + "\n", ""))
+
+    def test_a_descendant_quick_head_outside_a_red_state_keeps_the_plain_refusal(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        ready = {"state": "ready", "head": HEAD, "task_identity": {"branch": "agent/1", "head": HEAD}}
+        with self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+            self.observe("d" * 40, plain, lineage=ready)
+
+    def test_an_unidentified_candidate_is_refused_before_finish_pushes_it(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        unknown = {"state": "integration-repair-pending", "head": NEW_HEAD, "task_identity": NEW_HEAD}
+        with self.assertRaisesRegex(queue.QueueError, "only a developer handoff or a quick task re-admits"):
+            self.observe("d" * 40, plain, [admission(1, 20), update], lineage=unknown)
+
+    def test_status_of_a_pushed_head_names_finish_for_quick_and_managed_tasks(self) -> None:
+        pr = {"number": 1, "head": {"sha": NEW_HEAD, "ref": "agent/1"}}
 
         def awaiting(identity: object) -> dict:
             newest = {"state": "integration-repair-pending", "head": HEAD, "task_identity": identity}
@@ -373,13 +408,13 @@ class LocalStatusTests(unittest.TestCase):
                  patch.object(queue, "_proven_head", return_value=HEAD):
                 return queue._awaiting_readmission(ROOT_PATH, "o/r", 1, pr, [], admission(1, 20))
 
-        quick = awaiting(HEAD)
-        self.assertEqual(quick["owner"], "coordinator decision")
-        self.assertNotIn("rerun finish", quick["next_action"])
-        self.assertIn("needs a coordinator decision", quick["reason"])
-        managed = awaiting({"change": "example"})
-        self.assertEqual(managed["owner"], "developer re-admission")
-        self.assertIn("rerun finish", managed["next_action"])
+        for identity in ({"branch": "agent/1", "head": HEAD}, {"change": "example"}):
+            observed = awaiting(identity)
+            self.assertEqual(observed["owner"], "developer re-admission")
+            self.assertIn("rerun finish", observed["next_action"])
+        self.assertEqual(awaiting(HEAD)["owner"], "coordinator decision")
+        for other in ({"branch": "agent/other"}, {"branch": "agent/1", "kind": "contribution"}):
+            self.assertEqual(awaiting(other)["owner"], "coordinator decision")
 
     def test_unpushed_fix_on_an_integration_repair_wait_is_observed_for_admission(self) -> None:
         # Regression: a developer fix of a red integrated check could not be handed off until the

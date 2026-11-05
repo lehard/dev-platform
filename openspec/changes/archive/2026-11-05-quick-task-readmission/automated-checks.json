@@ -1,0 +1,136 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 6,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.031,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 2.182,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.141,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.18,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1727.533,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 3.683,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "template/scripts/publication_queue.py",
+        "template/scripts/task_reconciliation.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_publication_queue.py",
+        "tests/test_task_reconciliation.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test",
+        "configuration"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_5b8a067271f5908782be318c96bd3afc",
+    "change": "quick-task-readmission",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/quick-task-readmission",
+    "branch": "agent/br-998-t1-quick-task-readmission",
+    "head": "c4288af438b6f2ca0294357a54aab329cf87f624",
+    "task_content": {
+      "version": 1,
+      "digest": "3c5cc0395d847d9a2c5e30af8425beabc303c1ee5c4bba0cf89f861a8a9da7bb",
+      "paths": {
+        "AGENTS.md": "a3416ac442a6e4893bdd9df42bbc8a2b625ba42d",
+        "docs/engineering/agent-workflow.md": "09304903d8500b8c3bfc13f017c115a1b01cc557",
+        "openspec/changes/quick-task-readmission/.managed-task.json": "ada8464bd6e4cafe6a24674c6a8a7353becc7e9b",
+        "openspec/changes/quick-task-readmission/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+        "openspec/changes/quick-task-readmission/design.md": "5b3a69c41c82f2dfeef32087ba46018d87ebcfaa",
+        "openspec/changes/quick-task-readmission/proposal.md": "cd057fa4f6296a791a3d1896a32a0ff0e3f66b91",
+        "openspec/changes/quick-task-readmission/specs/publication-queue/spec.md": "57510cf3fff1d4eacf30f07274f4abd72405c06d",
+        "openspec/changes/quick-task-readmission/tasks.md": "19eef252d280de405d04784ddd74cd92781204af",
+        "openspec/changes/quick-task-readmission/verification.md": "0bfb2157ab44dc3964e2d1ff0c8bc5128ae782ad",
+        "template/dev-platform/platform-manifest.json": "77a6b63adb5d93e297e1e0fd77a4770f385fb998",
+        "template/scripts/publication_queue.py": "5ea054dab31f44f7a0122e2458ed9b9b3633585f",
+        "template/scripts/task_reconciliation.py": "68bd12f7f4d215e09d0fcabd93ec6a1f9a2b532e",
+        "tests/test_pr_review_gate.py": "8e9fb77565f25651ba429a497a184310c7481c72",
+        "tests/test_publication_queue.py": "1cc52600928fef142334e751b6b321c9f0a006d1",
+        "tests/test_task_reconciliation.py": "d7ec9b0ef872407e9a8c9d398bf9627e5cdb9f8d"
+      },
+      "base": "2afee08e403356a6d5b101955e3ebe6cdf8b7e21"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "6edd5cef336bcf87cb0d287416ee6f9ea7b40f152b155fde209e31b0a8f393aa",
+    "paths": {
+      "AGENTS.md": "a3416ac442a6e4893bdd9df42bbc8a2b625ba42d",
+      "docs/engineering/agent-workflow.md": "09304903d8500b8c3bfc13f017c115a1b01cc557",
+      "openspec/changes/quick-task-readmission/.managed-task.json": "ada8464bd6e4cafe6a24674c6a8a7353becc7e9b",
+      "openspec/changes/quick-task-readmission/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+      "openspec/changes/quick-task-readmission/design.md": "5b3a69c41c82f2dfeef32087ba46018d87ebcfaa",
+      "openspec/changes/quick-task-readmission/proposal.md": "cd057fa4f6296a791a3d1896a32a0ff0e3f66b91",
+      "openspec/changes/quick-task-readmission/specs/publication-queue/spec.md": "57510cf3fff1d4eacf30f07274f4abd72405c06d",
+      "openspec/changes/quick-task-readmission/tasks.md": "19eef252d280de405d04784ddd74cd92781204af",
+      "template/scripts/publication_queue.py": "5ea054dab31f44f7a0122e2458ed9b9b3633585f",
+      "template/scripts/task_reconciliation.py": "68bd12f7f4d215e09d0fcabd93ec6a1f9a2b532e",
+      "tests/test_pr_review_gate.py": "8e9fb77565f25651ba429a497a184310c7481c72",
+      "tests/test_publication_queue.py": "1cc52600928fef142334e751b6b321c9f0a006d1",
+      "tests/test_task_reconciliation.py": "d7ec9b0ef872407e9a8c9d398bf9627e5cdb9f8d"
+    },
+    "base": "2afee08e403356a6d5b101955e3ebe6cdf8b7e21",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/publication_queue.py --changed-file template/scripts/task_reconciliation.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_publication_queue.py --changed-file tests/test_task_reconciliation.py",
+    "duration_seconds": 451.914,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
