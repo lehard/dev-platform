@@ -331,7 +331,7 @@ class LocalStatusTests(unittest.TestCase):
     """finish observes its own PR through local_status before (re-)admission."""
 
     def observe(self, local_head: str, observed: dict, events: list[dict] | None = None, *,
-                lineage: dict | None = None, descends: bool = True) -> dict | None:
+                lineage: dict | None = None, descends: bool = True, run_git=None) -> dict | None:
         import subprocess
         import _platform_common
 
@@ -340,7 +340,7 @@ class LocalStatusTests(unittest.TestCase):
         with patch.object(_platform_common, "run_github_with_retry", return_value=view), \
              patch.object(queue, "_repo", return_value=REPO), \
              patch.object(queue, "_events", return_value=events if events is not None else [admission(1, 20)]), \
-             patch.object(queue, "run_git", return_value=git), \
+             patch.object(queue, "run_git", side_effect=run_git or (lambda *a, **k: git)), \
              patch.object(queue, "_comments", return_value=[]), \
              patch.object(queue, "_latest", return_value=lineage), \
              patch.object(queue, "_is_ancestor", return_value=descends) as self.descends, \
@@ -372,6 +372,25 @@ class LocalStatusTests(unittest.TestCase):
                  "task_identity": {"branch": "agent/1", "head": HEAD}}
         with self.assertRaisesRegex(queue.QueueError, f"does not descend from proven head {NEW_HEAD[:12]}.*git rebase origin/agent/1"):
             self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick, descends=False)
+
+    def test_a_quick_task_without_the_proven_commit_locally_is_told_to_fetch_it(self) -> None:
+        import subprocess
+
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        update = {"version": 1, "number": 1, "kind": "update", "comment_id": 30, "previous": HEAD, "head": NEW_HEAD, "base": BASE}
+        quick = {"state": "integration-repair-pending", "head": NEW_HEAD,
+                 "task_identity": {"branch": "agent/1", "head": HEAD}}
+        missing = subprocess.CompletedProcess([], 1, "", "")
+        with self.assertRaisesRegex(queue.QueueError, "git fetch origin agent/1"):
+            self.observe("d" * 40, plain, [admission(1, 20), update], lineage=quick,
+                         run_git=lambda args, **kwargs: missing if args[0] == "cat-file"
+                         else subprocess.CompletedProcess([], 0, "d" * 40 + "\n", ""))
+
+    def test_a_descendant_quick_head_outside_a_red_state_keeps_the_plain_refusal(self) -> None:
+        plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}
+        ready = {"state": "ready", "head": HEAD, "task_identity": {"branch": "agent/1", "head": HEAD}}
+        with self.assertRaisesRegex(queue.QueueError, "not the admitted or proven coordinator head"):
+            self.observe("d" * 40, plain, lineage=ready)
 
     def test_an_unidentified_candidate_is_refused_before_finish_pushes_it(self) -> None:
         plain = {"state": "waiting", "number": 1, "position": 1, "owner": None}

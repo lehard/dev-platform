@@ -44,7 +44,7 @@ MANAGED_PROVENANCE_FILE = ".managed-task.json"
 # and the merge is exactly ``merge origin/<main_branch>``.
 RECONCILE_MERGE_INTENT = "dev-platform-reconcile-merge"
 HELD_HEAD_NOTE = ("The publication queue holds the admitted head of this quick task, so nothing was pushed: "
-                  "run finish, which pushes this head and records the transition.")
+                  "finish pushes this head and records the transition once the queue accepts a new head.")
 
 
 @dataclass(frozen=True)

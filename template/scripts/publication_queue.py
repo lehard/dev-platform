@@ -1848,6 +1848,12 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
             # supersedes the waiting job.
             proven = _proven_head(events, admission)
             lineage = _latest(root, data["number"], _comments(root, repo, data["number"]))
+            quick = lineage is not None and _quick_identity(lineage.get("task_identity"), branch)
+            off_proven = (f"local task head {local_head[:12]} does not descend from proven head {str(proven)[:12]}: "
+                          f"{_bring_to_proven(branch, str(proven))}, then run finish")
+            # The queue's merge of main lives only on GitHub until the worktree fetches it.
+            if quick and run_git(["cat-file", "-e", f"{proven}^{{commit}}"], cwd=root, check=False).returncode:
+                raise QueueError(off_proven)
             if (lineage is not None and _awaits_developer_fix(lineage)
                     and lineage.get("head") == proven and _is_ancestor(root, proven, local_head)):
                 if not _readmissible(lineage, branch):
@@ -1855,9 +1861,8 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
                     raise QueueError(_no_readmission(str(proven), local_head))
                 return {**observed, "state": "readmission", "number": data["number"],
                         "proven_head": proven, "head": local_head}
-            if lineage is not None and _quick_identity(lineage.get("task_identity"), branch):
-                raise QueueError(f"local task head {local_head[:12]} does not descend from proven head {str(proven)[:12]}: "
-                                 f"{_bring_to_proven(branch, str(proven))}, then run finish")
+            if quick and not _is_ancestor(root, str(proven), local_head):
+                raise QueueError(off_proven)
             raise QueueError("local task head is not the admitted or proven coordinator head")
     return status(root, data["number"])
 
