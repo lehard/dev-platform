@@ -584,11 +584,10 @@ def rederive_archived_specs(*, source_repo: str, branch: str, head: str, task_pa
     parents = workers._git(checkout, "rev-list", "--parents", "-n", "1", result).split()[1:]
     if parents != [head, main_sha]:
         raise RederivationFailed("re-derivation did not produce a merge of the claimed head and main")
-    both = (set(workers._git(checkout, "diff", "--name-only", head, result).split())
-            & set(workers._git(checkout, "diff", "--name-only", main_sha, result).split()))
-    if both - derived_paths:
+    beyond = paths_beyond_merge(checkout, head, main_sha, result) - derived_paths
+    if beyond:
         raise RederivationFailed("re-derivation changed paths beyond archive-derived specs and declared generated files: "
-                                 + ", ".join(sorted(both - derived_paths)[:8]))
+                                 + ", ".join(sorted(beyond)[:8]))
     if deltas:
         after = composition_identity(checkout, manifest) if composition else review_gate.task_identity(checkout, change)
         if not equivalent_proofs(checkout, before["task_content"], after["task_content"]):
@@ -603,26 +602,34 @@ def rederive_archived_specs(*, source_repo: str, branch: str, head: str, task_pa
     return result, main_sha
 
 
+def paths_beyond_merge(root: Path, left: str, right: str, head: str) -> set[str]:
+    """Paths where ``head`` differs from the three-way merge of ``left`` and ``right``; a Git failure raises."""
+    def git(*args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", *workers.SAFE_GIT, *args], cwd=root, text=True, capture_output=True, check=False,
+                              stdin=subprocess.DEVNULL)
+
+    merge = git("merge-tree", "--write-tree", "--name-only", "--no-messages", left, right)
+    tree = merge.stdout.split("\n", 1)[0].strip()
+    if merge.returncode not in (0, 1) or not tree:
+        raise RederivationFailed("cannot compute the three-way merge: " + (merge.stderr or merge.stdout).strip()[-300:])
+    diff = git("diff", "--name-only", "--no-renames", "-z", tree, f"{head}^{{tree}}")
+    if diff.returncode:
+        raise RederivationFailed("cannot compare with the three-way merge: " + diff.stderr.strip()[-300:])
+    return {path for path in diff.stdout.split("\0") if path}
+
+
 def derived_merge_only(root: Path, head: str, proven: str, prior_main: str, task_paths,
                        generated_paths: Iterable[str] = ()) -> bool:
-    """Whether ``head`` is a merge of ``proven`` and main differing from both only on derived paths.
+    """Whether ``head`` differs from the three-way merge of ``proven`` and main only on derived paths.
 
     Derived paths are the candidate's archive-derived specs plus ``generated_paths``, the declared
     generated files the caller read from the trusted default branch (never from the candidate).
     """
-    from _platform_common import run_git
-
     spec_paths = {f"openspec/specs/{cap}/spec.md" for caps in archived_deltas(task_paths).values() for cap in caps}
     spec_paths |= set(generated_paths)
     if not spec_paths:
         return False
-    names = []
-    for other in (proven, prior_main):
-        done = run_git(["diff", "--name-only", other, head], cwd=root, check=False)
-        if done.returncode:
-            return False
-        names.append(set(done.stdout.splitlines()))
-    return not (names[0] & names[1]) - spec_paths
+    return not paths_beyond_merge(root, proven, prior_main, head) - spec_paths
 
 
 def prepare_derived_specs(root: Path, repo: str, number: int, pr: dict, head: str, task_paths, **options) -> tuple[str, str]:
