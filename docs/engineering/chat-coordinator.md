@@ -172,7 +172,7 @@ exhausted repair or review rounds), `escalated-other`, `post-merge-exhausted` an
 Idle reason: every open candidate with no claimed job carries an `idle:` line saying
 what it waits for and who or what moves it: `developer` (no lifecycle record yet),
 `local-node-job` (a job only an operator-run local node executes; `repair` and
-`integration-repair` need macOS), `worker-job`, `publication-queue`, `retry-pending`,
+`integration-repair` need macOS), `worker-job`, `publication-queue`,
 `requirement-composition`, `attempt-limit-exhausted` or `human-decision`. A state no
 rule explains prints `idle reason unknown` with the state; it is never shown as
 healthy. The line explains the wait and takes no action.

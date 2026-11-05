@@ -1388,6 +1388,19 @@ def _carried_gates(root: Path, lineage: dict[str, Any], identity: dict[str, Any]
             if name != "required-checks" and name not in handoff_gates and reusable(root, gate, identity)}
 
 
+def _readmissible(lineage: dict[str, Any]) -> bool:
+    """Whether a new head can supersede this record: only a managed change has a developer handoff."""
+    identity = lineage.get("task_identity")
+    return isinstance(identity, dict) and bool(identity.get("change"))
+
+
+def _no_readmission(proven: str, head: str) -> str:
+    """The supported exits of a candidate without a managed change, such as a quick task."""
+    return (f"a task without a managed change has no re-admission: finish refuses head {head[:12]} over proven head "
+            f"{proven[:12]}. Before pushing, take the job offered for the proven head; a head already pushed "
+            "invalidates that job and needs a coordinator decision")
+
+
 def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any], comments: list[dict[str, Any]],
                           admission: dict[str, Any] | None = None) -> dict[str, Any] | None:
     """The pushed head that awaits developer re-admission, or ``None``.
@@ -1405,8 +1418,13 @@ def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any]
         admission = _admission(_events(root, repo, number), number)
     if admission is None or newest.get("head") != _proven_head(_events(root, repo, number), admission):
         return None
-    return {"reason": f"new head awaits developer re-admission (proven head {newest['head']}, PR head {head})",
-            "state": newest["state"], "proven_head": newest["head"], "head": head}
+    awaiting = {"state": newest["state"], "proven_head": newest["head"], "head": head}
+    if not _readmissible(newest):
+        return {**awaiting, "owner": "coordinator decision", "reason": _no_readmission(newest["head"], head),
+                "next_action": "coordinator decision: finish cannot re-admit the pushed head"}
+    return {**awaiting, "owner": "developer re-admission",
+            "reason": f"new head awaits developer re-admission (proven head {newest['head']}, PR head {head})",
+            "next_action": "developer re-admission: rerun finish for the pushed head"}
 
 
 def _earlier_slot_record(root: Path, repo: str, number: int, comments: list[dict[str, Any]], head: str,
@@ -1502,7 +1520,7 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if admitted:
         proven = _proven_head(events, admitted)
         if proven != expected_head and not handoff:
-            raise QueueError("PR has an earlier or ambiguous admission; resolve it before re-admission")
+            raise QueueError("PR has an earlier or ambiguous admission; " + _no_readmission(str(proven), expected_head))
         if proven != expected_head:
             supersedes, _ = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
             handoff_gates = resolved_handoff.get("gates")
@@ -1628,7 +1646,7 @@ def status(root: Path, number: int) -> dict[str, Any]:
             awaiting = _awaiting_readmission(root, repo, number, pr, _comments(root, repo, number), admission)
             if awaiting is not None:
                 # Kept "waiting" for existing consumers; the reason names the developer action it waits on.
-                return {"state": "waiting", "number": number, "position": index, "owner": "developer re-admission",
+                return {"state": "waiting", "number": number, "position": index, "owner": awaiting["owner"],
                         "reason": awaiting["reason"], "proven_head": awaiting["proven_head"], "head": awaiting["head"]}
             active = index == 1 and ACTIVE in labels
             return {"state": "active" if active else "waiting", "number": number, "position": index, "owner": "publication-queue workflow" if active else None}
@@ -1654,7 +1672,7 @@ def candidate_from_snapshot(root: Path, repo: str, pr: dict[str, Any], comments:
     awaiting = _awaiting_readmission(root, repo, pr["number"], pr, comments)
     if awaiting is not None:
         candidate.update(reason=awaiting["reason"], awaiting_readmission=awaiting,
-                         next_action="developer re-admission: rerun finish for the pushed head")
+                         next_action=awaiting["next_action"])
     return candidate
 
 
@@ -1781,6 +1799,9 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
             lineage = _latest(root, data["number"], _comments(root, repo, data["number"]))
             if (lineage is not None and _awaits_developer_fix(lineage)
                     and lineage.get("head") == proven and _is_ancestor(root, proven, local_head)):
+                if not _readmissible(lineage):
+                    # Refused before finish pushes: the push itself would invalidate the offered job.
+                    raise QueueError(_no_readmission(str(proven), local_head))
                 return {**observed, "state": "readmission", "number": data["number"],
                         "proven_head": proven, "head": local_head}
             raise QueueError("local task head is not the admitted or proven coordinator head")

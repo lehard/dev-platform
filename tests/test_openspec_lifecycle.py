@@ -841,6 +841,19 @@ REQUIREMENT_DELTA = (
 AUTHORED_PURPOSE = "Foo lets operators run the foo workflow safely and predictably end to end."
 
 
+class EvidenceBaseTests(unittest.TestCase):
+    def test_a_contribution_refreshes_evidence_on_its_own_base(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(lifecycle.evidence_base(root, "demo"), "origin/main")
+            context = root / ".claude/requirement-child-context/demo.json"
+            context.parent.mkdir(parents=True)
+            context.write_text('{"requirement": "o/r#7"}', encoding="utf-8")
+            self.assertEqual(lifecycle.evidence_base(root, "demo"), "origin/main")
+            context.write_text('{"contribution": {"head": "abc"}}', encoding="utf-8")
+            self.assertEqual(lifecycle.evidence_base(root, "demo"), "abc")
+
+
 class ArchivePurposeAndRecoveryTests(unittest.TestCase):
     """BR-580: new-capability Purpose, committed package, rehearsal, recovery and readable failures."""
 

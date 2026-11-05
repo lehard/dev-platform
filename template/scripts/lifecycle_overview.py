@@ -37,7 +37,7 @@ FINDING_HINTS = {
     "unclaimed-next-job": "No operator command applies: a lifecycle worker (hosted run or local node) has to claim the job; check that workers are running.",
     "expired-claim": "No operator command applies: the claim expired, so any lifecycle worker may claim the job again; check that workers are running.",
     "stale-head": "Nothing to decide: the candidate is re-evaluated for its current head.",
-    "provider-unavailable": "The automatic retry continues once the provider is available; switch-provider is listed when it applies.",
+    "provider-unavailable": "An offered retry job runs once the provider is available; with no job offered only resume or switch-provider continues.",
 }
 # Post-merge kinds never run hosted: the local post-merge runner claims them, and the coordinator can run one now.
 POST_MERGE_UNCLAIMED_HINT = (
@@ -103,13 +103,22 @@ def _current_step(candidate: dict) -> str | None:
     if state in INTEGRATION_STATES:
         return "integration"
     kind = {"review": "re-review" if attempts.get("repair", 0) > 0 else "review", "repair": "repair",
-            "finalize": "finalize", "required-checks": "integration", "integration": "integration"}.get(red)
+            "finalize": "finalize", "semantic-verification": "finalize", "required-checks": "integration",
+            "integration": "integration", "integration-repair": "integration", "full-checks": "integration",
+            "publication": "integration"}.get(red)
+    if kind is None and red is None and state == "blocked-retryable" and job_kind is None:
+        return "integration"  # the only retryable wait with no red gate: exact-head required checks
     return kind or {"review": "review", "repair": "repair", "finalize": "finalize"}.get(job_kind or STATE_KIND.get(state, ""))
 
 
 def stage_chain(candidate: dict) -> list[dict]:
-    """The review -> ... -> cleanup chain with the step reached, derived from the record's state and counters."""
+    """The review -> ... -> cleanup chain with the step reached, derived from the record's state and counters.
+
+    Only a merged candidate can have completed the chain: an unmerged one with no known step is ``unknown``.
+    """
     current = _current_step(candidate)
+    if current is None and candidate["state"] != "merged":
+        return [{"step": step, "status": "unknown"} for step in CHAIN]
     attempts = candidate.get("attempts") or {}
     position = CHAIN.index(current) if current in CHAIN else len(CHAIN)
     chain = []
@@ -163,6 +172,29 @@ def idle_reason(candidate: dict, *, job: dict | None, winning: dict | None, comp
     def idle(kind: str, waiting_for: str, moved_by: str, evidence: str) -> dict:
         return {"kind": kind, "waiting_for": waiting_for, "moved_by": moved_by, "evidence": evidence}
 
+    def retry_wait() -> dict:
+        """What moves a blocked-retryable candidate with no offered job; nothing here retries by itself."""
+        from publication_queue import retry_job_kind
+
+        gate = red.get("name")
+        evidence = f"red {gate or 'no'} gate in the latest lifecycle record"
+        checks = (candidate.get("gates") or {}).get("required-checks")
+        checks_evidence = checks.get("evidence") if isinstance(checks, dict) else None
+        if gate == "semantic-verification":
+            return idle("developer", "a fresh developer handoff: finalize stopped on semantic verification and nothing "
+                        "retries it", "the developer rerunning finish after fresh verification", evidence)
+        retry_kind = retry_job_kind(candidate)
+        if retry_kind:
+            return idle("human-decision", f"an operator resume or switch-provider: the {retry_kind} provider stayed "
+                        "unavailable and no retry job is offered", "an operator running publication_queue.py", evidence)
+        if isinstance(checks_evidence, dict) and checks_evidence.get("phase") == "composition-final-ci":
+            return idle("publication-queue", "the publication queue to observe the composition's exact-head required CI "
+                        "and continue its publication", "the publication queue", evidence)
+        if gate is None:
+            return idle("publication-queue", "exact-head required checks of the candidate, which the publication queue "
+                        "observes", "the publication queue", evidence)
+        return idle("unknown", f"idle reason unknown: red {gate} gate has no known exit", "unknown", evidence)
+
     if reason.startswith("malformed marker"):
         return idle("unknown", f"idle reason unknown: {reason}", "unknown", "lifecycle record")
     if candidate.get("task_identity") is None:
@@ -201,8 +233,7 @@ def idle_reason(candidate: dict, *, job: dict | None, winning: dict | None, comp
         return idle("unknown", f"idle reason unknown: red full-checks gate that resume does not accept ({refusal})",
                     "unknown", "red full-checks gate in the latest lifecycle record")
     if state == "blocked-retryable":
-        return idle("retry-pending", f"the automatic retry of the red {red.get('name') or 'gate'}", "the publication queue",
-                    "state blocked-retryable in the latest lifecycle record")
+        return retry_wait()
     if state == "contribution-integrated":
         return idle("requirement-composition", "the Requirement's other contributions and its composition", "the coordinator composing the Requirement",
                     "state contribution-integrated in the latest lifecycle record")

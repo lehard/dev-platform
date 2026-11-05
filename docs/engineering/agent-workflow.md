@@ -281,13 +281,15 @@ At minimum:
 ```bash
 python3 -m compileall -q template/scripts scripts
 python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests
-python3 scripts/managed_projects.py --registry <operator-registry-path> validate
+python3 scripts/managed_projects.py validate
 python3 scripts/run_test_groups.py --all
 python3 template/scripts/openspec_lifecycle.py check
 npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive
 ```
 
-The strict `openspec validate` is the command CI runs: `openspec_lifecycle.py check` does not include it, so a spec rule such as the requirement length limit fails only there.
+`managed_projects.py` finds the registry through an enabled `[operator]` section of `.dev-platform.toml`; without one, pass `--registry <operator-registry-path>`.
+
+The strict `openspec validate` is the command CI runs: `openspec_lifecycle.py check` does not include it, so the full check set and the docs check set run it, and a spec rule such as the requirement length limit fails before publication.
 
 `check_ci_python.py` reads the Python version that the `validate` job of `.github/workflows/ci.yml` pins. When the local `python3` has another minor version, it compiles the sources with `python<major.minor>` of the CI version and fails on a compile error; an unreadable CI version or a missing or misreporting interpreter of that version is refused naming both versions. It catches compile-time errors only (for example the Python 3.11 limit on statically nested blocks), not runtime behaviour differences; required CI stays the merge gate. When Copier is available, render the template and compile/run the generated doctor. For Git lifecycle changes, exercise temporary local/bare remotes so fetch/sync/direct-publish safety is tested.
 
@@ -432,6 +434,7 @@ lifecycle progress). A new developer head pushed to the same PR while it is `rev
 admission comment records `supersedes` (the previously admitted head, its state and the reason) and a fresh review job
 is published for the new head; until then the coordinator skips the pushed head instead of integrating or blocking it,
 and `status` reports "new head awaits developer re-admission" with the proven and the pushed head.
+This applies to a managed change only: a quick task has no developer handoff, so finish refuses a new head over its admitted one, and before pushing it. Its supported exit is the job offered for the proven head; a head already pushed invalidates that job, and `status` names a coordinator decision.
 During such a re-handoff the scope gate (`select_checks.py --execute`, `finish`) accepts the worktree's handed-off claim, writing nothing, only while its PR is in one of those states and HEAD descends from the handed-off head; `finish` reactivates it for publication and admission hands it off again. Any other case refuses with the command, so no manual `agent_board.py start` or repeated `acknowledge` is needed.
 Re-admission is refused while a job holds a live claim or the candidate is in any other state, for another task, when
 a finding-level escalation (rejected review, proposed rejection, exhausted repair rounds) or a candidate carrying

@@ -272,7 +272,16 @@ def recorded_content_is_current(root: Path, change: str, recorded: object) -> bo
     return equivalent_proofs(root, recorded, review_content_identity(root, change))
 
 
-EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base origin/main --execute --evidence {path}"
+EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base {base} --execute --evidence {path}"
+
+
+def evidence_base(root: Path, change: str) -> str:
+    """The base of a task's selected checks: its recorded contribution base, or origin/main."""
+    from requirement_child_context import context_path
+
+    context = context_path(root, change)
+    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution") if context.is_file() else None
+    return contribution["head"] if contribution else "origin/main"
 
 
 def stale_committed_evidence(root: Path) -> tuple[str, str]:
@@ -309,7 +318,7 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     return "stale", (
         f"committed selected-check evidence {relative} does not prove the current task content "
         f"(recorded base {recorded_base or 'none'}, current base {current.get('base')}): main or the task changed a task path. "
-        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=relative)}, then commit {relative}"
+        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(base=evidence_base(root, provenance.change), path=relative)}, then commit {relative}"
     )
 
 
@@ -365,7 +374,7 @@ def require_automated_evidence(change: Path, *, root: Path | None = None) -> Non
             raise SystemExit(
                 f"{change.name}: automated evidence checkout identity does not match this managed task; "
                 "rerun validation from the exact registered task checkout. Only the same change's committed OpenSpec archive materialization may follow a validated HEAD. "
-                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=evidence_path)}, then commit {evidence_path}"
+                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(base=evidence_base((root or change.parents[2]).resolve(), canonical_change), path=evidence_path)}, then commit {evidence_path}"
             )
 
 
@@ -953,7 +962,8 @@ def finalize_change(root: Path, name: str, *, context: str, requirement: str | N
 
             check_env = archive_target_environment(root, name)
             run_checked(
-                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute", "--evidence", str(evidence)],
+                ["python3", "scripts/select_checks.py", "--base", evidence_base(root, name), "--execute",
+                 "--evidence", str(evidence)],
                 root,
                 env=check_env,
                 pass_fds=child_lease_descriptors(check_env),

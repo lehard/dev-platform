@@ -334,6 +334,42 @@ class IdleReasonTests(unittest.TestCase):
         self.assertEqual(idle["kind"], "unknown")
         self.assertIn("does not name the current head", idle["waiting_for"])
 
+    def retry_wait(self, **fields):
+        candidate = {"number": 7, "head": HEAD, "state": "blocked-retryable", "task_identity": IDENTITY, **fields}
+        return overview.idle_reason(candidate, job=None, winning=None, completed=False, open_pr=True)
+
+    def test_no_retryable_wait_promises_a_retry_nobody_runs(self):
+        final_ci = {"required-checks": {"result": "pending", "evidence": {"head": HEAD, "phase": "composition-final-ci"}}}
+        unavailable = {"repair": {"result": "failed", "evidence": {"cause": "provider-unavailable"}}}
+        for fields, kind, text in (
+                ({"red_gate": {"name": "semantic-verification"}}, "developer", "fresh developer handoff"),
+                ({"red_gate": {"name": "review"}}, "human-decision", "review provider stayed unavailable"),
+                ({"red_gate": {"name": "required-checks"}, "gates": unavailable}, "human-decision", "repair provider"),
+                ({"gates": final_ci}, "publication-queue", "exact-head required CI"),
+                ({"red_gate": {"name": "required-checks"}, "gates": final_ci}, "publication-queue", "exact-head required CI"),
+                ({"red_gate": {"name": "publication"}, "gates": final_ci}, "publication-queue", "exact-head required CI"),
+                ({}, "publication-queue", "exact-head required checks"),
+                ({"red_gate": {"name": "required-checks"}}, "unknown", "no known exit"),
+                ({"red_gate": {"name": "finalize"}}, "unknown", "no known exit")):
+            with self.subTest(fields=fields):
+                idle = self.retry_wait(**fields)
+                self.assertEqual(idle["kind"], kind)
+                self.assertIn(text, idle["waiting_for"])
+                self.assertNotIn("automatic retry", idle["waiting_for"])
+
+    def test_an_unmerged_candidate_never_shows_post_merge_steps_as_done(self):
+        for fields, step in (({"red_gate": {"name": "full-checks"}}, "integration"),
+                             ({"red_gate": {"name": "publication"}}, "integration"),
+                             ({"red_gate": {"name": "semantic-verification"}}, "finalize"),
+                             ({}, "integration")):
+            with self.subTest(fields=fields):
+                chain = overview.stage_chain({"state": "blocked-retryable", **fields})
+                self.assertEqual(next(s["step"] for s in chain if s["status"] == "current"), step)
+                self.assertEqual({s["status"] for s in chain[-3:]}, {"pending"})
+        unexplained = overview.stage_chain({"state": "blocked-escalation", "red_gate": {"name": "other"}})
+        self.assertEqual({s["status"] for s in unexplained}, {"unknown"})
+        self.assertEqual({s["status"] for s in overview.stage_chain({"state": "merged"})} - {"not-needed"}, {"done"})
+
     def test_every_candidate_state_gets_an_explicit_reason(self):
         for state in sorted(lifecycle.STATES):
             with self.subTest(state=state):
