@@ -3,36 +3,36 @@
   "candidate": {
     "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
     "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
-    "candidate_head": "26e3737b03a6f0a6a4e7ecc782b812dd3b6afcf1",
-    "diff_sha256": "d2512041be09e144858b385d66adfa7ae5b98e672212beb852ed84a393ac7615"
+    "candidate_head": "07c85cb3ece88bbd1cc1913c20a7108441b7acd3",
+    "diff_sha256": "3b0f6b4199df3f31f279ca75112bac63eac93b76faa1fc8614bb43e42fabbcc4"
   },
-  "completed_at": "2026-11-05T20:10:03+00:00",
+  "completed_at": "2026-11-05T21:29:14+00:00",
   "findings": [
     {
-      "evidence": "scripts/live_scenarios.py: run_scenarios catches only StepFailure. scenario_quick_task calls run([\"git\",\"add\"...]), run([\"git\",\"commit\"...]) and run([\"git\",\"branch\"...]) directly. Scenario.pr_state calls gh_json inside the wait() read callback. A failure in any of these raises SandboxError, which escapes to main(). main prints only \"live scenarios: <error>\" and returns 1. This contradicts the live-lifecycle-sandbox requirement \"A failed or timed-out step SHALL exit non-zero naming scenario, step and observed state\".",
-      "id": "step-failure-loses-scenario-and-step",
+      "evidence": "tasks.md 2.2 says 'Idempotent bootstrap of the repository, settings, protection and labels; target guard.' In scripts/live_scenarios.py, `Sandbox.apply_settings` covers merge settings, the HOSTED_KINDS variable, branch protection and a ruleset. `check_target` fails if the repository does not exist. Nothing creates labels (grep the diff for 'label'). docs/engineering/live-scenarios.md lists the repository and labels in neither the owner setup nor the runner steps.",
+      "id": "bootstrap-repo-and-labels-not-implemented",
       "severity": "advisory",
-      "summary": "A SandboxError raised inside a running scenario is not converted to a StepFailure, so the run fails without naming scenario, step and observed state, as the spec requires."
+      "summary": "Task 2.2 is marked done as an idempotent bootstrap of the repository, settings, protection and labels. The runner only does settings, protection and a ruleset. It does not create the repository or any labels."
     },
     {
-      "evidence": "scripts/live_scenarios.py: assert_target checks repository == config.repository, that the repository is not the checkout's origin, and private. Nothing validates coordinator_app, the Backlog binding, or the registry and operator config against production resources. The \"Sandbox is isolated from production resources\" requirement includes \"or the configuration names a production resource\".",
-      "id": "production-resource-refusal-incomplete",
+      "evidence": "specs/publication-queue/spec.md: 'grant the coordinator token of each queue workflow it installs Checks read and Actions read'. sandbox.toml has kept_workflows = [publication-queue.yml, lifecycle-workers.yml], and compose_snapshot calls grant_token_reads on every kept workflow. design.md and docs say 'snapshot workflows'. The delta spec should name the worker workflow too, or the runner should not touch it.",
+      "id": "token-read-grant-scope-wider-than-spec",
       "severity": "advisory",
-      "summary": "The spec says the runner refuses before any write when the configuration names a production resource. The guard only compares the target repository name, the privacy flag and the origin."
+      "summary": "The spec limits the Checks and Actions read grant to the queue workflows. The runner applies it to every kept workflow, including lifecycle-workers.yml."
     }
   ],
-  "launched_at": "2026-11-05T20:09:31+00:00",
-  "output_sha256": "53af4ce6680e2412b5834ecff26cbecfcf69da36212d8e9e212ef7d7688efb10",
+  "launched_at": "2026-11-05T21:28:49+00:00",
+  "output_sha256": "a8a158cd9156d423313f34015e890e8c9cacfcfb549400eebc4bb8a8c6cfe168",
   "perspective": "spec-fidelity",
-  "request_id": "2c57da03-9a0a-4c87-ad41-a7fdb70c993b",
+  "request_id": "6082ffac-6adc-48be-95d2-3a0c52c87777",
   "reviewer": {
-    "context_id": "fdc55da6-8916-4dca-bec6-22a2e97134c4",
+    "context_id": "cdd9315f-47ca-43bf-8e3f-372ed5fe216e",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3441d5fe-8455-45bf-a8a7-a55185d35f31",
+    "launch_id": "platform-launch-8e233574-55d0-4ec1-919c-f364b96da1e1",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +48,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46242
+        "value": 49667
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 98038
+        "value": 142143
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31490
+        "value": 23587
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 31667
+        "value": 23879
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 6
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2929
+        "value": 2697
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "65211b760d59b85861e28787ff71f5c2508e2d67ff80b12cdc0882cad3194d15"
+  "task_content_digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02"
 }

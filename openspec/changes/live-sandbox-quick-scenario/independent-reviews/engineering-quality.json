@@ -3,48 +3,42 @@
   "candidate": {
     "base_head": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
     "base_ref": "6e823f6dc54f1cc10c29cc88b04672734f79b2a3",
-    "candidate_head": "26e3737b03a6f0a6a4e7ecc782b812dd3b6afcf1",
-    "diff_sha256": "d2512041be09e144858b385d66adfa7ae5b98e672212beb852ed84a393ac7615"
+    "candidate_head": "07c85cb3ece88bbd1cc1913c20a7108441b7acd3",
+    "diff_sha256": "3b0f6b4199df3f31f279ca75112bac63eac93b76faa1fc8614bb43e42fabbcc4"
   },
-  "completed_at": "2026-11-05T20:10:39+00:00",
+  "completed_at": "2026-11-05T21:29:40+00:00",
   "findings": [
     {
-      "evidence": "scripts/live_scenarios.py:700 `gh_json([\"api\", \"--paginate\", f\"repos/{repo}/branches?per_page=100\"], ...)` -> json.loads(run(...)). Without `--slurp`, gh prints one array per page. Failed runs that leave work branches make this reachable.",
-      "id": "paginated-branch-list-not-valid-json",
+      "evidence": "template/scripts/lifecycle_workers.py: prepare_checkout calls `env = github_git_env(source, Path(root))` for every non-local source. github_git_env raises WorkerError('harness git access requires an uncredentialed GitHub HTTPS origin') for any other scheme or host, and calls active_gh_token unconditionally. A public clone with no gh login, or an ssh or other-host source that cloned before, now fails. The added tests cover only the private and missing-token cases; none checks that a public repository still works.",
+      "id": "clone-requires-token-for-public-github",
       "severity": "advisory",
-      "summary": "close_open_work parses `gh api --paginate` output as a single JSON document. Once the sandbox has more than 100 branches, the output is concatenated arrays and json.loads fails. That breaks reset, which is the recovery path for failed runs."
+      "summary": "prepare_checkout and prepare_harness now require a gh credential for every GitHub HTTPS source, public ones included. They also reject any non-GitHub or non-file remote. The spec only requires the credential for a private repository, and the tasks claim public behaviour is unchanged."
     },
     {
-      "evidence": "template/scripts/lifecycle_workers.py: prepare_checkout calls `github_git_env(source, Path(root))` for every non-local source, and `_git` calls `harness_push_env(repo)` for any `fetch`/`ls-remote` of `origin`. github_git_env raises 'requires an uncredentialed GitHub HTTPS origin' for any other scheme or host. It calls `gh auth token` for every GitHub HTTPS source, public or private. The new tests only cover the private-repo and github.com cases.",
-      "id": "git-credential-now-mandatory-for-all-github-origins",
+      "evidence": "scripts/live_scenarios.py close_open_work: `gh_json([\"api\", \"--paginate\", f\"repos/{repo}/branches?per_page=100\"], SOURCE_ROOT)`, where gh_json is `json.loads(run(...))`. The code adds no `--slurp` and does no per-page handling.",
+      "id": "close-open-work-paginate-json",
       "severity": "advisory",
-      "summary": "Public GitHub clones and fetches now require an authenticated gh credential. Non-GitHub-HTTPS origins that previously worked in `_git` and `prepare_checkout` now raise WorkerError. This contradicts the stated task 1.2 ('public behaviour unchanged'), and the test suite does not cover it."
+      "summary": "close_open_work parses `gh api --paginate` output with json.loads. For a repository with more than 100 branches, gh prints one JSON array per page, so the concatenated output is not valid JSON and reset would crash. Leftover work branches build up across failed runs."
     },
     {
-      "evidence": "scripts/live_scenarios.py:531 `detail = (done.stderr.strip() or done.stdout.strip())[-2000:]`, and finish_until_queued tests `QUEUED not in str(error)`.",
-      "id": "queued-detection-depends-on-stderr-precedence",
+      "evidence": "scripts/live_scenarios.py Lock.acquire does `DELETE` then `_create()` without comparing the holder value before the delete. Sandbox.env sets `env[\"GH_TOKEN\"] = run([\"gh\",\"auth\",\"token\"], ...)`, and Scenario.platform and finish_until_queued pass that env to scripts executed from sandbox.checkout.",
+      "id": "lock-takeover-race-and-operator-token",
       "severity": "advisory",
-      "summary": "The runner decides whether `finish` queued the PR by searching the QUEUED text in the error from `run()`. That error contains only stderr when stderr is non-empty, otherwise stdout, and is truncated to the last 2000 characters. If finish prints the queued message on stdout and any warning on stderr, a correct queue handoff is reported as a step failure."
-    },
-    {
-      "evidence": "scripts/live_scenarios.py:768-773 and 780: reset order is install_baseline -> apply_settings -> check_app_token, and the dispatch is a single `gh workflow run` with no retry. scripts/live_scenarios.py:760 `if not any(rule[\"name\"] == name ...)` skips an existing ruleset.",
-      "id": "queue-token-check-races-workflow-registration",
-      "severity": "advisory",
-      "summary": "check_app_token dispatches publication-queue.yml right after the baseline push. GitHub may not have registered the new workflow file for workflow_dispatch yet, so the first reset on a fresh sandbox can fail with a transient 'workflow not found' error. The ruleset in apply_settings is also created only if absent and is never updated, so later changes to its bypass actors are not applied."
+      "summary": "Two minor robustness gaps in the runner. First, the expired-lock takeover is not atomic: two runners that both see an expired lease can each delete the other's freshly created variable, and both then believe they hold the lock. Second, the operator's full gh login token is exported as GH_TOKEN to every platform script that runs from the sandbox checkout, which holds candidate code, even though the design says candidate code is untrusted and the sandbox App is isolated for that reason."
     }
   ],
-  "launched_at": "2026-11-05T20:10:03+00:00",
-  "output_sha256": "a0e210ea0da946846682f89082e905a94d1666dd33b8489367bf3a286e86fd93",
+  "launched_at": "2026-11-05T21:29:14+00:00",
+  "output_sha256": "71619363cffb261d40a422cb0e0d0e1919ae03df12d070206bae7e87496285ef",
   "perspective": "engineering-quality",
-  "request_id": "2c57da03-9a0a-4c87-ad41-a7fdb70c993b",
+  "request_id": "6082ffac-6adc-48be-95d2-3a0c52c87777",
   "reviewer": {
-    "context_id": "fb789b47-e755-4068-88bd-70cfa345520e",
+    "context_id": "cc9c33f3-5f81-491c-b4fc-93ad10e49935",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-eb4b1431-788d-4dfe-a2b8-d5f43210dfc9",
+    "launch_id": "platform-launch-e8cfd66c-b3ab-4715-9c97-c938a71f41bc",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -60,22 +54,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 37572
+        "value": 40770
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52440
+        "value": 52306
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35062
+        "value": 25121
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35291
+        "value": 25400
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -90,11 +84,11 @@
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3757
+        "value": 2935
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "65211b760d59b85861e28787ff71f5c2508e2d67ff80b12cdc0882cad3194d15"
+  "task_content_digest": "cb485b6aef603a724dc95ca554fc77ec11875447965bbb40be3cfd99b500bf02"
 }
