@@ -25,7 +25,7 @@ def context_path(root: Path, change: str) -> Path:
     return root / ".claude" / "requirement-child-context" / f"{change}.json"
 
 
-def cached_contribution(root: Path, change: str, *, requirement: str) -> dict:
+def cached_contribution(root: Path, change: str, *, requirement: str = "<its Requirement>") -> dict:
     """Return the exact contribution boundary an existing child worktree recorded when it started."""
     path = context_path(root, change)
     contribution = json.loads(path.read_text()).get("contribution") if path.is_file() else None

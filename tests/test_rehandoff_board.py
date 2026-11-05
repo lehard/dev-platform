@@ -181,6 +181,7 @@ class HandoffGateTests(unittest.TestCase):
                 mock.patch.object(openspec_lifecycle, "require_automated_evidence"), \
                 mock.patch.object(openspec_lifecycle, "require_managed_routing_evidence", side_effect=routing) as route, \
                 mock.patch.object(pr_review_gate, "task_identity", return_value={"task_content": {}}), \
+                mock.patch.object(pr_review_gate, "require_main_target"), \
                 mock.patch("subprocess.run", return_value=subprocess.CompletedProcess("c", checkpoint_rc, "", "stale")) as run:
             (Path(self.tmp.name) / "scripts").mkdir(exist_ok=True)
             (Path(self.tmp.name) / "scripts/agent_friction.py").write_text("")

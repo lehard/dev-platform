@@ -13,13 +13,16 @@ from pathlib import Path
 from typing import Iterator
 
 from _platform_common import (
+    TaskFreshnessError,
     atomic_write_text,
     current_worktree_root,
     locked_json,
     machine_path,
     profile,
     read_platform_config,
+    require_main_branch,
     run_git,
+    task_freshness_branch,
     utc_now,
 )
 from managed_task import (
@@ -37,7 +40,7 @@ from managed_task import (
 )
 from managed_project_status import ManagedProjectStatusError, reconcile
 from requirement_integration import ReadyForIntegrationReceipt, RequirementIntegrationError, read_receipt
-from requirement_child_context import refresh_context
+from requirement_child_context import cached_contribution, context_path, refresh_context
 from requirement_integration import _registered_worktrees as _registered_worktree_branches
 import managed_work_identity
 from rollout_preflight import add_defer_rollout_argument, apply_defer_rollout
@@ -364,6 +367,19 @@ def recover_incomplete_managed_start(
     return True
 
 
+def _require_resumable_context(existing_root: Path, package: Package) -> None:
+    """Refuse to recreate a lost child context when that would turn a contribution into a main-target task."""
+    if context_path(existing_root, package.change).is_file():
+        return
+    main_branch = require_main_branch(read_platform_config(existing_root), ManagedTaskError)
+    try:
+        target = task_freshness_branch(existing_root, main_branch)
+    except TaskFreshnessError as exc:
+        raise ManagedTaskError(str(exc)) from exc
+    if target != main_branch:
+        cached_contribution(existing_root, package.change)
+
+
 def _resume_existing_managed_task(
     root: Path,
     package: Package,
@@ -384,6 +400,7 @@ def _resume_existing_managed_task(
         ["merge-base", "--is-ancestor", base_receipt.head, "HEAD"], cwd=existing_root, check=False
     ).returncode != 0:
         raise ManagedTaskError("resumed child does not descend from its exact ready predecessor")
+    _require_resumable_context(existing_root, package)
     context = refresh_context(existing_root, package, predecessor=base_receipt)
     if context is not None:
         print(f"Bounded Requirement child context refreshed: {context}")
@@ -507,7 +524,6 @@ def start_managed_task(
         existing_root = Path(str(transaction["worktree"])).resolve()
         if existing_root.is_dir() and canonical_provenance_candidates(existing_root, package.change):
             if contribution is not None:
-                from requirement_child_context import cached_contribution
                 if cached_contribution(existing_root, package.change, requirement=contribution["requirement"]) != contribution:
                     raise ManagedTaskError("resumed contribution base differs from its start boundary")
             return _resume_existing_managed_task(root, package, existing_root, scope, predecessor)

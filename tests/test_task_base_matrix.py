@@ -95,7 +95,12 @@ class TaskBaseMatrixTests(unittest.TestCase):
 
     def integrated(self, managed: bool) -> ExitStack:
         """queue_integrated's own inputs for a managed candidate or a quick task."""
-        provenance = mock.Mock(change="matrix") if managed else None
+        provenance = None
+        if managed:
+            lineage = Path(self.tmp.name) / "matrix-lineage"
+            lineage.mkdir(exist_ok=True)
+            (lineage / ".managed-task.json").write_text('{"change": "matrix"}')
+            provenance = mock.Mock(change="matrix", path=lineage)
         stack = ExitStack()
         stack.enter_context(mock.patch.object(_platform_common, "lifecycle_mode", return_value="coordinator"))
         stack.enter_context(mock.patch.object(publication_queue, "enabled", return_value=True))
