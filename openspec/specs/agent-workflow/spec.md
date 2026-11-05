@@ -250,6 +250,10 @@ The pre-authoring pipeline SHALL bind each downstream artifact to the exact upst
 - **THEN** approval records the exact ADD content digest and applicable snapshot/projection identity
 - **AND** a later material ADD mutation invalidates that approval
 
+#### Scenario: ADD author tries to approve
+- **WHEN** approval names no approver, the ADD records no preparer, or the approver is the preparer
+- **THEN** approval is refused naming the cause and the ADD stays unapproved
+
 #### Scenario: Intent set is created
 - **WHEN** an approved ADD is decomposed
 - **THEN** the intent set records the approved ADD digest and relevant snapshot/projection digest
