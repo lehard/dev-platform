@@ -245,7 +245,9 @@ class Sandbox:
         (self.checkout / ".dev-platform.toml").write_text(
             contract + '\n[operator]\nenabled = true\nconfig_env = "DEV_PLATFORM_OPERATOR_CONFIG"\n'
             f'\n[development_backlog]\nrepository = "{self.config.repository}"\n'
-            f'project_label = "project:dev-platform-sandbox"\ndefault_priority = "P2"\nproject_owner = "{owner}"\n', encoding="utf-8")
+            f'project_label = "project:dev-platform-sandbox"\ndefault_priority = "P2"\nproject_owner = "{owner}"\n'
+            f'\n[agent_sessions]\ndirectory = "{self.workdir / "agent-sessions"}"\nstale_after_seconds = 21600\nended_keep_seconds = 86400\n',
+            encoding="utf-8")
         with (self.checkout / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
             handle.write(".dev-platform.toml\n.claude/\n")
 
