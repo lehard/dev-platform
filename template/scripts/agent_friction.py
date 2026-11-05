@@ -54,6 +54,7 @@ SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"(?i)\b(?:password|passwd|api[_-]?key|access[_-]?token|secret)\s*[:=]\s*\S+"),
 )
+FIXES_FRICTION_PROMPT = "a task that fixes a recorded friction Issue names it with a `Fixes-Friction: owner/repo#N` commit trailer; the merge closes it"
 FINGERPRINT_PREFIX = "dev-platform-friction"
 DEFAULT_PROCESS_LABEL = "process"
 MAX_OPEN_ISSUE_PAGES = 10
@@ -1451,6 +1452,7 @@ def _review_path(args: argparse.Namespace) -> int:
         "ambiguous_attribution": [str(event.get("id")) for event in ambiguous_attribution_events()][:10],
         "no_task_events": no_task_events()[:10],
         "evidence_sources": evidence_source_status(),
+        "fixes_friction": FIXES_FRICTION_PROMPT,
         **review_guidance(current_worktree_root(), changed_paths(current_worktree_root())),
     }
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
@@ -1989,6 +1991,8 @@ def close_fixed(pr_number: int, repository: str) -> dict:
     if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise SystemExit(f"PR #{pr_number} has no valid merge commit")
     numbers = parse_fix_references(str(pr.get("body") or ""), f"PR #{pr_number} body", repo)
+    for commit in gh_paged(f"repos/{repo}/pulls/{pr_number}/commits"):
+        numbers += parse_fix_references(commit["commit"]["message"], f"commit {commit['sha']}", repo)
     for changed in gh_paged(f"repos/{repo}/pulls/{pr_number}/files"):
         path = changed.get("filename")
         if not isinstance(path, str) or not PROPOSAL_PATH_RE.fullmatch(path) or changed.get("status") == "removed":

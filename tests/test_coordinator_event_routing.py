@@ -117,15 +117,7 @@ class CoordinatorEventRoutingTests(unittest.TestCase):
         self.assertEqual(recorded["reason"], "test-group-failure; exit 1")
         self.assertEqual(recorded["candidate"], {"task": "agent/task", "number": None, "head": HEAD})
 
-    def test_validation_failure_reason_names_failure_class_and_checks(self) -> None:
-        evidence = json.dumps({"failure_class": "test-group-failure", "failed_groups": ["friction", "queue"],
-                               "selected_checks": ["platform-tests"], "command": "python3 x", "exit_code": 1})
-        self.assertEqual(finish_task.validation_failure_reason(evidence),
-                         "test-group-failure; failed groups friction, queue; checks platform-tests; exit 1")
-        self.assertEqual(finish_task.validation_failure_reason(json.dumps({"failure_class": "selector-exit", "exit_code": 2})),
-                         "selector-exit; exit 2")
-
-    def test_finish_records_validation_failure_with_reason_and_candidate(self) -> None:
+    def test_lifecycle_friction_records_reason_and_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "scripts").mkdir()
@@ -134,7 +126,7 @@ class CoordinatorEventRoutingTests(unittest.TestCase):
             with mock.patch.object(finish_task, "current_branch", return_value="agent/task"), \
                     mock.patch.object(finish_task, "run_git", return_value=subprocess.CompletedProcess([], 0, HEAD + "\n", "")), \
                     mock.patch.object(finish_task.subprocess, "run", return_value=completed) as run:
-                finish_task.record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed",
+                finish_task.record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed",
                                                       "{}", reason="selector-exit; exit 2")
         command = run.call_args.args[0]
         self.assertEqual(command[command.index("--reason") + 1], "selector-exit; exit 2")

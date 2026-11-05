@@ -180,56 +180,20 @@ def run_checks(root: Path, base: str, no_checks: bool, *, task_evidence: bool = 
     # Stream the child's combined output line-by-line so the per-command
     # (DEV_PLATFORM_CHECK_COMMAND / _RESULT) and per-test-group
     # (DEV_PLATFORM_TEST_GROUP*) progress lines reach the caller live during a
-    # multi-minute run, while still accumulating the full text for the bounded
-    # failure evidence descriptor.
+    # multi-minute run.
     proc = subprocess.Popen(
         ["python3", str(root / "scripts" / "select_checks.py"), "--base", base, "--execute"]
         + (["--task-evidence"] if task_evidence else []),
         cwd=root, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
         stdin=subprocess.DEVNULL, pass_fds=child_lease_descriptors(),
     )
-    chunks: list[str] = []
     assert proc.stdout is not None
     with proc.stdout as stream:
         for line in stream:
-            chunks.append(line)
             print(line, end="", flush=True)
     returncode = proc.wait()
-    output = "".join(chunks)
     if returncode != 0:
-        evidence = validation_failure_evidence(output, returncode)
-        record_lifecycle_friction(root, "lifecycle-validation-failure", "required platform validation failed", evidence,
-                                  reason=validation_failure_reason(evidence))
         raise SystemExit(returncode)
-
-
-def validation_failure_evidence(output: str, returncode: int) -> str:
-    """Extract the selector's bounded descriptor without forwarding raw logs."""
-    prefix = "DEV_PLATFORM_CHECK_FAILURE: "
-    for line in output.splitlines():
-        if not line.startswith(prefix):
-            continue
-        try:
-            descriptor = json.loads(line[len(prefix):])
-        except json.JSONDecodeError:
-            break
-        if isinstance(descriptor, dict):
-            return json.dumps(descriptor, ensure_ascii=False, sort_keys=True)
-    return json.dumps({"failure_class": "selector-exit", "exit_code": returncode}, sort_keys=True)
-
-
-def validation_failure_reason(evidence: str) -> str:
-    """One bounded line naming the failure class and the failing checks/groups."""
-    descriptor = json.loads(evidence)
-    parts = [str(descriptor["failure_class"])]
-    if descriptor.get("phase"):
-        parts.append(f"phase {descriptor['phase']}")
-    if descriptor.get("failed_groups"):
-        parts.append("failed groups " + ", ".join(descriptor["failed_groups"]))
-    if descriptor.get("selected_checks"):
-        parts.append("checks " + ", ".join(descriptor["selected_checks"]))
-    parts.append(f"exit {descriptor['exit_code']}")
-    return "; ".join(parts)[:240]
 
 
 def run_openspec_hygiene(root: Path) -> str | None:
