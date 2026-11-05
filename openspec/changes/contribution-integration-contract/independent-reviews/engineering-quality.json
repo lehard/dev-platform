@@ -1,38 +1,32 @@
 {
   "availability": "available",
   "candidate": {
-    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
-    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
-    "candidate_head": "ccf552b20e4766a692862ba9d676365a60a654e4",
-    "diff_sha256": "54d009487a3d43557ffb337129a1de0ced21ed0d98ccb72de4249a8ee099ba0c"
+    "base_head": "9756bb48f105c58e8906b1c07c28cf6a9555c88d",
+    "base_ref": "9756bb48f105c58e8906b1c07c28cf6a9555c88d",
+    "candidate_head": "7e61615cd0f74db2c00ea330710965de678a4875",
+    "diff_sha256": "dd3780ab7f516d49b2e3e3dda513997507cc0476c874382a42722df9a9212d8a"
   },
-  "completed_at": "2026-11-05T00:46:09+00:00",
+  "completed_at": "2026-11-05T01:33:13+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/requirement_contributions.py, absorb_main: `branch = f\"requirement/BR-{requirement.rsplit('#', 1)[1]}\"`. template/scripts/execute_requirement.py, the absorb-main handler, catches only (ContributionError, QueueError, WorkerError).",
-      "id": "absorb-main-requirement-ref-parse",
+      "evidence": "template/scripts/_platform_common.py, new task_freshness_branch: `contribution = json.loads(context.read_text(...)).get(\"contribution\") if context.is_file() else None; if not contribution: return main_branch`. A contribution child worktree that has lost its context is then measured against main, which is the behavior this change removes. The spec scenario \"Target cannot be observed\" says freshness must refuse rather than report fresh. Only a missing branch field raises TaskFreshnessError. Missing context for a task whose provenance identifies a Requirement child, and unparseable JSON, are not handled.",
+      "id": "freshness-target-fails-open-to-main",
       "severity": "advisory",
-      "summary": "absorb_main derives the branch from `requirement.rsplit('#', 1)[1]` with no validation, so a reference without `#` fails with a raw IndexError instead of a ContributionError. The CLI only catches ContributionError, QueueError and WorkerError, so it prints a traceback instead of the structured `blocked` JSON."
-    },
-    {
-      "evidence": "template/scripts/_platform_common.py, task_freshness_branch: `contribution = json.loads(context.read_text(...)).get(\"contribution\") if context.is_file() else None; if not contribution: return main_branch`.",
-      "id": "freshness-target-fails-open-without-context",
-      "severity": "advisory",
-      "summary": "task_freshness_branch falls back to main when the child-context file is missing, so a contribution task whose context file is absent or deleted is measured against main with no error. It also calls json.loads on the context file without handling malformed JSON, which gives an unstructured traceback rather than TaskFreshnessError. The spec says an unobservable target must refuse, not report fresh."
+      "summary": "task_freshness_branch silently falls back to main when a managed task's requirement-child-context file is absent. A malformed context file raises an unhandled JSONDecodeError instead of TaskFreshnessError."
     }
   ],
-  "launched_at": "2026-11-05T00:45:49+00:00",
-  "output_sha256": "09bb70c4641a5f464e9ea02d527e4766ff1b577c808dc0b57637343792648b76",
+  "launched_at": "2026-11-05T01:32:41+00:00",
+  "output_sha256": "8aaac2bae58a9a6231d6eaba0b2606f1432a8cd3b9ac62ee39303be889f3c1e6",
   "perspective": "engineering-quality",
-  "request_id": "44bdcb52-72b6-4e59-ab13-87d77737bb65",
+  "request_id": "dbd5dfec-f9ab-4b68-a19b-32d7cd21e0fa",
   "reviewer": {
-    "context_id": "fa61c5ec-58cd-417c-8e9f-c4dcbe4de497",
+    "context_id": "e9f10845-ec1c-4b1d-8e24-f50e88833383",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-3965bdb8-dfd4-4858-be27-febf4d2771d9",
+    "launch_id": "platform-launch-3222dc8c-8d6d-4520-b352-43273ea20f43",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48118
+        "value": 55491
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 111740
+        "value": 156217
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19164
+        "value": 30737
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19744
+        "value": 31182
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -73,16 +67,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1996
+        "value": 3249
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "4c1141e47b7eb38294d4cdad2196340020f00ffebdc0fd9d6ef7fabc9c947242"
+  "task_content_digest": "ad19fa77043e64c6446026f3b7553ace133424d01ff30992cc0ae1650028b26b"
 }
