@@ -32,6 +32,7 @@ import lifecycle_workers as workers
 import pr_review_gate as review_gate
 import post_review_finalization as final
 import publication_queue as queue
+from publication_state import FAILED_CHECK_STATES
 
 MAX_INTEGRATION_REPAIRS = queue.MAX_INTEGRATION_REPAIRS
 COMPOSITION_IDENTITY = re.compile(r"requirement/BR-([1-9][0-9]*)$")
@@ -133,9 +134,29 @@ def read_failed_log(repo: str, run: str, job: str) -> str:
     done = subprocess.run(["gh", "run", "view", run, "--job", job, "--log-failed", "-R", repo],
                           capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
     if done.returncode:
-        raise workers.WorkerError(f"integration-repair brief refused: the failed log of Actions job {job} is "
+        raise workers.WorkerError(f"repair brief refused: the failed log of Actions job {job} is "
                                   "unreadable: " + (done.stderr or done.stdout).strip()[-300:])
     return done.stdout
+
+
+def _failed_check_rows(evidence: object) -> object:
+    """The failed checks a ``required-checks`` red gate records, in any of its recorded shapes.
+
+    An integration failure names ``failed_checks``. A contribution repair carries the exact-head
+    snapshot, inside a required-checks finding or, restored by resume, bare.
+    """
+    if not isinstance(evidence, dict):
+        return None
+    if "failed_checks" in evidence:
+        return evidence["failed_checks"]
+    wrapped = evidence.get("required-checks")
+    findings = wrapped.get("findings") if isinstance(wrapped, dict) else None
+    observed = findings[0].get("evidence") if isinstance(findings, list) and findings else evidence
+    rows = observed.get("checks") if isinstance(observed, dict) else None
+    if not isinstance(rows, list):
+        return None
+    return [row for row in rows if isinstance(row, dict)
+            and str(row.get("state", "")).strip().upper() in FAILED_CHECK_STATES]
 
 
 def failed_check_evidence(red: dict, read_log: Callable[[str, str, str], str] = read_failed_log) -> list[dict]:
@@ -144,10 +165,9 @@ def failed_check_evidence(red: dict, read_log: Callable[[str, str, str], str] = 
     Refuses, naming the cause, when the red gate records no failed check, a check has no Actions job
     link, or its failed log is empty: a writer never starts without the evidence it has to fix.
     """
-    evidence = red.get("evidence")
-    checks = evidence.get("failed_checks") if isinstance(evidence, dict) else None
+    checks = _failed_check_rows(red.get("evidence"))
     if not isinstance(checks, list) or not checks:
-        raise workers.WorkerError("integration-repair brief refused: the required-checks red gate records no failed "
+        raise workers.WorkerError("repair brief refused: the required-checks red gate records no failed "
                                   "check identity; a developer fix re-admission is the supported path")
     briefed = []
     for check in checks:
@@ -155,11 +175,11 @@ def failed_check_evidence(red: dict, read_log: Callable[[str, str, str], str] = 
         link = str(check.get("link") or "") if isinstance(check, dict) else ""
         match = ACTIONS_JOB_LINK.fullmatch(link)
         if not name or match is None:
-            raise workers.WorkerError(f"integration-repair brief refused: failed check {name or check!r} has no "
+            raise workers.WorkerError(f"repair brief refused: failed check {name or check!r} has no "
                                       f"GitHub Actions job link to read its log from: {link or 'none'}")
         lines = read_log(*match.groups()).strip().splitlines()
         if not lines:
-            raise workers.WorkerError(f"integration-repair brief refused: the failed log of check {name} is empty")
+            raise workers.WorkerError(f"repair brief refused: the failed log of check {name} is empty")
         briefed.append({"name": name, "workflow": check.get("workflow"), "state": check.get("state"), "link": link,
                         "log_excerpt": "\n".join(lines[-FAILED_LOG_LINES:])[-FAILED_LOG_CHARS:]})
     return briefed
