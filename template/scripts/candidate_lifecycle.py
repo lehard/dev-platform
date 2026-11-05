@@ -628,6 +628,9 @@ def derive_candidate(pr: dict, comments: list[dict], checks: dict | None = None,
 
 
 POST_MERGE_KINDS = ("retrospective", "terminal-reconciliation", "cleanup")
+MAX_RETROSPECTIVE_REFRESHES = 3
+RETROSPECTIVE_REFRESH = "retrospective-refresh"  # the exhausted obligation past that bound; no job kind
+STALE_RETROSPECTIVE = re.compile(r"blocked: retrospective-stale ([0-9a-f]{16})\b")
 MAX_POST_MERGE_ATTEMPTS = 3
 POST_MERGE_FLAG = "post-merge"
 POST_MERGE_REOFFERS = "post-merge-reoffers"
@@ -661,6 +664,9 @@ def job_outcomes(head: str, comments: list[dict], trusted_apps: frozenset[str] =
 
 
 def exhausted_reason(kind: str) -> str:
+    if kind == RETROSPECTIVE_REFRESH:
+        return (f"post-merge retrospective stays blocked: friction kept arriving through {MAX_RETROSPECTIVE_REFRESHES} "
+                "refreshes; link it through reoffer-post-merge once it stops")
     return f"post-merge {kind} exhausted {MAX_POST_MERGE_ATTEMPTS} attempts; operator action required"
 
 
@@ -683,7 +689,7 @@ def post_merge_release_limit(candidate: dict, job: dict | None, comments: list[d
     if job is None:
         return None
     exact = {"number": candidate["number"], "kind": job["kind"], "head": job["head"], "attempt": job["attempt"],
-             **({"reoffer": job["reoffer"]} if "reoffer" in job else {})}
+             **{key: job[key] for key in ("reoffer", "refresh") if key in job}}
     found = _releases(exact, comments, trusted_apps, trusted_writers)
     if len(found) < MAX_RELEASES:
         return None
@@ -696,6 +702,12 @@ def post_merge_reoffer_seq(candidate: dict) -> int:
     return candidate.get("attempts", {}).get(POST_MERGE_REOFFERS, 0)
 
 
+def _stale_key(outcomes: list[str] | None) -> str | None:
+    """The refresh key of the latest receipt of one job, when it blocked on later friction."""
+    match = STALE_RETROSPECTIVE.match(outcomes[-1]) if outcomes else None
+    return match.group(1) if match else None
+
+
 def post_merge_progress(candidate: dict, comments: list[dict], trusted_apps: frozenset[str] = frozenset(),
                         trusted_writers: frozenset[str] = frozenset()) -> tuple[dict | None, str | None]:
     """``(next job, exhausted kind)`` of a merged candidate's post-merge chain, from trusted result receipts only.
@@ -704,8 +716,10 @@ def post_merge_progress(candidate: dict, comments: list[dict], trusted_apps: fro
     earlier or elsewhere offers nothing. The chain is retrospective, terminal reconciliation,
     then cleanup. A receipt whose outcome starts with ``failed`` or ``blocked`` leaves the same
     obligation open for a new attempt, bounded by ``MAX_POST_MERGE_ATTEMPTS``; any other outcome
-    completes it. An operator re-offer (``attempts["post-merge-reoffers"]``, its event carried in the
-    record's ``next_job``) gives an incomplete obligation a fresh budget under the re-offer's job ids;
+    completes it. A terminal receipt blocked on later friction names a refresh key: retrospective and
+    terminal are then owed again under that key, with their own attempts, up to
+    ``MAX_RETROSPECTIVE_REFRESHES`` per re-offer sequence. An operator re-offer
+    (``attempts["post-merge-reoffers"]``, its event carried in the record's ``next_job``) gives an incomplete obligation a fresh budget under the re-offer's job ids;
     an obligation completed under any earlier sequence stays complete. Nothing is stored, so an
     interrupted run resumes by re-deriving.
     """
@@ -724,20 +738,38 @@ def post_merge_progress(candidate: dict, comments: list[dict], trusted_apps: fro
                                        "re-offer event; inspect the latest coordinator record")
     outcomes = job_outcomes(candidate["head"], comments, trusted_apps, trusted_writers)
 
-    def job(kind: str, attempt: int, sequence: int) -> dict:
+    def job(kind: str, attempt: int, sequence: int, refresh: str | None = None) -> dict:
         return {"number": candidate["number"], "kind": kind, "head": candidate["head"], "attempt": attempt,
-                **({"reoffer": deepcopy(event) if sequence == seq else {"seq": sequence}} if sequence else {})}
+                **({"reoffer": deepcopy(event) if sequence == seq else {"seq": sequence}} if sequence else {}),
+                **({"refresh": refresh} if refresh else {})}
+
+    # Walk the keys: each terminal receipt blocked on later friction opens the next one. A repeated key
+    # is the same event set, so it stays inside the attempts of that key and is never offered twice.
+    keys: list[str] = []
+    while True:
+        latest = keys[-1] if keys else None
+        found = [key for sequence in range(seq + 1) for attempt in range(MAX_POST_MERGE_ATTEMPTS)
+                 for key in [_stale_key(outcomes.get(job_id(job("terminal-reconciliation", attempt, sequence, latest))))]
+                 if key and key not in keys]
+        if not found:
+            break
+        keys.append(found[-1])
+    if len(keys) > MAX_RETROSPECTIVE_REFRESHES * (seq + 1):
+        return None, RETROSPECTIVE_REFRESH
+    current = keys[-1] if keys else None
 
     for kind in POST_MERGE_KINDS:
+        refresh = current if kind != "cleanup" else None
         if any(seen and not seen[-1].startswith(("failed", "blocked"))
                for sequence in range(seq + 1) for attempt in range(MAX_POST_MERGE_ATTEMPTS)
-               for seen in [outcomes.get(job_id(job(kind, attempt, sequence)))]):
+               for seen in [outcomes.get(job_id(job(kind, attempt, sequence, refresh)))]):
             continue
         for attempt in range(MAX_POST_MERGE_ATTEMPTS):
-            if not outcomes.get(job_id(job(kind, attempt, seq))):
-                offered = job(kind, attempt, seq)
+            if not outcomes.get(job_id(job(kind, attempt, seq, refresh))):
+                offered = job(kind, attempt, seq, refresh)
                 return {"kind": kind, "head": candidate["head"], "task_identity": deepcopy(identity),
-                        "attempt": attempt, **({"reoffer": offered["reoffer"]} if seq else {})}, None
+                        "attempt": attempt, **({"reoffer": offered["reoffer"]} if seq else {}),
+                        **({"refresh": refresh} if refresh else {})}, None
         return None, kind
     return None, None
 

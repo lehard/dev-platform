@@ -765,11 +765,14 @@ def run_terminal(ops: LifecycleOps, root: Path, number: int, branch: str, head: 
         return "child-reconciled; requirement awaits remaining children"
     if not ops.requirement_checkpointed(root, requirement):
         ensure_requirement_checkpoint(ops, root, requirement, children)
+    from requirement_retrospective import RetrospectiveStale
     from requirement_terminal import OwnerAcceptancePending
     try:
         ops.reconcile_parent(root, requirement, {child})
     except OwnerAcceptancePending as exc:
         return awaits_owner_acceptance(exc)
+    except RetrospectiveStale:
+        raise  # keyed below: the queue offers a refresh instead of spending the terminal budget
     except RuntimeError as exc:
         raise JobBlocked(str(exc)) from exc
     return "requirement-reconciled"
@@ -828,6 +831,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
         return {"status": "discarded"}
     if candidate.get("state") != "merged" or workers.build_job(candidate) != job:
         return {"status": "discarded"}
+    from requirement_retrospective import RetrospectiveStale
+
     ops = ops or LifecycleOps()
     run = {"retrospective": run_retrospective, "cleanup": run_cleanup,
            "terminal-reconciliation": functools.partial(run_terminal, task_identity=job["task_identity"])}[kind]
@@ -866,6 +871,8 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
             outcome, status = run(ops, root, job["number"], branch, job["head"]), "done"
     except JobBlocked as exc:
         outcome, status = "blocked: " + public_text(root, str(exc))[:200], "blocked"
+    except RetrospectiveStale as exc:
+        outcome, status = f"blocked: retrospective-stale {exc.key}: later friction " + ", ".join(exc.events)[:160], "blocked"
     except PostMergeEnvironmentError:
         raise  # no receipt: the caller releases the claim and fails visibly
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal

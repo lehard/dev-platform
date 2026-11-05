@@ -41,6 +41,10 @@ python3 scripts/dogfood_task.py route-codex --tier <R1|R2|R3> --rationale "..." 
 
 The command records the decision through `scripts/model_routing.py`. `R1` and `R2` (authored `R2`, or `--tier R1|R2`) immediately launch the configured lower-cost Codex executor through native `workspace-write` containment, while `R3` (authored or `--tier R3`) records the route and remains on the current session without a cheap-model attempt.
 
+`route-codex` states who writes task content: the delegated Codex child on `R1` and `R2`, the retained parent on `R3`. On `R1` and `R2` the supervisor does not write task content.
+
+If a delegated Codex child dies without reporting (for example its supervisor process was killed), the delegation stays open and blocks a new route. `python3 scripts/model_routing.py close-abandoned-delegation --reason "<why>"` closes it with outcome `abandoned` only when `lsof -d cwd` shows no process outside the caller's ancestry in the assigned worktree. A live process, a missing or failing `lsof`, a Claude delegation or an already closed one refuses and writes nothing. The closure records the reason, the observation and the task content left behind, and creates no execution evidence. `prepare` and `escalate` then accept that content while it equals the recorded post-content.
+
 The child path is truthful: if native Codex containment cannot be proven, it reports that limit and the parent retains the work rather than claiming a delegation. A local single-writer receipt and advisory lock are held for the exact assigned worktree throughout a launched Codex writer's lifecycle. A second writer is refused while that writer is live, and a stale or incomplete receipt fails closed rather than assuming the earlier writer disappeared.
 
 For a linked Requirement child, managed start/resume also prepares a bounded

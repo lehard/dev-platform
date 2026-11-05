@@ -117,7 +117,8 @@ def _parse_time(value: Any) -> datetime | None:
 def job_id(job: dict) -> str:
     suffix = ":t" + job["target_head"] if job.get("target_head") else ""
     reoffer = f":r{job['reoffer']['seq']}" if isinstance(job.get("reoffer"), dict) else ""
-    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + suffix
+    refresh = f":f{job['refresh']}" if job.get("refresh") else ""
+    return f"pr{job['number']}:{job['kind']}:{job['head']}:a{job['attempt']}" + reoffer + refresh + suffix
 
 
 def job_record(kind: str, head: str, task_identity: str | dict, attempt: int, *, providers=None, target_head=None,
@@ -164,7 +165,7 @@ def build_job(candidate: dict) -> dict | None:
         attempt = candidate.get("attempts", {}).get(kind, 0)
     return {"kind": kind, "number": candidate["number"], "head": job_head,
             "task_identity": explicit.get("task_identity", candidate.get("task_identity")), "attempt": attempt,
-            **{key: explicit[key] for key in ("provider", "providers", "target_head", "reoffer") if key in explicit}}
+            **{key: explicit[key] for key in ("provider", "providers", "target_head", "reoffer", "refresh") if key in explicit}}
 
 
 def job_providers(job: dict) -> list[str]:

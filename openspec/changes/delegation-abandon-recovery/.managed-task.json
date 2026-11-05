@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/model-routing/spec.md",
+    "tasks.md"
+  ],
+  "change": "delegation-abandon-recovery",
+  "imported_at": "2026-11-04T21:57:05+00:00",
+  "package_revision": "7d9aaad88530d781c0d2be5d67e631da0581b31de9441839e5e00ffdab0b15dd",
+  "prepared_against": "4b51d8f522493e5bf06556b619ab8387002a082a",
+  "private_lineage_handle": "pln_c93586c93b58512ae010aa4017611402",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "df581d75617bea33063ffb294144236d4348c8b19c1e37fb3c409295bbb2856e",
+    "updated_at": "2026-11-04T21:42:51Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-987/T2"
+}

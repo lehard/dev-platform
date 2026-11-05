@@ -1,12 +1,536 @@
 {
   "base": "4b51d8f522493e5bf06556b619ab8387002a082a",
-  "children": [],
+  "children": [
+    {
+      "change": "delegation-abandon-recovery",
+      "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/delegation-abandon-recovery/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "0da1aa3bd669da18921bd2cf48d328dba4208a30"
+          },
+          "identity": {
+            "change": "delegation-abandon-recovery",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+              "paths": {
+                "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+                "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+                "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+                "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+                "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+                "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+                "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+                "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T2"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "f5f248f4ebc4e01907fdacd94a889b6c4422d286",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "delegation-abandon-recovery",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+              "paths": {
+                "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+                "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+                "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+                "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+                "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+                "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+                "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+                "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T2"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/model_routing.py `_worktree_processes` only matches `n` cwd lines under the assigned worktree. It treats exit 0 with no match as proof of death and does not check that lsof could inspect other users' processes. design.md says there is 'no weaker proof', but the proof is bounded by lsof visibility. Consider documenting this limit or cross-checking with the recorded pid or the writer lock receipt.",
+                  "id": "abandon-liveness-lsof-visibility",
+                  "severity": "advisory",
+                  "summary": "Abandonment proof relies on `lsof -d cwd` seeing every live writer. A process that is invisible to the caller, such as another user, another PID namespace or a restricted lsof, or one whose cwd is outside the worktree is read as dead. The delegation would then be closed as abandoned while a child ma"
+                },
+                {
+                  "evidence": "tests/test_model_routing.py `test_a_real_process_with_its_cwd_in_the_worktree_is_observed` and `test_the_callers_own_ancestry_is_never_a_live_writer` call `routing._worktree_processes` unpatched. That function raises RoutingError when `lsof` is absent.",
+                  "id": "abandon-tests-host-dependent",
+                  "severity": "advisory",
+                  "summary": "The new real-process tests need `lsof`, `ps` and `sleep` on the host and fail rather than skip where `lsof` is missing."
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "0d391a2c48b1c7cb8a511c1ede76d3d68b0f182c06d43aa7e115455311acc28e"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [],
+              "perspective": "spec-fidelity",
+              "report_sha256": "09cd6e12bed25f5cee024c99e24f033ed286e045ae0ea73454139c31e81b0466"
+            }
+          },
+          "identity": {
+            "change": "delegation-abandon-recovery",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+              "paths": {
+                "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+                "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+                "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+                "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+                "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+                "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+                "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+                "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T2"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 5222,
+            "path": "openspec/changes/delegation-abandon-recovery/automated-checks.json",
+            "sha256": "addb913fcdb11595c5789df88b61ebb1880adebf228d330821ca1cb34d805e15"
+          },
+          "identity": {
+            "change": "delegation-abandon-recovery",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+              "paths": {
+                "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+                "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+                "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+                "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+                "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+                "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+                "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+                "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T2"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2753,
+            "path": "openspec/changes/delegation-abandon-recovery/verification.md",
+            "sha256": "ec934cba6ae6258a6977f7f9ccafa8a9e6278f11b6c36ffbde57a1b92434273b"
+          },
+          "identity": {
+            "change": "delegation-abandon-recovery",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+              "paths": {
+                "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+                "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+                "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+                "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+                "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+                "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+                "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+                "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T2"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "f5f248f4ebc4e01907fdacd94a889b6c4422d286",
+      "integrated_head": "bdd86a427f86659d288e46608db9bb86f63b5e70",
+      "pr_number": 898,
+      "reviewed_evidence_digest": "4688b75fc54fffdb5666f941c3c1f0cccc60e814390d4e31355546af0f131f5c",
+      "source_branch": "agent/br-987-t2-delegation-abandon-recovery",
+      "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+      "task_identity": {
+        "change": "delegation-abandon-recovery",
+        "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+        "kind": "contribution",
+        "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+        "source_issue": "pln_c93586c93b58512ae010aa4017611402",
+        "target_branch": "requirement/BR-987",
+        "task_content": {
+          "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+          "digest": "df48e28974c64ad7b072ec66c36a0019fca4aae2d58838d38cfd44907de49098",
+          "paths": {
+            "docs/engineering/model-routing.md": "1fe98151b67fb07a2cde601a0ef07d2f96f3d556",
+            "openspec/changes/delegation-abandon-recovery/.managed-task.json": "6e718cdfe2cadc488e2fbbada2b5653b9668286e",
+            "openspec/changes/delegation-abandon-recovery/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+            "openspec/changes/delegation-abandon-recovery/design.md": "3f7dcc92491fdecc5fc398e3dcf2d5e95ed2f3ab",
+            "openspec/changes/delegation-abandon-recovery/proposal.md": "461e0396a5efb3578730893d1a0cf3197b59d5fc",
+            "openspec/changes/delegation-abandon-recovery/specs/model-routing/spec.md": "2cfc34d912daf427e24ee950a79dbd726d12b9d6",
+            "openspec/changes/delegation-abandon-recovery/tasks.md": "82be8826b2f19e8a036bf1baacbbd0fd20a39431",
+            "template/scripts/model_routing.py": "4802f0d08d14368212f6b1c97a067083b80d7f4c",
+            "tests/test_model_routing.py": "bb3c38e774522e037df2f2a1f97296ee6eb1ad2a"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-987/T2"
+      },
+      "work_identity": "BR-987/T2"
+    },
+    {
+      "change": "requirement-retrospective-refresh",
+      "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+      "gates": {
+        "developer-friction": {
+          "evidence": {
+            "command": [
+              "python3",
+              "/Users/Shared/Workspace/dev-platform/.claude/worktrees/requirement-retrospective-refresh/scripts/agent_friction.py",
+              "assert-checkpoint"
+            ],
+            "head": "17574023e44f0f20ebe517048c183c9ad181a7b9"
+          },
+          "identity": {
+            "change": "requirement-retrospective-refresh",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+              "paths": {
+                "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+                "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+                "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+                "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+                "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+                "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+                "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+                "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+                "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+                "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+                "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+                "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+                "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T3"
+          },
+          "result": "passed"
+        },
+        "required-checks": {
+          "evidence": {
+            "checks": [
+              {
+                "name": "validate",
+                "state": "success"
+              }
+            ],
+            "detail": "",
+            "head": "5463cf7f9c63ae0f407960c72c9652c40759676e",
+            "kind": "passed"
+          },
+          "identity": {
+            "change": "requirement-retrospective-refresh",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+              "paths": {
+                "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+                "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+                "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+                "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+                "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+                "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+                "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+                "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+                "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+                "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+                "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+                "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+                "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T3"
+          },
+          "result": "passed"
+        },
+        "review": {
+          "evidence": {
+            "engineering-quality": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/pr_review_gate.py:690-696 maps RETROSPECTIVE_REFRESH to \"terminal-reconciliation\" and calls winning_claim with a job that has no `refresh`. job_id() now appends `:f<key>` (lifecycle_workers.py job_id). So an unexpired claim on the keyed terminal job is not detected, and the operator can re-offer while a worker still holds it. The same missing key at pr_review_gate.py:724-728 makes the last-outcome lookup return \"unknown\" instead of the stale-block receipt. Nothing in the tests e",
+                  "id": "reoffer-plan-ignores-refresh-key",
+                  "severity": "advisory",
+                  "summary": "For the exhausted refresh state, the re-offer plan and the permitted-actions text build their job ids without the `refresh` key. The live jobs they should match carry `:f<key>`."
+                },
+                {
+                  "evidence": "template/scripts/candidate_lifecycle.py:238 `if len(keys) > MAX_RETROSPECTIVE_REFRESHES * (seq + 1)`. design.md:85 says \"Refreshes per candidate are limited by MAX_RETROSPECTIVE_REFRESHES\". The post_merge_progress docstring says \"per re-offer sequence\". Because exhaustion triggers at 4 keys, re-offered budgets are consistent only by coincidence of the arithmetic. The wording of the three artifacts should be aligned, and the re-offer interaction needs a test; none exists.",
+                  "id": "refresh-bound-counts-keys-cumulatively",
+                  "severity": "advisory",
+                  "summary": "The refresh bound compares the cumulative number of keys with MAX_RETROSPECTIVE_REFRESHES*(seq+1). Each operator re-offer therefore grants a fixed three more refreshes, but only if the keys already used did not exceed the earlier budget. The design says \"per candidate\", the docs and spec say \"up to "
+                }
+              ],
+              "perspective": "engineering-quality",
+              "report_sha256": "9e93957dc3434623058bda4e408cca728a011ca6acead26cc21e3f8618e759aa"
+            },
+            "spec-fidelity": {
+              "availability": "available",
+              "findings": [
+                {
+                  "evidence": "template/scripts/pr_review_gate.py hunk @@ -687,6 +687,8: `kind = \"terminal-reconciliation\"`, then `job = {\"number\": number, \"kind\": kind, \"head\": ..., \"attempt\": attempt, ...}` with no refresh. job_id in lifecycle_workers.py now appends `:f<refresh>`, so the probe ids differ from the offered ids. I did not check whether the reoffer event itself carries the key.",
+                  "id": "reoffer-plan-ignores-refresh-key",
+                  "severity": "advisory",
+                  "summary": "post_merge_reoffer_plan rewrites an exhausted `retrospective-refresh` to `terminal-reconciliation` and builds its probe jobs without the `refresh` key. A live claim on a refresh-keyed job id (`...:f<key>`) is therefore not seen by the 'no unexpired claim holds one of those attempts' check."
+                },
+                {
+                  "evidence": "template/scripts/pr_review_gate.py adds `if kind == RETROSPECTIVE_REFRESH: kind = \"terminal-reconciliation\"`. proposal.md Impact lists only requirement_retrospective, integration_contour, candidate_lifecycle and lifecycle_workers. The spec scenario 'Refresh bound is reached' says only 'no job is offered and the candidate reports the blocked retrospective with its reason and next action'.",
+                  "id": "reoffer-of-refresh-bound-not-in-contract",
+                  "severity": "advisory",
+                  "summary": "The candidate changes the operator `reoffer-post-merge` behavior for the exhausted refresh obligation, but no artifact records this. The proposal's Impact list omits pr_review_gate.py, and the spec and design never say that a re-offer gives the refresh chain a new bound. The docs only say `reoffer-p"
+                }
+              ],
+              "perspective": "spec-fidelity",
+              "report_sha256": "ad03095cdb50b0830ea66e0c76d29ef9f5ca695dd8c6a3336000def0eb65ea36"
+            }
+          },
+          "identity": {
+            "change": "requirement-retrospective-refresh",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+              "paths": {
+                "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+                "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+                "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+                "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+                "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+                "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+                "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+                "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+                "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+                "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+                "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+                "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+                "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T3"
+          },
+          "result": "passed"
+        },
+        "selected-checks": {
+          "evidence": {
+            "bytes": 6790,
+            "path": "openspec/changes/requirement-retrospective-refresh/automated-checks.json",
+            "sha256": "292c317a931609864a13807517f4e67e7a9cc432a33b927134f6c80887110be0"
+          },
+          "identity": {
+            "change": "requirement-retrospective-refresh",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+              "paths": {
+                "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+                "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+                "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+                "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+                "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+                "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+                "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+                "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+                "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+                "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+                "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+                "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+                "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T3"
+          },
+          "result": "passed"
+        },
+        "semantic-verification": {
+          "evidence": {
+            "bytes": 2678,
+            "path": "openspec/changes/requirement-retrospective-refresh/verification.md",
+            "sha256": "0f49c3efaad8459126e03f140d133d44b6e7d3571be66b821b3d8ce4292d3974"
+          },
+          "identity": {
+            "change": "requirement-retrospective-refresh",
+            "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+            "kind": "contribution",
+            "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+            "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+            "target_branch": "requirement/BR-987",
+            "task_content": {
+              "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+              "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+              "paths": {
+                "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+                "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+                "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+                "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+                "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+                "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+                "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+                "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+                "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+                "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+                "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+                "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+                "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+                "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+              },
+              "scope": "independent-review-v1",
+              "version": 1
+            },
+            "work_identity": "BR-987/T3"
+          },
+          "result": "passed"
+        }
+      },
+      "head": "5463cf7f9c63ae0f407960c72c9652c40759676e",
+      "integrated_head": "140a407666ea3376045cbc90df2871812add39a7",
+      "pr_number": 899,
+      "reviewed_evidence_digest": "aa85c33b52d77f5f3e33a63f4d193e238de978eaecbfc252731f8e1b9521f361",
+      "source_branch": "agent/br-987-t3-requirement-retrospective-refresh",
+      "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+      "task_identity": {
+        "change": "requirement-retrospective-refresh",
+        "contribution_base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+        "kind": "contribution",
+        "requirement": "pln_173dd083982bc0f20954f9774349fc56",
+        "source_issue": "pln_5397817f5113292c2da4403c1fdda13c",
+        "target_branch": "requirement/BR-987",
+        "task_content": {
+          "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+          "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+          "paths": {
+            "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+            "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+            "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+            "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+            "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+            "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+            "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+            "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+            "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+            "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+            "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+            "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+            "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+            "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+          },
+          "scope": "independent-review-v1",
+          "version": 1
+        },
+        "work_identity": "BR-987/T3"
+      },
+      "work_identity": "BR-987/T3"
+    }
+  ],
   "dependencies": {
     "contribution-integration-contract": [],
     "delegation-abandon-recovery": [],
     "requirement-retrospective-refresh": []
   },
-  "digest": "67d14a78d18d2e166a1895bb65253695fe8a88029db617fd728192168deb6282",
+  "digest": "b2335ecf78be98437cede9dee272a612f4ae4002e75be5d2fee3511811406415",
   "expected_changes": [
     "contribution-integration-contract",
     "delegation-abandon-recovery",

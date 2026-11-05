@@ -59,7 +59,11 @@ One cycle, repeated until the roadmap is done:
    (retrospective, terminal reconciliation, cleanup) run every 10 minutes through the
    local post-merge runner (LaunchAgent `dev.platform.post-merge-runner`, journal:
    `python3 scripts/post_merge_runner.py journal --journal-dir <dir> --last 50`); the
-   overview names the run-now command for an unclaimed one. Keep the integration
+   overview names the run-now command for an unclaimed one. Friction recorded after
+   the Requirement retrospective blocks the terminal job with a key of those events;
+   the runner then repeats retrospective and terminal under that key, up to three
+   times, with no hand-run checkpoint. Past that the overview reports the block and
+   `reoffer-post-merge` gives a new bound. Keep the integration
    checkout on current `main` with `python3 scripts/project_sync.py`, because the
    runner executes its code. Read the first failure before any rerun; never drive a
    failing job in a loop.
