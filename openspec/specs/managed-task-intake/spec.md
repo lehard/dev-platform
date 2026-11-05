@@ -632,15 +632,6 @@ platform-managed module or gated to a proven platform-harness-only operation.
 - **AND** the resulting worktree, provenance, and source-issue status flow use
   the ordinary managed lifecycle rather than a project-specific workaround
 
-#### Scenario: Platform-only publication dependency is unavailable
-
-- **GIVEN** a platform-harness-only pending-rollout operation requires a
-  platform-owned publication dependency that cannot be loaded
-- **WHEN** managed start reaches that proven platform-only operation
-- **THEN** it fails closed with an actionable dependency diagnostic
-- **AND** it does not create task worktree, board, or source Issue/Project
-  status side effects before the failed admission
-
 ### Requirement: Project-harness compatibility coverage exercises the standard entrypoint
 
 The platform SHALL maintain regression coverage for representative
@@ -654,7 +645,6 @@ only for isolated helpers or a project-specific recovery command.
 - **WHEN** platform validation exercises managed start for that fixture
 - **THEN** the fixture proves the standard entrypoint neither imports nor
   assumes the differing project-owned API
-- **AND** platform-harness exact-head pending-rollout coverage remains green
 
 ### Requirement: Connected-GitHub authoring verifies durable managed state before reporting success
 

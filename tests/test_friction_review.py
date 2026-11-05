@@ -695,6 +695,36 @@ class FrictionReviewTests(unittest.TestCase):
         self.assertEqual(provenance["change"], "routing-change")
         self.assertEqual(provenance["participant"]["model"]["value"], "sonnet")
 
+    def test_routed_text_masks_private_issue_numbers(self) -> None:
+        mask = agent_friction.PRIVATE_ID_MASK
+        cases = {
+            "The owner ran it for every child (#896).": f"The owner ran it for every child ({mask}).",
+            "Managed task #184 was added to Project #1": f"Managed task {mask} was added to Project #1",
+            "fixed in PR #75 and pull request #76": "fixed in PR #75 and pull request #76",
+            "Requirement #12, child #13": f"Requirement {mask}, child {mask}",
+            "see acme/private-backlog#7": f"see {mask}",
+            "see https://github.com/acme/private-backlog/issues/7": f"see {mask}",
+            "see acme/platform#7": "see acme/platform#7",
+            "see https://github.com/acme/platform/issues/7": "see https://github.com/acme/platform/issues/7",
+            "BR-799 and BR-897/T2 stay": "BR-799 and BR-897/T2 stay",
+            "commit #abc and C#1": "commit #abc and C#1",
+        }
+        with mock.patch.object(agent_friction, "origin_repository", return_value="acme/platform"):
+            for raw, public in cases.items():
+                with self.subTest(raw=raw):
+                    self.assertEqual(agent_friction.sanitize_for_route(raw), public)
+
+    def test_route_body_writes_no_private_issue_number(self) -> None:
+        event = {"scope": "platform", "category": "c", "observation": "child #896", "hypothesis": "h #897", "proposal": "p #898", "reason": "r #899"}
+        body = agent_friction.route_body(event, "fp123", occurrence=False)
+        for number in ("#896", "#897", "#898", "#899"):
+            self.assertNotIn(number, body)
+
+    def test_unknown_origin_stops_a_qualified_reference_instead_of_publishing_it(self) -> None:
+        with mock.patch.object(agent_friction, "origin_repository", side_effect=RuntimeError("no origin")):
+            with self.assertRaisesRegex(RuntimeError, "no origin"):
+                agent_friction.sanitize_for_route("see acme/private-backlog#7")
+
     def test_route_body_includes_bounded_participant_line_when_known(self) -> None:
         event = self.event()
         event["run"] = {

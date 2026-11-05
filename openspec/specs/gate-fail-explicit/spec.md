@@ -27,7 +27,7 @@ When `[capabilities] agent_board` is `true`, the multi-agent scope gate SHALL st
 - **WHEN** `select_checks.py` runs with `--scope-gate not-applicable` or with `--proven-base` or `--contribution-base`
 - **THEN** it prints `Scope gate not applicable: <reason>` and does not fail on the missing board
 - **AND** without that explicit declaration (`--scope-gate enforce`, the default) the missing board still stops the run
-- **AND** `--scope-gate not-applicable` is refused with an explicit error in a linked task worktree or a checkout holding `.managed-task-state.json`, and accepted only in a plain checkout.
+- **AND** `--scope-gate not-applicable` and `--contribution-base` are refused with an explicit error in a linked task worktree or a checkout holding `.managed-task-state.json`, and accepted only in a plain checkout.
 
 ### Requirement: Protected checks require main_branch
 

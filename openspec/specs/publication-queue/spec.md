@@ -1113,11 +1113,11 @@ The coordinator SHALL NOT execute pull-request-controlled code while holding the
 
 ### Requirement: Recovery accepts an unrecorded regenerated update
 
-Recovery of an unrecorded coordinator update SHALL accept a merge that differs from both parents only in archive-derived specs and declared generated files.
+Recovery of an unrecorded coordinator update SHALL accept a merge that differs from the three-way merge of its parents only in archive-derived specs and declared generated files.
 
 #### Scenario: A coordinator update was pushed but not recorded
 
-- **GIVEN** an unrecorded coordinator update that differs from both parents only in archive-derived specs and declared generated files
+- **GIVEN** an unrecorded coordinator update that differs from the three-way merge of its parents only in archive-derived specs and declared generated files
 - **WHEN** the coordinator recovers it
 - **THEN** the merge is accepted
 
