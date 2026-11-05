@@ -1935,10 +1935,14 @@ def _prepare(root: Path, repo: str, number: int, admission: dict[str, Any], pr: 
         if expected_tree.returncode or expected_tree.stdout.splitlines()[0].strip() != actual_tree:
             # A re-derivation push whose update marker was lost: accept only that exact shape.
             from _platform_common import generated_files
-            from post_review_finalization import derived_merge_only
+            from post_review_finalization import RederivationFailed, derived_merge_only
 
             declared = [item.path for item in generated_files(root, "HEAD")]
-            if not derived_merge_only(root, head, proven, prior_main, _task_paths(root, repo, admission), declared):
+            try:
+                accepted = derived_merge_only(root, head, proven, prior_main, _task_paths(root, repo, admission), declared)
+            except RederivationFailed as exc:
+                raise QueueError(f"unrecorded branch update cannot be checked: {exc}") from exc
+            if not accepted:
                 raise QueueError("unrecorded branch update is not a clean main merge")
         _comment(root, repo, number, {"kind": "update", "previous": proven, "head": head, "base": prior_main})
     base = admission.get("base")
