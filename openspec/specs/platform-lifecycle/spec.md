@@ -2961,6 +2961,17 @@ Task status, finish, reconcile, handoff and selected-check freshness of an open 
 - **WHEN** the recorded target branch cannot be read
 - **THEN** freshness refuses naming the branch and is not reported fresh
 
+#### Scenario: The target record of a Requirement child is lost
+- **GIVEN** a Requirement child in isolated worktrees without its child context
+- **WHEN** its freshness target is resolved
+- **THEN** the target is the base of its one open PR, which must be main or its requirement branch
+- **AND** without that proof freshness refuses naming the cause and the next action and is not measured against main
+
+#### Scenario: A proven contribution lost its base record
+- **GIVEN** a child without its child context whose open PR targets its requirement branch
+- **WHEN** reconcile, developer handoff or a managed resume runs
+- **THEN** each refuses before any merge or handoff and the context is not recreated as a main-target task
+
 ### Requirement: A requirement branch absorbs main through a supported command
 
 `execute_requirement.py absorb-main --requirement <ref>` SHALL merge current main into the requirement branch and push it by fast-forward from the exact observed head. It SHALL refuse a queue-owned composition, a missing branch, a moved head or a conflict, naming the reason and next action, and SHALL change no contribution identity.

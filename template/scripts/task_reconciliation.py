@@ -275,6 +275,16 @@ def _conflict_paths(root: Path) -> list[str]:
     return sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
 
 
+def _require_contribution_base(root: Path) -> None:
+    """Refuse before any merge a contribution whose target is proven but whose base record is lost."""
+    from requirement_child_context import cached_contribution
+
+    try:
+        cached_contribution(root, resolve_canonical_provenance(root).change)
+    except ManagedTaskError as exc:
+        raise SystemExit(f"Task reconciliation blocked: {exc}") from exc
+
+
 def _move_base_to_target(root: Path, target_head: str) -> None:
     from requirement_child_context import move_contribution_base
 
@@ -305,6 +315,8 @@ def reconcile(root: Path | None = None) -> Freshness:
         raise SystemExit("Task reconciliation blocked: the task worktree is dirty. Commit or resolve it explicitly; automatic stash/reset is forbidden.")
 
     target_branch = freshness_branch(root)
+    if target_branch != main_branch:
+        _require_contribution_base(root)
     _require_exact_merged_is_terminal(root, branch, target_branch)
 
     before = observe(root)

@@ -85,6 +85,21 @@ def task_identity(root: Path, change: str) -> dict:
     return {"change": change, "task_content": proof}
 
 
+def require_main_target(root: Path, change: str) -> None:
+    """Refuse a developer handoff of a task without a contribution record unless it provably targets main."""
+    import lifecycle_workers as workers
+    from _platform_common import TaskFreshnessError, read_platform_config, require_main_branch, task_freshness_branch
+    from managed_task import ManagedTaskError
+    from requirement_child_context import cached_contribution
+
+    main_branch = require_main_branch(read_platform_config(root), workers.WorkerError)
+    try:
+        if task_freshness_branch(root, main_branch) != main_branch:
+            cached_contribution(root, change)
+    except (ManagedTaskError, TaskFreshnessError) as exc:
+        raise workers.WorkerError(f"developer handoff refused: {exc}") from exc
+
+
 def reusable(root: Path, gate: dict | None, identity: dict) -> bool:
     """Whether a passed gate proves ``identity``; a moved contribution base needs ``equivalent_proofs``."""
     return (isinstance(gate, dict) and gate.get("result") == "passed"
@@ -167,6 +182,8 @@ def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
         except SystemExit as exc:
             raise workers.WorkerError(str(exc)) from exc
     identity = task_identity(root, name)
+    if identity.get("kind") != "contribution":
+        require_main_target(root, name)
     helper = root / "scripts/agent_friction.py"
     if not helper.is_file():
         raise workers.WorkerError("developer handoff requires the friction checkpoint helper")

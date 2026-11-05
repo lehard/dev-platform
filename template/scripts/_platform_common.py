@@ -863,11 +863,57 @@ def queue_integrated(root: Path) -> bool:
     return coordinator_candidate(root)
 
 
+def _published_task_target(root: Path, main_branch: str, provenance: Any, context: Path) -> str:
+    """The target of a task without child context: main, or the base of its one open PR.
+
+    Only a Requirement child in isolated worktrees can be a contribution, so any other managed task
+    keeps the main rule. A child's lost context says nothing about its target: the open PR proves it,
+    and without that proof the target is refused rather than assumed.
+    """
+    from managed_task import ManagedTaskError, read_provenance
+
+    try:
+        work_identity = read_provenance(provenance.path).get("work_identity")
+    except ManagedTaskError as exc:
+        raise TaskFreshnessError(f"cannot resolve the task's freshness target: {exc}") from exc
+    if not work_identity or profile(read_platform_config(root)) != "multi-agent":
+        return main_branch
+    requirement_branch = "requirement/" + work_identity.split("/", 1)[0]
+    unproven = (
+        f"Requirement child {work_identity} has no child context {context}, so its freshness target is "
+        f"main or {requirement_branch} and cannot be told apart"
+    )
+    recovery = (
+        "Restore that context from the child's original start, or have the operator retire the child worktree, "
+        "then rerun `python3 scripts/execute_requirement.py advance` for its Requirement."
+    )
+    branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
+    if not branch:
+        raise TaskFreshnessError(f"{unproven}: HEAD is detached, so no open PR can prove it. {recovery}")
+    env = github_cli_env(root)
+    if env is None:
+        raise TaskFreshnessError(f"{unproven}: the gh CLI is unavailable, so no open PR can prove it. {recovery}")
+    listed = run_github_with_retry(
+        ["gh", "pr", "list", "--head", branch, "--state", "open", "--json", "number,baseRefName,headRefName"],
+        cwd=root, env=env,
+    )
+    if listed.returncode:
+        raise TaskFreshnessError(f"{unproven}: open PRs of {branch} are unreadable: {listed.stderr.strip()[-300:]}. {recovery}")
+    prs = [pr for pr in json.loads(listed.stdout) if pr.get("headRefName") == branch]
+    if len(prs) != 1:
+        raise TaskFreshnessError(f"{unproven}: {branch} has {len(prs)} open PRs, exactly one must prove it. {recovery}")
+    base = prs[0].get("baseRefName")
+    if base not in {main_branch, requirement_branch}:
+        raise TaskFreshnessError(f"{unproven}: PR #{prs[0].get('number')} targets {base!r}. {recovery}")
+    return base
+
+
 def task_freshness_branch(root: Path, main_branch: str) -> str:
     """The branch this task's freshness is measured against: its contribution target, or main.
 
     A contribution integrates into its recorded requirement branch; main reaches that branch through
-    composition. Any other task, including a checkout without child context, keeps the main rule.
+    composition. A task without a contribution in its child context keeps the main rule. A Requirement
+    child without that context takes the target its open PR proves, or refuses.
     """
     from managed_task import ManagedTaskError, resolve_canonical_provenance
 
@@ -878,7 +924,9 @@ def task_freshness_branch(root: Path, main_branch: str) -> str:
     if provenance is None:
         return main_branch
     context = root / ".claude" / "requirement-child-context" / f"{provenance.change}.json"
-    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution") if context.is_file() else None
+    if not context.is_file():
+        return _published_task_target(root, main_branch, provenance, context)
+    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution")
     if not contribution:
         return main_branch
     target = contribution.get("target_branch")
