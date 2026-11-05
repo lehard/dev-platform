@@ -265,7 +265,11 @@ def classify(
         return Decision(**common, eligible=False, reason="process-check-unavailable")
     if any(_path_within(cwd, worktree.path) for cwd in active_cwds):
         return Decision(**common, eligible=False, reason="active-process")
-    status = _worktree_status(worktree)
+    try:
+        status = _worktree_status(worktree)
+    except FileNotFoundError:
+        # Another session removed it after `git worktree list`: nothing is left to classify.
+        return Decision(**common, eligible=False, reason="vanished")
     if status.returncode != 0:
         detail = (status.stderr.strip() or status.stdout.strip())[-500:]
         return Decision(**common, eligible=False, reason="status-check-failed", detail=detail)

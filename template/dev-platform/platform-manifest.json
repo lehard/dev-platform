@@ -93,7 +93,7 @@
     "scripts/integration_contour.py": "56156db14ab2881f7b5fa2e1e37ed09ae392a58a13dd124522172fd93cdc98a7",
     "scripts/integration_state.py": "4a16d543146cdf4150c9fdfb9488febf071bc59b70d95992d27c6a68ab391f84",
     "scripts/lifecycle_overview.py": "63d63ee6ad5727bbfeefd4f2bae0cacd7b7831c0daec92b79b1613b0809513e4",
-    "scripts/lifecycle_preflight.py": "14d17fb1c7b3c16acfca4e96ae42de6ad5de170d49400672e6590bc00aacf8cb",
+    "scripts/lifecycle_preflight.py": "4764ca63403d23caa8bef136b7d51a19ba96b2ebabd45cf87ff9fd1215860359",
     "scripts/lifecycle_workers.py": "6adcc70a0905d6943b6e611250def3f30ecf43e5c08ab4b286f8d57b91513de5",
     "scripts/local_workspace.py": "e24f3f088fb725415a7f58af1799935f427422d61dd15a63f01803f73fcef654",
     "scripts/machine_pool.py": "a197ae256b5fbb4e0b43cd558152d04749d32b858ff26609fb4a5309bd58a9ff",
@@ -144,7 +144,7 @@
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
     "scripts/task_content_identity.py": "931755acf14b979be752ebb52f4ed1253a7295d55a6b3d40ba64b59bc18497d0",
     "scripts/task_reconciliation.py": "e9ebf3e58b3157936d7e9e9855414ffd0126d9870f7e886f0d9053d69ae1bb13",
-    "scripts/worktree_cleanup.py": "92e7fc2c3811ed1963cca598f38dd2b8bafd8a51dd784717545e03bb4f25ee8a"
+    "scripts/worktree_cleanup.py": "3de496c3e11e7f460159c84f42150966d3ea5bd47f76430808691e9a9206f52a"
   },
   "project_harness_owned": [
     "docs/engineering/openspec-workflow.md",
