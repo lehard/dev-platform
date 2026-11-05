@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "worker-credentials",
+  "imported_at": "2026-11-05T23:14:04+00:00",
+  "package_revision": "569d51bb161ce2db4981041051281d56f411da3a5e28ae92e88130a2223d9d27",
+  "prepared_against": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+  "private_lineage_handle": "pln_a2ca6d25a107f11ef284257052308e64",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "8d90fd129d11e0294575d57ea3d7c6bc0d7129761bc27e22ce4b83122045672f",
+    "updated_at": "2026-11-05T22:58:06Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-995/T1"
+}

@@ -335,10 +335,17 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
     if actual != identity:
         raise workers.WorkerError("review checkout does not match the published task identity")
     if launcher is None:
+        from _platform_common import read_platform_config
         from independent_review_runner import subprocess_launcher
         import os
+        import worker_credentials
 
         clean = workers.credential_free_env(dict(os.environ), checkout.parent / "llm-home")
+        try:
+            clean.update(worker_credentials.llm_env(read_platform_config(trusted_root),
+                                                    review_config["providers"], os.environ))
+        except worker_credentials.CredentialError as exc:
+            raise workers.WorkerError(str(exc)) from exc
         launcher = lambda argv, cwd, timeout: subprocess_launcher(argv, cwd, timeout, env=clean)
     reports = run_child_review(checkout, change, launcher=launcher, config=review_config,
                                base_ref=identity.get("contribution_base", "origin/main"))

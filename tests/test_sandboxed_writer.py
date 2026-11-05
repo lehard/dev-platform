@@ -11,6 +11,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
+import worker_credentials  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 
@@ -136,33 +137,32 @@ class ProtectedPathTests(Base):
 
 class TokenTests(Base):
     def test_reads_token(self):
-        self.assertEqual(sw.read_claude_token(self.config()), SECRET)
+        self.assertEqual(worker_credentials.read_claude_token(self.config()), SECRET)
 
     def test_refusals_never_leak_token(self):
         cases = [{}, {"independent_review": {}}, {"independent_review": {"login": {"claude": {}}}},
                  self.config(mode=0o644)]
         for cfg in cases:
-            with self.assertRaises(sw.SandboxedWriterError) as ctx:
-                sw.read_claude_token(cfg)
+            with self.assertRaises(worker_credentials.CredentialError) as ctx:
+                worker_credentials.read_claude_token(cfg)
             self.assertNotIn(SECRET, str(ctx.exception))
-        self.assertIn("0600", str(sw.SandboxedWriterError("0600")))
 
     def test_missing_key_names_setting(self):
-        with self.assertRaisesRegex(sw.SandboxedWriterError, r"independent_review.login.claude\] token_file"):
-            sw.read_claude_token({})
+        with self.assertRaisesRegex(worker_credentials.CredentialError, r"independent_review.login.claude\] token_file"):
+            worker_credentials.read_claude_token({})
 
     def test_mode_error_names_file_and_mode(self):
         cfg = self.config(mode=0o644)
-        with self.assertRaisesRegex(sw.SandboxedWriterError, "token.*0600"):
-            sw.read_claude_token(cfg)
+        with self.assertRaisesRegex(worker_credentials.CredentialError, "token.*0600"):
+            worker_credentials.read_claude_token(cfg)
 
     def test_missing_file_and_empty(self):
         cfg = self.config()
         Path(cfg["independent_review"]["login"]["claude"]["token_file"]).unlink()
-        with self.assertRaises(sw.SandboxedWriterError):
-            sw.read_claude_token(cfg)
-        with self.assertRaisesRegex(sw.SandboxedWriterError, "empty"):
-            sw.read_claude_token(self.config(content="  \n"))
+        with self.assertRaises(worker_credentials.CredentialError):
+            worker_credentials.read_claude_token(cfg)
+        with self.assertRaisesRegex(worker_credentials.CredentialError, "empty"):
+            worker_credentials.read_claude_token(self.config(content="  \n"))
 
 
 class CommandTests(Base):

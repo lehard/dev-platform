@@ -23,6 +23,7 @@ sys.path.insert(0, str(REPO / "template" / "scripts"))
 import disposable_repository_sandbox  # noqa: E402
 import lifecycle_workers  # noqa: E402
 import sandboxed_writer  # noqa: E402
+import worker_credentials  # noqa: E402
 from _platform_common import read_platform_config  # noqa: E402
 
 MARKER = "PROBES_JSON="
@@ -189,8 +190,8 @@ def run(keep: bool) -> int:
         home = lifecycle_workers.scratch_home(sandbox)
         before = snapshot(integration, linked, remote)
         operator_home = sandboxed_writer.operator_home()
-        token_file = sandboxed_writer.claude_token_file(config)
-        token = sandboxed_writer.read_claude_token(config)
+        token_file = worker_credentials.claude_token_file(config)
+        token = worker_credentials.read_claude_token(config)
         commands = probe_commands(integration=integration, linked=linked, remote=remote,
                                   operator_home=operator_home, token_file=token_file)
         done = sandboxed_writer.launch_sandboxed_writer(

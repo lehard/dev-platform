@@ -288,7 +288,9 @@ class ProviderSelectionTests(unittest.TestCase):
             calls.append(config["provider"])
             return {"ready": config["provider"] == "claude", "limitation": "codex usage limit"}
         with tempfile.TemporaryDirectory() as scratch:
-            readiness = workers.provider_readiness(ROOT, ["codex", "claude", "codex"], workdir=scratch, probe=probe)
+            with mock.patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": "hosted-secret"}), \
+                    mock.patch.object(workers, "read_platform_config", return_value={}):
+                readiness = workers.provider_readiness(ROOT, ["codex", "claude", "codex"], workdir=scratch, probe=probe)
             self.assertEqual(readiness, {"codex": "codex usage limit", "claude": None})
             self.assertEqual(calls, ["codex", "claude"])
             with self.assertRaisesRegex(workers.WorkerError, "unsupported provider"):
