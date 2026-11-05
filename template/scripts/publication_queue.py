@@ -976,11 +976,12 @@ def retry_job_kind(candidate: dict) -> str | None:
     kind = (candidate.get("next_job") or {}).get("kind")
     if kind in {"review", "repair"}:
         return kind
-    if (candidate.get("red_gate") or {}).get("name") == "review":
-        return "review"
+    # First: an unavailable repair keeps the red gate it repairs, which may be the review's.
     repair = (candidate.get("gates") or {}).get("repair")
     if isinstance(repair, dict) and (repair.get("evidence") or {}).get("cause") == "provider-unavailable":
         return "repair"
+    if (candidate.get("red_gate") or {}).get("name") == "review":
+        return "review"
     return None
 
 

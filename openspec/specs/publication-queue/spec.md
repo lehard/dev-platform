@@ -1235,6 +1235,22 @@ The integration-repair writer brief SHALL carry, for each failed check, its iden
 - **WHEN** the integration-repair writer brief is built
 - **THEN** it carries each failed check's identity and a bounded excerpt of its failed log
 
+### Requirement: A repair of a red required check is briefed from its failed log
+
+A repair job offered for a red required check SHALL brief its writer with each failed check's identity and a bounded excerpt of its failed log, and SHALL NOT substitute review findings for them. A failed check without its identity or with an unreadable log SHALL be refused before any writer starts and before the repairing record, naming the cause.
+
+#### Scenario: A contribution's failed check is repaired
+
+- **GIVEN** a repair job offered for a failed required check of a contribution with advisory review findings
+- **WHEN** its writer is briefed
+- **THEN** the brief carries the failed log excerpt and no advisory finding
+
+#### Scenario: The failed log is unavailable
+
+- **GIVEN** a repair job for a red required check whose failed log cannot be read
+- **WHEN** the job runs
+- **THEN** it raises naming the check, no writer starts and the candidate stays repair-pending
+
 ### Requirement: An integration-repair brief without failed check evidence is refused
 
 An integration-repair writer brief for a failed required check without that check's identity or with an unreadable log SHALL be refused before any writer starts, naming the cause, and SHALL NOT spend an integration-repair attempt.
