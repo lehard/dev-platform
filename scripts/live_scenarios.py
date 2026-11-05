@@ -269,7 +269,10 @@ class Sandbox:
     def apply_settings(self) -> None:
         """Idempotent repository settings matching production main, plus the admin path of the baseline write."""
         repo, config = self.config.repository, self.config
-        run(["gh", "api", "-X", "PATCH", f"repos/{repo}", "-F", "allow_squash_merge=true", "-F", "delete_branch_on_merge=false"], SOURCE_ROOT)
+        current = gh_json(["api", f"repos/{repo}"], SOURCE_ROOT)
+        if not current["allow_squash_merge"] or current["delete_branch_on_merge"]:
+            run(["gh", "api", "-X", "PATCH", f"repos/{repo}", "-F", "allow_squash_merge=true", "-F", "delete_branch_on_merge=false",
+                 "--jq", ".name"], SOURCE_ROOT)
         run(["gh", "variable", "set", "DEV_PLATFORM_HOSTED_KINDS", "--repo", repo, "--body", config.hosted_kinds], SOURCE_ROOT)
         protection = {"required_status_checks": {"strict": True, "contexts": [config.required_check]},
                       "enforce_admins": False, "required_pull_request_reviews": None, "restrictions": None}
