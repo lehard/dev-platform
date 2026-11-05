@@ -1,0 +1,30 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/live-lifecycle-sandbox/spec.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "live-sandbox-quick-scenario",
+  "imported_at": "2026-11-05T14:27:24+00:00",
+  "package_revision": "9cce8a163eefa48eab632ce1add9a25263cb92a4ed6373e45cd724aea5b8da54",
+  "prepared_against": "a7ec8c7ff7b035a5e063db5428207df6548f1e7b",
+  "private_lineage_handle": "pln_6de8d1d469da41744a072caecece49e4",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "66280993e0f7708c0a92dfe53cc4db3a79a4d53ee382a9cd9fec323c16d63cc9",
+    "updated_at": "2026-11-05T13:52:51Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-993/T1"
+}
