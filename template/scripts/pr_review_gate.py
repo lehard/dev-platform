@@ -127,8 +127,8 @@ def compact_reports(reports: dict) -> dict:
     return compact
 
 
-def repair_brief(running: dict) -> dict:
-    """The compact record a repair writer needs: identity digest and each finding's id, summary, evidence."""
+def repair_brief(running: dict, failed_checks: list[dict] | None = None) -> dict:
+    """The compact record a repair writer needs: identity digest, each finding and any failed check's log."""
     identity = running.get("task_identity")
     content = identity.get("task_content") if isinstance(identity, dict) else None
     evidence = (running.get("red_gate") or {}).get("evidence")
@@ -140,7 +140,7 @@ def repair_brief(running: dict) -> dict:
     return {"state": running.get("state"), "head": running.get("head"), "attempts": running.get("attempts"),
             "change": identity.get("change") if isinstance(identity, dict) else None,
             "task_content_digest": content.get("digest") if isinstance(content, dict) else None,
-            "findings": findings}
+            "findings": findings, **({"failed_checks": failed_checks} if failed_checks else {})}
 
 
 def handoff_gates(root: Path, change: Path) -> tuple[dict, dict]:
@@ -366,10 +366,12 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                 branch: str, allowed_paths, llm_command, current_head, post_result,
                 workdir: str, worker: str, adapter=None, runner=None, launcher=None, home_files=(),
                 provider: str | None = None, claim_current=None, review_ready=None, repair_runtime_check=None,
-                launch=None) -> dict:
+                launch=None, read_log=None) -> dict:
     """Execute and advance one claimed exact-head job, without the developer.
 
     ``launch`` replaces the plain writer launch of a repair job (the sandboxed Claude writer).
+    A repair of a red required check is briefed with each failed check's log excerpt, read with
+    ``read_log``; without that evidence the run raises before any writer starts.
     """
     import lifecycle_workers as workers
     if adapter is None:
@@ -403,11 +405,18 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         raise workers.WorkerError(str(exc)) from exc
     from candidate_lifecycle import content_bound_gates
 
+    red_gate = observed.get("red_gate") if kind == "repair" else None
+    failed_checks = None
+    if (red_gate or {}).get("name") == "required-checks":
+        # Before the repairing record: a repair without its failed logs never starts and spends nothing.
+        from integration_contour import failed_check_evidence, read_failed_log
+        failed_checks = failed_check_evidence(red_gate, read_log or read_failed_log)
     # A head reached by the harness's own push has no exact-head record yet; the derived
     # view proved it and kept the gates bound to this unchanged task content.
     running = adapter._transition(root, repo, job["number"], kind + "ing" if kind == "repair" else "reviewing",
                                   job["head"], task_identity=identity, inherit_identity=False,
                                   gates=content_bound_gates(observed.get("gates"), identity) or None,
+                                  red_gate=red_gate,
                                   next_job={k: v for k, v in job.items() if k != "number"})
     if running is None:
         return {"status": "discarded"}
@@ -453,11 +462,13 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
         command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command or [])
         if not command or not allowed_paths:
             raise workers.WorkerError("repair needs a configured writer command and bounded allowed paths")
-        prompt = ("Repair the material findings in this exact candidate handoff. Either commit the bounded fixes or "
+        prompt = ("Repair the material findings in this exact candidate handoff"
+                  + (", fixing each failed required check from its failed_checks[].log_excerpt" if failed_checks else "")
+                  + ". Either commit the bounded fixes or "
                   "leave them uncommitted in the working tree for the harness to commit, not both; change only allowed paths. "
                   "Do not edit workflow or lifecycle evidence files. If rejecting a material finding is necessary, "
                   "make no changes and return JSON {\"reject_material\": true}; a human must decide. "
-                  "Handoff and findings: " + json.dumps(repair_brief(running), sort_keys=True))
+                  "Handoff and findings: " + json.dumps(repair_brief(running, failed_checks), sort_keys=True))
         llm_command = [*command, prompt]
     outcome = workers.execute_job(job, source_repo=source_repo, branch=branch, allowed_paths=allowed_paths,
                                   llm_command=llm_command or [], current_head=current_head, post_result=post_result,

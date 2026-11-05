@@ -520,6 +520,76 @@ class ProviderSwitchTests(unittest.TestCase):
             self.assertEqual((resumed["state"], resumed["attempts"]["repair"], resumed["attempts"]["repair-unavailable"]),
                              ("repair-pending", rounds, 0))
 
+    def red_check_repair(self, fixture, checks):
+        """A contribution-style repair job for a red required check, over advisory review findings."""
+        advisory = {"claude": {"findings": [{"id": "advisory", "severity": "advisory", "summary": "style"}]}}
+        snapshot = {"head": HEAD, "kind": "failed", "detail": "validate failed", "checks": checks}
+        red = {"name": "required-checks", "identity": IDENTITY, "evidence": {"required-checks": {"findings": [{
+            "id": "required-checks-failed", "severity": "material", "summary": "Repair failed required contribution checks",
+            "evidence": snapshot}]}}}
+        gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "repair", red_gate=red, gates={
+            "review": {"result": "passed", "identity": IDENTITY, "evidence": advisory}})
+        return workers.build_job(fixture.candidate())
+
+    def run_repair(self, fixture, job, **kwargs):
+        return gate.run_claimed(ROOT, "o/r", fixture.candidate(), job, source_repo="fixture", branch="agent/example",
+                                allowed_paths=["src.py"], llm_command=["writer"], current_head=lambda: HEAD,
+                                post_result=lambda body: None, workdir="/unused", worker="w", provider=PROVIDER,
+                                claim_current=lambda: True, **kwargs)
+
+    def test_a_red_check_repair_is_briefed_with_the_failed_log_not_advisory_findings(self):
+        failed = {"name": "validate", "workflow": "CI", "state": "FAILURE",
+                  "link": "https://github.com/o/r/actions/runs/11/job/22"}
+        passed = {"name": "lint", "workflow": "CI", "state": "SUCCESS", "link": "https://example.invalid/x"}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            job = self.red_check_repair(fixture, [failed, passed])
+            with mock.patch.object(workers, "execute_job", return_value={"status": "no-change"}) as execute:
+                self.run_repair(fixture, job, read_log=lambda *ids: "Traceback\nAssertionError: boom\n")
+            prompt = execute.call_args.kwargs["llm_command"][-1]
+            self.assertIn("failed_checks[].log_excerpt", prompt)
+            self.assertIn("AssertionError: boom", prompt)
+            self.assertNotIn("advisory", prompt)
+            self.assertIn('"name": "validate"', prompt)
+            self.assertNotIn('"log_excerpt": "Traceback\\nAssertionError: boom", "name": "lint"', prompt)
+
+    def test_a_red_check_repair_without_its_log_never_starts_a_writer_or_spends_a_round(self):
+        linked = {"name": "validate", "state": "FAILURE", "link": "https://github.com/o/r/actions/runs/11/job/22"}
+
+        def unreadable(*ids):
+            raise workers.WorkerError("repair brief refused: the failed log of Actions job 22 is unreadable: gone")
+
+        for checks, read_log, cause in (([], None, "records no failed check identity"),
+                                        ([{**linked, "link": "https://example.invalid/x"}], None, "no GitHub Actions job link"),
+                                        ([linked], lambda *ids: "", "is empty"), ([linked], unreadable, "unreadable: gone")):
+            with self.subTest(cause), QueueFixture(ROOT, HEAD) as fixture:
+                job = self.red_check_repair(fixture, checks)
+                before = fixture.candidate()
+                with mock.patch.object(workers, "execute_job") as execute, \
+                        self.assertRaisesRegex(workers.WorkerError, "repair brief refused: .*" + cause):
+                    self.run_repair(fixture, job, read_log=read_log)
+                execute.assert_not_called()
+                after = fixture.candidate()
+                self.assertEqual((after["state"], after["attempts"]), ("repair-pending", before["attempts"]))
+
+    def test_a_repair_retried_after_an_outage_keeps_its_red_check_brief(self):
+        failed = {"name": "validate", "state": "FAILURE", "link": "https://github.com/o/r/actions/runs/11/job/22"}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            job = self.red_check_repair(fixture, [failed])
+            with mock.patch.object(workers, "execute_job", return_value={
+                    "status": "unavailable", "outcome": "unavailable: limit"}):
+                self.run_repair(fixture, job, read_log=lambda *ids: "boom\n")
+            retried = fixture.candidate()
+            self.assertEqual(retried["state"], "blocked-retryable")
+            self.assertEqual(retried["red_gate"]["name"], "required-checks")
+
+    def test_a_bare_restored_required_checks_gate_is_read_like_the_wrapped_one(self):
+        import integration_contour
+
+        failed = {"name": "validate", "state": "FAILURE", "link": "https://github.com/o/r/actions/runs/11/job/22"}
+        red = {"name": "required-checks", "evidence": {"kind": "failed", "checks": [failed]}}
+        briefed = integration_contour.failed_check_evidence(red, lambda *ids: "boom\n")
+        self.assertEqual([(c["name"], c["log_excerpt"]) for c in briefed], [("validate", "boom")])
+
     def test_successful_repair_resets_the_unavailable_streak(self):
         new_head = "c" * 40
         with QueueFixture(ROOT, HEAD) as fixture:

@@ -798,7 +798,7 @@ class IntegrationRepairTests(RepairFixture):
                 job = workers.build_job(candidate)
                 before = (self.repo.head("agent/example"), len(self.results))
                 with tempfile.TemporaryDirectory(dir=self.tmp.name) as workdir, \
-                        self.assertRaisesRegex(workers.WorkerError, "integration-repair brief refused: .*" + refusal):
+                        self.assertRaisesRegex(workers.WorkerError, "repair brief refused: .*" + refusal):
                     contour.run_claimed_integration_repair(
                         self.repo.root, "o/r", candidate, job, source_repo=self.repo.remote.as_uri(),
                         branch="agent/example", allowed_paths=[], llm_command=["writer"], current_head=self.repo.head,
