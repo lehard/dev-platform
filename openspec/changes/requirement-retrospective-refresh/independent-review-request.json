@@ -1,0 +1,80 @@
+{
+  "candidate": {
+    "base_head": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "base_ref": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "candidate_head": "17574023e44f0f20ebe517048c183c9ad181a7b9",
+    "diff_sha256": "940e9b94f524200ab90d689809dcb3a532793267666bfc466b7adabfa5777ce6"
+  },
+  "change": "openspec/changes/requirement-retrospective-refresh",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/requirement-retrospective-refresh/automated-checks.json",
+    "openspec/changes/requirement-retrospective-refresh/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/requirement-retrospective-refresh/design.md",
+        "openspec/changes/requirement-retrospective-refresh/proposal.md",
+        "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md",
+        "openspec/changes/requirement-retrospective-refresh/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/requirement-retrospective-refresh/proposal.md",
+        "openspec/changes/requirement-retrospective-refresh/design.md",
+        "openspec/changes/requirement-retrospective-refresh/tasks.md",
+        "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-05T00:20:02+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/requirement-retrospective-refresh/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "59fbdcc1-4606-441c-acf2-e10a294de81e",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "d94888184d2c8e37f7678db1727f601de1e9071f",
+    "digest": "c82716c8efe385acb9a3392a0355b1e823bcdd8f191a78fd658edab4267a7d46",
+    "paths": {
+      "docs/engineering/chat-coordinator.md": "bc23e449a53c15af786d923139f6bcdc7d1198a3",
+      "docs/engineering/hosted-lifecycle-workers.md": "10b5e504c8403aabac6177a5372e43149d1d8b05",
+      "openspec/changes/requirement-retrospective-refresh/.managed-task.json": "dcdb461725f96334135ac198a366849bf4e138b2",
+      "openspec/changes/requirement-retrospective-refresh/.openspec.yaml": "1491b921e293907ec3fc95a3b8a7adfbfb9f991e",
+      "openspec/changes/requirement-retrospective-refresh/design.md": "3cb68c5d184c5ed9a31bb0f4e5bbe6b2794ce248",
+      "openspec/changes/requirement-retrospective-refresh/proposal.md": "e86a967bf302f1c7cf6e45f7831f5b2c1a678b3a",
+      "openspec/changes/requirement-retrospective-refresh/specs/lifecycle-workers/spec.md": "9de7a7390e273191252d2174add001c0413577fb",
+      "openspec/changes/requirement-retrospective-refresh/tasks.md": "c90459182cc8a5f57234ea3814649dc2ed20ea64",
+      "template/scripts/candidate_lifecycle.py": "b16d8395b4cffe00194b088d4896e5dae8f99a91",
+      "template/scripts/integration_contour.py": "c78a1ed915988380a6f725b462333ad857b7bc53",
+      "template/scripts/lifecycle_workers.py": "e5a14524636a880e8f7f8e0d568aa2bd664801b6",
+      "template/scripts/pr_review_gate.py": "8e04d5ec1a09352367cd2607e20e41a5f028866d",
+      "template/scripts/requirement_retrospective.py": "73bb5c665c47c4c84d48f7c94060b8612e7e6eab",
+      "tests/test_autonomous_integration_contour.py": "85db349c1e17b66457b1a5a337737c530a9bd6f0"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
