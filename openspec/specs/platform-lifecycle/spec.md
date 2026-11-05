@@ -607,87 +607,32 @@ The platform SHALL run validation groups concurrently only when each group's mut
 - **THEN** the stable aggregate required result reports failure
 - **AND** protected-main merge remains blocked
 
-### Requirement: New work reconciles an authoritative pending platform rollout first
+### Requirement: Task start leaves a pending rollout PR untouched
 
-Before a supported new task starts in a managed repository, the platform SHALL determine whether the repository has an authoritative eligible Dev Platform rollout PR that still needs adoption. For platform-owned task execution, this reconciliation SHALL occur before creating a new task branch or worktree. A safely adoptable rollout SHALL be merged and locally reconciled before product work starts; an unsafe or ambiguous rollout SHALL block new work with an actionable state.
+Task start SHALL NOT merge, close, relabel or arm auto-merge on a Dev Platform rollout PR, and SHALL NOT synchronize local integration for one or stop because one is open. A rollout PR SHALL be merged only by an explicit rollout, never as a side effect of starting a task.
 
-#### Scenario: No pending rollout exists
+#### Scenario: A green rollout PR is open when a task starts
 
-- **WHEN** pre-task reconciliation finds no authoritative eligible rollout PR for the repository
-- **THEN** normal task synchronization/start continues without a rollout-specific human step
+- **GIVEN** an authoritative rollout PR with satisfied required checks is open
+- **WHEN** a quick or managed task starts
+- **THEN** the rollout PR stays open and unchanged
+- **AND** the task starts on the current platform state
 
-#### Scenario: Current rollout is green and safe to adopt
+#### Scenario: A rollout PR with failed or pending checks is open when a task starts
 
-- **GIVEN** pre-task reconciliation finds the current authoritative eligible rollout PR
-- **AND** the exact current PR head satisfies required downstream GitHub gates and merge policy
-- **AND** no rollout deferral is set for the session
-- **WHEN** the supported task start proceeds
-- **THEN** start announces the rollout merge and local synchronization it is about to perform
-- **AND** the platform merges that exact rollout through ordinary non-bypass GitHub policy
-- **AND** confirms the remote merge
-- **AND** synchronizes the local integration branch to the merged remote state
-- **AND** only then creates or enters the new task workspace
+- **GIVEN** an open rollout PR whose required checks are failed, pending or ambiguous
+- **WHEN** a quick or managed task starts
+- **THEN** start completes without treating the rollout as a blocker
 
-#### Scenario: Rollout checks or policy are not satisfied
+### Requirement: The doctor reports a pending rollout read-only
 
-- **GIVEN** an authoritative pending rollout exists
-- **AND** no rollout deferral is set for the session
-- **WHEN** its required checks are pending/failed, it conflicts, its head changes, required review remains unsatisfied, or another safety condition prevents ordinary merge
-- **THEN** the platform does not start new product work on top of the older platform state
-- **AND** reports a concrete pending/blocker state that can be retried after the condition changes
-- **AND** does not force-push or bypass repository protection
-
-#### Scenario: Rollout merged before local reconciliation completed
-
-- **GIVEN** the authoritative rollout PR is already confirmed merged remotely
-- **AND** local integration is still behind
-- **AND** no rollout deferral is set for the session
-- **WHEN** pre-task reconciliation is retried
-- **THEN** the platform synchronizes local integration idempotently
-- **AND** does not create or merge a second rollout PR
-
-#### Scenario: Session defers a green pending rollout
-
-- **GIVEN** an authoritative pending rollout PR is green and safe to adopt
-- **AND** the session set `DEV_PLATFORM_DEFER_ROLLOUT=1` (directly or through `--defer-rollout`)
-- **WHEN** a managed or quick task starts
-- **THEN** the rollout PR remains open and unchanged and local integration is not synchronized for it
-- **AND** start reports that the rollout was skipped, naming the PR and the session deferral
-- **AND** start completes normally on the current platform state
-
-#### Scenario: Session defers a pending rollout that is not green
-
-- **GIVEN** an authoritative pending rollout PR whose checks are pending, failed or ambiguous
-- **AND** the session set `DEV_PLATFORM_DEFER_ROLLOUT=1`
-- **WHEN** a task starts
-- **THEN** start reports the rollout as skipped with its observed state instead of blocking, and changes nothing
-
-#### Scenario: Deferral set but nothing is pending
-
-- **GIVEN** `DEV_PLATFORM_DEFER_ROLLOUT=1` and no authoritative pending rollout
-- **WHEN** a task starts
-- **THEN** start proceeds as it does without the deferral
-
-#### Scenario: Invalid deferral value
-
-- **WHEN** `DEV_PLATFORM_DEFER_ROLLOUT` is set to a value other than empty or `1`
-- **THEN** start fails before any rollout observation or mutation, naming the variable and the accepted value
-
-#### Scenario: Deferral does not affect project-owned harnesses
-
-- **GIVEN** a repository uses `harness_mode=project`
-- **WHEN** a task starts with or without the deferral
-- **THEN** platform reconciliation is skipped exactly as before
-
-### Requirement: Project-owned harness preserves rollout preflight
-
-A managed repository using `harness_mode=project` SHALL retain its repository-owned task/worktree lifecycle while still treating platform rollout reconciliation as a prerequisite to new work.
+`agent_doctor.py` SHALL report an open authoritative rollout PR with its observed check state as a read-only warning for every harness mode, and SHALL state that only an explicit rollout merges it.
 
 #### Scenario: Project owns task harness
 
 - **GIVEN** a managed repository uses `harness_mode=project`
-- **WHEN** the agent prepares to start new work
-- **THEN** platform guidance/readiness exposes the pending-rollout reconciliation result before delegating task execution to the repository-owned harness
+- **WHEN** the agent runs `agent_doctor.py` before starting new work
+- **THEN** it reports the pending rollout read-only
 - **AND** Dev Platform does not replace the project-owned task/worktree implementation
 
 ### Requirement: Managed Project status follows actual execution lifecycle
@@ -1061,7 +1006,7 @@ For platform-owned task execution, the lifecycle SHALL refresh its observation o
 
 ### Requirement: Task start establishes an explicit freshness observation
 
-Platform-owned task start SHALL establish the authoritative remote integration observation used to create or resume task work, in addition to existing project synchronization and rollout preflight behavior.
+Platform-owned task start SHALL establish the authoritative remote integration observation used to create or resume task work, in addition to existing project synchronization.
 
 #### Scenario: Task starts after normal synchronization
 
@@ -2177,36 +2122,6 @@ For changed paths with a maintained, tested and unambiguous dependency mapping, 
 - **WHEN** local affected validation runs for a changed path with a maintained, tested and unambiguous dependency mapping
 - **THEN** it can select canonical bounded test/check groups
 - **AND** it does not require the complete unit suite solely because the path belongs to a broad language or directory class
-
-### Requirement: A session can explicitly defer platform rollout adoption
-
-A session MAY explicitly defer rollout adoption with `DEV_PLATFORM_DEFER_ROLLOUT=1`, which the `--defer-rollout` flag of `start_task.py`, `start_managed_task.py`, `execute_managed_task.py` and `execute_requirement.py advance` sets for the process and its children. Any other non-empty value of the variable `DEV_PLATFORM_DEFER_ROLLOUT` SHALL be an explicit error naming it.
-
-#### Scenario: The rollout deferral variable has another value
-
-- **WHEN** `DEV_PLATFORM_DEFER_ROLLOUT` is set to a non-empty value other than `1`
-- **THEN** task start fails with an explicit error naming the value
-
-### Requirement: A deferred platform rollout is only observed
-
-While the rollout adoption deferral is set, task start SHALL only observe the rollout: task start SHALL NOT merge, close, relabel or otherwise change the rollout PR, SHALL NOT synchronize local integration for it, and SHALL report that the rollout was skipped, naming the PR and the deferral.
-
-#### Scenario: Task start runs with the rollout deferred
-
-- **WHEN** task start runs while the rollout adoption deferral is set and a rollout PR is pending
-- **THEN** task start does not merge, close, relabel or otherwise change the rollout PR
-- **AND** it does not synchronize local integration for it
-- **AND** it reports that the rollout was skipped, naming the PR and the deferral
-
-### Requirement: Task start announces a rollout merge before performing it
-
-Without the rollout adoption deferral, immediately before merging a rollout, start SHALL announce the PR, the merge and the local synchronization it is about to perform and how to defer them, and `agent_doctor.py` SHALL report a green pending rollout as one the next task start will merge.
-
-#### Scenario: Task start is about to merge a rollout
-
-- **WHEN** task start without the deferral is about to merge a rollout
-- **THEN** it first announces the PR, the merge and the local synchronization it is about to perform and how to defer them
-- **AND** `agent_doctor.py` reports a green pending rollout as one the next task start will merge
 
 ### Requirement: Coordinator finalization may validate against an explicit proven base
 

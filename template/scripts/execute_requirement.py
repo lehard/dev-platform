@@ -28,7 +28,6 @@ import requirement_integration
 import requirement_retrospective
 import requirement_target_lifecycle
 import start_managed_task
-from rollout_preflight import add_defer_rollout_argument, apply_defer_rollout
 from _platform_common import current_worktree_root, locked_json, machine_path
 
 
@@ -974,7 +973,6 @@ def main(argv: list[str] | None = None) -> int:
     resume.add_argument("--requirement", required=True)
     resume.add_argument("--base-dir", type=Path)
     resume.add_argument("--confirm-distinct", action="store_true", help="Confirm that reviewed similar Issues are distinct before creating a missing child")
-    add_defer_rollout_argument(resume)
     repair = commands.add_parser("repair", help="enqueue the existing repair job for a complete Requirement composition PR")
     repair.add_argument("--pr", type=int, required=True)
     repair.add_argument("--expected-head", required=True)
@@ -1009,7 +1007,6 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
-    apply_defer_rollout(args)
     base_dir = (args.base_dir or orchestrate_pre_authoring.default_base_dir(integration)).resolve()
     try:
         result = advance(integration, requirement=args.requirement, base_dir=base_dir, confirm_distinct=args.confirm_distinct)

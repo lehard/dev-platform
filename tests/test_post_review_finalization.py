@@ -1138,6 +1138,7 @@ class GeneratedFileMergeTests(unittest.TestCase):
         for name in ("e1", "e4"):
             (root / "entries" / f"{name}.txt").write_text("entry\n")
         (root / self.MANIFEST).write_text("e1\ne4\n")
+        (root / "multi.txt").write_text("a\nb\nc\nd\ne\nf\ng\n")
         git(root, "add", "-A")
         git(root, "commit", "-qm", "entries")
         git(root, "push", "-q", "origin", "HEAD:main")
@@ -1191,6 +1192,23 @@ class GeneratedFileMergeTests(unittest.TestCase):
         self.assertEqual(git(self.repo.remote, "show", f"{new_head}:{self.MANIFEST}"), "e1\ne2\ne3\ne4")
         # The regenerate command ran from the trusted root, not from the candidate checkout.
         self.assertEqual(Path(self.log.read_text()).resolve(), self.trusted.resolve())
+
+    def test_a_file_both_sides_changed_cleanly_needs_no_writer_repair(self):
+        root = self.repo.root
+        (root / "multi.txt").write_text("A\nb\nc\nd\ne\nf\ng\n")
+        git(root, "commit", "-qam", "task edits the top")
+        self.repo.push("agent/b")
+        before = self.repo.head("agent/b")
+        git(root, "checkout", "-q", "main")
+        (root / "multi.txt").write_text("a\nb\nc\nd\ne\nf\nG\n")
+        git(root, "commit", "-qam", "main edits the bottom")
+        git(root, "push", "-q", "origin", "HEAD:main")
+        git(root, "checkout", "-q", "agent/b")
+        new_head, main_sha = self.derive()
+        self.assertEqual(git(self.repo.remote, "show", f"{new_head}:multi.txt"), "A\nb\nc\nd\ne\nf\nG")
+        git(root, "fetch", "-q", "origin")
+        declared = [item.path for item in self.generated]
+        self.assertTrue(final.derived_merge_only(root, new_head, before, main_sha, self.TASK_PATHS, declared))
 
     def test_prepare_records_the_coordinator_update(self):
         before = self.repo.head("agent/b")
@@ -1383,16 +1401,25 @@ class ArchivedGeneratedMergeTests(unittest.TestCase):
         self.assertEqual(before["digest"], after["digest"])
         self.assertTrue(equivalent_proofs(self.repo.root, before, after))
 
-    def test_an_ordinary_task_path_changed_by_the_merge_stops_the_merge(self):
-        # Identity itself changing is proven in test_task_content_identity; here the both-sides bound
-        # (or, failing that, the identity check) refuses and nothing is pushed.
+    def edit_multi_on_both_sides(self):
         root = self.repo.root
         (root / "multi.txt").write_text("A\nb\nc\nd\ne\nf\ng\n")
         self.commit("candidate edits multi")
-        before_head = self.repo.head("agent/x")
         self.advance_main({"entries/e2.txt": "entry\n", "manifest.txt": "e1\ne2\ne4\n", "multi.txt": "a\nb\nc\nd\ne\nf\nG\n"})
-        with self.assertRaisesRegex(final.RederivationFailed,
-                                    "changed paths beyond archive-derived specs and declared generated files: multi.txt"):
+
+    def test_a_reviewed_task_path_merged_on_both_sides_still_stops_at_the_identity_check(self):
+        self.edit_multi_on_both_sides()
+        before_head = self.repo.head("agent/x")
+        with self.assertRaisesRegex(final.RederivationFailed, "changed the task-content identity"):
+            self.derive()
+        self.assertEqual(self.repo.head("agent/x"), before_head)
+
+    def test_a_path_the_derivation_changed_beyond_the_merge_stops_the_merge(self):
+        before_head = self.repo.head("agent/x")
+        self.advance_main({"entries/e2.txt": "entry\n", "manifest.txt": "e1\ne2\ne4\n"})
+        with mock.patch.object(final, "paths_beyond_merge", return_value={"multi.txt"}), \
+                self.assertRaisesRegex(final.RederivationFailed,
+                                       "changed paths beyond archive-derived specs and declared generated files: multi.txt"):
             self.derive()
         self.assertEqual(self.repo.head("agent/x"), before_head)
 

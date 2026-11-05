@@ -181,6 +181,7 @@ class ManagedCheckoutIdentityTests(unittest.TestCase):
                   "evidence": "openspec/changes/managed-checkout/automated-checks.json"}
         with mock.patch.object(managed_task.ManagedCheckoutIdentity, "evidence_payload", return_value={"task_content": {}}), \
                 mock.patch.object(managed_task, "require_task_content"), \
+                mock.patch.object(select_checks, "require_committed_task_content"), \
                 mock.patch.object(openspec_lifecycle, "automated_evidence_reuse", return_value=reused) as decide:
             message = self._run_select_checks("--evidence", "openspec/changes/managed-checkout/automated-checks.json")
         self.assertIn("Repeated selected-check run refused before any command started", message)
