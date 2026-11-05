@@ -1986,7 +1986,7 @@ A friction issue SHALL be able to carry several fingerprint markers, and routing
 
 ### Requirement: A merged fix closes the friction records it references
 
-When a pull request is merged, the friction issues referenced by `Fixes-Friction: owner/repo#N` lines in its body, in a commit message of the pull request or in an OpenSpec `proposal.md` changed by it SHALL be closed with a comment naming the pull request and merge commit. Friction issues without such a reference SHALL NOT be closed automatically. A malformed reference, a reference to another repository or a reference to an issue that is not a router-generated friction issue SHALL fail the run with an error naming the reference.
+When a pull request is merged, the friction issues referenced by `Fixes-Friction: owner/repo#N` lines in its body, a commit message or a changed OpenSpec `proposal.md` SHALL be closed with a comment naming the pull request and merge commit. Friction issues without such a reference SHALL NOT be closed automatically. A reference that is malformed, names another repository or names a non-friction issue SHALL fail the run naming the reference.
 
 #### Scenario: Fix references a friction record
 
