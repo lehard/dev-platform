@@ -404,6 +404,69 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(result.state, "ahead")
         self.assertEqual(git("rev-parse", "origin/agent/task", cwd=self.task).stdout.strip(), git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
 
+    def reconcile_exact_pr(self, kind: str, *, held: bool) -> tuple[task_reconciliation.Freshness, mock.Mock]:
+        exact = publication_state.ExactHeadPrLookup(
+            available=True,
+            exact_open={"number": 190, "url": "https://example.invalid/pr/190", "baseRefName": "main",
+                        "headRepositoryOwner": "owner"},
+        )
+        with (
+            mock.patch.object(task_reconciliation, "task_kind", return_value=kind),
+            mock.patch.object(task_reconciliation, "queue_integrated", return_value=True),
+            mock.patch("publication_queue.holds_admitted_head", return_value=held) as holds,
+            mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
+            mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=exact),
+            mock.patch.object(task_reconciliation.publication_state, "github_repo_name", return_value="owner/repo"),
+        ):
+            return task_reconciliation.reconcile(self.task), holds
+
+    def publish_quick_task(self) -> str:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        return git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+
+    def test_admitted_quick_head_stays_put_while_main_merges_locally(self) -> None:
+        published = self.publish_quick_task()
+        self.advance_main()
+        with mock.patch("builtins.print") as printed:
+            result, _ = self.reconcile_exact_pr("quick", held=True)
+        self.assertEqual(result.state, "ahead")
+        self.assertEqual(git("rev-parse", "origin/agent/task", cwd=self.task).stdout.strip(), published)
+        self.assertNotEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), published)
+        self.assertEqual(git("ls-remote", "origin", "refs/heads/agent/task", cwd=self.task).stdout.split()[0], published)
+        printed.assert_any_call(task_reconciliation.HELD_HEAD_NOTE)
+
+    def test_admitted_quick_fix_stays_local_when_already_current(self) -> None:
+        published = self.publish_quick_task()
+        (self.task / "fix.txt").write_text("fix\n", encoding="utf-8")
+        git("add", "fix.txt", cwd=self.task); git("commit", "-m", "fix", cwd=self.task)
+        with mock.patch("builtins.print") as printed:
+            self.reconcile_exact_pr("quick", held=True)
+        self.assertEqual(git("ls-remote", "origin", "refs/heads/agent/task", cwd=self.task).stdout.split()[0], published)
+        printed.assert_any_call(task_reconciliation.HELD_HEAD_NOTE)
+
+    def test_quick_task_without_a_live_admission_still_pushes(self) -> None:
+        self.publish_quick_task()
+        self.advance_main()
+        self.reconcile_exact_pr("quick", held=False)
+        self.assertEqual(git("ls-remote", "origin", "refs/heads/agent/task", cwd=self.task).stdout.split()[0],
+                         git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
+
+    def test_managed_task_never_asks_the_queue_and_still_pushes(self) -> None:
+        self.publish_quick_task()
+        self.advance_main()
+        _, holds = self.reconcile_exact_pr("managed", held=True)
+        holds.assert_not_called()
+        self.assertEqual(git("ls-remote", "origin", "refs/heads/agent/task", cwd=self.task).stdout.split()[0],
+                         git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
+
+    def test_portable_reconcile_does_not_load_the_queue(self) -> None:
+        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=False), \
+                mock.patch("publication_queue.holds_admitted_head") as holds:
+            self.assertFalse(task_reconciliation._queue_holds_head(self.task, "agent/task", "quick"))
+        holds.assert_not_called()
+
     def test_issue_97_local_ci_fix_descendant_continues_same_exact_pr_after_main_advance(self) -> None:
         (self.task / "task.txt").write_text("task\n", encoding="utf-8")
         git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)

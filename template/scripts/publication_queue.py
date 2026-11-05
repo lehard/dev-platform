@@ -1313,7 +1313,8 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
     Returns the ``supersedes`` payload and the superseded lineage record.
 
     Allowed only when the latest trusted record is bound to the proven head in a state of
-    ``READMISSION_STATES``, names the same task, and its offered job holds no live claim, and
+    ``READMISSION_STATES``, names the same task (a managed change, or a quick task on the same
+    branch), and its offered job holds no live claim, and
     when ``head`` descends from ``proven``: coordinator updates and harness pushes on the
     admitted head are never discarded by a history rewrite. A finding-level escalation (a
     rejected review, a proposed rejection, exhausted repair rounds) or a record carrying
@@ -1339,8 +1340,10 @@ def _supersession(root: Path, repo: str, number: int, pr: dict[str, Any], proven
         raise refuse(f"the candidate is {lineage.get('state')}; only "
                      f"{', '.join(sorted(READMISSION_STATES))} accept a new developer head")
     old = lineage.get("task_identity")
-    if (not isinstance(old, dict) or not old.get("change") or not isinstance(identity, dict)
-            or any(old.get(key) != identity.get(key) for key in _SAME_TASK_KEYS)):
+    branch = pr.get("head", {}).get("ref")
+    quick = _quick_identity(old, branch) and _quick_identity(identity, branch)
+    if not quick and (not isinstance(old, dict) or not old.get("change") or not isinstance(identity, dict)
+                      or any(old.get(key) != identity.get(key) for key in _SAME_TASK_KEYS)):
         raise refuse("the handoff does not name the same task as the admitted candidate")
     try:
         _require_contribution_base_move(root, old, identity)
@@ -1388,17 +1391,42 @@ def _carried_gates(root: Path, lineage: dict[str, Any], identity: dict[str, Any]
             if name != "required-checks" and name not in handoff_gates and reusable(root, gate, identity)}
 
 
-def _readmissible(lineage: dict[str, Any]) -> bool:
-    """Whether a new head can supersede this record: only a managed change has a developer handoff."""
+def _quick_identity(identity: Any, branch: Any) -> bool:
+    """Whether ``identity`` is a quick task on ``branch``: an ``agent/`` branch, no managed change, no kind."""
+    return (isinstance(identity, dict) and not identity.get("change") and not identity.get("kind")
+            and isinstance(branch, str) and branch.startswith("agent/") and identity.get("branch") == branch)
+
+
+def _readmissible(lineage: dict[str, Any], branch: Any) -> bool:
+    """Whether a new head can supersede this record: a managed change or a quick task on ``branch``."""
     identity = lineage.get("task_identity")
-    return isinstance(identity, dict) and bool(identity.get("change"))
+    return (isinstance(identity, dict) and bool(identity.get("change"))) or _quick_identity(identity, branch)
 
 
 def _no_readmission(proven: str, head: str) -> str:
-    """The supported exits of a candidate without a managed change, such as a quick task."""
-    return (f"a task without a managed change has no re-admission: finish refuses head {head[:12]} over proven head "
-            f"{proven[:12]}. Before pushing, take the job offered for the proven head; a head already pushed "
+    """Why a new head has no re-admission: it comes neither by a developer handoff nor from a quick task."""
+    return (f"only a developer handoff or a quick task re-admits a new head: finish refuses head {head[:12]} over proven "
+            f"head {proven[:12]}. Before pushing, take the job offered for the proven head; a head already pushed "
             "invalidates that job and needs a coordinator decision")
+
+
+def _bring_to_proven(branch: str, proven: str) -> str:
+    """How a developer brings a quick task worktree to its proven head, the base of any fix."""
+    return f"`git fetch origin {branch}`, `git rebase origin/{branch}` to reach proven head {proven[:12]}"
+
+
+def _quick_red_action(candidate: dict[str, Any], newest: dict[str, Any] | None, branch: Any) -> str | None:
+    """The developer step of a quick task with a failed required check at its PR head, or ``None``."""
+    if not _quick_identity(candidate.get("task_identity"), branch):
+        return None
+    if (candidate.get("red_gate") or {}).get("name") != "required-checks":
+        return None
+    head = str(candidate.get("head"))
+    fix = f"{_bring_to_proven(str(branch), head)}, commit the fix on top of it and run finish"
+    if (isinstance(newest, dict) and newest.get("head") == head
+            and newest.get("state") in READMISSION_STATES):
+        return "developer fix: " + fix
+    return "wait for the queue to record the failed required check, then " + fix
 
 
 def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any], comments: list[dict[str, Any]],
@@ -1419,7 +1447,7 @@ def _awaiting_readmission(root: Path, repo: str, number: int, pr: dict[str, Any]
     if admission is None or newest.get("head") != _proven_head(_events(root, repo, number), admission):
         return None
     awaiting = {"state": newest["state"], "proven_head": newest["head"], "head": head}
-    if not _readmissible(newest):
+    if not _readmissible(newest, pr.get("head", {}).get("ref")):
         return {**awaiting, "owner": "coordinator decision", "reason": _no_readmission(newest["head"], head),
                 "next_action": "coordinator decision: finish cannot re-admit the pushed head"}
     return {**awaiting, "owner": "developer re-admission",
@@ -1520,7 +1548,10 @@ def admit(root: Path, number: int, expected_head: str, *, handoff: dict | None =
     if admitted:
         proven = _proven_head(events, admitted)
         if proven != expected_head and not handoff:
-            raise QueueError("PR has an earlier or ambiguous admission; " + _no_readmission(str(proven), expected_head))
+            # A quick task has no developer handoff: its exact-head identity names the task.
+            identity = resolved_handoff.get("task_identity")
+            if not _quick_identity(identity, branch):
+                raise QueueError("PR has an earlier or ambiguous admission; " + _no_readmission(str(proven), expected_head))
         if proven != expected_head:
             supersedes, _ = _supersession(root, repo, number, pr, str(proven), expected_head, identity)
             handoff_gates = resolved_handoff.get("gates")
@@ -1673,6 +1704,10 @@ def candidate_from_snapshot(root: Path, repo: str, pr: dict[str, Any], comments:
     if awaiting is not None:
         candidate.update(reason=awaiting["reason"], awaiting_readmission=awaiting,
                          next_action=awaiting["next_action"])
+        return candidate
+    action = _quick_red_action(candidate, _latest(root, pr["number"], comments), pr.get("head", {}).get("ref"))
+    if action is not None:
+        candidate["next_action"] = action
     return candidate
 
 
@@ -1746,8 +1781,8 @@ def requirement_status(root: Path, requirement: str) -> dict[str, Any]:
     return result
 
 
-def local_status(root: Path, branch: str) -> dict[str, Any] | None:
-    """Observe this task's admitted PR even after the coordinator updates its head."""
+def _task_pr(root: Path, branch: str) -> dict[str, Any] | None:
+    """The PR of this task branch against main, or ``None`` when it has none."""
     from _platform_common import run_github_with_retry
 
     result = run_github_with_retry(["gh", "pr", "view", branch, "--json", "number,baseRefName,headRefName"], cwd=root)
@@ -1771,6 +1806,22 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
         except json.JSONDecodeError:
             raise QueueError("task PR lookup returned invalid JSON") from None
     if data.get("baseRefName") != "main" or data.get("headRefName") != branch or not isinstance(data.get("number"), int):
+        return None
+    return data
+
+
+def holds_admitted_head(root: Path, branch: str) -> bool:
+    """Whether this task branch has a live admission, so only a recorded transition may move its head."""
+    data = _task_pr(root, branch)
+    if data is None:
+        return False
+    return _admission(_events(root, _repo(root), data["number"]), data["number"]) is not None
+
+
+def local_status(root: Path, branch: str) -> dict[str, Any] | None:
+    """Observe this task's admitted PR even after the coordinator updates its head."""
+    data = _task_pr(root, branch)
+    if data is None:
         return None
     repo = _repo(root)
     events = _events(root, repo, data["number"])
@@ -1799,11 +1850,14 @@ def local_status(root: Path, branch: str) -> dict[str, Any] | None:
             lineage = _latest(root, data["number"], _comments(root, repo, data["number"]))
             if (lineage is not None and _awaits_developer_fix(lineage)
                     and lineage.get("head") == proven and _is_ancestor(root, proven, local_head)):
-                if not _readmissible(lineage):
+                if not _readmissible(lineage, branch):
                     # Refused before finish pushes: the push itself would invalidate the offered job.
                     raise QueueError(_no_readmission(str(proven), local_head))
                 return {**observed, "state": "readmission", "number": data["number"],
                         "proven_head": proven, "head": local_head}
+            if lineage is not None and _quick_identity(lineage.get("task_identity"), branch):
+                raise QueueError(f"local task head {local_head[:12]} does not descend from proven head {str(proven)[:12]}: "
+                                 f"{_bring_to_proven(branch, str(proven))}, then run finish")
             raise QueueError("local task head is not the admitted or proven coordinator head")
     return status(root, data["number"])
 
