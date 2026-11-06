@@ -63,18 +63,12 @@ def fixture_locked_json(path: Path) -> Iterator[dict]:
 
 class RequirementExecutionTests(unittest.TestCase):
     def setUp(self) -> None:
-        import publication_queue
-        for name, value in (("_repo", "acme/project"), ("_gh", [])):
-            patcher = mock.patch.object(publication_queue, name, return_value=value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
         # Card claiming first ensures Project membership; these tests fake only the card status.
         patcher = mock.patch.object(
             execution.managed_project_status, "ensure_item", return_value=SimpleNamespace(status="Backlog"))
         patcher.start()
         self.addCleanup(patcher.stop)
-        # Temporary roots have no committed contract; these tests exercise the downstream
-        # (portable) path, so declare a downstream contract explicitly.
+        # Temporary roots have no committed contract, so declare one explicitly.
         import _platform_common
         patcher = mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"})
         patcher.start()
@@ -490,50 +484,7 @@ class RequirementExecutionTests(unittest.TestCase):
             self.assertEqual(result["status"], "implement-child")
             self.assertTrue(materialize.call_args.kwargs["confirm_distinct"])
 
-    def test_multi_child_advance_dispatches_to_contribution_supervisor(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            handoffs = [("first", root / "first.json"), ("second", root / "second.json")]
-            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
-                execution, "_git", return_value="main"
-            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
-                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
-            ), mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), mock.patch.object(
-                execution, "_ordered_handoffs", return_value=handoffs
-            ), mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}), mock.patch.object(
-                execution, "_advance_contributions", return_value={"status": "implement-children"}
-            ) as contributions, mock.patch.object(execution, "_contribution_publication_supported", return_value=True), mock.patch.object(execution.requirement_board, "claim_started"), mock.patch.object(execution.requirement_integration, "assemble_candidate") as legacy:
-                result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
-            self.assertEqual(result["status"], "implement-children")
-            contributions.assert_called_once()
-            legacy.assert_not_called()
-
-    def test_requirement_with_shared_candidate_receipts_stays_on_legacy_path(self):
-        class LegacyPath(Exception):
-            pass
-
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            receipts = root / ".claude" / "requirement-integration" / f"requirement-{REQUIREMENT.rsplit('#', 1)[1]}"
-            receipts.mkdir(parents=True)
-            (receipts / "first.json").write_text("{}")
-            handoffs = [("first", root / "first.json"), ("second", root / "second.json")]
-            with mock.patch.object(execution, "current_worktree_root", return_value=root), mock.patch.object(
-                execution, "_git", return_value="main"
-            ), mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), mock.patch.object(
-                execution.requirement_intake, "fetch_issue", return_value={"body": PARENT_BODY, "labels": [{"name": "type:requirement"}]}
-            ), mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), mock.patch.object(
-                execution, "_ordered_handoffs", return_value=handoffs
-            ), mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}), mock.patch.object(
-                execution, "_advance_contributions"
-            ) as contributions, mock.patch.object(execution, "_contribution_publication_supported", return_value=True), mock.patch.object(
-                execution.managed_project_status, "observe", side_effect=LegacyPath
-            ):
-                with self.assertRaises(LegacyPath):
-                    execution.advance(root, requirement=REQUIREMENT, base_dir=root)
-            contributions.assert_not_called()
-
-    def test_portable_shared_candidate_publishes_without_retrospective(self):
+    def test_shared_candidate_publishes_without_retrospective(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             handoffs = [(name, root / f"{name}.json") for name in ("first", "second")]
@@ -547,7 +498,6 @@ class RequirementExecutionTests(unittest.TestCase):
                  mock.patch.object(execution.orchestrate_pre_authoring, "status", return_value={"current_stage": "complete"}), \
                  mock.patch.object(execution, "_ordered_handoffs", return_value=handoffs), \
                  mock.patch.object(execution, "_linked_children_by_change", return_value={"first": "acme/backlog#8", "second": "acme/backlog#9"}), \
-                 mock.patch.object(execution, "_contribution_publication_supported", return_value=False), \
                  mock.patch.object(execution.requirement_board, "claim_started"), \
                  mock.patch.object(execution.managed_project_status, "observe", return_value=SimpleNamespace(current_status="Ready")), \
                  mock.patch.object(execution, "_ready_receipt", side_effect=receipts), \
@@ -560,7 +510,7 @@ class RequirementExecutionTests(unittest.TestCase):
             compose.assert_called_once()
             publish.assert_called_once()
 
-    def test_downstream_multi_child_uses_existing_supervisor_path(self):
+    def test_multi_child_advance_starts_the_first_child(self):
         import _platform_common
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -578,71 +528,10 @@ class RequirementExecutionTests(unittest.TestCase):
                 execution, "_ready_receipt", return_value=None
             ), mock.patch.object(execution.start_managed_task, "start_managed_task", return_value=(SimpleNamespace(task_root=root), "head", False)) as start, mock.patch.object(
                 execution.requirement_board, "claim_started"
-            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), mock.patch.object(execution, "_advance_contributions") as contributions:
+            ), mock.patch.object(execution.requirement_board, "reconcile_nonterminal"):
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
             self.assertEqual(result["status"], "implement-child")
-            contributions.assert_not_called()
-            self.assertNotIn("contribution", start.call_args.kwargs)
-
-    def test_single_child_active_coordinator_candidate_publishes_before_archive(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            worktree = root / "first"; worktree.mkdir()
-            change = worktree / "openspec/changes/first"; change.mkdir(parents=True)
-            (change / "tasks.md").write_text("- [x] Implement\n")
-            with mock.patch.object(execution, "_contribution_publication_supported", return_value=True), mock.patch.object(
-                execution, "machine_path", return_value=root
-            ), mock.patch.object(execution, "_single_child_in_flight", return_value=False), mock.patch.object(execution.managed_task, "resolve_canonical_provenance", return_value=SimpleNamespace(lifecycle="active", path=change)), mock.patch.object(
-                execution.subprocess, "run", return_value=SimpleNamespace(returncode=0)
-            ) as finish:
-                self.assertTrue(execution._publish_active_child(root, "acme/backlog#8", "first"))
-            self.assertEqual(finish.call_args.kwargs["cwd"], worktree)
-            self.assertEqual(finish.call_args.kwargs["stdin"], execution.subprocess.DEVNULL)
-            self.assertTrue(change.is_dir())
-
-    def test_single_child_resume_observes_handoff_and_newer_remote_head_without_republishing(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            (root / "first").mkdir()
-            for state, remote_head in (("review-pending", "a" * 40), ("repairing", "b" * 40),
-                                       ("finalize-pending", "b" * 40), (None, "b" * 40)):
-                with self.subTest(state=state):
-                    adapter = SimpleNamespace(
-                        _repo=lambda *a: "acme/project", _gh=lambda *a: [{"number": 8}],
-                        _pr=lambda *a: {"head": {"ref": "agent/first", "sha": remote_head},
-                                       "base": {"ref": "main"}, "state": "open", "merged": False},
-                        _comments=lambda *a: [], _derive=lambda *a: {}, _malformed=lambda *a: False,
-                        _latest=lambda *a: {"state": state} if state else None,
-                        _events=lambda *a: [], _admission=lambda *a: None)
-                    observe = execution._single_child_in_flight
-                    with mock.patch.object(execution, "_git", side_effect=["agent/first", "a" * 40]), \
-                            mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
-                            mock.patch.object(execution, "machine_path", return_value=root), \
-                            mock.patch.object(execution, "_single_child_in_flight", side_effect=lambda w: observe(w, adapter=adapter)), \
-                            mock.patch.object(execution.subprocess, "run") as finish, \
-                            mock.patch.object(execution.managed_task, "resolve_canonical_provenance") as provenance:
-                        self.assertTrue(execution._publish_active_child(root, "acme/backlog#8", "first"))
-                        finish.assert_not_called()
-                        provenance.assert_not_called()
-
-    def test_single_child_ignores_closed_superseded_pr_but_refuses_two_owned_open_prs(self):
-        def observe(prs, malformed=()):
-            adapter = SimpleNamespace(
-                _repo=lambda *a: "acme/project", _gh=lambda *a: [{"number": n} for n in prs],
-                _pr=lambda _w, _r, n: {"head": {"ref": "agent/first", "sha": "a" * 40}, "base": {"ref": "main"}, **prs[n]},
-                _comments=lambda *a: [], _derive=lambda _w, pr, _c: pr, _malformed=lambda pr: pr.get("number") in malformed,
-                _latest=lambda *a: {"state": "repair-pending"}, _events=lambda *a: [], _admission=lambda *a: None)
-            with mock.patch.object(execution, "_git", side_effect=["agent/first", "a" * 40]):
-                return execution._single_child_in_flight(Path("/unused"), adapter=adapter)
-
-        closed = {"state": "closed", "merged": False, "number": 436}
-        self.assertTrue(observe({436: closed, 443: {"state": "open", "merged": False}}))
-        with self.assertRaisesRegex(execution.RequirementExecutionError, "multiple coordinator candidates"):
-            observe({443: {"state": "open", "merged": False}, 446: {"state": "open", "merged": False}})
-        with self.assertRaisesRegex(execution.RequirementExecutionError, "malformed coordinator ownership"):
-            observe({436: closed, 443: {"state": "open", "merged": False}}, malformed={436})
-        with self.assertRaisesRegex(execution.RequirementExecutionError, "no observable open/closed"):
-            observe({443: {"merged": False}})
+            start.assert_called_once()
 
     def test_dependent_child_gets_predecessor_receipt_when_change_names_differ_from_intents(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -691,10 +580,9 @@ class RequirementExecutionTests(unittest.TestCase):
             execution._candidate_for(Path("/unused"), REQUIREMENT, [Path("r.json")], ["a", "b"])
         self.assertEqual(assemble.call_args.kwargs["base"], "b" * 40)
 
-    def test_portable_ready_child_finalizes_before_its_receipt(self) -> None:
+    def test_ready_child_finalizes_before_its_receipt(self) -> None:
         import finish_task
         import openspec_lifecycle
-        import _platform_common
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             worktree = root / "worktrees" / "first"
@@ -717,8 +605,6 @@ class RequirementExecutionTests(unittest.TestCase):
                     mock.patch.object(execution, "_git", return_value="agent/first"), \
                     mock.patch.object(execution.managed_task, "resolve_canonical_provenance", side_effect=[
                         SimpleNamespace(lifecycle="active", path=active), SimpleNamespace(lifecycle="archived", path=archive)]), \
-                    mock.patch.object(_platform_common, "read_platform_config", return_value={}), \
-                    mock.patch.object(_platform_common, "lifecycle_mode", return_value="portable"), \
                     mock.patch.object(finish_task, "finalize_portable_change", side_effect=finalize), \
                     mock.patch.object(execution.requirement_integration, "create_receipt", side_effect=receipt), \
                     mock.patch.object(execution.requirement_integration, "superseded_receipt_head", return_value=None), \
@@ -729,9 +615,8 @@ class RequirementExecutionTests(unittest.TestCase):
             # A verified receipt is a prerequisite; incomplete work remains for implementation.
             self.assertTrue(openspec_lifecycle.verification_passed(active))
 
-    def test_portable_finalization_refusal_never_creates_a_ready_receipt(self) -> None:
+    def test_finalization_refusal_never_creates_a_ready_receipt(self) -> None:
         import finish_task
-        import _platform_common
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             worktree = root / "worktrees" / "first"
@@ -744,8 +629,6 @@ class RequirementExecutionTests(unittest.TestCase):
                     mock.patch.object(execution, "machine_path", return_value=root / "worktrees"), \
                     mock.patch.object(execution, "_git", return_value="agent/first"), \
                     mock.patch.object(execution.managed_task, "resolve_canonical_provenance", return_value=SimpleNamespace(lifecycle="active", path=active)), \
-                    mock.patch.object(_platform_common, "read_platform_config", return_value={}), \
-                    mock.patch.object(_platform_common, "lifecycle_mode", return_value="portable"), \
                     mock.patch.object(finish_task, "finalize_portable_change", side_effect=refusal), \
                     mock.patch.object(execution.requirement_integration, "create_receipt") as create:
                 with self.assertRaisesRegex(execution.RequirementExecutionError, "portable finalization refused: independent review unavailable") as caught:

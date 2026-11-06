@@ -18,7 +18,7 @@ from _platform_modules import load_platform_module  # noqa: E402
 def setUpModule() -> None:
     sys.path.insert(0, str(ROOT / "template" / "scripts"))
 
-workers = load_platform_module("lifecycle_workers", ROOT / "template/scripts/lifecycle_workers.py")
+workers = load_platform_module("sandbox_harness", ROOT / "template/scripts/sandbox_harness.py")
 sw = load_platform_module("sandboxed_writer", ROOT / "template/scripts/sandboxed_writer.py")
 SECRET = "sk-ant-oat01-SECRETVALUE"
 
@@ -229,9 +229,6 @@ class LaunchTests(Base):
         repo = self.tmp / "h"
         repo.mkdir()
         git(repo, "init", "-q", "-b", "main")
-        git(repo, "remote", "add", "origin", str(self.tmp))
-        env = {**os.environ, "CLAUDE_CODE_OAUTH_TOKEN": SECRET}
-        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", workers.harness_push_env(repo, env))
         with mock.patch.dict(os.environ, {"CLAUDE_CODE_OAUTH_TOKEN": SECRET}), \
                 mock.patch.object(workers.subprocess, "run") as run:
             run.return_value = subprocess.CompletedProcess([], 0, "", "")

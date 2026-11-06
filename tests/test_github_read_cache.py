@@ -15,7 +15,6 @@ sys.path.insert(0, str(SCRIPTS))
 from _platform_modules import load_platform_module  # noqa: E402
 
 cache = load_platform_module("github_read_cache", SCRIPTS / "github_read_cache.py")
-workers = load_platform_module("lifecycle_workers", SCRIPTS / "lifecycle_workers.py")
 
 URL = "repos/o/r/issues/7/comments?per_page=2"
 NEXT = "https://api.github.com/repositories/1/issues/7/comments?per_page=2&page=2"
@@ -164,15 +163,6 @@ class ReadCacheTests(unittest.TestCase):
         for args in (("repo", "view"), ("api", "-X", "POST", "x"), ("api", "a", "b")):
             with self.subTest(args), self.assertRaises(cache.GithubReadError):
                 cache.cached_gh_json(self.root, *args)
-
-    def test_worker_reads_fail_the_run_on_a_corrupt_cache_and_never_cache_writes(self) -> None:
-        self.path.parent.mkdir(parents=True)
-        self.path.write_text("{")
-        with mock.patch("subprocess.run") as sub, self.assertRaises(cache.GithubReadCacheError):
-            workers._gh_json("api", "--paginate", URL)
-        sub.assert_not_called()
-        self.assertFalse(workers._is_plain_api_read(("api", f"repos/o/r/issues/7/comments", "-f", "body=x")))
-        self.assertTrue(workers._is_plain_api_read(("api", "--paginate", URL)))
 
 
 if __name__ == "__main__":

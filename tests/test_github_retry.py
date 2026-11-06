@@ -17,7 +17,6 @@ from _platform_config import write_platform_config  # noqa: E402
 
 common = load_platform_module("_platform_common", SCRIPTS / "_platform_common.py")
 managed = load_platform_module("managed_task", SCRIPTS / "managed_task.py")
-queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
 project_status = load_platform_module("managed_project_status", SCRIPTS / "managed_project_status.py")
 publication_state = load_platform_module("publication_state", SCRIPTS / "publication_state.py")
 
@@ -73,18 +72,6 @@ class GithubRetryTests(unittest.TestCase):
         self.assertEqual([command[2] for command in calls], ["view", "view", "view", "checks", "view"])
         self.assertEqual(state.kind, "failed")
 
-    def test_queue_main_read_retries_transient_git_failure(self):
-        ok = subprocess.CompletedProcess([], 0, "%s\trefs/heads/main\n" % ("c" * 40), "")
-        args = ["ls-remote", "origin", "refs/heads/main"]
-        reset = common.GitCommandError(args, None, subprocess.CompletedProcess(args, 128, "", "Connection reset by peer"))
-        with mock.patch.object(queue, "run_git", side_effect=[reset, ok]) as run, mock.patch("time.sleep"):
-            self.assertEqual(queue._main(Path("/tmp")), "c" * 40)
-        self.assertEqual(run.call_count, 2)
-        missing = common.GitCommandError(args, None, subprocess.CompletedProcess(args, 128, "", "fatal: repository not found"))
-        with mock.patch.object(queue, "run_git", side_effect=[missing]):
-            with self.assertRaises(queue.QueueError):
-                queue._main(Path("/tmp"))
-
     def test_connection_reset_then_success_retries(self):
         success = subprocess.CompletedProcess([], 0, "{}", "")
         result, run, pause = self.run_retry(["gh", "api", "repos/acme/project"], [self.failure("connection reset by peer"), success])
@@ -131,23 +118,15 @@ class GithubRetryTests(unittest.TestCase):
                 with self.assertRaisesRegex(common.PlatformConfigError, f"{common.GITHUB_RETRY_ATTEMPTS_ENV} must be an integer of at least 1, got {value!r}"):
                     common.github_retry_attempts()
 
-    def test_managed_and_queue_reads_use_retry(self):
-        for invoke in (
-            lambda: managed.run_json(["gh", "api", "repos/acme/project/issues/7"], Path("/tmp")),
-            lambda: queue._gh(Path("/tmp"), "api", "repos/acme/project/issues/7"),
-        ):
-            with mock.patch.object(common.subprocess, "run", side_effect=[self.failure("connection reset"), subprocess.CompletedProcess([], 0, '{"number":7}', "")]) as run, mock.patch("time.sleep") as pause:
-                self.assertEqual(invoke(), {"number": 7})
-                self.assertEqual(run.call_count, 2)
-                pause.assert_called_once_with(1)
+    def test_managed_reads_use_retry(self):
+        with mock.patch.object(common.subprocess, "run", side_effect=[self.failure("connection reset"), subprocess.CompletedProcess([], 0, '{"number":7}', "")]) as run, mock.patch("time.sleep") as pause:
+            self.assertEqual(managed.run_json(["gh", "api", "repos/acme/project/issues/7"], Path("/tmp")), {"number": 7})
+            self.assertEqual(run.call_count, 2)
+            pause.assert_called_once_with(1)
 
-    def test_managed_and_queue_mutations_run_once(self):
-        for invoke, error in (
-            (lambda: managed.run(["gh", "api", "-X", "POST", "repos/acme/project/issues"], Path("/tmp")), managed.ManagedTaskError),
-            (lambda: queue._gh(Path("/tmp"), "api", "repos/acme/project/issues", data={"body": "hello"}), queue.QueueError),
-        ):
-            with mock.patch.object(common.subprocess, "run", return_value=self.failure("connection reset")) as run, mock.patch("time.sleep") as pause:
-                with self.assertRaises(error):
-                    invoke()
-                self.assertEqual(run.call_count, 1)
-                pause.assert_not_called()
+    def test_managed_mutations_run_once(self):
+        with mock.patch.object(common.subprocess, "run", return_value=self.failure("connection reset")) as run, mock.patch("time.sleep") as pause:
+            with self.assertRaises(managed.ManagedTaskError):
+                managed.run(["gh", "api", "-X", "POST", "repos/acme/project/issues"], Path("/tmp"))
+            self.assertEqual(run.call_count, 1)
+            pause.assert_not_called()

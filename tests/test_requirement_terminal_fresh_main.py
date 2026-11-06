@@ -94,8 +94,7 @@ class FreshMainTerminalTests(unittest.TestCase):
         parent = {"body": PARENT_BODY, "labels": [{"name": "type:requirement"}], "state": "OPEN"}
         retrospective = requirement_terminal.requirement_retrospective
         with mock.patch.object(retrospective.requirement_intake, "fetch_issue", return_value=parent), \
-             mock.patch.object(retrospective.agent_friction, "read_events", return_value=[]), \
-             mock.patch.object(retrospective.agent_friction, "read_durable_events", return_value=[]):
+             mock.patch.object(retrospective.agent_friction, "read_events", return_value=[]):
             retrospective.checkpoint(self.integration, requirement=REQUIREMENT, result="none", event_ids=[],
                                      review_note="Reviewed full Requirement delivery.")
             result, project = self.reconcile(actual_checkpoint=True)

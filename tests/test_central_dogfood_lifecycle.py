@@ -440,7 +440,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
             self.skipTest("central .dev-platform.toml is not present in this checkout")
         if (ROOT / ".dev-platform.toml").read_text(encoding="utf-8") == (ROOT / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"):
             # A disposable lifecycle checkout installs the committed public source contract
-            # as `.dev-platform.toml` (lifecycle_workers.install_source_contract); it carries
+            # as `.dev-platform.toml` (sandbox_harness.install_source_contract); it carries
             # no operator sections, so the central-checkout assertion does not apply there.
             self.skipTest("installed public source contract, not the central operator config")
         with (ROOT / ".dev-platform.toml").open("rb") as handle:

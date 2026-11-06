@@ -723,7 +723,7 @@ class RealEditorialTests(unittest.TestCase):
         by_kind: dict[str, list[str]] = {}
         for node in self.site.ed.values():
             by_kind.setdefault(node.kind, []).append(node.id)
-        self.assertEqual({kind: len(ids) for kind, ids in by_kind.items()}, {"overview": 1, "stage": 8, "mechanism": 11, "part": 7, "topic": 4, "term": 12})
+        self.assertEqual({kind: len(ids) for kind, ids in by_kind.items()}, {"overview": 1, "stage": 8, "mechanism": 11, "part": 5, "topic": 4, "term": 12})
         self.assertEqual(sorted(by_kind["stage"]), sorted(LEGACY_STAGE_IDS))
         self.assertEqual(
             sorted(by_kind["mechanism"]),
@@ -735,8 +735,7 @@ class RealEditorialTests(unittest.TestCase):
         self.assertEqual(
             sorted(by_kind["part"]),
             sorted((
-                "chatgpt-project", "incubator", "goal-refinement", "review-perspectives", "repair-job", "review-decisions",
-                "lifecycle-workers",
+                "chatgpt-project", "incubator", "goal-refinement", "review-perspectives", "review-decisions",
             )),
         )
         self.assertEqual(sorted(by_kind["topic"]), sorted(("ownership", "adoption", "sources-of-truth", "glossary")))
@@ -806,7 +805,6 @@ class RealEditorialTests(unittest.TestCase):
         review = self.outputs["m/independent-review/index.html"].decode("utf-8")
         self.assertIn("Dev Platform — общий для нескольких репозиториев порядок инженерной работы", overview)
         self.assertIn("Развилка: четыре намерения", stage)
-        self.assertIn("Цикл кандидата", review)
         self.assertIn("Существенное замечание нельзя молча пропустить.", review)
         self.assertNotIn("ПРОТОТИП", overview)
         self.assertNotIn("образец", overview)

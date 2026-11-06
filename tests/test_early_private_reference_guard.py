@@ -56,7 +56,7 @@ class EarlyPrivateReferenceGuardTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "rehearse_archive") as rehearse, \
                 mock.patch.object(lifecycle, "archive_with_recovery") as mutate:
             try:
-                outcome = lifecycle.finalize_change(root, "work", context="developer")
+                outcome = lifecycle.finalize_change(root, "work")
             except SystemExit as exc:
                 outcome = exc
         self.steps = {"review launch": launch, "selected checks": checks, "rehearsal": rehearse, "OpenSpec mutation": mutate}

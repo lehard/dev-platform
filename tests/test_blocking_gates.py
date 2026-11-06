@@ -9,6 +9,7 @@ could disable a protected gate.
 from __future__ import annotations
 
 import ast
+import fnmatch
 import os
 import re
 import subprocess
@@ -189,8 +190,8 @@ class CatalogTests(unittest.TestCase):
 
     def test_inventory_names_the_gates_the_requirement_lists(self) -> None:
         for gate_id in (
-            "routing-early-gate", "delegated-write-containment", "task-freshness", "proven-base-freshness",
-            "shared-workspace-admission", "merge-commit-hook", "publication-preflight", "scope-overlap",
+            "routing-early-gate", "delegated-write-containment", "task-freshness",
+            "shared-workspace-admission", "merge-commit-hook", "scope-overlap",
             "platform-divergence", "platform-divergence-protected",
         ):
             with self.subTest(gate=gate_id):
@@ -616,8 +617,9 @@ class ProtectedSurfaceNegativeTests(DivergenceTestCase):
         chosen: dict[str, str] = {}
         for entry in surface["protected"]:
             path, category = entry["path"], entry["category"]
-            if category not in chosen and not any(char in path for char in "*?") and path in MANIFEST["files"]:
-                chosen[category] = path
+            matches = sorted(fnmatch.filter(MANIFEST["files"], path))
+            if category not in chosen and matches:
+                chosen[category] = matches[0]
         return chosen
 
     def test_every_required_category_has_a_representative_protected_path(self) -> None:

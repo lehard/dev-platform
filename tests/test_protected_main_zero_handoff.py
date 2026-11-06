@@ -111,6 +111,7 @@ class ProtectedMainZeroHandoffTests(unittest.TestCase):
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
             '  branch=$(git branch --show-current) || exit 1;\n'
+            '  if [ "$4" = "--json" ] && [ "$5" = "baseRefName" ]; then printf \'{"baseRefName":"main"}\\n\'; exit 0; fi;\n'
             '  if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then\n'
             '    head_sha=$(git rev-parse "$branch" 2>/dev/null) || exit 1;\n'
             '    main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1; branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1;\n'

@@ -98,7 +98,6 @@ required_tools = ["npx"]
 # order, so long groups starting early keep them off the critical path.
 [test_groups.fast-b]
 targets = [
-  "test_coordinator_evidence",
   "test_coordinator_event_routing",
   "test_worker_checkout_contract",
   "test_independent_review",
@@ -239,7 +238,7 @@ targets = ["test_delegated_write_guard"]
 mode = "parallel"
 
 [test_groups.disposable_repository_sandbox]
-targets = ["test_disposable_repository_sandbox", "test_parallel_lifecycle_acceptance"]
+targets = ["test_disposable_repository_sandbox"]
 mode = "parallel"
 
 [test_groups.protected_main_zero_handoff]
@@ -247,7 +246,7 @@ targets = ["test_protected_main_zero_handoff"]
 mode = "parallel"
 
 [test_groups.worktree_hygiene]
-targets = ["test_worktree_hygiene", "test_rehandoff_board"]
+targets = ["test_worktree_hygiene"]
 mode = "parallel"
 
 [test_groups.model_routing]

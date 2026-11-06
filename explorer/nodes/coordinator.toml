@@ -1,8 +1,7 @@
 id = "coordinator"
 kind = "term"
 title = "координатор"
-definition = "Координатор — workflow GitHub Actions в центральном репозитории, который обрабатывает очередь публикации по одному PR: публикует задания ревью, доработки и финализации, вливает свежий `main`, ждёт обязательный CI и сливает с защитой от сдвига версии. Он просыпается при приёме PR и каждые пять минут."
+definition = "Координатор — роль сессии чата: ведёт дорожную карту, запускает единственный поток работы и эскалирует решения владельцу. Кода он не пишет."
 sources = [
-  "docs/engineering/agent-workflow.md#Source publication queue",
-  "docs/engineering/agent-workflow.md#Lifecycle workers",
+  "docs/engineering/chat-coordinator.md#Authority",
 ]

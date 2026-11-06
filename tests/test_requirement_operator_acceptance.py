@@ -11,7 +11,6 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 sys.path.insert(0, str(ROOT / "tests"))
-import integration_contour as contour  # noqa: E402
 import lifecycle_overview as overview  # noqa: E402
 import requirement_intake  # noqa: E402
 import requirement_terminal as terminal  # noqa: E402
@@ -97,16 +96,6 @@ class GateTests(unittest.TestCase):
             self.assertEqual(raised.exception.items, ["pool-config"])
             checkpoint.assert_not_called()
             project.assert_not_called()
-
-    def test_post_merge_terminal_job_records_a_completed_outcome(self) -> None:
-        ops = mock.Mock()
-        ops.lineage.return_value = {"requirement": REQUIREMENT, "child": "acme/backlog#8"}
-        ops.children.return_value = ["acme/backlog#8"]
-        ops.requirement_checkpointed.return_value = True
-        ops.reconcile_parent.side_effect = terminal.OwnerAcceptancePending(["pool-config"])
-        outcome = contour.run_terminal(ops, Path("/r"), 11, "agent/br-7-t1-x", "a" * 40, task_identity={"change": "x"})
-        self.assertEqual(outcome, "requirement-awaits-owner-acceptance: pool-config")
-        self.assertFalse(outcome.startswith(("failed", "blocked")))
 
 
 class AcceptTests(unittest.TestCase):

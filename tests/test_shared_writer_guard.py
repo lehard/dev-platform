@@ -76,17 +76,12 @@ REVIEWED_BASELINE: dict[str, int] = {
     'machine_pool.py:_open_shared:open': 1,
     'machine_pool.py:_scan_queue:open': 1,
     'machine_pool.py:read_holders:open': 1,
-    # Disposable worker checkouts: install the committed public source contract and exclude it locally.
-    'lifecycle_workers.py:commit_writer_worktree:open': 1,
-    'lifecycle_workers.py:install_source_contract:copyfile': 1,
-    'lifecycle_workers.py:install_source_contract:open': 1,
-    # Trusted harness manifests/evidence and private reviewer scratch inputs.
-    'requirement_composition.py:_execute_composition_review:write_text': 4,
-    'requirement_contributions.py:write_manifest:write_text': 1,
+    # Disposable writer checkouts: install the committed public source contract and exclude it locally.
+    'sandbox_harness.py:install_source_contract:copyfile': 1,
+    'sandbox_harness.py:install_source_contract:open': 1,
     '_platform_common.py:locked_json:open': 1,
     'agent_doctor.py:ensure_git_hooks:write_bytes': 1,
     'agent_friction.py:cmd_promote:NamedTemporaryFile': 1,
-    'agent_friction.py:append_coordinator_event:open': 1,
     'agent_friction.py:attribute_event:open': 1,
     'agent_friction.py:cmd_record:open': 1,
     'agent_friction.py:friction_lock:open': 1,
@@ -113,12 +108,10 @@ REVIEWED_BASELINE: dict[str, int] = {
     'github_read_cache.py:_store:replace': 1,
     'harness_replay.py:isolated_workspace:write_text': 1,
     'harness_replay.py:main:write_text': 1,
-    # Reviewed: appends the outcome to the runner-provided GITHUB_STEP_SUMMARY file; no shared workspace state.
-    'hosted_workers.py:run_command:open': 1,
-    # Disposable LLM checkout and its scratch HOME live in a private worker temp directory.
-    'lifecycle_workers.py:import_worktree:copyfile': 1,
-    'lifecycle_workers.py:prepare_checkout:open': 1,
-    'lifecycle_workers.py:scratch_home:copy2': 1,
+    # Disposable LLM checkout and its scratch HOME live in a private writer temp directory.
+    'sandbox_harness.py:import_worktree:copyfile': 1,
+    'sandbox_harness.py:prepare_checkout:open': 1,
+    'sandbox_harness.py:scratch_home:copy2': 1,
     # Reviewer schema and candidate diff go to a private temporary directory outside the repository.
     'independent_review_runner.py:run_review_stage:write_text': 2,
     'integration_state.py:local_state_matches_remote_target:mkstemp': 1,

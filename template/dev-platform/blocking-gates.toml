@@ -97,7 +97,7 @@ recovery = "python3 scripts/reconcile_task.py (merges current authoritative main
 migrated = true
 preflight = "task-base"
 rejection_tests = [
-  "tests/test_select_checks.py::ProvenBaseContractTests::test_without_proven_base_a_stale_head_is_still_blocked",
+  "tests/test_select_checks.py::TaskBaseEvidenceTests::test_a_head_behind_main_keeps_the_fresh_base_rule_without_evidence",
   "tests/test_task_freshness.py::TaskFreshnessTests::test_unavailable_remote_never_claims_the_task_is_fresh",
 ]
 recovery_tests = [
@@ -185,7 +185,7 @@ rejection_tests = [
 ]
 recovery_tests = [
   "tests/test_worktree_hygiene.py::ScopeGateFailsExplicitlyTests::test_a_claimed_worktree_with_a_valid_board_still_passes",
-  "tests/test_select_checks.py::BehindMergeableEvidenceTests::test_not_applicable_flag_declares_a_ci_checkout_without_a_board",
+  "tests/test_select_checks.py::TaskBaseEvidenceTests::test_not_applicable_flag_declares_a_ci_checkout_without_a_board",
 ]
 
 [[gate]]

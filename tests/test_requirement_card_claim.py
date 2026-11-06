@@ -121,11 +121,7 @@ def run_advance(board: FakeBoard, *, progress_stage: str = "pre-authoring", obse
         raise Stop()
 
     root = Path("/unused")
-    import publication_queue
-    with patch.object(publication_queue, "_repo", return_value="acme/project"), \
-            patch.object(publication_queue, "_gh", return_value=[]), \
-            patch.object(execution, "_contribution_publication_supported", return_value=True), \
-            patch.object(_platform_common, "read_platform_config", return_value=SOURCE_CONFIG), \
+    with patch.object(_platform_common, "read_platform_config", return_value=SOURCE_CONFIG), \
             patch.object(execution, "current_worktree_root", return_value=root.resolve()), \
             patch.object(execution, "_git", return_value="main"), \
             patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \

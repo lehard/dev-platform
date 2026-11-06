@@ -325,7 +325,6 @@ class TemplateContractTests(unittest.TestCase):
         self.assertIn("docs/engineering/openspec-workflow.md", text)
         self.assertIn("/opsx:verify", openspec_doc)
         self.assertIn("OpenSpec-Verify: PASS", openspec_doc)
-        self.assertIn("without `--finalize` refuses", openspec_doc)
         for relative, command in (("openspec/config.yaml", "scripts/dogfood_task.py finish"),
                                   ("template/openspec/config.yaml.jinja", "scripts/finish_task.py")):
             with self.subTest(config=relative):
@@ -539,7 +538,7 @@ class TemplateContractTests(unittest.TestCase):
         config = (ROOT / ".dev-platform.toml").read_text(encoding="utf-8")
         if config == (ROOT / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"):
             # A disposable lifecycle checkout installs the committed public source contract
-            # as `.dev-platform.toml` (lifecycle_workers.install_source_contract); it carries
+            # as `.dev-platform.toml` (sandbox_harness.install_source_contract); it carries
             # no operator sections, so the central-checkout assertion does not apply there.
             self.skipTest("installed public source contract, not the central operator config")
         template = (ROOT / "template" / ".dev-platform.toml.jinja").read_text(encoding="utf-8")
