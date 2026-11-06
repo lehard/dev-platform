@@ -545,29 +545,75 @@ class Scenario:
             result = once()
         return result
 
+    def child_action(self, result: dict[str, Any], change: str) -> dict[str, Any]:
+        actions = [action for action in result.get("actions", []) if action["change"] == change]
+        if not actions:
+            raise self.fail(f"advance offered no {change}: {json.dumps(result)[:800]}")
+        return actions[0]
+
+    def run_in_parallel(self, requirement: str, change: str, result: dict[str, Any]) -> dict[str, Any]:
+        """Acknowledge the board's named sibling overlap of a waiting child, as a coordinator does, and advance it."""
+        worktree = self.sandbox.checkout / ".claude" / "worktrees" / change
+        branch = run(["git", "branch", "--show-current"], worktree).strip()
+        reason = next(item["reason"] for item in result["waiting"] if item["change"] == change)
+        for owner, path in re.findall(r"([0-9a-f]{10}) \(Managed task [^)]*\): (.+?)(?:; |\. )", reason):
+            self.platform("agent_board.py", "acknowledge", "--branch", branch, "--worktree", str(worktree), "--with-id", owner,
+                          "--path", path, "--reason", "Sibling child of the same fixture Requirement")
+        return self.advance(requirement)
+
     def deliver_child(self, action: dict[str, Any]) -> None:
         """One child from its advance action to its contribution merged into the requirement branch."""
-        slug, worktree = action["change"], Path(action["worktree"])
-        self.platform("dogfood_task.py", "route-claude", "--tier", "R2", "--rationale", "Live scenario",
-                      "--evidence", "Fixture change", cwd=worktree)
-        (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
-        self.hand_off(worktree, slug, action["contribution_base"], f"Child {slug}", contribution=True)
-        branch = run(["git", "branch", "--show-current"], worktree).strip()
+        branch = self.hand_off_child(action, {f"fixture/{action['change']}.txt": action["change"] + "\n"})
         self.worker("review", self.pr_state(branch)["number"])
         self.expect_merged(branch)
 
+    def hand_off_child(self, action: dict[str, Any], edits: dict[str, str]) -> str:
+        """Route, change and hand off one child; returns its branch."""
+        slug, worktree = action["change"], Path(action["worktree"])
+        self.platform("dogfood_task.py", "route-claude", "--tier", "R2", "--rationale", "Live scenario",
+                      "--evidence", "Fixture change", cwd=worktree)
+        for relative, content in edits.items():
+            (worktree / relative).write_text(content, encoding="utf-8")
+        self.hand_off(worktree, slug, action["contribution_base"], f"Child {slug}", contribution=True)
+        return run(["git", "branch", "--show-current"], worktree).strip()
+
+    def move_main(self, path: str, content: str) -> None:
+        """Another actor's change on main: the runner writes it as repository admin."""
+        repo = self.sandbox.config.repository
+        fields = ["-f", f"message=Move main: {path}", "-f", f"content={base64.b64encode(content.encode()).decode()}", "-f", "branch=main"]
+        try:
+            current = gh_json(["api", f"repos/{repo}/contents/{path}?ref=main"], SOURCE_ROOT)
+            fields += ["-f", f"sha={current['sha']}"]
+        except SandboxError as error:
+            if "Not Found" not in str(error):
+                raise
+        run(["gh", "api", "-X", "PUT", f"repos/{repo}/contents/{path}", *fields, "--jq", ".commit.sha"], SOURCE_ROOT)
+
+    def post_merge_once(self, number: int, kinds: str) -> bool:
+        """One post-merge runner claim; True when a job ran."""
+        output = run(["python3", "scripts/lifecycle_workers.py", "work-next", "--kinds", kinds, "--repo", self.sandbox.config.repository,
+                      "--pr", str(number), "--run"], self.sandbox.checkout, self.sandbox.env())
+        return '"status": "idle"' not in output
+
     def drive_post_merge(self, number: int, requirement: str) -> None:
-        """The kinds the post-merge runner claims, run until the Requirement closes."""
+        """The kinds the post-merge runner claims; friction arrives after the retrospective, then the Requirement closes."""
+        self.wait(lambda: self.post_merge_once(number, "retrospective"), bool, 300)
+        self.step("late friction blocks terminal")
+        self.platform("agent_friction.py", "record", "--category", "lifecycle", "--trigger", "manual-workaround", "--scope", "platform",
+                      "--observation", "Live scenario late friction", "--evidence", "Recorded after the retrospective",
+                      "--hypothesis", "Scripted", "--proposal", "None", "--task", requirement, "--no-route")
+        self.step("post-merge reaches terminal")
         issue = requirement.rsplit("#", 1)[1]
-        deadline = time.monotonic() + 900
-        while time.monotonic() < deadline:
-            state = gh_json(["issue", "view", issue, "--repo", self.sandbox.config.repository, "--json", "state"], SOURCE_ROOT)
-            if state["state"] == "CLOSED":
-                return
-            run(["python3", "scripts/lifecycle_workers.py", "work-next", "--kinds", "retrospective,terminal-reconciliation,cleanup",
-                 "--repo", self.sandbox.config.repository, "--pr", str(number), "--run"], self.sandbox.checkout, self.sandbox.env())
-            time.sleep(POLL_SECONDS)
-        raise self.fail(f"{requirement} is still open after post-merge: {str(self.queue_state(number))[:600]}")
+        repo = self.sandbox.config.repository
+
+        def closed() -> bool:
+            self.post_merge_once(number, "retrospective,terminal-reconciliation,cleanup")
+            return gh_json(["issue", "view", issue, "--repo", repo, "--json", "state"], SOURCE_ROOT)["state"] == "CLOSED"
+
+        self.wait(closed, bool, 900)
+        comments = gh_json(["api", "--paginate", f"repos/{repo}/issues/{number}/comments"], SOURCE_ROOT)
+        if not any("retrospective-stale" in comment["body"] for comment in comments):
+            raise self.fail("terminal closed without blocking on the late friction")
 
     def worker(self, kind: str, number: int, *extra: str) -> None:
         """One coordinator worker run through the documented entrypoint, with the scripted executors."""
@@ -673,18 +719,14 @@ def scenario_red_ci(scenario: Scenario) -> None:
 
 def scenario_conflict(scenario: Scenario) -> None:
     """Main moves with a conflicting line after admission; the queue offers integration repair."""
-    sandbox, slug = scenario.sandbox, f"conflict-{uuid.uuid4().hex[:8]}"
-    repo, path = sandbox.config.repository, "fixture/shared.txt"
+    slug, path = f"conflict-{uuid.uuid4().hex[:8]}", "fixture/shared.txt"
     scenario.step("start, change and friction checkpoint")
     worktree, branch = quick_change(scenario, slug, {path: f"{slug} candidate\n"})
     scenario.step("finish")
     scenario.finish_until_queued(worktree, f"Conflict {slug}")
     number = scenario.pr_state(branch)["number"]
     scenario.step("main moves with a conflicting change")
-    current = gh_json(["api", f"repos/{repo}/contents/{path}?ref=main"], SOURCE_ROOT)
-    moved = base64.b64encode(f"{slug} main\n".encode()).decode()
-    run(["gh", "api", "-X", "PUT", f"repos/{repo}/contents/{path}", "-f", f"message=Move main for {slug}", "-f", f"content={moved}",
-         "-f", f"sha={current['sha']}", "-f", "branch=main", "--jq", ".commit.sha"], SOURCE_ROOT)
+    scenario.move_main(path, f"{slug} main\n")
     scenario.step("queue offers integration repair")
     scenario.wait_queue(number, {"integration-repair-pending"}, 600)
     scenario.step("integration repair")
@@ -724,12 +766,15 @@ def scenario_requirement(scenario: Scenario) -> None:
     requirement = scenario.author_requirement(f"Requirement {token}", changes)
     for change in changes:
         scenario.step(f"advance to {change}")
-        result = scenario.advance(requirement)
-        actions = [action for action in result.get("actions", []) if action["change"] == change]
-        if not actions:
-            raise scenario.fail(f"advance offered no {change}: {json.dumps(result)[:800]}")
-        scenario.step(f"deliver {change}")
-        scenario.deliver_child(actions[0])
+        scenario.deliver_child(scenario.child_action(scenario.advance(requirement), change))
+        if change == changes[0]:
+            scenario.step("main moves and absorb-main")
+            scenario.move_main(f"fixture/main-{token}.txt", "main moved\n")
+            scenario.platform("execute_requirement.py", "absorb-main", "--requirement", requirement)
+            branch = f"requirement/BR-{requirement.rsplit('#', 1)[1]}"
+            compare = gh_json(["api", f"repos/{scenario.sandbox.config.repository}/compare/{branch}...main"], SOURCE_ROOT)
+            if compare["ahead_by"] != 0:
+                raise scenario.fail(f"the requirement branch lacks {compare['ahead_by']} commits of main after absorb-main")
     scenario.step("advance to composition")
     result = scenario.advance(requirement)
     draft = result.get("shared_draft") or {}
@@ -749,9 +794,38 @@ def scenario_requirement(scenario: Scenario) -> None:
         scenario.expect_on_main(f"fixture/{change}.txt", change)
 
 
+def scenario_contribution_conflict(scenario: Scenario) -> None:
+    """A sibling's merge conflicts the second contribution; the queue offers its integration repair."""
+    token = uuid.uuid4().hex[:6]
+    first, second = f"sibling-a-{token}", f"sibling-b-{token}"
+    path = "fixture/shared.txt"
+    scenario.step("author the Requirement")
+    requirement = scenario.author_requirement(f"Conflict {token}", [first, second])
+    scenario.step("both children run in parallel")
+    result = scenario.advance(requirement)
+    action_first = scenario.child_action(result, first)
+    action_second = scenario.child_action(scenario.run_in_parallel(requirement, second, result), second)
+    scenario.step("hand off both")
+    branches = [scenario.hand_off_child(action_first, {path: f"{first}\n"}),
+                scenario.hand_off_child(action_second, {path: f"{second}\n"})]
+    numbers = [scenario.pr_state(branch)["number"] for branch in branches]
+    scenario.step("review both")
+    for number in numbers:
+        scenario.worker("review", number)
+    scenario.step("the first contribution merges")
+    scenario.expect_merged(branches[0])
+    scenario.step("queue offers integration repair of the second")
+    scenario.wait_queue(numbers[1], {"integration-repair-pending"}, 600)
+    scenario.step("integration repair")
+    scenario.repair_worker("integration-repair", numbers[1], {path: f"{first}\n{second}\n"}, ["fixture"])
+    scenario.step("the repaired contribution merges")
+    scenario.expect_merged(branches[1])
+
+
 SCENARIOS: dict[str, Callable[[Scenario], None]] = {
     "quick-task": scenario_quick_task, "managed-task": scenario_managed_task,
     "red-ci": scenario_red_ci, "conflict": scenario_conflict, "requirement": scenario_requirement,
+    "contribution-conflict": scenario_contribution_conflict,
 }
 
 
