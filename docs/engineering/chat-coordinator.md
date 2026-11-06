@@ -32,7 +32,7 @@ One cycle, repeated until the roadmap is done:
 4. **Close.** A rerun of `finish` after the merge reconciles local main, the Project card and the parent Requirement.
 5. **Report** to the owner in plain words: what merged, what waits and on whom.
 
-Independent review runs inside `finish` for a change that touches the protected surface, with `[independent_review] enabled = true` (DEC-0010); by hand, run `python3 scripts/independent_review.py run <change>` and commit its evidence, or `run quick-task` for a quick task.
+Independent review runs inside `finish` for a change that touches the protected surface, with `[independent_review] enabled = true` (DEC-0010); by hand, run `python3 scripts/independent_review.py run <change>` and commit its evidence, or `run quick-task` for a quick task. The reviewer uses the Claude CLI login of the shell that runs `finish`; when that login has expired, `finish` stops and names it, and the operator logs in or exports `CLAUDE_CODE_OAUTH_TOKEN` for that shell.
 
 ## Reading the state
 
