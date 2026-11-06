@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import io
 import json
 import os
 import shutil
@@ -509,6 +510,27 @@ class MergeOutcomeTests(unittest.TestCase):
                 mock.patch.object(self.publish, "delete_remote_branch") as cleanup, self.assertRaises(SystemExit):
             self.publish.follow_armed_merge(Path("/unused"), {}, "agent/x", self.pr, "origin", self.HEAD, timeout_seconds=1.0)
         cleanup.assert_not_called()
+
+
+class RemoteBranchCleanupTests(unittest.TestCase):
+    def cleanup_output(self, *exits: int) -> str:
+        """Run the cleanup over the given ls-remote, push and ls-remote exit codes; return what it printed."""
+        import project_publish
+
+        results = [subprocess.CompletedProcess([], code, "", "remote ref does not exist") for code in exits]
+        printed = io.StringIO()
+        with mock.patch.object(project_publish, "run_git", side_effect=results), contextlib.redirect_stdout(printed):
+            project_publish.delete_remote_branch(Path("."), "origin", "agent/task")
+        return printed.getvalue()
+
+    def test_a_branch_github_deleted_during_the_race_is_absent_not_a_failure(self) -> None:
+        output = self.cleanup_output(0, 1, 2)
+
+        self.assertIn("already absent", output)
+        self.assertNotIn("WARNING", output)
+
+    def test_a_branch_that_survives_a_failed_delete_stays_a_warning(self) -> None:
+        self.assertIn("WARNING", self.cleanup_output(0, 1, 0))
 
 
 class BoundedTestDeadlineHelperTests(unittest.TestCase):
