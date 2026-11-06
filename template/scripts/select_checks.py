@@ -482,7 +482,7 @@ def write_evidence(
 
 
 def require_active_change_ready(root: Path, change: str, evidence_requested: bool) -> None:
-    """Refuse a managed run that cannot yield usable handoff evidence, before any command starts.
+    """Refuse a managed run that cannot yield usable evidence, before any command starts.
 
     Applies only while the managed change is active; post-archive completion runs are unchanged.
     """
@@ -491,7 +491,7 @@ def require_active_change_ready(root: Path, change: str, evidence_requested: boo
         return
     prefix = "Managed task preflight blocked validation before any expensive command started: "
     if not evidence_requested:
-        raise SystemExit(prefix + f"active change {change} needs handoff evidence; rerun with "
+        raise SystemExit(prefix + f"active change {change} needs evidence; rerun with "
                          f"--evidence openspec/changes/{change}/automated-checks.json")
     from openspec_lifecycle import archive_content_problems
 
@@ -571,7 +571,7 @@ def selector_scope_waiver(root: Path, args: argparse.Namespace, expensive: bool)
         require_disposable_checkout(root, "--scope-gate not-applicable")
         return "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
     if not expensive:
-        return "selection neither starts the full validation set nor produces handoff evidence"
+        return "selection neither starts the full validation set nor produces evidence"
     return None
 
 

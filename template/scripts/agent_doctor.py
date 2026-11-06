@@ -270,7 +270,7 @@ def report_publication_status(root: Path, integration: Path, config: dict, gh_en
     elif obs.bucket == publication_state.BLOCKED:
         report("warn", f"{branch} publication is blocked: required checks failed{pr_ref}; delivery is unfinished, not complete")
     elif obs.bucket in (publication_state.OPEN_CHECKS_PENDING, publication_state.REMOTE_ARMED):
-        armed = "auto-merge/queue is armed remotely" if obs.bucket == publication_state.REMOTE_ARMED else "checks are pending"
+        armed = "auto-merge is armed remotely" if obs.bucket == publication_state.REMOTE_ARMED else "checks are pending"
         report("warn", f"{branch} publication is unfinished ({armed}){pr_ref}; run finish_task.py (or --status) to continue, do not report the task as delivered")
     elif obs.bucket == publication_state.REMOTE_MERGED_LOCAL_PENDING:
         report("warn", f"{branch} was merged on GitHub{pr_ref}, but local main/board/worktree reconciliation is still pending; run finish_task.py to reconcile")
@@ -278,12 +278,12 @@ def report_publication_status(root: Path, integration: Path, config: dict, gh_en
         report("ok", f"{branch} is merged and reconciled{pr_ref}")
     if pr_merge_mode(config) == "auto" and gh_env is not None:
         if durability == "remote_armed_capable":
-            report("ok", "native GitHub auto-merge/queue capability is available for durable remote delivery")
-        elif durability == "foreground_fallback":
+            report("ok", "native GitHub auto-merge is available for durable remote delivery")
+        elif durability == "auto_merge_disabled":
             report(
                 "warn",
-                "native GitHub auto-merge/queue is unavailable; publication uses the safe bounded foreground fallback "
-                "(degraded remote durability). An administrator can enable it explicitly with "
+                "native GitHub auto-merge is unavailable, so automatic publication will be refused. "
+                "An administrator can enable it explicitly with "
                 "`gh repo edit --enable-auto-merge` (or the repository Settings > General > 'Allow auto-merge' toggle) "
                 "if durable remote delivery is desired; this is never changed automatically by the platform.",
             )

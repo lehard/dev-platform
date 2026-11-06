@@ -255,8 +255,6 @@ def manifest_complete(manifest: dict[str, Any]) -> bool:
     if expected is None:
         return True
     present = [child.get("change") for child in manifest.get("children", [])]
-    if manifest.get("version") == 2:
-        return len(present) == len(expected) and len(set(present)) == len(present) and set(present) == set(expected)
     return present == expected
 
 

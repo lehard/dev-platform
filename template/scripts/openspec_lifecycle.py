@@ -272,16 +272,7 @@ def recorded_content_is_current(root: Path, change: str, recorded: object) -> bo
     return equivalent_proofs(root, recorded, review_content_identity(root, change))
 
 
-EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base {base} --execute --evidence {path}"
-
-
-def evidence_base(root: Path, change: str) -> str:
-    """The base of a task's selected checks: its recorded contribution base, or origin/main."""
-    from requirement_child_context import context_path
-
-    context = context_path(root, change)
-    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution") if context.is_file() else None
-    return contribution["head"] if contribution else "origin/main"
+EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base origin/main --execute --evidence {path}"
 
 
 def stale_committed_evidence(root: Path) -> tuple[str, str]:
@@ -316,7 +307,7 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     return "stale", (
         f"committed selected-check evidence {relative} does not prove the current task content "
         f"(recorded base {recorded_base or 'none'}, current base {current.get('base')}): main or the task changed a task path. "
-        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(base=evidence_base(root, provenance.change), path=relative)}, then commit {relative}"
+        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=relative)}, then commit {relative}"
     )
 
 
@@ -372,7 +363,7 @@ def require_automated_evidence(change: Path, *, root: Path | None = None) -> Non
             raise SystemExit(
                 f"{change.name}: automated evidence checkout identity does not match this managed task; "
                 "rerun validation from the exact registered task checkout. Only the same change's committed OpenSpec archive materialization may follow a validated HEAD. "
-                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(base=evidence_base((root or change.parents[2]).resolve(), canonical_change), path=evidence_path)}, then commit {evidence_path}"
+                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=evidence_path)}, then commit {evidence_path}"
             )
 
 
@@ -586,25 +577,6 @@ def completed_active_changes(root: Path) -> list[str]:
         total, incomplete = task_state(change)
         if total > 0 and incomplete == 0:
             stale.append(change.name)
-    return stale
-
-
-def completed_active_changes_at(root: Path, ref: str) -> list[str]:
-    """Completed-but-active changes in the committed tree at ``ref`` (no checkout needed)."""
-    listed = run_git(["ls-tree", "--name-only", ref, "openspec/changes/"], cwd=root, check=False)
-    if listed.returncode:
-        raise SystemExit(f"cannot list OpenSpec changes at {ref}: {listed.stderr.strip()}")
-    stale: list[str] = []
-    for entry in sorted(listed.stdout.splitlines()):
-        name = entry.rsplit("/", 1)[-1]
-        if name == "archive":
-            continue
-        tasks = run_git(["show", f"{ref}:{entry}/tasks.md"], cwd=root, check=False)
-        if tasks.returncode:
-            continue
-        total, incomplete = count_tasks(tasks.stdout)
-        if total > 0 and incomplete == 0:
-            stale.append(name)
     return stale
 
 
@@ -892,7 +864,7 @@ def finalize_change(root: Path, name: str, *, env: dict[str, str] | None = None)
 
             check_env = archive_target_environment(root, name)
             run_checked(
-                ["python3", "scripts/select_checks.py", "--base", evidence_base(root, name), "--execute",
+                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute",
                  "--evidence", str(evidence)],
                 root,
                 env=check_env,

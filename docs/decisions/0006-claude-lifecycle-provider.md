@@ -1,6 +1,6 @@
 # DEC-0006: Claude as the provider for review, repair and finalize
 
-- **Status:** Current
+- **Status:** Historical: the lifecycle jobs it covers were removed by [DEC-0009](0009-single-stream-core.md)
 - **Scope:** Lifecycle jobs of the central platform (review, repair, integration-repair, finalize)
 - **Decision date:** 2026-10-11
 - **Authored against revision:** `e8392062178fa6b5e3ed7eabd66b8bfa54b2c70e`

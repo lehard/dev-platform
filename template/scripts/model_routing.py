@@ -205,9 +205,8 @@ def _managed_provenance(root: Path) -> dict[str, Any]:
     """
     candidates = list((root / "openspec" / "changes").glob("*/.managed-task.json"))
     if len(candidates) > 1:
-        # A later Requirement child's checkout also carries integrated sibling
-        # contributions, which stay active until composition: the task state
-        # names which one is this task. Nothing else may disambiguate.
+        # A later Requirement child's checkout can carry an active sibling change:
+        # the task state names which one is this task. Nothing else may disambiguate.
         candidates = [path for path in candidates if path.parent.name == _task_state_change(root)]
     if len(candidates) != 1:
         raise RoutingError(f"model routing requires exactly one materialized managed OpenSpec change in this task checkout; found {len(candidates)}")
@@ -680,7 +679,7 @@ def _task_content_state(task_root: Path, change: str) -> dict[str, Any]:
     if identity is None or not isinstance(identity.get("paths"), dict):
         raise RoutingError(
             f"cannot establish the committed task-content identity of {task_root}: no merge base with the review base "
-            "(origin/main or the Requirement contribution head) could be computed"
+            "could be computed"
         )
     paths = {
         path: {"status": state.status, "fingerprint": state.fingerprint, "orig_path": state.orig_path}

@@ -581,12 +581,9 @@ def require_fresh_task_base(
     return remote_sha
 
 
-# A coordinator candidate's developer handoff names this when its head must be reconciled.
+# Named wherever a head behind main must be reconciled.
 RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 
-# ``git merge-tree --write-tree`` (the trial merge) first shipped in git 2.38.
-TRIAL_MERGE_MIN_GIT = (2, 38)
-REPORTED_PATH_LIMIT = 20
 GENERATED_FILES_TABLE = "generated_files"
 GENERATED_TREE_PLACEHOLDER = "{tree}"
 
@@ -597,12 +594,6 @@ class GeneratedFile(NamedTuple):
     path: str
     regenerate: tuple[str, ...]
     check: tuple[str, ...]
-
-
-def _bounded_paths(paths: tuple[str, ...]) -> str:
-    shown = ", ".join(paths[:REPORTED_PATH_LIMIT])
-    hidden = len(paths) - REPORTED_PATH_LIMIT
-    return shown + (f" (+{hidden} more)" if hidden > 0 else "")
 
 
 def _relative_repository_path(value: Any) -> bool:
@@ -681,17 +672,6 @@ def _changed_paths(root: Path, base: str, tip: str) -> set[str]:
     except GitCommandError as exc:
         raise TaskFreshnessError(f"unable to list the files {tip} changed since {base}: {exc}") from exc
     return {path for path in output.split("\0") if path}
-
-
-def _require_trial_merge_support(root: Path) -> None:
-    output = run_git(["version"], cwd=root).stdout.strip()
-    match = re.match(r"git version (\d+)\.(\d+)", output)
-    if match is None:
-        raise TaskFreshnessError(f"cannot determine the git version from {output!r}; a trial merge needs git >= 2.38")
-    if (int(match[1]), int(match[2])) < TRIAL_MERGE_MIN_GIT:
-        raise TaskFreshnessError(
-            f"git {match[1]}.{match[2]} cannot run a trial merge (git merge-tree --write-tree needs git >= 2.38)"
-        )
 
 
 def task_own_paths(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> frozenset[str]:

@@ -80,7 +80,7 @@ Project card `Done` and closes its Issue; the idempotent
 is a recovery command.
 No `Requirement-Integration-Exception` is required for an ordinary single child.
 
-Before terminal publication run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the whole Requirement path including successful overrides, manual workarounds and state changes, known issue recurrences, and material drift in other owners' state, and record its
+Before terminal close run `python3 scripts/requirement_retrospective.py review-path --requirement owner/repo#N`, then review the whole Requirement path including successful overrides, manual workarounds and state changes, known issue recurrences, and material drift in other owners' state, and record its
 bounded parent retrospective through `scripts/requirement_retrospective.py`.
 Use `--result none` only after checking accepted intent, pre-authoring,
 decomposition, child interaction and delivery and finding no new meaningful

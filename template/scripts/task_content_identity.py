@@ -284,9 +284,6 @@ def _review_base(root: Path, change: str, base_ref: str) -> tuple[str, Callable[
         context = root / ".claude/requirement-child-context" / f"{change}.json"
         if context.is_file():
             payload = json.loads(context.read_text())
-            contribution = payload.get("contribution")
-            if contribution:
-                return contribution["head"], None
             if payload.get("dependencies"):
                 # Legacy receipt path: a dependent child's task content starts
                 # after its single predecessor's exact head.
@@ -295,7 +292,7 @@ def _review_base(root: Path, change: str, base_ref: str) -> tuple[str, Callable[
                     raise ValueError(f"{context} 'dependencies' is not a list")
                 if len(dependencies) != 1:
                     raise ValueError(
-                        f"{context} lists {len(dependencies)} dependencies without a contribution; "
+                        f"{context} lists {len(dependencies)} dependencies; "
                         "the legacy receipt path allows exactly one predecessor"
                     )
                 head = dependencies[0].get("head") if isinstance(dependencies[0], dict) else None
@@ -343,51 +340,3 @@ def equivalent_proofs(root: Path, recorded: object, current: object) -> bool:
 class IntegrationProofError(RuntimeError):
     """Git could not evaluate a main-only integration proof (for example a missing object)."""
 
-
-def main_only_integration(root: Path, old_head: object, new_base: object, new_head: object,
-                          generated: set[str]) -> str | None:
-    """``None`` when ``new_head`` is exactly the merge of ``old_head`` with ``new_base``; else why it is not.
-
-    The proof is three-way and byte-exact: ``git merge-tree`` of the trusted old head with the new
-    base may conflict only in declared generated files, and the tree of ``new_head`` must equal that
-    merge result outside those files (tree entries compare by object id).  ``generated`` must come
-    from the default-branch declaration, never from the candidate.  A Git failure raises.
-    """
-    for name, value in (("old head", old_head), ("new base", new_base), ("new head", new_head)):
-        if not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{40}", value):
-            return f"the {name} of the integration is not an exact commit"
-    merge = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", old_head, new_base],
-                    cwd=root, check=False)
-    if merge.returncode not in (0, 1):
-        raise IntegrationProofError("cannot merge the old head with the new base: "
-                                    + (merge.stderr or merge.stdout).strip()[:200])
-    lines = merge.stdout.split("\0")
-    if not lines or not re.fullmatch(r"[0-9a-f]{40}", lines[0].strip()):
-        raise IntegrationProofError("git merge-tree returned no tree")
-    conflicts = {line for line in lines[1:] if line}
-    if conflicts - generated:
-        return "the merge of the old head with the new base conflicts outside declared generated files: " \
-            + ", ".join(sorted(conflicts - generated)[:8])
-    diff = run_git(["diff", "--name-only", "--no-renames", "-z", lines[0].strip(), f"{new_head}^{{tree}}"],
-                   cwd=root, check=False)
-    if diff.returncode:
-        raise IntegrationProofError("cannot compare the new head with the merge: "
-                                    + (diff.stderr or diff.stdout).strip()[:200])
-    differing = {path for path in diff.stdout.split("\0") if path} - generated
-    if differing:
-        return "the new head differs from the merge of the old head with the new base in: " \
-            + ", ".join(sorted(differing)[:8])
-    return None
-
-
-def composition_content_identity(root: Path, changes: list[str], base_ref: str = "origin/main") -> dict | None:
-    """Normalize archive moves and lifecycle evidence for every included change."""
-    # Use current main when available so unrelated clean main merges do not widen the reviewed patch.
-    if base_ref != "origin/main" and run_git(["merge-base", "--is-ancestor", base_ref, "origin/main"], cwd=root, check=False).returncode == 0:
-        base_ref = "origin/main"
-    exclusions = [(name, review_exclusion(root, name, base_ref)) for name in changes]
-    def exclude(canonical: str, raw: str) -> bool:
-        return (raw.startswith("dev-platform/requirement-integrations/")
-                or raw.startswith("dev-platform/requirement-evidence/")
-                or any(test(_canonical_path(raw, name), raw) for name, test in exclusions))
-    return content_identity(root, changes, base_ref, exclude=exclude, scope="requirement-composition-v1")

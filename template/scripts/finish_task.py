@@ -99,13 +99,6 @@ def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
     return None
 
 
-def _board_command(main: Path, *args: str) -> None:
-    result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), *args],
-                            cwd=main, check=False, stdin=subprocess.DEVNULL)
-    if result.returncode != 0:
-        raise SystemExit(f"PR was published, but scripts/agent_board.py {' '.join(args)} failed; rerun it")
-
-
 def finish_board(main: Path, worktree: Path, config: dict) -> None:
     """Release the board claim of ``worktree``; a failed release stops finish with the rerun command."""
     board_id = find_board_id(main, worktree, config)

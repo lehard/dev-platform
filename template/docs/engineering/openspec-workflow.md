@@ -123,11 +123,9 @@ Semantic verification and `openspec validate` are different. The former checks i
 
 ### Independent review evidence
 
-Portable finish and portable Requirement advance require independent review for
-every managed change, including light projects. Outside those executors,
-`[independent_review] enabled = true` requires review for material managed
-changes (the central repository enables it; the downstream template default is
-`false`). The optional setting cannot disable portable finalization review.
+Independent review is optional. With `[independent_review] enabled = true` finish and
+Requirement advance require it for managed changes; without that setting it runs only by
+hand through `scripts/independent_review.py`, and the template default is `false`.
 Quick tasks without managed provenance are never reviewed.
 
 The platform launches the reviewer itself. Each of the two perspectives

@@ -17,9 +17,6 @@ PASSED_CHECK_STATES = {"SUCCESS", "NEUTRAL", "SKIPPING", "SKIPPED"}
 FAILED_CHECK_STATES = {"FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "ERROR"}
 PENDING_CHECK_STATES = {"EXPECTED", "PENDING", "QUEUED", "IN_PROGRESS", "WAITING", "REQUESTED"}
 UNKNOWN_CAUSES = frozenset({"transport", "malformed", "head-mismatch", "unsupported-state"})
-REQUIREMENT_INTEGRATION_BASE = re.compile(r"requirement/BR-[1-9][0-9]*")
-
-
 @dataclass(frozen=True)
 class RequiredCheckState:
     """Normalized, structured GitHub state for required checks on one PR head."""
@@ -177,34 +174,6 @@ def _parse_check_rows(result: subprocess.CompletedProcess[str]) -> list[Any]:
 
 
 
-def _bound_check_runs(root: Path, env: dict[str, str], head: str) -> list[dict[str, Any]]:
-    endpoint = f"repos/{{owner}}/{{repo}}/commits/{head}/check-runs?per_page=100&filter=all"
-    result = _gh_read(root, env, ["api", "--paginate", "--slurp", endpoint])
-    if result.returncode != 0:
-        raise _Unusable("transport", "GitHub App-bound check runs are unavailable")
-    try:
-        pages = json.loads(result.stdout)
-    except json.JSONDecodeError:
-        raise _Unusable("malformed", "GitHub App-bound check runs were not structured JSON") from None
-    if not isinstance(pages, list) or not pages:
-        raise _Unusable("malformed", "GitHub App-bound check runs had no pages")
-    runs = []
-    for page in pages:
-        if not isinstance(page, dict) or not isinstance(page.get("check_runs"), list):
-            raise _Unusable("malformed", "GitHub App-bound check runs had an invalid page")
-        for run in page["check_runs"]:
-            if (not isinstance(run, dict) or type(run.get("id")) is not int
-                    or not isinstance(run.get("name"), str)
-                    or not isinstance(run.get("app"), dict) or type(run["app"].get("id")) is not int
-                    or not isinstance(run.get("status"), str)
-                    or (run["status"] == "completed" and not isinstance(run.get("conclusion"), str))):
-                raise _Unusable("malformed", "GitHub App-bound check runs contained an invalid run")
-            if run.get("head_sha") != head:
-                raise _Unusable("head-mismatch", "GitHub App-bound check run differs from the expected head")
-            runs.append(run)
-    return runs
-
-
 def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: str, main: str, head: str) -> RequiredCheckState:
     fields = "name,state,workflow,link"
     if base == main:
@@ -222,37 +191,8 @@ def _observe_required_checks(root: Path, env: dict[str, str], ref: str, base: st
                                       checks=tuple({"name": name, "state": "EXPECTED"} for name in names))
         raise _Unusable("transport", f"GitHub required-check state is unavailable (gh exit {result.returncode}): "
                                      f"{(result.stderr or result.stdout).strip()[:200]}")
-    if REQUIREMENT_INTEGRATION_BASE.fullmatch(base):
-        # Unprotected integration branch: its final protected target (main) defines the required set.
-        required = _protected_required_contexts(root, env, main)
-        if not required:
-            return RequiredCheckState("not_registered", f"main branch {main} requires no status checks")
-        result = _gh_read(root, env, ["pr", "checks", ref, "--json", fields])
-        if result.returncode != 0:
-            raise _Unusable("transport", f"GitHub check state is unavailable (gh exit {result.returncode}): "
-                                         f"{(result.stderr or result.stdout).strip()[:200]}")
-        rows = _parse_check_rows(result)
-        if any(not isinstance(row, dict) for row in rows):
-            raise _Unusable("malformed", "GitHub required-check response contained an invalid check")
-        unbound = {name for name, app in required if app is None}
-        selected = [row for row in rows if row.get("name") in unbound]
-        present = {row.get("name") for row in selected}
-        selected += [{"name": name, "state": "EXPECTED"} for name in sorted(unbound - present)]
-        if any(app is not None for _, app in required):
-            runs = _bound_check_runs(root, env, head)
-            for name, app in sorted(required, key=lambda item: item[0]):
-                if app is None:
-                    continue
-                matches = [run for run in runs if run["name"] == name and run["app"]["id"] == app]
-                if not matches:
-                    selected.append({"name": name, "state": "EXPECTED"})
-                    continue
-                run = max(matches, key=lambda run: run["id"])
-                state = run["conclusion"] if run["status"] == "completed" else run["status"]
-                selected.append({"name": name, "state": state})
-        return _classify_required_checks(selected)
     raise _Unusable("unsupported-state", f"cannot resolve required checks for base branch {base!r}: "
-                                         f"only {main!r} and requirement/BR-<n> integration branches are supported")
+                                         f"only {main!r} is supported")
 
 
 def required_check_state_for_ref(root: Path, env: dict[str, str], ref: str, expected_head: str) -> RequiredCheckState:
@@ -466,7 +406,7 @@ def repo_auto_merge_capability(root: Path, env: dict[str, str]) -> bool | None:
 
 
 def merge_durability_capability(config: dict[str, Any], env: dict[str, str] | None, root: Path) -> str:
-    """One of: manual, remote_armed_capable, foreground_fallback, unknown."""
+    """One of: manual, remote_armed_capable, auto_merge_disabled, unknown."""
     if pr_merge_mode(config) != "auto":
         return "manual"
     if env is None:
@@ -475,7 +415,7 @@ def merge_durability_capability(config: dict[str, Any], env: dict[str, str] | No
     if allowed is True:
         return "remote_armed_capable"
     if allowed is False:
-        return "foreground_fallback"
+        return "auto_merge_disabled"
     return "unknown"
 
 

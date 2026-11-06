@@ -346,8 +346,7 @@ def request_protected_merge(
         print(result.stdout.strip())
     if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-        raise SystemExit(f"GitHub refused auto-merge for exact head {expected_head}: {detail}. "
-                         "The PR stays open; local main was not changed.")
+        raise SystemExit(f"GitHub refused auto-merge for exact head {expected_head}: {detail}. Local main was not changed.")
     print(f"GitHub accepted auto-merge with squash for exact validated head {expected_head}.")
     if not wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
         raise SystemExit(

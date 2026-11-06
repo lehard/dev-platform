@@ -65,11 +65,9 @@ Before archiving a non-trivial platform change, run relevant tests plus semantic
 
 ### Independent review evidence
 
-Portable finish and portable Requirement advance require independent review for
-every managed change, including light projects. Outside those executors,
-`[independent_review] enabled = true` requires review for material managed
-changes (the central repository enables it; the downstream template default is
-`false`). The optional setting cannot disable portable finalization review.
+Independent review is optional. With `[independent_review] enabled = true` finish and
+Requirement advance require it for managed changes; without that setting it runs only by
+hand through `scripts/independent_review.py`, and the template default is `false`.
 Quick tasks without managed provenance are never reviewed.
 
 The platform launches the reviewer itself. Each of the two perspectives
@@ -105,7 +103,7 @@ run it right after routing a managed task and before implementation. A
 missing binary, nonzero exit, error result or timeout names the CLI's own
 bounded error and the next step: log the CLI in, point
 `DEV_PLATFORM_CLAUDE_BIN` at the Claude Code CLI, or change the
-`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, coordinator candidates become `blocked-retryable` with a fresh review job. `run` performs the
+`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, the review stops with that limitation. `run` performs the
 same preflight first; when it fails, both perspectives are recorded as
 `unavailable` with that limitation and no perspective is launched.
 

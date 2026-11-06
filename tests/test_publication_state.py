@@ -344,14 +344,14 @@ class MergeDurabilityCapabilityTests(PublicationStateTestCase):
         result = publication_state.merge_durability_capability({"pr_merge_mode": "auto"}, env, self.root)
         self.assertEqual(result, "remote_armed_capable")
 
-    def test_auto_merge_disallowed_reports_foreground_fallback(self) -> None:
+    def test_auto_merge_disallowed_is_reported(self) -> None:
         env = self.fake_gh(
             'if [ "$1" = "repo" ] && [ "$2" = "view" ]; then echo "owner/repo"; exit 0; fi\n'
             'if [ "$1" = "api" ]; then echo "false"; exit 0; fi\n'
             'exit 1'
         )
         result = publication_state.merge_durability_capability({"pr_merge_mode": "auto"}, env, self.root)
-        self.assertEqual(result, "foreground_fallback")
+        self.assertEqual(result, "auto_merge_disabled")
 
 
 def _sh(text: str) -> str:
@@ -445,7 +445,7 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
                         {"name": "main", "protected": True, "protection": {
                             "required_status_checks": {"contexts": [], "checks": None}}}):
             with self.subTest(payload=payload):
-                result = self.observe(self.gh(base="requirement/BR-415", api=(0, json.dumps(payload), "")))
+                result = self.observe(self.gh(checks=(1, ""), api=(0, json.dumps(payload), "")))
                 self.assertEqual((result.kind, result.cause), ("unknown", "malformed"))
 
     def test_no_required_checks_while_base_requires_some_is_pending_expected(self) -> None:
@@ -493,85 +493,6 @@ class RequiredCheckStateForRefTests(PublicationStateTestCase):
             with self.subTest(heads=heads):
                 result = self.observe(self.gh(heads=heads, checks=(0, rows)))
                 self.assertEqual((result.kind, result.cause), ("unknown", "head-mismatch"))
-
-    def test_contribution_base_uses_mains_required_checks(self) -> None:
-        base = "requirement/BR-415"
-        cases = {
-            "success": ([SUCCESS_ROW], "passed"),
-            "in progress": ([{**SUCCESS_ROW, "state": "IN_PROGRESS"}], "pending"),
-            "failure": ([{**SUCCESS_ROW, "state": "FAILURE"}], "failed"),
-            "missing required row": ([{**SUCCESS_ROW, "name": "publish-next"}], "pending"),
-            "no rows": ([], "pending"),
-            "unrelated failing row ignored": ([SUCCESS_ROW, {**SUCCESS_ROW, "name": "other", "state": "FAILURE"}], "passed"),
-        }
-        for name, (rows, kind) in cases.items():
-            with self.subTest(name):
-                env = self.gh(base=base, all_checks=(0, json.dumps(rows)), api=(0, REQUIRED_VALIDATE, ""))
-                result = self.observe(env)
-                self.assertEqual(result.kind, kind)
-                if name in {"missing required row", "no rows"}:
-                    self.assertEqual(result.checks, ({"name": "validate", "state": "EXPECTED"},))
-                log = self.calls.read_text()
-                self.assertIn("api repos/{owner}/{repo}/branches/main\n", log)
-                self.assertNotIn("/protection", log)
-                self.assertNotIn("--required", log)
-
-    def test_contribution_preserves_required_app_binding(self) -> None:
-        protection = branch_protection({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": 1}]})
-        def run(app, state="success", number=1):
-            return {"id": number, "name": "validate", "app": {"id": app}, "head_sha": "abc123",
-                    "status": "completed", "conclusion": state}
-
-        cases = [
-            ([run(2)], "pending"),
-            ([run(1)], "passed"),
-            ([run(2), run(1, "failure", 2)], "failed"),
-            ([run(1), run(1, "failure", 2)], "failed"),
-            ([{**run(1), "status": "in_progress", "conclusion": None}], "pending"),
-        ]
-        for runs, expected in cases:
-            with self.subTest(runs=runs):
-                env = self.gh(base="requirement/BR-415", all_checks=(0, json.dumps([SUCCESS_ROW])),
-                              api=(0, protection, ""), runs=(0, json.dumps([{"check_runs": []}, {"check_runs": runs}])))
-                result = self.observe(env)
-                self.assertEqual(result.kind, expected)
-                if runs == [run(2)]:
-                    # The required App's missing run is unreported, not a run in progress.
-                    self.assertEqual(result.checks, ({"name": "validate", "state": "EXPECTED"},))
-                self.assertIn("--paginate --slurp", self.calls.read_text())
-                self.assertIn("commits/abc123/check-runs", self.calls.read_text())
-
-    def test_bound_protection_app_id_must_be_explicit_and_valid(self) -> None:
-        for check in ({"context": "validate"}, {"context": "validate", "app_id": True},
-                      {"context": "validate", "app_id": "1"}, {"context": "validate", "app_id": -2}):
-            with self.subTest(check=check):
-                protection = branch_protection({"contexts": ["validate"], "checks": [check]})
-                self.assertEqual(self.observe(self.gh(base="requirement/BR-415",
-                                 api=(0, protection, ""))).cause, "malformed")
-
-    def test_any_app_binding_preserves_name_based_checks(self) -> None:
-        protection = branch_protection({"contexts": ["validate"], "checks": [{"context": "validate", "app_id": -1}]})
-        env = self.gh(base="requirement/BR-415", api=(0, protection, ""),
-                      all_checks=(0, json.dumps([SUCCESS_ROW])))
-        self.assertEqual(self.observe(env).kind, "passed")
-        self.assertNotIn("/check-runs?", self.calls.read_text())
-
-    def test_bound_check_run_observation_fails_closed(self) -> None:
-        protection = branch_protection({"contexts": [], "checks": [{"context": "validate", "app_id": 1}]})
-        for runs, cause in [((1, ""), "transport"), ((0, "{}"), "malformed"),
-                            ((0, '[{"check_runs": [{}]}]'), "malformed"),
-                            ((0, '[{"check_runs": [{"id":1,"name":"validate","app":{"id":1},'
-                                  '"head_sha":"other","status":"completed","conclusion":"success"}]}]'), "head-mismatch")]:
-            with self.subTest(runs=runs):
-                self.assertEqual(self.observe(self.gh(base="requirement/BR-415",
-                                 api=(0, protection, ""), runs=runs)).cause, cause)
-
-    def test_contribution_base_failures_are_explicit(self) -> None:
-        base = "requirement/BR-415"
-        self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "HTTP 500"))).cause, "transport")
-        self.assertEqual(self.observe(self.gh(base=base, api=(1, "", "gh: Not Found (HTTP 404)"))).cause, "transport")
-        self.assertEqual(self.observe(self.gh(base=base, all_checks=(1, "[]"), api=(0, REQUIRED_VALIDATE, ""))).cause, "transport")
-        self.assertEqual(self.observe(self.gh(base=base, all_checks=(0, "junk"), api=(0, REQUIRED_VALIDATE, ""))).cause, "malformed")
 
     def test_unsupported_base_is_unknown_with_cause(self) -> None:
         result = publication_state.required_check_state_for_ref(self.root, self.gh(base="release/1.0"), "9", "abc123")
