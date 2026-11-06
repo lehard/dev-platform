@@ -49,7 +49,7 @@ if [ "$1" = "pr" ] && [ "$2" = "list" ]; then
 fi
 if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   branch=$(git branch --show-current) || exit 1
-  if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then
+  if [ "$4" = "--json" ] && { [ "$5" = "state,headRefOid" ] || [ "$5" = "state,headRefOid,autoMergeRequest,mergeStateStatus" ]; }; then
     head_sha=$(git rev-parse "$branch" 2>/dev/null) || exit 1
     main_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null) || exit 1
     branch_sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch" 2>/dev/null) || exit 1
