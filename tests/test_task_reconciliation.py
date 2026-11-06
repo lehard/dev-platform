@@ -40,6 +40,9 @@ class TaskReconciliationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
         self.base = Path(self.tmp.name)
+        declared = mock.patch.object(task_reconciliation, "generated_files", return_value=())
+        self.generated_files = declared.start()
+        self.addCleanup(declared.stop)
         self.remote = self.base / "remote.git"
         run("git", "init", "--bare", str(self.remote), cwd=self.base)
         self.seed = self.base / "seed"
@@ -152,6 +155,23 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertIn("UU shared.txt", git("status", "--porcelain", cwd=self.task).stdout)
         with self.assertRaisesRegex(SystemExit, "unfinished merge.*Conflicting paths: shared.txt"):
             self.reconcile()
+
+    def test_conflict_hint_names_every_step_in_order_with_declared_generated_files(self) -> None:
+        self.generated_files.return_value = (_platform_common.GeneratedFile(
+            "gen/manifest.json", ("python3", "scripts/gen.py", "--write", "--root", "{tree}"), ("python3", "scripts/gen.py", "--check")),)
+        (self.task / "shared.txt").write_text("task\n", encoding="utf-8")
+        git("add", "shared.txt", cwd=self.task); git("commit", "-m", "task edit", cwd=self.task)
+        self.advance_main("shared.txt", "main\n")
+
+        with self.assertRaises(SystemExit) as stopped:
+            self.reconcile()
+
+        self.assertIn(
+            "1) edit the conflicting files; 2) python3 scripts/gen.py --write --root .; "
+            "3) git add gen/manifest.json shared.txt; 4) git commit --no-edit; "
+            "5) python3 scripts/finish_task.py --reconcile.",
+            str(stopped.exception),
+        )
 
     def test_remote_branch_with_changed_head_is_refused_before_merge(self) -> None:
         git("push", "-u", "origin", "agent/task", cwd=self.task)

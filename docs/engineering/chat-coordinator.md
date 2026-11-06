@@ -49,7 +49,7 @@ The overview writes nothing to GitHub. A source it cannot read is reported as `u
 - **A required check failed.** The stream fixes it on the same branch, reruns validation and reruns `finish`, which arms auto-merge for the new head.
 - **`finish` refused the merge because no required check gates it.** Require a status check on the base branch, or set `pr_merge_mode=manual`.
 - **`finish` stopped after GitHub refused auto-merge.** Read the reason; on this repository auto-merge must be allowed in the repository settings.
-- **The task is behind main.** `python3 scripts/finish_task.py --reconcile`, rerun validation, rerun `finish`.
+- **The task is behind main.** `python3 scripts/dogfood_task.py reconcile`, rerun validation, rerun `finish`.
 - **A delivered Requirement stayed open.** `python3 scripts/requirement_terminal.py reconcile --requirement owner/repo#N`.
 
 ## Read cache

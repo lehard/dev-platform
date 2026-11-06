@@ -12,6 +12,7 @@ from typing import Callable, ContextManager
 
 from _platform_common import (
     FINISH_COMMAND,
+    RECONCILE_COMMAND,
     ci_completion_seconds,
     current_worktree_root,
     fetch_main,
@@ -326,7 +327,7 @@ def wait_for_merge_outcome(root: Path, env: dict[str, str], pr: PrRef, expected_
         merge_state = str(snapshot.get("mergeStateStatus", "")).upper()
         if merge_state in {"BEHIND", "DIRTY"}:
             raise SystemExit(f"PR {pr.ref} cannot merge: GitHub reports it {merge_state} against its base. Local main "
-                             "was not changed. Reconcile with python3 scripts/finish_task.py --reconcile, rerun finish.")
+                             f"was not changed. Reconcile with {RECONCILE_COMMAND}, rerun finish.")
         if snapshot.get("autoMergeRequest") is None:
             raise SystemExit(f"PR {pr.ref} no longer has auto-merge armed, so nothing will merge it. "
                              f"Local main was not changed; arm it again with: {FINISH_COMMAND}")

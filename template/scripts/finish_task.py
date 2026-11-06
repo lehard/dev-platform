@@ -10,6 +10,7 @@ from pathlib import Path
 
 from _platform_common import (
     FINISH_COMMAND,
+    RECONCILE_COMMAND,
     GitCommandError,
     ci_completion_seconds,
     current_worktree_root,
@@ -64,8 +65,6 @@ from managed_task import (
 )
 
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
-# The rendered lifecycle entrypoint; it reconciles quick and managed tasks.
-RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 # The wait for the local integration lock; it does not bound the wait for the PR to merge.
 INTEGRATION_LOCK_TIMEOUT_SECONDS = 60.0
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
