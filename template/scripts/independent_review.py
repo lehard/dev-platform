@@ -693,6 +693,10 @@ def ensure_review_evidence(root: Path, change: Path, *, launcher: Any = None, re
         print("Independent review: no protected path changed, no reviewer launched.", flush=True)
         return
     print(f"Independent review: required, {len(risky)} protected path(s) changed: " + ", ".join(risky[:5]), flush=True)
+    if is_quick(change):
+        from task_content_identity import ensure_quick_review_directory
+
+        ensure_quick_review_directory(root)
     result = evaluate(root, change, required=True)
     if result["state"] in {STATE_MISSING, STATE_STALE} or (result["state"] == STATE_BLOCKED and result["unavailable"] and not result["blockers"]):
         import independent_review_runner

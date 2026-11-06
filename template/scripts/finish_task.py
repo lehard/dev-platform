@@ -823,9 +823,9 @@ def finalize_portable_change(work: Path) -> None:
 def review_quick_task(work: Path) -> None:
     """A risky quick task is reviewed after validation and before any publication."""
     from independent_review import ensure_review_evidence
-    from task_content_identity import ensure_quick_review_directory
+    from task_content_identity import quick_review_path
 
-    ensure_review_evidence(work, ensure_quick_review_directory(work))
+    ensure_review_evidence(work, quick_review_path(work))
 
 
 def validate_or_reuse(
