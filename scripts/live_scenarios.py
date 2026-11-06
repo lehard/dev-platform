@@ -531,9 +531,9 @@ class Scenario:
     def deliver_child(self, action: dict[str, Any]) -> None:
         """One child from its advance action to its contribution merged into the requirement branch."""
         slug, worktree = action["change"], Path(action["worktree"])
-        (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
         self.platform("dogfood_task.py", "route-claude", "--tier", "R2", "--rationale", "Live scenario",
                       "--evidence", "Fixture change", cwd=worktree)
+        (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
         self.hand_off(worktree, slug, action["contribution_base"], f"Child {slug}", contribution=True)
         branch = run(["git", "branch", "--show-current"], worktree).strip()
         self.worker("review", self.pr_state(branch)["number"])
