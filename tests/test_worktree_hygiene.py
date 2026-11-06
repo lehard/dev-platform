@@ -845,6 +845,22 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
         with mock.patch.object(agent_board, "board_path", return_value=board):
             agent_board.enforce_scope_gate(self.root, worktree, f"agent/{worktree.name}")
 
+    def test_space_separated_scope_is_refused_before_it_can_claim_a_nonexistent_path(self) -> None:
+        worktree = self.add_worktree("scope-spaces", "agent/scope-spaces")
+        board = self.register_board(self.board_item("scope-spaces", "task", worktree, scope="a.py"))
+
+        with self.assertRaises(SystemExit) as refused:
+            self.admit(board, worktree, "a.py b.py, c.py")
+
+        self.assertIn("'a.py b.py'", str(refused.exception))
+        self.assertIn("commas or newlines", str(refused.exception))
+        self.assertEqual(json.loads(board.read_text(encoding="utf-8"))["items"][0]["scope"], "a.py")
+
+    def test_scope_keeps_an_existing_path_with_a_space_and_comma_or_newline_lists(self) -> None:
+        (self.root / "with space.txt").write_text("x", encoding="utf-8")
+
+        agent_board.require_scope_paths("with space.txt, a.py\nb/c.py,", self.root)
+
     def test_relative_worktree_is_rejected_before_board_file_or_git_lookup(self) -> None:
         board = self.root / ".claude" / "agents-board.json"
         with mock.patch.object(agent_board, "_registered_worktrees") as registered:

@@ -204,7 +204,7 @@ python3 scripts/dogfood_task.py reconcile
 python3 scripts/dogfood_task.py finish
 ```
 
-A quick task needs no package: `python3 scripts/dogfood_task.py start <slug> --task "..." --scope "..."` creates its worktree, and the same `status`, `reconcile` and `finish` apply. A start refused on a hard overlap removes its worktree; if the overlap is verified safe, rerun it with `--acknowledge-overlap <reason>`.
+A quick task needs no package: `python3 scripts/dogfood_task.py start <slug> --task "..." --scope "..."` creates its worktree, and the same `status`, `reconcile` and `finish` apply. `--scope` takes repository paths separated by commas or newlines; an entry with whitespace that is not an existing path is refused, because it would claim nothing and hide any overlap. A start refused on a hard overlap removes its worktree; if the overlap is verified safe, rerun it with `--acknowledge-overlap <reason>`.
 
 **No work before start and routing.** Implementation of a managed child begins only after its `start` has created the task worktree and its route is recorded. This includes drafts: code, tests and scaffolding for a child are not prepared in advance in a sibling worktree, a scratch copy or the integration checkout. Reading and authoring the OpenSpec package are not implementation. Route preparation refuses a worktree whose task content already changed.
 

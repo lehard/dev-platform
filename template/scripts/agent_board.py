@@ -136,13 +136,24 @@ def validate_worktree_identity(raw_worktree: str, branch: str, root: Path) -> Pa
     return worktree
 
 
+SCOPE_HELP = "repository paths separated by commas or newlines"
+
+
+def _scope_entries(scope: str) -> list[str]:
+    return [entry for entry in (raw.strip() for raw in re.split(r"[,\n]", scope)) if entry]
+
+
+def require_scope_paths(scope: str, root: Path) -> None:
+    """Refuse an entry with whitespace, which would otherwise claim one nonexistent path and hide any overlap."""
+    invalid = [entry for entry in _scope_entries(scope) if re.search(r"\s", entry) and not (root / entry).exists()]
+    if invalid:
+        raise SystemExit(f"Scope refused: {invalid!r} is not a path; --scope takes {SCOPE_HELP}.")
+
+
 def _normalized_scope_paths(scope: str, root: Path) -> set[str]:
     """Normalize declared repository paths without exposing external paths."""
     paths: set[str] = set()
-    for raw in re.split(r"[,\n]", scope):
-        value = raw.strip()
-        if not value:
-            continue
+    for value in _scope_entries(scope):
         candidate = Path(value).expanduser()
         resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
         try:
@@ -167,9 +178,8 @@ def _concrete_declared_scope_paths(scope: str, root: Path) -> set[str]:
     a suffix is a useful declaration of a planned file.
     """
     concrete: set[str] = set()
-    for raw in re.split(r"[,\n]", scope):
-        value = raw.strip()
-        if not value or any(token in value for token in ("*", "?", "[", "]")):
+    for value in _scope_entries(scope):
+        if any(token in value for token in ("*", "?", "[", "]")):
             continue
         candidate = Path(value).expanduser()
         resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
@@ -536,6 +546,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     root = main_root()
     branch = args.branch
     worktree = validate_worktree_identity(args.worktree, branch, root)
+    require_scope_paths(args.scope or "", root)
     path = board_path()
 
     with locked_json(path) as data:
@@ -566,6 +577,8 @@ def cmd_start(args: argparse.Namespace) -> int:
 
 
 def cmd_update(args: argparse.Namespace) -> int:
+    if args.scope is not None:
+        require_scope_paths(args.scope, main_root())
     path = board_path()
     with locked_json(path) as data:
         item = next((x for x in data.setdefault("items", []) if x.get("id") == args.id), None)
@@ -595,6 +608,8 @@ def cmd_admit(args: argparse.Namespace) -> int:
     """Atomically admit an already registered task or return a resumable WAIT."""
     root = main_root()
     worktree = validate_worktree_identity(args.worktree, args.branch, root)
+    if args.scope is not None:
+        require_scope_paths(args.scope, root)
     path = board_path(root)
     config = read_platform_config(root)
     main_branch = _main_branch(config)
@@ -869,7 +884,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("start")
     p.add_argument("--task", required=True)
-    p.add_argument("--scope", default="")
+    p.add_argument("--scope", default="", help=SCOPE_HELP)
     p.add_argument("--branch", required=True)
     p.add_argument("--worktree", required=True)
     p.add_argument("--id")
@@ -878,13 +893,13 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("update")
     p.add_argument("--id", required=True)
     p.add_argument("--task")
-    p.add_argument("--scope")
+    p.add_argument("--scope", help=SCOPE_HELP)
     p.set_defaults(func=cmd_update)
 
     p = sub.add_parser("admit", help="atomically claim concrete scope for an active multi-agent task")
     p.add_argument("--branch", required=True)
     p.add_argument("--worktree", required=True)
-    p.add_argument("--scope", default=None)
+    p.add_argument("--scope", default=None, help=SCOPE_HELP)
     p.set_defaults(func=cmd_admit)
 
     p = sub.add_parser("acknowledge", help="record bounded evidence acknowledging a verified-safe same-file overlap")
