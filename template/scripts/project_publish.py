@@ -318,7 +318,8 @@ def wait_for_merge_outcome(root: Path, env: dict[str, str], pr: PrRef, expected_
         checks = required_check_state_for_ref(root, env, pr.ref, expected_head)
         if checks.kind == "failed":
             raise SystemExit(f"Required check failed for head {expected_head}: {checks.detail}. The PR stays open; "
-                             f"local main was not changed. Inspect it with: gh pr checks {pr.ref}. Fix the cause, commit and rerun finish.")
+                             f"local main was not changed. Inspect it with: gh pr checks {pr.ref}. Fix the cause, commit, "
+                             "refresh the friction checkpoint and rerun finish.")
         if checks.kind not in {"pending", "passed"}:
             raise SystemExit(f"GitHub required-check state is {checks.kind} ({checks.cause}): {checks.detail}. "
                              f"Local main was not changed; continue with: {FINISH_COMMAND}")
@@ -548,10 +549,10 @@ def publish_pr(
     grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
         push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing)
-        if grows_existing:
+        if lookup.stale_open is not None:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
             if not lookup.available or lookup.exact_open is None:
-                raise SystemExit("Shared candidate push did not leave one exact-head PR; refusing to create a competing PR.")
+                raise SystemExit("A push to the open PR did not leave one exact-head PR; refusing to create a competing PR.")
 
     pr = ensure_pr(root, env, current, main_branch, title, body, expected_head, lookup=lookup, draft=incomplete, **({"identity": identity, "children": child_identities} if identity else {}))
     if pr.already_merged:

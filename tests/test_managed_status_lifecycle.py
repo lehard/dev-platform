@@ -139,6 +139,25 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
         self.assertEqual(result, 0)
         self.assertFalse(mocks["push"].call_args.kwargs["require_fresh_base"])
 
+    def test_a_fix_pushed_to_an_open_pr_reuses_it_without_trying_to_create_one(self) -> None:
+        stale = SimpleNamespace(available=True, exact_open=None, exact_merged=None, stale_open={"number": 12})
+        reobserved = SimpleNamespace(available=True, exact_open={"number": 12}, exact_merged=None, stale_open=None)
+        root = Path("/tmp/quick-fix")
+        with ExitStack() as stack:
+            push = stack.enter_context(mock.patch.object(project_publish, "push_feature_branch"))
+            ensure = stack.enter_context(mock.patch.object(project_publish, "ensure_pr", return_value=project_publish.PrRef(12, "https://example/pr/12")))
+            stack.enter_context(mock.patch.object(project_publish, "require_delivery_provenance", return_value=None))
+            stack.enter_context(mock.patch.object(project_publish, "_private_reference_guard", return_value=None))
+            stack.enter_context(mock.patch.object(project_publish, "_validate_feature_branch", return_value="agent/quick"))
+            stack.enter_context(mock.patch.object(project_publish, "require_gh_environment", return_value={}))
+            stack.enter_context(mock.patch.object(project_publish, "run_git", return_value=SimpleNamespace(stdout="a" * 40)))
+            stack.enter_context(mock.patch.object(project_publish, "find_exact_head_pr", side_effect=[stale, reobserved]))
+            stack.enter_context(mock.patch.object(project_publish, "reconcile_managed_project", return_value=None))
+            result = project_publish.publish_pr(root, "origin", "main", None, None, "manual", config={"platform_version": "test"})
+        self.assertEqual(result, 0)
+        self.assertTrue(push.call_args.kwargs["require_fresh_base"])
+        self.assertIs(ensure.call_args.kwargs["lookup"], reobserved)
+
     def shared_publish_with(self, first, second):
         root = Path("/tmp/shared-review")
         manifest = Path("dev-platform/requirement-integrations/candidate.json")
