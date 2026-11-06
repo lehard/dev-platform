@@ -7,11 +7,12 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | [DEC-0001](0001-teamai-substitution.md) | TeamAI substitution after the v0.25.0 pilot | External agent infrastructure | Current |
 | [DEC-0002](0002-public-br-identity.md) | Public BR identity with private technical lineage | Managed identity and public privacy | Current |
 | [DEC-0003](0003-sandboxed-claude-writer.md) | Sandboxed Claude writer under sandbox-runtime | Delegated Claude writers (macOS) | Current |
-| [DEC-0004](0004-main-advance-revalidation.md) | Main advance and repeated validation: one task-base classifier for every gate | Freshness gates and queue integration | Current |
+| [DEC-0004](0004-main-advance-revalidation.md) | Main advance and repeated validation: one task-base classifier for every gate | Freshness gates and queue integration | Amended by DEC-0009 |
 | [DEC-0005](0005-managed-rollout-on-demand.md) | Managed rollout on demand, not on every release | Releases and downstream updates | Current |
 | [DEC-0006](0006-claude-lifecycle-provider.md) | Claude as the provider for review, repair and finalize | Central lifecycle jobs | Current |
 | [DEC-0007](0007-openspec-requirement-length.md) | Meet the OpenSpec requirement-length limit by splitting requirements | OpenSpec version and requirement form | Current |
-| [DEC-0008](0008-target-task-lifecycle.md) | One actor, one entry and one state owner for every lifecycle stage | End-to-end task lifecycle | Current |
+| [DEC-0008](0008-target-task-lifecycle.md) | One actor, one entry and one state owner for every lifecycle stage | End-to-end task lifecycle | Superseded by DEC-0009 |
+| [DEC-0009](0009-single-stream-core.md) | One stream, one writer: the platform takes the project path, queue and hosted workers removed | Platform core and delivery | Current |
 
 ## Record contract
 

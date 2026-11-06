@@ -23,37 +23,21 @@ When `[capabilities] agent_board` is `true`, the multi-agent scope gate SHALL st
 
 #### Scenario: Disposable checkout declared not applicable
 
-- **GIVEN** `agent_board = true` and a checkout with no machine-local board (a CI run or a coordinator proven-base or contribution-base run)
-- **WHEN** `select_checks.py` runs with `--scope-gate not-applicable` or with `--proven-base` or `--contribution-base`
+- **GIVEN** `agent_board = true` and a checkout with no machine-local board (a CI run)
+- **WHEN** `select_checks.py` runs with `--scope-gate not-applicable`
 - **THEN** it prints `Scope gate not applicable: <reason>` and does not fail on the missing board
 - **AND** without that explicit declaration (`--scope-gate enforce`, the default) the missing board still stops the run
-- **AND** `--scope-gate not-applicable` and `--contribution-base` are refused with an explicit error in a linked task worktree or a checkout holding `.managed-task-state.json`, and accepted only in a plain checkout.
+- **AND** `--scope-gate not-applicable` is refused with an explicit error in a linked task worktree or a checkout holding `.managed-task-state.json`, and accepted only in a plain checkout.
 
 ### Requirement: Protected checks require main_branch
 
-A protected or coordinator check that needs the main branch SHALL read it from platform configuration without a default and SHALL fail explicitly when it is absent or not a non-empty string.
+A protected check that needs the main branch SHALL read it from platform configuration without a default and SHALL fail explicitly when it is absent or not a non-empty string.
 
 #### Scenario: Missing main_branch
 
 - **GIVEN** platform configuration without `main_branch`
 - **WHEN** a protected check or remote fast-forward verification runs
 - **THEN** it fails naming `main_branch` and does not assume `main`.
-
-### Requirement: Publication gates do not mask lost records or git failures
-
-The publication queue SHALL fail when the lineage record of a superseded head is missing.
-
-#### Scenario: Git failure during preparation
-
-- **GIVEN** `git merge-base --is-ancestor` exits with status 128
-- **WHEN** the queue prepares a candidate
-- **THEN** it raises with the command and stderr and does not update the branch.
-
-#### Scenario: Malformed trusted record
-
-- **GIVEN** a trusted candidate comment whose payload fails validation
-- **WHEN** the admission record is read
-- **THEN** `MalformedMarkerError` names that comment and the admission time is not taken from a later record.
 
 ### Requirement: Verification and integration prerequisites are enforced
 
@@ -149,36 +133,6 @@ A missing or non-boolean `agent_board` capability SHALL be an error.
 - **GIVEN** platform configuration without `[capabilities] agent_board` or with a non-boolean value
 - **WHEN** the multi-agent scope gate configuration is read
 - **THEN** it is an error
-
-### Requirement: The publication queue treats a git ancestry check as three-valued
-
-The publication queue SHALL treat a git ancestry check as three-valued: success is ancestor, exit status 1 is not an ancestor, and any other status is an error naming the command and its output.
-
-#### Scenario: Ancestry check exits with another status
-
-- **WHEN** a git ancestry check in the publication queue exits with a status other than success or 1
-- **THEN** it is an error naming the command and its output
-- **AND** success means ancestor and exit status 1 means not an ancestor
-
-### Requirement: A malformed trusted candidate record raises MalformedMarkerError
-
-A malformed trusted candidate record SHALL raise `MalformedMarkerError` (a new error class in `candidate_lifecycle.py`) naming the comment instead of being skipped.
-
-#### Scenario: Trusted candidate record is malformed
-
-- **WHEN** a trusted candidate record is malformed
-- **THEN** `MalformedMarkerError` is raised naming the comment
-- **AND** the record is not skipped
-
-### Requirement: The queue surfaces a malformed trusted candidate record as an explicit outcome
-
-The publication queue and integration contour SHALL surface a `MalformedMarkerError` for a malformed trusted candidate record as an explicit blocked or `QueueError` outcome naming the comment, never as a bare exception.
-
-#### Scenario: Queue meets a malformed trusted candidate record
-
-- **WHEN** `MalformedMarkerError` is raised for a malformed trusted candidate record in the publication queue or integration contour
-- **THEN** the outcome is an explicit blocked or `QueueError` outcome naming the comment
-- **AND** it is not a bare exception
 
 ### Requirement: Remote fast-forward verification raises on missing config or git failure
 

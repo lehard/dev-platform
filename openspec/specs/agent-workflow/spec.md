@@ -534,7 +534,7 @@ Dev Platform SHALL support verified nonterminal child handoff and SHALL combine 
 #### Scenario: An incomplete Requirement cannot be delivered
 
 - **GIVEN** the candidate does not yet contain every mandatory child
-- **WHEN** ready, merge, queue, auto-merge or terminal reconciliation is attempted
+- **WHEN** ready, merge, auto-merge or terminal reconciliation is attempted
 - **THEN** it is refused with the missing children named
 - **AND** the Requirement and child statuses stay nonterminal
 
@@ -648,8 +648,7 @@ An explicit Execute Requirement request SHALL drive every ready internal child t
 #### Scenario: Terminal completion is authoritative
 
 - **WHEN** all required children have verified ready receipts and their ordinary or shared candidate has merged through protected publication
-- **THEN** with the coordinator queue the supervisor reports that the Requirement awaits its post-merge jobs and does not close it
-- **AND** without the queue it reconciles child and local main state before reporting the Requirement complete
+- **THEN** the supervisor reconciles child and local main state before reporting the Requirement complete
 - **AND** a missing child, failed check, unmerged PR or uncertain external state prevents a Done claim
 
 #### Scenario: A direct handoff enters child execution
@@ -662,7 +661,7 @@ An explicit Execute Requirement request SHALL drive every ready internal child t
 
 - **GIVEN** exactly one mandatory child is ready
 - **WHEN** the supervisor advances after archive
-- **THEN** it uses that child's ordinary exact managed PR, and terminal reconciliation follows as a post-merge job
+- **THEN** it uses that child's ordinary exact managed PR, and terminal reconciliation follows the merge
 - **AND** no shared candidate or special integration exception is required
 
 ### Requirement: Requirement board status is derived from terminal authority
@@ -1026,27 +1025,6 @@ The Requirement retrospective checkpoint SHALL accept a Requirement with no link
 - **WHEN** a named quick PR is not merged
 - **THEN** the checkpoint stops naming that PR and records nothing
 
-### Requirement: Execute Requirement refuses advance after a merged composition
-
-When a Requirement's composition pull request into `main` is already merged, `execute_requirement.py advance` SHALL stop before it creates, fetches or pushes the integration branch, and SHALL report that the Requirement awaits its post-merge jobs, naming the merged pull request and the read-only publication status command. It SHALL NOT close the Requirement.
-
-#### Scenario: Composition already merged
-
-- **GIVEN** the composition PR #N of `requirement/BR-R` is merged and the branch was deleted
-- **WHEN** `advance` runs for the Requirement
-- **THEN** it reports `await-post-merge` naming PR #N and the status command
-- **AND** no `requirement/BR-R` branch is created or pushed and the Requirement stays open
-
-#### Scenario: Composition still open
-
-- **WHEN** the composition PR is open or does not exist yet
-- **THEN** advance proceeds as before
-
-#### Scenario: Inventory unavailable
-
-- **WHEN** the pull request list for the integration branch cannot be read
-- **THEN** advance fails naming the unavailable inventory and touches no branch
-
 ### Requirement: Requirement advance resolves handoff, bundle and child by one key
 
 `execute_requirement.py advance` SHALL resolve a handoff's authored bundle by the handoff id: the bundle directory named after it, or the single bundle whose manifest declares that handoff. The bundle's `change` SHALL name the managed change. A handoff whose bundle is ambiguous or malformed SHALL stop naming the bundles involved.
@@ -1402,16 +1380,6 @@ A Requirement with neither linked managed children nor named quick pull requests
 - **WHEN** the Requirement retrospective checkpoint runs for a Requirement with neither linked managed children nor named quick pull requests
 - **THEN** it is refused with the next action
 
-### Requirement: Execute Requirement advance stops on an unreadable integration branch inventory
-
-When the pull request inventory of a Requirement's integration branch cannot be read, `execute_requirement.py advance` SHALL stop naming that unreadable inventory instead of assuming no composition exists.
-
-#### Scenario: Inventory unreadable
-
-- **WHEN** the pull request inventory of the integration branch cannot be read
-- **THEN** advance stops naming the unreadable inventory
-- **AND** it does not assume that no composition exists
-
 ### Requirement: Requirement advance fails on an unmapped nonterminal linked child
 
 When a linked child that is not terminal maps to no current handoff, `execute_requirement.py advance` SHALL fail naming that child, its change and the handoffs left unmapped, with the bundle naming rule as the next action.
@@ -1428,7 +1396,7 @@ A Requirement MAY declare operator acceptance items in a `## Operator acceptance
 
 #### Scenario: Open item after the last merge
 - **WHEN** every child merged and an item has no decision
-- **THEN** the post-merge terminal job records `requirement-awaits-owner-acceptance` naming it, spends no attempt and leaves the Requirement open
+- **THEN** terminal reconciliation reports `requirement-awaits-owner-acceptance` naming it and leaves the Requirement open
 
 #### Scenario: Malformed section
 - **WHEN** an item line has no check command or repeats an id
@@ -1465,7 +1433,7 @@ A Requirement MAY declare operator acceptance items in a `## Operator acceptance
 
 ### Requirement: Delivered child housekeeping does not stop the next child
 
-Before advance starts a child, it SHALL archive task-local state of a Done child when local main equals origin/main and the child's archived contract is on it. Any other conflicting state SHALL still refuse with the reason. Without the coordinator queue, a missing or stale Requirement retrospective SHALL be returned as await-requirement-retrospective with the exact command; an unreadable or malformed receipt SHALL fail.
+Before advance starts a child, it SHALL archive task-local state of a Done child when local main equals origin/main and the child's archived contract is on it. Any other conflicting state SHALL still refuse with the reason. A missing or stale Requirement retrospective SHALL be returned as await-requirement-retrospective with the exact command; an unreadable or malformed receipt SHALL fail.
 
 #### Scenario: Leftover state of a delivered child
 - **WHEN** the checkout holds the state of a Done child and local main equals origin/main
