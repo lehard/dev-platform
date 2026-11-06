@@ -18,6 +18,7 @@ from _platform_common import (
     read_platform_config,
     relation,
     run_git,
+    run_github_with_retry,
 )
 from managed_task import ManagedTaskError, resolve_canonical_provenance
 import publication_state
@@ -139,8 +140,8 @@ def _remote_branch_head(root: Path, branch: str) -> str | None:
     return result.stdout.split()[0].strip()
 
 
-def _require_exact_open_pr(root: Path, branch: str, main_branch: str, proof_head: str) -> None:
-    """Prove a published branch still belongs to its exact open task PR.
+def _require_exact_open_pr(root: Path, branch: str, main_branch: str, proof_head: str) -> dict:
+    """Prove a published branch still belongs to its exact open task PR and return that PR.
 
     ``proof_head`` is the SHA the exact open PR head must currently equal. It is
     the local task head for an unchanged branch, or the unchanged remote branch
@@ -172,6 +173,27 @@ def _require_exact_open_pr(root: Path, branch: str, main_branch: str, proof_head
     )
     if not expected_owner or actual_owner != expected_owner:
         raise SystemExit("Task reconciliation blocked: the exact PR head owner is unreadable or differs from the authoritative repository owner.")
+    return pr
+
+
+def _disarm_before_new_head(root: Path, branch: str, main_branch: str, remote_head: str) -> None:
+    """Drop auto-merge before a new head reaches the exact PR.
+
+    GitHub keeps an armed request across a push and would merge that head, which
+    nothing validated: `--match-head-commit` only binds the moment of the request.
+    The next finish validates the new head and arms it again.
+    """
+    pr = _require_exact_open_pr(root, branch, main_branch, remote_head)
+    if pr.get("autoMergeRequest") is None:
+        return
+    ref = publication_state.stable_pr_ref(pr)
+    result = run_github_with_retry(["gh", "pr", "merge", ref, "--disable-auto"], cwd=root, env=github_cli_env(root))
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+        raise SystemExit(f"Task reconciliation pushed nothing: auto-merge on PR {ref} could not be disabled: {detail}")
+    if _require_exact_open_pr(root, branch, main_branch, remote_head).get("autoMergeRequest") is not None:
+        raise SystemExit(f"Task reconciliation pushed nothing: PR {ref} still has auto-merge armed after disabling it.")
+    print(f"Disabled auto-merge on PR {ref}: the new head merges only after finish validates it and arms it again.")
 
 
 def _require_exact_merged_is_terminal(root: Path, branch: str, main_branch: str) -> None:
@@ -204,7 +226,7 @@ def _continue_exact_pr_from_local_descendant(
     """
     if relation(root, remote_branch_head, local_head) != "behind":
         raise SystemExit("Task reconciliation blocked: remote task branch head differs from the local exact task head.")
-    _require_exact_open_pr(root, branch, main_branch, remote_branch_head)
+    _disarm_before_new_head(root, branch, main_branch, remote_branch_head)
     pushed = run_git(["push", "origin", f"{local_head}:refs/heads/{branch}"], cwd=root, check=False)
     if pushed.returncode != 0:
         detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
@@ -291,7 +313,7 @@ def reconcile(root: Path | None = None) -> Freshness:
     if published:
         if _remote_branch_head(root, branch) != remote_branch_head:
             raise SystemExit("Remote task branch head changed during reconciliation; refusing to publish the new descendant automatically.")
-        _require_exact_open_pr(root, branch, target_branch, remote_branch_head)
+        _disarm_before_new_head(root, branch, target_branch, remote_branch_head)
         pushed = run_git(["push", "origin", branch], cwd=root, check=False)
         if pushed.returncode != 0:
             detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"

@@ -225,6 +225,83 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertEqual(git("merge-base", "--is-ancestor", published_head, head, cwd=self.task).returncode, 0)
         self.assertEqual(git("merge-base", "--is-ancestor", "origin/main", head, cwd=self.task).returncode, 0)
 
+    def reconcile_armed_pr(self, disable_result: subprocess.CompletedProcess[str], *, still_armed: bool = False) -> mock.Mock:
+        """Reconcile a published task whose exact PR is armed; returns the mocked gh call."""
+        pr = {"number": 932, "url": "https://example.invalid/pr/932", "baseRefName": "main",
+              "headRepositoryOwner": "owner", "autoMergeRequest": {"mergeMethod": "SQUASH"}}
+        disarmed = pr if still_armed else {**pr, "autoMergeRequest": None}
+        remote_at_disable: list[str] = []
+
+        def lookup(*_args: object) -> publication_state.ExactHeadPrLookup:
+            return publication_state.ExactHeadPrLookup(available=True, exact_open=disarmed if remote_at_disable else pr)
+
+        def disable(_command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+            remote_at_disable.append(git("ls-remote", "origin", "agent/task", cwd=self.task).stdout.split()[0])
+            return disable_result
+
+        gh = mock.Mock(side_effect=disable)
+        gh.remote_at_disable = remote_at_disable
+        with (
+            mock.patch.object(task_reconciliation, "task_kind", return_value="quick"),
+            mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
+            mock.patch.object(task_reconciliation, "run_github_with_retry", gh),
+            mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", side_effect=lookup),
+            mock.patch.object(task_reconciliation.publication_state, "github_repo_name", return_value="owner/repo"),
+        ):
+            try:
+                task_reconciliation.reconcile(self.task)
+            except SystemExit as exc:
+                gh.refusal = str(exc)
+        return gh
+
+    def publish_task_and_advance_main(self) -> str:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        self.advance_main()
+        return git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+
+    def test_armed_pr_is_disarmed_before_the_new_head_is_pushed(self) -> None:
+        published = self.publish_task_and_advance_main()
+
+        gh = self.reconcile_armed_pr(subprocess.CompletedProcess([], 0, "", ""))
+
+        self.assertEqual(gh.call_args.args[0], ["gh", "pr", "merge", "932", "--disable-auto"])
+        self.assertEqual(gh.remote_at_disable, [published])
+        head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        self.assertNotEqual(head, published)
+        self.assertEqual(git("ls-remote", "origin", "agent/task", cwd=self.task).stdout.split()[0], head)
+
+    def test_failed_disarm_refuses_and_pushes_nothing(self) -> None:
+        published = self.publish_task_and_advance_main()
+
+        gh = self.reconcile_armed_pr(subprocess.CompletedProcess([], 1, "", "auto-merge busy"))
+
+        self.assertIn("could not be disabled: auto-merge busy", gh.refusal)
+        self.assertEqual(git("ls-remote", "origin", "agent/task", cwd=self.task).stdout.split()[0], published)
+
+    def test_auto_merge_still_armed_after_disarm_refuses_and_pushes_nothing(self) -> None:
+        published = self.publish_task_and_advance_main()
+
+        gh = self.reconcile_armed_pr(subprocess.CompletedProcess([], 0, "", ""), still_armed=True)
+
+        self.assertIn("still has auto-merge armed", gh.refusal)
+        self.assertEqual(git("ls-remote", "origin", "agent/task", cwd=self.task).stdout.split()[0], published)
+
+    def test_local_descendant_push_also_disarms_first(self) -> None:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        published = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
+        (self.task / "task.txt").write_text("task fixed\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "ci fix", cwd=self.task)
+
+        gh = self.reconcile_armed_pr(subprocess.CompletedProcess([], 0, "", ""))
+
+        self.assertEqual(gh.remote_at_disable, [published])
+        self.assertEqual(git("ls-remote", "origin", "agent/task", cwd=self.task).stdout.split()[0],
+                         git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
+
     def test_issue_97_squash_merged_exact_pr_routes_to_terminal_finish_without_new_head(self) -> None:
         (self.task / "task.txt").write_text("task\n", encoding="utf-8")
         git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
