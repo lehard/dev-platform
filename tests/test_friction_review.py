@@ -589,11 +589,18 @@ class FrictionReviewTests(unittest.TestCase):
             with self.assertRaisesRegex(managed_task.ManagedTaskError, "state unreadable"):
                 self.original_current_task_content(Path(self.tmp.name))
 
-    def test_quick_task_has_no_content_proof(self) -> None:
+    def test_quick_task_binds_to_its_own_content_proof(self) -> None:
         import managed_task
+        import task_content_identity
 
-        with mock.patch.object(managed_task, "read_task_state", return_value=None):
-            self.assertIsNone(self.original_current_task_content(Path(self.tmp.name)))
+        root = Path(self.tmp.name)
+        with (
+            mock.patch.object(managed_task, "read_task_state", return_value=None),
+            mock.patch.object(agent_friction, "read_platform_config", return_value={"main_branch": "trunk"}),
+            mock.patch.object(task_content_identity, "quick_content_identity", return_value={"digest": "x"}) as proof,
+        ):
+            self.assertEqual(self.original_current_task_content(root), {"digest": "x"})
+        proof.assert_called_once_with(root, "origin/trunk")
 
     def test_checkpoint_referencing_already_recorded_event_creates_no_duplicate(self) -> None:
         self.write_events(1)

@@ -700,10 +700,6 @@ def observe_completion_blockers(
     if hygiene_detail is not None:
         blockers.append(("openspec-hygiene", hygiene_detail))
 
-    checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
-    if checkpoint_detail is not None:
-        blockers.append(("friction-checkpoint", checkpoint_detail))
-
     if not clean(work):
         blockers.append(("worktree-clean", "Current worktree is dirty. Commit or remove changes first."))
 
@@ -1005,11 +1001,17 @@ def main() -> int:
     if mode == "pr" and branch != main_branch:
         exact_open_pr = find_existing_exact_open_pr(work, branch, main_branch)
 
+    # First of the completion gates: a stale checkpoint must not cost the whole preflight.
+    checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
+    if checkpoint_detail is not None:
+        report_completion_blockers([("friction-checkpoint", checkpoint_detail)])
+        raise SystemExit(1)
+
     run_finish_preflight(work, integration, branch, consolidated=True)
     warn_current_worktree_scope_overlap(integration, work, branch)
 
     # Consolidated read-only completion preflight. Every already-observable
-    # blocker (OpenSpec/provenance hygiene, friction checkpoint, worktree
+    # blocker (OpenSpec/provenance hygiene, worktree
     # cleanliness, task freshness, branch-base staleness, hard scope overlap) is
     # evaluated and reported together here, BEFORE expensive validation, so two
     # independent blockers no longer cost two multi-minute finishes.
