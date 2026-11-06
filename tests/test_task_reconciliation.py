@@ -495,7 +495,6 @@ class TaskReconciliationTests(unittest.TestCase):
         git("fetch", "origin", cwd=self.task)
         with (
             mock.patch.object(finish_task, "run_openspec_hygiene", return_value=None),
-            mock.patch.object(finish_task, "observe_friction_checkpoint_blocker", return_value=None),
             mock.patch.object(finish_task, "enforce_scope_gate"),
             mock.patch.object(finish_task, "observe_private_reference_blocker", return_value=None),
         ):
@@ -506,6 +505,27 @@ class TaskReconciliationTests(unittest.TestCase):
         self.assertIn("Reconcile before expensive validation: python3 scripts/finish_task.py --reconcile", blockers["task-freshness"])
         self.assertIn("python3 scripts/finish_task.py --reconcile", blockers["branch-base"])
         self.assertNotIn("Rebase", blockers["branch-base"])
+
+    def test_quick_checkpoint_proof_survives_a_merge_only_reconcile_but_not_an_edit(self) -> None:
+        import agent_friction
+        import task_content_identity
+
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("fetch", "origin", cwd=self.task)
+        with mock.patch.object(task_content_identity, "_declared_generated_at_base", return_value=set()):
+            recorded = agent_friction.current_task_content(self.task)
+            self.advance_main()
+            with mock.patch.object(task_reconciliation, "task_kind", return_value="quick"):
+                task_reconciliation.reconcile(self.task)
+
+            merged = agent_friction.current_task_content(self.task)
+            self.assertTrue(task_content_identity.equivalent_proofs(self.task, recorded, merged))
+
+            (self.task / "task.txt").write_text("task edited\n", encoding="utf-8")
+            git("add", "task.txt", cwd=self.task); git("commit", "-m", "edit", cwd=self.task)
+            edited = agent_friction.current_task_content(self.task)
+            self.assertFalse(task_content_identity.equivalent_proofs(self.task, recorded, edited))
 
     def test_read_only_status_detects_advanced_main_without_updating_origin_main(self) -> None:
         write_platform_config(self.task, workflow_profile="standard", platform_version="1.9.3")

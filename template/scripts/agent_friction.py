@@ -280,15 +280,17 @@ def current_head(root: Path) -> str | None:
 
 
 def current_task_content(root: Path) -> dict | None:
-    """Managed-task content proof without declared generated files; ``None`` for a quick task, which keeps exact-head semantics.
+    """The task's own content proof without declared generated files, so a merge-only reconcile keeps the checkpoint.
 
     A task state or content proof that cannot be read is an error, not a stale checkpoint.
     """
     from managed_task import read_task_state
-    from task_content_identity import checkpoint_content_identity
+    from task_content_identity import checkpoint_content_identity, quick_content_identity
 
     state = read_task_state(root)
-    return checkpoint_content_identity(root, str(state["change"])) if state else None
+    if state:
+        return checkpoint_content_identity(root, str(state["change"]))
+    return quick_content_identity(root, f"origin/{read_platform_config(root)['main_branch']}")
 
 
 def non_task_names(root: Path | None = None) -> frozenset[str]:
