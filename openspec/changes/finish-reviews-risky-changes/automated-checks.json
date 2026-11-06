@@ -9,31 +9,31 @@
   "executed_commands": [
     {
       "command": "python3 -m compileall -q template/scripts scripts",
-      "duration_seconds": 0.886,
+      "duration_seconds": 0.193,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
-      "duration_seconds": 1.626,
+      "duration_seconds": 0.422,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 -m ruff check scripts template/scripts tests",
-      "duration_seconds": 0.213,
+      "duration_seconds": 0.162,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "python3 scripts/generate_platform_manifest.py --check",
-      "duration_seconds": 0.18,
+      "duration_seconds": 0.213,
       "outcome": "success",
       "exit_code": 0
     },
     {
       "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
-      "duration_seconds": 3.757,
+      "duration_seconds": 3.865,
       "outcome": "success",
       "exit_code": 0
     }
@@ -49,8 +49,7 @@
         "tests/test_git_lifecycle.py",
         "tests/test_independent_review.py",
         "tests/test_merge_lifecycle_resilience.py",
-        "tests/test_protected_main_zero_handoff.py",
-        "tests/test_publication_recovery_cli.py"
+        "tests/test_protected_main_zero_handoff.py"
       ],
       "commands": [
         "python3 -m compileall -q template/scripts scripts",
@@ -78,10 +77,10 @@
     "change": "finish-reviews-risky-changes",
     "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/finish-reviews-risky-changes",
     "branch": "agent/br-1007-t1-finish-reviews-risky-changes",
-    "head": "5b8adbd5a1e5f84e86d02b0e2933af9f96ac1c71",
+    "head": "eb6ca135a881dc2912c3eaae329cf8c35328164f",
     "task_content": {
       "version": 1,
-      "digest": "23a09facb519cfc64e231d02e93232163099f08ea03d2fe22a4ff5752a7482ae",
+      "digest": "74d2ad3bb9eda6b162cd838fcaed1efb24980ec01d21f6d57b31f3c6e27e7cbb",
       "paths": {
         "dev-platform/source-contract.toml": "dc764e573fbd4490a70d3520ab60504e9a03a91b",
         "docs/decisions/0010-review-risky-changes.md": "2438e91f1d57ac5f0b85ea9abc49335921f8ebed",
@@ -92,32 +91,35 @@
         "docs/engineering/openspec-workflow.md": "9616810ac7b7b91f08fa8d628ab02329830a0916",
         "openspec/changes/finish-reviews-risky-changes/.managed-task.json": "cb1d41b7943ae9624c7296ec41efad74e9ad4056",
         "openspec/changes/finish-reviews-risky-changes/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
-        "openspec/changes/finish-reviews-risky-changes/automated-checks.json": "a167f5c6de2b6d7c95651679cd7211627c0af481",
-        "openspec/changes/finish-reviews-risky-changes/design.md": "32605c8e42314ba1cf381b7476eb7539d5d09c0f",
+        "openspec/changes/finish-reviews-risky-changes/automated-checks.json": "5b620d3c072632392415d80052ee98045825d63e",
+        "openspec/changes/finish-reviews-risky-changes/design.md": "fa7bad135a508fe319e541fa76def3de1f7427a5",
+        "openspec/changes/finish-reviews-risky-changes/independent-review-request.json": "d2da95f628dfb81d2d4cab13a7a0b154625acc2d",
+        "openspec/changes/finish-reviews-risky-changes/independent-reviews/engineering-quality.json": "1b271ccee57e342ae0d59fa2f895f046eb6f0b3d",
+        "openspec/changes/finish-reviews-risky-changes/independent-reviews/spec-fidelity.json": "f991d42982755eb48ad3f3995bcdd554f1a1dd57",
         "openspec/changes/finish-reviews-risky-changes/proposal.md": "3d0d26cb7be2a90da4f622823b84e467cce5da0f",
-        "openspec/changes/finish-reviews-risky-changes/specs/completion-lifecycle/spec.md": "a61be7d651293fa181d79681c288dad073133326",
+        "openspec/changes/finish-reviews-risky-changes/specs/completion-lifecycle/spec.md": "19589ee97695a915baa1a782af79298575afb841",
         "openspec/changes/finish-reviews-risky-changes/tasks.md": "12c2cdead3dc2b5a640bb6deb9975f79a7a55599",
+        "openspec/changes/finish-reviews-risky-changes/verification.md": "2ab8b5e34992e55cbe98a8d0cbce869345f0b365",
         "template/.dev-platform.toml.jinja": "950c896434933f64c20b03740b0ae7778e406155",
-        "template/dev-platform/platform-manifest.json": "8c9d252357fffafdaecccda71679ab2c04f200a1",
+        "template/dev-platform/platform-manifest.json": "51ad7739db31c1cc22c2970d22d3167133a9f6a7",
         "template/docs/engineering/agent-workflow.md.jinja": "09a776f477d96d27d7fc21cd50d3b7b3cf86046d",
         "template/docs/engineering/change-classes.md": "c3ff375d470fe2d16cae49693230eb9780b9770b",
         "template/docs/engineering/openspec-workflow.md": "c5a6cec0ed46561d09cac55e7142d982c6280a08",
         "template/scripts/finish_task.py": "54ce5415d95d954be335670709934abf45a94436",
-        "template/scripts/independent_review.py": "72d6d6be44cb3f8aac630db60e033c5d47490602",
+        "template/scripts/independent_review.py": "48440278e2e2deb552123f6e4f53342bc447c3ca",
         "template/scripts/independent_review_runner.py": "180e57ce84055f829cf3cd2c44c11de060a008d4",
         "template/scripts/task_content_identity.py": "55e1c6cfe8bcff6c35ed2417041114cae323426b",
         "tests/test_git_lifecycle.py": "0576ba6c8b9bb7a5249b5241ed2f03e2ebfa47d9",
         "tests/test_independent_review.py": "dd8ffd1e3688c115d7a773aac19cc084d40eefd4",
         "tests/test_merge_lifecycle_resilience.py": "13415a7da928ba87ac52569d1c9b556c7e2d84d8",
-        "tests/test_protected_main_zero_handoff.py": "428e28de4c7e01ecbb27451cf6fc2fda8259b194",
-        "tests/test_publication_recovery_cli.py": "d9377a8b6b9f33b25578f4ab81c89d6e0a6e60ef"
+        "tests/test_protected_main_zero_handoff.py": "428e28de4c7e01ecbb27451cf6fc2fda8259b194"
       },
       "base": "5389f8ce694afbd1af4705fe95f61a9a00bd7da8"
     }
   },
   "gate_task_content": {
     "version": 1,
-    "digest": "e31ef6dda938af12ed65c0408c4cedf72f7a41c153b81722ee0081461eb10929",
+    "digest": "288c614368c6ec67deea55dd1835dc5ca0afa33701d8407c73e64f3d840ec603",
     "paths": {
       "dev-platform/source-contract.toml": "dc764e573fbd4490a70d3520ab60504e9a03a91b",
       "docs/decisions/0010-review-risky-changes.md": "2438e91f1d57ac5f0b85ea9abc49335921f8ebed",
@@ -128,30 +130,29 @@
       "docs/engineering/openspec-workflow.md": "9616810ac7b7b91f08fa8d628ab02329830a0916",
       "openspec/changes/finish-reviews-risky-changes/.managed-task.json": "cb1d41b7943ae9624c7296ec41efad74e9ad4056",
       "openspec/changes/finish-reviews-risky-changes/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
-      "openspec/changes/finish-reviews-risky-changes/design.md": "32605c8e42314ba1cf381b7476eb7539d5d09c0f",
+      "openspec/changes/finish-reviews-risky-changes/design.md": "fa7bad135a508fe319e541fa76def3de1f7427a5",
       "openspec/changes/finish-reviews-risky-changes/proposal.md": "3d0d26cb7be2a90da4f622823b84e467cce5da0f",
-      "openspec/changes/finish-reviews-risky-changes/specs/completion-lifecycle/spec.md": "a61be7d651293fa181d79681c288dad073133326",
+      "openspec/changes/finish-reviews-risky-changes/specs/completion-lifecycle/spec.md": "19589ee97695a915baa1a782af79298575afb841",
       "openspec/changes/finish-reviews-risky-changes/tasks.md": "12c2cdead3dc2b5a640bb6deb9975f79a7a55599",
       "template/.dev-platform.toml.jinja": "950c896434933f64c20b03740b0ae7778e406155",
       "template/docs/engineering/agent-workflow.md.jinja": "09a776f477d96d27d7fc21cd50d3b7b3cf86046d",
       "template/docs/engineering/change-classes.md": "c3ff375d470fe2d16cae49693230eb9780b9770b",
       "template/docs/engineering/openspec-workflow.md": "c5a6cec0ed46561d09cac55e7142d982c6280a08",
       "template/scripts/finish_task.py": "54ce5415d95d954be335670709934abf45a94436",
-      "template/scripts/independent_review.py": "72d6d6be44cb3f8aac630db60e033c5d47490602",
+      "template/scripts/independent_review.py": "48440278e2e2deb552123f6e4f53342bc447c3ca",
       "template/scripts/independent_review_runner.py": "180e57ce84055f829cf3cd2c44c11de060a008d4",
       "template/scripts/task_content_identity.py": "55e1c6cfe8bcff6c35ed2417041114cae323426b",
       "tests/test_git_lifecycle.py": "0576ba6c8b9bb7a5249b5241ed2f03e2ebfa47d9",
       "tests/test_independent_review.py": "dd8ffd1e3688c115d7a773aac19cc084d40eefd4",
       "tests/test_merge_lifecycle_resilience.py": "13415a7da928ba87ac52569d1c9b556c7e2d84d8",
-      "tests/test_protected_main_zero_handoff.py": "428e28de4c7e01ecbb27451cf6fc2fda8259b194",
-      "tests/test_publication_recovery_cli.py": "d9377a8b6b9f33b25578f4ab81c89d6e0a6e60ef"
+      "tests/test_protected_main_zero_handoff.py": "428e28de4c7e01ecbb27451cf6fc2fda8259b194"
     },
     "base": "5389f8ce694afbd1af4705fe95f61a9a00bd7da8",
     "scope": "independent-review-v1"
   },
   "affected_precheck": {
-    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/finish_task.py --changed-file template/scripts/independent_review.py --changed-file template/scripts/independent_review_runner.py --changed-file template/scripts/task_content_identity.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_independent_review.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_recovery_cli.py",
-    "duration_seconds": 440.369,
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/finish_task.py --changed-file template/scripts/independent_review.py --changed-file template/scripts/independent_review_runner.py --changed-file template/scripts/task_content_identity.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_independent_review.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_protected_main_zero_handoff.py",
+    "duration_seconds": 388.943,
     "outcome": "success",
     "exit_code": 0,
     "role": "affected-precheck feedback; not validation coverage"
