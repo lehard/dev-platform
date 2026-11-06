@@ -1,8 +1,8 @@
 # Verification
 
-OpenSpec-Verify: PASS
+OpenSpec-Verify: INCOMPLETE
 Verification-Method: documented equivalent semantic review of proposal, design, tasks and delta spec against the implementation, scenario by scenario. No opsx tool invocation.
-Automated-Checks-Evidence: automated-checks.json
+Automated-Checks-Evidence: none; delivery stopped before a full run passed
 
 ## Semantic assessment
 
@@ -21,7 +21,8 @@ The ADD assumed the integration kinds read no contract before merging main. That
 
 ## Evidence
 
-- `tests/test_stale_candidate_contract.py` runs against disposable git repositories. The worker, review gate, integration contour, composition and finalization test modules pass; selected checks are recorded in `automated-checks.json`.
+- `tests/test_stale_candidate_contract.py` runs against disposable git repositories. The worker, review gate, integration contour, composition and finalization test modules pass, run by hand.
+- The only completed full run failed one test, in `test_parallel_lifecycle_acceptance`. After the fixture fix that module passes alone. The full rerun on 2fb8f0ca was not awaited, because the coordinator stopped delivery.
 
 ## Not verified
 

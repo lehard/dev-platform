@@ -7,4 +7,4 @@
 - [x] 2.1 Unit tests for every scenario, including a valid candidate contract in review and a missing trusted file.
 - [x] 2.2 Disposable acceptance with a contract missing a required key.
 - [x] 2.3 `docs/engineering/chat-coordinator.md`, manifest.
-- [x] 2.4 Full validation, strict `openspec validate` and semantic OpenSpec verification.
+- [ ] 2.4 Full validation, strict `openspec validate` and semantic OpenSpec verification.
