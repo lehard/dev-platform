@@ -35,6 +35,7 @@ LOCK_VARIABLE = "LIVE_SCENARIO_LOCK"
 LOCK_LEASE_SECONDS = 3 * 3600
 POLL_SECONDS = 15
 HANDOFF = "Developer handoff complete"
+OVERLAP_ROUNDS = 4
 CLAUDE_BIN_ENV = "DEV_PLATFORM_CLAUDE_BIN"
 VERIFICATION = """# Verification: {change}
 
@@ -481,9 +482,25 @@ class Scenario:
         if round_ == 1:
             self.platform("model_routing.py", "record-retained-execution", "--reason", "Live scenario", cwd=worktree)
         self.platform("agent_friction.py", "checkpoint", "--result", "none", "--review-note", "Live scenario", cwd=worktree)
-        done = self.platform("dogfood_task.py", "finish", "--title", title, "--body", "Live scenario.", cwd=worktree)
+        done = self.finish_acknowledging(worktree, title)
         if HANDOFF not in done:
             raise self.fail(f"finish did not hand off: {done[-500:]}")
+
+    def finish_acknowledging(self, worktree: Path, title: str) -> str:
+        """Finish a handoff. Sibling children share the integration manifest, so the board's named overlaps are acknowledged."""
+        branch = run(["git", "branch", "--show-current"], worktree).strip()
+        for _ in range(OVERLAP_ROUNDS):
+            try:
+                return run(["python3", "scripts/dogfood_task.py", "finish", "--title", title, "--body", "Live scenario."],
+                           worktree, self.sandbox.env())
+            except SandboxError as error:
+                overlaps = re.findall(r"([0-9a-f]{10}) \(Managed task [^)]*\): (.+?)(?:; |\. Verify)", getattr(error, "output", ""))
+                if not overlaps:
+                    raise self.fail(str(error)) from error
+                for owner, path in sorted(set(overlaps)):
+                    self.platform("agent_board.py", "acknowledge", "--branch", branch, "--worktree", str(worktree), "--with-id",
+                                  owner, "--path", path, "--reason", "Sibling child of the same fixture Requirement", cwd=worktree)
+        raise self.fail(f"finish still names overlaps after {OVERLAP_ROUNDS} rounds")
 
     def author_requirement(self, title: str, changes: list[str]) -> str:
         """Create a sandbox Requirement and its fixture pre-authoring chain; returns its reference."""
