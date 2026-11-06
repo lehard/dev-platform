@@ -20,7 +20,7 @@ The platform and every project take the same path. No project has a publication 
 | 1 | Fixation | `requirement_intake.py create` | developer at the owner's request | `type:requirement` Issue, Backlog card |
 | 2 | Pre-authoring | `requirement_intake.py start`, then `orchestrate_pre_authoring.py` and `add_intents.py` | developer; owner approves the ADD | snapshot, ADD, intents, handoffs under `.claude/pre-authoring/` |
 | 3 | Child creation | `requirement_intake.py materialize-handoff` / `link-child` | developer | `type:internal-change` Issue with an R2/R3 start tier |
-| 4 | Start | `execute_requirement.py advance`, `start_managed_task.py`, `execute_managed_task.py`, `dogfood_task.py start --change`, `start_task.py`, `start_worktree.py` (plus `agent_board.py start`) | developer | worktree, board claim, `.managed-task-state.json` |
+| 4 | Start | `execute_requirement.py advance`, `start_managed_task.py`, `execute_managed_task.py`, `dogfood_task.py start` (with `--change` for a managed task), `start_task.py` in a project, `start_worktree.py` (plus `agent_board.py start`) | developer | worktree, board claim, `.managed-task-state.json` |
 | 5 | Routing | `dogfood_task.py route-claude --tier R1/R2/R3` | developer | routing receipt |
 | 6 | Implementation and checks | `select_checks.py --execute --evidence`, then `verification.md` | developer | content-bound evidence |
 | 7 | Finish | `dogfood_task.py finish`: optional review, `finalize_change` (archive, all prerequisites at once), friction checkpoint, PR, `gh pr merge --auto --squash --match-head-commit`, then following the PR to `MERGED` | developer | archived change, exact-head PR merged and local main synchronized |
@@ -30,7 +30,7 @@ The platform and every project take the same path. No project has a publication 
 | 11 | Release | release PR changing `VERSION` → `publish-version.yml` | owner | immutable tag |
 | 12 | Rollout | manual **Roll Out Platform** dispatch | owner | downstream PRs |
 
-A quick task runs `start_task.py` → `finish` and skips stages 1–3 and 5.
+A quick task runs `dogfood_task.py start --task` → `finish` here (`start_task.py` in a project) and skips stages 1–3 and 5.
 
 Publication refuses when no required check gates the merge, and it never falls back to another merge form. Independent review is optional and runs in stage 7 only with `[independent_review] enabled = true`; `scripts/independent_review.py` runs it by hand.
 
