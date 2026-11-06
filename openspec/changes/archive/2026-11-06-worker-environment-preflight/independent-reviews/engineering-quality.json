@@ -3,42 +3,30 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "2d078d286a387f5595a7ee4225dcf05a58e7b2f6",
-    "diff_sha256": "cffe63529c370dc58c1087b9275feb0abb159c3401c098c02c20edf0dc4d83f7"
+    "candidate_head": "69b03d8494ad0b4467cb51715699941070da3fa5",
+    "diff_sha256": "ba8658a522506cf93bf1f44b65157c543cfa10e9095f12866be90731a92dcc8e"
   },
-  "completed_at": "2026-11-06T04:19:02+00:00",
+  "completed_at": "2026-11-06T05:03:44+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py (diff ~L504-515): `frozenset(k for k in args.kinds.split(\",\") if k)` goes straight into WorkerContext with no check against the known job kinds. The spec says an unevaluable condition SHALL refuse. The `work-next` path does validate kinds elsewhere.",
-      "id": "standalone-preflight-unvalidated-kinds",
+      "evidence": "template/scripts/worker_preflight.py, check_provider_credential: `if len(problems) == len(ctx.providers): raise PreflightRefusal(...)`. main() builds `providers` from `[*review_names, *filter(None, (args.provider, args.repair_provider))]`, which merges review and repair providers into one any-of check. A repair worker with a usable review provider and a broken `--repair-provider` credential therefore passes preflight. The failure then surfaces after claim, where only the review path (pr_review_gate.execute_review) converts CredentialError into a registered EnvironmentFailure. This cuts against the proposal's aim of stopping persistent environment defects before claim.",
+      "id": "provider-credential-any-of-passes-repair",
       "severity": "advisory",
-      "summary": "`worker-preflight` accepts any `--kinds` string. A typo such as `reveiw` makes every condition not-applicable, and the command exits 0 as if the environment were proven."
-    },
-    {
-      "evidence": "scripts/post_merge_runner.py adds `ENVIRONMENT_EXIT = 3  # lifecycle_workers.ENVIRONMENT_EXIT`. tests/test_worker_preflight.py::RunnerTests only greps the source text for the literal. A different failure that also exits 3 would be recorded as outcome \"environment\" and end the round with no job-failure accounting.",
-      "id": "runner-exit-code-duplicated-constant",
-      "severity": "advisory",
-      "summary": "`ENVIRONMENT_EXIT = 3` is hand-copied into scripts/post_merge_runner.py. Exit 3 is also the only signal the runner uses to tell an environment stop from a job failure."
-    },
-    {
-      "evidence": "template/scripts/lifecycle_workers.py:849-859: `active_gh_token` raises only for the failed `gh auth token`. The decorator wraps all `WorkerError`s, so any WorkerError added later would be released as environment, outside MAX_RELEASES, with a bound of 5.",
-      "id": "gh-token-decorator-blanket-mapping",
-      "severity": "advisory",
-      "summary": "`@environment_condition(\"github-credential\")` turns every `WorkerError` from `active_gh_token` into a free-of-charge EnvironmentFailure. That is safe today only because the function has a single raise site."
+      "summary": "The provider-credential preflight condition passes when at least one named provider has a credential. A repair provider with no credential is not caught before claim if a review provider is usable."
     }
   ],
-  "launched_at": "2026-11-06T04:18:29+00:00",
-  "output_sha256": "d6b7ad583024f9325dc4f310af4690227c772bea3f561ae2c2684ea8c7e95c79",
+  "launched_at": "2026-11-06T05:03:25+00:00",
+  "output_sha256": "3cfa7e6cd81cc6317de39b2ed1e4a2d29c7137fa5a2f31b50e334329a3ee8017",
   "perspective": "engineering-quality",
-  "request_id": "b97156f9-8095-4ecf-9aff-af9bec5315d6",
+  "request_id": "8acc98fb-0219-4c44-8cfb-371a65f5d240",
   "reviewer": {
-    "context_id": "803bfba8-e961-4930-8aa2-83834931cc6b",
+    "context_id": "c7052ddb-139a-4682-8713-c1092e11ca86",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-4fc8069b-8c70-453b-867a-2efdda5a9af5",
+    "launch_id": "platform-launch-58009912-2a2a-424e-80ee-b3960686914a",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -54,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 46785
+        "value": 42498
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 198942
+        "value": 52518
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32825
+        "value": 17512
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 33168
+        "value": 17855
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 12
+        "value": 6
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 8
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 3715
+        "value": 1802
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f17774c3a5be67387db6cb57db943d441c096b9e3171d1583f0e7716baa61c59"
+  "task_content_digest": "a0dcd44942c623667a69cd86a581e754b46bc8a97ad1251f1f33a3b7e6f3748e"
 }

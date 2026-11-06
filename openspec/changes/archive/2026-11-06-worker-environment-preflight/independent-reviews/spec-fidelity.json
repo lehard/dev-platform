@@ -3,30 +3,23 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "2d078d286a387f5595a7ee4225dcf05a58e7b2f6",
-    "diff_sha256": "cffe63529c370dc58c1087b9275feb0abb159c3401c098c02c20edf0dc4d83f7"
+    "candidate_head": "69b03d8494ad0b4467cb51715699941070da3fa5",
+    "diff_sha256": "ba8658a522506cf93bf1f44b65157c543cfa10e9095f12866be90731a92dcc8e"
   },
-  "completed_at": "2026-11-06T04:18:29+00:00",
-  "findings": [
-    {
-      "evidence": "spec.md \"Bound reached\": THEN the overview reports an operational escalation naming the condition. lifecycle_overview.py:283-287 builds the finding from `reason` or from the label `cause`. For the environment bound, `cause` is the constant ENVIRONMENT_RELEASE_CAUSE (\"claim released after environment failures\"). The condition id appears only in the evidence field `last` (`EnvironmentFailure: <condition>: ...`), which the overview does not read. The diff has no lifecycle_overview.py hunk, although design.md and tasks.md 2.3 say the overview handles the class. tests/test_worker_preflight.py only asserts `gate.operational_escalation(...)`, not the overview output. The scenario's second clause, that `resume` offers the job with attempts unchanged, is also untested.",
-      "id": "overview-does-not-name-environment-condition",
-      "severity": "material",
-      "summary": "The spec scenario \"Bound reached\" requires the overview to report an operational escalation naming the condition. The candidate does not change lifecycle_overview.py, so the overview does not name it, and no test covers this."
-    }
-  ],
-  "launched_at": "2026-11-06T04:18:09+00:00",
-  "output_sha256": "74ac7a6ab5f197a61ca0b9967f40b31025dc86196e2f71f55d364c6797b7284a",
+  "completed_at": "2026-11-06T05:03:25+00:00",
+  "findings": [],
+  "launched_at": "2026-11-06T05:03:17+00:00",
+  "output_sha256": "9d0f2143c61cfbb6c0cf0425ce8b447811a32d48ec37333ba8b3700218631b36",
   "perspective": "spec-fidelity",
-  "request_id": "b97156f9-8095-4ecf-9aff-af9bec5315d6",
+  "request_id": "8acc98fb-0219-4c44-8cfb-371a65f5d240",
   "reviewer": {
-    "context_id": "df7e40b7-1b48-4730-a995-d37835f46318",
+    "context_id": "cecdb7a6-590d-4cf4-89b2-033f52344d7c",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-b0bbebb2-b403-4edf-bb1e-f18ad08c569e",
+    "launch_id": "platform-launch-c399063f-f5b8-46a1-a598-cb47ba5a69c0",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +35,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 48056
+        "value": 33478
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 141313
+        "value": 15430
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19006
+        "value": 7531
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 19171
+        "value": 7631
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 10
+        "value": 4
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 7
+        "value": 4
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2038
+        "value": 688
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "f17774c3a5be67387db6cb57db943d441c096b9e3171d1583f0e7716baa61c59"
+  "task_content_digest": "a0dcd44942c623667a69cd86a581e754b46bc8a97ad1251f1f33a3b7e6f3748e"
 }
