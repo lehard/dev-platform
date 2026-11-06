@@ -32,25 +32,12 @@ import public_distribution  # noqa: E402
 # packaged tree can compile, discover, and pass its own required test/spec
 # gates with no dependency on the original checkout's untracked/local state.
 # The extracted tree has fresh history and no .dev-platform.toml; like CI, the
-# smoke installs the committed source contract before running the gates, and
-# lifecycle hygiene cannot infer its stage: the caller passes the CI event's stage.
-# The public snapshot deliberately excludes `.managed-task.json` provenance, so
-# inside it the candidate exemption for a completed managed change cannot be
-# evaluated. Candidate-stage hygiene is therefore enforced only on the real
-# checkout (the CI hygiene step); the snapshot runs strict hygiene at integration.
-LIFECYCLE_STAGES = ("candidate", "integration")
-
-
-def extracted_check_commands(lifecycle_stage: str) -> tuple[tuple[str, ...], ...]:
-    if lifecycle_stage not in LIFECYCLE_STAGES:
-        raise SystemExit(f"unsupported lifecycle stage: {lifecycle_stage!r}")
-    commands: tuple[tuple[str, ...], ...] = (
-        ("python3", "-m", "compileall", "-q", "template/scripts", "scripts"),
-        ("python3", "scripts/run_test_groups.py", "--all"),
-    )
-    if lifecycle_stage == "integration":
-        commands += (("python3", "template/scripts/openspec_lifecycle.py", "check", "--stage", "integration"),)
-    return commands
+# smoke installs the committed source contract before running the gates.
+EXTRACTED_CHECK_COMMANDS: tuple[tuple[str, ...], ...] = (
+    ("python3", "-m", "compileall", "-q", "template/scripts", "scripts"),
+    ("python3", "scripts/run_test_groups.py", "--all"),
+    ("python3", "template/scripts/openspec_lifecycle.py", "check"),
+)
 
 # Paths whose presence in the extracted snapshot root is required evidence
 # that the packaging boundary retained what this change's proposal requires:
@@ -110,10 +97,7 @@ def establish_fresh_history(extracted: Path) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Extract a public snapshot and prove it is developable.")
-    parser.add_argument("--lifecycle-stage", required=True, choices=LIFECYCLE_STAGES,
-                        help="OpenSpec lifecycle hygiene stage of the triggering CI event")
-    args = parser.parse_args(argv)
-    commands = extracted_check_commands(args.lifecycle_stage)
+    parser.parse_args(argv)
     with tempfile.TemporaryDirectory(prefix="dev-platform-snapshot-smoke-") as tmp:
         tmp_path = Path(tmp)
         snapshot_path = tmp_path / "dev-platform-snapshot.tar"
@@ -157,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
             )
 
         install_source_contract(extracted)
-        for command in commands:
+        for command in EXTRACTED_CHECK_COMMANDS:
             run(command, extracted)
 
         print(

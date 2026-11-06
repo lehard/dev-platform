@@ -48,7 +48,6 @@ class OpenSpecLifecycleTests(unittest.TestCase):
         return change
 
     def test_archive_requires_review_evidence_and_never_launches_review(self):
-        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             self.make_change(root, "work", "- [x] done\n")
@@ -56,45 +55,12 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                     mock.patch.object(lifecycle, "static_archive_problems", return_value=[]), \
                     mock.patch.object(lifecycle, "require_applicable_committed_diff"), \
                     mock.patch.object(lifecycle, "require_committed_package"), \
-                    mock.patch.object(gate, "managed_candidate", return_value=False), \
                     mock.patch.object(lifecycle, "require_review_evidence", side_effect=SystemExit("review blocked")) as review, \
                     mock.patch.object(lifecycle, "run_checked") as validate:
                 with self.assertRaisesRegex(SystemExit, "review blocked"):
-                    lifecycle.finalize_change(root, "work", context="developer")
+                    lifecycle.finalize_change(root, "work")
                 review.assert_called_once_with(root, root / "openspec/changes/work")
                 validate.assert_not_called()
-
-    def test_developer_archive_of_a_coordinator_candidate_is_refused_before_any_work(self):
-        # BR-940: the candidate is handed off active; only the coordinator's finalize archives it.
-        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.make_change(root, "work", "- [x] done\n")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
-                    mock.patch.object(gate, "managed_candidate", return_value=True), \
-                    mock.patch.object(lifecycle, "static_archive_problems", return_value=[]) as readiness, \
-                    mock.patch.object(lifecycle, "require_review_evidence") as review, \
-                    mock.patch.object(lifecycle, "run_checked") as validate:
-                with self.assertRaisesRegex(SystemExit, r"does not archive a coordinator candidate.*finalize archives it.*"
-                                                        r"execute_requirement\.py advance.*dogfood_task\.py finish"):
-                    lifecycle.finalize_change(root, "work", context="developer")
-            readiness.assert_not_called()
-            review.assert_not_called()
-            validate.assert_not_called()
-            self.assertTrue((root / "openspec/changes/work/tasks.md").is_file())
-
-    def test_finalize_archive_of_a_coordinator_candidate_is_not_refused(self):
-        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.make_change(root, "work", "- [x] done\n")
-            with mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="source")), \
-                    mock.patch.object(gate, "managed_candidate", return_value=True) as candidate, \
-                    mock.patch.object(lifecycle, "static_archive_problems", return_value=[]), \
-                    mock.patch.object(lifecycle, "require_review_evidence", side_effect=SystemExit("finalize reached review")):
-                with self.assertRaisesRegex(SystemExit, "finalize reached review"):
-                    lifecycle.finalize_change(root, "work", context="queue")
-            candidate.assert_not_called()
 
     def _portable_archive_checks(self, decision: dict | None) -> tuple[mock.Mock, mock.Mock, str]:
         """Drive portable archive to its selected-check step; stop at require_ready."""
@@ -118,7 +84,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                     mock.patch.object(lifecycle, "require_ready", side_effect=SystemExit("stop after checks")), \
                     redirect_stdout(out):
                 with self.assertRaisesRegex(SystemExit, "stop after checks"):
-                    lifecycle.finalize_change(root, "work", context="developer")
+                    lifecycle.finalize_change(root, "work")
         return decide, validate, out.getvalue()
 
     def test_archive_reuses_evidence_that_proves_unchanged_content(self) -> None:
@@ -152,18 +118,6 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "done", "- [x] one\n- [x] two\n")
             self.assertEqual(["done"], lifecycle.completed_active_changes(root))
             self.assertEqual(1, lifecycle.check_hygiene(root))
-
-    def test_explicit_candidate_stage_needs_no_checkout_config(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            managed = self.make_change(root, "managed", "- [x] one\n", config=False)
-            (managed / ".managed-task.json").write_text("{}\n", encoding="utf-8")
-            self.make_change(root, "unmanaged", "- [x] one\n", config=False)
-            self.assertFalse((root / ".dev-platform.toml").exists())
-            self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
-            shutil.rmtree(root / "openspec" / "changes" / "unmanaged")
-            self.assertEqual(0, lifecycle.check_hygiene(root, lifecycle.STAGE_CANDIDATE))
-            self.assertEqual(1, lifecycle.check_hygiene(root, lifecycle.STAGE_INTEGRATION))
 
     def test_alternative_markers_and_unknown_content_keep_change_incomplete(self) -> None:
         for open_task in ("+ [ ] task", "* [ ] task", "1. [ ] task", "1) [ ] task", "- [~] partial", "- [-] skipped", "-[ ] tight"):
@@ -583,7 +537,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                     SystemExit,
                     "Automated-Checks-Evidence.*docs/engineering/openspec-workflow.md#verify-archive-then-publish",
                 ):
-                    lifecycle.finalize_change(root, "done", context="developer")
+                    lifecycle.finalize_change(root, "done")
             run_checked.assert_not_called()
             self.assertEqual(stale.read_text(encoding="utf-8"), '{"outcome":"stale"}\n')
 
@@ -604,7 +558,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "run_checked") as run_checked,
             ):
                 with self.assertRaisesRegex(SystemExit, "committed diff"):
-                    lifecycle.finalize_change(root, "done", context="developer")
+                    lifecycle.finalize_change(root, "done")
             run_checked.assert_not_called()
 
     def test_archive_directory_is_not_scanned_as_active(self) -> None:
@@ -624,8 +578,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             self.make_change(root, "other", "- [x] done\n")
             self.assertEqual(1, lifecycle.check_hygiene(root))
             with mock.patch.dict(os.environ, self.archive_context(root, "target")):
-                for stage in (lifecycle.STAGE_CANDIDATE, lifecycle.STAGE_INTEGRATION):
-                    self.assertEqual(1, lifecycle.check_hygiene(root, stage))
+                self.assertEqual(1, lifecycle.check_hygiene(root))
             shutil.rmtree(root / "openspec" / "changes" / "other")
             with mock.patch.dict(os.environ, self.archive_context(root, "target")):
                 self.assertEqual(0, lifecycle.check_hygiene(root))
@@ -668,7 +621,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             with mock.patch.object(lifecycle, "run_checked") as run_checked:
                 for target in ("missing", "open", "../open", ""):
                     with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target|remain incomplete"):
-                        lifecycle.finalize_change(root, target, context="developer")
+                        lifecycle.finalize_change(root, target)
             run_checked.assert_not_called()
 
     def test_archive_target_environment_is_a_copy_not_the_process_environment(self) -> None:
@@ -719,7 +672,7 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             with mock.patch.object(lifecycle, "run_checked") as run_checked:
                 for target in ("missing", "open", "../open"):
                     with self.subTest(target=target), self.assertRaisesRegex(SystemExit, "archive target|remain incomplete"):
-                        lifecycle.finalize_change(root, target, context="queue")
+                        lifecycle.finalize_change(root, target)
             run_checked.assert_not_called()
             self.assertTrue((root / "openspec" / "changes" / "open").is_dir())
 
@@ -767,14 +720,12 @@ class OpenSpecLifecycleTests(unittest.TestCase):
             mock.patch.object(lifecycle, "require_ready"),
             mock.patch.object(lifecycle.shutil, "which", return_value=str(root / "bin" / "openspec")),
         ]
-        gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
-        patches.append(mock.patch.object(gate, "managed_candidate", return_value=False))
         env = {k: v for k, v in os.environ.items() if k not in (lifecycle.ARCHIVE_TARGET_ENV, lifecycle.ARCHIVE_ROOT_ENV)}
         with mock.patch.dict(os.environ, env, clear=True):
             for patch in patches:
                 patch.start()
             try:
-                return lifecycle.finalize_change(root, name, context="developer")
+                return lifecycle.finalize_change(root, name)
             finally:
                 mock.patch.stopall()
 
@@ -841,19 +792,6 @@ REQUIREMENT_DELTA = (
 AUTHORED_PURPOSE = "Foo lets operators run the foo workflow safely and predictably end to end."
 
 
-class EvidenceBaseTests(unittest.TestCase):
-    def test_a_contribution_refreshes_evidence_on_its_own_base(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            self.assertEqual(lifecycle.evidence_base(root, "demo"), "origin/main")
-            context = root / ".claude/requirement-child-context/demo.json"
-            context.parent.mkdir(parents=True)
-            context.write_text('{"requirement": "o/r#7"}', encoding="utf-8")
-            self.assertEqual(lifecycle.evidence_base(root, "demo"), "origin/main")
-            context.write_text('{"contribution": {"head": "abc"}}', encoding="utf-8")
-            self.assertEqual(lifecycle.evidence_base(root, "demo"), "abc")
-
-
 class ArchivePurposeAndRecoveryTests(unittest.TestCase):
     """BR-580: new-capability Purpose, committed package, rehearsal, recovery and readable failures."""
 
@@ -911,7 +849,7 @@ class ArchivePurposeAndRecoveryTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "require_review_evidence"), \
                 mock.patch.object(lifecycle, "require_independent_review_receipt"), \
                 mock.patch.object(lifecycle.shutil, "which", return_value=executable):
-            return lifecycle.finalize_change(self.root, "add-foo", context="developer")
+            return lifecycle.finalize_change(self.root, "add-foo")
 
     # -- Purpose predicate -------------------------------------------------
 
@@ -975,7 +913,7 @@ class ArchivePurposeAndRecoveryTests(unittest.TestCase):
                 mock.patch.object(lifecycle, "read_platform_config", return_value=platform_config(platform_version="customer", harness_mode="project")), \
                 mock.patch.object(lifecycle, "require_independent_review_receipt"), \
                 self.assertRaises(SystemExit) as raised:
-            lifecycle.finalize_change(self.root, "add-foo", context="developer")
+            lifecycle.finalize_change(self.root, "add-foo")
         # Nothing expensive starts while the package is uncommitted: no review, no checks.
         launch.assert_not_called()
         checks.assert_not_called()

@@ -11,19 +11,13 @@ from pathlib import Path
 from typing import Callable, ContextManager
 
 from _platform_common import (
-    RECONCILE_COMMAND,
-    TASK_BASE_BEHIND_MERGEABLE,
-    TaskFreshnessError,
-    classify_task_base_currency,
     current_worktree_root,
     fetch_main,
     github_cli_env,
     main_root,
-    lifecycle_mode,
     pr_merge_mode,
     protected_main,
     publish_mode,
-    queue_integrated,
     read_platform_config,
     relation,
     require_origin,
@@ -34,33 +28,19 @@ from integration_state import guard_before_protected_merge
 from publication_state import (
     ExactHeadPrLookup,
     PrRef,  # re-exported: the canonical definition lives in the always-platform-owned publication_state
-    RequiredCheckState,
     find_exact_head_pr,
-    required_check_state,
     required_check_state_for_ref,
     stable_pr_ref,
 )
 from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
 from requirement_integration import RequirementIntegrationError, require_independent_publication_exception
 import requirement_integration
-try:
-    from managed_task import ManagedTaskError, require_delivery_provenance
-except ModuleNotFoundError:  # Compatibility while a pre-managed-intake render is being upgraded.
-    class ManagedTaskError(RuntimeError):
-        pass
-
-    def require_delivery_provenance(root: Path):
-        return None
+from managed_task import ManagedTaskError, require_delivery_provenance
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
-CHECK_REGISTRATION_TIMEOUT_SECONDS = 90.0
-CHECK_REGISTRATION_INTERVAL_SECONDS = 3.0
-CHECK_COMPLETION_TIMEOUT_SECONDS = 600.0
-CHECK_COMPLETION_INTERVAL_SECONDS = 5.0
 MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
 MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
-MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS = 3.0
 PRE_MERGE_GUARD_TIMEOUT_SECONDS = 60.0
 
 
@@ -129,8 +109,7 @@ def _validate_feature_branch(root: Path, remote: str, main_branch: str) -> str:
     return current
 
 
-def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fresh_base: bool,
-                        coordinator_handoff: bool = False) -> str:
+def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fresh_base: bool) -> str:
     """Push the validated feature branch; the push itself is always safe/idempotent.
 
     `require_fresh_base` gates only the first-publication precondition that the
@@ -140,29 +119,12 @@ def push_feature_branch(root: Path, remote: str, main_branch: str, *, require_fr
     already-published branch must not be blocked from resuming merely because
     the base advanced after that PR was opened -- pushing again is a harmless
     no-op fast-forward to the same commit.
-
-    `coordinator_handoff` is the developer handoff of a proven coordinator
-    candidate: the publication queue merges main into it and gates on the
-    integrated head, so a branch behind a main that merges cleanly (or conflicts
-    only in files main declares generated) passes and the contract is printed.
-    A conflict in any other file still blocks.
     """
     preflight(root)
     current = _validate_feature_branch(root, remote, main_branch)
     main_sha = fetch_main(root, remote, main_branch)
     if require_fresh_base and run_git(["merge-base", "--is-ancestor", main_sha, current], cwd=root, check=False).returncode != 0:
-        if not coordinator_handoff:
-            raise SystemExit(f"{current} does not contain current {remote}/{main_branch}. Rebase/update explicitly, rerun checks, then publish.")
-        authoritative = f"{remote}/{main_branch}"
-        try:
-            currency = classify_task_base_currency(root, main_sha, task_ref=current)
-        except TaskFreshnessError as exc:
-            raise SystemExit(f"Developer handoff blocked: {exc}") from exc
-        if currency.state != TASK_BASE_BEHIND_MERGEABLE:
-            raise SystemExit(f"Developer handoff blocked: {current}: {currency.describe(authoritative)}. "
-                             f"Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then hand off.")
-        print(f"Task base contract behind-mergeable: {currency.describe(authoritative)}; "
-              f"merge base {currency.base}; the publication queue merges main before integration.")
+        raise SystemExit(f"{current} does not contain current {remote}/{main_branch}. Rebase/update explicitly, rerun checks, then publish.")
     run_git(["push", "-u", remote, current], cwd=root)
     print(f"Published feature branch {current} -> {remote}/{current}.")
     return current
@@ -290,46 +252,6 @@ def _set_pr_draft(root: Path, env: dict[str, str], pr: PrRef, *, draft: bool) ->
         raise SystemExit(f"Could not set shared PR {'draft' if draft else 'ready'} state: {detail}")
 
 
-def wait_for_pr_checks(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> None:
-    print("Waiting for GitHub required PR checks from structured PR state...")
-    registration_deadline = time.monotonic() + CHECK_REGISTRATION_TIMEOUT_SECONDS
-    completion_deadline: float | None = None
-    while True:
-        state = required_check_state_for_ref(root, env, pr.ref, expected_head)
-        if state.kind == "passed":
-            return
-        if state.kind == "not_registered":
-            if time.monotonic() >= registration_deadline:
-                raise SystemExit(
-                    "Required PR checks did not register within the bounded wait; remote state remains pending and resumable. "
-                    "The PR and feature branch remain intact; local main was not changed."
-                )
-            print("Required PR checks are not registered yet; waiting for GitHub to attach them to the current PR head...")
-            time.sleep(CHECK_REGISTRATION_INTERVAL_SECONDS)
-            continue
-        if state.kind == "pending":
-            if completion_deadline is None:
-                completion_deadline = time.monotonic() + CHECK_COMPLETION_TIMEOUT_SECONDS
-            if time.monotonic() >= completion_deadline:
-                raise SystemExit(
-                    "Required PR checks did not complete within the bounded wait; remote state remains pending and resumable. "
-                    "The PR and feature branch remain intact; local main was not changed."
-                )
-            print("Required PR checks are pending for the current PR head; waiting for terminal state...")
-            time.sleep(CHECK_COMPLETION_INTERVAL_SECONDS)
-            continue
-        if state.kind == "failed":
-            raise SystemExit(
-                "Required PR checks failed for the current PR head; PR remains open and local main was not changed. "
-                + state.detail
-            )
-        raise SystemExit(
-            f"GitHub required-check state is unknown ({state.cause}); failing closed with a resumable remote-pending result. "
-            "The PR and feature branch remain intact; local main was not changed. "
-            + state.detail
-        )
-
-
 def exact_merged_state(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> bool:
     """Return true only for the previously selected PR at the validated head."""
     result = subprocess.run(
@@ -377,6 +299,27 @@ def delete_remote_branch(root: Path, remote: str, current: str) -> None:
     print(f"Deleted remote feature branch {remote}/{current} after confirmed merge.")
 
 
+def require_mergeable_checks(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> None:
+    """Refuse a merge request that GitHub would not gate on required checks.
+
+    Without a required check on the base, `gh pr merge --auto` merges the head at once, so
+    "no required checks" is a refusal, never a pass. Only pending or passed checks go on.
+    """
+    state = required_check_state_for_ref(root, env, pr.ref, expected_head)
+    if state.kind == "not_registered":
+        raise SystemExit(
+            f"Refusing to merge PR {pr.ref}: GitHub reports no required checks for head {expected_head} "
+            f"({state.detail or 'no required check is attached'}), so nothing would gate the merge. Require a status "
+            "check on the base branch, or set pr_merge_mode=manual. The PR stays open; local main was not changed."
+        )
+    if state.kind == "failed":
+        raise SystemExit(f"Required PR checks failed for head {expected_head}: {state.detail}. "
+                         "The PR stays open; local main was not changed.")
+    if state.kind not in {"pending", "passed"}:
+        raise SystemExit(f"GitHub required-check state is {state.kind} ({state.cause}): {state.detail}. "
+                         "The PR stays open; local main was not changed.")
+
+
 def request_protected_merge(
     root: Path,
     env: dict[str, str],
@@ -386,89 +329,33 @@ def request_protected_merge(
     expected_head: str,
     *,
     merge_guard: Callable[[], ContextManager[None]] | None = None,
-) -> str:
-    """Try ordinary/auto/queue merge for the exact validated head.
+) -> None:
+    """Arm GitHub auto-merge for the exact validated head; the one merge action.
 
-    Every attempt is guarded with `--match-head-commit` so GitHub itself
-    refuses to merge a head other than `expected_head`. If an attempt is
-    rejected, the PR's current head is re-observed directly (not inferred from
-    error text): a changed head fails closed immediately; an unchanged head
-    means the rejection was for another reason (checks pending, auto-merge
-    disabled, ...), so the next protected mode is tried.
-
-    Returns "merged" once GitHub confirms MERGED, or "unavailable" once every
-    protected mode was rejected without the head ever changing -- meaning
-    native durable arming could not be persisted at all and the caller should
-    fall back to the bounded foreground check wait. A resumable pending state
-    (accepted but not yet MERGED within the bounded wait) and a fail-closed
-    changed-head both exit the process directly, matching this codebase's
-    existing terminal/resumable SystemExit convention.
+    `--match-head-commit` makes GitHub itself refuse any other head. A rejected request stops the
+    publication with GitHub's reason. An accepted request survives this process, so a merge that is
+    not confirmed within the bounded wait is left to a later finish, which reconciles it.
     """
-    attempts = [
-        ("ordinary squash merge", ["gh", "pr", "merge", pr.ref, "--squash", "--match-head-commit", expected_head]),
-        ("GitHub auto-merge with squash", ["gh", "pr", "merge", pr.ref, "--auto", "--squash", "--match-head-commit", expected_head]),
-        ("GitHub auto/queue enrollment", ["gh", "pr", "merge", pr.ref, "--auto", "--match-head-commit", expected_head]),
-    ]
-    last_detail = "merge command was not attempted"
-
-    for label, command in attempts:
-        with merge_guard() if merge_guard is not None else nullcontext():
-            result = subprocess.run(
-                command,
-                cwd=root,
-                env=env,
-                text=True,
-                capture_output=True,
-                check=False,
-             stdin=subprocess.DEVNULL)
-        if result.stdout.strip():
-            print(result.stdout.strip())
+    require_mergeable_checks(root, env, pr, expected_head)
+    with merge_guard() if merge_guard is not None else nullcontext():
+        result = subprocess.run(
+            ["gh", "pr", "merge", pr.ref, "--auto", "--squash", "--match-head-commit", expected_head],
+            cwd=root, env=env, text=True, capture_output=True, check=False, stdin=subprocess.DEVNULL,
+        )
+    if result.stdout.strip():
+        print(result.stdout.strip())
+    if result.returncode:
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
-
-        if result.returncode == 0:
-            print(f"GitHub accepted {label} for exact validated head {expected_head}.")
-            if wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
-                delete_remote_branch(root, remote, current)
-                print(f"Merged PR for {current} through GitHub ({label}).")
-                return "merged"
-            raise SystemExit(
-                f"{label} was accepted by GitHub for exact head {expected_head}, but the PR did not reach MERGED "
-                "within this bounded local wait. GitHub retains that accepted merge request independently of this "
-                "process; rerun finish or finish --status later to reconcile once it completes. Local main was not changed."
-            )
-
-        # A stable PR reference avoids branch ambiguity. Any readable state
-        # other than the validated head is a hard stop.  This direct first
-        # read avoids spending the bounded recovery wait on a PR we already
-        # know cannot authorize the validated task head.
-        observed = subprocess.run(
-            ["gh", "pr", "view", pr.ref, "--json", "headRefOid"],
-            cwd=root, env=env, text=True, capture_output=True, check=False,
-         stdin=subprocess.DEVNULL)
-        try:
-            actual_head = str(json.loads(observed.stdout).get("headRefOid", "")).strip() if observed.returncode == 0 else None
-        except json.JSONDecodeError:
-            actual_head = None
-        if actual_head is not None and actual_head != expected_head:
-            raise SystemExit(
-                f"PR head changed from validated {expected_head} to {actual_head} before a merge request was "
-                "accepted; refusing to merge a different head under this validation. Revalidate the new head and "
-                "finish again. Local main was not changed."
-            )
-
-        # gh can report a convenience/cleanup error after GitHub already
-        # accepted the merge. Only exact MERGED confirmation permits cleanup.
-        if wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS):
-            print(f"WARNING: {label} exited non-zero, but GitHub confirms the PR is MERGED; continuing reconciliation: {detail}")
-            delete_remote_branch(root, remote, current)
-            print(f"Merged PR for {current} through GitHub ({label}).")
-            return "merged"
-
-        last_detail = detail
-        print(f"{label} was not accepted for the unchanged validated head ({detail}); trying the next protected GitHub merge mode...")
-
-    print(f"Native GitHub auto-merge/merge-queue could not be armed for the exact validated head ({last_detail}); it remains resumable.")
-    return "unavailable"
+        raise SystemExit(f"GitHub refused auto-merge for exact head {expected_head}: {detail}. Local main was not changed.")
+    print(f"GitHub accepted auto-merge with squash for exact validated head {expected_head}.")
+    if not wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
+        raise SystemExit(
+            f"Auto-merge is armed for exact head {expected_head}, but the PR did not reach MERGED within this bounded "
+            "local wait. GitHub keeps the request independently of this process; rerun finish or finish --status "
+            "later to reconcile it. Local main was not changed."
+        )
+    delete_remote_branch(root, remote, current)
+    print(f"Merged PR for {current} through GitHub.")
 
 
 def validate_shared_manifest(root: Path, path: Path) -> dict:
@@ -485,14 +372,6 @@ def validate_shared_manifest(root: Path, path: Path) -> dict:
         raise RequirementIntegrationError("shared manifest is absent or not committed at exact HEAD") from exc
     if not isinstance(payload, dict) or payload != committed:
         raise RequirementIntegrationError("shared manifest differs from exact committed HEAD")
-    if payload.get("version") == 2:
-        if lifecycle_mode(read_platform_config(root)) != "coordinator":
-            raise RequirementIntegrationError("reviewed contribution publication requires a coordinator source contract")
-        from requirement_contributions import validate
-        validate(payload)
-        if path != requirement_integration._candidate_manifest_path(payload["requirement"], root) or branch(root) != payload["integration_branch"]:
-            raise RequirementIntegrationError("reviewed contribution manifest branch or path changed")
-        return payload
     unsigned = {key: value for key, value in payload.items() if key != "digest"}
     requirement = payload.get("requirement")
     children = payload.get("children")
@@ -550,47 +429,20 @@ def publish_pr(
     *,
     config: dict | None = None,
     shared_manifest: Path | None = None,
-    developer_handoff: bool = False,
 ) -> int:
     if config is None:
         config = read_platform_config(root)
-    selected_mode = lifecycle_mode(config)
-    if developer_handoff and selected_mode != "coordinator":
-        raise ManagedTaskError("developer handoff requires a coordinator source contract")
-    # The coordinator stack loads only for a developer handoff; ordinary
-    # downstream publication never depends on it.
-    WorkerError: type[Exception] = ManagedTaskError
-    if developer_handoff:
-        from lifecycle_workers import WorkerError
-
     try:
-        if developer_handoff:
-            from managed_task import resolve_canonical_provenance
-            from pr_review_gate import managed_candidate, handoff_gates
-
-            if shared_manifest is not None or not managed_candidate(root):
-                raise ManagedTaskError("developer handoff requires a coordinator-managed active child")
-            delivery = resolve_canonical_provenance(root)
-            handoff_identity, gates = handoff_gates(root, delivery.path)
-            if handoff_identity.get("kind") == "contribution":
-                main_branch = handoff_identity["target_branch"]
-        else:
-            delivery = require_delivery_provenance(root)
-        if delivery is not None and not developer_handoff:
+        delivery = require_delivery_provenance(root)
+        if delivery is not None:
             require_independent_publication_exception(root, delivery)
-    except (ManagedTaskError, RequirementIntegrationError, WorkerError) as exc:
+    except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
     incomplete = False
     shared_candidate: dict = {}
     if shared_manifest is not None:
         try:
             shared_candidate = validate_shared_manifest(root, shared_manifest)
-            if shared_candidate.get("version") == 2:
-                from requirement_composition import publish_composition
-                result = publish_composition(main_root(), shared_candidate["repository"], shared_candidate,
-                                             run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip())
-                print(json.dumps(result, sort_keys=True))
-                return 0
             incomplete = not requirement_integration.manifest_complete(shared_candidate)
         except RequirementIntegrationError as exc:
             raise SystemExit("Shared Requirement publication blocked: " + str(exc)) from exc
@@ -623,7 +475,7 @@ def publish_pr(
     # An already-open (or already-merged) exact-head PR is a resumable remote
     # object: recovery does not require re-applying the first-publication
     # freshness precondition, even if the base has advanced since that PR was
-    # opened -- GitHub protection/queue/auto-merge remains authoritative for
+    # opened -- GitHub protection and auto-merge remain authoritative for
     # whether it can still integrate. The push itself still happens whenever
     # the PR isn't already merged: it is a harmless idempotent no-op when the
     # exact head is already on GitHub, and it is the actual first-publication
@@ -635,9 +487,7 @@ def publish_pr(
     # (open with an older head) already proves first publication, so no fresh-base rule applies.
     grows_existing = shared_manifest is not None and lookup.stale_open is not None
     if lookup.exact_merged is None:
-        # ``main_branch`` is already the recorded target of a contribution handoff.
-        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing,
-                            coordinator_handoff=developer_handoff or (selected_mode == "coordinator" and queue_integrated(root)))
+        push_feature_branch(root, remote, main_branch, require_fresh_base=lookup.exact_open is None and not grows_existing)
         if grows_existing:
             lookup = find_exact_head_pr(root, env, current, main_branch, expected_head)
             if not lookup.available or lookup.exact_open is None:
@@ -657,7 +507,7 @@ def publish_pr(
         if incomplete:
             print("Shared Requirement candidate is incomplete (missing: "
                   + ", ".join(requirement_integration.missing_changes(shared_candidate))
-                  + "): draft PR only; ready, merge and queue are not attempted.")
+                  + "): draft PR only; ready and merge are not attempted.")
             return 0
         if is_draft:
             _set_pr_draft(root, env, pr, draft=False)
@@ -672,32 +522,12 @@ def publish_pr(
             f"Managed Project status {'updated' if project.changed else 'already current'}: "
             f"{project.source_issue} -> In review"
         )
-    if developer_handoff:
-        from publication_queue import admit
-
-        if pr.number is None:
-            raise SystemExit("Developer handoff requires a numbered exact-head PR")
-        admit(root, pr.number, expected_head, handoff={"task_identity": handoff_identity, "gates": gates})
-        print(f"Developer handoff complete: PR #{pr.number}; coordinator owns review and repair.")
-        return 0
     if merge_mode == "manual":
         print("PR published for manual review; pr_merge_mode=manual, so no merge was attempted.")
         return 0
     if merge_mode != "auto":
         raise SystemExit(f"Unknown pr_merge_mode: {merge_mode!r}; expected 'auto' or 'manual'.")
 
-    # The central source repository has a durable coordinator once its workflow
-    # is present on authoritative main. The feature introducing that workflow
-    # still publishes through the existing protected path during bootstrap.
-    if selected_mode == "coordinator":
-        from publication_queue import admit, enabled
-
-        if enabled(root):
-            if pr.number is None:
-                raise SystemExit("Publication queue requires a numbered exact PR")
-            queued = admit(root, pr.number, expected_head)
-            print(f"Exact PR admitted to final publication queue at key {queued['position_key']}; worker owns protected integration.")
-            raise SystemExit("Publication queued; rerun finish after GitHub reports the exact PR MERGED.")
     integration = main_root()
 
     def merge_guard() -> ContextManager[None]:
@@ -705,25 +535,8 @@ def publish_pr(
             integration, config, remote, main_branch, PRE_MERGE_GUARD_TIMEOUT_SECONDS
         )
 
-    # Prefer to persist merge intent in native GitHub auto-merge/merge-queue
-    # state before any long local wait, so an accepted remote request survives
-    # loss of this process.
-    outcome = request_protected_merge(root, env, current, pr, remote, expected_head, merge_guard=merge_guard)
-    if outcome == "merged":
-        return 0
-
-    print(
-        "WARNING: falling back to the bounded foreground required-check wait; remote durability is degraded "
-        "until this process (or a resumed one) completes it."
-    )
-    wait_for_pr_checks(root, env, pr, expected_head)
-    fallback_outcome = request_protected_merge(root, env, current, pr, remote, expected_head, merge_guard=merge_guard)
-    if fallback_outcome == "merged":
-        return 0
-    raise SystemExit(
-        "GitHub did not accept a protected merge for the exact validated head after required checks passed; "
-        "PR remains open and local main was not reconciled."
-    )
+    request_protected_merge(root, env, current, pr, remote, expected_head, merge_guard=merge_guard)
+    return 0
 
 
 def main() -> int:
@@ -736,7 +549,6 @@ def main() -> int:
     args = parser.parse_args()
     root = current_worktree_root()
     config = read_platform_config(root)
-    lifecycle_mode(config)
     mode = args.mode or publish_mode(config)
     main_branch = config["main_branch"]
     if mode == "direct":

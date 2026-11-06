@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from _platform_common import TaskFreshnessError, current_worktree_root, harness_mode, lifecycle_mode, read_platform_config, run_git
+from _platform_common import TaskFreshnessError, current_worktree_root, harness_mode, read_platform_config, run_git
 from managed_task import ManagedTaskError, read_provenance, require_managed_checkout_identity, source_issue_for_provenance
 try:
     from independent_review import require_review_evidence, review_is_required
@@ -272,16 +272,7 @@ def recorded_content_is_current(root: Path, change: str, recorded: object) -> bo
     return equivalent_proofs(root, recorded, review_content_identity(root, change))
 
 
-EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base {base} --execute --evidence {path}"
-
-
-def evidence_base(root: Path, change: str) -> str:
-    """The base of a task's selected checks: its recorded contribution base, or origin/main."""
-    from requirement_child_context import context_path
-
-    context = context_path(root, change)
-    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution") if context.is_file() else None
-    return contribution["head"] if contribution else "origin/main"
+EVIDENCE_REFRESH_COMMAND = "python3 scripts/select_checks.py --base origin/main --execute --evidence {path}"
 
 
 def stale_committed_evidence(root: Path) -> tuple[str, str]:
@@ -290,8 +281,7 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     ``state`` is ``not-applicable`` (no committed evidence that gates publication), ``current`` or
     ``stale``; a stale detail names the evidence, both bases and the exact refresh command. The
     comparison is the one ``evidence_matches_checkout`` applies at the gate. Evidence gates
-    publication when its change is archived or the task is a coordinator-managed candidate; an
-    active change in the portable lifecycle is revalidated by archive.
+    publication when its change is archived; an active change is revalidated by archive.
     """
     from managed_task import resolve_canonical_provenance
 
@@ -302,11 +292,10 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     relative = Path(os.path.relpath(path.resolve(), root.resolve())).as_posix()
     if not path.is_file():
         return "not-applicable", f"no committed selected-check evidence at {relative} yet"
-    from pr_review_gate import managed_candidate
     from task_content_identity import review_content_identity
 
-    if provenance.lifecycle != "archived" and not managed_candidate(root):
-        return "not-applicable", f"active change {provenance.change} outside the coordinator lifecycle: archive revalidates evidence it cannot reuse"
+    if provenance.lifecycle != "archived":
+        return "not-applicable", f"active change {provenance.change}: archive revalidates evidence it cannot reuse"
     evidence = _read_check_evidence(path, f"{provenance.change}: committed selected-check evidence {relative} is unreadable")
     recorded = evidence.get("gate_task_content")
     if recorded_content_is_current(root, provenance.change, recorded):
@@ -318,7 +307,7 @@ def stale_committed_evidence(root: Path) -> tuple[str, str]:
     return "stale", (
         f"committed selected-check evidence {relative} does not prove the current task content "
         f"(recorded base {recorded_base or 'none'}, current base {current.get('base')}): main or the task changed a task path. "
-        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(base=evidence_base(root, provenance.change), path=relative)}, then commit {relative}"
+        f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=relative)}, then commit {relative}"
     )
 
 
@@ -374,7 +363,7 @@ def require_automated_evidence(change: Path, *, root: Path | None = None) -> Non
             raise SystemExit(
                 f"{change.name}: automated evidence checkout identity does not match this managed task; "
                 "rerun validation from the exact registered task checkout. Only the same change's committed OpenSpec archive materialization may follow a validated HEAD. "
-                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(base=evidence_base((root or change.parents[2]).resolve(), canonical_change), path=evidence_path)}, then commit {evidence_path}"
+                f"Refresh it: {EVIDENCE_REFRESH_COMMAND.format(path=evidence_path)}, then commit {evidence_path}"
             )
 
 
@@ -542,9 +531,6 @@ def require_publication_review_evidence(change: Path, *, root: Path | None = Non
         ) from exc
 
 
-STAGE_CANDIDATE = "candidate"
-STAGE_INTEGRATION = "integration"
-
 # Reserved context variable: set only in the environment of the single validation
 # subprocess that ``archive`` launches, so hygiene exempts exactly the archive target.
 ARCHIVE_TARGET_ENV = "DEV_PLATFORM_ARCHIVE_TARGET"
@@ -594,48 +580,8 @@ def completed_active_changes(root: Path) -> list[str]:
     return stale
 
 
-def completed_active_changes_at(root: Path, ref: str) -> list[str]:
-    """Completed-but-active changes in the committed tree at ``ref`` (no checkout needed)."""
-    listed = run_git(["ls-tree", "--name-only", ref, "openspec/changes/"], cwd=root, check=False)
-    if listed.returncode:
-        raise SystemExit(f"cannot list OpenSpec changes at {ref}: {listed.stderr.strip()}")
-    stale: list[str] = []
-    for entry in sorted(listed.stdout.splitlines()):
-        name = entry.rsplit("/", 1)[-1]
-        if name == "archive":
-            continue
-        tasks = run_git(["show", f"{ref}:{entry}/tasks.md"], cwd=root, check=False)
-        if tasks.returncode:
-            continue
-        total, incomplete = count_tasks(tasks.stdout)
-        if total > 0 and incomplete == 0:
-            stale.append(name)
-    return stale
-
-
-def _candidate_context(root: Path) -> bool:
-    """Whether this checkout is a source-repository work branch or PR, never main itself."""
-    config = read_platform_config(root)
-    if config.get("platform_version") != "source":
-        return False
-    main = config["main_branch"]
-    ref = os.environ.get("GITHUB_REF", "")
-    if ref:
-        return ref.startswith("refs/pull/") or (ref.startswith("refs/heads/") and ref != f"refs/heads/{main}")
-    branch = run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=root, check=False).stdout.strip()
-    return branch not in {"", "HEAD", main}
-
-
-def check_hygiene(root: Path, stage: str | None = None) -> int:
-    """Block completed-but-active changes at the stage where archive is required.
-
-    ``integration`` (publication by a non-coordinator flow, integration admission,
-    merge, main) is strict. ``candidate`` allows a completed managed change that a
-    coordinator-managed PR carries until review and repair finish. With no stage
-    the context decides: only a source-repository work branch or PR is a candidate.
-    """
-    if stage is None:
-        stage = STAGE_CANDIDATE if _candidate_context(root) else STAGE_INTEGRATION
+def check_hygiene(root: Path) -> int:
+    """Block completed-but-active changes: finish archives a change before it publishes."""
     stale = completed_active_changes(root)
     archive_target = os.environ.get(ARCHIVE_TARGET_ENV)
     archive_root = os.environ.get(ARCHIVE_ROOT_ENV)
@@ -653,19 +599,17 @@ def check_hygiene(root: Path, stage: str | None = None) -> int:
     if archive_target is not None and os.path.realpath(archive_root) == os.path.realpath(root):
         require_archive_target(root, archive_target, source=f"hygiene ({ARCHIVE_TARGET_ENV})")
         stale = [name for name in stale if name != archive_target]
-    if stage == STAGE_CANDIDATE:
-        stale = [name for name in stale if not (root / "openspec" / "changes" / name / ".managed-task.json").is_file()]
     if not stale:
         print("OpenSpec lifecycle hygiene: OK")
         return 0
     print("OpenSpec lifecycle hygiene: BLOCKED")
     for name in stale:
         print(f"- {name}: all tasks are complete but the change is still active")
-    print("Run /opsx:verify when available (or the documented equivalent semantic review), resolve findings, record the PASS receipt and method, then run finish (or Requirement advance); the finalize executor archives it.")
+    print("Run /opsx:verify when available (or the documented equivalent semantic review), resolve findings, record the PASS receipt and method, then run finish (or Requirement advance), which archives it.")
     return 1
 
 
-def require_ready(change: Path, *, platform_owned: bool = False, reviewed_composition: bool = False) -> None:
+def require_ready(change: Path, *, platform_owned: bool = False) -> None:
     if not change.exists() or not change.is_dir():
         raise SystemExit(f"Active OpenSpec change not found: {change.name}")
     total, incomplete = task_state(change)
@@ -679,8 +623,7 @@ def require_ready(change: Path, *, platform_owned: bool = False, reviewed_compos
             f"Run /opsx:verify when available (or an equivalent documented OpenSpec verification), resolve material findings, "
             f"then record '{VERIFY_MARKER}' and a '{VERIFY_METHOD_PREFIX} <method>' line in verification.md."
         )
-    if not reviewed_composition:
-        require_review_evidence(change.parents[2], change)
+    require_review_evidence(change.parents[2], change)
     require_independent_review_receipt(change)
     if platform_owned:
         require_automated_evidence(change)
@@ -859,39 +802,11 @@ def run_checked(command: list[str], root: Path, *, env: dict[str, str] | None = 
         raise SystemExit(result.returncode)
 
 
-FINALIZE_QUEUE = "queue"
-FINALIZE_DEVELOPER = "developer"
-FINALIZE_COMPOSITION = "composition"
-FINALIZE_CONTEXTS = (FINALIZE_QUEUE, FINALIZE_DEVELOPER, FINALIZE_COMPOSITION)
-
-
-def finalize_change_problems(root: Path, name: str, *, context: str, requirement: str | None = None, review: bool = True) -> list[str]:
-    """Read-only archive preconditions shared by single-change and composition finalization."""
-    if context not in FINALIZE_CONTEXTS:
-        raise SystemExit(f"{name}: unknown finalize context {context!r}; expected one of {', '.join(FINALIZE_CONTEXTS)}")
-    finalize = context in (FINALIZE_QUEUE, FINALIZE_COMPOSITION)
+def finalize_change_problems(root: Path, name: str, *, review: bool = True) -> list[str]:
+    """Read-only archive preconditions, all reported together."""
     # Fail closed on a nonexistent or malformed target before any state changes.
     require_existing_archive_target(root, name, source="archive")
     config = read_platform_config(root)
-    mode = lifecycle_mode(config)
-    if context == FINALIZE_COMPOSITION:
-        if mode != "coordinator":
-            raise SystemExit("composition finalization requires a coordinator source contract")
-        if not isinstance(requirement, str) or not requirement.strip():
-            raise SystemExit(f"{name}: composition finalization requires an explicit Requirement identity")
-    elif requirement is not None:
-        raise SystemExit(f"{name}: Requirement identity is only valid for composition finalization")
-    if not finalize and mode == "coordinator":
-        from pr_review_gate import managed_candidate
-
-        if managed_candidate(root):
-            # A candidate is handed off with its change active; an archived task is no
-            # longer a candidate and would publish through the strict terminal path (BR-940).
-            raise SystemExit(
-                f"{name}: a developer does not archive a coordinator candidate; the coordinator's finalize archives it. "
-                "Hand off the active change: `python3 scripts/execute_requirement.py advance --requirement <owner/repo#N>` "
-                "for a Requirement child, otherwise `python3 scripts/dogfood_task.py finish`."
-            )
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(config) == "platform"
     problems: list[str] = []
@@ -900,7 +815,7 @@ def finalize_change_problems(root: Path, name: str, *, context: str, requirement
         private_lineage.require_clean_candidate(root)
     except private_lineage.PrivateLineageError as exc:
         problems.append(f"{name}: archive blocked by private lineage before review, checks, evidence writes or OpenSpec mutation: {exc}")
-    if platform_owned and not finalize and (change / ".managed-task.json").is_file():
+    if platform_owned and (change / ".managed-task.json").is_file():
         try:
             source_issue = source_issue_for_provenance(root, change)
             if not isinstance(source_issue, str):
@@ -912,34 +827,22 @@ def finalize_change_problems(root: Path, name: str, *, context: str, requirement
             )
         except ManagedTaskError as exc:
             problems.append(f"{name}: managed checkout identity: {exc}")
-    problems.extend(static_archive_problems(change, platform_owned=platform_owned, review=False, routing=not finalize))
-    if not finalize:
-        collect_problem(problems, require_committed_package, root, change)
-    if platform_owned and not finalize:
+    problems.extend(static_archive_problems(change, platform_owned=platform_owned, review=False))
+    collect_problem(problems, require_committed_package, root, change)
+    if platform_owned:
         collect_problem(problems, require_applicable_committed_diff, root)
     # Review evidence is only required here: archive never runs a review; it runs outside archive.
-    if context == FINALIZE_COMPOSITION:
-        from lifecycle_workers import WorkerError
-        from requirement_contributions import ContributionError
-        from requirement_composition import require_archive_evidence
-        try:
-            require_archive_evidence(root, name, requirement)
-        except (SystemExit, WorkerError, ContributionError) as exc:
-            problems.append(f"{name}: {exc}")
-    elif review:
+    if review:
         collect_problem(problems, require_review_evidence, root, change)
     return problems
 
 
-def finalize_change(root: Path, name: str, *, context: str, requirement: str | None = None,
-                    env: dict[str, str] | None = None) -> int:
+def finalize_change(root: Path, name: str, *, env: dict[str, str] | None = None) -> int:
     """Archive a verified change, reporting all preconditions before doing archive work.
 
-    Queue and composition finalization reuse the coordinator's proven gates; the
-    composition context selects Requirement review evidence. Developer finalization
-    establishes selected-check evidence in its own checkout. No context launches review.
+    Selected-check evidence is established in this checkout. Finalization never launches review.
     """
-    problems = finalize_change_problems(root, name, context=context, requirement=requirement)
+    problems = finalize_change_problems(root, name)
     if problems:
         raise SystemExit(
             f"{name}: archive blocked before any archive work; every unmet precondition:\n"
@@ -947,8 +850,7 @@ def finalize_change(root: Path, name: str, *, context: str, requirement: str | N
         )
     change = root / "openspec" / "changes" / name
     platform_owned = harness_mode(read_platform_config(root)) == "platform"
-    finalize = context in (FINALIZE_QUEUE, FINALIZE_COMPOSITION)
-    if not finalize and platform_owned:
+    if platform_owned:
         evidence = change / AUTOMATED_EVIDENCE_FILE
         # One receipt for archive and finish: evidence that proves this task content is not run again.
         reused = False
@@ -962,13 +864,13 @@ def finalize_change(root: Path, name: str, *, context: str, requirement: str | N
 
             check_env = archive_target_environment(root, name)
             run_checked(
-                ["python3", "scripts/select_checks.py", "--base", evidence_base(root, name), "--execute",
+                ["python3", "scripts/select_checks.py", "--base", "origin/main", "--execute",
                  "--evidence", str(evidence)],
                 root,
                 env=check_env,
                 pass_fds=child_lease_descriptors(check_env),
             )
-    require_ready(change, platform_owned=platform_owned and not finalize, reviewed_composition=context == FINALIZE_COMPOSITION)
+    require_ready(change, platform_owned=platform_owned)
     executable = shutil.which("openspec")
     if not executable:
         raise SystemExit("OpenSpec CLI is required to archive a verified change")
@@ -982,23 +884,15 @@ def finalize_change(root: Path, name: str, *, context: str, requirement: str | N
 def main() -> int:
     parser = argparse.ArgumentParser(description="Enforce the OpenSpec verify/archive completion contract.")
     sub = parser.add_subparsers(dest="command", required=True)
-    check = sub.add_parser("check", help="Fail if a completed change is still active where archive is required.")
-    check.add_argument("--stage", choices=(STAGE_CANDIDATE, STAGE_INTEGRATION),
-                       help="integration is strict; candidate allows a completed managed change before finalization")
-    archive = sub.add_parser("archive", help="Archive a completed, semantically verified change.")
+    sub.add_parser("check", help="Fail if a completed change is still active.")
+    archive = sub.add_parser("archive", help="Refused: finish (or Requirement advance) archives a verified change.")
     archive.add_argument("change")
-    archive.add_argument("--finalize", action="store_true",
-                         help="coordinator finalization of a reviewed candidate: reuse review and check evidence")
     args = parser.parse_args()
     root = current_worktree_root()
     if args.command == "check":
-        return check_hygiene(root, args.stage)
-    if not args.finalize:
-        mode = lifecycle_mode(read_platform_config(root))
-        executor = "the queue finalize job" if mode == "coordinator" else "finish (or Requirement advance for a ready child)"
-        raise SystemExit(f"{args.change}: developer archive is refused; {executor} runs review and finalization. "
-                         "The --finalize flag is reserved for the trusted archiver.")
-    return finalize_change(root, args.change, context=FINALIZE_QUEUE)
+        return check_hygiene(root)
+    raise SystemExit(f"{args.change}: developer archive is refused; finish (or Requirement advance for a ready child) "
+                     "runs review and finalization.")
 
 
 if __name__ == "__main__":

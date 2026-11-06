@@ -65,11 +65,9 @@ Before archiving a non-trivial platform change, run relevant tests plus semantic
 
 ### Independent review evidence
 
-Portable finish and portable Requirement advance require independent review for
-every managed change, including light projects. Outside those executors,
-`[independent_review] enabled = true` requires review for material managed
-changes (the central repository enables it; the downstream template default is
-`false`). The optional setting cannot disable portable finalization review.
+Independent review is optional. With `[independent_review] enabled = true` finish and
+Requirement advance require it for managed changes; without that setting it runs only by
+hand through `scripts/independent_review.py`, and the template default is `false`.
 Quick tasks without managed provenance are never reviewed.
 
 The platform launches the reviewer itself. Each of the two perspectives
@@ -105,7 +103,7 @@ run it right after routing a managed task and before implementation. A
 missing binary, nonzero exit, error result or timeout names the CLI's own
 bounded error and the next step: log the CLI in, point
 `DEV_PLATFORM_CLAUDE_BIN` at the Claude Code CLI, or change the
-`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, coordinator candidates become `blocked-retryable` with a fresh review job. `run` performs the
+`[model_routing]` / `[independent_review]` binding for this account. No other model or provider is tried unless `[independent_review] providers = ["codex", "claude"]` explicitly declares that ordered fallback. Only listed providers are probed; reports retain requested provider, executed provider and fallback reason. If all are unavailable, the review stops with that limitation. `run` performs the
 same preflight first; when it fails, both perspectives are recorded as
 `unavailable` with that limitation and no perspective is launched.
 
@@ -153,7 +151,7 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-Archive never launches review. Without a queue, finish runs the required independent review stage before shared finalization; the queue review job owns that stage for coordinator candidates. Finalization requires its evidence. Archive evaluates every precondition
+Archive never launches review. Finish runs the independent review when `[independent_review] enabled = true` before shared finalization; finalization then requires its evidence. Archive evaluates every precondition
 (tasks, receipt, review evidence, routing, automated-check evidence, committed
 package, private lineage, checkout identity) before any archive work and fails
 once listing each unmet one with its fix. `finish` re-validates the evidence
@@ -173,7 +171,7 @@ A platform change is not done merely because its task checkboxes are complete. A
 
 1. record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change's `verification.md`;
 2. commit the package (tasks, delta specs, receipt);
-3. run finish, which requires independent review, invokes shared finalization, commits the archive and publishes; coordinator candidates hand off to the queue review and finalize jobs.
+3. run finish, which runs the independent review when it is enabled, invokes shared finalization, commits the archive and publishes.
 
 A delta that creates a capability absent from `openspec/specs` must carry an
 authored `## Purpose` section before its `## ADDED Requirements`. OpenSpec reads
@@ -182,21 +180,10 @@ a delta Purpose only when it creates the capability; without one it writes a
 rejects. Archive preflight therefore rejects a new-capability delta whose
 Purpose is missing, empty or a placeholder (`TBD`, `TODO`, `FIXME`) before
 review, checks, evidence writes or any mutation, and names the delta file. The
-same archive-content predicate (tasks complete, new-capability Purpose in
-contribution order) runs at developer handoff, before a composition review is
-offered or launched, and before composition finalization archives any child.
+same archive-content predicate (tasks complete, new-capability Purpose) runs
+before a review is launched.
 
-A Requirement contribution binds review, task-content identity, selected checks
-and finalization to one contribution base. The base moves only to a head of the
-requirement branch that descends from it: `reconcile`, or an integration repair
-that merged the target. Earlier evidence survives the move only when task content
-is proven equivalent or the head is proven to be the merge of the target alone;
-anything else returns to review on the new base. Selected checks of a contribution
-run under `--contribution-base`, scoped to that base; the proven-base merge-base
-rule with `origin/<main>` applies only to main-target candidates. Composition
-recomputes each child identity from its recorded base and exact head.
-
-Outside coordinator finalization, archive also rejects uncommitted or untracked
+Archive also rejects uncommitted or untracked
 authored package files (proposal, design, tasks, delta specs, `verification.md`)
 and main-spec files before review or checks, listing the paths and the commit
 command; evidence the lifecycle helpers write themselves (review evidence,
@@ -219,7 +206,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 Archive preflight checks this exact marker before it runs selected checks or writes evidence, so a missing receipt is actionable before archive mutation. Add the marker only when the generated evidence will truthfully name the checks the helper ran. This requirement does not apply to `harness_mode=project`, where repository CI remains the product-verification authority.
 
-Developers run finish or Requirement advance. `openspec_lifecycle.py archive` without `--finalize` refuses before archive work and names finish or the queue finalize job. `--finalize` is reserved for the trusted archiver.
+Developers run finish or Requirement advance. `openspec_lifecycle.py archive` refuses before archive work and names finish.
 
 Completed-but-active changes are treated as lifecycle debt and are blocked by platform CI.
 
@@ -241,26 +228,4 @@ launching a reviewer for these candidates. Selected-check evidence records the
 same lifecycle-excluding task-content proof as review and is reused during
 archive when unchanged. Missing or changed proofs fail closed. Required-check
 gates also carry candidate identity; GitHub protected merge still requires its
-own exact-head checks. A `finalize` job (`post_review_finalization.py`) then runs
-`openspec_lifecycle.py archive <change> --finalize` in a disposable checkout,
-reusing the review and selected-check evidence for the unchanged task-content
-identity, and the candidate becomes `ready`; a later task-content change returns
-it to review. When selected checks must be re-established because a review repair
-changed the task content, the finalize job runs the real selected checks under the
-bounded `select_checks.py --proven-base <sha>` contract, where `<sha>` is the
-task-content base of the identity it proved equivalent to the recorded one, instead
-of requiring the head to contain current `main`; the harness-executed evidence
-records that contract and base. Finalization never fetches or merges `main`: base
-actualization, the clean merge of current `main`, required CI on the merged head and
-integration repair belong to the integration contour (see
-[agent-workflow.md](agent-workflow.md#candidate-and-integration-contours)). A developer
-re-admission of a descendant head with unchanged task content keeps the passed review,
-so the review job completes without launching a reviewer. A completed-but-active change is blocked at integration admission
-and merge (`openspec_lifecycle.py check --stage integration`, strict on `main`
-and for non-coordinator finish), not at PR publication. When main changed only
-the archive-derived current-spec paths of the candidate's own capabilities, the
-coordinator re-derives them by replaying the archived deltas on main; this is
-bookkeeping, required checks still run, and a failed replay is integration
-repair. In the same derived merge the coordinator regenerates files that its
-default branch declares generated (`[[generated_files]]`), running the declared
-command from default-branch code over the merged tree. This handoff does not claim terminal delivery.
+own exact-head checks. A completed-but-active change is blocked by `openspec_lifecycle.py check`, strict on every branch: finish archives before it publishes.

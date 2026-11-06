@@ -168,18 +168,18 @@ class TaskEvidenceConditionTests(unittest.TestCase):
 
 class TaskBaseTests(unittest.TestCase):
     def check(self, freshness: task_reconciliation.Freshness, **overrides) -> preflight.ConditionResult:
-        with mock.patch.object(task_reconciliation, "observe_candidate", return_value=freshness):
+        with mock.patch.object(task_reconciliation, "observe", return_value=freshness):
             return preflight.check_task_base(context(Path("."), **overrides))
 
-    def test_behind_mergeable_passes_like_the_gate(self) -> None:
-        self.assertEqual(preflight.PASSED, self.check(task_reconciliation.Freshness("behind-mergeable", "abc", "main", merge_base="def")).state)
+    def test_a_task_containing_main_passes(self) -> None:
+        self.assertEqual(preflight.PASSED, self.check(task_reconciliation.Freshness("ahead", "abc", "main")).state)
 
-    def test_a_conflict_with_main_is_refused_with_the_files_and_the_reconcile_command(self) -> None:
-        freshness = task_reconciliation.Freshness("diverged", "abc", "main", detail="a trial merge conflicts in a.py, b.py")
-        with self.assertRaises(preflight.PreflightRefusal) as refused:
-            self.check(freshness)
-        self.assertIn("a.py, b.py", str(refused.exception))
-        self.assertIn(RECONCILE_COMMAND, str(refused.exception))
+    def test_a_task_behind_main_is_refused_with_the_reconcile_command(self) -> None:
+        for state in ("behind", "diverged"):
+            with self.subTest(state=state), self.assertRaises(preflight.PreflightRefusal) as refused:
+                self.check(task_reconciliation.Freshness(state, "abc", "main"))
+            self.assertIn(f"{state} relative to freshly observed main", str(refused.exception))
+            self.assertIn(RECONCILE_COMMAND, str(refused.exception))
 
     def test_a_waiver_is_reported_not_silently_skipped(self) -> None:
         result = self.check(task_reconciliation.Freshness("diverged", "abc", "main"), task_base_waiver="declared")
@@ -307,7 +307,6 @@ class FinishWiringTests(unittest.TestCase):
             current_worktree_root=mock.Mock(return_value=Path("/work")),
             main_root=mock.Mock(return_value=Path("/work")),
             read_platform_config=mock.Mock(return_value=config),
-            lifecycle_mode=mock.Mock(return_value="portable"),
             scm_provider=mock.Mock(return_value=provider),
             harness_mode=mock.Mock(return_value="platform"),
             profile=mock.Mock(return_value="multi-agent"),
@@ -343,13 +342,12 @@ class FinishWiringTests(unittest.TestCase):
 
 class SelectorWiringTests(unittest.TestCase):
     def args(self, **overrides) -> Namespace:
-        values = dict(proven_base=None, contribution_base=None, scope_gate="enforce", task_evidence=False, mode="local-affected")
+        values = dict(scope_gate="enforce", task_evidence=False, mode="local-affected")
         values.update(overrides)
         return Namespace(**values)
 
     def test_the_waiver_reasons_follow_the_declared_mode(self) -> None:
         root = Path(".")
-        self.assertIn("proven-base", select_checks.selector_scope_waiver(root, self.args(proven_base="abc"), True))
         self.assertIsNone(select_checks.selector_scope_waiver(root, self.args(), True))
         self.assertIn("neither starts the full validation set", select_checks.selector_scope_waiver(root, self.args(), False))
 
@@ -357,8 +355,7 @@ class SelectorWiringTests(unittest.TestCase):
         captured = []
         with mock.patch.object(preflight, "run_preflight", side_effect=lambda ctx: captured.append(ctx)), \
                 mock.patch.object(select_checks, "main_root", return_value=Path(".")), \
-                mock.patch.object(select_checks, "run_git") as run_git, \
-                mock.patch.object(select_checks, "coordinator_contract", return_value=False):
+                mock.patch.object(select_checks, "run_git") as run_git:
             run_git.return_value.stdout = "agent/x\n"
             select_checks.run_selector_preflight(Path("."), self.args(), [{"id": "c", "commands": ["x"], "selection_reason": "unknown-path"}], None)
             select_checks.run_selector_preflight(Path("."), self.args(), [{"id": "c", "commands": ["x"], "selection_reason": "mapped"}], None)
@@ -374,7 +371,6 @@ class SelectorWiringTests(unittest.TestCase):
                 mock.patch.object(select_checks, "read_platform_config", return_value={"harness_mode": "platform", "main_branch": "main"}), \
                 mock.patch.object(select_checks, "require_managed_checkout_identity", return_value=None), \
                 mock.patch.object(select_checks, "require_clean_private_lineage"), \
-                mock.patch.object(select_checks, "coordinator_contract", return_value=False), \
                 mock.patch.object(select_checks, "require_fresh_task_base", return_value="abc"), \
                 mock.patch.object(sys, "argv", ["select_checks.py", "--execute", "--mode", "protected-full", "--scope-gate", "not-applicable"]), \
                 redirect_stdout(io.StringIO()):

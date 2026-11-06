@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import subprocess
@@ -34,7 +35,7 @@ def configure(repo: Path) -> None:
 def install_scripts(repo: Path) -> None:
     target = repo / "scripts"
     target.mkdir(exist_ok=True)
-    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "lifecycle_preflight.py", "managed_project_status.py", "finish_task.py", "worktree_cleanup.py", "openspec_lifecycle.py", "requirement_integration.py", "managed_task.py", "managed_work_identity.py", "private_lineage.py", "start_tier_routing.py"):
+    for name in ("_platform_common.py", "shared_workspace.py", "local_workspace.py", "agent_board.py", "delegation_containment.py", "integration_state.py", "project_publish.py", "publication_state.py", "task_reconciliation.py", "lifecycle_preflight.py", "managed_project_status.py", "finish_task.py", "worktree_cleanup.py", "openspec_lifecycle.py", "requirement_integration.py", "managed_task.py", "managed_work_identity.py", "private_lineage.py", "start_tier_routing.py", "independent_review.py", "task_content_identity.py"):
         shutil.copy2(SCRIPT_SOURCE / name, target / name)
 
 
@@ -220,7 +221,7 @@ class PublicationRecoveryCliTests(unittest.TestCase):
             f'  if [ -d "{created}" ]; then printf \'[{{"number":11,"url":"https://example.invalid/pr/11","state":"OPEN","headRefOid":"{head}","baseRefName":"main","headRefName":"agent/reopen"}}]\'; else printf \'[{{"number":10,"url":"https://example.invalid/pr/10","state":"CLOSED","headRefOid":"{head}","baseRefName":"main","headRefName":"agent/reopen"}}]\'; fi; exit 0\n'
             'fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  remote_head=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null); if [ "$remote_head" = "{head}" ]; then printf \'{{"state":"MERGED","headRefOid":"{head}"}}\'; else printf \'{{"state":"OPEN","headRefOid":"{head}"}}\'; fi; exit 0\n'
+            f'  remote_head=$(git --git-dir "$FAKE_REMOTE" rev-parse refs/heads/main 2>/dev/null); if [ "$remote_head" = "{head}" ]; then printf \'{{"state":"MERGED","headRefOid":"{head}","baseRefName":"main"}}\'; else printf \'{{"state":"OPEN","headRefOid":"{head}","baseRefName":"main"}}\'; fi; exit 0\n'
             'fi\n'
             f'if [ "$1" = "pr" ] && [ "$2" = "create" ]; then mkdir "{created}"; echo "https://example.invalid/pr/11"; exit 0; fi\n'
             'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
@@ -350,122 +351,96 @@ class PublicationRecoveryConcurrencyTests(unittest.TestCase):
         self.assertEqual(results[0]["url"], results[1]["url"])
         self.assertEqual(results[0]["url"], "https://example.invalid/pr/42")
 
-    def test_two_merge_requests_for_the_same_exact_head_are_convergent(self) -> None:
-        # Only one process's `gh pr merge` call actually flips the ref; the
-        # other observes MERGED and treats it as success rather than erroring.
-        merge_lock = self.base / "merge-lock"
-        remote = self.base / "remote-race.git"
-        run("git", "init", "--bare", str(remote), cwd=self.base)
-        git("remote", "add", "origin", str(remote), cwd=self.root)
-        git("push", "-u", "origin", "main", cwd=self.root)
-        git("push", "-u", "origin", "agent/race", cwd=self.root)
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$5" = "state,headRefOid" ]; then\n'
-            f'    remote_head=$(git --git-dir "{remote}" rev-parse refs/heads/main 2>/dev/null)\n'
-            f'    if [ "$remote_head" = "{self.head}" ]; then printf \'{{"state":"MERGED","headRefOid":"{self.head}"}}\'; else printf \'{{"state":"OPEN","headRefOid":"{self.head}"}}\'; fi\n'
-            '    exit 0\n'
-            '  fi\n'
-            '  exit 1\n'
-            'fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
-            f'  if mkdir "{merge_lock}" 2>/dev/null; then\n'
-            f'    git --git-dir "{remote}" update-ref refs/heads/main "{self.head}"; exit 0\n'
-            '  fi\n'
-            '  exit 1\n'
-            'fi\n'
-            'exit 1'
-        )
-        worker = (
-            "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
-            "import os; import project_publish; "
-            "root = Path(sys.argv[2]); env = os.environ.copy(); "
-            "outcome = project_publish.request_protected_merge(root, env, 'agent/race', project_publish.PrRef(42, 'https://example.invalid/pr/42'), 'origin', sys.argv[3]); "
-            "print(outcome)"
-        )
-        procs = [
-            subprocess.Popen(
-                [sys.executable, "-c", worker, str(SCRIPT_SOURCE), str(self.root), self.head],
-                env=env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            for _ in range(2)
-        ]
-        outcomes = []
-        for index, proc in enumerate(procs):
-            stdout, stderr = communicate_within_deadline(proc, description=f"merge worker {index}")
-            self.assertEqual(proc.returncode, 0, stderr)
-            outcomes.append(stdout.strip().splitlines()[-1])
-        self.assertEqual(outcomes, ["merged", "merged"])
-        self.assertEqual(
-            run("git", "--git-dir", str(remote), "rev-parse", "refs/heads/main", cwd=self.base).stdout.strip(),
-            self.head,
-        )
+class ProtectedMergeRequestTests(unittest.TestCase):
+    """project_publish.request_protected_merge: one exact-head request, explicit refusals, no fallback."""
 
-
-class ExactHeadMergeGuardTests(unittest.TestCase):
-    """Direct tests of project_publish.request_protected_merge's fail-closed guard."""
+    HEAD = "a" * 40
+    MERGE = ["gh", "pr", "merge", "8", "--auto", "--squash", "--match-head-commit", HEAD]
 
     def setUp(self) -> None:
-        self.tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self.tmp.name)
-        git("init", "-b", "main", cwd=self.root)
-        configure(self.root)
-        (self.root / "f.txt").write_text("base\n", encoding="utf-8")
-        git("add", ".", cwd=self.root)
-        git("commit", "-m", "base", cwd=self.root)
-        git("switch", "-c", "agent/guard", cwd=self.root)
-        (self.root / "f.txt").write_text("feature\n", encoding="utf-8")
-        git("commit", "-am", "feature", cwd=self.root)
-        self.head = git("rev-parse", "agent/guard", cwd=self.root).stdout.strip()
-        self.bin = self.root / "bin"
-        self.bin.mkdir()
-        sys.path.insert(0, str(SCRIPT_SOURCE))
-
-    def tearDown(self) -> None:
-        self.tmp.cleanup()
-
-    def fake_gh(self, body: str) -> dict[str, str]:
-        gh = self.bin / "gh"
-        gh.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8")
-        gh.chmod(0o755)
-        env = os.environ.copy()
-        env["PATH"] = str(self.bin) + os.pathsep + env["PATH"]
-        return env
-
-    def test_merge_request_fails_closed_when_head_changed_since_validation(self) -> None:
         import project_publish
+        import publication_state
 
-        changed_head = "1" * 40
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then echo "rejected" >&2; exit 1; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then\n'
-            f'  if [ "$4" = "--json" ] && [ "$5" = "headRefOid" ]; then printf \'{{"headRefOid":"{changed_head}"}}\'; exit 0; fi\n'
-            f'  if [ "$4" = "--json" ] && [ "$5" = "state,headRefOid" ]; then printf \'{{"state":"OPEN","headRefOid":"{changed_head}"}}\'; exit 0; fi\n'
-            '  exit 1\n'
-            'fi\n'
-            'exit 1'
-        )
-        with self.assertRaisesRegex(SystemExit, "PR head changed"):
-            project_publish.request_protected_merge(
-                self.root, env, "agent/guard", project_publish.PrRef(8, "https://example.invalid/pr/8"), "origin", self.head
-            )
+        self.publish = project_publish
+        self.state = publication_state.RequiredCheckState
+        self.pr = project_publish.PrRef(8, "https://example.invalid/pr/8")
 
-    def test_merge_unavailable_without_head_change_falls_back_gracefully(self) -> None:
-        import project_publish
+    def request(self, state, *, merge_exit: int = 0, stderr: str = "", merged: bool = True):
+        """Run one merge request; return the recorded gh commands, the merge wait and the branch cleanup."""
+        done = subprocess.CompletedProcess([], merge_exit, "", stderr)
+        with mock.patch.object(self.publish, "required_check_state_for_ref", return_value=state) as checks, \
+                mock.patch.object(self.publish.subprocess, "run", return_value=done) as run, \
+                mock.patch.object(self.publish, "wait_for_pr_merged", return_value=merged) as wait, \
+                mock.patch.object(self.publish, "delete_remote_branch") as cleanup:
+            try:
+                self.publish.request_protected_merge(Path("/unused"), {}, "agent/guard", self.pr, "origin", self.HEAD)
+            finally:
+                self.calls = [call.args[0] for call in run.call_args_list]
+                self.wait, self.cleanup = wait, cleanup
+        checks.assert_called_once_with(Path("/unused"), {}, self.pr.ref, self.HEAD)
 
-        env = self.fake_gh(
-            'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then echo "auto-merge is not allowed" >&2; exit 1; fi\n'
-            'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then exit 1; fi\n'
-            'exit 1'
-        )
-        with mock.patch.object(project_publish, "MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS", 0):
-            outcome = project_publish.request_protected_merge(
-                self.root, env, "agent/guard", project_publish.PrRef(8, "https://example.invalid/pr/8"), "origin", self.head
-            )
-        self.assertEqual(outcome, "unavailable")
+    def test_passed_or_pending_checks_make_one_auto_merge_request_for_the_exact_head(self) -> None:
+        for kind in ("passed", "pending"):
+            with self.subTest(kind=kind):
+                self.request(self.state(kind))
+                self.assertEqual(self.calls, [self.MERGE])
+                self.wait.assert_called_once()
+                self.cleanup.assert_called_once_with(Path("/unused"), "origin", "agent/guard")
+
+    def test_no_required_checks_is_a_refusal_not_a_pass(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "no required checks.*nothing would gate the merge.*pr_merge_mode=manual"):
+            self.request(self.state("not_registered", detail="no required check is attached"))
+        self.assertEqual(self.calls, [])
+        self.wait.assert_not_called()
+
+    def test_failed_or_unknown_checks_are_refused_before_any_merge_request(self) -> None:
+        for state, message in ((self.state("failed", detail="platform-ci failed"), "Required PR checks failed.*platform-ci failed"),
+                               (self.state("unknown", detail="gh failed", cause="transport"), r"state is unknown \(transport\): gh failed")):
+            with self.subTest(kind=state.kind):
+                with self.assertRaisesRegex(SystemExit, message):
+                    self.request(state)
+                self.assertEqual(self.calls, [])
+                self.wait.assert_not_called()
+
+    def test_github_rejection_stops_with_the_reason_and_no_retry_or_fallback(self) -> None:
+        with mock.patch.object(self.publish.time, "sleep") as pause:
+            with self.assertRaisesRegex(SystemExit, f"GitHub refused auto-merge for exact head {self.HEAD}: auto-merge is not allowed"):
+                self.request(self.state("passed"), merge_exit=1, stderr="auto-merge is not allowed")
+        self.assertEqual(self.calls, [self.MERGE], "exactly one request, never a different merge mode")
+        pause.assert_not_called()
+        self.wait.assert_not_called()
+        self.cleanup.assert_not_called()
+
+    def test_foreground_wait_and_merge_chain_no_longer_exist(self) -> None:
+        for name in ("wait_for_pr_checks", "CHECK_COMPLETION_TIMEOUT_SECONDS", "MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS"):
+            self.assertFalse(hasattr(self.publish, name), name)
+
+    def test_armed_merge_not_confirmed_in_time_stays_resumable_without_cleanup(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "Auto-merge is armed.*rerun finish"):
+            self.request(self.state("pending"), merged=False)
+        self.assertEqual(self.calls, [self.MERGE])
+        self.cleanup.assert_not_called()
+
+    def test_merge_guard_wraps_only_the_merge_request(self) -> None:
+        events: list[str] = []
+
+        @contextlib.contextmanager
+        def guard():
+            events.append("guard-enter")
+            yield
+            events.append("guard-exit")
+
+        def run(command, **_kwargs):
+            events.append("merge")
+            return subprocess.CompletedProcess(command, 0, "", "")
+
+        with mock.patch.object(self.publish, "required_check_state_for_ref",
+                               side_effect=lambda *_a: events.append("checks") or self.state("passed")), \
+                mock.patch.object(self.publish.subprocess, "run", side_effect=run), \
+                mock.patch.object(self.publish, "wait_for_pr_merged", return_value=True), \
+                mock.patch.object(self.publish, "delete_remote_branch"):
+            self.publish.request_protected_merge(Path("/unused"), {}, "agent/guard", self.pr, "origin", self.HEAD, merge_guard=guard)
+        self.assertEqual(events, ["checks", "guard-enter", "merge", "guard-exit"])
 
 
 class BoundedTestDeadlineHelperTests(unittest.TestCase):

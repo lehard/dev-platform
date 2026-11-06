@@ -25,40 +25,9 @@ def context_path(root: Path, change: str) -> Path:
     return root / ".claude" / "requirement-child-context" / f"{change}.json"
 
 
-def cached_contribution(root: Path, change: str, *, requirement: str = "<its Requirement>") -> dict:
-    """Return the exact contribution boundary an existing child worktree recorded when it started."""
-    path = context_path(root, change)
-    contribution = json.loads(path.read_text()).get("contribution") if path.is_file() else None
-    if not contribution:
-        state = "records no contribution boundary" if path.is_file() else "is missing"
-        raise ManagedTaskError(
-            f"Requirement child context cache {path} {state}; the exact contribution start boundary of the existing "
-            f"child worktree {root} cannot be re-derived. Restore that cache from the child's original start, or have "
-            f"the operator retire the child worktree, then rerun "
-            f"`python3 scripts/execute_requirement.py advance --requirement {requirement}`."
-        )
-    return contribution
-
-
-def move_contribution_base(root: Path, change: str, base: str) -> None:
-    """Record the target head a reconcile merged as the new contribution base of this child worktree."""
-    path = context_path(root, change)
-    context = json.loads(path.read_text())
-    contribution = context.get("contribution")
-    if not contribution:
-        raise ManagedTaskError(f"Requirement child context {path} records no contribution to move")
-    if contribution["head"] == base:
-        return
-    for ancestor, descendant, what in ((contribution["head"], base, "the recorded contribution base"), (base, "HEAD", "HEAD")):
-        if run_git(["merge-base", "--is-ancestor", ancestor, descendant], cwd=root, check=False).returncode:
-            raise ManagedTaskError(f"contribution base cannot move to {base}: {ancestor} is not contained in {what}")
-    updated = {**context, "contribution": {**contribution, "head": base}}
-    atomic_write_text(path, json.dumps(updated, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
-
-
 def derive_context(
     root: Path, package: Package, *, issue_body: str | None = None,
-    predecessor: ReadyForIntegrationReceipt | None = None, contribution: dict | None = None,
+    predecessor: ReadyForIntegrationReceipt | None = None,
 ) -> dict[str, Any] | None:
     """Read canonical state only; never copy a sibling body or pre-authoring artifact."""
     parents = PARENT_LINE.findall(issue_body) if issue_body is not None else ([package.parent_requirement] if getattr(package, "parent_requirement", None) else [])
@@ -81,20 +50,7 @@ def derive_context(
             raise ManagedTaskError("dependent child receipt belongs to a different Requirement")
         if run_git(["merge-base", "--is-ancestor", predecessor.head, "HEAD"], cwd=root, check=False).returncode:
             raise ManagedTaskError("dependent child does not contain the exact predecessor head")
-    if contribution is not None:
-        if contribution.get("requirement") != parent:
-            raise ManagedTaskError("contribution context belongs to another Requirement")
-        expected = "requirement/BR-" + parent.rsplit("#", 1)[1]
-        if contribution.get("target_branch") != expected or contribution.get("branch") != "origin/" + expected:
-            raise ManagedTaskError("contribution target is outside its Requirement")
-        if run_git(["merge-base", "--is-ancestor", contribution["head"], "HEAD"], cwd=root, check=False).returncode:
-            raise ManagedTaskError("contribution does not contain its exact integration base")
-        for dependency in contribution.get("dependencies", []):
-            if run_git(["merge-base", "--is-ancestor", dependency["integrated_head"], "HEAD"],
-                       cwd=root, check=False).returncode:
-                raise ManagedTaskError("contribution does not contain an integrated dependency")
     return {
-        **({"contribution": contribution} if contribution else {}),
         "version": CONTEXT_VERSION,
         "requirement": parent,
         "source_issue": package.source_issue,
@@ -102,23 +58,20 @@ def derive_context(
         "repository_head": head,
         "managed_package": canonical.path.resolve().relative_to(root.resolve()).as_posix(),
         "managed_provenance_sha256": _sha256(provenance),
-        "dependencies": contribution["dependencies"] if contribution else ([{
+        "dependencies": [{
             "source_issue": predecessor.source_issue,
             "change": predecessor.change,
             "head": predecessor.head,
             "receipt_digest": predecessor.digest,
-        }] if predecessor else []),
+        }] if predecessor else [],
     }
 
 
 def refresh_context(
     root: Path, package: Package, *, predecessor: ReadyForIntegrationReceipt | None = None,
-    contribution: dict | None = None,
 ) -> Path | None:
     """Refresh the local view from discovered linkage and exact imported package."""
-    if contribution is None and context_path(root, package.change).is_file():
-        contribution = json.loads(context_path(root, package.change).read_text()).get("contribution")
-    context = derive_context(root, package, predecessor=predecessor, contribution=contribution)
+    context = derive_context(root, package, predecessor=predecessor)
     path = context_path(root, package.change)
     if context is None:
         return None
@@ -135,8 +88,7 @@ def validate_context(
         cached = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ManagedTaskError(f"Requirement child context is unavailable: {exc}") from exc
-    expected = derive_context(root, package, issue_body=issue_body, predecessor=predecessor,
-                              contribution=cached.get("contribution"))
+    expected = derive_context(root, package, issue_body=issue_body, predecessor=predecessor)
     if expected is None or cached != expected:
         raise ManagedTaskError("Requirement child context is stale; refresh it from canonical source and dependency receipts")
     return expected

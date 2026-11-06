@@ -428,10 +428,14 @@ class GitLifecycleTests(unittest.TestCase):
         fake_gh.write_text(
             "#!/bin/sh\n"
             f"echo \"$*\" >> '{gh_log}'\n"
-            + EXACT_OPEN_PR_LIST_SHIM
-            + "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
+            + "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"list\" ]; then\n"
+            f"  branch=$(git branch --show-current) || exit 1; head_sha=$(git rev-parse \"$branch\") || exit 1; if [ -f '{merged_marker}' ]; then state=MERGED; else state=OPEN; fi;\n"
+            "  printf '[{\"number\":2,\"url\":\"https://example.invalid/pr/2\",\"state\":\"%s\",\"headRefOid\":\"%s\",\"baseRefName\":\"main\",\"headRefName\":\"%s\"}]\\n' \"$state\" \"$head_sha\" \"$branch\"; exit 0\n"
+            "fi\n"
+            "if [ \"$1\" = \"auth\" ] && [ \"$2\" = \"status\" ]; then exit 0; fi\n"
             "if [ \"$1\" = \"pr\" ] && [ \"$2\" = \"view\" ]; then\n"
             "  case \" $* \" in\n"
+            "    *\" baseRefName \"*) printf '{\"baseRefName\":\"main\"}\\n'; exit 0;;\n"
             "    *\" state,headRefOid \"*)\n"
             f"      head_sha=$(git rev-parse \"$(git branch --show-current)\") || exit 1; if [ -f '{merged_marker}' ]; then state=MERGED; else state=OPEN; fi; printf '{{\"state\":\"%s\",\"headRefOid\":\"%s\"}}\\n' \"$state\" \"$head_sha\"; exit 0;;\n"
             "    *\" state,mergedAt \"*)\n"
@@ -458,14 +462,13 @@ class GitLifecycleTests(unittest.TestCase):
 
         result = run("python3", "scripts/finish_task.py", "--no-checks", "--cleanup", cwd=worktree, check=False, env=env)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertIn("GitHub confirms the PR is MERGED", result.stdout)
-        self.assertIn("Task PR passed required checks, merged through GitHub", result.stdout)
+        self.assertIn("simulated post-merge client failure", result.stderr + result.stdout)
+        self.assertEqual(gh_log.read_text(encoding="utf-8").count("pr merge"), 1)
         remote_sha = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
         local_sha = git("rev-parse", "main", cwd=self.repo).stdout.strip()
         self.assertEqual(remote_sha, local_sha)
         self.assertFalse(worktree.exists())
         self.assertNotEqual(git("show-ref", "--verify", "refs/heads/agent/pr-reconcile", cwd=self.repo, check=False).returncode, 0)
-        self.assertNotEqual(run("git", "--git-dir", str(self.remote), "show-ref", "--verify", "refs/heads/agent/pr-reconcile", cwd=self.base, check=False).returncode, 0)
         logged = gh_log.read_text(encoding="utf-8")
         self.assertNotIn("--delete-branch", logged)
         self.assertIn("pr view 2 --json state,headRefOid", logged)
@@ -534,7 +537,7 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertEqual(original_remote, run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip())
         self.assertEqual((self.repo / "feature.txt").read_text(encoding="utf-8"), "different local content\n")
 
-    def test_protected_pr_rechecks_integration_after_check_wait(self) -> None:
+    def test_protected_pr_rechecks_integration_after_the_check_read(self) -> None:
         worktree = self._protected_pr_worktree("dirty-during-checks")
         env, log = self._fake_protected_gh(dirty_during_checks=True)
         original_remote = run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip()
@@ -544,7 +547,7 @@ class GitLifecycleTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("before protected remote merge intent", result.stderr + result.stdout)
         self.assertIn("late.txt", result.stderr + result.stdout)
-        self.assertEqual(log.read_text(encoding="utf-8").count("pr merge"), 3)
+        self.assertNotIn("pr merge", log.read_text(encoding="utf-8"))
         self.assertEqual(original_remote, run("git", "--git-dir", str(self.remote), "rev-parse", "main", cwd=self.base).stdout.strip())
         self.assertEqual((self.repo / "late.txt").read_text(encoding="utf-8"), "late local state\n")
 

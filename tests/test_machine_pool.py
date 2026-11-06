@@ -28,9 +28,7 @@ platform_common = load_platform_module("_platform_common", SCRIPTS / "_platform_
 run_test_groups = load_platform_module("run_test_groups", SCRIPTS / "run_test_groups.py")
 select_checks = load_platform_module("select_checks", SCRIPTS / "select_checks.py")
 integration = load_platform_module("requirement_integration", SCRIPTS / "requirement_integration.py")
-workers = load_platform_module("lifecycle_workers", SCRIPTS / "lifecycle_workers.py")
 lifecycle = load_platform_module("openspec_lifecycle", SCRIPTS / "openspec_lifecycle.py")
-final = load_platform_module("post_review_finalization", SCRIPTS / "post_review_finalization.py")
 finish = load_platform_module("finish_task", SCRIPTS / "finish_task.py")
 
 POOL_ENV = machine_pool.POOL_ENV
@@ -890,7 +888,6 @@ class EnvironmentPropagationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             for env in (platform_common.credential_free_env(dict(source), Path(directory)),
                         platform_common.project_check_env(dict(source), Path(directory) / "home", {}, Path(directory)),
-                        workers.credential_free_env(dict(source), Path(directory)),
                         platform_common.validation_subprocess_env(source)):
                 for name in POOL_VARIABLES:
                     self.assertEqual(env[name], source[name], name)
@@ -1066,7 +1063,7 @@ class IntegrationTests(PoolFixture):
                 with machine_pool.lease(1, "nested", environ=dict(env)):
                     pass
 
-    def check_lifecycle_child_reuses_lease(self, archive: bool) -> None:
+    def test_archive_checks_child_reuses_pooled_lease(self) -> None:
         real_run = subprocess.run
         seen = []
         with self.patched_environment(), machine_pool.lease(2, "parent", hooks=fast_hooks()) as parent:
@@ -1089,30 +1086,18 @@ class IntegrationTests(PoolFixture):
                     return real_run([sys.executable, "-c", code], **kwargs)
                 return subprocess.CompletedProcess(command, 0)
 
-            with mock.patch.object(subprocess, "run", side_effect=run):
-                if archive:
-                    with contextlib.ExitStack() as stack:
-                        for name in ("require_existing_archive_target", "static_archive_problems",
-                                     "require_applicable_committed_diff", "require_committed_package", "require_review_evidence",
-                                     "require_ready", "rehearse_archive", "archive_with_recovery"):
-                            stack.enter_context(mock.patch.object(lifecycle, name))
-                        stack.enter_context(mock.patch.object(lifecycle, "completed_active_changes", return_value=["test"]))
-                        stack.enter_context(mock.patch.object(lifecycle, "read_platform_config", return_value={}))
-                        stack.enter_context(mock.patch.object(lifecycle, "harness_mode", return_value="platform"))
-                        stack.enter_context(mock.patch.object(lifecycle, "lifecycle_mode", return_value="direct"))
-                        import private_lineage
-                        stack.enter_context(mock.patch.object(private_lineage, "require_clean_candidate"))
-                        stack.enter_context(mock.patch.object(lifecycle.shutil, "which", return_value="openspec"))
-                        self.assertEqual(lifecycle.finalize_change(self.base, "test", context="developer"), 0)
-                else:
-                    def stream(command, **kwargs):
-                        self.assertTrue(any("select_checks.py" in str(arg) for arg in command))
-                        seen.append(kwargs["pass_fds"])
-                        return real_run([sys.executable, "-c", code], cwd=kwargs["cwd"], env=kwargs["env"],
-                                        pass_fds=kwargs["pass_fds"], check=False, capture_output=True, text=True)
-
-                    with mock.patch.object(final, "stream_selected_checks", side_effect=stream):
-                        final.trusted_checks_runner(self.base, dict(os.environ), proven_base="0" * 40)
+            with mock.patch.object(subprocess, "run", side_effect=run), contextlib.ExitStack() as stack:
+                for name in ("require_existing_archive_target", "static_archive_problems",
+                             "require_applicable_committed_diff", "require_committed_package", "require_review_evidence",
+                             "require_ready", "rehearse_archive", "archive_with_recovery"):
+                    stack.enter_context(mock.patch.object(lifecycle, name))
+                stack.enter_context(mock.patch.object(lifecycle, "completed_active_changes", return_value=["test"]))
+                stack.enter_context(mock.patch.object(lifecycle, "read_platform_config", return_value={}))
+                stack.enter_context(mock.patch.object(lifecycle, "harness_mode", return_value="platform"))
+                import private_lineage
+                stack.enter_context(mock.patch.object(private_lineage, "require_clean_candidate"))
+                stack.enter_context(mock.patch.object(lifecycle.shutil, "which", return_value="openspec"))
+                self.assertEqual(lifecycle.finalize_change(self.base, "test"), 0)
             self.assertEqual(seen, [parent.fds])
             self.assertEqual(len(machine_pool.read_holders(self.config)), 1)
         self.assertEqual(machine_pool.read_holders(self.config), [])
@@ -1145,19 +1130,6 @@ class IntegrationTests(PoolFixture):
                 finish.run_checks(self.base, "origin/main", False)
             self.assertEqual(seen, [parent.fds])
         self.assertEqual(machine_pool.read_holders(self.config), [])
-
-    def test_finalization_checks_child_reuses_pooled_lease(self) -> None:
-        self.check_lifecycle_child_reuses_lease(archive=False)
-
-    def test_archive_checks_child_reuses_pooled_lease(self) -> None:
-        self.check_lifecycle_child_reuses_lease(archive=True)
-
-    def test_finalization_checks_runner_declares_the_finalize_class_and_keeps_the_pool_variables(self) -> None:
-        done = subprocess.CompletedProcess("checks", 0, stdout="", stderr="")
-        with mock.patch.object(final, "stream_selected_checks", return_value=done) as run:
-            final.trusted_checks_runner(Path("/checkout"), {POOL_ENV: "/pool.toml", "KEEP": "1"}, proven_base="0" * 40)
-        env = run.call_args.kwargs["env"]
-        self.assertEqual((env[CLASS_ENV], env[POOL_ENV], env["KEEP"]), ("finalize", "/pool.toml", "1"))
 
 
 if __name__ == "__main__":

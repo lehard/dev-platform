@@ -10,15 +10,11 @@ from pathlib import Path
 
 from _platform_common import (
     GitCommandError,
-    TASK_BASE_BEHIND_MERGEABLE,
-    TaskFreshnessError,
-    task_freshness_branch,
     current_worktree_root,
     fetch_main,
     github_cli_env,
     harness_mode,
     main_root,
-    lifecycle_mode,
     pr_merge_mode,
     profile,
     protected_main,
@@ -103,52 +99,6 @@ def find_board_id(main: Path, worktree: Path, config: dict) -> str | None:
     return None
 
 
-def _board_command(main: Path, *args: str) -> None:
-    result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), *args],
-                            cwd=main, check=False, stdin=subprocess.DEVNULL)
-    if result.returncode != 0:
-        raise SystemExit(f"PR was published, but scripts/agent_board.py {' '.join(args)} failed; rerun it")
-
-
-def hand_off_board(main: Path, worktree: Path, config: dict) -> None:
-    """Keep the board claim of ``worktree`` as a handed-off record at HEAD on admission (BR-965).
-
-    The record keeps its acknowledgments for a later developer re-handoff and claims no scope.
-    """
-    board_id = find_board_id(main, worktree, config)
-    if board_id:
-        head = run_git(["rev-parse", "HEAD"], cwd=worktree).stdout.strip()
-        branch = current_branch(worktree)
-        from _platform_common import run_github_with_retry
-
-        result = run_github_with_retry(["gh", "pr", "view", branch, "--json", "number,headRefName"], cwd=worktree)
-        try:
-            pr = json.loads(result.stdout) if not result.returncode else None
-        except json.JSONDecodeError:
-            pr = None
-        if not isinstance(pr, dict) or pr.get("headRefName") != branch or not isinstance(pr.get("number"), int):
-            raise SystemExit(f"PR was published, but its number for branch {branch} cannot be read to hand the board "
-                             f"claim {board_id} off: " + (result.stderr or result.stdout).strip()[:300])
-        _board_command(main, "hand-off", "--id", board_id, "--head", head, "--pr", str(pr["number"]), "--quiet")
-
-
-def reactivate_handed_off_board(main: Path, worktree: Path, config: dict) -> None:
-    """At a re-handoff, make this worktree's handed-off claim active again; a first handoff has none."""
-    board_id = find_board_id(main, worktree, config)
-    if not board_id:
-        return
-    data = json.loads((main / config["paths"]["agent_board"]).read_text(encoding="utf-8"))
-    item = next((item for item in data["items"] if item.get("id") == board_id), None)
-    if item is None:
-        raise SystemExit(f"re-handoff blocked: board claim {board_id} disappeared while it was being read; rerun finish")
-    if item.get("handed_off"):
-        result = subprocess.run(["python3", str(main / "scripts" / "agent_board.py"), "reactivate", "--id", board_id],
-                                cwd=main, check=False, stdin=subprocess.DEVNULL)
-        if result.returncode != 0:
-            raise SystemExit(f"re-handoff blocked: reactivating board claim {board_id} failed; "
-                             f"rerun scripts/agent_board.py reactivate --id {board_id}")
-
-
 def finish_board(main: Path, worktree: Path, config: dict) -> None:
     """Release the board claim of ``worktree``; a failed release stops finish with the rerun command."""
     board_id = find_board_id(main, worktree, config)
@@ -204,15 +154,14 @@ def run_openspec_hygiene(root: Path) -> str | None:
     is preserved so operator review still has the signal.
     """
     script = root / "scripts" / "openspec_lifecycle.py"
-    # A non-coordinator flow publishes the change itself: a completed change must already be archived.
-    result = subprocess.run(["python3", str(script), "check", "--stage", "integration"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
+    result = subprocess.run(["python3", str(script), "check"], cwd=root, text=True, capture_output=True, stdin=subprocess.DEVNULL)
     if result.stdout:
         print(result.stdout, end="")
     if result.stderr:
         print(result.stderr, end="", file=sys.stderr)
     if result.returncode != 0:
         record_lifecycle_friction(root, "lifecycle-openspec-hygiene-failure", "OpenSpec lifecycle hygiene failed", "openspec_lifecycle check returned a non-zero exit status",
-                                  reason=f"openspec_lifecycle check --stage integration exited {result.returncode}")
+                                  reason=f"openspec_lifecycle check exited {result.returncode}")
         return (
             result.stderr.strip()
             or result.stdout.strip()
@@ -285,7 +234,7 @@ def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> di
 
     This is deliberately checked before the first-publication stale-base
     precondition: an existing exact-head PR remains resumable through GitHub
-    required checks/protection/auto-merge/queue even after the base branch has
+    required checks/protection/auto-merge even after the base branch has
     advanced, and the platform must not force a rebase merely to satisfy a
     local check that GitHub itself does not require for recovery.
     """
@@ -313,11 +262,9 @@ def resumable_remote_armed_pr(root: Path, branch: str, main_branch: str) -> dict
 
 def observe_independent_review(work: Path) -> dict:
     """Derived, file-backed independent review state for the current managed change."""
-    try:
-        from independent_review import review_state
-        from managed_task import resolve_canonical_provenance
-    except (ImportError, ModuleNotFoundError):  # Older renders have no review gate.
-        return {"state": "not-required", "next": None, "detail": None}
+    from independent_review import review_state
+    from managed_task import resolve_canonical_provenance
+
     try:
         provenance = resolve_canonical_provenance(work)
     except Exception as exc:
@@ -364,26 +311,6 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         if not as_json:
             print_independent_review(review)
         return 0
-    if config.get("platform_version") == "source":
-        from publication_queue import enabled as queue_enabled, local_status as queue_local_status
-
-        if queue_enabled(work):
-            try:
-                queued = queue_local_status(work, branch)
-            except Exception as exc:
-                queued = {"state": "blocked", "reason": str(exc)}
-            if queued is not None:
-                queued["status"] = "terminal_pending" if queued["state"] == "merged" else "publication_" + queued["state"]
-                queued["independent_review"] = review
-                if isinstance(queued.get("number"), int):
-                    from publication_queue import lifecycle_summary
-
-                    try:
-                        queued["candidate_lifecycle"] = lifecycle_summary(work, queued["number"])
-                    except Exception as exc:  # status stays read-only and best-effort
-                        queued["candidate_lifecycle"] = {"state": "unknown", "reason": str(exc)}
-                print(json.dumps(queued, indent=2) if as_json else f"status: {queued['status']} ({queued})")
-                return 0
     env = github_cli_env(work)
     obs = publication_state.observe_publication(work, integration, env, branch, main_branch)
     durability = publication_state.merge_durability_capability(config, env, work)
@@ -443,8 +370,6 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         else:
             target = freshness["freshness_target"]
             print(f"task freshness: {freshness['task_freshness']} relative to origin/{target}")
-            if freshness["task_freshness"] == "behind-mergeable":
-                print(f"no reconcile required: merge base {freshness['task_merge_base']}; the publication queue merges {target} into this coordinator candidate")
             if freshness["reconcile_required"]:
                 if freshness.get("freshness_detail"):
                     print(f"task freshness detail: {freshness['freshness_detail']}")
@@ -663,14 +588,11 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
 def reconcile_linked_parent(integration: Path, identity: object | None) -> None:
     if identity is None:
         return
-    from requirement_terminal import parent_for_child, post_merge_closes, reconcile_parent
+    from requirement_terminal import parent_for_child, reconcile_parent
     import requirement_intake
     child = identity.source_issue
     try:
         parent = parent_for_child(integration, child)
-        if parent is not None and post_merge_closes(integration):
-            print(f"Parent Requirement {parent} is closed by its post-merge jobs, not by finish.")
-            return
         if parent is not None:
             parent_issue = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(parent))
             children = requirement_intake.parse_requirement_body(str(parent_issue.get("body") or ""))["children"]
@@ -765,16 +687,13 @@ def observe_completion_blockers(
     if not clean(work):
         blockers.append(("worktree-clean", "Current worktree is dirty. Commit or remove changes first."))
 
-    # A task the queue integrates (coordinator candidate or quick task, BR-774) behind a main that
-    # merges cleanly is behind-mergeable: the queue merges main and gates on the integrated head.
-    freshness_observation = task_reconciliation.observe_candidate(work)
+    freshness_observation = task_reconciliation.observe(work)
     freshness_state = freshness_observation.state
     reconcile_required = freshness_observation.reconcile_required
     if reconcile_required:
-        detail = f" ({freshness_observation.detail})" if freshness_observation.detail else ""
         blockers.append((
             "task-freshness",
-            f"{branch} is {freshness_state} relative to freshly observed {remote_main}{detail}. "
+            f"{branch} is {freshness_state} relative to freshly observed {remote_main}. "
             f"Reconcile before expensive validation: {RECONCILE_COMMAND}",
         ))
 
@@ -782,7 +701,6 @@ def observe_completion_blockers(
         mode == "pr"
         and branch != main_branch
         and exact_open_pr is None
-        and freshness_state != TASK_BASE_BEHIND_MERGEABLE
         and run_git(["merge-base", "--is-ancestor", remote_main, branch], cwd=work, check=False).returncode != 0
     ):
         blockers.append((
@@ -802,33 +720,16 @@ def observe_completion_blockers(
     return blockers
 
 
-def fetch_freshness_branch(work: Path, main_branch: str) -> str:
-    """The freshness branch of this task; a contribution target's remote-tracking ref is refreshed in ``work``."""
-    try:
-        branch = task_freshness_branch(work, main_branch)
-    except TaskFreshnessError as exc:
-        raise SystemExit(f"Task freshness cannot be determined: {exc}") from exc
-    if branch == main_branch:
-        return branch
-    try:
-        fetch_main(work, "origin", branch)
-    except (OSError, GitCommandError) as exc:
-        raise SystemExit(f"Task freshness target origin/{branch} cannot be observed: {exc}") from exc
-    return branch
-
-
 def require_publication_task_base(work: Path, branch: str, remote_main: str) -> None:
     """Publication's fresh-base gate: the same classification as the preflight ``task-freshness`` blocker.
 
-    Main is observed again because it can move during validation. A task the queue integrates
-    (``queue_integrated``, BR-774) behind a main that merges cleanly is ``behind-mergeable`` and
-    publishes; any other head behind or diverged from main must reconcile first.
+    Main is observed again because it can move during validation; a head behind or diverged
+    from main must reconcile first.
     """
-    freshness = task_reconciliation.observe_candidate(work)
+    freshness = task_reconciliation.observe(work)
     if freshness.reconcile_required:
-        detail = f" ({freshness.detail})" if freshness.detail else ""
         raise SystemExit(
-            f"{branch} is {freshness.state} relative to freshly observed {remote_main}{detail}. "
+            f"{branch} is {freshness.state} relative to freshly observed {remote_main}. "
             f"Reconcile explicitly ({RECONCILE_COMMAND}), rerun checks, then finish."
         )
 
@@ -879,37 +780,6 @@ def report_completion_blockers(blockers: list[tuple[str, str]]) -> None:
         print(f"  - [{stage_label}] {detail}", flush=True)
 
 
-def finish_developer_handoff(work: Path, integration: Path, config: dict, branch: str,
-                             title: str | None, body: str | None) -> int:
-    """Release only this developer's board claim after confirmed PR admission."""
-    from managed_task import resolve_canonical_provenance
-    from pr_review_gate import handoff_gates
-    from lifecycle_workers import WorkerError
-    from project_publish import publish_pr
-
-    require_no_orphan_active_openspec(work)
-    delivery = resolve_canonical_provenance(work)
-    try:
-        handoff_gates(work, delivery.path)
-    except WorkerError as exc:
-        raise SystemExit("Developer handoff blocked: " + str(exc)) from exc
-    checkpoint = observe_friction_checkpoint_blocker(work, branch)
-    if checkpoint:
-        raise SystemExit(checkpoint)
-    if not clean(work):
-        raise SystemExit("Developer handoff requires a clean committed candidate and evidence")
-    enforce_scope_gate(integration, work, branch)
-    privacy = observe_private_reference_blocker(work, title, body)
-    if privacy:
-        raise SystemExit(privacy)
-    reactivate_handed_off_board(integration, work, config)
-    result = publish_pr(work, "origin", config["main_branch"], title, body,
-                        pr_merge_mode(config), config=config, developer_handoff=True)
-    if result == 0:
-        hand_off_board(integration, work, config)
-    return result
-
-
 def finalize_portable_change(work: Path) -> None:
     """Portable executor: review, shared finalize, and commit before publication/receipts."""
     from managed_task import resolve_canonical_provenance
@@ -918,32 +788,31 @@ def finalize_portable_change(work: Path) -> None:
     if canonical is None or canonical.lifecycle == "archived":
         return
     from independent_review import ensure_review_evidence
-    from openspec_lifecycle import FINALIZE_DEVELOPER, finalize_change, finalize_change_problems
+    from openspec_lifecycle import finalize_change, finalize_change_problems
 
     if not clean(work):
         raise SystemExit("Portable finalization requires a clean worktree; commit the verified candidate first.")
     # Report deterministic prerequisites before starting a reviewer. Review itself belongs
     # to this executor, so its missing evidence is checked by the review stage below.
-    problems = finalize_change_problems(work, canonical.change, context=FINALIZE_DEVELOPER, review=False)
+    problems = finalize_change_problems(work, canonical.change, review=False)
     if problems:
         raise SystemExit("Portable finalization blocked before review:\n" + "\n".join(problems))
-    ensure_review_evidence(work, canonical.path, required=True)
-    finalize_change(work, canonical.change, context=FINALIZE_DEVELOPER)
+    ensure_review_evidence(work, canonical.path)
+    finalize_change(work, canonical.change)
     run_git(["add", "--", "openspec"], cwd=work)
     run_git(["commit", "-m", f"Finalize verified OpenSpec change {canonical.change}"], cwd=work)
 
 
 def validate_or_reuse(
-    work: Path, remote_main: str, no_checks: bool, selected_mode: str, checked_delivery: object | None, *, quick_task: bool
+    work: Path, remote_main: str, no_checks: bool, checked_delivery: object | None, *, quick_task: bool
 ) -> None:
     """Run the required validation, unless recorded check evidence proves this task content passed it (BR-785).
 
     ``checked_delivery`` is the managed delivery whose automated evidence already passed
-    ``require_automated_evidence``; in the portable lifecycle it is reused by the shared rule. A quick
-    task, in either lifecycle, reuses its machine-local evidence by the same rule and otherwise runs the
-    checks recording that evidence. ``--no-checks`` and every other path validate exactly as before.
+    ``require_automated_evidence``; it is reused by the shared rule. A quick task reuses its
+    machine-local evidence by the same rule and otherwise runs the checks recording that evidence. ``--no-checks`` and every other path validate exactly as before.
     """
-    if not no_checks and (quick_task or (selected_mode == "portable" and checked_delivery is not None)):
+    if not no_checks and (quick_task or checked_delivery is not None):
         import openspec_lifecycle
 
         if quick_task:
@@ -956,25 +825,6 @@ def validate_or_reuse(
             return
     emit_finish_stage("preflight clear: starting required validation")
     run_checks(work, remote_main, no_checks, task_evidence=quick_task)
-
-
-def sync_queue_merged_task(work: Path, branch: str) -> bool:
-    """Fast-forward a task whose exact queue PR is merged to its proven merged head; whether it was merged."""
-    from publication_queue import enabled as queue_enabled, local_status as queue_local_status, sync_merged_task
-
-    if not queue_enabled(work):
-        return False
-    try:
-        queued = queue_local_status(work, branch)
-    except Exception as exc:
-        raise SystemExit("Publication queue observation blocked: " + str(exc)) from exc
-    if queued is None or queued["state"] != "merged":
-        return False
-    try:
-        sync_merged_task(work, branch, queued["number"])
-    except Exception as exc:
-        raise SystemExit("Merged PR task synchronization blocked: " + str(exc)) from exc
-    return True
 
 
 def run_finish_preflight(work: Path, integration: Path, branch: str, *, consolidated: bool) -> None:
@@ -1016,7 +866,6 @@ def main() -> int:
     work = current_worktree_root()
     integration = main_root()
     config = read_platform_config(work)
-    selected_mode = lifecycle_mode(config)
     provider = scm_provider(config)
     if args.status:
         if provider == "gitlab":
@@ -1045,52 +894,15 @@ def main() -> int:
     if not branch:
         raise SystemExit("Detached HEAD is not publishable through the platform lifecycle.")
     validate_publication_config(work, config, prof, mode)
-    # Only Dev Platform source checkouts can be coordinator-managed candidates;
-    # check that first so downstream finish never loads the coordinator stack.
-    if (mode == "pr" and provider == "github" and branch != main_branch
-            and selected_mode == "coordinator"):
-        from pr_review_gate import managed_candidate
-
-        # A merged exact PR only reconciles: synchronize to its proven merged head before any handoff,
-        # so a worktree left at a pre-finalize head never re-enters developer handoff or the scope gate.
-        if not sync_queue_merged_task(work, branch) and managed_candidate(work):
-            run_finish_preflight(work, integration, branch, consolidated=False)
-            return finish_developer_handoff(work, integration, config, branch, args.title, args.body)
     try:
         require_no_orphan_active_openspec(work)
-        canonical = resolve_canonical_provenance(work) if selected_mode == "portable" else None
+        canonical = resolve_canonical_provenance(work)
         if canonical is not None and canonical.lifecycle == "active":
             run_finish_preflight(work, integration, branch, consolidated=False)
             finalize_portable_change(work)
         delivery = require_delivery_provenance(work)
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
-
-    queue_merged = False
-    if selected_mode == "coordinator" and mode == "pr" and branch != main_branch:
-        from publication_queue import enabled as queue_enabled, local_status as queue_local_status, sync_merged_task
-
-        if queue_enabled(work):
-            try:
-                queued = queue_local_status(work, branch)
-            except Exception as exc:
-                raise SystemExit("Publication queue observation blocked: " + str(exc)) from exc
-            if queued is not None:
-                if queued["state"] in {"active", "waiting"}:
-                    # Admission of this exact head hands the developer claim off (kept for a
-                    # re-handoff, no scope); the coordinator, not a finish rerun, drives the merge.
-                    if prof == "multi-agent":
-                        hand_off_board(integration, work, config)
-                    print(f"Publication queue position {queued.get('position')}: {queued['state']}; coordinator owns final integration.")
-                    return 2
-                if queued["state"] == "blocked":
-                    raise SystemExit("Publication queue blocked: " + str(queued.get("reason")))
-                if queued["state"] == "merged":
-                    try:
-                        sync_merged_task(work, branch, queued["number"])
-                    except Exception as exc:
-                        raise SystemExit("Merged PR task synchronization blocked: " + str(exc)) from exc
-                    queue_merged = True
 
     # Durable remote auto-merge is its own resumable phase. Observe it before
     # local completion evidence/validation/publication so a bounded prior wait
@@ -1104,12 +916,8 @@ def main() -> int:
             )
             return 2
 
-    # Pre-publication evidence gates a candidate before the queue merges it. A
-    # queue-merged head carries the coordinator's integration merge of main, so
-    # its content can no longer match that evidence; only terminal
-    # reconciliation of the proven merged head remains.
     try:
-        if delivery is not None and not queue_merged:
+        if delivery is not None:
             require_automated_evidence(delivery.path, root=work)
             require_publication_review_evidence(delivery.path, root=work)
             independent_reason = require_independent_publication_exception(work, delivery)
@@ -1157,8 +965,7 @@ def main() -> int:
         return result.returncode
     emit_finish_stage("preflight: observing completion blockers")
     fetch_main(integration, "origin", main_branch)
-    # A contribution is measured and validated against its recorded target; ``work`` observes that ref.
-    remote_main = f"origin/{fetch_freshness_branch(work, main_branch)}"
+    remote_main = f"origin/{main_branch}"
 
     # Recovery is intentionally checked before local validation against the new
     # remote base. A squash-merged task branch is no longer an ancestor of main,
@@ -1194,8 +1001,7 @@ def main() -> int:
         report_completion_blockers(blockers)
         raise SystemExit(1)
 
-    validate_or_reuse(work, remote_main, args.no_checks, selected_mode, delivery if delivery is not None and not queue_merged else None,
-                      quick_task=delivery is None and not queue_merged)
+    validate_or_reuse(work, remote_main, args.no_checks, delivery, quick_task=delivery is None)
 
     # A checkout with private lineage enabled has a public distribution
     # boundary and a private Backlog. Check the exact candidate immediately
@@ -1226,22 +1032,8 @@ def main() -> int:
             command += ["--title", args.title]
         if args.body:
             command += ["--body", args.body]
-        if prof == "multi-agent":
-            reactivate_handed_off_board(integration, work, config)
         published = subprocess.run(command, cwd=work, check=False, stdin=subprocess.DEVNULL)
         if published.returncode:
-            if config.get("platform_version") == "source":
-                from publication_queue import enabled as queue_enabled, local_status as queue_local_status
-
-                if queue_enabled(work):
-                    queued = queue_local_status(work, branch)
-                    if queued is not None and queued["state"] in {"active", "waiting"}:
-                        if prof == "multi-agent":
-                            hand_off_board(integration, work, config)
-                        print(f"Publication queued at position {queued.get('position')}; rerun finish after remote merge.")
-                        return 2
-                    if queued is not None and queued["state"] == "blocked":
-                        raise SystemExit("Publication queue reports blocked: " + str(queued.get("reason")))
             if task_pr_is_already_merged(work, branch, main_branch):
                 reconcile_confirmed_remote_pr_merge(
                     work, integration, config, branch, main_branch, prof,

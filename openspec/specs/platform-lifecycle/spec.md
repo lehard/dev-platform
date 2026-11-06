@@ -151,25 +151,21 @@ A platform-owned lifecycle SHALL NOT publish directly to an integration branch d
 
 ### Requirement: Automatic task PR merge preserves zero-hand-off delivery
 
-PR publication SHALL support an automatic task merge policy that completes ordinary agent work after required GitHub checks pass, while retaining an explicit manual-review policy. Temporary check-registration delay and repository-supported async merge policy SHALL be handled inside the same lifecycle invocation. Required-check registration and terminal state SHALL be determined from structured GitHub state for the current PR head, not from human-readable CLI message matching.
+PR publication SHALL support an automatic task merge policy that completes ordinary agent work after required GitHub checks pass, while retaining an explicit manual-review policy. The merge is one action: `gh pr merge --auto --squash --match-head-commit <head>`. Required-check state SHALL be determined from structured GitHub state for the current PR head, not from human-readable CLI message matching.
 
-#### Scenario: Required checks are not registered immediately
-
-- **GIVEN** `pr_merge_mode=auto`
-- **AND** the task PR was just created or updated
-- **WHEN** structured GitHub state shows that required checks for the current PR head are not registered yet
-- **THEN** the platform waits for check registration for a bounded period
-- **AND** continues waiting for the required checks once they appear
-- **AND** does not require a manual rerun solely because registration was delayed within that bound
-
-#### Scenario: Required-check registration wait expires
+#### Scenario: No required check gates the merge
 
 - **GIVEN** `pr_merge_mode=auto`
-- **WHEN** the bounded registration wait expires before required checks are visible for the current head
-- **THEN** the PR and feature branch remain intact
-- **AND** local main remains unchanged
-- **AND** the lifecycle reports a resumable remote-pending state rather than inferring failure from CLI text
-- **AND** rerunning the same task finish operation re-queries authoritative remote state
+- **WHEN** structured GitHub state shows no required check for the current PR head
+- **THEN** the platform refuses the merge and names the missing required check
+- **AND** the PR stays open and local main remains unchanged
+
+#### Scenario: GitHub refuses auto-merge
+
+- **GIVEN** `pr_merge_mode=auto`
+- **WHEN** GitHub rejects the merge request
+- **THEN** publication stops with GitHub's reason
+- **AND** no other merge form is tried and no local wait for checks starts
 
 #### Scenario: Structured required check fails
 
@@ -179,9 +175,9 @@ PR publication SHALL support an automatic task merge policy that completes ordin
 - **AND** local main remains unchanged
 - **AND** the failing required check is reported without relying on arbitrary log text
 
-#### Scenario: Merge queue remains pending past the bounded wait
+#### Scenario: Auto-merge remains pending past the bounded wait
 
-- **GIVEN** GitHub accepted auto-merge or merge-queue enrollment
+- **GIVEN** GitHub accepted auto-merge
 - **WHEN** the bounded merge confirmation wait expires before the exact task PR reaches `MERGED`
 - **THEN** the platform does not begin local-main reconciliation
 - **AND** leaves the PR available for GitHub to continue processing
@@ -190,19 +186,10 @@ PR publication SHALL support an automatic task merge policy that completes ordin
 #### Scenario: Automatic task PR succeeds
 
 - **GIVEN** `pr_merge_mode=auto`
-- **WHEN** required PR checks succeed and GitHub accepts an ordinary protected merge
+- **WHEN** required PR checks succeed and GitHub completes the armed auto-merge
 - **THEN** the platform confirms the PR is `MERGED`
 - **AND** updates the local integration copy to the merged remote state
 - **AND** completes normal board/worktree cleanup
-
-#### Scenario: Repository requires auto-merge or merge queue
-
-- **GIVEN** `pr_merge_mode=auto`
-- **AND** required PR checks have succeeded
-- **WHEN** GitHub rejects the ordinary merge form because repository policy requires asynchronous auto-merge or merge-queue enrollment
-- **THEN** the platform tries supported non-bypass auto/queue merge forms
-- **AND** waits for GitHub to report the PR as `MERGED` for a bounded period
-- **AND** does not use an administrative bypass
 
 #### Scenario: Automatic task PR check fails
 
@@ -240,7 +227,7 @@ For PR publication, local integration branch mutation SHALL occur only after the
 
 #### Scenario: Remote wait is still in progress
 
-- **WHEN** a task is waiting for required checks, auto-merge, or merge-queue completion
+- **WHEN** a task is waiting for required checks or auto-merge completion
 - **THEN** it SHALL NOT hold the shared integration lock during that remote wait
 
 #### Scenario: Remote PR merge is rejected
@@ -436,7 +423,7 @@ Platform-owned automatic PR publication SHALL be restartable by re-observing the
 
 ### Requirement: Automatic merge intent is exact-head guarded and durable when GitHub supports it
 
-For an exact-head automatic task PR, the platform SHALL prefer to persist merge intent in native GitHub auto-merge / merge-queue state before entering a long local wait. Every protected merge request SHALL include an exact expected task-head guard.
+For an exact-head automatic task PR, the platform SHALL persist merge intent in native GitHub auto-merge state before any local wait. Every protected merge request SHALL include an exact expected task-head guard.
 
 #### Scenario: Auto-merge is armed before required checks finish
 
@@ -453,13 +440,6 @@ For an exact-head automatic task PR, the platform SHALL prefer to persist merge 
 - **THEN** the merge request fails closed through expected-head semantics
 - **AND** the changed head must be validated separately
 
-#### Scenario: Native auto-merge is not available
-
-- **WHEN** repository capability/policy does not allow the platform to persist remote automatic merge intent
-- **THEN** the existing bounded foreground required-check and protected-merge path remains available
-- **AND** the task remains safely resumable through the same exact branch/PR
-- **AND** status reports degraded remote durability rather than claiming durable remote execution
-
 ### Requirement: Existing published PR recovery is distinct from first-publication freshness
 
 The platform SHALL preserve the existing fresh-base prerequisite for first publication while allowing an already-existing exact-head task PR to continue through GitHub protection after the base advances. It SHALL NOT silently rewrite the candidate branch during recovery.
@@ -470,12 +450,12 @@ The platform SHALL preserve the existing fresh-base prerequisite for first publi
 - **AND** the configured base advances before merge
 - **WHEN** normal finish runs again
 - **THEN** it re-observes the existing PR before applying first-publication stale-base rejection
-- **AND** GitHub required checks / branch protection / merge queue determine whether integration may proceed
+- **AND** GitHub required checks and branch protection determine whether integration may proceed
 
 #### Scenario: Repository requires candidate branch update
 
 - **GIVEN** an existing exact-head PR cannot integrate because repository policy requires an updated branch
-- **AND** no supported queue/automatic integration path can satisfy that policy
+- **AND** no supported automatic integration path can satisfy that policy
 - **WHEN** recovery runs
 - **THEN** it reports the branch-update requirement as an actionable blocker
 - **AND** it does not silently mutate/rebase the task head
@@ -516,12 +496,12 @@ Repeated or concurrent platform-owned publication attempts for the same exact ta
 
 ### Requirement: Native automatic-merge capability is visible and explicitly administered
 
-For `harness_mode=platform` and `pr_merge_mode=auto`, platform diagnostics SHOULD report whether repository-native auto-merge / queue capability is available to persist the remote waiting step. Task publication SHALL NOT silently enable or disable repository-level auto-merge settings.
+For `harness_mode=platform` and `pr_merge_mode=auto`, platform diagnostics SHOULD report whether repository-native auto-merge is available; publication requires it. Task publication SHALL NOT silently enable or disable repository-level auto-merge settings.
 
 #### Scenario: Repository auto-merge is disabled
 
-- **WHEN** automatic task publication is configured but native auto-merge/queue is unavailable
-- **THEN** doctor/status reports the foreground fallback accurately
+- **WHEN** automatic task publication is configured but native auto-merge is unavailable
+- **THEN** doctor/status reports that publication will be refused
 - **AND** may provide the explicit administrative action required to enable native auto-merge
 - **AND** no repository setting is changed implicitly
 
@@ -830,7 +810,7 @@ The platform SHALL use deterministic task checklist state, required semantic ver
 
 ### Requirement: Protected remote merge revalidates integration checkout safety at the last local mutation boundary
 
-For platform-owned PR publication, immediately before the first ordinary merge, native auto-merge or merge-queue mutation for the exact validated task head, the lifecycle SHALL re-observe the integration checkout under the appropriate integration serialization boundary. Divergent uncommitted integration state SHALL block remote merge intent before GitHub is mutated.
+For platform-owned PR publication, immediately before the auto-merge request for the exact validated task head, the lifecycle SHALL re-observe the integration checkout under the appropriate integration serialization boundary. Divergent uncommitted integration state SHALL block remote merge intent before GitHub is mutated.
 
 #### Scenario: Integration remains clean after PR checks
 
@@ -843,7 +823,7 @@ For platform-owned PR publication, immediately before the first ordinary merge, 
 - **GIVEN** task start and initial publication preflight observed a clean integration checkout
 - **AND** another local actor changes integration while the PR waits remotely
 - **WHEN** required checks become ready and finish reaches the merge boundary
-- **THEN** the lifecycle observes the new dirty state before merge/auto-merge/queue mutation
+- **THEN** the lifecycle observes the new dirty state before the auto-merge request
 - **AND** blocks remote merge intent when that state is divergent
 
 #### Scenario: Divergent integration state is found before merge
@@ -928,81 +908,6 @@ For platform-owned task execution, the lifecycle SHALL refresh its observation o
 - **WHEN** the freshness check is repeated
 - **THEN** it succeeds if ancestry is now valid
 - **AND** the ordinary validation lifecycle resumes without a second special workflow
-
-#### Scenario: Coordinator finalization checks the reviewed content on its proven base
-
-- **GIVEN** a coordinator-mode finalization checkout of a reviewed candidate whose head forks from its proven base
-- **AND** `origin/<main>` has advanced past that base
-- **WHEN** selected checks are executed with that proven base
-- **THEN** the freshness gate passes, naming the coordinator-finalization contract and the base
-- **AND** the selected commands actually run and a failing command fails the invocation
-
-#### Scenario: Proven base is not a general freshness bypass
-
-- **WHEN** a proven base is passed together with evidence output, a contribution base or protected-full validation, without execution, outside the coordinator lifecycle mode, or with a commit that is not the merge base of the head and `origin/<main>`
-- **THEN** the invocation fails before any command starts, naming the violated condition
-- **AND** an invocation without a proven base on a stale head is still blocked by the fresh-base requirement
-
-#### Scenario: Coordinator candidate behind main overlapping only in the generated manifest is handed off
-
-- **GIVEN** a coordinator-managed candidate whose head does not contain the freshly fetched `origin/<main>`
-- **AND** both the candidate and `origin/<main>` changed the declared generated platform manifest, and a trial merge conflicts only there
-- **WHEN** evidence-producing selected checks, the developer handoff, re-admission or status run
-- **THEN** the freshness gate passes, naming the behind-mergeable contract, the observed main, the merge base and the generated-file conflict
-- **AND** the evidence records that contract
-- **AND** no reconcile is required
-
-#### Scenario: Coordinator candidate behind a disjoint main is handed off without reconcile
-
-- **GIVEN** a coordinator-managed candidate whose head does not contain the freshly fetched `origin/<main>`
-- **AND** the files `origin/<main>` changed since the merge base are disjoint from the candidate's changed files and a trial merge is clean
-- **WHEN** evidence-producing selected checks or the developer handoff run
-- **THEN** the freshness gate passes under the behind-mergeable contract, naming the observed main and the merge base
-- **AND** the evidence records that contract
-- **AND** no reconcile is required
-
-#### Scenario: Coordinator candidate overlapping main with a clean merge is handed off
-
-- **GIVEN** a coordinator-managed candidate whose head does not contain `origin/<main>`
-- **AND** `origin/<main>` changed an ordinary file the candidate also changed, and a trial merge is clean
-- **WHEN** evidence-producing selected checks or the developer handoff run
-- **THEN** the freshness gate passes under the behind-mergeable contract, naming the overlapping path
-- **AND** no reconcile is required
-
-#### Scenario: Coordinator candidate overlapping main must reconcile
-
-- **GIVEN** a coordinator-managed candidate whose head does not contain `origin/<main>`
-- **AND** both changed a file that is not declared generated and a trial merge conflicts in it
-- **WHEN** evidence-producing selected checks or the developer handoff run
-- **THEN** the lifecycle stops before any expensive command, naming the conflicting files and the reconcile command
-
-#### Scenario: A candidate cannot declare its own conflict generated
-
-- **GIVEN** a coordinator-managed candidate that adds a generated-file declaration for a file it conflicts in
-- **AND** the observed `origin/<main>` does not declare that file
-- **WHEN** evidence-producing selected checks or the developer handoff run
-- **THEN** the conflict blocks as a real conflict
-
-#### Scenario: Quick task under the queue behind a cleanly mergeable main is handed off
-
-- **GIVEN** the coordinator lifecycle mode with the publication queue enabled on authoritative main
-- **AND** a quick task without canonical managed provenance whose head does not contain `origin/<main>`
-- **AND** a trial merge with the observed `origin/<main>` is clean or conflicts only in declared generated files
-- **WHEN** evidence-producing selected checks or `finish` run
-- **THEN** the freshness gate passes under the behind-mergeable contract with the same answer a coordinator-managed candidate gets
-- **AND** no reconcile is required, and the queue merges main and gates on the integrated head
-
-#### Scenario: Quick task under the queue with a real conflict must reconcile
-
-- **GIVEN** a quick task under the enabled queue whose head conflicts with `origin/<main>` in a file that is not declared generated
-- **WHEN** evidence-producing selected checks or `finish` run
-- **THEN** the lifecycle stops before any expensive command, naming the conflicting files and the reconcile command
-
-#### Scenario: Non-coordinator task keeps the fresh-base rule
-
-- **GIVEN** a task the publication queue does not integrate (a task published without the coordinator queue, or a managed task that is not a coordinator candidate) whose head does not contain `origin/<main>`
-- **WHEN** evidence-producing validation is requested
-- **THEN** it is blocked by the fresh-base requirement even when the changed files are disjoint
 
 ### Requirement: Task start establishes an explicit freshness observation
 
@@ -1277,7 +1182,7 @@ The platform SHALL provide an explicit managed-task reconciliation operation for
 
 ### Requirement: Freshness drift is visible before another expensive validation run
 
-Supported task status/preflight SHALL expose when the current managed task head is behind authoritative main before the platform begins a new expensive authoritative validation cycle. For a coordinator-managed candidate whose head is behind main under the behind-mergeable contract, status SHALL report that state as not requiring reconciliation. A stale observation SHALL remain resumable rather than being reported as terminal task failure.
+Supported task status/preflight SHALL expose when the current managed task head is behind authoritative main before the platform begins a new expensive authoritative validation cycle. A stale observation SHALL remain resumable rather than being reported as terminal task failure.
 
 #### Scenario: Main advanced after prior task work
 
@@ -1286,12 +1191,6 @@ Supported task status/preflight SHALL expose when the current managed task head 
 - **WHEN** the operator asks for task status or begins the finish path
 - **THEN** the platform reports that reconciliation is required before expensive validation
 - **AND** points to the supported reconcile operation
-
-#### Scenario: Coordinator candidate behind a disjoint main
-
-- **GIVEN** a coordinator-managed candidate whose head is behind `origin/<main>` and a trial merge is clean or conflicts only in declared generated files
-- **WHEN** the operator asks for task status
-- **THEN** status reports the behind-mergeable state and that no reconciliation is required
 
 ### Requirement: Reconciliation preserves validation and publication authority
 
@@ -1597,7 +1496,7 @@ The review-path SHALL present a short shared template covering what happened and
 
 ### Requirement: Shared candidates grow append-only and are draft until complete
 
-A shared Requirement candidate manifest SHALL list the expected mandatory changes and the reviewed child contributions integrated so far.
+A shared Requirement candidate manifest SHALL list the expected mandatory changes and the verified children integrated so far.
 
 #### Scenario: Later child is appended
 
@@ -1622,7 +1521,7 @@ A shared Requirement candidate manifest SHALL list the expected mandatory change
 
 - **GIVEN** every mandatory child is present
 - **WHEN** the candidate is made ready
-- **THEN** full checks are valid for the exact final head under the composition gate rules and required CI passes on that head before the protected merge path runs
+- **THEN** full checks are valid for the exact final head and required CI passes on that head before the protected merge path runs
 - **AND** the Requirement retrospective checkpoint is not a ready or merge precondition
 
 ### Requirement: Affected-group precheck precedes full validation
@@ -1664,7 +1563,7 @@ Once every handoff of a Requirement has a linked materialized child, Requirement
 
 ### Requirement: Lifecycle GitHub calls retry classified transient failures
 
-Requirement advance, terminal reconciliation and the publication queue SHALL retry GitHub/network failures classified as transient within a bounded number of attempts with backoff, and SHALL fail closed immediately on non-transient failures. Only read calls SHALL be retried automatically; mutating calls SHALL run once.
+Requirement advance and terminal reconciliation SHALL retry GitHub/network failures classified as transient within a bounded number of attempts with backoff, and SHALL fail closed immediately on non-transient failures. Only read calls SHALL be retried automatically; mutating calls SHALL run once.
 
 #### Scenario: Connection reset during advance
 - **WHEN** a GitHub call fails with a connection reset and then succeeds
@@ -1673,131 +1572,6 @@ Requirement advance, terminal reconciliation and the publication queue SHALL ret
 #### Scenario: Persistent or non-transient failure
 - **WHEN** the failure is non-transient or persists past the bound
 - **THEN** the command reports a retryable or failed state with the bounded error
-
-### Requirement: Post-handoff lifecycle obligations are coordinator jobs
-
-After developer handoff, friction capture for review, repair, integration, fallback and retry events, the task and Requirement retrospectives, terminal reconciliation of Issue/Project/Requirement state and safe local worktree cleanup SHALL be performed by coordinator-published jobs. No manual completion pass SHALL be required on the happy path.
-
-#### Scenario: Child event in parent retrospective
-- **GIVEN** a friction event recorded for a linked child task
-- **WHEN** the Requirement retrospective checkpoint links it
-- **THEN** it is accepted without re-recording the event
-
-#### Scenario: Merge completes
-- **WHEN** GitHub reports the candidate merged
-- **THEN** terminal reconciliation and cleanup run as jobs without the developer session
-
-#### Scenario: Retrospective cannot be completed truthfully
-- **WHEN** friction attribution is ambiguous or an evidence source is unreadable
-- **THEN** the retrospective job reports it and records no clean result
-
-#### Scenario: Obligation job is interrupted or fails
-- **WHEN** a post-merge job stops or reports a failed or blocked result
-- **THEN** the same obligation is offered again within a bounded number of attempts and completed obligations are never repeated
-
-#### Scenario: Local cleanup is unsafe
-- **WHEN** the task worktree is dirty, active, outside the managed directory or holds commits absent from the merged PR
-- **THEN** cleanup refuses, reports why, and changes nothing
-
-### Requirement: Independent children execute in parallel as contributions
-
-Where source/coordinator publication is enabled, children of a multi-child Requirement without unmet dependencies SHALL be able to start and proceed in parallel, each as a contribution PR to the Requirement integration branch with its own checks, verification, review and repair. A dependent child SHALL start from the integration branch after its predecessors are integrated.
-
-#### Scenario: Two independent children
-- **WHEN** a Requirement has two children without dependencies
-- **THEN** both can be developed and reviewed at the same time
-
-### Requirement: Composition review covers only cross-child properties
-
-The Requirement candidate SHALL receive a composition review covering cross-child contract compatibility, duplicated or conflicting behavior and the Requirement-level outcome. Child content whose task-content identity is unchanged since its own review SHALL NOT be fully re-reviewed.
-
-#### Scenario: Unchanged children
-- **WHEN** all child identities are unchanged since their reviews
-- **THEN** composition review examines only interactions and the Requirement outcome
-
-#### Scenario: Reviewed contributions extend shared files
-- **GIVEN** an earlier child head and its reviewed identity are preserved in the candidate ancestry
-- **WHEN** a later reviewed contribution or composition repair extends a file changed by that child
-- **THEN** composition validates each original identity at its preserved child head and reviews the resulting composition content
-- **AND** it does not require each earlier blob to equal the final tree
-
-#### Scenario: A repaired contribution regains its gates
-- **WHEN** a contribution passes fresh review after a content-changing repair
-- **THEN** the coordinator reruns selected checks and requires fresh semantic verification bound to the repaired identity before offering contribution integration
-- **AND** stale semantic verification blocks finalization pending a refreshed developer receipt; the old PASS receipt is never automatically rebound
-- **AND** the contribution remains active until composition finalization
-
-#### Scenario: A finalized composition receives its parent retrospective
-- **WHEN** composition finalization completes
-- **THEN** no pre-merge retrospective job is offered and full checks and admission do not wait for a Requirement checkpoint
-- **AND** the parent retrospective is recorded by the post-merge retrospective job after the composition PR merges
-
-#### Scenario: Archived composition artifacts remain reviewable
-- **WHEN** composition review runs after children have been archived
-- **THEN** canonical identity paths are resolved to their actual archived Git locations in the review diff
-
-#### Scenario: Interrupted composition archive push resumes
-- **WHEN** a validated composition finalization push succeeds before its state transition is recorded
-- **THEN** recovery re-offers finalization on the recovered head to restore the finalization gate
-
-#### Scenario: Failed contribution checks offer repair
-- **WHEN** required contribution checks fail before integration
-- **THEN** the publication queue records repair-pending and publishes a runnable repair job discoverable by workers
-
-#### Scenario: Composition checks cannot access coordinator credentials
-- **WHEN** composition validation executes candidate-controlled commands
-- **THEN** commands run with credential_free_env, an isolated home and stdin disconnected
-- **AND** GH_TOKEN, GITHUB_TOKEN, SSH_AUTH_SOCK and the operator HOME are unavailable
-
-#### Scenario: Resume waits for coordinator-owned contributions
-- **WHEN** a Requirement resumes while a child has a trusted developer handoff in review, repair, finalization or integration
-- **THEN** it reports that child as in flight and does not restart it or reacquire its writer claim
-
-#### Scenario: Refreshed semantic verification can be admitted
-- **GIVEN** the same contribution's prior proven head stopped in blocked-retryable for fresh semantic verification
-- **WHEN** the developer publishes a new exact head with fresh identity-bound handoff gates
-- **THEN** admission creates a new queue slot and offers review
-- **AND** other changed-head admissions retain their exact-head refusal
-
-#### Scenario: Parent post-merge jobs include child obligations
-- **WHEN** the exact Requirement candidate merges
-- **THEN** its bounded retrospective and cleanup jobs process every child source branch, PR and head from the committed manifest before completing the parent obligation
-- **AND** interruption repeats idempotent operations and a refused child obligation blocks completion
-
-#### Scenario: Historical PRs do not consume the queue bound
-- **WHEN** a repository has at least one hundred unrelated historical PRs
-- **THEN** queue inventory remains available and applies its bound only to queued candidates
-- **AND** a merged queued contribution remains discoverable for interrupted manifest publication recovery
-
-#### Scenario: Composition review uses explicit providers
-- **WHEN** composition review is offered from the integration checkout
-- **THEN** the job carries configured providers or providers from the mandatory children's originating routes
-- **AND** it does not resolve the integration checkout's current task route
-
-#### Scenario: Hosted harness push authenticates without writer credentials
-- **WHEN** a disposable harness clone publishes a Requirement branch or manifest over GitHub HTTPS
-- **THEN** that push uses the coordinator token through a process-scoped extraheader for the clone's exact origin
-- **AND** missing credentials fail explicitly and the token is absent from command arguments, checkout configuration and error output
-
-### Requirement: Requirement retrospective reads durable coordinator evidence
-
-The Business Requirement retrospective SHALL include durable coordinator evidence recorded on the candidate pull requests of the Requirement and its linked children, in addition to the machine-local friction log, and SHALL treat it as it treats local events: it is listed by the review-path with its pull request, head, stage and worker, it may be linked or classified by the checkpoint, and mandatory lifecycle-failure and workaround signals among it SHALL be explained.
-
-#### Scenario: Evidence recorded on a discarded runner
-
-- **WHEN** the retrospective runs on a checkout whose local log contains no coordinator events
-- **THEN** the review-path lists the durable events attributed to the Requirement with their pull request, head, stage and worker
-
-#### Scenario: Mandatory durable signal
-
-- **WHEN** a durable coordinator event is a high-severity lifecycle failure or carries a workaround or override trigger
-- **THEN** the checkpoint requires it to be linked or classified like a local event
-
-#### Scenario: Durable source unreadable
-
-- **WHEN** GitHub or a trusted evidence record cannot be read
-- **THEN** the review-path reports `coordinator-evidence` as unreadable
-- **AND** the checkpoint refuses until the source is repaired or the gap is explicitly accepted
 
 ### Requirement: Heavy validation coordinates through an opt-in machine pool
 
@@ -1998,28 +1772,6 @@ A coordinator lifecycle event (`coordinator-review-repair`, `coordinator-retry`,
 - **WHEN** the coordinator records `blocked-retryable` without a red gate while the candidate waits on its exact-head required checks
 - **THEN** the transition is published and no friction event is recorded
 
-### Requirement: A contribution re-bases its integration job onto a moved requirement branch head
-
-When a reviewed contribution's integration job was offered for a requirement integration branch head that has since moved, the coordinator worker SHALL NOT silently discard it. If the moved head still contains the contribution's recorded base, the worker SHALL re-offer the same integration job for the same contribution head and identity, bound to the moved head, without merging onto a head the job was not bound to.
-
-#### Scenario: Another contribution integrated first
-
-- **GIVEN** a contribution's integration job is bound to requirement branch head A
-- **AND** the branch fast-forwarded to head B that contains the contribution base
-- **WHEN** the worker runs the job
-- **THEN** it publishes the same integration job bound to B and reports the target as moved
-- **AND** it does not merge the contribution in that run
-
-#### Scenario: Branch moves during the run
-
-- **WHEN** the requirement branch moves after the worker checked it and before the protected merge
-- **THEN** the worker re-offers the job bound to the newly observed head under the same base condition
-
-#### Scenario: Base no longer contained
-
-- **WHEN** the moved head does not contain the contribution base
-- **THEN** the job fails naming the base and the moved head, and no job is re-offered
-
 ### Requirement: Task reconcile passes the platform merge-commit hook
 
 Where the platform `pre-merge-commit` hook is installed, the supported task reconcile SHALL complete its merge of authoritative `origin/<main_branch>` in its own task worktree without a manual override. Reconcile SHALL NOT rebase or force-push.
@@ -2123,75 +1875,15 @@ For changed paths with a maintained, tested and unambiguous dependency mapping, 
 - **THEN** it can select canonical bounded test/check groups
 - **AND** it does not require the complete unit suite solely because the path belongs to a broad language or directory class
 
-### Requirement: Coordinator finalization may validate against an explicit proven base
-
-One bounded exception to the fresh task base requirement SHALL exist, for trusted coordinator finalization of a reviewed candidate. Selected-check execution SHALL accept an explicit proven base, and with it SHALL require that the head forks from exactly that commit on the remote integration branch's history, instead of requiring the head to contain the current remote integration branch.
-
-#### Scenario: Coordinator finalization supplies a proven base
-
-- **WHEN** selected-check execution receives an explicit proven base
-- **THEN** it requires that the head forks from exactly that commit on the remote integration branch's history
-- **AND** it does not require the head to contain the current remote integration branch
-
-### Requirement: A proven base is accepted only for coordinator executed checks
-
-The proven base of selected-check execution SHALL be accepted only for executed checks in the coordinator lifecycle mode. The proven base SHALL be refused, before any command starts and with an error naming the violated condition, when combined with evidence output, a contribution base or protected-full validation, or when the proven base is not the merge base of the head and the remote integration branch.
-
-#### Scenario: A proven base is combined with evidence output
-
-- **WHEN** selected-check execution receives a proven base together with evidence output, a contribution base or protected-full validation, or a proven base that is not the merge base of the head and the remote integration branch
-- **THEN** it refuses before any command starts
-- **AND** the error names the violated condition
-
-### Requirement: Tasks integrated by the publication queue form a second fresh-base exception
-
-A second bounded exception to the fresh task base requirement SHALL exist for a task the publication queue integrates: a coordinator-managed candidate, or, under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch, a quick task without canonical managed provenance. The queue integrates such a task by merging the current integration branch and gating on required checks of the integrated head.
-
-#### Scenario: A quick task runs under the queue-enabled coordinator mode
-
-- **WHEN** a quick task without canonical managed provenance runs under the coordinator lifecycle mode with the queue enabled on the authoritative integration branch
-- **THEN** it is a task the publication queue integrates
-- **AND** the fresh task base exception for queue-integrated tasks applies to it
-
-### Requirement: Queue-integrated tasks accept a behind-mergeable head
-
-For a task the publication queue integrates, the task's developer evidence-producing validation, handoff, re-admission and status SHALL accept a head that does not contain the current remote integration branch when a trial merge of the head with the observed integration head is clean, or conflicts only in files that the project declares as generated in the committed check configuration of that observed integration commit; a path changed on both sides is not by itself a reason to block.
-
-#### Scenario: A queue-integrated head is behind but merges cleanly
-
-- **WHEN** a task the publication queue integrates has a head that does not contain the current remote integration branch and a trial merge with the observed integration head is clean or conflicts only in declared generated files
-- **THEN** developer evidence-producing validation, handoff, re-admission and status accept the head
-- **AND** a path changed on both sides does not by itself block
-
-### Requirement: The behind-mergeable contract is reported and recorded
-
-The lifecycle SHALL report the behind-mergeable contract with the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts, and record the behind-mergeable contract in the evidence.
-
-#### Scenario: A behind-mergeable head is accepted
-
-- **WHEN** the lifecycle accepts a head under the behind-mergeable contract
-- **THEN** it reports the observed integration head, the merge base, the paths changed on both sides and the generated-file conflicts
-- **AND** it records the behind-mergeable contract in the evidence
-
 ### Requirement: The generated-file declaration is read from the observed integration commit
 
-The generated-file declaration SHALL be read only from the observed integration commit, never from the candidate; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files.
+The generated-file declaration SHALL be read only from the observed integration commit, never from the task branch; a malformed declaration SHALL fail explicitly, and a project without a declaration has no generated files.
 
 #### Scenario: The generated-file declaration is malformed
 
 - **WHEN** the generated-file declaration in the observed integration commit is malformed
 - **THEN** the lifecycle fails explicitly
-- **AND** a declaration in the candidate is never read
-
-### Requirement: A non-generated conflict or missing merge base blocks queue-integrated validation
-
-For a trial merge of a queue-integrated task head with the observed integration head, a conflict in any file other than the declared generated files or a missing merge base SHALL block before any expensive command, naming the conflicting files and the reconcile command.
-
-#### Scenario: A trial merge conflicts in a non-generated file
-
-- **WHEN** the trial merge conflicts in a file the project does not declare as generated, or no merge base exists
-- **THEN** the lifecycle blocks before any expensive command
-- **AND** it names the conflicting files and the reconcile command
+- **AND** a declaration on the task branch is never read
 
 ### Requirement: Evidence recorded under the behind-disjoint contract stays valid
 
@@ -2201,15 +1893,6 @@ Evidence recorded earlier under the behind-disjoint contract SHALL remain valid.
 
 - **WHEN** evidence recorded earlier under the behind-disjoint contract is checked
 - **THEN** it remains valid
-
-### Requirement: Outside the bounded exceptions the fresh-base requirement is unchanged
-
-Outside the two bounded exceptions for trusted coordinator finalization of a reviewed candidate and for a task the publication queue integrates, developer preflight, evidence-producing validation and protected CI SHALL keep the fresh-base requirement unchanged.
-
-#### Scenario: Developer validation runs outside both exceptions
-
-- **WHEN** developer preflight, evidence-producing validation or protected CI runs for a task outside both bounded exceptions
-- **THEN** the fresh-base requirement applies unchanged
 
 ### Requirement: Standard and light profiles do not acquire mandatory multi-agent coordination
 
@@ -2393,15 +2076,6 @@ A project MAY add up to five retrospective questions in a project-owned file, ea
 - **THEN** the questions beyond five are ignored with a report
 - **AND** the project questions do not replace the shared template
 
-### Requirement: Child contributions reach a shared candidate through contribution PRs
-
-Where source/coordinator publication is enabled, child contributions SHALL reach the candidate through contribution PRs targeting the Requirement integration branch and SHALL be merged into it by the coordinator after their own checks, verification and review.
-
-#### Scenario: A child contribution is ready
-
-- **WHEN** source/coordinator publication is enabled and a child contribution has passed its own checks, verification and review
-- **THEN** the coordinator merges its contribution PR into the Requirement integration branch
-
 ### Requirement: An incomplete shared candidate is published only as a draft
 
 An incomplete candidate SHALL be published only as a draft PR on its stable branch and manifest path.
@@ -2423,19 +2097,19 @@ A new manifest revision SHALL keep earlier children as an exact prefix with iden
 
 ### Requirement: A shared candidate leaves draft only when complete and finalized
 
-Ready, merge arming and queue admission SHALL require a complete manifest, composition-level review of cross-child properties, a single finalization of all children and full checks valid on the final head, allowing proven main-only gate carry. Required CI SHALL pass on the exact head before ready. These pre-merge steps SHALL NOT require the Requirement retrospective. Terminal reconciliation SHALL require the same final gates and the retrospective checkpoint.
+Ready and merge arming SHALL require a complete manifest, finalized children and full checks valid on the final head. Required CI SHALL pass on the exact head before ready. These pre-merge steps SHALL NOT require the Requirement retrospective. Terminal reconciliation SHALL require the same final gates and the retrospective checkpoint.
 
 #### Scenario: A candidate is marked ready
 
-- **WHEN** the shared candidate PR is marked ready, armed for merge or admitted to the publication queue
-- **THEN** a complete manifest, composition-level review of cross-child properties, a single finalization of all children and valid final-head full checks are required
+- **WHEN** the shared candidate PR is marked ready or armed for merge
+- **THEN** a complete manifest, finalized children and valid final-head full checks are required
 - **AND** required CI has passed on the exact head
 - **AND** the Requirement retrospective checkpoint is not required for these pre-merge steps
 
 #### Scenario: Terminal close requires the retrospective
 
 - **WHEN** terminal reconciliation closes the Requirement after delivery
-- **THEN** the final composition gates and Requirement retrospective checkpoint remain mandatory
+- **THEN** the Requirement retrospective checkpoint remains mandatory
 - **AND** a missing or stale checkpoint prevents terminal close
 
 ### Requirement: An unavailable affected-group precheck stops before the full set
@@ -2458,16 +2132,6 @@ Affected-group precheck results SHALL be recorded separately from the executed v
 - **THEN** its results are recorded separately from the executed validation commands as feedback evidence
 - **AND** the full or protected validation set is neither replaced nor shortened
 
-### Requirement: Post-handoff friction events are attributed to the candidate and its Requirement
-
-Post-handoff review, repair, integration, fallback and retry events SHALL be attributed to the candidate task and its parent Requirement, and a Requirement retrospective SHALL accept events attributed to its linked children.
-
-#### Scenario: A post-handoff repair event is recorded
-
-- **WHEN** a repair event is recorded after developer handoff
-- **THEN** it is attributed to the candidate task and its parent Requirement
-- **AND** the Requirement retrospective accepts it as an event attributed to a linked child
-
 ### Requirement: Downstream projects retain the archived-child multi-child path
 
 Downstream projects SHALL retain the existing archived-child multi-child path.
@@ -2479,33 +2143,12 @@ Downstream projects SHALL retain the existing archived-child multi-child path.
 
 ### Requirement: A single-child Requirement uses its child PR against main
 
-A single-child Requirement SHALL use its child PR against main; a coordinator-managed child SHALL publish while active for review before finalization archives it.
+A single-child Requirement SHALL use its child PR against main.
 
 #### Scenario: A Requirement has one child
 
 - **WHEN** a single-child Requirement is executed
 - **THEN** its child PR targets main
-- **AND** a coordinator-managed child publishes while active for review before finalization archives it
-
-### Requirement: An unreadable durable coordinator evidence source is reported as a gap
-
-When the durable coordinator evidence source cannot be read or contains a malformed trusted record, the evidence source `coordinator-evidence` SHALL be reported as not fully readable and the checkpoint SHALL refuse it unless the gap is explicitly accepted; an unreadable source SHALL NOT be reported as an empty one.
-
-#### Scenario: The coordinator evidence contains a malformed trusted record
-
-- **WHEN** the durable coordinator evidence source contains a malformed trusted record
-- **THEN** `coordinator-evidence` is reported as not fully readable
-- **AND** the Requirement checkpoint refuses it unless the gap is explicitly accepted
-- **AND** it is not reported as an empty source
-
-### Requirement: Developer task retrospectives do not depend on GitHub coordinator evidence
-
-Developer task retrospectives SHALL NOT depend on GitHub for durable coordinator evidence.
-
-#### Scenario: A developer task retrospective runs without GitHub
-
-- **WHEN** a developer task retrospective runs while GitHub is unavailable
-- **THEN** it does not depend on GitHub for durable coordinator evidence
 
 ### Requirement: Nested heavy validation runs reuse the parent machine pool lease
 
@@ -2632,16 +2275,6 @@ A target that is not an open router-generated friction issue SHALL be a named er
 - **WHEN** an attach decision or a consolidation names a target that is not an open router-generated friction issue
 - **THEN** the operation fails with a named error
 
-### Requirement: The publication coordinator takes the event reason from the named red gate
-
-The publication coordinator SHALL take the coordinator lifecycle event reason from the transition's named red gate and SHALL fail the transition explicitly with a named error when the gate is missing or explains nothing; a `blocked-retryable` transition without a red gate waits on exact-head required checks, is not a failed gate and SHALL record no friction event.
-
-#### Scenario: A blocked-retryable transition has no red gate
-
-- **WHEN** the publication coordinator performs a `blocked-retryable` transition without a red gate
-- **THEN** it waits on exact-head required checks
-- **AND** it records no friction event
-
 ### Requirement: Other coordinator event producers fail without reason and candidate
 
 Producers of coordinator lifecycle events other than the publication coordinator SHALL fail explicitly with a named error rather than record such an event without a bounded `reason` and a `candidate`.
@@ -2660,24 +2293,6 @@ The router SHALL render the reason and candidate of a coordinator lifecycle even
 - **WHEN** the router receives a coordinator event without a `reason`
 - **THEN** it does not route the event
 - **AND** the event is recorded locally as `withheld` naming the missing field and is not retried
-
-### Requirement: A contribution integration job fails when the moved head lost its base
-
-If the moved requirement integration branch head no longer contains the contribution's recorded base, the coordinator worker SHALL fail the integration job naming the lost base.
-
-#### Scenario: The moved head lost the contribution base
-
-- **WHEN** the requirement integration branch head moved and no longer contains the contribution's recorded base
-- **THEN** the coordinator worker fails the integration job naming the lost base
-
-### Requirement: A coordinator worker that lost its claim publishes nothing
-
-A coordinator worker that lost its claim SHALL publish nothing.
-
-#### Scenario: A worker loses its claim
-
-- **WHEN** a coordinator worker loses its claim during an integration job
-- **THEN** it publishes nothing
 
 ### Requirement: Task reconcile records a one-shot merge intent
 
@@ -2727,191 +2342,3 @@ When the project version, the platform source, the project repository or the lat
 - **THEN** task start fails with the cause
 - **AND** the comparison is not skipped
 
-### Requirement: Only post-merge jobs record the Requirement retrospective and close the Requirement
-
-With the coordinator queue enabled, the Requirement retrospective checkpoint and the terminal close of a Requirement SHALL be recorded only by the post-merge retrospective and terminal-reconciliation jobs, after the last mandatory child or the composition PR merged. Developer commands SHALL NOT require that checkpoint or close the parent. Without the queue, the same functions run in the developer session.
-
-#### Scenario: One child merged
-- **WHEN** the only child PR of a Requirement merges
-- **THEN** its post-merge retrospective job records the task and Requirement checkpoints
-- **AND** its terminal-reconciliation job closes the child and the Requirement without a developer action
-
-#### Scenario: Several children merged through a composition
-- **WHEN** the composition PR merges
-- **THEN** the post-merge jobs record the Requirement checkpoint and then close the Requirement
-
-#### Scenario: Developer publication
-- **WHEN** a developer publishes a child or a composition
-- **THEN** no Requirement checkpoint is required and the parent stays open
-
-### Requirement: A stored pre-merge retrospective job fails explicitly
-
-A lifecycle record or job of kind `retrospective` with phase `pre-merge` SHALL NOT be derived or offered as work. Deriving such a record SHALL fail naming the PR, so a candidate created before this change is noticed instead of silently skipped.
-
-#### Scenario: Old pre-merge job on an open composition
-- **WHEN** a worker or the overview derives a composition PR whose record carries a pre-merge retrospective job
-- **THEN** derivation fails naming the PR and no job is offered
-
-### Requirement: An assembled Requirement branch has a standard repair entry
-
-A repository command SHALL request repair of an assembled Requirement composition as a queue repair job. The writer SHALL NOT edit child receipts; generated files SHALL be regenerated; every child receipt SHALL be validated byte-for-byte before the repaired head is pushed. Manual commits to the Requirement branch SHALL NOT be the repair path.
-
-#### Scenario: Composition needs a fix
-- **WHEN** the coordinator requests repair of a composition with a reason
-- **THEN** a repair job edits the branch, regenerates generated files and validates child receipts before pushing
-
-#### Scenario: A child receipt would change
-- **WHEN** the repaired head changes a child verification receipt or automated-check evidence
-- **THEN** the job fails naming the child and the receipt, and nothing is pushed
-
-### Requirement: A composition keeps its gates across a proven main-only update
-
-A composition SHALL reuse review, finalization and full checks on a new head only when the existing main-only proof binds trusted passed-gate evidence to that head. Proof-bound full-check evidence SHALL remain valid without a new run despite its original evidence head. Required CI SHALL pass on the exact new head before ready or admission.
-
-#### Scenario: Unrelated merge into main
-
-- **GIVEN** a finalized composition with trusted passed gates and full checks
-- **WHEN** its head absorbs main and the existing main-only proof holds
-- **THEN** review, finalization and full checks remain valid without a rerun
-- **AND** the carried evidence preserves its original check head and records its proof binding to the new head
-
-#### Scenario: Proof does not hold
-
-- **WHEN** the new head changes own content outside a proven main-only integration
-- **THEN** the gates are not reused and the existing repair and full-review rules apply
-
-#### Scenario: Trusted full-check evidence is missing
-
-- **WHEN** the old gated head or passed full-check evidence cannot be proven
-- **THEN** reuse is refused with a reason and no new successful check run is claimed
-
-#### Scenario: Required CI does not prove the new head
-
-- **WHEN** required CI is pending, failed, unavailable or passed only on another head
-- **THEN** the composition is not made ready or admitted
-
-### Requirement: Integration repair re-checks a composition exactly once
-
-After genuine composition integration repair, the repair path SHALL complete final publication once: unchanged own content gets one full-check pass and admission; changed own content gets full composition review, finalization and one full-check pass before admission. No manual advance or conflict-only review SHALL be used. Proven main-only integration SHALL retain the existing gate-carry rule.
-
-#### Scenario: Repair keeps the identity
-
-- **WHEN** genuine integration repair finishes without changing composition own-content identity
-- **THEN** final publication runs full checks once and admits the composition without advance
-
-#### Scenario: Repair changes the identity
-
-- **WHEN** integration repair changes composition own content
-- **THEN** a full composition review is offered
-- **AND** finalization, one full-check pass and admission follow automatically after review
-
-#### Scenario: Repair result only integrates main
-
-- **WHEN** the repair result satisfies the accepted main-only proof
-- **THEN** it keeps the proven gate-carry behavior and still waits for exact-head required CI before ready
-
-### Requirement: Requirement advance refuses a queue-owned composition
-
-Requirement advance SHALL refuse queue-owned compositions before checks or publication, naming the state. Lifecycle ownership requires a trusted exact-head coordinator record and every `expected_changes` entry in `children`. QUEUE or ACTIVE labels always establish ownership. Without a record, advance SHALL continue without using a derived default. Unreadable, malformed or wrong-head records SHALL cause explicit refusal naming the reason.
-
-#### Scenario: Advance on a queued composition
-
-- **WHEN** advance runs for a Requirement whose composition is in the queue
-- **THEN** it fails naming the queue state and starts no checks
-
-#### Scenario: Incomplete draft retains a stale review job
-
-- **WHEN** an incomplete draft composition is review-pending and has neither QUEUE nor ACTIVE label
-- **THEN** advance continues so it can migrate the mandatory graph and resume its children
-
-#### Scenario: Complete composition awaits review
-
-- **WHEN** every expected change is integrated and a coordinator record for the exact composition head is review-pending
-- **THEN** advance refuses naming the queue state
-
-#### Scenario: Complete composition has no coordinator record
-
-- **WHEN** every expected change is integrated and the composition has no coordinator record and neither QUEUE nor ACTIVE label
-- **THEN** advance continues to publish the composition without treating a derived default review-pending state as queue ownership
-
-#### Scenario: Coordinator record names a stale head
-
-- **WHEN** a composition has a coordinator record bound to another head
-- **THEN** advance refuses explicitly naming the recorded and current heads
-
-#### Scenario: Coordinator record is damaged
-
-- **WHEN** a trusted coordinator record cannot be read or validated
-- **THEN** advance refuses with the cause instead of substituting a default lifecycle state
-
-#### Scenario: Queue label owns an incomplete composition
-
-- **WHEN** an incomplete composition carries a QUEUE or ACTIVE label
-- **THEN** advance refuses regardless of manifest completeness
-
-### Requirement: Composition finalization archives through the shared finalize function
-
-Composition finalization SHALL archive each child in manifest order through the same finalize function as the queue finalize job, with the composition's review evidence, and SHALL report the unmet preconditions of every child before archiving any child.
-
-#### Scenario: Two children miss preconditions
-- **WHEN** composition finalization starts and two children each miss a precondition
-- **THEN** one error names both children and their problems and no child is archived
-
-### Requirement: Contribution freshness is measured against its target branch
-
-Task status, finish, reconcile, handoff and selected-check freshness of an open contribution SHALL use its recorded requirement branch instead of main. A head behind a target that merges cleanly is behind-mergeable; a conflict requires reconcile. Reconcile SHALL merge the target and move the contribution base to the merged target head. Main-target tasks keep the main rule.
-
-#### Scenario: Main moved, requirement branch did not
-- **WHEN** main advanced and the contribution contains its current target
-- **THEN** status reports it fresh and names the target branch
-
-#### Scenario: Requirement branch moved with a conflict
-- **WHEN** the head conflicts with its target
-- **THEN** status requires reconcile naming the target and the conflicting paths
-
-#### Scenario: Contribution is reconciled
-- **WHEN** reconcile merges the target
-- **THEN** the contribution base is the merged target head and later review sees only the child's own content
-
-#### Scenario: Target cannot be observed
-- **WHEN** the recorded target branch cannot be read
-- **THEN** freshness refuses naming the branch and is not reported fresh
-
-#### Scenario: The target record of a Requirement child is lost
-- **GIVEN** a Requirement child in isolated worktrees without its child context
-- **WHEN** its freshness target is resolved
-- **THEN** the target is the base of its one open PR, which must be main or its requirement branch
-- **AND** without that proof freshness refuses naming the cause and the next action and is not measured against main
-
-#### Scenario: A proven contribution lost its base record
-- **GIVEN** a child without its child context whose open PR targets its requirement branch
-- **WHEN** reconcile, developer handoff or a managed resume runs
-- **THEN** each refuses before any merge or handoff and the context is not recreated as a main-target task
-
-### Requirement: A requirement branch absorbs main through a supported command
-
-`execute_requirement.py absorb-main --requirement <ref>` SHALL merge current main into the requirement branch and push it by fast-forward from the exact observed head. It SHALL refuse a queue-owned composition, a missing branch, a moved head or a conflict, naming the reason and next action, and SHALL change no contribution identity.
-
-#### Scenario: Clean merge
-- **WHEN** main merges cleanly into an unowned requirement branch
-- **THEN** the branch gains the merge, the manifest is unchanged, and open contributions keep their base
-
-#### Scenario: Merge conflicts
-- **WHEN** main conflicts with the requirement branch
-- **THEN** nothing is pushed and the refusal names the paths and the composition repair as the next action
-
-#### Scenario: Composition is queue-owned
-- **WHEN** the queue owns the composition
-- **THEN** the command refuses naming the queue state
-
-### Requirement: A contribution uses its proven base and a main-target candidate its merge base
-
-Selected checks of a contribution SHALL run under the contribution-base contract, scoped to that base, which the head and the target SHALL contain. An unproven contribution base SHALL be refused. The proven-base merge-base rule with `origin/<main>` SHALL apply only to main-target candidates.
-
-#### Scenario: Contribution finalization after main was absorbed
-- **WHEN** a contribution finalizes after its target absorbed main
-- **THEN** its selected checks cover only the diff from its contribution base
-
-#### Scenario: Main-target candidate
-- **WHEN** a main-target candidate finalizes
-- **THEN** its proven base is still required to be the merge base with `origin/<main>`

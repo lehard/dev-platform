@@ -255,8 +255,6 @@ def manifest_complete(manifest: dict[str, Any]) -> bool:
     if expected is None:
         return True
     present = [child.get("change") for child in manifest.get("children", [])]
-    if manifest.get("version") == 2:
-        return len(present) == len(expected) and len(set(present)) == len(present) and set(present) == set(expected)
     return present == expected
 
 
@@ -905,16 +903,14 @@ def _reconcile_exact_merged(root: Path, integration: Path, manifest: dict[str, A
         _verify_parent_links(integration, manifest)
         for child in manifest["children"]:
             reconcile_project(integration, "Done", source_issue=child["source_issue"])
-        from requirement_terminal import post_merge_closes, reconcile_parent
-        deferred = post_merge_closes(integration)
-        if not deferred:
-            reconcile_parent(integration, requirement=manifest["requirement"],
-                             merged_children={item["source_issue"] for item in manifest["children"]})
+        from requirement_terminal import reconcile_parent
+        reconcile_parent(integration, requirement=manifest["requirement"],
+                         merged_children={item["source_issue"] for item in manifest["children"]})
         from worktree_cleanup import defer_completed_task, targeted_cleanup_command
         _, cleanup_target = defer_completed_task(integration, root, branch)
         print("Completed integration worktree cleanup: " + targeted_cleanup_command(cleanup_target))
     return {"requirement": manifest["requirement"], "branch": branch, "head": head,
-            "pr": lookup.exact_merged.get("url"), "status": "await-post-merge" if deferred else "merged-and-reconciled",
+            "pr": lookup.exact_merged.get("url"), "status": "merged-and-reconciled",
             "children": [child["source_issue"] for child in manifest["children"]]}
 
 
@@ -929,11 +925,10 @@ def _require_early_privacy(root: Path) -> None:
 def publish_candidate(root: Path, *, manifest: dict[str, Any], receipt_paths: list[Path], title: str | None = None) -> dict[str, Any]:
     """Validate and publish one shared candidate through the protected PR primitive."""
     import managed_work_identity
-    from _platform_common import lifecycle_mode, main_root, pr_merge_mode, publish_mode, read_platform_config
+    from _platform_common import main_root, pr_merge_mode, publish_mode, read_platform_config
 
     root = root.resolve()
     config = read_platform_config(root)
-    lifecycle_mode(config)
     integration = main_root().resolve()
     if publish_mode(config) != "pr":
         raise RequirementIntegrationError("shared Requirement integration requires protected PR publication")

@@ -132,9 +132,10 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
         self.assertIn("merged through GitHub", result.stdout)
         self.assertNotIn("auth login", result.stdout + result.stderr)
 
-    def test_delayed_required_check_registration_is_waited_out(self) -> None:
+    def test_unregistered_required_checks_refuse_then_a_rerun_merges(self) -> None:
         self.make_feature("agent/delayed-checks")
         check_state = self.base / "check-count"
+        merges = self.base / "merge-commands"
         body = (
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
             + COMMON_PR_BODY
@@ -144,39 +145,42 @@ class MergeLifecycleResilienceTests(unittest.TestCase):
             + '  echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0;\n'
             + 'fi\n'
             + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
-            + '  count=0; if [ -f "$FAKE_CHECK_STATE" ]; then count=$(cat "$FAKE_CHECK_STATE"); fi\n'
-            + '  if [ "$count" -lt 2 ]; then echo "required status check is expected" >&2; exit 1; fi\n'
+            + '  echo "$*" >> "$FAKE_MERGE_LOG"\n'
             + '  branch=$(git branch --show-current) || exit 1; sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0\n'
             + 'fi\n'
             + 'exit 1'
         )
         env = self.fake_gh(body)
         env["FAKE_CHECK_STATE"] = str(check_state)
-        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
-        self.assertIn(
-            "Native GitHub auto-merge/merge-queue could not be armed for the exact validated head",
-            result.stdout,
-        )
-        self.assertIn("not registered yet", result.stdout)
-        self.assertEqual(check_state.read_text(encoding="utf-8").strip(), "2")
-        self.assertIn("merged through GitHub", result.stdout)
+        env["FAKE_MERGE_LOG"] = str(merges)
+        refused = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env, check=False)
+        self.assertNotEqual(refused.returncode, 0, refused.stdout + refused.stderr)
+        self.assertIn("nothing would gate the merge", refused.stdout + refused.stderr)
+        self.assertFalse(merges.exists(), "no merge request without a required check")
 
-    def test_merge_policy_falls_back_to_auto_merge(self) -> None:
-        self.make_feature("agent/merge-queue")
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
+        self.assertIn("merged through GitHub", result.stdout)
+        self.assertEqual(len(merges.read_text(encoding="utf-8").splitlines()), 1)
+
+    def test_github_merge_rejection_stops_finish_with_the_reason_and_one_request(self) -> None:
+        head = self.make_feature("agent/merge-queue")
+        merges = self.base / "merge-commands"
         body = (
             'if [ "$1" = "auth" ] && [ "$2" = "status" ]; then exit 0; fi\n'
             + COMMON_PR_BODY
             + 'if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then echo \'[{"name":"platform-ci","state":"SUCCESS","workflow":"platform-ci","link":""}]\'; exit 0; fi\n'
-            + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then\n'
-            + '  case " $* " in *" --auto "*) branch=$(git branch --show-current) || exit 1; sha=$(git --git-dir "$FAKE_REMOTE" rev-parse "refs/heads/$branch") || exit 1; git --git-dir "$FAKE_REMOTE" update-ref refs/heads/main "$sha" || exit 1; exit 0;; esac;\n'
-            + '  echo "merge queue required" >&2; exit 1;\n'
-            + 'fi\n'
+            + 'if [ "$1" = "pr" ] && [ "$2" = "merge" ]; then echo "$*" >> "$FAKE_MERGE_LOG"; echo "merge queue required" >&2; exit 1; fi\n'
             + 'exit 1'
         )
         env = self.fake_gh(body)
-        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env)
-        self.assertIn("trying the next protected GitHub merge mode", result.stdout)
-        self.assertIn("merged through GitHub", result.stdout)
+        env["FAKE_MERGE_LOG"] = str(merges)
+        result = run("python3", "scripts/finish_task.py", "--no-checks", cwd=self.repo, env=env, check=False)
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("GitHub refused auto-merge", result.stdout + result.stderr)
+        self.assertIn("merge queue required", result.stdout + result.stderr)
+        lines = merges.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), 1, lines)
+        self.assertTrue(lines[0].endswith(f"--auto --squash --match-head-commit {head}"), lines[0])
 
     def test_rerun_recovers_when_exact_pr_head_is_already_merged(self) -> None:
         feature_sha = self.make_feature("agent/already-merged")

@@ -106,15 +106,6 @@ class StructuredRequiredCheckStateTests(unittest.TestCase):
     def test_rejects_checks_when_pr_head_does_not_match_local_task_head(self) -> None:
         self.assertEqual(self.state("[]", head="0" * 40).kind, "unknown")
 
-    def test_registration_and_pending_timeouts_are_explicitly_resumable(self) -> None:
-        pr = project_publish.PrRef(7, "https://example.invalid/pr/7")
-        with mock.patch.object(project_publish, "required_check_state_for_ref", return_value=project_publish.RequiredCheckState("not_registered")), mock.patch.object(project_publish, "CHECK_REGISTRATION_TIMEOUT_SECONDS", 0):
-            with self.assertRaisesRegex(SystemExit, "resumable"):
-                project_publish.wait_for_pr_checks(self.root, {}, pr, self.head)
-        with mock.patch.object(project_publish, "required_check_state_for_ref", return_value=project_publish.RequiredCheckState("pending")), mock.patch.object(project_publish, "CHECK_COMPLETION_TIMEOUT_SECONDS", 0):
-            with self.assertRaisesRegex(SystemExit, "resumable"):
-                project_publish.wait_for_pr_checks(self.root, {}, pr, self.head)
-
 
 class ReconciliationLockTests(unittest.TestCase):
     def test_two_confirmed_merges_serialize_local_reconciliation(self) -> None:

@@ -1,4 +1,4 @@
-"""Disposable worker checkouts carry the committed platform contract, exactly as CI installs it."""
+"""Disposable writer checkouts carry the committed platform contract."""
 from __future__ import annotations
 
 import subprocess
@@ -12,7 +12,7 @@ SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 from _platform_modules import load_platform_module  # noqa: E402
 
-workers = load_platform_module("lifecycle_workers", SCRIPTS / "lifecycle_workers.py")
+workers = load_platform_module("sandbox_harness", SCRIPTS / "sandbox_harness.py")
 
 
 def git(cwd: Path, *args: str) -> str:

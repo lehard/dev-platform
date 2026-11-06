@@ -581,63 +581,11 @@ def require_fresh_task_base(
     return remote_sha
 
 
-# A coordinator candidate's developer handoff names this when its head must be reconciled.
+# Named wherever a head behind main must be reconciled.
 RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
 
-TASK_BASE_FRESH = "fresh"
-TASK_BASE_BEHIND_MERGEABLE = "behind-mergeable"
-TASK_BASE_RECONCILE_REQUIRED = "reconcile-required"
-# ``git merge-tree --write-tree`` (the trial merge) first shipped in git 2.38.
-TRIAL_MERGE_MIN_GIT = (2, 38)
-REPORTED_PATH_LIMIT = 20
 GENERATED_FILES_TABLE = "generated_files"
 GENERATED_TREE_PLACEHOLDER = "{tree}"
-
-
-# A NamedTuple, not a dataclass: tests load this module by path without registering it.
-class TaskBaseCurrency(NamedTuple):
-    """How a task head stands against one observed main commit.
-
-    ``fresh``: the head contains main. ``behind-mergeable``: it does not, but a
-    trial merge is clean or conflicts only in files the observed main declares
-    generated (``generated_conflicts``); ``overlapping`` lists the paths changed
-    on both sides. ``reconcile-required``: a trial merge conflicts in other
-    files, named in ``conflicts``.
-    """
-
-    state: str
-    main: str
-    base: str
-    overlapping: tuple[str, ...] = ()
-    conflicts: tuple[str, ...] = ()
-    generated_conflicts: tuple[str, ...] = ()
-
-    def evidence(self) -> dict[str, Any]:
-        if self.state != TASK_BASE_BEHIND_MERGEABLE:
-            raise ValueError(f"only a behind-mergeable task base is recorded as a freshness contract, not {self.state}")
-        return {
-            "contract": TASK_BASE_BEHIND_MERGEABLE,
-            "main": self.main,
-            "base": self.base,
-            "overlapping": list(self.overlapping),
-            "generated_conflicts": list(self.generated_conflicts),
-        }
-
-    def describe(self, authoritative: str) -> str:
-        if self.state == TASK_BASE_FRESH:
-            return f"HEAD contains {authoritative} ({self.main})"
-        behind = f"HEAD does not contain {authoritative} ({self.main}); since merge base {self.base}"
-        if self.state == TASK_BASE_BEHIND_MERGEABLE:
-            if self.generated_conflicts:
-                text = f"{behind} a trial merge conflicts only in declared generated files {_bounded_paths(self.generated_conflicts)}"
-            else:
-                text = f"{behind} a trial merge is clean"
-            if self.overlapping:
-                text += f"; main and the task both changed {_bounded_paths(self.overlapping)}"
-            return text
-        if self.conflicts:
-            return f"{behind} a trial merge conflicts in {_bounded_paths(self.conflicts)}"
-        return f"{behind} a trial merge conflicts"
 
 
 class GeneratedFile(NamedTuple):
@@ -646,12 +594,6 @@ class GeneratedFile(NamedTuple):
     path: str
     regenerate: tuple[str, ...]
     check: tuple[str, ...]
-
-
-def _bounded_paths(paths: tuple[str, ...]) -> str:
-    shown = ", ".join(paths[:REPORTED_PATH_LIMIT])
-    hidden = len(paths) - REPORTED_PATH_LIMIT
-    return shown + (f" (+{hidden} more)" if hidden > 0 else "")
 
 
 def _relative_repository_path(value: Any) -> bool:
@@ -732,17 +674,6 @@ def _changed_paths(root: Path, base: str, tip: str) -> set[str]:
     return {path for path in output.split("\0") if path}
 
 
-def _require_trial_merge_support(root: Path) -> None:
-    output = run_git(["version"], cwd=root).stdout.strip()
-    match = re.match(r"git version (\d+)\.(\d+)", output)
-    if match is None:
-        raise TaskFreshnessError(f"cannot determine the git version from {output!r}; a trial merge needs git >= 2.38")
-    if (int(match[1]), int(match[2])) < TRIAL_MERGE_MIN_GIT:
-        raise TaskFreshnessError(
-            f"git {match[1]}.{match[2]} cannot run a trial merge (git merge-tree --write-tree needs git >= 2.38)"
-        )
-
-
 def task_own_paths(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> frozenset[str]:
     """The paths ``task_ref`` itself changes: from its merge base with ``main_sha`` to ``task_ref``.
 
@@ -754,232 +685,6 @@ def task_own_paths(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> froz
     if result.returncode or not base:
         raise TaskFreshnessError(f"task ref {task_ref!r} has no merge base with main {main_sha}; cannot name its own changes")
     return frozenset(_changed_paths(root, base, task_ref))
-
-
-def classify_task_base_currency(root: Path, main_sha: str, *, task_ref: str = "HEAD") -> TaskBaseCurrency:
-    """Classify ``task_ref`` against a main commit already present in this checkout.
-
-    Never merges or moves a ref. A missing merge base, an unsupported git, a
-    failing git command or a malformed generated-file declaration at ``main_sha``
-    raises ``TaskFreshnessError``; nothing is assumed.
-    """
-    state = relation(root, task_ref, main_sha)
-    if state == "missing":
-        raise TaskFreshnessError(f"unable to compare task ref {task_ref!r} with main {main_sha}; retry after repairing local Git refs")
-    if state in {"equal", "ahead"}:
-        return TaskBaseCurrency(TASK_BASE_FRESH, main_sha, main_sha)
-    result = run_git(["merge-base", task_ref, main_sha], cwd=root, check=False)
-    base = result.stdout.strip()
-    if result.returncode or not base:
-        raise TaskFreshnessError(
-            f"task ref {task_ref!r} has no merge base with main {main_sha}; reconcile first ({RECONCILE_COMMAND})"
-        )
-    overlapping = tuple(sorted(_changed_paths(root, base, main_sha) & _changed_paths(root, base, task_ref)))
-    _require_trial_merge_support(root)
-    merged = run_git(["merge-tree", "--write-tree", "--name-only", "--no-messages", task_ref, main_sha], cwd=root, check=False)
-    if merged.returncode == 0:
-        return TaskBaseCurrency(TASK_BASE_BEHIND_MERGEABLE, main_sha, base, overlapping=overlapping)
-    if merged.returncode == 1:
-        # Output: the merged tree id, then one conflicted path per line, then a blank line.
-        lines = merged.stdout.splitlines()[1:]
-        conflicted = sorted(set(lines[:lines.index("")] if "" in lines else lines))
-        if not conflicted:
-            # Exit 1 without a named conflict is not understood: fail closed.
-            return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base)
-        declared = {entry.path for entry in generated_files(root, main_sha)}
-        real = tuple(path for path in conflicted if path not in declared)
-        if real:
-            return TaskBaseCurrency(TASK_BASE_RECONCILE_REQUIRED, main_sha, base, conflicts=real)
-        return TaskBaseCurrency(
-            TASK_BASE_BEHIND_MERGEABLE, main_sha, base, overlapping=overlapping, generated_conflicts=tuple(conflicted)
-        )
-    raise TaskFreshnessError(f"trial merge of {task_ref!r} with main {main_sha} failed: {GitCommandError(merged.args[1:], root, merged)}")
-
-
-def fetch_commit_objects(root: Path, remote: str, main_branch: str, sha: str) -> None:
-    """Make an advertised main commit present without updating any ref or FETCH_HEAD."""
-    if run_git(["cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, check=False).returncode == 0:
-        return
-    result = run_git(["fetch", "--no-write-fetch-head", "--refmap=", remote, f"refs/heads/{main_branch}"], cwd=root, check=False)
-    if result.returncode:
-        raise TaskFreshnessError(
-            f"unable to fetch {remote}/{main_branch} objects without updating refs: {GitCommandError(result.args[1:], root, result)}"
-        )
-    if run_git(["cat-file", "-e", f"{sha}^{{commit}}"], cwd=root, check=False).returncode:
-        raise TaskFreshnessError(f"observed {remote}/{main_branch} commit {sha} is still absent after fetching it; retry")
-
-
-def observe_task_base_currency(
-    root: Path,
-    remote: str,
-    main_branch: str,
-    *,
-    task_ref: str = "HEAD",
-    read_only: bool = False,
-) -> TaskBaseCurrency:
-    """Observe authoritative main once and classify ``task_ref`` against it.
-
-    ``read_only`` observes main through ``ls-remote`` and fetches only its
-    objects, so status never moves the remote-tracking ref.
-    """
-    if read_only:
-        state, main_sha = observe_task_base_freshness_readonly(root, remote, main_branch, task_ref=task_ref)
-        if state not in {"equal", "ahead"}:
-            fetch_commit_objects(root, remote, main_branch, main_sha)
-    else:
-        state, main_sha = observe_task_base_freshness(root, remote, main_branch, task_ref=task_ref)
-    return classify_task_base_currency(root, main_sha, task_ref=task_ref)
-
-
-def coordinator_candidate(root: Path) -> bool:
-    """Whether ``root`` is a coordinator-managed candidate.
-
-    This is the one predicate ``finish`` uses to route a task to the developer
-    handoff and publication-queue admission: coordinator lifecycle mode, the
-    queue enabled on authoritative main and an active canonical managed change.
-    A missing or unsupported contract raises instead of answering.
-    """
-    from pr_review_gate import managed_candidate
-
-    return managed_candidate(root)
-
-
-def queue_integrated(root: Path) -> bool:
-    """Whether the publication queue integrates this task: a coordinator candidate, or a quick task.
-
-    Under the coordinator contract with the queue enabled on authoritative main, the queue merges
-    main into every admitted PR and merges only on green required checks of the integrated head
-    (BR-774), so a quick task (no canonical managed provenance) is integrated exactly like a managed
-    candidate. A managed task that is not a candidate is not. A missing or unsupported contract raises.
-    """
-    if lifecycle_mode(read_platform_config(root)) != "coordinator":
-        return False
-    import publication_queue
-    from managed_task import resolve_canonical_provenance
-
-    if not publication_queue.enabled(root):
-        return False
-    if resolve_canonical_provenance(root) is None:
-        return True
-    return coordinator_candidate(root)
-
-
-def _published_task_target(root: Path, main_branch: str, provenance: Any, context: Path) -> str:
-    """The target of a task without child context: main, or the base of its one open PR.
-
-    Only a Requirement child in isolated worktrees can be a contribution, so any other managed task
-    keeps the main rule. A child's lost context says nothing about its target: the open PR proves it,
-    and without that proof the target is refused rather than assumed.
-    """
-    from managed_task import ManagedTaskError, read_provenance
-
-    try:
-        work_identity = read_provenance(provenance.path).get("work_identity")
-    except ManagedTaskError as exc:
-        raise TaskFreshnessError(f"cannot resolve the task's freshness target: {exc}") from exc
-    if not work_identity or profile(read_platform_config(root)) != "multi-agent":
-        return main_branch
-    requirement_branch = "requirement/" + work_identity.split("/", 1)[0]
-    unproven = (
-        f"Requirement child {work_identity} has no child context {context}, so its freshness target is "
-        f"main or {requirement_branch} and cannot be told apart"
-    )
-    recovery = (
-        "Restore that context from the child's original start, or have the operator retire the child worktree, "
-        "then rerun `python3 scripts/execute_requirement.py advance` for its Requirement."
-    )
-    branch = run_git(["branch", "--show-current"], cwd=root).stdout.strip()
-    if not branch:
-        raise TaskFreshnessError(f"{unproven}: HEAD is detached, so no open PR can prove it. {recovery}")
-    env = github_cli_env(root)
-    if env is None:
-        raise TaskFreshnessError(f"{unproven}: the gh CLI is unavailable, so no open PR can prove it. {recovery}")
-    listed = run_github_with_retry(
-        ["gh", "pr", "list", "--head", branch, "--state", "open", "--json", "number,baseRefName,headRefName"],
-        cwd=root, env=env,
-    )
-    if listed.returncode:
-        raise TaskFreshnessError(f"{unproven}: open PRs of {branch} are unreadable: {listed.stderr.strip()[-300:]}. {recovery}")
-    prs = [pr for pr in json.loads(listed.stdout) if pr.get("headRefName") == branch]
-    if len(prs) != 1:
-        raise TaskFreshnessError(f"{unproven}: {branch} has {len(prs)} open PRs, exactly one must prove it. {recovery}")
-    base = prs[0].get("baseRefName")
-    if base not in {main_branch, requirement_branch}:
-        raise TaskFreshnessError(f"{unproven}: PR #{prs[0].get('number')} targets {base!r}. {recovery}")
-    return base
-
-
-def task_freshness_branch(root: Path, main_branch: str) -> str:
-    """The branch this task's freshness is measured against: its contribution target, or main.
-
-    A contribution integrates into its recorded requirement branch; main reaches that branch through
-    composition. A task without a contribution in its child context keeps the main rule. A Requirement
-    child without that context takes the target its open PR proves, or refuses.
-    """
-    from managed_task import ManagedTaskError, resolve_canonical_provenance
-
-    try:
-        provenance = resolve_canonical_provenance(root)
-    except ManagedTaskError as exc:
-        raise TaskFreshnessError(f"cannot resolve the task's freshness target: {exc}") from exc
-    if provenance is None:
-        return main_branch
-    context = root / ".claude" / "requirement-child-context" / f"{provenance.change}.json"
-    if not context.is_file():
-        return _published_task_target(root, main_branch, provenance, context)
-    contribution = json.loads(context.read_text(encoding="utf-8")).get("contribution")
-    if not contribution:
-        return main_branch
-    target = contribution.get("target_branch")
-    if not isinstance(target, str) or not target:
-        raise TaskFreshnessError(f"Requirement child context {context} records no contribution target branch")
-    return target
-
-
-def require_handoff_task_base(root: Path, remote: str, main_branch: str) -> TaskBaseCurrency:
-    """Fresh-base gate of validation under the coordinator contract.
-
-    A head containing freshly fetched main passes. Otherwise only a task the queue integrates
-    (``queue_integrated``: a coordinator candidate or a quick task) passes, and only when its head is
-    ``behind-mergeable``: the queue merges main and gates on the integrated head. Every other head
-    fails as ``require_fresh_task_base`` does; integration is consulted only then.
-    """
-    authoritative = f"{remote}/{main_branch}"
-    state, main_sha = observe_task_base_freshness(root, remote, main_branch)
-    if state in {"equal", "ahead"}:
-        return TaskBaseCurrency(TASK_BASE_FRESH, main_sha, main_sha)
-    if not queue_integrated(root):
-        raise TaskFreshnessError(
-            f"task 'HEAD' is {state} relative to freshly observed {authoritative} ({main_sha}); "
-            "rebase/reconcile first, then retry"
-        )
-    currency = classify_task_base_currency(root, main_sha)
-    if currency.state != TASK_BASE_BEHIND_MERGEABLE:
-        raise TaskFreshnessError(f"{currency.describe(authoritative)}; reconcile first ({RECONCILE_COMMAND}), then retry")
-    return currency
-
-
-def require_proven_task_base(root: Path, sha: str, remote: str, main_branch: str) -> str:
-    """Fail closed unless HEAD forks from exactly ``sha`` on the observed remote main history; describe it.
-
-    Coordinator finalization proves reviewed task content on its proven base and never
-    fetches or merges main, so this reads the checkout's existing remote-tracking ref:
-    ``merge-base(HEAD, <remote>/<main>)`` must equal ``sha`` for every candidate. Checkout-local
-    context is never trusted to choose another base.
-    """
-    authoritative = f"{remote}/{main_branch}"
-    if not re.fullmatch(r"[0-9a-f]{40}", sha):
-        raise TaskFreshnessError(f"proven base {sha!r} is not a full 40-hex commit id")
-    main_sha = ref_sha(root, remote_ref(remote, main_branch))
-    if not main_sha:
-        raise TaskFreshnessError(f"{authoritative} is not observed in this checkout; cannot prove the task base {sha}")
-    result = run_git(["merge-base", "HEAD", main_sha], cwd=root, check=False)
-    observed = result.stdout.strip()
-    if result.returncode or not observed:
-        raise TaskFreshnessError(f"HEAD has no merge base with {authoritative} ({main_sha}); cannot prove base {sha}")
-    if observed != sha:
-        raise TaskFreshnessError(f"HEAD forks from {observed} on {authoritative} ({main_sha}), not from its proven base {sha}")
-    return f"merge base of HEAD and {authoritative} ({main_sha})"
 
 
 # --- Blocking-gate failure classes -------------------------------------------
@@ -1178,29 +883,6 @@ def require_main_branch(config: dict[str, Any], exception_type: type[BaseExcepti
     if not isinstance(main_branch, str) or not main_branch:
         raise exception_type("main_branch must be a non-empty string in .dev-platform.toml")
     return main_branch
-
-
-def lifecycle_mode(config: dict[str, Any]) -> str:
-    """Select lifecycle behavior from the committed contract: ``portable`` or ``coordinator``.
-
-    Pure: no git, network or coordinator imports. A downstream contract is portable; the
-    source contract is coordinator only for the supported combination.
-    """
-    version = config.get("platform_version")
-    if not isinstance(version, str) or not version:
-        raise PlatformConfigError("platform_version must be a non-empty string in .dev-platform.toml")
-    if version != "source":
-        return "portable"
-    for key, actual, supported in (
-        ("harness_mode", harness_mode(config), "platform"),
-        ("publish_mode", publish_mode(config), "pr"),
-        ("scm_provider", scm_provider(config), "github"),
-    ):
-        if actual != supported:
-            raise PlatformConfigError(
-                f"source contract supports only {key}={supported!r}; found {key}={actual!r}"
-            )
-    return "coordinator"
 
 
 def protected_main(config: dict[str, Any]) -> bool:

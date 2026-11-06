@@ -55,7 +55,7 @@ def _real(path: Path | str) -> str:
 
 
 def _git(root: Path, *args: str) -> str:
-    from lifecycle_workers import SAFE_GIT  # one hardening definition for every harness git call
+    from sandbox_harness import SAFE_GIT  # one hardening definition for every harness git call
 
     env = {key: value for key, value in credential_free_env(dict(os.environ)).items()
            if key != TOKEN_ENV and not key.startswith("GIT_DIR") and key not in {"GIT_WORK_TREE", "GIT_COMMON_DIR"}}
@@ -185,9 +185,9 @@ def operator_home() -> Path:
 def launch_sandboxed_writer(argv: list[str], checkout: Path, *, integration_root: Path, platform_root: Path,
                             workdir: Path, home: Path, tmp: Path, config: dict[str, Any],
                             runner: Callable[..., Any] | None = None, timeout: int | None = None) -> Any:
-    import lifecycle_workers
+    import sandbox_harness
 
-    runner = lifecycle_workers.run_in_session if runner is None else runner
+    runner = sandbox_harness.run_in_session if runner is None else runner
     require_macos()
     launcher = srt_launcher()
     require_writer_cli(argv[0] if argv else "claude")
@@ -203,6 +203,6 @@ def launch_sandboxed_writer(argv: list[str], checkout: Path, *, integration_root
     command = sandboxed_command(argv, launcher=launcher, profile_path=profile_path)
     env = sandboxed_env(os.environ, home=home, token=token, writer_tmp=tmp)
     runtime_tmp = Path(env["TMPDIR"])
-    return lifecycle_workers.run_llm(command, checkout, tmp=tmp, env={k: v for k, v in env.items() if k != TOKEN_ENV},
+    return sandbox_harness.run_llm(command, checkout, tmp=tmp, env={k: v for k, v in env.items() if k != TOKEN_ENV},
                                      runner=runner, timeout=timeout, home=home, runtime_tmp=runtime_tmp,
                                      extra_env={TOKEN_ENV: token})

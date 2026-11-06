@@ -82,7 +82,6 @@ hotfixable = [
   "scripts/lifecycle_overview.py",
   "scripts/machine_pool.py",
   "scripts/managed_project_status.py",
-  "scripts/parallel_lifecycle_acceptance.py",
   "scripts/platform_bootstrap.py",
   "scripts/project_context.py",
   "scripts/render_agents_md_smoke.py",
@@ -103,22 +102,6 @@ immutable-releases = "Release refs and the platform contract (including this sur
 # independent-review
 [[protected]]
 path = "scripts/independent_review*.py"
-category = "independent-review"
-
-[[protected]]
-path = "scripts/pr_review_gate.py"
-category = "independent-review"
-
-[[protected]]
-path = "scripts/post_review_finalization.py"
-category = "independent-review"
-
-[[protected]]
-path = "scripts/requirement_composition.py"
-category = "independent-review"
-
-[[protected]]
-path = "scripts/candidate_lifecycle.py"
 category = "independent-review"
 
 # protected-publication
@@ -147,18 +130,6 @@ path = "scripts/gitlab_delivery.py"
 category = "protected-publication"
 
 [[protected]]
-path = "scripts/lifecycle_workers.py"
-category = "protected-publication"
-
-[[protected]]
-path = "scripts/hosted_workers.py"
-category = "protected-publication"
-
-[[protected]]
-path = "scripts/integration_contour.py"
-category = "protected-publication"
-
-[[protected]]
 path = "scripts/integration_state.py"
 category = "protected-publication"
 
@@ -180,10 +151,6 @@ category = "protected-publication"
 
 [[protected]]
 path = "scripts/requirement_integration.py"
-category = "protected-publication"
-
-[[protected]]
-path = "scripts/requirement_contributions.py"
 category = "protected-publication"
 
 [[protected]]
@@ -257,11 +224,7 @@ path = "scripts/_platform_common.py"
 category = "credentials"
 
 [[protected]]
-path = "scripts/lifecycle_workers.py"
-category = "credentials"
-
-[[protected]]
-path = "scripts/hosted_workers.py"
+path = "scripts/sandbox_harness.py"
 category = "credentials"
 
 [[protected]]
@@ -270,10 +233,6 @@ category = "credentials"
 
 [[protected]]
 path = "scripts/worker_credentials.py"
-category = "credentials"
-
-[[protected]]
-path = "scripts/worker_preflight.py"
 category = "credentials"
 
 [[protected]]

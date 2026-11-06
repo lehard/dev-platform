@@ -32,7 +32,7 @@ For `harness_mode=platform` and `publish_mode=pr`, the platform SHALL derive pub
 
 ### Requirement: Native GitHub merge orchestration is armed before long local waiting when supported
 
-For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platform SHALL prefer to ask GitHub to persist the protected merge intent before entering a long foreground wait, using native auto-merge or merge-queue behavior when repository capability/policy supports it.
+For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platform SHALL ask GitHub to persist the protected merge intent through native auto-merge: one `gh pr merge --auto --squash --match-head-commit <head>` request, refused when no required check gates the head. A rejected request SHALL stop publication with GitHub's reason; no other merge form and no local check wait follow.
 
 #### Scenario: Native auto-merge accepts the exact task head
 
@@ -42,13 +42,6 @@ For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platf
 - **THEN** GitHub retains the merge request while checks continue
 - **AND** caller termination does not cancel that accepted remote merge request
 - **AND** GitHub merges only if the PR head still matches A and protection requirements are satisfied
-
-#### Scenario: Repository requires a merge queue
-
-- **GIVEN** repository policy requires merge-queue integration
-- **WHEN** the platform requests supported automatic integration for exact head A
-- **THEN** it uses GitHub's queue-aware merge behavior without administrative bypass
-- **AND** the queued/auto state remains observable after the local caller exits
 
 #### Scenario: Native auto-merge is unavailable
 
@@ -67,11 +60,11 @@ For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platf
 
 ### Requirement: Existing exact-head PRs resume before first-publication stale-base rejection
 
-For an exact-head PR admitted to the source repository's publication queue, ordinary main advancement by a preceding queued change SHALL be handled by the queue coordinator rather than requiring the waiting agent to reconcile and revalidate solely for that advancement. A PR outside that queue retains explicit reconciliation behavior.
+An existing exact-head PR SHALL resume before the first-publication fresh-base prerequisite. When main advanced, finish SHALL stop before expensive validation and point to the supported reconcile operation.
 
 #### Scenario: Base advances while exact PR is waiting
 
-- **GIVEN** an open exact-head task PR exists outside the central publication queue
+- **GIVEN** an open exact-head task PR exists
 - **AND** the base branch advances after the PR was created
 - **WHEN** finish is invoked again
 - **THEN** it stops before expensive validation and points to the supported reconcile operation
@@ -84,20 +77,6 @@ For an exact-head PR admitted to the source repository's publication queue, ordi
 - **AND** A does not satisfy the platform's first-publication fresh-base prerequisite
 - **WHEN** finish attempts first publication
 - **THEN** publication remains blocked until the branch is explicitly reconciled and revalidated
-
-#### Scenario: Queued PR waits while main advances
-
-- **GIVEN** an exact-head task PR is admitted to the publication queue
-- **AND** another nonoverlapping queued PR merges first
-- **WHEN** waiting task finish/status runs
-- **THEN** it observes the durable queue state without starting expensive validation or demanding agent-side reconcile merely for that base advancement
-- **AND** the coordinator proves and checks the updated candidate before its protected merge.
-
-#### Scenario: Queued candidate changes outside coordinator control
-
-- **WHEN** the queued PR head changes from the admitted or proven coordinator-produced head
-- **THEN** old queue admission does not authorize publication
-- **AND** fresh local validation and a new exact-head admission are required.
 
 ### Requirement: Publication status is read-only and actionable
 
@@ -151,12 +130,12 @@ Automatic publication operations SHALL be idempotent under repeated or concurren
 
 ### Requirement: Repository merge capability is observable but not silently mutated
 
-For a platform-owned automatic PR, doctor/status SHOULD detect whether native GitHub auto-merge or queue behavior can persist the remote waiting step. The platform SHALL NOT silently enable repository auto-merge from the task publication path.
+For a platform-owned automatic PR, doctor/status SHOULD detect whether native GitHub auto-merge is available. The platform SHALL NOT silently enable repository auto-merge from the task publication path.
 
 #### Scenario: Native repository auto-merge is disabled
 
-- **WHEN** `pr_merge_mode=auto` is configured but repository auto-merge/queue capability is unavailable
-- **THEN** doctor/status reports safe foreground fallback / degraded remote durability
+- **WHEN** `pr_merge_mode=auto` is configured but repository auto-merge is unavailable
+- **THEN** doctor/status reports that publication will be refused
 - **AND** provides an explicit administrative remediation when the current operator can enable the capability
 - **AND** ordinary publication safety remains unchanged
 
@@ -294,11 +273,11 @@ For `harness_mode=platform` and `publish_mode=pr`, machine-local cached state MA
 
 ### Requirement: Merge requests are guarded by the exact validated PR head
 
-Every ordinary merge, auto-merge, or queue-enrollment request SHALL be guarded by the exact validated PR head SHA using `--match-head-commit` or equivalent expected-head semantics.
+Every auto-merge request SHALL be guarded by the exact validated PR head SHA using `--match-head-commit` or equivalent expected-head semantics.
 
 #### Scenario: Platform requests a merge
 
-- **WHEN** the platform sends an ordinary merge, auto-merge, or queue-enrollment request
+- **WHEN** the platform sends an auto-merge request
 - **THEN** the request is guarded by the exact validated PR head SHA using `--match-head-commit` or equivalent expected-head semantics
 
 ### Requirement: Accepted remote merge orchestration survives caller output loss
@@ -321,23 +300,9 @@ A supported finish invocation SHALL distinguish a current task branch from one t
 - **WHEN** a supported finish invocation runs
 - **THEN** it identifies the branch as behind before starting expensive validation
 
-### Requirement: Changed content or unproven queue state fails closed to explicit recovery
-
-Changed task content, overlapping relevant base changes, unknown queue identity or a failed coordinator check SHALL fail closed to explicit recovery.
-
-#### Scenario: Queue identity is unknown
-
-- **WHEN** the queue identity of a waiting exact-head PR is unknown
-- **THEN** publication fails closed to explicit recovery
-
-#### Scenario: Coordinator check fails
-
-- **WHEN** a coordinator check fails
-- **THEN** publication fails closed to explicit recovery
-
 ### Requirement: Publication status distinguishes publication states
 
-Task publication status SHALL report concise sanitized facts sufficient to distinguish at least: not published, PR open/checks pending, remote merge armed/queued, blocked/failed required checks, remotely merged but local reconciliation pending, and complete.
+Task publication status SHALL report concise sanitized facts sufficient to distinguish at least: not published, PR open/checks pending, remote merge armed, blocked/failed required checks, remotely merged but local reconciliation pending, and complete.
 
 #### Scenario: Required checks failed on the open PR
 

@@ -102,35 +102,6 @@ class TaskFreshnessTests(unittest.TestCase):
         self.assertIn("Task freshness gate passed", retried.stdout)
         self.assertTrue((self.task / "validation-ran.txt").is_file())
 
-    def test_contribution_is_fresh_against_its_exact_base_while_main_moves(self) -> None:
-        base = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
-        (self.task / "task.txt").write_text("contribution\n", encoding="utf-8")
-        git("add", "task.txt", cwd=self.task)
-        git("commit", "-m", "contribution", cwd=self.task)
-        self.advance_main()
-
-        result = run(
-            "python3", str(SCRIPTS / "select_checks.py"), "--mode", "protected-full", "--execute",
-            "--contribution-base", base, cwd=self.task, check=False,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertIn(f"HEAD contains its exact contribution base ({base})", result.stdout)
-        self.assertTrue((self.task / "validation-ran.txt").is_file())
-
-    def test_contribution_missing_its_exact_base_stops_before_validation(self) -> None:
-        self.advance_main()
-        git("fetch", "origin", cwd=self.task)
-        foreign = git("rev-parse", "origin/main", cwd=self.task).stdout.strip()
-
-        result = run(
-            "python3", str(SCRIPTS / "select_checks.py"), "--mode", "protected-full", "--execute",
-            "--contribution-base", foreign, cwd=self.task, check=False,
-        )
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn(f"HEAD does not contain its exact contribution base {foreign}", result.stderr + result.stdout)
-        self.assertIn("[hard-stop] contribution-base-freshness: ", result.stderr)
-        self.assertFalse((self.task / "validation-ran.txt").exists())
-
     def test_unavailable_remote_never_claims_the_task_is_fresh(self) -> None:
         git("remote", "set-url", "origin", str(self.base / "missing.git"), cwd=self.task)
 
@@ -174,8 +145,8 @@ SETTINGS = '[settings]\nfull_commands = ["verify-gen"]\n'
 DECLARE_GEN = SETTINGS + '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\ncheck = ["verify-gen"]\n'
 
 
-class TaskBaseCurrencyTests(unittest.TestCase):
-    """The behind-mergeable classifier and the coordinator handoff gates, on real Git history."""
+class TaskBaseGateTests(unittest.TestCase):
+    """The generated-file declarations and the fresh-base publication rule, on real Git history."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -216,122 +187,6 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         git("push", "-q", "origin", "HEAD:main", cwd=self.other)
         return git("rev-parse", "HEAD", cwd=self.other).stdout.strip()
 
-    def classify(self) -> _platform_common.TaskBaseCurrency:
-        return _platform_common.observe_task_base_currency(self.task, "origin", "main")
-
-    def test_head_containing_main_is_fresh(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "fresh")
-        self.assertEqual(currency.main, self.seed)
-
-    def test_disjoint_main_with_a_clean_trial_merge_is_behind_mergeable(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-        head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
-        main = self.advance_main({"main.txt": "main\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "behind-mergeable")
-        self.assertEqual((currency.main, currency.base), (main, self.seed))
-        self.assertEqual(currency.evidence(), {
-            "contract": "behind-mergeable", "main": main, "base": self.seed, "overlapping": [], "generated_conflicts": [],
-        })
-        # Classification never merges or moves the task head.
-        self.assertEqual(git("rev-parse", "HEAD", cwd=self.task).stdout.strip(), head)
-
-    def test_a_file_both_sides_changed_that_merges_cleanly_is_behind_mergeable(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        main = self.advance_main({"shared.txt": "one\ntwo\nTHREE\n", "main.txt": "main\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "behind-mergeable")
-        self.assertEqual(currency.overlapping, ("shared.txt",))
-        self.assertEqual(currency.generated_conflicts, ())
-        self.assertEqual(currency.evidence()["overlapping"], ["shared.txt"])
-        self.assertEqual(currency.evidence()["main"], main)
-        self.assertIn("main and the task both changed shared.txt", currency.describe("origin/main"))
-        self.assertIn("a trial merge is clean", currency.describe("origin/main"))
-
-    def test_a_rename_on_main_counts_its_old_path_and_merges_cleanly(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": None, "moved.txt": "one\ntwo\nthree\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "behind-mergeable")
-        self.assertEqual(currency.overlapping, ("shared.txt",))
-
-    def test_a_real_conflict_requires_reconcile_naming_the_file(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "reconcile-required")
-        self.assertEqual(currency.conflicts, ("shared.txt",))
-        self.assertIn("a trial merge conflicts in shared.txt", currency.describe("origin/main"))
-        with self.assertRaises(ValueError):
-            currency.evidence()
-
-    def test_a_conflict_only_in_a_file_main_declares_generated_is_behind_mergeable(self) -> None:
-        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"gen.txt": "uno\ntwo\nthree\n", CHECKS: DECLARE_GEN})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "behind-mergeable")
-        self.assertEqual(currency.generated_conflicts, ("gen.txt",))
-        self.assertEqual(currency.overlapping, ("gen.txt",))
-        self.assertEqual(currency.evidence()["generated_conflicts"], ["gen.txt"])
-        self.assertIn("declared generated files gen.txt", currency.describe("origin/main"))
-
-    def test_a_declaration_added_only_by_the_candidate_does_not_apply(self) -> None:
-        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n", CHECKS: DECLARE_GEN})
-        self.advance_main({"gen.txt": "uno\ntwo\nthree\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "reconcile-required")
-        self.assertEqual(currency.conflicts, ("gen.txt",))
-
-    def test_a_generated_conflict_beside_a_real_one_names_only_the_real_one(self) -> None:
-        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n", "shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"gen.txt": "uno\ntwo\nthree\n", "shared.txt": "uno\ntwo\nthree\n", CHECKS: DECLARE_GEN})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "reconcile-required")
-        self.assertEqual(currency.conflicts, ("shared.txt",))
-        self.assertNotIn("gen.txt", currency.describe("origin/main"))
-
-    def test_a_malformed_declaration_at_main_fails_explicitly_for_a_conflict(self) -> None:
-        self.commit(self.task, "task", {"gen.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"gen.txt": "uno\ntwo\nthree\n", CHECKS: '[[generated_files]]\npath = "gen.txt"\n'})
-
-        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "exactly the keys 'path', 'regenerate' and 'check'"):
-            self.classify()
-
-    def test_missing_check_configuration_at_main_fails_explicitly_for_a_conflict(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "uno\ntwo\nthree\n", CHECKS: None})
-
-        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "dev-platform/checks.toml is absent at"):
-            self.classify()
-
-    def test_missing_paths_checks_key_fails_explicitly_for_a_conflict(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
-        write_platform_config(
-            self.task, workflow_profile="standard", capabilities={"agent_board": False}, omit=("paths.checks",)
-        )
-
-        with self.assertRaisesRegex(_platform_common.PlatformConfigError, r"missing required key paths\.checks"):
-            self.classify()
-
     def test_generated_file_reader_rejects_each_malformed_shape(self) -> None:
         cases = {
             "invalid TOML": ("[[generated_files", "not valid TOML"),
@@ -364,168 +219,31 @@ class TaskBaseCurrencyTests(unittest.TestCase):
         self.assertEqual(_platform_common.generated_files(self.task, "HEAD"),
                          (_platform_common.GeneratedFile("gen.txt", ("regen", "{tree}"), ("verify-gen",)),))
 
-    def test_a_conflicting_trial_merge_of_disjoint_files_requires_reconcile(self) -> None:
-        # Disjoint paths that still conflict: main adds a file where the task adds a directory.
-        self.commit(self.task, "task", {"entry/inner.txt": "task\n"})
-        self.advance_main({"entry": "main\n"})
-
-        currency = self.classify()
-
-        self.assertEqual(currency.state, "reconcile-required")
-        self.assertEqual(currency.overlapping, ())
-        self.assertTrue(currency.conflicts)
-        self.assertIn("a trial merge conflicts", currency.describe("origin/main"))
-
-    def test_trial_merge_conflict_without_named_paths_fails_closed(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-        self.advance_main({"main.txt": "main\n"})
-        real = _platform_common.run_git
-
-        def unnamed_conflict(args, *rest, **kwargs):
-            if args[:1] == ["merge-tree"]:
-                return subprocess.CompletedProcess(["git", *args], 1, "0" * 40 + "\n", "")
-            return real(args, *rest, **kwargs)
-
-        with mock.patch.object(_platform_common, "run_git", side_effect=unnamed_conflict):
-            currency = self.classify()
-
-        self.assertEqual(currency.state, "reconcile-required")
-        self.assertEqual(currency.conflicts, ())
-        self.assertIn("a trial merge conflicts", currency.describe("origin/main"))
-
-    def test_no_merge_base_fails_explicitly(self) -> None:
-        git("checkout", "-q", "--orphan", "agent/unrelated", cwd=self.task)
-        self.commit(self.task, "unrelated", {"task.txt": "task\n"})
-        self.advance_main({"main.txt": "main\n"})
-
-        with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "has no merge base with main"):
-            self.classify()
-
-    def test_git_without_trial_merge_support_fails_explicitly(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-        self.advance_main({"main.txt": "main\n"})
-        real = _platform_common.run_git
-
-        def old_git(args, *rest, **kwargs):
-            if args == ["version"]:
-                return subprocess.CompletedProcess(["git", "version"], 0, "git version 2.37.1\n", "")
-            return real(args, *rest, **kwargs)
-
-        with mock.patch.object(_platform_common, "run_git", side_effect=old_git):
-            with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "git 2.37 cannot run a trial merge"):
-                self.classify()
-
-    def test_handoff_gate_accepts_behind_mergeable_only_for_a_queue_integrated_task(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-        self.advance_main({"main.txt": "main\n"})
-
-        with mock.patch.object(_platform_common, "queue_integrated", return_value=True):
-            currency = _platform_common.require_handoff_task_base(self.task, "origin", "main")
-        self.assertEqual(currency.state, "behind-mergeable")
-        with mock.patch.object(_platform_common, "queue_integrated", return_value=False):
-            with self.assertRaisesRegex(_platform_common.TaskFreshnessError, "diverged relative to freshly observed origin/main"):
-                _platform_common.require_handoff_task_base(self.task, "origin", "main")
-
-    def test_queue_integrates_coordinator_candidates_and_quick_tasks_only_with_the_queue_enabled(self) -> None:
-        import managed_task
-        import publication_queue
-
-        cases = [  # (lifecycle mode, queue enabled, provenance, candidate) -> integrated
-            (("coordinator", True, None, False), True),        # quick task
-            (("coordinator", True, object(), True), True),     # coordinator candidate
-            (("coordinator", True, object(), False), False),   # managed task that is not a candidate
-            (("coordinator", False, None, False), False),      # queue disabled on main
-            (("portable", True, None, False), False),          # no coordinator contract
-        ]
-        for (mode, enabled, provenance, candidate), expected in cases:
-            with self.subTest(mode=mode, enabled=enabled, provenance=provenance is not None, candidate=candidate), \
-                    mock.patch.object(_platform_common, "lifecycle_mode", return_value=mode), \
-                    mock.patch.object(publication_queue, "enabled", return_value=enabled), \
-                    mock.patch.object(managed_task, "resolve_canonical_provenance", return_value=provenance), \
-                    mock.patch.object(_platform_common, "coordinator_candidate", return_value=candidate):
-                self.assertIs(_platform_common.queue_integrated(self.task), expected)
-
-    def test_handoff_gate_names_the_overlap_and_the_reconcile_command(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
-
-        with mock.patch.object(_platform_common, "queue_integrated", return_value=True):
-            with self.assertRaisesRegex(_platform_common.TaskFreshnessError,
-                                        r"a trial merge conflicts in shared.txt; reconcile first \(python3 scripts/finish_task.py --reconcile\)"):
-                _platform_common.require_handoff_task_base(self.task, "origin", "main")
-
-    def push(self, *, coordinator_handoff: bool) -> str:
+    def push(self) -> str:
         output = StringIO()
         with mock.patch.object(project_publish, "preflight"), redirect_stdout(output):
-            project_publish.push_feature_branch(self.task, "origin", "main", require_fresh_base=True,
-                                                coordinator_handoff=coordinator_handoff)
+            project_publish.push_feature_branch(self.task, "origin", "main", require_fresh_base=True)
         return output.getvalue()
 
     def remote_branch(self) -> str:
         return run("git", "--git-dir", str(self.remote), "rev-parse", "--verify", "-q", "refs/heads/agent/task",
                    cwd=self.base, check=False).stdout.strip()
 
-    def test_developer_handoff_pushes_a_behind_mergeable_candidate_and_names_the_contract(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-        head = git("rev-parse", "HEAD", cwd=self.task).stdout.strip()
-        main = self.advance_main({"main.txt": "main\n"})
-
-        output = self.push(coordinator_handoff=True)
-
-        self.assertIn("Task base contract behind-mergeable", output)
-        self.assertIn(f"origin/main ({main})", output)
-        self.assertIn(f"merge base {self.seed}", output)
-        self.assertEqual(self.remote_branch(), head)
-
-    def test_developer_handoff_of_an_overlapping_candidate_is_blocked_before_push(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
-
-        with self.assertRaisesRegex(SystemExit, r"a trial merge conflicts in shared.txt\. Reconcile explicitly \(python3 scripts/finish_task.py --reconcile\)"):
-            self.push(coordinator_handoff=True)
-        self.assertEqual(self.remote_branch(), "")
-
-    def test_publication_outside_the_coordinator_handoff_keeps_the_fresh_base_rule(self) -> None:
+    def test_publication_keeps_the_fresh_base_rule(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         self.advance_main({"main.txt": "main\n"})
 
         with self.assertRaisesRegex(SystemExit, "does not contain current origin/main"):
-            self.push(coordinator_handoff=False)
+            self.push()
         self.assertEqual(self.remote_branch(), "")
 
-    def test_status_reports_behind_mergeable_candidate_without_reconcile_or_moving_origin_main(self) -> None:
-        self.commit(self.task, "task", {"task.txt": "task\n"})
-        main = self.advance_main({"main.txt": "main\n"})
-
-        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
-            payload = task_reconciliation.status_payload(self.task)
-
-        self.assertEqual(payload["task_freshness"], "behind-mergeable")
-        self.assertFalse(payload["reconcile_required"])
-        self.assertIsNone(payload["reconcile_command"])
-        self.assertEqual((payload["authoritative_main"], payload["task_merge_base"]), (main, self.seed))
-        # Read-only status fetched only objects: the remote-tracking ref did not move.
-        self.assertEqual(git("rev-parse", "origin/main", cwd=self.task).stdout.strip(), self.seed)
-
-    def test_status_of_an_overlapping_candidate_requires_reconcile_and_names_the_file(self) -> None:
-        self.commit(self.task, "task", {"shared.txt": "ONE\ntwo\nthree\n"})
-        self.advance_main({"shared.txt": "uno\ntwo\nthree\n"})
-
-        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=True):
-            payload = task_reconciliation.status_payload(self.task)
-
-        self.assertEqual(payload["task_freshness"], "diverged")
-        self.assertTrue(payload["reconcile_required"])
-        self.assertIn("a trial merge conflicts in shared.txt", payload["freshness_detail"])
-
-    def test_status_of_a_non_candidate_behind_main_still_requires_reconcile(self) -> None:
+    def test_status_of_a_task_behind_main_requires_reconcile(self) -> None:
         self.commit(self.task, "task", {"task.txt": "task\n"})
         self.advance_main({"main.txt": "main\n"})
 
-        with mock.patch.object(task_reconciliation, "queue_integrated", return_value=False):
-            payload = task_reconciliation.status_payload(self.task)
+        payload = task_reconciliation.status_payload(self.task)
 
-        # Unchanged read-only status: main's commit is absent locally, so it reports "behind".
+        # Read-only status: main's commit is absent locally, so it reports "behind".
         self.assertEqual(payload["task_freshness"], "behind")
         self.assertTrue(payload["reconcile_required"])
 

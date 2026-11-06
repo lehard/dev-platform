@@ -16,13 +16,13 @@ The supported platform archive entrypoint SHALL require a successful semantic Op
 - **AND** `verification.md` records an exact standalone `OpenSpec-Verify: PASS`
 - **AND** `verification.md` records a truthful non-empty `Verification-Method`
 - **AND** strict OpenSpec validation succeeds
-- **WHEN** the agent invokes the platform archive entrypoint
+- **WHEN** finish runs the shared finalize function
 - **THEN** OpenSpec archives the change and global strict validation is run
 
 #### Scenario: Missing or failed verification blocks archive
 
 - **GIVEN** a completed change has no PASS verification receipt or no documented verification method
-- **WHEN** the agent invokes the platform archive entrypoint
+- **WHEN** finish runs the shared finalize function
 - **THEN** archive is refused without mutating the change
 
 ### Requirement: Agents own the whole lifecycle
@@ -498,46 +498,6 @@ When a reviewer runtime returns structured usage for a review launch, the platfo
 - **WHEN** a report written before this change is validated
 - **THEN** it remains valid and its usage reads as unknown
 
-### Requirement: Developer completion is a handoff at a verified PR
-
-For a coordinator-managed candidate, developer completion SHALL end at a handoff: selected checks and semantic verification evidence for the still-active change, an exact-head PR, a developer friction checkpoint bound to the handoff task content, admission to the coordinator and release of the developer's writer claim. Handoff SHALL NOT wait for review, CI, main movement or merge.
-
-#### Scenario: Developer finishes
-- **WHEN** the developer runs finish for a coordinator-managed candidate
-- **THEN** the PR exists, the candidate is review-pending and the developer session is free
-
-### Requirement: Review and repair run as candidate jobs
-
-Independent Review for a coordinator-managed candidate SHALL run as a job on the exact PR head with the existing fresh-context, read-only and two-perspective guarantees.
-
-#### Scenario: Finding is repaired
-- **GIVEN** review reports a fixable material finding
-- **WHEN** the repair job changes task content
-- **THEN** review runs again for the new identity
-
-#### Scenario: Rejection proposed
-- **WHEN** a worker proposes rejecting a material finding
-- **THEN** the candidate waits for a human decision
-
-#### Scenario: Provider limit during repair
-- **GIVEN** a repair writer exits non-zero and the provider runtime then fails its readiness probe
-- **WHEN** the worker records the outcome
-- **THEN** the candidate is blocked-retryable with a provider-unavailable cause naming the limitation
-- **AND** the repair round count is unchanged and the same round is offered again
-
-#### Scenario: Repair fails with a usable runtime
-- **GIVEN** a repair writer exits non-zero and the provider runtime passes its readiness probe
-- **WHEN** the worker records the outcome
-- **THEN** the candidate is blocked-escalation
-
-#### Scenario: Provider unavailable repeatedly
-- **WHEN** the same round is unavailable three consecutive attempts
-- **THEN** the candidate remains blocked-retryable with unavailable evidence and no automatic job
-
-#### Scenario: Unavailable runtime during review
-- **WHEN** a review finds its provider runtime unavailable
-- **THEN** the candidate is blocked-retryable and its record names the provider-unavailable cause and limitation
-
 ### Requirement: Gate evidence is reused for unchanged task content
 
 Required-check, selected-check and review evidence SHALL be bound to the task-content identity it verified and SHALL be reused by later lifecycle steps when that identity is unchanged; changed or unprovable identity SHALL require the gate again.
@@ -546,25 +506,19 @@ Required-check, selected-check and review evidence SHALL be bound to the task-co
 - **WHEN** only lifecycle evidence paths change
 - **THEN** review and check evidence remain valid
 
-#### Scenario: Clean main merge re-admitted with unchanged task content
-- **GIVEN** a candidate whose independent review passed and which waits in a re-admissible state
-- **WHEN** the developer merges the advanced `main` cleanly, with no task-path overlap, and re-admits the new head in the same PR
-- **THEN** the review-pending record keeps the passed review rebound to the new identity
-- **AND** the review job completes from the kept review without launching a reviewer
-
 #### Scenario: Substantive conflict fix
-- **WHEN** a re-admitted head or an integration repair changes task content, for example by resolving a conflict in a task path
-- **THEN** the passed review is not kept and a new independent review runs for the new identity
+- **WHEN** a reconcile changes task content, for example by resolving a conflict in a task path
+- **THEN** a passed review is no longer current and a required review runs again for the new identity
 
 ### Requirement: Completed OpenSpec changes cannot remain active at integration
 
-For non-trivial OpenSpec work, the platform SHALL treat a change with a completed task checklist as not admissible to integration and not mergeable until the change is archived. A coordinator-managed candidate MAY be published as a PR while its completed change is still active, until review and repair have finished.
+For non-trivial OpenSpec work, the platform SHALL treat a change with a completed task checklist as not mergeable until the change is archived.
 
 #### Scenario: Completed active change blocks finish
 
 - **GIVEN** an active OpenSpec change with one or more task checkboxes
 - **AND** every task checkbox is complete
-- **WHEN** the candidate is admitted to integration or merged, or a non-coordinator flow publishes it
+- **WHEN** the flow publishes it
 - **THEN** the flow fails with an instruction to verify and archive the change
 
 #### Scenario: In-progress active change is allowed
@@ -573,37 +527,13 @@ For non-trivial OpenSpec work, the platform SHALL treat a change with a complete
 - **WHEN** lifecycle hygiene is checked
 - **THEN** the change is not treated as stale solely because it is active
 
-### Requirement: Finalization follows review and repair
-
-A coordinator-managed candidate SHALL be archived by a finalize job only after required checks and Independent Review pass for its current task-content identity, using that reused evidence.
-
-#### Scenario: Review passes
-- **WHEN** review and checks pass for the candidate identity
-- **THEN** finalize archives the change and the candidate becomes ready
-
-#### Scenario: Main advances between review repair and finalize
-- **GIVEN** a candidate whose task content changed in a review repair and whose selected-checks gate is therefore not reusable
-- **AND** other PRs advanced `main` after the review
-- **WHEN** the finalize job re-establishes selected checks
-- **THEN** the real selected checks run against the proven base of the reviewed content
-- **AND** the candidate is not blocked because its head does not contain current `main`
-
-#### Scenario: Re-established check fails
-- **WHEN** a selected check fails under the proven-base contract
-- **THEN** finalization does not archive and the candidate is escalated naming the failure
-
-#### Scenario: Finalization does not actualize the base
-- **GIVEN** `main` advanced after review
-- **WHEN** finalization archives the candidate
-- **THEN** any pushed finalization commit has the claimed head as its only parent and contains no merge of `main`
-
 ### Requirement: Archive hygiene exempts only its exact target
 
-While `openspec_lifecycle.py archive <change>` runs the selected or protected validation checks, the OpenSpec lifecycle hygiene check SHALL exempt only that exact completed active archive target.
+While finish archives `<change>` and runs the selected or protected validation checks, the OpenSpec lifecycle hygiene check SHALL exempt only that exact completed active archive target.
 
 #### Scenario: Verified change passes its own archive checks
 - **GIVEN** a completed, verified active change and the standard check mapping that includes the hygiene check
-- **WHEN** the agent invokes the platform archive entrypoint
+- **WHEN** finish runs the shared finalize function
 - **THEN** the hygiene check inside the archive validation passes for that change
 - **AND** the change is archived and the ordinary hygiene check then passes
 
@@ -621,7 +551,7 @@ While `openspec_lifecycle.py archive <change>` runs the selected or protected va
 - **GIVEN** an archive target that is nonexistent, malformed, ambiguous or not completed
 - **WHEN** hygiene runs in the archive context
 - **THEN** it fails with an explicit error before any canonical state is changed
-- **AND** the archive entry point applies this target validation in every mode, including `--finalize`, before any canonical state changes, while `--finalize` still runs no checks and needs no exemption
+- **AND** the archive entry point applies this target validation before any canonical state changes
 
 #### Scenario: Failed archive leaves no bypass
 - **GIVEN** archive validation fails after the exemption was applied
@@ -680,26 +610,6 @@ For checkouts with private lineage enabled, the shared Requirement publisher SHA
 - **WHEN** the early guard passes for a complete shared candidate
 - **THEN** the full mandatory checks still run and protected publication retains its privacy recheck
 
-### Requirement: Lifecycle behavior is selected from the committed contract before source-only logic
-
-Archive, publication and Requirement lifecycle entrypoints SHALL select portable or coordinator behavior from the committed `.dev-platform.toml` contract through one repository-owned selector before importing or evaluating any source-only coordinator logic.
-
-#### Scenario: Downstream archive stays portable
-- **WHEN** a downstream-contract checkout runs `openspec_lifecycle.py archive` for a completed verified change and the coordinator modules are unavailable
-- **THEN** archive completes through the portable review and checks path without importing `pr_review_gate`, `publication_queue` or `lifecycle_workers`
-
-#### Scenario: Downstream ignores coordinator candidacy
-- **WHEN** a downstream-contract checkout has ambiguous or malformed managed provenance and the candidate question is asked
-- **THEN** it answers not-a-coordinator-candidate without resolving provenance and without raising
-
-#### Scenario: Unsupported source combination fails explicitly
-- **WHEN** the source contract declares `scm_provider=gitlab`, `publish_mode=direct` or `harness_mode=project`
-- **THEN** Requirement lifecycle selection raises an error naming the key and value and does not fall back to the legacy or portable path
-
-#### Scenario: Supported source contract keeps coordinator behavior
-- **WHEN** the source contract declares the supported combination
-- **THEN** coordinator candidacy and publication support are evaluated exactly as before, and provenance errors still propagate
-
 ### Requirement: Archive rejects a new capability without an authored Purpose before mutation
 
 Before review, selected checks, evidence writes or any OpenSpec mutation, the archive lifecycle SHALL reject a change whose delta creates a capability absent from the main specs unless that delta carries a non-empty, non-placeholder `## Purpose`. A placeholder SHALL include `TBD`, `TODO` or `FIXME` text and the sentence OpenSpec archive writes for a missing Purpose.
@@ -756,17 +666,11 @@ Archive, rehearsal, recovery and post-review finalization SHALL report OpenSpec 
 
 ### Requirement: Archive readiness is checked before review spend
 
-Developer handoff, offering or launching a composition review, and composition finalization SHALL evaluate the same archive-content readiness predicate (all tasks complete; meaningful Purpose for each capability first created in contribution order) and SHALL stop with the named children and problems before spending a review round or archiving any child.
+Finish SHALL evaluate the archive-content readiness predicate (all tasks complete; meaningful Purpose for each capability the change first creates) and SHALL stop with the named problems before spending a review round or archiving the change.
 
-#### Scenario: Composition child has unticked tasks
-- **GIVEN** a complete Requirement composition whose child has an unticked task
-- **WHEN** the composition draft is published or a composition review job starts
-- **THEN** no review is offered or launched
-- **AND** the error names the child and its incomplete tasks
-
-#### Scenario: Finalization meets a child without Purpose
-- **WHEN** composition finalization starts and a child creates a capability without an authored Purpose
-- **THEN** finalization fails before archiving any child, naming the child and delta
+#### Scenario: Finalization meets a change without Purpose
+- **WHEN** finalization starts and the change creates a capability without an authored Purpose
+- **THEN** finalization fails before archiving, naming the delta
 
 #### Scenario: Archive and hygiene stay compatible
 - **WHEN** archive runs its validation subprocess for its exact completed target
@@ -778,7 +682,7 @@ Developer handoff, offering or launching a composition review, and composition f
 
 #### Scenario: Unchanged archived content
 
-- **GIVEN** a managed task in a `portable` project whose archive executed the selected checks successfully and wrote version-2 evidence
+- **GIVEN** a managed task whose archive executed the selected checks successfully and wrote version-2 evidence
 - **AND** only the archive materialization and lifecycle evidence changed afterwards and main did not advance
 - **WHEN** finish runs
 - **THEN** finish prints that the archive evidence was reused
@@ -788,9 +692,8 @@ Developer handoff, offering or launching a composition review, and composition f
 
 - **GIVEN** a managed or quick task whose recorded evidence passed
 - **AND** main advanced without touching any task path and the task merged it cleanly
-- **WHEN** finish runs in the `portable` or `coordinator` lifecycle
+- **WHEN** finish runs
 - **THEN** finish prints that the evidence was reused and does not execute the selected checks
-- **AND** the coordinator developer handoff accepts the same evidence
 
 #### Scenario: Task content changed after archive
 
@@ -816,19 +719,9 @@ Developer handoff, offering or launching a composition review, and composition f
 - **WHEN** finish runs
 - **THEN** finish prints that no quick-task evidence is recorded, executes the required checks and records evidence for the next finish
 
-#### Scenario: Coordinator lifecycle unchanged
-
-- **WHEN** finish runs for a coordinator-managed candidate
-- **THEN** finish runs no checks and the developer handoff accepts the evidence by the same task-content proof as before
-
 ### Requirement: Declared generated files are not task-content identity
 
-Task-content identity for review and for Requirement composition SHALL exclude files that the project declares generated in the committed check configuration at the main commit the candidate is based on (the merge base of the candidate head and the remote integration branch), never in the candidate. Every other task path SHALL remain in identity.
-
-#### Scenario: Only the generated manifest is regenerated on an archived candidate
-- **GIVEN** an archived candidate whose gates are bound to its task-content identity
-- **WHEN** the publication queue merges main and regenerates only the declared generated manifest
-- **THEN** the task-content identity is unchanged and the gates are kept
+Task-content identity for review SHALL exclude files that the project declares generated in the committed check configuration at the main commit the candidate is based on (the merge base of the candidate head and the remote integration branch), never in the candidate. Every other task path SHALL remain in identity.
 
 #### Scenario: An ordinary task path changes together with the manifest
 - **GIVEN** an archived candidate
@@ -931,7 +824,7 @@ For checkouts with private lineage enabled, `select_checks.py --execute` SHALL r
 
 ### Requirement: Expensive lifecycle commands run one shared preflight of known conditions
 
-`select_checks.py --execute` and `finish_task.py` (first submission, developer handoff and re-submission) SHALL, before the affected-test precheck, any selected command or any other expensive operation, evaluate one ordered registry of cheap conditions in `lifecycle_preflight.py`.
+`select_checks.py --execute` and `finish_task.py` SHALL, before the affected-test precheck, any selected command or any other expensive operation, evaluate one ordered registry of cheap conditions in `lifecycle_preflight.py`.
 
 #### Scenario: Task without a board claim
 
@@ -946,12 +839,11 @@ For checkouts with private lineage enabled, `select_checks.py --execute` SHALL r
 - **WHEN** `select_checks.py --execute` or `finish_task.py` runs
 - **THEN** it exits non-zero before the full validation set starts, naming the command and the unregistered site
 
-#### Scenario: Task behind a conflicting main
+#### Scenario: Task behind main
 
-- **GIVEN** main moved so the task is not behind-mergeable
+- **GIVEN** main moved so the task head no longer contains it
 - **WHEN** a lifecycle command runs the preflight
-- **THEN** it refuses before validation with the conflicting files and the `reconcile` command
-- **AND** a task that is behind-mergeable passes as it does for the gate today
+- **THEN** it refuses before validation with the `reconcile` command
 
 #### Scenario: Several refusals at once
 
@@ -978,7 +870,7 @@ For checkouts with private lineage enabled, `select_checks.py --execute` SHALL r
 
 - **GIVEN** a managed task whose committed selected-check evidence is a publication gate and whose content proof no longer matches after main moved under the task
 - **WHEN** `finish_task.py` runs the preflight
-- **THEN** it refuses before validation naming the evidence path and the exact `select_checks.py --base <base> --execute --evidence <path>` refresh command, whose base is `origin/main` or a contribution's recorded base
+- **THEN** it refuses before validation naming the evidence path and the exact `select_checks.py --base <base> --execute --evidence <path>` refresh command, whose base is `origin/main`
 
 ### Requirement: Reconcile reports committed evidence a base move invalidated
 
@@ -996,27 +888,11 @@ After `reconcile` merges authoritative main into a managed task, it SHALL evalua
 - **WHEN** `reconcile` merges that main
 - **THEN** it succeeds and reports no stale evidence
 
-#### Scenario: Active change in the portable lifecycle
+#### Scenario: Active change
 
-- **GIVEN** an active managed change outside the coordinator lifecycle
+- **GIVEN** an active managed change
 - **WHEN** `reconcile` or the preflight evaluates its evidence
 - **THEN** the condition is not applicable because archive revalidates non-reusable evidence
-
-### Requirement: A developer does not archive a coordinator candidate
-
-Under the coordinator lifecycle a developer archive of a coordinator-managed candidate SHALL be refused before any review, check or OpenSpec change, naming the handoff command, because the candidate is handed off with its change still active and the coordinator's finalize archives it. The finalize archive SHALL be unchanged.
-
-#### Scenario: Developer archives a coordinator candidate
-
-- **GIVEN** the coordinator lifecycle with the publication queue enabled and an active coordinator-managed candidate
-- **WHEN** the developer runs `openspec_lifecycle.py archive <change>` without `--finalize`
-- **THEN** it fails before any work, naming the handoff command
-- **AND** the change stays active
-
-#### Scenario: Coordinator finalize archives
-
-- **WHEN** finalize runs `openspec_lifecycle.py archive <change> --finalize` for a reviewed candidate
-- **THEN** the archive proceeds as before
 
 ### Requirement: Completion status derives unfinished automatic delivery from Git and GitHub state
 
@@ -1038,27 +914,6 @@ For a managed task, read-only status SHALL distinguish confirmed exact PR merge 
 - **GIVEN** a managed task whose exact PR merge is confirmed
 - **WHEN** read-only status is requested
 - **THEN** it reports the confirmed exact PR merge separately from full terminal completion
-
-### Requirement: Full completion requires fulfilled post-merge obligations
-
-Full completion SHALL be reported only when mandatory post-merge local, Project, linked process-evidence, and required cleanup obligations are fulfilled or have an explicitly supported terminal disposition. Status SHALL derive full completion from existing authoritative lifecycle and obligation evidence without a second terminal state ledger.
-
-#### Scenario: Post-merge obligations decide full completion
-
-- **WHEN** status decides whether to report full completion
-- **THEN** full completion is reported only when mandatory post-merge local, Project, linked process-evidence, and required cleanup obligations are fulfilled or have an explicitly supported terminal disposition
-- **AND** status derives this from existing authoritative lifecycle and obligation evidence without a second terminal state ledger
-
-### Requirement: A failed post-merge obligation does not turn the merge into failure
-
-A failed or unknown post-merge obligation SHALL be reported as pending or blocking without changing the confirmed merge fact to failure.
-
-#### Scenario: Post-merge obligation fails or is unknown
-
-- **GIVEN** a confirmed merge
-- **WHEN** a post-merge obligation is failed or unknown
-- **THEN** the obligation is reported as pending or blocking
-- **AND** the confirmed merge fact is not changed to failure
 
 ### Requirement: A none retrospective checkpoint requires every mandatory signal to be disposed
 
@@ -1202,7 +1057,7 @@ The platform SHALL expose the reviewer runtime readiness check as a standalone c
 
 ### Requirement: Reviewer provider substitution follows only a configured ordered list
 
-The platform SHALL NOT substitute another reviewer model or provider unless configuration declares an ordered provider list; then each configured provider is probed in order, the review records the requested provider, the executed provider and the fallback reason, and when every configured provider is unavailable the candidate becomes blocked-retryable and is retried automatically rather than escalated to a human.
+The platform SHALL NOT substitute another reviewer model or provider unless configuration declares an ordered provider list; then each configured provider is probed in order, the review records the requested provider, the executed provider and the fallback reason, and when every configured provider is unavailable the review stops with that limitation.
 
 #### Scenario: No ordered provider list
 
@@ -1215,199 +1070,7 @@ The platform SHALL NOT substitute another reviewer model or provider unless conf
 - **WHEN** reviewer readiness is probed
 - **THEN** each configured provider is probed in order
 - **AND** the review records the requested provider, the executed provider and the fallback reason
-- **AND** when every configured provider is unavailable the candidate becomes blocked-retryable and is retried automatically rather than escalated to a human
-
-### Requirement: A fixable review finding produces a bounded repair job
-
-A fixable finding of Independent Review for a coordinator-managed candidate SHALL produce a bounded repair job executed without the original developer.
-
-#### Scenario: Review reports a fixable finding
-
-- **WHEN** Independent Review of a coordinator-managed candidate reports a fixable finding
-- **THEN** a bounded repair job is produced
-- **AND** it is executed without the original developer
-
-### Requirement: Changed candidate task content makes review stale
-
-For a coordinator-managed candidate, changed task content SHALL make review stale.
-
-#### Scenario: Candidate task content changes
-
-- **WHEN** the task content of a coordinator-managed candidate changes
-- **THEN** its review becomes stale
-
-### Requirement: Rejected material findings or exhausted repair escalate the candidate
-
-For a coordinator-managed candidate, a proposal to reject a material finding, or exhausted repair rounds, SHALL move the candidate to blocked-escalation.
-
-#### Scenario: Material finding rejection is proposed
-
-- **WHEN** a proposal to reject a material finding is made, or repair rounds are exhausted
-- **THEN** the candidate moves to blocked-escalation
-
-### Requirement: Candidate jobs retain the originating reviewer provider
-
-Review and repair jobs SHALL retain the originating task's resolved reviewer provider or explicitly configured ordered providers across repair and retry until an operator re-offers the job on other supported providers. Workers SHALL NOT substitute their local route.
-
-#### Scenario: Worker with a different local route runs a job
-
-- **WHEN** a worker runs a review or repair job across repair or retry
-- **THEN** the job uses the originating task's resolved reviewer provider or explicitly configured ordered providers
-- **AND** the worker does not substitute its local route until an operator re-offers the job on other supported providers
-
-### Requirement: An unavailable provider runtime leaves the candidate blocked-retryable
-
-An unavailable provider runtime (login, usage limit or failure to start) during review or repair SHALL leave the candidate blocked-retryable with a named provider-unavailable cause and SHALL NOT escalate it or spend a repair round.
-
-#### Scenario: Provider runtime is unavailable during a job
-
-- **WHEN** the provider runtime is unavailable (login, usage limit or failure to start) during review or repair
-- **THEN** the candidate is blocked-retryable with a named provider-unavailable cause
-- **AND** it is not escalated and no repair round is spent
-
-### Requirement: Unavailable review or repair retries are bounded
-
-Unavailable review or repair SHALL retry the same round at most three consecutive attempts, then remain blocked-retryable with unavailable evidence and no automatic job until an operator resumes it.
-
-#### Scenario: Third consecutive unavailable attempt
-
-- **WHEN** review or repair has been unavailable for three consecutive attempts of the same round
-- **THEN** it remains blocked-retryable with unavailable evidence
-- **AND** no automatic job runs until an operator resumes it
-
-### Requirement: A failing repair writer with a usable runtime escalates
-
-A repair writer that fails while its runtime is usable SHALL still be an operational escalation.
-
-#### Scenario: Repair writer fails
-
-- **WHEN** a repair writer fails while its runtime is usable
-- **THEN** the failure is an operational escalation
-
-### Requirement: Publication leaves review and repair retry states untouched
-
-Publication SHALL leave review-owned and repair-owned retry states untouched.
-
-#### Scenario: Publication meets a retry state
-
-- **WHEN** publication runs while a review-owned or repair-owned retry state exists
-- **THEN** the retry state is left untouched
-
-### Requirement: Job workers confirm ownership before side effects
-
-Workers of review and repair jobs SHALL confirm unexpired ownership of the exact job and originating head immediately before push and candidate advancement; lost ownership SHALL abandon without further side effects.
-
-#### Scenario: Ownership lost before push
-
-- **WHEN** a worker is about to push or advance the candidate
-- **THEN** it confirms unexpired ownership of the exact job and originating head
-- **AND** when ownership is lost it abandons without further side effects
-
-### Requirement: Repair rejects lifecycle evidence paths
-
-Repair SHALL reject lifecycle evidence paths at any depth, including evidence directories.
-
-#### Scenario: Repair touches an evidence path
-
-- **WHEN** a repair change touches a lifecycle evidence path at any depth, including an evidence directory
-- **THEN** repair rejects it
-
-### Requirement: A published trusted repair completion recovers without rerunning the writer
-
-A trusted repair completion published before interrupted advancement SHALL recover on the next run without rerunning the repair writer.
-
-#### Scenario: Advancement interrupted after repair publication
-
-- **GIVEN** a trusted repair completion was published before advancement was interrupted
-- **WHEN** the next run starts
-- **THEN** it recovers the completion without rerunning the repair writer
-
-### Requirement: Integration events do not invalidate a passed review
-
-A clean merge of `main`, a `main` advance, lifecycle archiving and a coordinator update SHALL NOT by themselves invalidate a passed independent review.
-
-#### Scenario: Main advances after review passed
-
-- **GIVEN** a passed independent review
-- **WHEN** a clean merge of `main`, a `main` advance, lifecycle archiving or a coordinator update happens
-- **THEN** that event by itself does not invalidate the passed review
-
-### Requirement: Re-admission keeps gates still bound to the new task content
-
-When a developer re-admits a descendant head in place of an admitted head through queue supersession, the new review-pending record SHALL keep every recorded gate that is still provably bound to the new task-content identity, except required checks and the gates the new handoff supplies. A kept passed review SHALL complete the review job without launching a reviewer.
-
-#### Scenario: Descendant head re-admitted through queue supersession
-
-- **WHEN** a developer re-admits a descendant head in place of an admitted head through queue supersession
-- **THEN** the new review-pending record keeps every recorded gate still provably bound to the new task-content identity, except required checks and the gates the new handoff supplies
-- **AND** a kept passed review completes the review job without launching a reviewer
-
-### Requirement: Re-admission carries no failed review and keeps finding refusals
-
-Re-admission SHALL NOT carry a failed review, and SHALL NOT relax any refusal of re-admission over finding-level escalations or material findings.
-
-#### Scenario: Re-admission after a failed review
-
-- **WHEN** a head is re-admitted
-- **THEN** a failed review is not carried
-- **AND** any refusal of re-admission over finding-level escalations or material findings still applies
-
-### Requirement: Finalization preserves task-content identity
-
-Finalization of a coordinator-managed candidate SHALL NOT change task-content identity; a later task-content change SHALL return the candidate to review and finalization.
-
-#### Scenario: Task content changes after finalization
-
-- **WHEN** a finalize job runs
-- **THEN** it does not change task-content identity
-- **AND** a later task-content change returns the candidate to review and finalization
-
-### Requirement: Finalization re-establishes selected checks on the reviewed base
-
-When selected checks must be re-established during finalization, the finalize job SHALL run the real selected checks against the proven base of the reviewed task content. That base is the task-content base of the identity proven equivalent to the candidate's recorded identity, and the checks SHALL use the bounded coordinator-finalization freshness contract rather than require the head to contain current `main`.
-
-#### Scenario: Selected checks re-established during finalization
-
-- **WHEN** selected checks must be re-established during finalization
-- **THEN** the finalize job runs the real selected checks against the task-content base of the identity proven equivalent to the candidate's recorded identity
-- **AND** the checks use the bounded coordinator-finalization freshness contract rather than require the head to contain current `main`
-
-### Requirement: Finalization check evidence records its freshness contract and base
-
-The harness-executed evidence of selected checks re-established during finalization SHALL record the bounded coordinator-finalization freshness contract and the proven base.
-
-#### Scenario: Finalization records selected-check evidence
-
-- **WHEN** the finalize job records harness-executed selected-check evidence
-- **THEN** the evidence records the bounded coordinator-finalization freshness contract and the proven base
-
-### Requirement: Finalization only fast-forwards the claimed head
-
-Finalization SHALL NOT fetch or merge `main`, and the only push of finalization SHALL be a fast-forward of the claimed head with the archive move.
-
-#### Scenario: Finalize job pushes
-
-- **WHEN** a finalize job runs
-- **THEN** it does not fetch or merge `main`
-- **AND** its only push is a fast-forward of the claimed head with the archive move
-
-### Requirement: A failing finalization selected check escalates the candidate
-
-During finalization, a failing selected check SHALL still escalate the candidate.
-
-#### Scenario: Selected check fails in finalization
-
-- **WHEN** a selected check fails during finalization
-- **THEN** the candidate is escalated
-
-### Requirement: An unbound verification receipt still needs the developer handoff
-
-During finalization, an unbound semantic-verification receipt SHALL still require the developer's handoff.
-
-#### Scenario: Semantic-verification receipt is unbound
-
-- **WHEN** finalization meets an unbound semantic-verification receipt
-- **THEN** the developer's handoff is still required
+- **AND** when every configured provider is unavailable the review stops with that limitation
 
 ### Requirement: The archive hygiene exemption is scoped to the archive validation subprocess
 
@@ -1485,22 +1148,6 @@ A downstream `.dev-platform.toml` contract (`platform_version` other than `sourc
 - **WHEN** a lifecycle entrypoint selects its behavior
 - **THEN** portable behavior is selected
 
-### Requirement: The source contract selects coordinator behavior only for the GitHub PR platform mode
-
-The source `.dev-platform.toml` contract SHALL select coordinator lifecycle behavior only for `harness_mode=platform`, `publish_mode=pr` and `scm_provider=github`; any other source combination, or a missing `platform_version`, SHALL fail with a named error and SHALL NOT switch to another path.
-
-#### Scenario: Source contract with the platform GitHub PR combination
-
-- **GIVEN** the source contract with `harness_mode=platform`, `publish_mode=pr` and `scm_provider=github`
-- **WHEN** a lifecycle entrypoint selects its behavior
-- **THEN** coordinator behavior is selected
-
-#### Scenario: Other source combination or missing platform_version
-
-- **WHEN** the source contract has any other combination, or `platform_version` is missing
-- **THEN** selection fails with a named error
-- **AND** it does not switch to another path
-
 ### Requirement: A missing new-capability Purpose diagnostic names the file and section
 
 The archive diagnostic for a new-capability delta without a non-empty, non-placeholder `## Purpose` SHALL name the delta file and the missing section.
@@ -1533,12 +1180,12 @@ If the real post-archive strict validation still fails, the lifecycle SHALL rest
 
 ### Requirement: One rule decides finish check evidence reuse
 
-One `finish` evidence reuse rule SHALL decide for managed and quick tasks in the `portable` and `coordinator` lifecycles: the evidence outcome is success, the current required selection is ready and every one of its commands was executed successfully by the evidence, and the evidence's task-content proof is equivalent to the current one — equal task-content digest and scope, and when the bases differ, the recorded base is an ancestor of the current base and no task path changed between them.
+One `finish` evidence reuse rule SHALL decide for managed and quick tasks: the evidence outcome is success, the current required selection is ready and every one of its commands was executed successfully by the evidence, and the evidence's task-content proof is equivalent to the current one — equal task-content digest and scope, and when the bases differ, the recorded base is an ancestor of the current base and no task path changed between them.
 
 #### Scenario: Evidence satisfies the reuse rule
 
 - **WHEN** the evidence outcome is success, the current required selection is ready, every one of its commands was executed successfully by the evidence, and the task-content proofs are equivalent
-- **THEN** the evidence proves the task content for managed and quick tasks in both lifecycles
+- **THEN** the evidence proves the task content for managed and quick tasks
 
 #### Scenario: Bases differ
 
@@ -1705,12 +1352,12 @@ A git or selection failure while deciding whether selected-check evidence is reu
 
 ### Requirement: The shared preflight registry lists the known cheap conditions
 
-The ordered registry of cheap conditions in `lifecycle_preflight.py` SHALL consist of: shared-workspace permissions on the task paths, the task's board claim and scope together with scope overlap, the task's freshness against authoritative main under the existing behind-mergeable contract, the project's configured cheap gates (`[settings] preflight_commands`), and whether the task's committed selected-check evidence still proves its content.
+The ordered registry of cheap conditions in `lifecycle_preflight.py` SHALL consist of: shared-workspace permissions on the task paths, the task's board claim and scope together with scope overlap, the task's freshness against authoritative main, the project's configured cheap gates (`[settings] preflight_commands`), and whether the task's committed selected-check evidence still proves its content.
 
 #### Scenario: Preflight registry is evaluated
 
 - **WHEN** the shared preflight runs
-- **THEN** it evaluates shared-workspace permissions on the task paths, the board claim and scope with scope overlap, freshness under the behind-mergeable contract, the configured `[settings] preflight_commands`, and whether committed selected-check evidence still proves the content
+- **THEN** it evaluates shared-workspace permissions on the task paths, the board claim and scope with scope overlap, freshness against main, the configured `[settings] preflight_commands`, and whether committed selected-check evidence still proves the content
 
 ### Requirement: Each preflight condition reuses its gate function
 
@@ -1752,14 +1399,14 @@ A `lifecycle_preflight.py` condition that cannot be evaluated SHALL refuse; no c
 
 ### Requirement: Reconcile fails when gating evidence no longer proves the content
 
-When a managed task's committed selected-check evidence is a publication gate (the change is archived, or the task is a coordinator-managed candidate) and no longer proves the task content, `reconcile` SHALL exit non-zero after the merge, naming the evidence path, its recorded base and the current base, and printing the exact refresh command `python3 scripts/select_checks.py --base <base> --execute --evidence <path>` followed by committing the refreshed evidence.
+When a managed task's committed selected-check evidence is a publication gate (the change is archived) and no longer proves the task content, `reconcile` SHALL exit non-zero after the merge, naming the evidence path, its recorded base and the current base, and printing the exact refresh command `python3 scripts/select_checks.py --base <base> --execute --evidence <path>` followed by committing the refreshed evidence.
 
 #### Scenario: Gating evidence invalidated by the base move
 
-- **GIVEN** an archived change or a coordinator-managed candidate
+- **GIVEN** an archived change
 - **WHEN** `reconcile` merges authoritative main and the committed selected-check evidence no longer proves the task content
 - **THEN** `reconcile` exits non-zero after the merge naming the evidence path, its recorded base and the current base
-- **AND** it prints `python3 scripts/select_checks.py --base <base> --execute --evidence <path>`, whose base is `origin/main` or a contribution's recorded base, followed by committing the refreshed evidence
+- **AND** it prints `python3 scripts/select_checks.py --base <base> --execute --evidence <path>`, whose base is `origin/main`, followed by committing the refreshed evidence
 
 ### Requirement: Reconcile passes evidence that still proves the content
 
@@ -1789,66 +1436,13 @@ During `reconcile`, inability to compute the current content proof SHALL fail ex
 - **WHEN** `reconcile` cannot compute the current content proof
 - **THEN** it fails explicitly
 
-### Requirement: Developer handoff enforces the routing gate
-
-Every developer handoff of an active change, first or repeated, through `finish` or `execute_requirement.py advance`, SHALL run the same routing gate as archive before publication and SHALL fail naming the missing routing record or retained execution outcome and its command. An archived re-admission SHALL rely on the gate its first handoff passed.
-
-#### Scenario: First handoff without a retained outcome
-
-- **WHEN** a candidate is handed off without its retained execution outcome
-- **THEN** the handoff fails before publication naming the record and its command
-
-### Requirement: A merge-only reconcile keeps the handoff checkpoint
-
-The developer handoff SHALL accept a friction checkpoint whose managed task-content proof is equivalent to the current one, so a reconcile that only merges main needs no new checkpoint. Changed task content SHALL still require a new checkpoint.
-
-#### Scenario: Re-handoff after a merge-only reconcile
-
-- **WHEN** a checkpoint was recorded before a reconcile that changed no task path
-- **THEN** the re-handoff accepts it
-
-#### Scenario: Task content changed after the checkpoint
-
-- **WHEN** a task-owned file changed after the checkpoint
-- **THEN** the handoff fails naming the checkpoint command
-
-### Requirement: Gate evidence survives a main-only integration
-
-After an integration repair or derived merge, the developer receipt and its gates SHALL stay valid when the new head's tree equals, byte for byte, the merge of the old head with the new base, conflicting only in generated files declared on the default branch. The old head SHALL come only from a trusted queue record of the transition where the gates passed; a missing or malformed record SHALL reset the receipt with a reason.
-
-#### Scenario: Main touched a task path
-
-- **GIVEN** a candidate whose gates passed at a trusted head
-- **WHEN** the coordinator merges main that also changed a task path and the new head equals that merge
-- **THEN** the receipt and the gates bound to it are reused for the new head
-
-#### Scenario: Integration changed own content
-
-- **WHEN** the new head differs from the merge of the old head with the new base
-- **THEN** fresh developer semantic verification is required through handoff
-
-#### Scenario: No trusted record
-
-- **WHEN** no trusted queue record names the head on which the gates passed
-- **THEN** the receipt is reset with a reason and nothing is reused
-
-### Requirement: Finish of a merged PR reconciles before any developer handoff
-
-When the exact PR of the task branch is merged, finish SHALL run the post-merge reconcile path before any managed-candidate developer handoff, and the board scope-claim condition SHALL NOT apply to it. An unreadable PR state SHALL stop finish explicitly.
-
-#### Scenario: Merged PR at a pre-finalize head
-
-- **GIVEN** a task worktree at a pre-finalize head whose exact PR is merged and whose board claim was released
-- **WHEN** finish runs
-- **THEN** it reconciles delivery without a scope claim and starts no developer handoff
-
 ### Requirement: One finalize function archives a change
 
-An OpenSpec change SHALL be archived only through one finalize function that checks its preconditions, validates, rehearses and archives with recovery. The queue finalize job SHALL archive through it.
+An OpenSpec change SHALL be archived only through one finalize function that checks its preconditions, validates, rehearses and archives with recovery. Finish SHALL archive through it.
 
-#### Scenario: Finalize job archives
-- **WHEN** the queue finalize job archives a reviewed candidate
-- **THEN** it calls the finalize function and the archive, commit and path checks are as before
+#### Scenario: Finish archives
+- **WHEN** finish archives a verified change
+- **THEN** it calls the finalize function and the archive, commit and path checks run
 
 ### Requirement: Finalize reports every unmet archive precondition at once
 
@@ -1858,35 +1452,19 @@ Before any archive work, finalize SHALL evaluate every archive precondition (tas
 - **WHEN** a change lacks review evidence and has an unticked task
 - **THEN** finalize fails once naming both with their fixes and archives nothing
 
-### Requirement: Without a queue finish finalizes the change
+### Requirement: Finish finalizes the change
 
-Without the publication queue, finish SHALL run a required independent review and then the shared finalize function on the verified active change before publication, and Requirement advance SHALL finalize a ready portable multi-child child the same way.
+Finish SHALL run the independent review when `[independent_review] enabled = true` and then the shared finalize function on the verified active change before publication, and Requirement advance SHALL finalize a ready multi-child child the same way. Without that setting the review stays optional and can be run by hand with `scripts/independent_review.py`.
 
-#### Scenario: Light project finishes
-- **WHEN** finish runs in a light project on a verified active change
+#### Scenario: Project finishes
+- **WHEN** finish runs on a verified active change
 - **THEN** the change is archived through finalize and committed before publication
 
 ### Requirement: The developer archive command refuses
 
-`openspec_lifecycle.py archive` without `--finalize` SHALL refuse before any work, naming finish or the queue finalize job as the archive executor.
+`openspec_lifecycle.py archive` SHALL refuse before any work, naming finish as the archive executor.
 
 #### Scenario: Developer runs archive
 - **WHEN** a developer runs archive for an active change
 - **THEN** it fails naming the executor and the change stays active
 
-### Requirement: Contribution evidence binds to one proven reviewed base
-
-Review, task-content identity, selected checks and finalization of a contribution SHALL use one contribution base. Evidence from an earlier base SHALL be reused only when task content is proven equivalent across the move or the move is a proven target-only merge; otherwise a fresh review runs or the candidate blocks naming the base. Composition SHALL verify the recorded base, identity, head and integrated head of each child.
-
-#### Scenario: Main-only movement is not attributed to the child
-- **GIVEN** a requirement branch that absorbed main and a contribution reconciled onto it
-- **WHEN** the contribution is reviewed and finalized
-- **THEN** main's changes are absent from its task content and no finding is attributed to them
-
-#### Scenario: Composition after a base move
-- **WHEN** composition verifies a child whose base moved during delivery
-- **THEN** it recomputes the identity from the recorded base and exact head and passes
-
-#### Scenario: Identity differs
-- **WHEN** the recomputed identity differs from the record
-- **THEN** composition refuses naming the child

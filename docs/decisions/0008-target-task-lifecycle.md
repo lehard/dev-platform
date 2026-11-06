@@ -1,11 +1,11 @@
 # DEC-0008: One actor, one entry and one state owner for every lifecycle stage
 
-- **Status:** Current
+- **Status:** Superseded
 - **Scope:** The end-to-end task lifecycle from Business Requirement to merge, release and rollout
 - **Decision date:** 2026-10-31
 - **Authored against revision:** `f1d36b2a29883ecb8ab08e6e9e05f4139f391f86`
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** [DEC-0009](0009-single-stream-core.md)
 
 ## Accepted current decision
 

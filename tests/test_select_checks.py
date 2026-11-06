@@ -435,133 +435,8 @@ class ChangedFileBaseTests(unittest.TestCase):
         self.assertEqual(wrapper.drift_base(["--execute", "--base", "origin/main"]), "origin/main")
 
 
-class ProvenBaseContractTests(unittest.TestCase):
-    """The bounded coordinator-finalization freshness contract, exercised on real Git history."""
-
-    def git(self, cwd: Path, *args: str) -> str:
-        return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
-
-    def setUp(self) -> None:
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.base = Path(tmp.name)
-        self.remote = self.base / "remote.git"
-        self.git(self.base, "init", "-q", "--bare", "-b", "main", str(self.remote))
-        self.task = self.base / "task"
-        self.git(self.base, "clone", "-q", str(self.remote), str(self.task))
-        self.git(self.task, "config", "user.email", "proven@example.invalid")
-        self.git(self.task, "config", "user.name", "Proven Base")
-        self.git(self.task, "checkout", "-q", "-b", "main")
-        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT, encoding="utf-8")
-        self.write_checks("printf ran > validation-ran.txt")
-        self.git(self.task, "add", "-A")
-        self.git(self.task, "commit", "-qm", "seed")
-        self.git(self.task, "push", "-q", "-u", "origin", "main")
-        self.proven = self.git(self.task, "rev-parse", "HEAD")
-        self.git(self.task, "checkout", "-q", "-b", "agent/task")
-        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
-        self.git(self.task, "add", "task.txt")
-        self.git(self.task, "commit", "-qm", "task")
-        # Another PR merges after review: origin/main moves past the proven base.
-        other = self.base / "other"
-        self.git(self.base, "clone", "-q", str(self.remote), str(other))
-        self.git(other, "-c", "user.name=Other", "-c", "user.email=other@example.invalid", "commit", "-q",
-                 "--allow-empty", "-m", "advance main")
-        self.git(other, "push", "-q", "origin", "HEAD:main")
-        self.git(self.task, "fetch", "-q", "origin")
-        self.moved = self.git(self.task, "rev-parse", "origin/main")
-        (self.task / ".git/info/exclude").write_text("validation-ran.txt\n", encoding="utf-8")
-
-    def write_checks(self, command: str) -> None:
-        checks = self.task / "dev-platform/checks.toml"
-        checks.parent.mkdir(exist_ok=True)
-        checks.write_text(f'[settings]\nfull_commands = ["{command}"]\n', encoding="utf-8")
-
-    def select(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([sys.executable, str(SCRIPTS / "select_checks.py"), "--base", "origin/main", *args],
-                              cwd=self.task, text=True, capture_output=True, check=False)
-
-    def assert_refused_before_commands(self, result: subprocess.CompletedProcess[str], reason: str) -> None:
-        output = result.stdout + result.stderr
-        self.assertNotEqual(result.returncode, 0, output)
-        self.assertIn(reason, output)
-        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
-        self.assertFalse((self.task / "validation-ran.txt").exists())
-
-    def test_proven_base_runs_the_selected_commands_on_a_head_without_current_main(self) -> None:
-        result = self.select("--execute", "--proven-base", self.proven)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn(f"coordinator-finalization proven-base contract): proven base {self.proven} is the merge base "
-                      f"of HEAD and origin/main ({self.moved})", result.stdout)
-        self.assertIn("DEV_PLATFORM_CHECK_COMMAND: printf ran", result.stdout)
-        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
-        # The contract never fetches: remote-tracking main is exactly what finalization observed.
-        self.assertEqual(self.git(self.task, "rev-parse", "origin/main"), self.moved)
-
-    def require_board(self) -> None:
-        """The source contract with the scope gate required, and no machine-local board anywhere."""
-        (self.task / ".dev-platform.toml").write_text(
-            SOURCE_CONTRACT.replace("agent_board = false", "agent_board = true"), encoding="utf-8")
-
-    def test_coordinator_base_modes_declare_the_scope_gate_not_applicable_without_a_board(self) -> None:
-        self.require_board()
-        for flag, expected in (("--proven-base", "coordinator disposable checkout"),
-                               ("--contribution-base", "coordinator disposable checkout")):
-            with self.subTest(flag=flag):
-                (self.task / "validation-ran.txt").unlink(missing_ok=True)
-                result = self.select("--execute", flag, self.proven)
-                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                self.assertIn(f"Scope gate not applicable: {expected}", result.stdout)
-                self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
-                self.assertFalse((self.task / ".claude" / "agents-board.json").exists())
-
-    def test_failing_command_under_the_proven_base_fails_the_invocation(self) -> None:
-        self.write_checks("exit 3")
-        result = self.select("--execute", "--proven-base", self.proven)
-        self.assertEqual(result.returncode, 3, result.stdout + result.stderr)
-        self.assertIn("DEV_PLATFORM_CHECK_FAILURE", result.stdout)
-
-    def test_without_proven_base_a_stale_head_is_still_blocked(self) -> None:
-        result = self.select("--execute")
-        self.assert_refused_before_commands(
-            result, "Task freshness gate blocked full/protected validation before any expensive command started")
-
-    def test_misuse_is_refused_before_any_command_starts(self) -> None:
-        parent = self.git(self.task, "rev-parse", "HEAD~1")
-        head = self.git(self.task, "rev-parse", "HEAD")
-        cases = (
-            (("--proven-base", self.proven), "--proven-base requires --execute"),
-            (("--execute", "--proven-base", self.proven, "--evidence", "evidence.json"), "refused with --evidence"),
-            (("--execute", "--proven-base", self.proven, "--contribution-base", self.proven), "refused with --contribution-base"),
-            (("--execute", "--proven-base", self.proven, "--mode", "protected-full"), "refused in protected-full mode"),
-            (("--execute", "--proven-base", self.proven, "--protected-full"), "refused in protected-full mode"),
-            (("--execute", "--proven-base", self.proven, "--full"), "refused in protected-full mode"),
-            (("--execute", "--proven-base", self.moved), f"not from its proven base {self.moved}"),
-            (("--execute", "--proven-base", head), f"not from its proven base {head}"),
-            (("--execute", "--proven-base", self.proven[:12]), "is not a full 40-hex commit id"),
-        )
-        self.assertEqual(parent, self.proven)
-        for args, reason in cases:
-            with self.subTest(args=args):
-                refused = self.select(*args)
-                self.assert_refused_before_commands(refused, reason)
-                if reason.startswith("not from its proven base"):
-                    self.assertIn("[hard-stop] proven-base-freshness: ", refused.stderr)
-                    self.assertIn("hard stop: ", refused.stderr)
-        self.assertFalse((self.task / "evidence.json").exists())
-
-    def test_portable_lifecycle_mode_refuses_the_proven_base(self) -> None:
-        (self.task / ".dev-platform.toml").write_text(SOURCE_CONTRACT.replace('"source"', '"v1.9.3"'), encoding="utf-8")
-        self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
-                                            "accepted only in coordinator lifecycle mode (found portable)")
-
-    def test_missing_remote_main_cannot_prove_the_base(self) -> None:
-        self.git(self.task, "update-ref", "-d", "refs/remotes/origin/main")
-        self.assert_refused_before_commands(self.select("--execute", "--proven-base", self.proven),
-                                            "origin/main is not observed in this checkout")
-
-class BehindMergeableEvidenceTests(unittest.TestCase):
-    """Developer evidence of a coordinator candidate behind a mergeable main, on real Git history."""
+class TaskBaseEvidenceTests(unittest.TestCase):
+    """Selected-check evidence and its pre-execution gates, on real Git history."""
 
     def git(self, cwd: Path, *args: str) -> str:
         return subprocess.run(["git", *args], cwd=cwd, text=True, capture_output=True, check=True).stdout.strip()
@@ -602,120 +477,47 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         self.git(self.other, "push", "-q", "origin", "HEAD:main")
         return self.git(self.other, "rev-parse", "HEAD")
 
-    def select(self, *args: str, candidate: bool, cwd: Path | None = None) -> tuple[int, str]:
+    def select(self, *args: str, cwd: Path | None = None) -> tuple[int, str]:
         output = StringIO()
         previous = Path.cwd()
         os.chdir(cwd or self.task)
         self.addCleanup(os.chdir, previous)
         argv = ["select_checks.py", "--base", "origin/main", "--execute", *args]
-        with mock.patch.object(sys, "argv", argv), redirect_stdout(output), \
-                mock.patch.object(_platform_common, "queue_integrated", return_value=candidate) as predicate:
+        with mock.patch.object(sys, "argv", argv), redirect_stdout(output):
             try:
                 code = select_checks.main()
             except SystemExit as exc:
                 code, message = 1, str(exc)
                 output.write(message)
-        self.predicate = predicate
         return code, output.getvalue()
 
-    def test_candidate_behind_a_mergeable_main_runs_checks_and_records_the_contract(self) -> None:
-        self.commit(self.task, "task.txt", "task\n")
-        main = self.advance_main("main.txt", "main\n")
-
-        code, output = self.select("--evidence", "evidence.json", candidate=True)
-
-        self.assertEqual(code, 0, output)
-        self.assertIn("queue-integrated behind-mergeable contract", output)
-        self.assertIn(f"origin/main ({main})", output)
-        self.assertIn(f"merge base {self.seed}", output)
-        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
-        evidence = json.loads((self.task / "evidence.json").read_text())
-        self.assertEqual(evidence["outcome"], "success")
-        self.assertEqual(evidence["task_base"], {
-            "contract": "behind-mergeable", "main": main, "base": self.seed, "overlapping": [], "generated_conflicts": [],
-        })
-
-    def test_candidate_overlapping_main_with_a_clean_merge_runs_checks_and_records_the_overlap(self) -> None:
-        self.commit(self.task, "shared.txt", "ONE\ntwo\nthree\n")
-        main = self.advance_main("shared.txt", "one\ntwo\nTHREE\n")
-
-        code, output = self.select("--evidence", "evidence.json", candidate=True)
-
-        self.assertEqual(code, 0, output)
-        self.assertIn("both changed shared.txt", output)
-        self.assertEqual((self.task / "validation-ran.txt").read_text(), "ran")
-        evidence = json.loads((self.task / "evidence.json").read_text())
-        self.assertEqual(evidence["task_base"]["main"], main)
-        self.assertEqual(evidence["task_base"]["overlapping"], ["shared.txt"])
-
-    def test_candidate_conflicting_only_in_a_generated_file_runs_checks_and_records_it(self) -> None:
-        self.commit(self.task, "gen.txt", "ONE\ntwo\nthree\n")
-        declared = Path(self.other, "dev-platform/checks.toml")
-        declared.write_text(declared.read_text() + '[[generated_files]]\npath = "gen.txt"\nregenerate = ["regen", "{tree}"]\ncheck = ["printf", "ran", ">", "validation-ran.txt"]\n', encoding="utf-8")
-        self.git(self.other, "add", "-A")
-        self.git(self.other, "-c", "user.name=T", "-c", "user.email=t@example.invalid", "commit", "-qm", "declare")
-        self.advance_main("gen.txt", "uno\ntwo\nthree\n")
-
-        code, output = self.select("--evidence", "evidence.json", candidate=True)
-
-        self.assertEqual(code, 0, output)
-        self.assertIn("declared generated files gen.txt", output)
-        evidence = json.loads((self.task / "evidence.json").read_text())
-        self.assertEqual(evidence["task_base"]["generated_conflicts"], ["gen.txt"])
-
-    def test_candidate_conflicting_with_main_is_blocked_before_any_command_naming_the_file(self) -> None:
-        self.commit(self.task, "shared.txt", "ONE\ntwo\nthree\n")
-        self.advance_main("shared.txt", "uno\ntwo\nthree\n")
-
-        code, output = self.select("--evidence", "evidence.json", candidate=True)
-
-        self.assertNotEqual(code, 0, output)
-        self.assertIn("before any expensive command started", output)
-        self.assertIn("a trial merge conflicts in shared.txt", output)
-        self.assertIn("python3 scripts/finish_task.py --reconcile", output)
-        self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
-        self.assertFalse((self.task / "validation-ran.txt").exists())
-        self.assertFalse((self.task / "evidence.json").exists())
-
-    def test_non_candidate_behind_a_mergeable_main_keeps_the_fresh_base_rule(self) -> None:
+    def test_a_head_behind_main_keeps_the_fresh_base_rule_with_evidence(self) -> None:
         self.commit(self.task, "task.txt", "task\n")
         self.advance_main("main.txt", "main\n")
 
-        code, output = self.select("--evidence", "evidence.json", candidate=False)
+        code, output = self.select("--evidence", "evidence.json")
 
         self.assertNotEqual(code, 0, output)
         self.assertIn("diverged relative to freshly observed origin/main", output)
         self.assertNotIn("DEV_PLATFORM_CHECK_COMMAND", output)
         self.assertFalse((self.task / "validation-ran.txt").exists())
 
-    def test_without_evidence_a_queue_integrated_task_passes_behind_a_mergeable_main(self) -> None:
-        """BR-774: a quick task's own run (finish runs select_checks without evidence) needs no reconcile."""
+    def test_a_head_behind_main_keeps_the_fresh_base_rule_without_evidence(self) -> None:
         self.commit(self.task, "task.txt", "task\n")
         self.advance_main("main.txt", "main\n")
 
-        code, output = self.select(candidate=True)
-
-        self.assertEqual(code, 0, output)
-        self.assertIn("queue-integrated behind-mergeable contract", output)
-        self.assertFalse((self.task / "evidence.json").exists())
-
-    def test_without_evidence_a_task_the_queue_does_not_integrate_keeps_the_fresh_base_rule(self) -> None:
-        self.commit(self.task, "task.txt", "task\n")
-        self.advance_main("main.txt", "main\n")
-
-        code, output = self.select(candidate=False)
+        code, output = self.select()
 
         self.assertNotEqual(code, 0, output)
         self.assertIn("diverged relative to freshly observed origin/main", output)
 
-    def test_fresh_head_never_consults_candidacy_and_records_no_contract(self) -> None:
+    def test_fresh_head_records_no_base_contract(self) -> None:
         self.commit(self.task, "task.txt", "task\n")
 
-        code, output = self.select("--evidence", "evidence.json", candidate=True)
+        code, output = self.select("--evidence", "evidence.json")
 
         self.assertEqual(code, 0, output)
         self.assertIn(f"HEAD contains freshly observed origin/main ({self.seed})", output)
-        self.predicate.assert_not_called()
         self.assertNotIn("task_base", json.loads((self.task / "evidence.json").read_text()))
 
     def test_protected_check_requires_main_branch_instead_of_assuming_main(self) -> None:
@@ -723,11 +525,10 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         (self.task / ".dev-platform.toml").write_text(
             SOURCE_CONTRACT.replace('main_branch = "main"\n', ""), encoding="utf-8")
 
-        # With evidence a coordinator candidate takes the handoff branch; without it every head takes the fresh-base branch.
         for arguments in (("--evidence", "evidence.json"), ()):
             with self.subTest(arguments=arguments):
                 with self.assertRaisesRegex(_platform_common.PlatformConfigError, "missing required key main_branch"):
-                    self.select(*arguments, candidate=False)
+                    self.select(*arguments)
                 self.assertFalse((self.task / "validation-ran.txt").exists())
 
     def test_required_scope_gate_without_a_board_stops_validation_before_any_command(self) -> None:
@@ -737,7 +538,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
 
         for arguments in ((), ("--scope-gate", "enforce")):
             with self.subTest(arguments=arguments):
-                code, output = self.select("--evidence", "evidence.json", *arguments, candidate=False)
+                code, output = self.select("--evidence", "evidence.json", *arguments)
 
                 self.assertNotEqual(code, 0, output)
                 self.assertIn("scope-gate-unavailable", output)
@@ -750,7 +551,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         (self.task / ".dev-platform.toml").write_text(
             SOURCE_CONTRACT.replace("agent_board = false", "agent_board = true"), encoding="utf-8")
 
-        code, output = self.select("--evidence", "evidence.json", "--scope-gate", "not-applicable", candidate=False)
+        code, output = self.select("--evidence", "evidence.json", "--scope-gate", "not-applicable")
 
         self.assertEqual(code, 0, output)
         self.assertIn("Scope gate not applicable: declared by --scope-gate not-applicable", output)
@@ -765,20 +566,13 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
         linked = self.base / "linked"
         self.git(self.task, "worktree", "add", "-q", "-b", "agent/linked", str(linked))
 
-        code, output = self.select("--scope-gate", "not-applicable", candidate=False, cwd=linked)
+        code, output = self.select("--scope-gate", "not-applicable", cwd=linked)
 
         self.assertNotEqual(code, 0, output)
         self.assertIn("--scope-gate not-applicable is refused", output)
         self.assertIn("linked task worktree", output)
         self.assertNotIn("Scope gate not applicable", output)
         self.assertFalse((linked / "validation-ran.txt").exists())
-
-
-    def test_contribution_base_is_refused_in_a_linked_task_worktree(self) -> None:
-        linked = self.task.parent / "contribution-linked"
-        self.git(self.task, "worktree", "add", "-q", "--detach", str(linked), "HEAD")
-        with self.assertRaisesRegex(SystemExit, "--contribution-base is refused.*linked task worktree"):
-            select_checks.require_disposable_checkout(linked, "--contribution-base")
 
     def test_uncommitted_task_content_is_refused_naming_the_paths(self) -> None:
         select_checks.require_committed_task_content(self.task, lambda canonical, raw: False)  # a clean tree passes
@@ -809,7 +603,7 @@ class BehindMergeableEvidenceTests(unittest.TestCase):
             SOURCE_CONTRACT.replace("agent_board = false", 'agent_board = "no"'), encoding="utf-8")
 
         with self.assertRaisesRegex(_platform_common.PlatformConfigError, "capabilities.agent_board must be a bool"):
-            self.select("--evidence", "evidence.json", candidate=False)
+            self.select("--evidence", "evidence.json")
 
         self.assertFalse((self.task / "validation-ran.txt").exists())
 

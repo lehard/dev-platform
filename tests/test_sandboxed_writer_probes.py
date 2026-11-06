@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 from _platform_modules import load_platform_module  # noqa: E402
 
-load_platform_module("lifecycle_workers", ROOT / "template/scripts/lifecycle_workers.py")
+load_platform_module("sandbox_harness", ROOT / "template/scripts/sandbox_harness.py")
 load_platform_module("sandboxed_writer", ROOT / "template/scripts/sandboxed_writer.py")
 _spec = importlib.util.spec_from_file_location("sandboxed_writer_probes", ROOT / "scripts" / "sandboxed_writer_probes.py")
 probes = importlib.util.module_from_spec(_spec)

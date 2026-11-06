@@ -898,22 +898,23 @@ class ProjectCheckRuntimeTests(unittest.TestCase):
                 self.assertFailsBeforeCommands("runtime")
 
     def test_llm_and_harness_git_environments_never_gain_project_runtime(self) -> None:
-        workers = load_platform_module("lifecycle_workers", HELPER.parent / "lifecycle_workers.py")
+        harness = load_platform_module("sandbox_harness", HELPER.parent / "sandbox_harness.py")
+        common = load_platform_module("_platform_common", HELPER.parent / "_platform_common.py")
         environ = {**self.environ, "GH_TOKEN": "t"}
         with tempfile.TemporaryDirectory() as scratch:
             home = Path(scratch)
-            llm = workers.credential_free_env(environ, home)
+            llm = common.credential_free_env(environ, home)
             self.assertEqual(llm["HOME"], str(home))
             self.assertNotIn("GH_TOKEN", llm)
             self.assertEqual(list(home.iterdir()), [])
             runtime = {"required_tools": ["docker"], "home_paths": [".docker"]}
-            project = workers.project_check_env(environ, home, runtime, self.operator / "home")
+            project = common.project_check_env(environ, home, runtime, self.operator / "home")
             self.assertTrue((home / ".docker").is_symlink())
             self.assertEqual(project["HOME"], str(home))
             self.assertNotIn("GH_TOKEN", project)
-            with mock.patch.object(workers.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="", stderr="")) as run, \
+            with mock.patch.object(harness.subprocess, "run", return_value=SimpleNamespace(returncode=0, stdout="", stderr="")) as run, \
                  mock.patch.dict("os.environ", environ, clear=True):
-                workers.harness_git(self.root, "status")
+                harness.harness_git(self.root, "status")
             harness_env = run.call_args.kwargs["env"]
             self.assertNotIn("GH_TOKEN", harness_env)
             self.assertNotEqual(harness_env["HOME"], str(self.operator / "home"))

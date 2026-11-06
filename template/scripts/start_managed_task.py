@@ -22,7 +22,6 @@ from _platform_common import (
     read_platform_config,
     require_main_branch,
     run_git,
-    task_freshness_branch,
     utc_now,
 )
 from managed_task import (
@@ -40,7 +39,7 @@ from managed_task import (
 )
 from managed_project_status import ManagedProjectStatusError, reconcile
 from requirement_integration import ReadyForIntegrationReceipt, RequirementIntegrationError, read_receipt
-from requirement_child_context import cached_contribution, context_path, refresh_context
+from requirement_child_context import refresh_context
 from requirement_integration import _registered_worktrees as _registered_worktree_branches
 import managed_work_identity
 from start_task import StartedTask, cleanup_started_task, start_task
@@ -67,7 +66,6 @@ def _supports_branch_name() -> bool:
 @contextmanager
 def managed_start_transaction(
     root: Path, package: Package, base_receipt: ReadyForIntegrationReceipt | None = None,
-    contribution: dict | None = None,
 ) -> Iterator[tuple[dict[str, object], bool]]:
     """Persist and lock one managed start before any board/project mutation.
 
@@ -91,7 +89,6 @@ def managed_start_transaction(
             "change": package.change,
             "package_revision": package.revision,
             "base_child_digest": base_receipt.digest if base_receipt else None,
-            **({"contribution": contribution} if contribution else {}),
             "branch": branch,
             "worktree": str(worktree),
             "created_at": utc_now(),
@@ -121,7 +118,6 @@ def managed_start_transaction(
             "change": package.change,
             "package_revision": package.revision,
             "base_child_digest": base_receipt.digest if base_receipt else None,
-            **({"contribution": contribution} if contribution else {}),
             "branch": branch,
             "worktree": str(worktree),
         }
@@ -366,19 +362,6 @@ def recover_incomplete_managed_start(
     return True
 
 
-def _require_resumable_context(existing_root: Path, package: Package) -> None:
-    """Refuse to recreate a lost child context when that would turn a contribution into a main-target task."""
-    if context_path(existing_root, package.change).is_file():
-        return
-    main_branch = require_main_branch(read_platform_config(existing_root), ManagedTaskError)
-    try:
-        target = task_freshness_branch(existing_root, main_branch)
-    except TaskFreshnessError as exc:
-        raise ManagedTaskError(str(exc)) from exc
-    if target != main_branch:
-        cached_contribution(existing_root, package.change)
-
-
 def _resume_existing_managed_task(
     root: Path,
     package: Package,
@@ -399,7 +382,6 @@ def _resume_existing_managed_task(
         ["merge-base", "--is-ancestor", base_receipt.head, "HEAD"], cwd=existing_root, check=False
     ).returncode != 0:
         raise ManagedTaskError("resumed child does not descend from its exact ready predecessor")
-    _require_resumable_context(existing_root, package)
     context = refresh_context(existing_root, package, predecessor=base_receipt)
     if context is not None:
         print(f"Bounded Requirement child context refreshed: {context}")
@@ -426,7 +408,6 @@ def _start_new_managed_task(
     acknowledge_source_issue_revision: str | None,
     base_receipt: ReadyForIntegrationReceipt | None = None,
     branch_name: str | None = None,
-    contribution: dict | None = None,
 ) -> tuple[StartedTask, str, bool]:
     readable = getattr(package, "work_identity", None)
     supports_branch = _supports_branch_name()
@@ -441,7 +422,6 @@ def _start_new_managed_task(
         scope=scope or f"openspec/changes/{package.change}",
         admission=False,
         **branch_options,
-        **({"base_ref": contribution["head"]} if contribution else {}),
     )
     try:
         if base_receipt is not None:
@@ -456,8 +436,7 @@ def _start_new_managed_task(
         )
         if getattr(imported, "work_identity", None) != readable:
             raise ManagedTaskError("managed child identity changed during branch creation; retry canonical intake")
-        context = refresh_context(started.task_root, imported, predecessor=base_receipt,
-                                  **({"contribution": contribution} if contribution else {}))
+        context = refresh_context(started.task_root, imported, predecessor=base_receipt)
         if context is not None:
             print(f"Bounded Requirement child context prepared: {context}")
         decision = admit_task(root, started, scope if scope else None)
@@ -487,7 +466,7 @@ def _start_new_managed_task(
 
 def start_managed_task(
     root: Path, reference: str, scope: str = "", *, acknowledge_source_issue_revision: str | None = None,
-    base_child_receipt: Path | None = None, contribution: dict | None = None,
+    base_child_receipt: Path | None = None,
 ) -> tuple[StartedTask, str, bool]:
     """Discover before task creation, then materialize in the task checkout only."""
     admit_managed_intake(root)
@@ -495,12 +474,6 @@ def start_managed_task(
     if package.parent_requirement:
         from managed_task import _allocate_work_identity
         package = _allocate_work_identity(root, package)
-    if contribution is not None:
-        if contribution.get("requirement") != package.parent_requirement:
-            raise ManagedTaskError("contribution belongs to a different Requirement")
-        if base_child_receipt or profile(read_platform_config(root)) != "multi-agent":
-            raise ManagedTaskError("contribution start needs isolated worktrees and an exact integration base")
-        run_git(["merge-base", "--is-ancestor", contribution["head"], contribution["branch"]], cwd=root)
     predecessor = read_receipt(base_child_receipt) if base_child_receipt else None
     if predecessor is not None:
         if predecessor.source_issue == package.source_issue:
@@ -519,16 +492,13 @@ def start_managed_task(
     if profile(config) != "multi-agent":
         return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor)
 
-    with managed_start_transaction(root, package, predecessor, contribution) as (transaction, _created):
+    with managed_start_transaction(root, package, predecessor) as (transaction, _created):
         existing_root = Path(str(transaction["worktree"])).resolve()
         if existing_root.is_dir() and canonical_provenance_candidates(existing_root, package.change):
-            if contribution is not None:
-                if cached_contribution(existing_root, package.change, requirement=contribution["requirement"]) != contribution:
-                    raise ManagedTaskError("resumed contribution base differs from its start boundary")
             return _resume_existing_managed_task(root, package, existing_root, scope, predecessor)
 
         recover_incomplete_managed_start(root, package, transaction)
-        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor, str(transaction["branch"]), contribution)
+        return _start_new_managed_task(root, package, reference, scope, acknowledge_source_issue_revision, predecessor, str(transaction["branch"]))
 
 
 def main() -> int:

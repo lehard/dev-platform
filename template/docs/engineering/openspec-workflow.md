@@ -42,7 +42,7 @@ When implementation shows the plan must change, update the owning artifact first
 2. Perform semantic verification: re-read the change and the implementation and assess completeness, correctness and coherence. This is distinct from structural validation (`openspec validate`), which checks only artifact format.
 3. Record the result in `verification.md`, stating what was checked and by which method.
 4. Commit the package (tasks, delta specs, `verification.md`); archive rejects uncommitted authored package files before review or checks.
-5. Run `python3 scripts/finish_task.py`: without a queue it requires independent review, finalizes the change through the shared function, commits the archive and publishes. Requirement advance finalizes a ready portable child before recording its ready receipt.
+5. Run `python3 scripts/finish_task.py`: it runs the independent review when `[independent_review] enabled = true`, finalizes the change through the shared function, commits the archive and publishes. Requirement advance finalizes a ready child before recording its ready receipt.
 
 Managed tasks start with `python3 scripts/start_managed_task.py`. Check the installed OpenSpec version against the policy below with `python3 scripts/platform_doctor.py`.
 
@@ -123,11 +123,9 @@ Semantic verification and `openspec validate` are different. The former checks i
 
 ### Independent review evidence
 
-Portable finish and portable Requirement advance require independent review for
-every managed change, including light projects. Outside those executors,
-`[independent_review] enabled = true` requires review for material managed
-changes (the central repository enables it; the downstream template default is
-`false`). The optional setting cannot disable portable finalization review.
+Independent review is optional. With `[independent_review] enabled = true` finish and
+Requirement advance require it for managed changes; without that setting it runs only by
+hand through `scripts/independent_review.py`, and the template default is `false`.
 Quick tasks without managed provenance are never reviewed.
 
 The platform launches the reviewer itself. Each of the two perspectives
@@ -212,7 +210,7 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-Archive never launches review. Without a queue, finish runs the required independent review stage before shared finalization; the queue review job owns that stage for coordinator candidates. Finalization requires its evidence. Archive evaluates every precondition
+Archive never launches review. Finish runs the independent review when `[independent_review] enabled = true` before shared finalization; finalization then requires its evidence. Archive evaluates every precondition
 (tasks, receipt, review evidence, routing, automated-check evidence, committed
 package, private lineage, checkout identity) before any archive work and fails
 once listing each unmet one with its fix. `finish` re-validates the evidence
@@ -243,7 +241,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 Archive preflight checks this exact marker before it runs selected checks or writes evidence, so a missing receipt is actionable before archive mutation. The archive helper creates that file from the selected commands it actually runs, then refuses to archive if the selection is empty/invalid, any command fails, or the receipt does not cite the generated evidence. Add the marker only when the generated evidence will truthfully name the checks the helper ran. This is intentionally not required for `harness_mode=project`, where repository CI remains the product-verification authority.
 
-Run `python3 scripts/finish_task.py` to review, finalize, commit and publish. `openspec_lifecycle.py archive` without `--finalize` refuses before work; the flag is reserved for the trusted queue archiver.
+Run `python3 scripts/finish_task.py` to review, finalize, commit and publish. `openspec_lifecycle.py archive` refuses before work.
 
 The helper requires all tasks to be complete, the PASS receipt plus method, a committed package and an authored `## Purpose` in every delta that creates a capability absent from `openspec/specs` (a missing, empty or `TBD`/`TODO`/`FIXME` Purpose is rejected before any mutation, because OpenSpec otherwise writes a placeholder Purpose that strict validation rejects). It runs strict validation, rehearses the archive and `validate --all --strict` on a disposable copy of `openspec/`, then invokes the OpenSpec CLI archive and validates the resulting OpenSpec state. If the real archive or its post-validation still fails, it restores the exact pre-archive `openspec/` tree and reports the failing items, so the same command can be rerun after the fix. It does not emulate semantic verification and does not install or upgrade OpenSpec.
 

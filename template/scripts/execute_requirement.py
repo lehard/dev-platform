@@ -323,73 +323,6 @@ def _linked_children_by_change(integration: Path, requirement: str, parent: dict
     return result
 
 
-def _contribution_publication_supported(root: Path) -> bool:
-    """Coordinator lifecycle with the queue: contributions, and post-merge jobs own retrospective and close.
-
-    The same condition as ``requirement_terminal.post_merge_closes``, which finish and the shared publisher use.
-    """
-    from _platform_common import lifecycle_mode, read_platform_config
-    if lifecycle_mode(read_platform_config(root)) != "coordinator":
-        return False
-    import publication_queue
-    return publication_queue.enabled(root)
-
-
-def _single_child_in_flight(worktree: Path, *, adapter=None) -> bool:
-    """Observe trusted handoff ownership and remote advancement before developer publication."""
-    if adapter is None:
-        import publication_queue as adapter
-    branch = _git(worktree, "branch", "--show-current")
-    head = _git(worktree, "rev-parse", "HEAD")
-    repo = adapter._repo(worktree)
-    rows = adapter._gh(worktree, "pr", "list", "--state", "all", "--head", branch,
-                       "--base", "main", "--limit", "100", "--json", "number")
-    if not isinstance(rows, list) or len(rows) >= 100:
-        raise RequirementExecutionError("single-child PR inventory unavailable or exceeds bound")
-    owned = []
-    for row in rows:
-        number = row["number"]
-        pr = adapter._pr(worktree, repo, number)
-        if pr["head"]["ref"] != branch or pr["base"]["ref"] != "main":
-            raise RequirementExecutionError("single-child PR identity changed during observation")
-        comments = adapter._comments(worktree, repo, number)
-        current = adapter._derive(worktree, pr, comments)
-        if adapter._malformed(current):
-            raise RequirementExecutionError(f"malformed coordinator ownership for single-child PR #{number}")
-        if pr.get("state") not in {"open", "closed"} or not isinstance(pr.get("merged"), bool):
-            raise RequirementExecutionError(f"single-child PR #{number} has no observable open/closed and merged state")
-        if pr["state"] == "closed" and not pr["merged"]:
-            continue  # closed without merge: an abandoned (superseded) candidate owns nothing
-        if (adapter._latest(worktree, number, comments) is not None
-                or adapter._admission(adapter._events(worktree, repo, number), number) is not None
-                or pr["head"]["sha"] != head):
-            owned.append(number)
-    if len(owned) > 1:
-        raise RequirementExecutionError("multiple coordinator candidates for the single child")
-    return bool(owned)
-
-
-def _publish_active_child(integration: Path, child: str, change: str) -> bool:
-    if not _contribution_publication_supported(integration):
-        return False
-    worktree = machine_path("worktrees", integration) / change
-    if not worktree.is_dir():
-        return False
-    if _single_child_in_flight(worktree):
-        return True
-    canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
-    if canonical is None or canonical.lifecycle != "active":
-        return False
-    from openspec_lifecycle import task_state
-    total, incomplete = task_state(canonical.path)
-    if not total or incomplete:
-        return False
-    result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree, stdin=subprocess.DEVNULL)
-    if result.returncode:
-        raise RequirementExecutionError(f"single-child developer handoff blocked (exit {result.returncode})")
-    return True
-
-
 def _ready_receipt(
     integration: Path, receipt_dir: Path, requirement: str, child: str, change: str,
     *, release_claim: bool = True, superseded: list[dict[str, str]] | None = None,
@@ -402,19 +335,17 @@ def _ready_receipt(
         return None
     canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
     if canonical is not None and canonical.lifecycle == "active":
-        from _platform_common import lifecycle_mode, read_platform_config
         from openspec_lifecycle import task_state, verification_passed
-        if lifecycle_mode(read_platform_config(worktree)) == "portable":
-            total, incomplete = task_state(canonical.path)
-            if total and not incomplete and verification_passed(canonical.path):
-                from finish_task import finalize_portable_change
-                try:
-                    finalize_portable_change(worktree)
-                except SystemExit as exc:
-                    raise RequirementExecutionError(f"{change}: portable finalization refused: {exc}") from exc
-                canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
-                if canonical is None or canonical.lifecycle != "archived":
-                    raise RequirementExecutionError(f"{change}: portable finalization did not produce archived canonical provenance")
+        total, incomplete = task_state(canonical.path)
+        if total and not incomplete and verification_passed(canonical.path):
+            from finish_task import finalize_portable_change
+            try:
+                finalize_portable_change(worktree)
+            except SystemExit as exc:
+                raise RequirementExecutionError(f"{change}: portable finalization refused: {exc}") from exc
+            canonical = managed_task.resolve_canonical_provenance(worktree, source_issue=child, change=change)
+            if canonical is None or canonical.lifecycle != "archived":
+                raise RequirementExecutionError(f"{change}: portable finalization did not produce archived canonical provenance")
     if canonical is None or canonical.lifecycle != "archived":
         return None
     archive = canonical.path
@@ -543,85 +474,11 @@ def _publish_early_draft(
     return requirement_integration.publish_candidate(candidate, manifest=manifest, receipt_paths=ready)
 
 
-def _composition_manifest_complete(root: Path, repo: str, pr: dict, requirement: str) -> bool:
-    """Read the owned manifest at the observed PR head, never a stale local branch."""
-    import tempfile
-    import lifecycle_workers as workers
-    import requirement_contributions as contributions
-
-    head = pr["head"].get("sha")
-    if not isinstance(head, str) or not workers.HEAD.fullmatch(head):
-        raise RequirementExecutionError("composition PR has no readable exact head")
-    public = requirement_integration._public_requirement(root, requirement)
-    try:
-        with tempfile.TemporaryDirectory(prefix="composition-ownership-") as temporary:
-            checkout = workers.prepare_checkout(f"https://github.com/{repo}.git", temporary, "harness", head)
-            manifest = contributions.read_manifest(checkout, public, ref=head)
-        if manifest["repository"] != repo or manifest["integration_branch"] != pr["head"]["ref"]:
-            raise RequirementExecutionError("composition manifest repository or branch ownership changed")
-        return requirement_integration.manifest_complete(manifest)
-    except (workers.WorkerError, contributions.ContributionError) as exc:
-        raise RequirementExecutionError(f"cannot read composition manifest at {head}: {exc}") from exc
-
-
-def _refuse_queue_owned_composition(root: Path, requirement: str) -> None:
-    """Refuse before advancing any child when the shared PR belongs to the queue."""
-    _, number = requirement_intake.issue_ref(requirement)
-    if not _contribution_publication_supported(root):
-        return
-    import publication_queue as queue
-
-    branch = f"requirement/BR-{number}"
-    try:
-        repo = queue._repo(root)
-        rows = queue._gh(root, "pr", "list", "--state", "open", "--head", branch,
-                         "--base", "main", "--limit", "100", "--json", "number")
-        if not isinstance(rows, list) or len(rows) >= 100 or any(
-                not isinstance(row, dict) or not isinstance(row.get("number"), int) for row in rows):
-            raise RequirementExecutionError(f"composition PR inventory for {branch} is unavailable or ambiguous")
-        if len(rows) > 1:
-            raise RequirementExecutionError(f"multiple open composition PRs for {branch}")
-        if not rows:
-            return
-        number = rows[0]["number"]
-        pr = queue._pr(root, repo, number)
-        if pr.get("head", {}).get("ref") != branch or pr.get("base", {}).get("ref") != "main" or pr.get("state") != "open":
-            raise RequirementExecutionError(f"composition PR #{number} identity changed during queue observation")
-        labels = pr.get("labels")
-        if not isinstance(labels, list) or any(not isinstance(label, dict) or not isinstance(label.get("name"), str) for label in labels):
-            raise RequirementExecutionError(f"composition PR #{number} has unreadable labels")
-        names = {label["name"] for label in labels}
-        head = pr["head"].get("sha")
-        if not isinstance(head, str) or not re.fullmatch(r"[0-9a-f]{40}", head):
-            raise RequirementExecutionError(f"composition PR #{number} has no readable exact head")
-        comments = queue._comments(root, repo, number)
-        record = queue._latest(root, number, comments)
-        if record is not None and record["head"] != head:
-            raise RequirementExecutionError(
-                f"composition PR #{number} coordinator record head {record['head']} differs from current head {head}")
-        if queue.QUEUE in names or queue.ACTIVE in names:
-            raise RequirementExecutionError(
-                f"composition PR #{number} is queue-owned: labels {sorted(names & {queue.QUEUE, queue.ACTIVE})}; "
-                "owner publication-queue")
-        if record is None:
-            return
-        state = record["state"]
-        owned = queue.CLAIM_STATES | {"ready", "integrating", "integration-repair-pending"}
-        if state in owned and _composition_manifest_complete(root, repo, pr, requirement):
-            raise RequirementExecutionError(f"composition PR #{number} is queue-owned: state {state}; owner publication-queue")
-    except queue.QueueError as exc:
-        raise RequirementExecutionError(f"cannot observe queue ownership for {branch}: {exc}") from exc
-
-
 def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_distinct: bool = False) -> dict[str, Any]:
     """Run deterministic transitions; return one bounded agent action or delivery result."""
-    from _platform_common import lifecycle_mode, read_platform_config
-
     integration = integration.resolve()
-    lifecycle_mode(read_platform_config(integration))
     if current_worktree_root().resolve() != integration or _git(integration, "branch", "--show-current") != "main":
         raise RequirementExecutionError("Execute Requirement must run from the integration main checkout")
-    _refuse_queue_owned_composition(integration, requirement)
     parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
     if requirement_intake.REQUIREMENT_LABEL not in managed_task.issue_labels(parent):
         raise RequirementExecutionError(f"{requirement} is not a Business Requirement")
@@ -709,18 +566,11 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             # Every child in the declared order is delivered.
             if archived := _archive_delivered_task_state(integration, None):
                 audit["archived_task_state"] = archived
-            if _contribution_publication_supported(integration):
-                return audited(_await_post_merge(parent, requirement, sequential_completed))
             if pending := _retrospective_pending(integration, requirement, sequential_completed):
                 return audited(pending)
             from requirement_terminal import reconcile_parent
             return audited(reconcile_parent(integration, requirement=requirement))
     receipt_dir = integration / ".claude" / "requirement-integration" / f"requirement-{requirement.rsplit('#', 1)[1]}"
-    # A Requirement already delivering through shared-candidate receipts stays on that
-    # path to terminal reconciliation; switching mid-flight would mint a new integration branch.
-    legacy_receipts = receipt_dir.is_dir() and any(receipt_dir.glob("*.json"))
-    if len(ordered) > 1 and not legacy_receipts and _contribution_publication_supported(integration):
-        return _advance_contributions(integration, requirement, ordered, linked_by_change, base_dir, confirm_distinct)
     ready: list[Path] = []
     completed: list[str] = list(sequential_completed)
     receipts_by_change: dict[str, Path] = {}
@@ -751,9 +601,6 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             _done_child_is_delivered(integration, child, change)
             completed.append(child)
             continue
-        if len(ordered) == 1 and _publish_active_child(integration, child, change):
-            return audited({"status": "await-child-review", "requirement": requirement, "child": child,
-                            "change": change, "reason": "child handed off; coordinator work is in flight"})
         existing = _ready_receipt(
             integration, receipt_dir, requirement, child, change,
             release_claim=len(ordered) > 1, superseded=superseded,
@@ -785,23 +632,17 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             "shared_draft": draft,
             "independent_review": _child_review_state(Path(started.task_root), child, change),
             "next": (
-                "Perform routed bounded implementation, establish selected checks and semantic verification, and commit; "
-                "rerun execute_requirement.py advance to publish the active child for coordinator review and finalization."
-                if len(ordered) == 1 and _contribution_publication_supported(integration) else
                 "Perform routed bounded implementation, verify and commit; rerun execute_requirement.py advance to review and finalize the ready child. "
                 "Review blockers stop finalization and name their next command. "
                 f"Check reviewer runtime readiness after routing with: python3 scripts/independent_review.py preflight {change}"
             ),
         })
-    # With the coordinator queue the post-merge jobs alone record the Requirement retrospective and close
-    # the Requirement (BR-950); without it the same functions run here, in the developer session.
-    coordinator = _contribution_publication_supported(integration)
     if not ready and (terminal_archived := _archive_delivered_task_state(integration, None)):
         audit["archived_task_state"] = terminal_archived
     if len(ordered) == 1:
         if ready:
             # The Requirement retrospective follows the last child only, never an earlier sequential one.
-            if not coordinator and not sequential_more and (
+            if not sequential_more and (
                     pending := _retrospective_pending(integration, requirement, completed)):
                 return audited(pending)
             change = ordered[0][0]
@@ -810,14 +651,9 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
             result = subprocess.run(["python3", "scripts/finish_task.py"], cwd=worktree, stdin=subprocess.DEVNULL)
             if result.returncode:
                 raise RequirementExecutionError(f"single-child managed finish did not complete (exit {result.returncode})")
-            if coordinator:
-                return audited({"status": "await-child-review", "requirement": requirement, "child": child,
-                                "change": change, "reason": "child handed off; coordinator work is in flight"})
             if sequential_more:
                 return audited({"status": "child-delivered", "requirement": requirement, "child": child,
                                 "change": change, "next": "rerun execute_requirement.py advance for the next sequential child"})
-        if coordinator:
-            return audited(_await_post_merge(parent, requirement, completed))
         if pending := _retrospective_pending(integration, requirement, completed):
             return audited(pending)
         from requirement_terminal import reconcile_parent
@@ -825,8 +661,6 @@ def advance(integration: Path, *, requirement: str, base_dir: Path, confirm_dist
     if len(ready) < 2:
         if not ready and completed:
             if len(completed) == len(ordered) and str(parent.get("state", "")).upper() != "CLOSED":
-                if coordinator:
-                    return audited(_await_post_merge(parent, requirement, completed))
                 # Every mandatory child is delivered: finish the parent (idempotent),
                 # e.g. after shared delivery was interrupted before reconciliation.
                 if pending := _retrospective_pending(integration, requirement, completed):
@@ -952,20 +786,6 @@ def _archive_delivered_task_state(integration: Path, next_child: str | None) -> 
     return str(destination)
 
 
-def _await_post_merge(parent: dict[str, Any], requirement: str, children: list[str], **details: Any) -> dict[str, Any]:
-    """Every mandatory child is merged: the post-merge jobs record the retrospective and close the Requirement."""
-    from requirement_terminal import RequirementTerminalError, issue_state
-    try:
-        closed = issue_state(parent, requirement) == "CLOSED"
-    except RequirementTerminalError as exc:
-        raise RequirementExecutionError(str(exc)) from exc
-    if closed:
-        return {"status": "done", "requirement": requirement, "children": children, **details}
-    return {"status": "await-post-merge", "requirement": requirement, "children": children, **details,
-            "reason": "every mandatory child is merged; the post-merge runner records the Requirement "
-                      "retrospective and closes the Requirement"}
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Resume one Business Requirement through managed child and shared delivery.")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -973,40 +793,8 @@ def main(argv: list[str] | None = None) -> int:
     resume.add_argument("--requirement", required=True)
     resume.add_argument("--base-dir", type=Path)
     resume.add_argument("--confirm-distinct", action="store_true", help="Confirm that reviewed similar Issues are distinct before creating a missing child")
-    repair = commands.add_parser("repair", help="enqueue the existing repair job for a complete Requirement composition PR")
-    repair.add_argument("--pr", type=int, required=True)
-    repair.add_argument("--expected-head", required=True)
-    repair.add_argument("--reason", required=True)
-    absorb = commands.add_parser("absorb-main", help="merge current main into the requirement branch by fast-forward push")
-    absorb.add_argument("--requirement", required=True)
     args = parser.parse_args(argv)
     integration = current_worktree_root().resolve()
-    if args.command == "absorb-main":
-        import publication_queue
-        from requirement_contributions import ContributionError, absorb_main
-        import lifecycle_workers
-
-        try:
-            result = absorb_main(integration, managed_task.origin_repository(integration), args.requirement)
-        except (ContributionError, publication_queue.QueueError, lifecycle_workers.WorkerError) as exc:
-            print(json.dumps({"status": "blocked", "requirement": args.requirement, "reason": str(exc)}, ensure_ascii=False))
-            return 2
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-        return 0
-    if args.command == "repair":
-        import publication_queue
-        from requirement_composition import request_repair
-        from requirement_contributions import ContributionError
-        import lifecycle_workers
-
-        try:
-            result = request_repair(integration, managed_task.origin_repository(integration), args.pr,
-                                    expected_head=args.expected_head, reason=args.reason)
-        except (ContributionError, publication_queue.QueueError, lifecycle_workers.WorkerError) as exc:
-            print(json.dumps({"status": "blocked", "pr": args.pr, "reason": str(exc)}, ensure_ascii=False))
-            return 2
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-        return 0
     base_dir = (args.base_dir or orchestrate_pre_authoring.default_base_dir(integration)).resolve()
     try:
         result = advance(integration, requirement=args.requirement, base_dir=base_dir, confirm_distinct=args.confirm_distinct)
@@ -1024,120 +812,6 @@ def main(argv: list[str] | None = None) -> int:
 
 
 
-
-
-def _handoff_dependencies(ordered: list[tuple[str, Path]]) -> dict[str, list[str]]:
-    envelopes = {change: json.loads(path.read_text()) for change, path in ordered}
-    owners = {intent["id"]: change for change, envelope in envelopes.items() for intent in envelope.get("intents", [])}
-    return {change: sorted({owners[d] for intent in envelope.get("intents", [])
-                            for d in intent.get("dependencies", []) if owners[d] != change})
-            for change, envelope in envelopes.items()}
-
-
-def _merged_composition(integration: Path, requirement: str, repository: str, *, adapter=None) -> list[int]:
-    """The merged composition PRs of the Requirement; advance stops before any integration-branch work when any exist.
-
-    After the merge the queue deletes ``requirement/BR-N``; recreating it on the new main breaks the
-    post-merge jobs, which check out the composition head. Those jobs own the Requirement from here (BR-771, BR-950).
-    """
-    if adapter is None:
-        import publication_queue as adapter
-    branch = f"requirement/BR-{requirement.rsplit('#', 1)[1]}"
-    try:
-        rows = adapter._gh(integration, "pr", "list", "--state", "merged", "--head", branch,
-                           "--base", "main", "--limit", "100", "--json", "number")
-    except adapter.QueueError as exc:
-        raise RequirementExecutionError(f"composition PR inventory of {branch} is unavailable: {exc}") from exc
-    if not isinstance(rows, list) or len(rows) >= 100 or not all(isinstance(row, dict) and isinstance(row.get("number"), int)
-                                                                 for row in rows):
-        raise RequirementExecutionError(f"composition PR inventory of {branch} is unavailable or exceeds its bound")
-    return sorted(row["number"] for row in rows)
-
-
-def _advance_contributions(integration: Path, requirement: str, ordered: list[tuple[str, Path]],
-                           linked: dict[str, str], base_dir: Path, confirm_distinct: bool) -> dict:
-    from requirement_contributions import ensure_integration_branch, in_flight_children
-    from _platform_common import read_platform_config
-    from requirement_composition import publish_composition
-
-    # Resolve the handoff key through its own authored bundle before creating the graph.
-    # The filename remains the bundle lookup key even after a linked child rekeys it.
-    normalized = []
-    bundles = {}
-    renames = {}
-    for key, handoff in ordered:
-        handoff_key = handoff.stem
-        bundle_path = _bundle(base_dir, requirement, handoff_key)
-        try:
-            change = managed_task.load_authoring_bundle(str(bundle_path)).change
-        except managed_task.ManagedTaskError as exc:
-            raise RequirementExecutionError(f"invalid bundle for handoff {handoff_key}: {exc}") from exc
-        if key not in (handoff_key, change):
-            raise RequirementExecutionError(f"handoff {handoff_key} maps to {key}, but its bundle names {change}")
-        if handoff_key != change and handoff_key in linked:
-            raise RequirementExecutionError(f"linked child change {handoff_key} conflicts with bundle change {change}")
-        if change in bundles:
-            raise RequirementExecutionError(f"ambiguous handoffs map to change {change}")
-        bundles[change] = bundle_path
-        if handoff_key != change:
-            renames[handoff_key] = change
-        normalized.append((change, handoff))
-    ordered = _ordered_handoffs({"current_stage": "complete", "handoffs": {
-        change: str(path) for change, path in normalized}}, requirement)
-    # Materialize all identities before starting work. No sibling backlog is invented.
-    for change, handoff in ordered:
-        if change not in linked:
-            linked[change] = requirement_intake.materialize_handoff(
-                integration, requirement=requirement, handoff_file=handoff,
-                bundle_path=bundles[change], base_dir=base_dir,
-                confirm_distinct=confirm_distinct)["child"]
-    config = read_platform_config(integration)
-    repository = str(config.get("repository") or managed_task.origin_repository(integration))
-    merged = _merged_composition(integration, requirement, repository)
-    if merged:
-        parent = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(requirement))
-        return _await_post_merge(parent, requirement, [linked[change] for change, _ in ordered],
-                                 composition_pr=merged[-1],
-                                 status_command=f"python3 scripts/publication_queue.py status --pr {merged[-1]}")
-    graph = _handoff_dependencies(ordered)
-    boundary = ensure_integration_branch(integration, requirement=requirement, repository=repository,
-                                         expected_changes=[c for c, _ in ordered], dependencies=graph, handoff_renames=renames)
-    branch, head, manifest = boundary["branch"], boundary["head"], boundary["manifest"]
-    _git(integration, "fetch", "origin", f"{branch}:refs/remotes/origin/{branch}")
-    integrated = {child["change"]: child for child in manifest["children"]}
-    in_flight = in_flight_children(integration, repository, requirement, branch)
-    actions, waiting = [], []
-    for change, _ in ordered:
-        if change in integrated:
-            continue
-        if change in in_flight:
-            waiting.append(in_flight[change])
-            continue
-        missing = [d for d in graph[change] if d not in integrated]
-        if missing:
-            waiting.append({"change": change, "dependencies": missing})
-            continue
-        contribution = {"requirement": requirement, "branch": f"origin/{branch}", "target_branch": branch,
-                        "head": head, "dependencies": [integrated[d] for d in graph[change]]}
-        # A resumed child keeps its original exact base even as other contributions arrive.
-        from requirement_child_context import cached_contribution
-        worktree = machine_path("worktrees", integration) / change
-        if worktree.is_dir() and managed_task.canonical_provenance_candidates(worktree, change):
-            contribution = cached_contribution(worktree, change, requirement=requirement)
-        try:
-            started, _, _ = start_managed_task.start_managed_task(integration, linked[change], contribution=contribution)
-        except start_managed_task.ManagedAdmissionWait as exc:
-            waiting.append({"change": change, "reason": str(exc)})
-            continue
-        actions.append({"child": linked[change], "change": change, "worktree": str(started.task_root),
-                        "contribution_base": contribution["head"], "target_branch": branch,
-                        "next": "Perform routed implementation and developer handoff; rerun advance after contribution integration."})
-    requirement_board.reconcile_nonterminal(integration, requirement=requirement)
-    draft = publish_composition(integration, repository, manifest, head)
-    return {"status": draft["status"] if draft["status"] == "await-post-merge" else
-            "implement-children" if actions else "await-contributions" if waiting else draft["status"],
-            "requirement": requirement,
-            "actions": actions, "waiting": waiting, "shared_draft": draft}
 
 
 if __name__ == "__main__":

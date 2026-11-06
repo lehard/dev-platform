@@ -25,11 +25,11 @@ note = "работа в копии задачи"
 
 [[used_in]]
 stage = "verification"
-note = "ревью и доработка"
+note = "запуск ревьюеров"
 
 [[inputs]]
 title = "Подтверждённый маршрут"
-text = "Профиль, провайдер и план исполнения: `delegated-child` для `routine` и `standard`, `supervisor-retained` для `complex`."
+text = "Профиль, провайдер и план исполнения: `supervisor-retained` по умолчанию, `delegated-child` при явном запросе для `routine` и `standard`."
 role = "mechanism"
 node = "executor-routing"
 note = "← этап 3"
@@ -69,8 +69,8 @@ consumer = "→ этап 5"
 node = "verification"
 
 [[outputs]]
-title = "Отчёты ревьюеров и результат доработки"
-text = "Те же провайдеры запускают независимых ревьюеров только на чтение и исполнителей доработки через платформенный запуск."
+title = "Отчёты ревьюеров"
+text = "Те же провайдеры запускают независимых ревьюеров только на чтение через платформенный запуск."
 role = "gate"
 consumer = "независимое ревью"
 node = "independent-review"

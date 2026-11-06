@@ -1,36 +1,21 @@
-"""The Claude credential of lifecycle workers; GitHub access stays ``lifecycle_workers.active_gh_token``.
+"""The Claude token file of the sandboxed writer: ``[independent_review.login.claude] token_file``.
 
-The Claude credential has exactly one source per placement: an enabled ``[operator]`` selects ``[independent_review.login.claude] token_file``, anything else (a hosted
-runner) the ``CLAUDE_CODE_OAUTH_TOKEN`` of the job's environment. Placement selects the source; which value
-happens to be present never does. A missing or invalid source raises, naming the setting and never the value.
+A missing or invalid source raises, naming the setting and never the value.
 """
 from __future__ import annotations
 
 import os
 import stat
-from collections.abc import Iterable, Mapping, MutableMapping
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
 TOKEN_SETTING = "[independent_review.login.claude] token_file"
 TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN"
-CLAUDE_PROVIDER = "claude"
 
 
 class CredentialError(RuntimeError):
     pass
-
-
-def operator_placement(config: Mapping[str, Any]) -> bool:
-    """Whether this checkout is an operator node (``[operator] enabled = true``)."""
-    operator = config.get("operator")
-    return isinstance(operator, dict) and operator.get("enabled") is True
-
-
-def remove_ambient_token(config: Mapping[str, Any], environ: MutableMapping[str, str]) -> None:
-    """Drop an exported token on the operator node: it is neither a source there nor for its children."""
-    if operator_placement(config):
-        environ.pop(TOKEN_ENV, None)
 
 
 def claude_token_file(config: Mapping[str, Any]) -> Path:
@@ -57,21 +42,3 @@ def read_claude_token(config: Mapping[str, Any]) -> str:
     if not value:
         raise CredentialError(f"token file {path} is empty")
     return value
-
-
-def resolve_claude_token(config: Mapping[str, Any], environ: Mapping[str, str]) -> str:
-    """The Claude credential of this placement."""
-    if operator_placement(config):
-        return read_claude_token(config)
-    value = environ.get(TOKEN_ENV, "").strip()
-    if not value:
-        raise CredentialError(f"{TOKEN_ENV} is empty; a worker without an enabled [operator] takes it only from "
-                              "the job's environment")
-    return value
-
-
-def llm_env(config: Mapping[str, Any], providers: Iterable[str], environ: Mapping[str, str]) -> dict[str, str]:
-    """What an LLM process of these providers adds to its credential-free environment."""
-    if CLAUDE_PROVIDER not in providers:
-        return {}
-    return {TOKEN_ENV: resolve_claude_token(config, environ)}

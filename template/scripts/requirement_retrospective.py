@@ -117,20 +117,14 @@ def _check_events(requirement: str, event_ids: list[str], children: list[str] | 
 
 
 @contextlib.contextmanager
-def _durable_scope(requirement: str, accepted_gaps: list[str]) -> Iterator[None]:
-    """Durable coordinator evidence is required unless its gap was explicitly accepted."""
+def _evidence_scope(requirement: str, accepted_gaps: list[str]) -> Iterator[None]:
+    """A partial friction log stops the checkpoint unless its gap was explicitly accepted."""
     try:
-        with contextlib.ExitStack() as stack:
-            if "coordinator-evidence" in accepted_gaps:
-                stack.enter_context(agent_friction.tolerate_durable_gap())
-            stack.enter_context(agent_friction.local_gap_scope(accepted_gaps))
+        with agent_friction.local_gap_scope(accepted_gaps):
             yield
     except agent_friction.FrictionLogError as exc:
         raise RequirementRetrospectiveError(
             f"friction-log is not readable in full: {exc}. Repair the log or accept the gap with `--accept-gap friction-log`.") from exc
-    except agent_friction.DurableEvidenceError as exc:
-        raise RequirementRetrospectiveError(
-            agent_friction.gap_instruction(["coordinator-evidence (unreadable)"]) + f" {exc}") from exc
 
 
 def _explain_signals(requirement: str, event_ids: list[str], dispositions: dict[str, str], accepted_gaps: list[str]) -> None:
@@ -171,7 +165,7 @@ def checkpoint(
     _require_delivery(identity["children"], list(quick_prs or []))
     quick = _merged_quick_prs(root, list(quick_prs or []))
     accepted = sorted(set(accepted_gaps or []))
-    with _durable_scope(requirement, accepted):
+    with _evidence_scope(requirement, accepted):
         _check_events(requirement, event_ids, identity["children"])
         parsed = _parse_dispositions(requirement, list(dispositions or []))
         _explain_signals(requirement, event_ids, parsed, accepted)
@@ -228,7 +222,7 @@ def require_checkpoint(root: Path, *, requirement: str, parent: dict[str, Any] |
     if not isinstance(stored, list) or not all(isinstance(i, dict) for i in stored):
         raise RequirementRetrospectiveError(f"Requirement retrospective receipt is malformed; {instruction}")
     gaps = [g for g in (receipt.get("accepted_gaps") or []) if isinstance(g, str)]
-    with _durable_scope(requirement, gaps):
+    with _evidence_scope(requirement, gaps):
         _check_events(requirement, events, identity["children"])
         parsed = _parse_dispositions(requirement, [f"{i.get('event_id')}={i.get('disposition')}" for i in stored])
         _explain_signals(requirement, events, parsed, gaps)
@@ -267,11 +261,9 @@ def main() -> int:
         elif args.command == "review-path":
             parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(args.requirement))
             identity = _identity(args.requirement, parent)
-            # The review-path reports an unreadable durable source as a gap instead of failing.
-            with agent_friction.tolerate_durable_gap(), agent_friction.tolerate_local_gap():
+            # The review-path reports an unreadable local log as a gap instead of failing.
+            with agent_friction.tolerate_local_gap():
                 signals = agent_friction.current_retrospective_signals(args.requirement)
-                coordinator = [event for event in agent_friction.events_for_task(args.requirement, identity["children"])
-                               if event.get("durable")]
                 result = {
                     "requirement": args.requirement,
                     "review": ["accepted intent and intake", "pre-authoring and handoff", "mandatory children",
@@ -279,13 +271,9 @@ def main() -> int:
                     "children": identity["children"],
                     "recorded_signals": [
                         {"id": str(event.get("id")),
-                         "triggers": sorted(agent_friction.RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or [])),
-                         **({"durable": event["durable"]} if event.get("durable") else {})}
+                         "triggers": sorted(agent_friction.RETROSPECTIVE_SIGNALS.intersection(event.get("triggers") or []))}
                         for event in signals
                     ],
-                    "coordinator_events": [
-                        {"id": str(event.get("id")), "category": event.get("category"), "severity": event.get("severity"),
-                         "durable": event["durable"]} for event in coordinator],
                     "lifecycle_failures": [str(event.get("id")) for event in agent_friction.current_lifecycle_failures(args.requirement)],
                     "inferred_attribution": agent_friction.inferred_event_ids(args.requirement),
                     "ambiguous_attribution": [str(event.get("id")) for event in agent_friction.ambiguous_attribution_events()][:10],

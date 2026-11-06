@@ -16,10 +16,10 @@ sys.path.insert(0, str(ROOT / "template" / "scripts"))
 import add_intents  # noqa: E402
 import orchestrate_pre_authoring as orch  # noqa: E402
 import project_evidence  # noqa: E402
+import requirement_terminal  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
 execution = load_platform_module("execute_requirement", ROOT / "template/scripts/execute_requirement.py")
-contour = load_platform_module("integration_contour", ROOT / "template/scripts/integration_contour.py")
 
 REQUIREMENT_ID = "requirement-7"
 REQUIREMENT = "acme/backlog#7"
@@ -353,14 +353,15 @@ class SequentialAdvanceTests(unittest.TestCase):
                  mock.patch.object(execution, "_linked_children_by_change", return_value=linked), \
                  mock.patch.object(execution.managed_project_status, "observe",
                                    return_value=SimpleNamespace(current_status="In review")), \
-                 mock.patch.object(execution, "_advance_contributions") as contributions, \
-                 mock.patch.object(execution, "_publish_active_child", return_value=True) as publish, \
-                 mock.patch.object(execution.start_managed_task, "start_managed_task") as start:
+                 mock.patch.object(execution, "_ready_receipt", return_value=None), \
+                 mock.patch.object(execution, "_archive_delivered_task_state", return_value=None), \
+                 mock.patch.object(execution, "_child_review_state", return_value={}), \
+                 mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), \
+                 mock.patch.object(execution.start_managed_task, "start_managed_task",
+                                   return_value=(SimpleNamespace(task_root=root / "first"), "head", True)) as start:
                 result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
-            self.assertEqual((result["status"], result["child"]), ("await-child-review", "acme/backlog#8"))
-            publish.assert_called_once_with(root.resolve(), "acme/backlog#8", "first")
-            contributions.assert_not_called()
-            start.assert_not_called()
+            self.assertEqual((result["status"], result["child"]), ("implement-child", "acme/backlog#8"))
+            start.assert_called_once_with(root.resolve(), "acme/backlog#8", base_child_receipt=None)
 
     def test_unreadable_handoff_in_the_sequential_round_fails_naming_it(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -412,10 +413,7 @@ class SequentialUnfinishedStageTests(unittest.TestCase):
             handoffs[intent] = path
         linked = {"first": "acme/backlog#8", "second": "acme/backlog#9"}
         import _platform_common
-        import publication_queue
-        with mock.patch.object(publication_queue, "_repo", return_value="acme/project"), \
-             mock.patch.object(publication_queue, "_gh", return_value=[]), \
-             mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
+        with mock.patch.object(_platform_common, "read_platform_config", return_value={"platform_version": "1.0"}), \
              mock.patch.object(execution, "current_worktree_root", return_value=root), \
              mock.patch.object(execution, "_git", return_value="main"), \
              mock.patch.object(execution.requirement_target_lifecycle, "require_local_target_support"), \
@@ -429,8 +427,13 @@ class SequentialUnfinishedStageTests(unittest.TestCase):
                                return_value=SimpleNamespace(current_status=observe)), \
              mock.patch.object(execution, "_done_child_is_delivered"), \
              mock.patch.object(execution, "_archive_delivered_task_state", return_value=None), \
-             mock.patch.object(execution, "_contribution_publication_supported", return_value=True), \
-             mock.patch.object(execution, "_publish_active_child", return_value=True), \
+             mock.patch.object(execution, "_ready_receipt", return_value=None), \
+             mock.patch.object(execution, "_child_review_state", return_value={}), \
+             mock.patch.object(execution, "_retrospective_pending", return_value=None), \
+             mock.patch.object(requirement_terminal, "reconcile_parent", return_value={"status": "done"}), \
+             mock.patch.object(execution.requirement_board, "reconcile_nonterminal"), \
+             mock.patch.object(execution.start_managed_task, "start_managed_task",
+                               return_value=(SimpleNamespace(task_root=root / "first"), "head", True)), \
              mock.patch.object(execution.orchestrate_pre_authoring, "rebind") as rebind:
             result = execution.advance(root, requirement=REQUIREMENT, base_dir=root)
         return result, rebind, recovery
@@ -443,7 +446,7 @@ class SequentialUnfinishedStageTests(unittest.TestCase):
                 Path(tmp), report, observe="In review", materialized={"current_stage": "complete", "handoffs": {}})
         rebind.assert_not_called()
         recovery.assert_called_once()
-        self.assertEqual((result["status"], result["child"]), ("await-child-review", "acme/backlog#8"))
+        self.assertEqual((result["status"], result["child"]), ("implement-child", "acme/backlog#8"))
 
     def test_a_rebind_is_reported_on_the_all_delivered_path(self) -> None:
         report = {"current_stage": "snapshot", "blocker": {"state": "stale"}}
@@ -452,21 +455,8 @@ class SequentialUnfinishedStageTests(unittest.TestCase):
              mock.patch.object(execution, "_rebind_sequential", return_value=receipt) as rebind_sequential:
             result, _, _ = self._advance(Path(tmp), report, observe="Done", materialized=None)
         rebind_sequential.assert_called_once()
-        self.assertEqual(result["status"], "await-post-merge")
+        self.assertEqual(result["status"], "done")
         self.assertEqual(result["rebind"], receipt)
-
-
-class TerminalAfterFirstChildTests(unittest.TestCase):
-    def test_merging_the_first_sequential_child_does_not_close_the_requirement(self) -> None:
-        ops = mock.Mock()
-        ops.lineage.return_value = {"child": "acme/backlog#8", "requirement": REQUIREMENT}
-        ops.children.return_value = ["acme/backlog#8", "acme/backlog#9"]
-        ops.child_closed.side_effect = lambda _root, child: child == "acme/backlog#8"
-        outcome = contour.run_terminal(ops, Path("/r"), 11, "agent/br-7-t1-first", "a" * 40,
-                                       task_identity={"change": "first-change"})
-        self.assertEqual(outcome, "child-reconciled; requirement awaits remaining children")
-        ops.reconcile_parent.assert_not_called()
-        ops.reconcile_child.assert_called_once_with(Path("/r"), "acme/backlog#8")
 
 
 if __name__ == "__main__":

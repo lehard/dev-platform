@@ -1,12 +1,12 @@
 # DEC-0004: Main advance and repeated validation
 
-- **Status:** Current
+- **Status:** Amended by [DEC-0009](0009-single-stream-core.md): with one writer and no queue the `behind-mergeable` contract is removed; a head behind main reconciles first
 - **Scope:** Freshness gates, check-evidence reuse and queue integration when `main` advances under a task
 - **Decision date:** 2026-10-26 (current choice), recorded 2026-10-29
 - **Authored against revision:** `ffc0b55e2be8bee27a152a98cbb04642ecaac3fe`
 - **Problem root issue:** [lehard/dev-platform#553](https://github.com/lehard/dev-platform/issues/553) (full-validation-rerun-cost)
 - **Supersedes:** None
-- **Superseded by:** None
+- **Superseded by:** None (amended by [DEC-0009](0009-single-stream-core.md))
 
 ## Problem
 

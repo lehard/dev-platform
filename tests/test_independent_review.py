@@ -721,11 +721,11 @@ class IndependentReviewTests(unittest.TestCase):
                 return "", None
 
         with mock.patch.object(runner.os, "killpg", side_effect=PermissionError("EPERM")):
-            with mock.patch("lifecycle_workers.live_group_members", return_value=["424243 S"]):
+            with mock.patch("sandbox_harness.live_group_members", return_value=["424243 S"]):
                 with self.assertRaisesRegex(runner.ProcessGroupError, "live members remain: 424243 S"):
                     runner._kill_process_group(Reviewer())
             # macOS EPERM for an all-zombie group is tolerated only when ps proves no live member.
-            with mock.patch("lifecycle_workers.live_group_members", return_value=[]):
+            with mock.patch("sandbox_harness.live_group_members", return_value=[]):
                 runner._kill_process_group(Reviewer())
         with mock.patch.object(runner.os, "killpg", side_effect=ProcessLookupError()):
             runner._kill_process_group(Reviewer())
@@ -828,7 +828,7 @@ class IndependentReviewTests(unittest.TestCase):
         launcher = FakeLauncher([material("missing-contract-behavior")])
         with self.platform_archive(launcher) as run_checked:
             with self.assertRaises(SystemExit) as raised:
-                lifecycle.finalize_change(self.root, "review-change", context="developer")
+                lifecycle.finalize_change(self.root, "review-change")
         message = str(raised.exception)
         self.assertEqual(launcher.calls, [])
         run_checked.assert_not_called()
@@ -841,7 +841,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.run_review(launcher)
         calls = len(launcher.calls)
         with self.platform_archive(launcher) as run_checked:
-            self.assertEqual(lifecycle.finalize_change(self.root, "review-change", context="developer"), 0)
+            self.assertEqual(lifecycle.finalize_change(self.root, "review-change"), 0)
         self.assertEqual(len(launcher.calls), calls)
         self.assertIn("select_checks.py", " ".join(run_checked.call_args_list[0].args[0]))
 
@@ -878,29 +878,6 @@ class IndependentReviewTests(unittest.TestCase):
         self.assertEqual(review.evaluate(self.root, self.change, required=True)["state"], "ready")
         review.ensure_review_evidence(self.root, self.change, launcher=launcher, required=True)
         self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2), "reuse the unchanged review")
-
-    def test_queue_child_review_uses_the_shared_stage_and_perspectives(self) -> None:
-        import requirement_composition
-        launcher = FakeLauncher()
-        with mock.patch.object(runner, "run_review_stage", wraps=runner.run_review_stage) as stage:
-            reports = requirement_composition.run_child_review(
-                self.root, self.change, base_ref="origin/main", launcher=launcher, config={"provider": "codex"})
-        stage.assert_called_once()
-        self.assertEqual(stage.call_args.kwargs["watched"], [])
-        self.assertEqual(set(reports), set(review.PERSPECTIVES))
-        self.assertEqual((len(launcher.probes), len(launcher.calls)), (1, 2))
-        self.assertEqual(self.state()["state"], "ready")
-
-    def test_queue_child_review_preserves_its_tree_snapshot_guard(self) -> None:
-        import lifecycle_workers
-        import requirement_composition
-        mutated = self.root / "reviewer-output.txt"
-        with self.assertRaisesRegex(lifecycle_workers.WorkerError, "child reviewer modified the checkout"):
-            requirement_composition.run_child_review(
-                self.root, self.change, base_ref="origin/main", launcher=FakeLauncher(mutate=mutated),
-                config={"provider": "codex"})
-        self.assertTrue(mutated.is_file(), "the executor must not clean a reviewer mutation")
-        self.assertFalse(review.report_path(self.change, "spec-fidelity").exists())
 
     def test_template_default_disables_review(self) -> None:
         self.write_config("", enabled="false")
