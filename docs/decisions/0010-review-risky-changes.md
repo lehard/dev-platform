@@ -10,6 +10,8 @@
 
 ## Accepted current decision
 
+The coordinator accepted this rule on 2026-11-06 under the owner-delegated roadmap.
+
 1. A change is risky exactly when the task's own diff, without declared generated files, touches a `[[protected]]` path of the protected surface.
 2. With `[independent_review] enabled = true`, `finish` runs the existing reviewer for a risky quick or managed task and for no other task.
 3. A material finding or a reviewer that could not run stops `finish`. Nothing repairs, retries with another provider or spends a budget.
