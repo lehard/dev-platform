@@ -1,0 +1,87 @@
+{
+  "candidate": {
+    "base_head": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+    "base_ref": "origin/main",
+    "candidate_head": "0b60a6e82ed0a9f3eedd72629f076ee62ee5dfdd",
+    "diff_sha256": "22ed8176a10f4c0f1b126d19d63e13970e744ae68768698ab780c20d0deb609f"
+  },
+  "change": "openspec/changes/worker-credentials",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/worker-credentials/automated-checks.json",
+    "openspec/changes/worker-credentials/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/worker-credentials/design.md",
+        "openspec/changes/worker-credentials/proposal.md",
+        "openspec/changes/worker-credentials/specs/lifecycle-workers/spec.md",
+        "openspec/changes/worker-credentials/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/worker-credentials/proposal.md",
+        "openspec/changes/worker-credentials/design.md",
+        "openspec/changes/worker-credentials/tasks.md",
+        "openspec/changes/worker-credentials/specs/lifecycle-workers/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-06T00:20:27+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/worker-credentials/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "266e4469-1617-4470-b8ac-3e48cd846af8",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+    "digest": "9584bfa8a843d5a6af4c31f8ff613fc0d131148f470fd52bf9a2c85a7fbf6f7f",
+    "paths": {
+      "dev-platform/checks.toml": "a8aca4342e9636057fc3709b8659a061987ffc98",
+      "docs/engineering/chat-coordinator.md": "c02218c807309f3dfa185862c908f7e90e2c8696",
+      "docs/engineering/model-routing.md": "3dfd8fc348f65b8a1c7230db4a448e68001f682a",
+      "openspec/changes/worker-credentials/.managed-task.json": "c366b668d04797ed500372cbfd7b8ec83948f90f",
+      "openspec/changes/worker-credentials/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+      "openspec/changes/worker-credentials/design.md": "d8e3b9ff8fe72a004d42ba1a43ee6ebf0a7e3ba0",
+      "openspec/changes/worker-credentials/proposal.md": "3db95598c24387d569d69651a1134fc6e05c4b29",
+      "openspec/changes/worker-credentials/specs/lifecycle-workers/spec.md": "95b2a5b4962e0308512628e8c0a219cf3f6634c5",
+      "openspec/changes/worker-credentials/tasks.md": "4009ae5910440e1e9862798768c78c5e4d41af5f",
+      "scripts/sandboxed_writer_probes.py": "e59406680529645b24e0ebac916cfbe3da26d042",
+      "template/dev-platform/protected-surface.toml": "ec7c135a84ce39aca5116a572f4db9dc6b4b56a7",
+      "template/scripts/_platform_common.py": "c8121ab2e96546665ee70adf778bafbc885cd0f2",
+      "template/scripts/lifecycle_overview.py": "c7d6a24c2e620c82566153185537d7aec15a889c",
+      "template/scripts/lifecycle_workers.py": "182a65af870449742266c6703aacf2ebdef3f9fe",
+      "template/scripts/pr_review_gate.py": "574d1e1d4cf4dcfbe7e1b64ad29bf7bd0a0340e4",
+      "template/scripts/sandboxed_writer.py": "5fc84de528cd4f2d7bcd0ff15818f368d38f8d45",
+      "template/scripts/worker_credentials.py": "631b2d82056ca936f1b10e1e475a63dba9aeb812",
+      "tests/test_lifecycle_overview.py": "318538979ffb2995585a46fb1afc71590727b9c7",
+      "tests/test_lifecycle_workers.py": "9463d43596fde42214d4ba670a85bfdf27405a0a",
+      "tests/test_sandboxed_writer.py": "a7a85e1884759dfb1fa0bb53a949b16fe0dbc390",
+      "tests/test_worker_credentials.py": "30869485d3adc19a96ced86609b71519bc0d5b0e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}

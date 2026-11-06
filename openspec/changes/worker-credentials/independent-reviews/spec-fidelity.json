@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+    "base_ref": "origin/main",
+    "candidate_head": "0b60a6e82ed0a9f3eedd72629f076ee62ee5dfdd",
+    "diff_sha256": "22ed8176a10f4c0f1b126d19d63e13970e744ae68768698ab780c20d0deb609f"
+  },
+  "completed_at": "2026-11-06T00:20:45+00:00",
+  "findings": [
+    {
+      "evidence": "openspec/changes/worker-credentials/design.md:8 (\"A credential error is a `WorkerError`\") vs template/scripts/worker_credentials.py `class CredentialError(RuntimeError)` and the candidate.diff hunks in sandboxed_writer.py, pr_review_gate.py and lifecycle_workers.py.",
+      "id": "design-error-type-drift",
+      "severity": "advisory",
+      "summary": "design.md says a credential error is a `WorkerError`. The code raises `worker_credentials.CredentialError`, a `RuntimeError`, and converts it at each call site. The sandboxed writer converts it to `SandboxedWriterError`, the review gate to `WorkerError`, and `provider_readiness` turns it into a limitation string. `main` catches `CredentialError` directly."
+    },
+    {
+      "evidence": "openspec/changes/worker-credentials/design.md:3 vs template/scripts/worker_credentials.py `def operator_placement(config)`.",
+      "id": "design-names-nonexistent-operator-enabled",
+      "severity": "advisory",
+      "summary": "design.md names `operator_enabled(root)` as the placement selector. The implementation provides `worker_credentials.operator_placement(config)`, which takes a config mapping and not a root, and no `operator_enabled` appears in the diff."
+    }
+  ],
+  "launched_at": "2026-11-06T00:20:30+00:00",
+  "output_sha256": "faa4b16ed55b9018060610e1c2be162c7715cb1de07fe660db505a5f268a5bd3",
+  "perspective": "spec-fidelity",
+  "request_id": "266e4469-1617-4470-b8ac-3e48cd846af8",
+  "reviewer": {
+    "context_id": "411f1f08-8012-45bc-bfdd-59b4a4d043e6",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f1b3ee37-e3ef-4c20-94b7-983344d03c9a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36524
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 46828
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14556
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14714
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1816
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9584bfa8a843d5a6af4c31f8ff613fc0d131148f470fd52bf9a2c85a7fbf6f7f"
+}
