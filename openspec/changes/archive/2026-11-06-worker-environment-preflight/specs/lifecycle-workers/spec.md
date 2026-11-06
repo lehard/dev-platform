@@ -43,10 +43,10 @@ A failure of a registered preflight condition after claim SHALL release the clai
 
 ### Requirement: Repeated environment releases end in an operational block
 
-Environment releases of one job SHALL have their own bound. When it is reached the candidate SHALL enter `blocked-escalation` with an operational cause that `resume` lifts, and candidate attempt counters SHALL NOT change.
+Environment releases of one job SHALL have their own bound. When it is reached the candidate SHALL enter `blocked-escalation` with an operational cause that names the condition, and candidate attempt counters SHALL NOT change. `resume` SHALL lift it for a review, repair or finalize job; an integration job's escalation is lifted by a developer re-admission, like its other escalations.
 
 #### Scenario: Bound reached
 
 - **WHEN** a job reaches the environment release bound
 - **THEN** the overview reports an operational escalation naming the condition
-- **AND** `resume` offers the job again with its attempts unchanged
+- **AND** `resume` offers a review, repair or finalize job again with its attempts unchanged

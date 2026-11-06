@@ -183,6 +183,14 @@ class CliTests(Base):
         work_next.assert_not_called()
         self.assertEqual(run.call_args.args[0].providers, ("claude",))
 
+    def test_standalone_command_refuses_an_unknown_kind(self):
+        for kinds in ("reveiw", ","):
+            with self.subTest(kinds=kinds), mock.patch("worker_preflight.run") as run, \
+                    contextlib.redirect_stderr(io.StringIO()) as err:
+                self.assertEqual(workers.main(["worker-preflight", f"--kinds={kinds}", "--repo", "o/r"]), 2)
+            run.assert_not_called()
+            self.assertIn("--kinds must name job kinds", err.getvalue())
+
     def test_standalone_refusal_exits_3(self):
         with mock.patch("worker_preflight.run", side_effect=workers.PreflightRefused("x")), \
                 mock.patch.object(workers, "read_platform_config", return_value={}), \
@@ -277,6 +285,14 @@ class EnvironmentClassTests(Base):
         red = {"name": "review", "evidence": {"cause": workers.ENVIRONMENT_RELEASE_CAUSE, "releases": 5}}
         self.assertTrue(gate.operational_escalation(red))
         self.assertFalse(gate.operational_escalation({"name": "review", "evidence": {"cause": "other"}}))
+
+    def test_spent_environment_bound_names_its_condition(self):
+        evidence = workers.release_limit_evidence(workers.EnvironmentFailure("provider-credential", "gone"), 5)
+        self.assertEqual((evidence["cause"], evidence["condition"]),
+                         (workers.ENVIRONMENT_RELEASE_CAUSE, "provider-credential"))
+        ordinary = workers.release_limit_evidence(workers.WorkerError("defect"), 3)
+        self.assertEqual(ordinary["cause"], workers.CLAIM_RELEASE_CAUSE)
+        self.assertNotIn("condition", ordinary)
 
     def test_post_merge_limit_counts_each_class_against_its_own_bound(self):
         job = {"kind": "cleanup", "number": 7, "head": HEAD, "attempt": 0}

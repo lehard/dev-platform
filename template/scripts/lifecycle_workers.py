@@ -93,6 +93,14 @@ class EnvironmentFailure(WorkerError):
         self.condition = condition
 
 
+def release_limit_evidence(exc: BaseException, releases: int) -> dict:
+    """The red gate evidence of a job that spent its release bound; an environment failure names its condition."""
+    last = f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]
+    if isinstance(exc, EnvironmentFailure):
+        return {"cause": ENVIRONMENT_RELEASE_CAUSE, "condition": exc.condition, "releases": releases, "last": last}
+    return {"cause": CLAIM_RELEASE_CAUSE, "releases": releases, "last": last}
+
+
 class PreflightRefused(WorkerError):
     """Environment conditions are unmet before any claim; the message names all of them."""
 
@@ -1538,10 +1546,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "worker-preflight":
         import worker_preflight
 
+        kinds = frozenset(k for k in args.kinds.split(",") if k)
+        if not kinds or kinds - JOB_KINDS:
+            # An unknown kind would make every condition not-applicable and pass as a proven environment.
+            print(f"lifecycle worker: --kinds must name job kinds, got {args.kinds!r}", file=sys.stderr)
+            return 2
         try:
             worker_credentials.remove_ambient_token(read_platform_config(Path.cwd()), os.environ)
             worker_preflight.run(worker_preflight.WorkerContext(
-                Path.cwd(), args.repo, frozenset(k for k in args.kinds.split(",") if k), tuple(args.provider),
+                Path.cwd(), args.repo, kinds, tuple(args.provider),
                 args.writer is not None, "worker-preflight"))
         except RuntimeError as exc:  # a refusal, or the trusted contract itself cannot be read
             print(f"lifecycle worker: {exc}", file=sys.stderr)
@@ -1775,8 +1788,7 @@ def main(argv: list[str] | None = None) -> int:
 
                     publication_queue._transition(
                         Path.cwd(), repo, job["number"], "blocked-escalation", job["head"], task_identity=job["task_identity"],
-                        red_gate={"name": job["kind"], "evidence": {"cause": ENVIRONMENT_RELEASE_CAUSE if environment else CLAIM_RELEASE_CAUSE,
-                                                                "releases": releases, "last": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]}})
+                        red_gate={"name": job["kind"], "evidence": release_limit_evidence(exc, releases)})
                 raise
             result = {**result, "execution": outcome}
         if readiness is not None:

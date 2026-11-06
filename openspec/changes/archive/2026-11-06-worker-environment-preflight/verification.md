@@ -25,6 +25,16 @@ Finalize of head 168c0162 stopped for fresh semantic verification: integration r
 - Review advisory `environment-condition-registry-not-enforced` (both perspectives) was a real gap between design and code. The constructor now enforces the design sentence, and all call sites pass registered ids.
 - Review advisory `preflight-scratch-dir-leak` was real and is fixed. Neither fix changes the delta spec.
 
+## Re-verification after the second review
+
+The review of 2d078d28 raised one material finding and three advisories. I read each against the code.
+
+- Material `overview-does-not-name-environment-condition`: confirmed. The escalation evidence now carries `condition`, and the overview reports `escalated-operational` with it for every job kind. Tests prove the evidence, the overview output and `resume` of a review with its attempts unchanged.
+- While checking that scenario I found that `resume` never covered integration jobs, for this class or for any other escalation. Offering one again needs a fresh job id without spending an attempt, plus the integration red gate that the escalation replaced. That is a new behavior, so the delta and accepted spec now state the real boundary: `resume` lifts review, repair and finalize; a developer re-admission lifts an integration job. A test pins that the overview offers no `resume` for it.
+- Advisory `standalone-preflight-unvalidated-kinds`: real and fixed. An unknown or empty `--kinds` exits 2 instead of passing with every condition not applicable.
+- Advisory `runner-exit-code-duplicated-constant`: left as is. The runner runs apart from the template modules, and a test pins the value.
+- Advisory `gh-token-decorator-blanket-mapping`: left as is. `active_gh_token` has one raise site, so nothing is misclassified today.
+
 ## Evidence
 
 - `tests/test_worker_preflight.py`, `tests/test_worker_credentials.py`, `tests/test_post_merge_runner.py`, `tests/test_lifecycle_workers.py`, `tests/test_autonomous_integration_contour.py` pass; selected checks are recorded in `automated-checks.json`.

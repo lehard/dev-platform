@@ -677,6 +677,19 @@ class ProviderSwitchTests(unittest.TestCase):
                 with self.assertRaisesRegex(queue.QueueError, "finding-level reason \\(review\\)"):
                     self.switch(action="resume")
 
+    def test_resume_lifts_the_environment_bound_with_attempts_unchanged(self):
+        spent = {"cause": workers.ENVIRONMENT_RELEASE_CAUSE, "condition": "provider-credential", "releases": 5,
+                 "last": "EnvironmentFailure: provider-credential: gone"}
+        with QueueFixture(ROOT, HEAD) as fixture:
+            gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["claude"])
+            before = fixture.candidate()["attempts"]["review"]
+            queue._transition(ROOT, "o/r", 7, "blocked-escalation", HEAD, task_identity=IDENTITY,
+                              red_gate={"name": "review", "evidence": spent})
+            self.switch(action="resume", providers=["claude"], reason="credential restored")
+            resumed = fixture.candidate()
+            self.assertEqual((resumed["state"], resumed["attempts"]["review"]), ("review-pending", before))
+            self.assertEqual(workers.build_job(resumed)["reoffer"]["action"], "resume")
+
     def test_filtering_worker_reviews_on_the_ready_subset_in_job_order(self):
         with QueueFixture(ROOT, HEAD) as fixture, tempfile.TemporaryDirectory() as workdir:
             gate.offer(ROOT, "o/r", 7, HEAD, IDENTITY, "review", providers=["claude", "codex"])
