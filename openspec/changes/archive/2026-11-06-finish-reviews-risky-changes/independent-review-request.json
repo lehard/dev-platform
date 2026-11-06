@@ -2,12 +2,15 @@
   "candidate": {
     "base_head": "5389f8ce694afbd1af4705fe95f61a9a00bd7da8",
     "base_ref": "origin/main",
-    "candidate_head": "029000bce25b5b82c78264d5a486abc15ee36cc3",
-    "diff_sha256": "01687207f6243017613577646ae6336c891c535cffa6a57be36a40715fb188f6"
+    "candidate_head": "733d864e5d70e0661bfd11af0a61153c0fb2653d",
+    "diff_sha256": "c3a44cb94b3cfdc895fd3381a8bd5ede425a3ef63b015b74a90554ef83b5118f"
   },
   "change": "openspec/changes/finish-reviews-risky-changes",
   "excluded_lifecycle_paths": [
     "openspec/changes/finish-reviews-risky-changes/automated-checks.json",
+    "openspec/changes/finish-reviews-risky-changes/independent-review-request.json",
+    "openspec/changes/finish-reviews-risky-changes/independent-reviews/engineering-quality.json",
+    "openspec/changes/finish-reviews-risky-changes/independent-reviews/spec-fidelity.json",
     "openspec/changes/finish-reviews-risky-changes/verification.md",
     "template/dev-platform/platform-manifest.json"
   ],
@@ -35,7 +38,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-06T19:32:13+00:00",
+  "prepared_at": "2026-11-06T19:44:42+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/finish-reviews-risky-changes/independent-reviews",
     "required_perspectives": [
@@ -44,7 +47,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "2c77163c-c406-4f0f-a846-35495824bf31",
+  "request_id": "519b3d1f-6fc9-4cda-a964-0e803f0f1e89",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,7 +60,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "5389f8ce694afbd1af4705fe95f61a9a00bd7da8",
-    "digest": "e31ef6dda938af12ed65c0408c4cedf72f7a41c153b81722ee0081461eb10929",
+    "digest": "288c614368c6ec67deea55dd1835dc5ca0afa33701d8407c73e64f3d840ec603",
     "paths": {
       "dev-platform/source-contract.toml": "dc764e573fbd4490a70d3520ab60504e9a03a91b",
       "docs/decisions/0010-review-risky-changes.md": "2438e91f1d57ac5f0b85ea9abc49335921f8ebed",
@@ -68,23 +71,22 @@
       "docs/engineering/openspec-workflow.md": "9616810ac7b7b91f08fa8d628ab02329830a0916",
       "openspec/changes/finish-reviews-risky-changes/.managed-task.json": "cb1d41b7943ae9624c7296ec41efad74e9ad4056",
       "openspec/changes/finish-reviews-risky-changes/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
-      "openspec/changes/finish-reviews-risky-changes/design.md": "32605c8e42314ba1cf381b7476eb7539d5d09c0f",
+      "openspec/changes/finish-reviews-risky-changes/design.md": "fa7bad135a508fe319e541fa76def3de1f7427a5",
       "openspec/changes/finish-reviews-risky-changes/proposal.md": "3d0d26cb7be2a90da4f622823b84e467cce5da0f",
-      "openspec/changes/finish-reviews-risky-changes/specs/completion-lifecycle/spec.md": "a61be7d651293fa181d79681c288dad073133326",
+      "openspec/changes/finish-reviews-risky-changes/specs/completion-lifecycle/spec.md": "19589ee97695a915baa1a782af79298575afb841",
       "openspec/changes/finish-reviews-risky-changes/tasks.md": "12c2cdead3dc2b5a640bb6deb9975f79a7a55599",
       "template/.dev-platform.toml.jinja": "950c896434933f64c20b03740b0ae7778e406155",
       "template/docs/engineering/agent-workflow.md.jinja": "09a776f477d96d27d7fc21cd50d3b7b3cf86046d",
       "template/docs/engineering/change-classes.md": "c3ff375d470fe2d16cae49693230eb9780b9770b",
       "template/docs/engineering/openspec-workflow.md": "c5a6cec0ed46561d09cac55e7142d982c6280a08",
       "template/scripts/finish_task.py": "54ce5415d95d954be335670709934abf45a94436",
-      "template/scripts/independent_review.py": "72d6d6be44cb3f8aac630db60e033c5d47490602",
+      "template/scripts/independent_review.py": "48440278e2e2deb552123f6e4f53342bc447c3ca",
       "template/scripts/independent_review_runner.py": "180e57ce84055f829cf3cd2c44c11de060a008d4",
       "template/scripts/task_content_identity.py": "55e1c6cfe8bcff6c35ed2417041114cae323426b",
       "tests/test_git_lifecycle.py": "0576ba6c8b9bb7a5249b5241ed2f03e2ebfa47d9",
       "tests/test_independent_review.py": "dd8ffd1e3688c115d7a773aac19cc084d40eefd4",
       "tests/test_merge_lifecycle_resilience.py": "13415a7da928ba87ac52569d1c9b556c7e2d84d8",
-      "tests/test_protected_main_zero_handoff.py": "428e28de4c7e01ecbb27451cf6fc2fda8259b194",
-      "tests/test_publication_recovery_cli.py": "d9377a8b6b9f33b25578f4ab81c89d6e0a6e60ef"
+      "tests/test_protected_main_zero_handoff.py": "428e28de4c7e01ecbb27451cf6fc2fda8259b194"
     },
     "scope": "independent-review-v1",
     "version": 1

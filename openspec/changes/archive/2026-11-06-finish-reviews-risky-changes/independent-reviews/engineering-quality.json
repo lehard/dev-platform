@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "5389f8ce694afbd1af4705fe95f61a9a00bd7da8",
+    "base_ref": "origin/main",
+    "candidate_head": "733d864e5d70e0661bfd11af0a61153c0fb2653d",
+    "diff_sha256": "c3a44cb94b3cfdc895fd3381a8bd5ede425a3ef63b015b74a90554ef83b5118f"
+  },
+  "completed_at": "2026-11-06T19:45:49+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/independent_review.py risky_paths: `base_ref = f\"origin/{read_platform_config(root)['main_branch']}\"`; review_state: `except RuntimeError as exc:  # finish stops on this; a status view reports it.`",
+      "id": "review-state-keyerror-uncaught",
+      "severity": "advisory",
+      "summary": "review_state only catches RuntimeError around review_is_required, but risky_paths reads read_platform_config(root)['main_branch'] directly. A missing key raises KeyError and crashes the status view, where the other failure causes are reported as an 'unknown' state."
+    },
+    {
+      "evidence": "specs/completion-lifecycle/spec.md line 256: 'a missing or stale review of a managed change SHALL be run outside archive before finalize'; the 'Quick task' scenario there covers only the no-protected-path case.",
+      "id": "spec-requirement-still-managed-only",
+      "severity": "advisory",
+      "summary": "The modified requirement 'Required independent review is an automatic, resumable lifecycle gate' still speaks only of 'a missing or stale review of a managed change'. Its scenarios (archive, finalize, resume) are managed-only. The new quick-task behavior sits in separate added requirements, so the contract text reads as managed-only and contradicts the 'quick and managed alike' rule."
+    }
+  ],
+  "launched_at": "2026-11-06T19:45:17+00:00",
+  "output_sha256": "03ccf3c0b1fe36fb31e41bdb2d8e9fad24aa1b62d808772850073b21d243fbf8",
+  "perspective": "engineering-quality",
+  "request_id": "519b3d1f-6fc9-4cda-a964-0e803f0f1e89",
+  "reviewer": {
+    "context_id": "3347ed84-c90d-4618-8651-a2551cbe0284",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-58ef4192-a9b9-4573-9746-1ccc7409a7d1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38852
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 106819
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 26902
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28864
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2569
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "288c614368c6ec67deea55dd1835dc5ca0afa33701d8407c73e64f3d840ec603"
+}
