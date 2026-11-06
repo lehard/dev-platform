@@ -196,6 +196,7 @@ targets = [
   "test_platform_module_identity",
   "test_lifecycle_workers",
   "test_sandboxed_writer",
+  "test_worker_credentials",
   "test_lifecycle_overview",
   "test_github_read_cache",
   "test_hosted_workers",

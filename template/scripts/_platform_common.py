@@ -51,6 +51,7 @@ def credential_free_check_env(env: dict[str, str], home: Path) -> dict[str, str]
     import site
 
     clean = credential_free_env(env, home)
+    clean.pop("CLAUDE_CODE_OAUTH_TOKEN", None)  # the provider credential belongs to LLM processes only
     clean["PYTHONUSERBASE"] = site.getuserbase()
     return clean
 

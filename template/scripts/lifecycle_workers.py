@@ -34,6 +34,7 @@ from candidate_lifecycle import derive_candidate, trusted_marker_comment
 import disposable_repository_sandbox
 import github_read_cache as read_cache
 from github_read_cache import GithubReadCacheError
+import worker_credentials
 
 CLAIM_PREFIX = "dev-platform-lifecycle-claim:v1 "
 JOB_KINDS = frozenset({"review", "repair", "integration-repair", "integration-merge", "finalize", "retrospective",
@@ -499,6 +500,16 @@ def sandboxed_claude_writer(root: Path) -> tuple[list[str], Callable[..., Any]]:
 CANDIDATE_PATHS_LIMIT = 300
 
 
+def plain_writer_launch(root: Path, provider: str | None) -> Callable[..., Any]:
+    """The ``--llm-command`` launch: ``run_llm`` with the provider's credential in the writer process only."""
+    credential = worker_credentials.llm_env(read_platform_config(root), [provider] if provider else [], os.environ)
+
+    def launch(command: list[str], checkout: Path, *, tmp: Path, env, runner, home: Path) -> Any:
+        return run_llm(command, checkout, tmp=tmp, env=env, runner=runner, home=home, extra_env=credential)
+
+    return launch
+
+
 def candidate_paths(repo: str, number: int, *, gh_json: Callable[..., Any] | None = None) -> list[str]:
     """The paths the pull request itself changes (GitHub compares from the merge base), bounded."""
     rows = (gh_json or _gh_json)("api", "--paginate", f"repos/{repo}/pulls/{number}/files?per_page=100")
@@ -551,10 +562,17 @@ def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=N
     if unsupported:
         raise WorkerError(f"unsupported provider {unsupported[0]!r}; use one of {', '.join(runner.PROVIDERS)}")
     clean = credential_free_env(dict(os.environ), scratch_home(Path(workdir), home_files))
-    launcher = lambda argv, cwd, timeout: runner.subprocess_launcher(argv, cwd, timeout, env=clean)
     base = {key: value for key, value in runner.settings(root).items() if key not in {"provider", "providers"}}
+    config = read_platform_config(root)
     readiness = {}
     for provider in dict.fromkeys(providers):
+        try:
+            credential = worker_credentials.llm_env(config, [provider], os.environ)
+        except worker_credentials.CredentialError as exc:
+            readiness[provider] = str(exc)
+            continue
+        launcher = lambda argv, cwd, timeout, extra=credential: runner.subprocess_launcher(
+            argv, cwd, timeout, env={**clean, **extra})
         result = probe(root, config={**base, "provider": provider}, launcher=launcher)
         readiness[provider] = None if result.get("ready") else str(result.get("limitation") or f"the {provider} readiness probe reported not ready without stating a limitation")
     return readiness
@@ -1467,6 +1485,7 @@ def main(argv: list[str] | None = None) -> int:
         return _gh_json("api", f"repos/{repo}/pulls/{number}")
 
     try:
+        worker_credentials.remove_ambient_token(read_platform_config(Path.cwd()), os.environ)
         needs_writer = (set(args.kinds.split(",")) - {"review", "finalize", "integration-repair", MERGE_ONLY_KIND,
                                                        "contribution-integration"} - POST_MERGE_KINDS)
         kinds = set(args.kinds.split(","))
@@ -1483,6 +1502,9 @@ def main(argv: list[str] | None = None) -> int:
             if "repair" in kinds:
                 args.repair_provider = "claude"
             args.llm_command, writer_launch = sandboxed_claude_writer(Path.cwd())
+        repair_launch = writer_launch
+        if args.run and writer_launch is None and args.llm_command and kinds & WRITE_KINDS:
+            repair_launch = plain_writer_launch(Path.cwd(), args.provider)
         if "repair" in kinds and (args.run or args.providers) and not args.repair_provider:
             raise WorkerError("claiming repair jobs with --run or --providers needs --repair-provider (the provider behind --llm-command)")
         if args.repair_provider and "repair" not in kinds:
@@ -1553,7 +1575,7 @@ def main(argv: list[str] | None = None) -> int:
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
                             post_result=lambda body: post_comment(job["number"], body),
                             workdir=workdir, home_files=args.llm_home_file, worker=args.worker, provider=args.provider,
-                            launch=writer_launch)
+                            launch=repair_launch)
                     elif job["kind"] == "finalize" and isinstance(job["task_identity"], dict) and job["task_identity"].get("change"):
                         from post_review_finalization import run_claimed_finalize
                         import publication_queue
@@ -1600,7 +1622,7 @@ def main(argv: list[str] | None = None) -> int:
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
                             post_result=lambda body: post_comment(job["number"], body),
                             workdir=workdir, home_files=args.llm_home_file, worker=args.worker,
-                            provider=None if merge_only else args.provider, launch=None if merge_only else writer_launch)
+                            provider=None if merge_only else args.provider, launch=None if merge_only else repair_launch)
                     elif job["kind"] in POST_MERGE_KINDS:
                         from integration_contour import run_claimed_post_merge
                         import publication_queue
@@ -1625,7 +1647,8 @@ def main(argv: list[str] | None = None) -> int:
                             llm_command=args.llm_command, worker=args.worker, provider=args.provider, workdir=workdir,
                             home_files=args.llm_home_file,
                             current_head=lambda: pr_info(job["number"])["head"]["sha"],
-                            post_result=lambda body: post_comment(job["number"], body), trusted_root=Path.cwd())
+                            post_result=lambda body: post_comment(job["number"], body), trusted_root=Path.cwd(),
+                            launch=repair_launch)
             except Exception as exc:
                 # A failed run releases its claim at once (counted per job) instead of holding it until expiry.
                 trust = _coordinator_trust(Path.cwd(), repo)
@@ -1651,7 +1674,7 @@ def main(argv: list[str] | None = None) -> int:
             result = {**result, "providers": {"ready": sorted(name for name, limitation in readiness.items() if limitation is None),
                                               "unavailable": {name: limitation for name, limitation in readiness.items() if limitation}}}
         result = {**result, "worker": args.worker}
-    except (WorkerError, ValueError, GithubReadCacheError) as exc:
+    except (WorkerError, worker_credentials.CredentialError, ValueError, GithubReadCacheError) as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(result, sort_keys=True))

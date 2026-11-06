@@ -1,0 +1,159 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 6,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 1.032,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.962,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.078,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.175,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1482.188,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 3.832,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/sandboxed_writer_probes.py",
+        "template/scripts/_platform_common.py",
+        "template/scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/sandboxed_writer.py",
+        "template/scripts/worker_credentials.py",
+        "tests/test_lifecycle_overview.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_sandboxed_writer.py",
+        "tests/test_worker_credentials.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test",
+        "configuration"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_a2ca6d25a107f11ef284257052308e64",
+    "change": "worker-credentials",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/worker-credentials",
+    "branch": "agent/br-995-t1-worker-credentials",
+    "head": "2fc3ee5181cbf67faa36841d32168685fd63562c",
+    "task_content": {
+      "version": 1,
+      "digest": "666b3a46bdf178d05a725aca66337a6aa717af1f2139609ffe3cb2295454c7b0",
+      "paths": {
+        "dev-platform/checks.toml": "a8aca4342e9636057fc3709b8659a061987ffc98",
+        "docs/engineering/chat-coordinator.md": "c02218c807309f3dfa185862c908f7e90e2c8696",
+        "docs/engineering/model-routing.md": "3dfd8fc348f65b8a1c7230db4a448e68001f682a",
+        "openspec/changes/worker-credentials/.managed-task.json": "c366b668d04797ed500372cbfd7b8ec83948f90f",
+        "openspec/changes/worker-credentials/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+        "openspec/changes/worker-credentials/design.md": "d8e3b9ff8fe72a004d42ba1a43ee6ebf0a7e3ba0",
+        "openspec/changes/worker-credentials/proposal.md": "3db95598c24387d569d69651a1134fc6e05c4b29",
+        "openspec/changes/worker-credentials/specs/lifecycle-workers/spec.md": "95b2a5b4962e0308512628e8c0a219cf3f6634c5",
+        "openspec/changes/worker-credentials/tasks.md": "4009ae5910440e1e9862798768c78c5e4d41af5f",
+        "openspec/changes/worker-credentials/verification.md": "45bea7c001bc21827fa118850950dab40a2bbd53",
+        "scripts/sandboxed_writer_probes.py": "e59406680529645b24e0ebac916cfbe3da26d042",
+        "template/dev-platform/platform-manifest.json": "b40040ac0da38e31d54d2c1dd151e8e3d335d7af",
+        "template/dev-platform/protected-surface.toml": "ec7c135a84ce39aca5116a572f4db9dc6b4b56a7",
+        "template/scripts/_platform_common.py": "c8121ab2e96546665ee70adf778bafbc885cd0f2",
+        "template/scripts/lifecycle_overview.py": "c7d6a24c2e620c82566153185537d7aec15a889c",
+        "template/scripts/lifecycle_workers.py": "182a65af870449742266c6703aacf2ebdef3f9fe",
+        "template/scripts/pr_review_gate.py": "574d1e1d4cf4dcfbe7e1b64ad29bf7bd0a0340e4",
+        "template/scripts/sandboxed_writer.py": "5fc84de528cd4f2d7bcd0ff15818f368d38f8d45",
+        "template/scripts/worker_credentials.py": "631b2d82056ca936f1b10e1e475a63dba9aeb812",
+        "tests/test_lifecycle_overview.py": "318538979ffb2995585a46fb1afc71590727b9c7",
+        "tests/test_lifecycle_workers.py": "9463d43596fde42214d4ba670a85bfdf27405a0a",
+        "tests/test_sandboxed_writer.py": "a7a85e1884759dfb1fa0bb53a949b16fe0dbc390",
+        "tests/test_worker_credentials.py": "30869485d3adc19a96ced86609b71519bc0d5b0e"
+      },
+      "base": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "9584bfa8a843d5a6af4c31f8ff613fc0d131148f470fd52bf9a2c85a7fbf6f7f",
+    "paths": {
+      "dev-platform/checks.toml": "a8aca4342e9636057fc3709b8659a061987ffc98",
+      "docs/engineering/chat-coordinator.md": "c02218c807309f3dfa185862c908f7e90e2c8696",
+      "docs/engineering/model-routing.md": "3dfd8fc348f65b8a1c7230db4a448e68001f682a",
+      "openspec/changes/worker-credentials/.managed-task.json": "c366b668d04797ed500372cbfd7b8ec83948f90f",
+      "openspec/changes/worker-credentials/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+      "openspec/changes/worker-credentials/design.md": "d8e3b9ff8fe72a004d42ba1a43ee6ebf0a7e3ba0",
+      "openspec/changes/worker-credentials/proposal.md": "3db95598c24387d569d69651a1134fc6e05c4b29",
+      "openspec/changes/worker-credentials/specs/lifecycle-workers/spec.md": "95b2a5b4962e0308512628e8c0a219cf3f6634c5",
+      "openspec/changes/worker-credentials/tasks.md": "4009ae5910440e1e9862798768c78c5e4d41af5f",
+      "scripts/sandboxed_writer_probes.py": "e59406680529645b24e0ebac916cfbe3da26d042",
+      "template/dev-platform/protected-surface.toml": "ec7c135a84ce39aca5116a572f4db9dc6b4b56a7",
+      "template/scripts/_platform_common.py": "c8121ab2e96546665ee70adf778bafbc885cd0f2",
+      "template/scripts/lifecycle_overview.py": "c7d6a24c2e620c82566153185537d7aec15a889c",
+      "template/scripts/lifecycle_workers.py": "182a65af870449742266c6703aacf2ebdef3f9fe",
+      "template/scripts/pr_review_gate.py": "574d1e1d4cf4dcfbe7e1b64ad29bf7bd0a0340e4",
+      "template/scripts/sandboxed_writer.py": "5fc84de528cd4f2d7bcd0ff15818f368d38f8d45",
+      "template/scripts/worker_credentials.py": "631b2d82056ca936f1b10e1e475a63dba9aeb812",
+      "tests/test_lifecycle_overview.py": "318538979ffb2995585a46fb1afc71590727b9c7",
+      "tests/test_lifecycle_workers.py": "9463d43596fde42214d4ba670a85bfdf27405a0a",
+      "tests/test_sandboxed_writer.py": "a7a85e1884759dfb1fa0bb53a949b16fe0dbc390",
+      "tests/test_worker_credentials.py": "30869485d3adc19a96ced86609b71519bc0d5b0e"
+    },
+    "base": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/sandboxed_writer_probes.py --changed-file template/scripts/_platform_common.py --changed-file template/scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/sandboxed_writer.py --changed-file template/scripts/worker_credentials.py --changed-file tests/test_lifecycle_overview.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_sandboxed_writer.py --changed-file tests/test_worker_credentials.py",
+    "duration_seconds": 476.316,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

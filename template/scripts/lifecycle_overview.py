@@ -43,7 +43,7 @@ FINDING_HINTS = {
 POST_MERGE_UNCLAIMED_HINT = (
     "No operator command applies: the local post-merge runner (LaunchAgent dev.platform.post-merge-runner) claims "
     "{kind} jobs every 10 minutes; to run it now from the integration checkout: "
-    'GH_TOKEN="$(gh auth token)" python3 scripts/lifecycle_workers.py work-next --repo {repo} --kinds {kind} --pr {number} --run')
+    'python3 scripts/lifecycle_workers.py work-next --repo {repo} --kinds {kind} --pr {number} --run')
 CLAIM_FINDINGS = frozenset({"unclaimed-next-job", "expired-claim"})
 EXECUTOR_NOT_CONFIRMED = "executor not confirmed"
 ACTIVITY_NOT_CONFIRMED = "executor activity: not confirmed"

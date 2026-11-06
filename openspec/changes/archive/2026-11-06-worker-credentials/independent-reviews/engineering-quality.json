@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+    "base_ref": "origin/main",
+    "candidate_head": "0b60a6e82ed0a9f3eedd72629f076ee62ee5dfdd",
+    "diff_sha256": "22ed8176a10f4c0f1b126d19d63e13970e744ae68768698ab780c20d0deb609f"
+  },
+  "completed_at": "2026-11-06T00:21:07+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:1506-1507 calls `plain_writer_launch(Path.cwd(), args.provider)`. Its first statement (lines ~276-278) calls `worker_credentials.llm_env(...)` outside the inner `launch`. A worker started with `--kinds repair,review --provider claude` therefore reads the token file even if it only ever claims a review job. A CredentialError there exits with code 2. The design says a kind that starts no provider never reads the token file, but this is only enforced by the kinds set, not per job. Deferring the call into `launch` would match the per-job behaviour.",
+      "id": "eager-writer-credential-resolution",
+      "severity": "advisory",
+      "summary": "The plain writer launch resolves the Claude credential once at worker start, not when a write-kind job is claimed. On an operator node with a bad token file, a worker started with `--run --llm-command` fails before any job is claimed."
+    }
+  ],
+  "launched_at": "2026-11-06T00:20:45+00:00",
+  "output_sha256": "44953d12a0b55057204a7f50d7ea37402f33e676cf053a7f6348cb67648e6fba",
+  "perspective": "engineering-quality",
+  "request_id": "266e4469-1617-4470-b8ac-3e48cd846af8",
+  "reviewer": {
+    "context_id": "1d2bec0e-88f6-4a8b-88ff-31ffbf6c6b51",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a7aaa098-188f-450f-b173-7f676a3dac67",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 34227
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 121703
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20467
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 20735
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 10
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 7
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2307
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9584bfa8a843d5a6af4c31f8ff613fc0d131148f470fd52bf9a2c85a7fbf6f7f"
+}

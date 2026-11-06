@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from _platform_common import credential_free_env
+import worker_credentials
+from worker_credentials import TOKEN_ENV
 
 SANDBOX_RUNTIME_VERSION = "0.0.79"
 ANTHROPIC_HOSTS = ["api.anthropic.com", "claude.ai", "platform.claude.com"]
@@ -23,8 +25,6 @@ DENY_READ_HOME = ["~/.ssh", "~/.config/gh", "~/.gitconfig", "~/.git-credentials"
                   "~/Library/Keychains", "~/.claude", "~/.claude.json", "~/.config/dev-platform",
                   "~/Library/Application Support", "~/.npmrc", "~/.docker"]
 DENY_WRITE_HOME = ["~/.claude", "~/.claude.json", "~/.config", "~/.ssh"]
-TOKEN_SETTING = "[independent_review.login.claude] token_file"
-TOKEN_ENV = "CLAUDE_CODE_OAUTH_TOKEN"
 
 
 class SandboxedWriterError(RuntimeError):
@@ -144,32 +144,6 @@ def write_profile(profile: dict[str, Any], profile_path: Path) -> Path:
     return target
 
 
-def claude_token_file(config: dict[str, Any]) -> Path:
-    try:
-        token_file = config["independent_review"]["login"]["claude"]["token_file"]
-    except (KeyError, TypeError):
-        raise SandboxedWriterError(f"operator setting {TOKEN_SETTING} is missing") from None
-    if not isinstance(token_file, str) or not token_file.strip():
-        raise SandboxedWriterError(f"operator setting {TOKEN_SETTING} must be a non-empty path")
-    return Path(os.path.expanduser(token_file))
-
-
-def read_claude_token(config: dict[str, Any]) -> str:
-    path = claude_token_file(config)
-    try:
-        info = path.stat()
-    except OSError as error:
-        raise SandboxedWriterError(f"token file {path} named by {TOKEN_SETTING} is not readable: {error.strerror}") from None
-    if not stat.S_ISREG(info.st_mode):
-        raise SandboxedWriterError(f"token file {path} is not a regular file")
-    if info.st_mode & 0o077:
-        raise SandboxedWriterError(f"token file {path} is accessible by group or others; its mode must be 0600")
-    value = path.read_text().strip()
-    if not value:
-        raise SandboxedWriterError(f"token file {path} is empty")
-    return value
-
-
 def sandboxed_command(argv: list[str], *, launcher: list[str], profile_path: Path) -> list[str]:
     """srt re-joins its argv into one shell string, so the writer argv travels as one ``bash -c`` script."""
     return [*launcher, "--settings", str(profile_path), "bash", "-c", shlex.join(argv)]
@@ -217,9 +191,13 @@ def launch_sandboxed_writer(argv: list[str], checkout: Path, *, integration_root
     require_macos()
     launcher = srt_launcher()
     require_writer_cli(argv[0] if argv else "claude")
-    token = read_claude_token(config)
+    try:
+        token = worker_credentials.read_claude_token(config)
+        token_file = worker_credentials.claude_token_file(config)
+    except worker_credentials.CredentialError as exc:
+        raise SandboxedWriterError(str(exc)) from exc
     profile = build_profile(checkout=checkout, home=home, tmp=tmp, protected=protected_paths(integration_root),
-                            operator_home=operator_home(), token_file=claude_token_file(config),
+                            operator_home=operator_home(), token_file=token_file,
                             extra_deny_write=local_remote_paths(integration_root), platform_root=platform_root)
     profile_path = write_profile(profile, Path(workdir) / "srt-settings.json")
     command = sandboxed_command(argv, launcher=launcher, profile_path=profile_path)

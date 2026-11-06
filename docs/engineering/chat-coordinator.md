@@ -47,11 +47,12 @@ One cycle, repeated until the roadmap is done:
    implementation, validation, developer handoff) and reports a PR number.
 3. **After a handoff, see that every job has an executor** (see *Job placement*).
    Run an operator-node job from the integration checkout (never from a task
-   worktree), with both tokens in the environment and never printed:
+   worktree), with no exported credential: the worker uses the active `gh` login and reads the
+   Claude credential from `[independent_review.login.claude] token_file`, and an exported
+   token is removed, not used:
 
    ```bash
-   GH_TOKEN="$(gh auth token)" CLAUDE_CODE_OAUTH_TOKEN="$(cat ~/.config/dev-platform/claude-oauth-token)" \
-     python3 scripts/lifecycle_workers.py work-next --repo owner/repo --pr N --kinds review --run
+   python3 scripts/lifecycle_workers.py work-next --repo owner/repo --pr N --kinds review --run
    ```
 
    Review and finalize are normally claimed by the hosted workers
