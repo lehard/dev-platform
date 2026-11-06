@@ -155,6 +155,7 @@ def build_seed(seed: Path) -> None:
     git(seed, "config", "user.name", "Fixture")
     git(seed, "config", "user.email", "fixture@localhost")
     put(seed / ".dev-platform.toml", SEED_CONFIG)
+    put(seed / "dev-platform/source-contract.toml", SEED_CONFIG)  # the trusted contract of review and repair jobs
     put(seed / "dev-platform/checks.toml", '[settings]\nfull_commands = ["python3 check.py"]\n')
     put(seed / "check.py", CHECK)
     put(seed / "shared.py", SHARED)
