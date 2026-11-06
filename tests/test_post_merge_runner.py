@@ -208,6 +208,13 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(self.round(bad), 1)
         self.assertIn("gh auth token failed", self.events()[-1]["error"])
 
+    def test_environment_refusal_ends_the_round_as_environment(self):
+        fake = FakeRun([done(err="[github-credential] none", code=runner.ENVIRONMENT_EXIT)])
+        self.assertEqual(self.round(fake), 1)
+        end = self.events()[-1]
+        self.assertEqual(end["outcome"], "environment")
+        self.assertIn("github-credential", end["error"])
+
     def test_corrupt_journal_raises_with_line(self):
         (self.args.journal_dir / runner.JOURNAL_NAME).write_text("{}\nnope\n")
         with self.assertRaisesRegex(runner.RunnerError, "line 2"):

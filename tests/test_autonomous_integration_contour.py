@@ -2033,6 +2033,7 @@ class PostMergeReleaseLimitTests(unittest.TestCase):
                 mock.patch.object(workers, "candidate_prs", return_value=[merged_pr()]), \
                 mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(), "trusted_writers": frozenset()}), \
                 mock.patch.object(contour, "run_claimed_post_merge", side_effect=RuntimeError("boom")), \
+                mock.patch("worker_preflight.run"), \
                 mock.patch.dict(sys.modules, {"publication_queue": fake_queue, "integration_contour": contour}):
             for attempt in range(1, workers.MAX_RELEASES + 1):
                 with self.assertRaisesRegex(RuntimeError, "boom"):

@@ -104,6 +104,7 @@ def run_command(argv: list[str], *, env: dict[str, str], cwd: Path, timeout: flo
 
 
 Runner = Callable[..., subprocess.CompletedProcess]
+ENVIRONMENT_EXIT = 3  # lifecycle_workers.ENVIRONMENT_EXIT; this script stands outside the template modules
 
 
 def github_token(gh: str, cwd: Path, run: Runner) -> str:
@@ -210,6 +211,10 @@ def _locked_round(args: argparse.Namespace, run: Runner, monotonic: Callable[[],
                         "--repo", args.repo, "--ttl", str(args.claim_ttl), "--run",
                         *[flag for number in deferred for flag in ("--exclude-pr", str(number))]],
                        env=env, cwd=args.checkout, timeout=args.claim_ttl)
+            if done.returncode == ENVIRONMENT_EXIT:
+                # The machine, not a job: nothing was spent, and the next round proves the environment again.
+                outcome, error = "environment", (done.stderr or "").strip()[-ERROR_TAIL:]
+                break
             if done.returncode:
                 raise RunnerError(f"work-next exited {done.returncode}: {(done.stderr or '').strip()[-ERROR_TAIL:]}")
             try:

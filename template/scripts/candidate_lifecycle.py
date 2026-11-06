@@ -678,20 +678,26 @@ def released_reason(released: dict) -> str:
 def post_merge_release_limit(candidate: dict, job: dict | None, comments: list[dict],
                              trusted_apps: frozenset[str] = frozenset(),
                              trusted_writers: frozenset[str] = frozenset()) -> dict | None:
-    """``{kind, attempt, releases, last}`` when the offered post-merge job was released ``MAX_RELEASES`` times.
+    """``{kind, attempt, releases, last}`` when the offered post-merge job reached a release bound.
 
     A released claim is a failed run that completes nothing, so it never spends an obligation attempt; after
     ``MAX_RELEASES`` of them the job is no longer claimable and the obligation counts as exhausted, so it
     raises attention and accepts ``reoffer-post-merge`` instead of stopping silently.
     """
-    from lifecycle_workers import MAX_RELEASES, _releases
+    from lifecycle_workers import MAX_ENVIRONMENT_RELEASES, MAX_RELEASES, _releases, is_environment_release
 
     if job is None:
         return None
     exact = {"number": candidate["number"], "kind": job["kind"], "head": job["head"], "attempt": job["attempt"],
              **{key: job[key] for key in ("reoffer", "refresh") if key in job}}
     found = _releases(exact, comments, trusted_apps, trusted_writers)
-    if len(found) < MAX_RELEASES:
+    environment = [item for item in found if is_environment_release(item[1])]
+    failed = [item for item in found if not is_environment_release(item[1])]
+    if len(failed) >= MAX_RELEASES:
+        found = failed
+    elif len(environment) >= MAX_ENVIRONMENT_RELEASES:
+        found = environment
+    else:
         return None
     return {"kind": job["kind"], "attempt": job["attempt"], "releases": len(found),
             "last": str(found[-1][1].get("outcome", ""))[:300]}

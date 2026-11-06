@@ -423,6 +423,7 @@ class ClaimReleaseAndIsolationTests(unittest.TestCase):
                 mock.patch.object(workers, "candidate_prs", return_value=[{"number": 7, "head": {"sha": HEAD}, "state": "open"}]), \
                 mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(), "trusted_writers": frozenset()}), \
                 mock.patch.object(workers, "execute_job", side_effect=RuntimeError("boom")), \
+                mock.patch("worker_preflight.run"), \
                 mock.patch.dict(sys.modules, {"publication_queue": queue}):
             for attempt in range(1, workers.MAX_RELEASES + 1):
                 with self.assertRaisesRegex(RuntimeError, "boom"):

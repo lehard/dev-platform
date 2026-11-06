@@ -48,6 +48,8 @@ Run 38221555792 on `main` passed the inputs and runtime preflight, including the
 
 The workflow runs only default-branch code, never checks out or executes pull-request content while a token is held (the worker harness fetches the PR head into a disposable credential-free checkout), requests no `workflows`, `administration`, `actions` or `id-token` scope, serialises runs per class without cancelling a running worker, and has a job timeout (25 minutes) below the claim lifetime (30 minutes).
 
+`work-next --run` also runs the shared worker preflight before its first claim (see [chat-coordinator.md](chat-coordinator.md)); `hosted-preflight` keeps stopping at the first failed check.
+
 ## Outcomes
 
 Each run prints one outcome in the job summary: `idle`; `job-reviewed`, `job-reused`, `job-finalized`, `job-returned-to-review` (this run published its result); `job-discarded`, `abandoned-lost`, `abandoned-stale` (the head or claim changed, so nothing was published for it); and the red ones `provider-unavailable`, `job-blocked-retryable`, `job-blocked-escalation`, `refused-or-failed` with their cause. A green run never means a candidate or Requirement is done; that is established by the exact merged PR and the post-merge receipts.
