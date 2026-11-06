@@ -20,7 +20,7 @@ paths = [
   ".github/workflows/lifecycle-workers.yml",
 ]
 # Scenarios a receipt must hold.
-scenarios = ["conflict", "managed-task", "quick-task", "red-ci"]
+scenarios = ["conflict", "managed-task", "quick-task", "red-ci", "requirement"]
 
 # A red scenario listed here names its defect and does not block handoff.
 [known_failures]

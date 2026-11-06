@@ -466,7 +466,7 @@ class Scenario:
                       "--evidence", "Fixture change", cwd=worktree)
         return worktree
 
-    def hand_off(self, worktree: Path, slug: str, base: str, title: str, round_: int = 1) -> None:
+    def hand_off(self, worktree: Path, slug: str, base: str, title: str, round_: int = 1, contribution: bool = False) -> None:
         """The developer path of a managed change after its file edits: receipt, evidence, friction, finish."""
         change = worktree / "openspec" / "changes" / slug
         tasks = change / "tasks.md"
@@ -474,8 +474,8 @@ class Scenario:
         (change / "verification.md").write_text(VERIFICATION.format(change=slug, round=round_), encoding="utf-8")
         run(["git", "add", "-A"], worktree)
         run(["git", "commit", "-q", "-m", f"Implement {slug}, round {round_}"], worktree)
-        self.platform("select_checks.py", "--base", base, "--execute", "--evidence",
-                      f"openspec/changes/{slug}/automated-checks.json", cwd=worktree)
+        self.platform("select_checks.py", "--base", base, *(("--contribution-base", base) if contribution else ()), "--execute",
+                      "--evidence", f"openspec/changes/{slug}/automated-checks.json", cwd=worktree)
         run(["git", "add", "-A"], worktree)
         run(["git", "commit", "-q", "-m", f"Record evidence of {slug}, round {round_}"], worktree)
         if round_ == 1:
@@ -484,6 +484,54 @@ class Scenario:
         done = self.platform("dogfood_task.py", "finish", "--title", title, "--body", "Live scenario.", cwd=worktree)
         if HANDOFF not in done:
             raise self.fail(f"finish did not hand off: {done[-500:]}")
+
+    def author_requirement(self, title: str, changes: list[str]) -> str:
+        """Create a sandbox Requirement and its fixture pre-authoring chain; returns its reference."""
+        sandbox = self.sandbox
+        outcome = sandbox.workdir / f"{title}.md"
+        outcome.write_text("Fixture notes are delivered.\n", encoding="utf-8")
+        created = self.platform("requirement_intake.py", "create", "--repository", sandbox.config.repository, "--title", title,
+                                "--outcome-file", str(outcome), "--target-repository", sandbox.config.repository)
+        found = re.search(r"Requirement created: (\S+#(\d+))", created)
+        if found is None:
+            raise self.fail(f"no Requirement in: {created[-500:]}")
+        self.platform("requirement_intake.py", "start", "--requirement", found.group(1))
+        for change in changes:
+            sandbox.author_bundle(change)
+        try:
+            run(["python3", str(SANDBOX_DIR / "executors" / "author_requirement.py"), found.group(2),
+                 str(sandbox.workdir / "bundles"), *changes], sandbox.checkout, sandbox.env())
+        except SandboxError as error:
+            raise self.fail(str(error)) from error
+        share_with_group(sandbox.workdir)
+        return found.group(1)
+
+    def advance(self, requirement: str) -> dict[str, Any]:
+        """Advance once. GitHub's Project auto-add has no API, so new children enter the sandbox Project through `ensure`."""
+        def once() -> dict[str, Any]:
+            output = self.platform("execute_requirement.py", "advance", "--requirement", requirement, "--confirm-distinct")
+            return json.loads(output[output.index('{"status"') if '{"status"' in output else output.rindex("\n{"):])
+
+        result = once()
+        if result.get("status") == "blocked" and "maps to 0 items" in str(result.get("reason")):
+            repo = self.sandbox.config.repository
+            children = gh_json(["issue", "list", "--repo", repo, "--state", "open", "--label", "type:internal-change",
+                                "--json", "number"], SOURCE_ROOT)
+            for child in children:
+                self.platform("managed_project_status.py", "ensure", "--issue", f"{repo}#{child['number']}")
+            result = once()
+        return result
+
+    def deliver_child(self, action: dict[str, Any]) -> None:
+        """One child from its advance action to its contribution merged into the requirement branch."""
+        slug, worktree = action["change"], Path(action["worktree"])
+        (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
+        self.platform("dogfood_task.py", "route-claude", "--tier", "R2", "--rationale", "Live scenario",
+                      "--evidence", "Fixture change", cwd=worktree)
+        self.hand_off(worktree, slug, action["contribution_base"], f"Child {slug}", contribution=True)
+        branch = run(["git", "branch", "--show-current"], worktree).strip()
+        self.worker("review", self.pr_state(branch)["number"])
+        self.expect_merged(branch)
 
     def worker(self, kind: str, number: int, *extra: str) -> None:
         """One coordinator worker run through the documented entrypoint, with the scripted executors."""
@@ -632,9 +680,28 @@ def scenario_managed_task(scenario: Scenario) -> None:
     scenario.expect_on_main(f"fixture/{slug}.txt", slug)
 
 
+def scenario_requirement(scenario: Scenario) -> None:
+    """A Requirement of two children through contribution, composition, post-merge and terminal."""
+    token = uuid.uuid4().hex[:6]
+    changes = [f"child-a-{token}", f"child-b-{token}"]
+    scenario.step("author the Requirement")
+    requirement = scenario.author_requirement(f"Requirement {token}", changes)
+    for change in changes:
+        scenario.step(f"advance to {change}")
+        result = scenario.advance(requirement)
+        actions = [action for action in result.get("actions", []) if action["change"] == change]
+        if not actions:
+            raise scenario.fail(f"advance offered no {change}: {json.dumps(result)[:800]}")
+        scenario.step(f"deliver {change}")
+        scenario.deliver_child(actions[0])
+    scenario.step("advance to composition")
+    result = scenario.advance(requirement)
+    raise scenario.fail(f"composition path pending: {json.dumps(result)[:1500]}")
+
+
 SCENARIOS: dict[str, Callable[[Scenario], None]] = {
     "quick-task": scenario_quick_task, "managed-task": scenario_managed_task,
-    "red-ci": scenario_red_ci, "conflict": scenario_conflict,
+    "red-ci": scenario_red_ci, "conflict": scenario_conflict, "requirement": scenario_requirement,
 }
 
 
