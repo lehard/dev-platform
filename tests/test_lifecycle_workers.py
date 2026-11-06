@@ -424,6 +424,7 @@ class ClaimReleaseAndIsolationTests(unittest.TestCase):
                 mock.patch.object(workers, "_coordinator_trust", return_value={"trusted_apps": frozenset(), "trusted_writers": frozenset()}), \
                 mock.patch.object(workers, "execute_job", side_effect=RuntimeError("boom")), \
                 mock.patch("worker_preflight.run"), \
+                mock.patch.object(workers, "provider_readiness", side_effect=lambda root, names, **kw: {n: None for n in names}), \
                 mock.patch.dict(sys.modules, {"publication_queue": queue}):
             for attempt in range(1, workers.MAX_RELEASES + 1):
                 with self.assertRaisesRegex(RuntimeError, "boom"):
@@ -1134,6 +1135,7 @@ class SandboxedWriterOptionTests(unittest.TestCase):
             # --run registers the process-wide friction sink; keep it out of other tests.
             with mock.patch.object(workers, "_gh_json", side_effect=workers.WorkerError("reached GitHub")), \
                     mock.patch("publication_queue.use_default_friction_sink"), \
+                    mock.patch("worker_preflight.run"), \
                     mock.patch("sys.stderr", new=mock.Mock(write=err)), mock.patch("sys.stdout", new=mock.Mock()):
                 workers.main(["work-next", "--repo", "o/r", "--worker", "w", "--kinds", kinds, "--run"])
             return "".join(call.args[0] for call in err.call_args_list)
