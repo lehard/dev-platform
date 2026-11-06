@@ -30,7 +30,7 @@ The scenarios SHALL include a Requirement with two children through composition 
 
 ### Requirement: Live coverage is listed
 
-Documentation SHALL map every live-unverified item from recent delivery reports to a scenario or a stated reason. Sandbox composition full checks SHALL invoke real `npx`.
+Documentation SHALL map every live-unverified item from recent delivery reports to a scenario or a stated reason. Sandbox composition finalize SHALL invoke real `npx` through its archive rehearsal.
 
 #### Scenario: Item cannot be covered
 

@@ -1,6 +1,6 @@
 ## 1. Binding
 - [ ] 1.1 Sandbox Requirement Issues, Project and labels; fixture bundles for two children.
-- [ ] 1.2 Fixture full checks call real `npx`.
+- [ ] 1.2 Composition finalize calls real `npx` through the archive rehearsal; the fixture has one test group for the platform full set.
 
 ## 2. Scenarios
 - [ ] 2.1 Two-child composition to MERGED.

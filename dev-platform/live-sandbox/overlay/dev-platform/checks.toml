@@ -1,6 +1,10 @@
 # Fast fixture checks of the live scenario sandbox.
 [settings]
-full_commands = ["python3 fixture/check.py", "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"]
-full_evidence_types = ["test", "configuration"]
+full_commands = ["python3 fixture/check.py"]
+full_evidence_types = ["test"]
 full_required_evidence_types = ["test"]
 full_trigger_patterns = ["**"]
+
+# A sandbox composition runs the platform full set, whose group runner needs one group.
+[test_groups.fixture]
+targets = ["test_live_scenario_fixture"]
