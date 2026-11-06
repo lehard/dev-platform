@@ -19,7 +19,7 @@ Automated-Checks-Evidence: automated-checks.json
 
 ## Re-verification after integration repair
 
-Finalize of head 168c0162 stopped for fresh semantic verification: integration repair changed the task content after the first receipt. I read that delta and added two review advisories to it, then rechecked each scenario above against the new head.
+Finalize of head 168c0162 stopped for fresh semantic verification: integration repair changed the task content after the first receipt. I read that delta and fixed two review advisories on top of it. This delta does not touch the other scenarios above; the refreshed selected checks in `automated-checks.json` rerun their tests.
 
 - Integration repair changed only `tests/test_lifecycle_workers.py`: two tests now mock `provider_readiness` and `worker_preflight.run`, so they no longer depend on the local gh login and Claude token. Production behavior is unchanged and the tests still prove the same release and sandbox behavior.
 - Review advisory `environment-condition-registry-not-enforced` (both perspectives) was a real gap between design and code. The constructor now enforces the design sentence, and all call sites pass registered ids.
