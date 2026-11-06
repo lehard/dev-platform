@@ -14,5 +14,5 @@
 
 ## 4. Verification
 - [x] 4.1 Tests for the rule, the predicate, quick evidence, a finding, a reviewer that cannot start, reuse and staleness.
-- [ ] 4.2 One real `finish` with a real LLM reviewer on a risky change, and one real `finish` with no reviewer on a non-risky change, with time and launch counts.
-- [ ] 4.3 Full validation, strict `openspec validate` and semantic OpenSpec verification.
+
+The live runs, full validation and semantic verification come after these tasks and are recorded in `verification.md`.
