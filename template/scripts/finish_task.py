@@ -66,6 +66,8 @@ from managed_task import (
 ALLOW_NO_CHECKS_ENV = "DEV_PLATFORM_ALLOW_NO_CHECKS"
 # The rendered lifecycle entrypoint; it reconciles quick and managed tasks.
 RECONCILE_COMMAND = "python3 scripts/finish_task.py --reconcile"
+# The wait for the local integration lock; it does not bound the wait for the PR to merge.
+INTEGRATION_LOCK_TIMEOUT_SECONDS = 60.0
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
 
 
@@ -865,7 +867,6 @@ def main() -> int:
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--title")
     parser.add_argument("--body")
-    parser.add_argument("--integration-lock-timeout", metavar="SECONDS", type=float, default=60.0, help="Seconds to wait for the local integration lock; it does not bound the wait for the PR to merge.")
     parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
     parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current quick or managed task before validation.")
     parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
@@ -874,8 +875,6 @@ def main() -> int:
         parser.error("--json requires --status")
     if args.status and args.reconcile:
         parser.error("--status and --reconcile are mutually exclusive")
-    if args.integration_lock_timeout < 0:
-        parser.error("--integration-lock-timeout must be non-negative")
     if args.no_checks and os.environ.get(ALLOW_NO_CHECKS_ENV) != "1":
         raise SystemExit(
             "--no-checks is an emergency/operator override and is blocked by default. "
@@ -930,7 +929,7 @@ def main() -> int:
         if armed is not None:
             follow_remote_armed_pr(work, config, branch, armed)
             reconcile_confirmed_remote_pr_merge(
-                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.integration_lock_timeout
+                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=INTEGRATION_LOCK_TIMEOUT_SECONDS
             )
             print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
             emit_finish_stage("complete")
@@ -994,7 +993,7 @@ def main() -> int:
     # ahead of freshness evaluation and the consolidated preflight.
     if mode == "pr" and branch != main_branch and task_pr_is_already_merged(work, branch, main_branch):
         reconcile_confirmed_remote_pr_merge(
-            work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.integration_lock_timeout
+            work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=INTEGRATION_LOCK_TIMEOUT_SECONDS
         )
         print("Task PR was already merged through GitHub; local main and task state were reconciled without republishing.")
         emit_finish_stage("complete")
@@ -1057,7 +1056,7 @@ def main() -> int:
             if task_pr_is_already_merged(work, branch, main_branch):
                 reconcile_confirmed_remote_pr_merge(
                     work, integration, config, branch, main_branch, prof,
-                    cleanup=args.cleanup, timeout_seconds=args.integration_lock_timeout,
+                    cleanup=args.cleanup, timeout_seconds=INTEGRATION_LOCK_TIMEOUT_SECONDS,
                 )
                 emit_finish_stage("complete")
                 return 0
@@ -1067,7 +1066,7 @@ def main() -> int:
             )
         if pr_merge_mode(config) == "auto":
             reconcile_confirmed_remote_pr_merge(
-                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.integration_lock_timeout
+                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=INTEGRATION_LOCK_TIMEOUT_SECONDS
             )
             print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
         else:
@@ -1085,7 +1084,7 @@ def main() -> int:
         identity = delivery_identity(work)
     except ManagedTaskError as exc:
         raise SystemExit("Managed task provenance is invalid before direct publication: " + str(exc)) from exc
-    with serialized_integration(integration, config, args.integration_lock_timeout):
+    with serialized_integration(integration, config, INTEGRATION_LOCK_TIMEOUT_SECONDS):
         integrate_and_publish_direct(work, integration, config, branch, main_branch)
         try:
             assert_integration_identity_cross_check(integration, identity)
