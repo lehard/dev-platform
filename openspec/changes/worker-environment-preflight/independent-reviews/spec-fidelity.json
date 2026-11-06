@@ -1,0 +1,88 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
+    "base_ref": "origin/main",
+    "candidate_head": "1c75df6368359348e78a88087810024eff6322f1",
+    "diff_sha256": "ef7f8ae0af91987acc7ccbbe66bec88164088953ff00d543bf71f40dcfcc7f79"
+  },
+  "completed_at": "2026-11-06T02:01:53+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py: `ENVIRONMENT_RELEASE = RELEASED + \": environment: \"`; `is_environment_release` tests `outcome.startswith(...)`. The posted body is `result_body(job, worker, cause)` with no separate class field. design.md, 'Environment class': \"The `released` result records `class: environment` and the condition.\"",
+      "id": "release-class-encoding-differs-from-design",
+      "severity": "advisory",
+      "summary": "design.md says the `released` result records `class: environment` and the condition as fields. The candidate instead encodes the class as an outcome-string prefix, `released: environment: <condition>: ...`. Counting, the exit code and the spec behave as required, so this is a design/implementation wording mismatch only."
+    },
+    {
+      "evidence": "tests/test_worker_preflight.py `test_environment_bound_is_an_operational_escalation` asserts only `gate.operational_escalation(red)`. The `red_gate` evidence written in lifecycle_workers.py carries `cause`, `releases` and `last`, and there is no resume or overview test. The diff I read contains no change to `template/scripts/lifecycle_overview.py`.",
+      "id": "resume-after-environment-bound-untested",
+      "severity": "advisory",
+      "summary": "The spec scenario 'Bound reached' also requires that `resume` offers the job again with its attempts unchanged. The added tests check only that `operational_escalation` recognizes the new cause. They do not exercise `resume` or `reoffer_plan` for an environment-bound block, and they do not exercise the overview report that names the condition. `lifecycle_overview.py` is listed in the proposal's Impact but does not appear in the diff."
+    }
+  ],
+  "launched_at": "2026-11-06T02:01:34+00:00",
+  "output_sha256": "69c2b93cb29d0afe078be363ca6f36a580095e3cd75b967f15881c4fc62488a8",
+  "perspective": "spec-fidelity",
+  "request_id": "124d4a05-a287-4fff-b47d-e718a3c75fa6",
+  "reviewer": {
+    "context_id": "87f3458d-10b6-49b1-884d-8fc787d727ef",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-120af4ae-8de8-43ff-9ab9-06aa17321946",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41783
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52715
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17770
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17933
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2116
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2771c2b08d95ea3503afb076d58d9e3ecb7cf860b5270910522977ab1c7d03b9"
+}

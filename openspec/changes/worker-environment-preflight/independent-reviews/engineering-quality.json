@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
+    "base_ref": "origin/main",
+    "candidate_head": "1c75df6368359348e78a88087810024eff6322f1",
+    "diff_sha256": "ef7f8ae0af91987acc7ccbbe66bec88164088953ff00d543bf71f40dcfcc7f79"
+  },
+  "completed_at": "2026-11-06T02:02:10+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/lifecycle_workers.py (diff ~L1632-1657): `gate_scratch = tempfile.TemporaryDirectory(prefix=\"lifecycle-preflight-\")` is created before `work_next(...)`. `gate_scratch.cleanup()` runs after the `if args.run ... raise WorkerError(\"no job claimed; refused ...\")` block, with no try/finally. Wrapping the use in `with`/`try-finally` would make this deterministic.",
+      "id": "gate-scratch-dir-leak-on-error",
+      "severity": "advisory",
+      "summary": "The provider-gate scratch directory is only cleaned on the straight-line path. If work_next raises, for example a WorkerError, an EnvironmentFailure or the 'no job claimed; refused' error, the cleanup is skipped. The TemporaryDirectory is then removed only when it is garbage collected."
+    }
+  ],
+  "launched_at": "2026-11-06T02:01:53+00:00",
+  "output_sha256": "3befec26363c6bda74aed9fa67d37cb589c3ab04f080a25130b63880cf5dca2c",
+  "perspective": "engineering-quality",
+  "request_id": "124d4a05-a287-4fff-b47d-e718a3c75fa6",
+  "reviewer": {
+    "context_id": "934e905e-e8be-43e8-9abd-f311bbef5f59",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-a554a8e3-2d65-4243-91bc-7c7b193862d1",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 32433
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 88286
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16544
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16871
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1811
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "2771c2b08d95ea3503afb076d58d9e3ecb7cf860b5270910522977ab1c7d03b9"
+}
