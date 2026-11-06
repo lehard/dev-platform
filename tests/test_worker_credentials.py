@@ -156,6 +156,7 @@ class WorkerStartTests(Base):
     def test_credential_error_exits_naming_it(self):
         with mock.patch.dict(os.environ, {}, clear=False), \
                 mock.patch.object(workers, "read_platform_config", return_value=self.operator(content=None)), \
+                mock.patch("worker_preflight.run"), \
                 mock.patch("sys.stderr") as err:
             code = workers.main(["work-next", "--kinds", "repair", "--repo", "o/r", "--provider", "claude",
                                  "--repair-provider", "claude", "--llm-command", "claude -p", "--allow", "x", "--run"])

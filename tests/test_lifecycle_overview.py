@@ -200,6 +200,16 @@ class ExceptionTests(unittest.TestCase):
         self.assertEqual([a["action"] for a in item["actions"]], ["resume"])
         self.assertIn(f"--expected-head {HEAD}", item["actions"][0]["command"])
 
+    def test_environment_bound_names_its_condition_for_every_job_kind(self):
+        evidence = {"cause": "claim released after environment failures", "condition": "provider-credential", "releases": 5}
+        for name, resumable in (("review", True), ("finalize", True), ("integration-repair", False)):
+            with self.subTest(name=name):
+                red = {"name": name, "identity": IDENTITY, "evidence": evidence}
+                item = assess([marker(record("blocked-escalation", red=red), 1)])
+                self.assertEqual(kinds(item), ["escalated-operational"])
+                self.assertIn("provider-credential", item["findings"][0]["detail"])
+                self.assertEqual(bool(item["actions"]), resumable)
+
     def test_finding_level_escalation_offers_no_action_and_names_the_human_decision(self):
         for status in ("exhausted", "proposed-rejection"):
             with self.subTest(status=status):

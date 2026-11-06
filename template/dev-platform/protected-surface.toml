@@ -273,6 +273,10 @@ path = "scripts/worker_credentials.py"
 category = "credentials"
 
 [[protected]]
+path = "scripts/worker_preflight.py"
+category = "credentials"
+
+[[protected]]
 path = "scripts/independent_review_runner.py"
 category = "credentials"
 

@@ -45,7 +45,7 @@ class JobBlocked(RuntimeError):
     """A post-merge obligation cannot be completed truthfully; it is reported, never faked."""
 
 
-class PostMergeEnvironmentError(workers.WorkerError):
+class PostMergeEnvironmentError(workers.EnvironmentFailure):
     """The executing environment cannot run a post-merge job; it fails the run and spends no attempt."""
 
 
@@ -472,6 +472,8 @@ def run_claimed_integration_repair(root: Path, repo: str, candidate: dict, job: 
             allowed_paths=allowed_paths, llm_command=llm_command, current_head=current_head, workdir=workdir,
             runner=runner, env=env, push_env=push_env, home_files=home_files, before_push=before_push,
             claim_current=claim_current, launch=launch, trusted_root=root)
+    except workers.EnvironmentFailure:
+        raise  # released by the worker: it spends no integration repair attempt
     except workers.WorkerError as exc:
         return fail(str(exc))
     if outcome["status"] == "discarded":
@@ -811,7 +813,7 @@ def run_cleanup(ops: LifecycleOps, root: Path, number: int, branch: str, head: s
     environment = sorted({str(item.get("error")) for item in result.get("errors", [])} & ENVIRONMENT_CLEANUP_ERRORS)
     if environment:
         raise PostMergeEnvironmentError(
-            f"post-merge cleanup of PR #{number} cannot run on this machine ({', '.join(environment)}): the active-process "
+            "process-tool", f"post-merge cleanup of PR #{number} cannot run on this machine ({', '.join(environment)}): the active-process "
             "check needs lsof on PATH; fix the environment, no attempt was recorded")
     if result.get("errors"):
         raise JobBlocked("local cleanup refused: " + json.dumps(result["errors"], sort_keys=True)[:300])
@@ -893,7 +895,7 @@ def run_claimed_post_merge(root: Path, repo: str, candidate: dict, job: dict, *,
         outcome, status = "blocked: " + public_text(root, str(exc))[:200], "blocked"
     except RetrospectiveStale as exc:
         outcome, status = f"blocked: retrospective-stale {exc.key}: later friction " + ", ".join(exc.events)[:160], "blocked"
-    except PostMergeEnvironmentError:
+    except workers.EnvironmentFailure:
         raise  # no receipt: the caller releases the claim and fails visibly
     except Exception as exc:  # a lost operator credential or network error is retried, never fatal
         outcome, status = "failed: " + public_text(root, str(exc))[:200], "failed"

@@ -1,0 +1,176 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 6,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.129,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.454,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.132,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.162,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/run_test_groups.py --all",
+      "duration_seconds": 1466.99,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 4.388,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "scripts/post_merge_runner.py",
+        "template/scripts/candidate_lifecycle.py",
+        "template/scripts/integration_contour.py",
+        "template/scripts/lifecycle_overview.py",
+        "template/scripts/lifecycle_workers.py",
+        "template/scripts/post_review_finalization.py",
+        "template/scripts/pr_review_gate.py",
+        "template/scripts/worker_preflight.py",
+        "tests/test_autonomous_integration_contour.py",
+        "tests/test_lifecycle_overview.py",
+        "tests/test_lifecycle_workers.py",
+        "tests/test_post_merge_runner.py",
+        "tests/test_pr_review_gate.py",
+        "tests/test_worker_credentials.py",
+        "tests/test_worker_preflight.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "python3 scripts/run_test_groups.py --all",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "test",
+        "configuration"
+      ],
+      "required_evidence_types": [
+        "test"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_67a821149c6d799f441f3476700e4838",
+    "change": "worker-environment-preflight",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/worker-environment-preflight",
+    "branch": "agent/br-995-t2-worker-environment-preflight",
+    "head": "9f2e64ade42ed8a3096817d3013abdd22420c7a2",
+    "task_content": {
+      "version": 1,
+      "digest": "d4f65ea39960b87b1dce8d578cf682f9acac73771679eaee651bba98f98cc564",
+      "paths": {
+        "dev-platform/checks.toml": "0866453784b29bf033edda24a22710e6a1cccc51",
+        "docs/engineering/chat-coordinator.md": "9b609bc332a0425590fa901730da0f37e8c9e24d",
+        "docs/engineering/hosted-lifecycle-workers.md": "63d1d9d9df672f30be5ea2646ede8c1ed21dc948",
+        "openspec/changes/worker-environment-preflight/.managed-task.json": "1ad2c9c258b623e204f09521910e77c2696dca8d",
+        "openspec/changes/worker-environment-preflight/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+        "openspec/changes/worker-environment-preflight/automated-checks.json": "27a262d7c3e59f9ea056b6cb3ace82a1856f63e2",
+        "openspec/changes/worker-environment-preflight/design.md": "2174727171c53a781aa7dcc5affffbdaff5117ad",
+        "openspec/changes/worker-environment-preflight/independent-review-request.json": "db08ef08d50b667d84b0f1c6d455f378cc324050",
+        "openspec/changes/worker-environment-preflight/independent-reviews/engineering-quality.json": "3743785532c7c37c507c6cb6e514cd7934a61d72",
+        "openspec/changes/worker-environment-preflight/independent-reviews/spec-fidelity.json": "3c03bedf4fb0e1268956e84c7c8567be539d02b2",
+        "openspec/changes/worker-environment-preflight/proposal.md": "b52c1cb0b3777d4ee4e094e23a6e776ff78ff9fc",
+        "openspec/changes/worker-environment-preflight/specs/lifecycle-workers/spec.md": "f43becb0560a5fa8d4b3afe59129dd3d8c23d242",
+        "openspec/changes/worker-environment-preflight/tasks.md": "2fd04d4e92e36a69aa6482b3800a9d1870447f6e",
+        "openspec/changes/worker-environment-preflight/verification.md": "7fa579e0f5f83225e5166ee5254dcf572979cdfa",
+        "openspec/specs/lifecycle-workers/spec.md": "a1c9576a9780403d4345305ad3e3c45377703a2c",
+        "scripts/post_merge_runner.py": "858d2890449515b9ba3b6c6dc7eb43fe29be9ee0",
+        "template/dev-platform/platform-manifest.json": "e7a9e2f2bc5ea7eec23ae680b5ad728d54fc0d11",
+        "template/dev-platform/protected-surface.toml": "e5411c53815a401828443f0bbfa6502d3eaf4607",
+        "template/scripts/candidate_lifecycle.py": "4f4493ca866820e106037393b6d9b4af71edd11c",
+        "template/scripts/integration_contour.py": "f3ab94d21e145854725df171ec879c6131df04d7",
+        "template/scripts/lifecycle_overview.py": "7ba5e69ce024676b341b861001ffa03c052e332e",
+        "template/scripts/lifecycle_workers.py": "658297b5e17eec93a504fcb612bb908c8ea94f93",
+        "template/scripts/post_review_finalization.py": "6f694bd20bcec39350decb4aa9aafb4f45365131",
+        "template/scripts/pr_review_gate.py": "1172e5d68cf4fbb9ed809d8d45bc355324179ec2",
+        "template/scripts/worker_preflight.py": "2b1a2fc92ea08dee34e57f15d74e9dce8d6177be",
+        "tests/test_autonomous_integration_contour.py": "6e41bd8cb4c7636b33a4b285b686379113558e14",
+        "tests/test_lifecycle_overview.py": "21beb28b4bbe398d77d633b51a7403afd755d9bb",
+        "tests/test_lifecycle_workers.py": "cb6706889481a6cbd6d6f1befc7dfe3f3c7f684d",
+        "tests/test_post_merge_runner.py": "65bbe0934356686bf56e7f9b69a2d92ae2a8e90b",
+        "tests/test_pr_review_gate.py": "a36e4953d8514ce3f79f451c6578bb0f9e70e81f",
+        "tests/test_worker_credentials.py": "d3c48b785b69897eb2af22a4450c6f33fe797530",
+        "tests/test_worker_preflight.py": "20783a56f9c5406a13df1a749db704ecbc2b907d"
+      },
+      "base": "23f91b5e465d335f3b85f578bdf079ceeb1be868"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "a0dcd44942c623667a69cd86a581e754b46bc8a97ad1251f1f33a3b7e6f3748e",
+    "paths": {
+      "dev-platform/checks.toml": "0866453784b29bf033edda24a22710e6a1cccc51",
+      "docs/engineering/chat-coordinator.md": "9b609bc332a0425590fa901730da0f37e8c9e24d",
+      "docs/engineering/hosted-lifecycle-workers.md": "63d1d9d9df672f30be5ea2646ede8c1ed21dc948",
+      "openspec/changes/worker-environment-preflight/.managed-task.json": "1ad2c9c258b623e204f09521910e77c2696dca8d",
+      "openspec/changes/worker-environment-preflight/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+      "openspec/changes/worker-environment-preflight/design.md": "2174727171c53a781aa7dcc5affffbdaff5117ad",
+      "openspec/changes/worker-environment-preflight/proposal.md": "b52c1cb0b3777d4ee4e094e23a6e776ff78ff9fc",
+      "openspec/changes/worker-environment-preflight/specs/lifecycle-workers/spec.md": "f43becb0560a5fa8d4b3afe59129dd3d8c23d242",
+      "openspec/changes/worker-environment-preflight/tasks.md": "2fd04d4e92e36a69aa6482b3800a9d1870447f6e",
+      "scripts/post_merge_runner.py": "858d2890449515b9ba3b6c6dc7eb43fe29be9ee0",
+      "template/dev-platform/protected-surface.toml": "e5411c53815a401828443f0bbfa6502d3eaf4607",
+      "template/scripts/candidate_lifecycle.py": "4f4493ca866820e106037393b6d9b4af71edd11c",
+      "template/scripts/integration_contour.py": "f3ab94d21e145854725df171ec879c6131df04d7",
+      "template/scripts/lifecycle_overview.py": "7ba5e69ce024676b341b861001ffa03c052e332e",
+      "template/scripts/lifecycle_workers.py": "658297b5e17eec93a504fcb612bb908c8ea94f93",
+      "template/scripts/post_review_finalization.py": "6f694bd20bcec39350decb4aa9aafb4f45365131",
+      "template/scripts/pr_review_gate.py": "1172e5d68cf4fbb9ed809d8d45bc355324179ec2",
+      "template/scripts/worker_preflight.py": "2b1a2fc92ea08dee34e57f15d74e9dce8d6177be",
+      "tests/test_autonomous_integration_contour.py": "6e41bd8cb4c7636b33a4b285b686379113558e14",
+      "tests/test_lifecycle_overview.py": "21beb28b4bbe398d77d633b51a7403afd755d9bb",
+      "tests/test_lifecycle_workers.py": "cb6706889481a6cbd6d6f1befc7dfe3f3c7f684d",
+      "tests/test_post_merge_runner.py": "65bbe0934356686bf56e7f9b69a2d92ae2a8e90b",
+      "tests/test_pr_review_gate.py": "a36e4953d8514ce3f79f451c6578bb0f9e70e81f",
+      "tests/test_worker_credentials.py": "d3c48b785b69897eb2af22a4450c6f33fe797530",
+      "tests/test_worker_preflight.py": "20783a56f9c5406a13df1a749db704ecbc2b907d"
+    },
+    "base": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/post_merge_runner.py --changed-file template/scripts/candidate_lifecycle.py --changed-file template/scripts/integration_contour.py --changed-file template/scripts/lifecycle_overview.py --changed-file template/scripts/lifecycle_workers.py --changed-file template/scripts/post_review_finalization.py --changed-file template/scripts/pr_review_gate.py --changed-file template/scripts/worker_preflight.py --changed-file tests/test_autonomous_integration_contour.py --changed-file tests/test_lifecycle_overview.py --changed-file tests/test_lifecycle_workers.py --changed-file tests/test_post_merge_runner.py --changed-file tests/test_pr_review_gate.py --changed-file tests/test_worker_credentials.py --changed-file tests/test_worker_preflight.py",
+    "duration_seconds": 463.574,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

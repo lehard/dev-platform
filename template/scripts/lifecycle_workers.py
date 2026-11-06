@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import base64
 from datetime import datetime, timezone
+import functools
 import json
 import os
 import re
@@ -68,11 +69,54 @@ CLAIM_RELEASE_CAUSE = "claim released after failed runs"
 RELEASED = "released"
 
 
+ENVIRONMENT_RELEASE = RELEASED + ": environment: "
+MAX_ENVIRONMENT_RELEASES = 5  # bounds a failure that keeps passing preflight; it never spends MAX_RELEASES
+ENVIRONMENT_RELEASE_CAUSE = "claim released after environment failures"
+ENVIRONMENT_EXIT = 3  # work-next stopped on its environment, not on a job
+
+
 class WorkerError(RuntimeError):
     pass
 
 
 # ---- worker identity ------------------------------------------------------
+
+class EnvironmentFailure(WorkerError):
+    """A condition of the ``worker_preflight`` registry failed after claim: operational, it spends no budget."""
+
+    def __init__(self, condition: str, message: str):
+        from worker_preflight import CONDITION_IDS
+
+        if condition not in CONDITION_IDS:
+            raise ValueError(f"unregistered environment condition: {condition}")
+        super().__init__(f"{condition}: {message}")
+        self.condition = condition
+
+
+def release_limit_evidence(exc: BaseException, releases: int) -> dict:
+    """The red gate evidence of a job that spent its release bound; an environment failure names its condition."""
+    last = f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]
+    if isinstance(exc, EnvironmentFailure):
+        return {"cause": ENVIRONMENT_RELEASE_CAUSE, "condition": exc.condition, "releases": releases, "last": last}
+    return {"cause": CLAIM_RELEASE_CAUSE, "releases": releases, "last": last}
+
+
+class PreflightRefused(WorkerError):
+    """Environment conditions are unmet before any claim; the message names all of them."""
+
+
+def environment_condition(condition: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Report a ``WorkerError`` of the decorated gate function as a failure of its registered condition."""
+    def decorate(function: Callable[..., Any]) -> Callable[..., Any]:
+        @functools.wraps(function)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return function(*args, **kwargs)
+            except WorkerError as exc:
+                raise EnvironmentFailure(condition, str(exc)) from exc
+        return wrapper
+    return decorate
+
 
 WORKER_IDENTITY = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:@-]{0,63}")
 WORKER_ENV = "DEV_PLATFORM_WORKER"
@@ -275,8 +319,20 @@ def _releases(job: dict, comments: list[dict], trusted_apps, trusted_writers) ->
     return found
 
 
+def is_environment_release(record: dict) -> bool:
+    return str(record.get("outcome", "")).startswith(ENVIRONMENT_RELEASE)
+
+
 def release_count(job: dict, comments: list[dict], *, trusted_apps=frozenset(), trusted_writers=frozenset()) -> int:
-    return len(_releases(job, comments, trusted_apps, trusted_writers))
+    """Failed runs of this job; an environment release is counted apart and spends none of them."""
+    return sum(not is_environment_release(record)
+               for _, record in _releases(job, comments, trusted_apps, trusted_writers))
+
+
+def environment_release_count(job: dict, comments: list[dict], *, trusted_apps=frozenset(),
+                              trusted_writers=frozenset()) -> int:
+    return sum(is_environment_release(record)
+               for _, record in _releases(job, comments, trusted_apps, trusted_writers))
 
 
 def winning_claim(job: dict, comments: list[dict], *, now: datetime | None = None,
@@ -324,28 +380,35 @@ def job_completed(job: dict, comments: list[dict], *, trusted_apps=frozenset(), 
 
 
 def is_claimable(job: dict, comments: list[dict], **kwargs) -> bool:
-    """Unclaimed, not completed, and released fewer than ``MAX_RELEASES`` times."""
+    """Unclaimed, not completed, and under both release bounds."""
     trust = {key: kwargs[key] for key in ("trusted_apps", "trusted_writers") if key in kwargs}
     return (winning_claim(job, comments, **kwargs) is None and not job_completed(job, comments, **trust)
-            and release_count(job, comments, **trust) < MAX_RELEASES)
+            and release_count(job, comments, **trust) < MAX_RELEASES
+            and environment_release_count(job, comments, **trust) < MAX_ENVIRONMENT_RELEASES)
 
 
 def release_claim(job: dict, worker: str, exc: BaseException, *, comments_for: Callable[[int], list[dict]],
                   post_comment: Callable[[int, str], None], trusted_apps=frozenset(), trusted_writers=frozenset(),
                   now: datetime | None = None) -> int | None:
-    """Release this worker's claim after its run failed; the job's release count, or ``None`` if not ours.
+    """Release this worker's claim after its run failed; the count of this release's class, or ``None`` if not ours.
 
     The posted ``released`` result names the cause, ends the claim at once instead of at its expiry,
-    and completes nothing: the job stays claimable until it has been released ``MAX_RELEASES`` times.
+    and completes nothing: the job stays claimable until a release bound is reached. An
+    ``EnvironmentFailure`` is released as its own class and spends none of ``MAX_RELEASES``.
     """
     comments = comments_for(job["number"])
     writers = frozenset(trusted_writers(comments)) if callable(trusted_writers) else frozenset(trusted_writers)
     trust = dict(trusted_apps=trusted_apps, trusted_writers=writers)
     if not i_won(job, worker, comments, now=now, **trust):
         return None
-    cause = f"{RELEASED}: {type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]
+    if isinstance(exc, EnvironmentFailure):
+        cause = f"{ENVIRONMENT_RELEASE}{exc}"[:POSTED_OUTCOME_LIMIT]
+        count = environment_release_count(job, comments, **trust)
+    else:
+        cause = f"{RELEASED}: {type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]
+        count = release_count(job, comments, **trust)
     post_comment(job["number"], result_body(job, worker, cause))
-    return release_count(job, comments, **trust) + 1
+    return count + 1
 
 
 def i_won(job: dict, worker: str, comments: list[dict], **kwargs) -> bool:
@@ -492,7 +555,7 @@ def sandboxed_claude_writer(root: Path) -> tuple[list[str], Callable[..., Any]]:
                 command, checkout, integration_root=root, platform_root=root.parent, workdir=Path(tmp).parent,
                 home=home, tmp=tmp, config=config, runner=runner)
         except sandboxed_writer.SandboxedWriterError as exc:
-            raise WorkerError(f"sandboxed Claude writer refused to launch: {exc}") from exc
+            raise EnvironmentFailure("writer-runtime", f"sandboxed Claude writer refused to launch: {exc}") from exc
 
     return argv, launch
 
@@ -576,6 +639,26 @@ def provider_readiness(root: Path, providers, *, workdir, home_files=(), probe=N
         result = probe(root, config={**base, "provider": provider}, launcher=launcher)
         readiness[provider] = None if result.get("ready") else str(result.get("limitation") or f"the {provider} readiness probe reported not ready without stating a limitation")
     return readiness
+
+
+def review_provider_gate(root: Path, *, workdir: str, home_files, refused: list[dict]) -> tuple[Callable[[dict], bool], dict]:
+    """``(gate, readiness)``: a review job is claimed only when a provider it names passed the readiness probe."""
+    readiness: dict[str, str | None] = {}
+
+    def gate(job: dict) -> bool:
+        if job["kind"] != "review":
+            return True
+        named = job_providers(job)
+        missing = [name for name in named if name not in readiness]
+        if missing:
+            readiness.update(provider_readiness(root, missing, workdir=workdir, home_files=home_files))
+        if any(readiness[name] is None for name in named):
+            return True
+        refused.append({"number": job["number"], "kind": job["kind"],
+                        "error": "; ".join(f"{name}: {readiness[name]}" for name in named)[:POSTED_OUTCOME_LIMIT]})
+        return False
+
+    return gate, readiness
 
 
 def needs_private_backlog(job: dict) -> bool:
@@ -770,6 +853,7 @@ def push_command(branch: str, expected_head: str, result_head: str) -> list[str]
             f"--force-with-lease=refs/heads/{branch}:{expected_head}"]
 
 
+@environment_condition("github-credential")
 def active_gh_token(checkout: Path, env: dict[str, str]) -> str:
     """The candidate-branch push credential: gh's active token (an exported GH_TOKEN, else the gh login).
 
@@ -1450,10 +1534,32 @@ def main(argv: list[str] | None = None) -> int:
     nxt.add_argument("--allow", action="append", default=[], help="path a write result may change (repeatable)")
     nxt.add_argument("--llm-home-file", action="append", default=[],
                      help="file under HOME the LLM CLI needs for its own login, e.g. .codex/auth.json (repeatable)")
+    check = sub.add_parser("worker-preflight", help="print every environment condition of these kinds; reads and claims no job")
+    check.add_argument("--kinds", required=True)
+    check.add_argument("--repo", required=True, help="owner/repo")
+    check.add_argument("--provider", action="append", default=[], choices=("codex", "claude"))
+    check.add_argument("--writer", choices=WRITERS)
     import hosted_workers
 
     hosted_workers.add_parsers(sub)
     args = parser.parse_args(argv)
+    if args.command == "worker-preflight":
+        import worker_preflight
+
+        kinds = frozenset(k for k in args.kinds.split(",") if k)
+        if not kinds or kinds - JOB_KINDS:
+            # An unknown kind would make every condition not-applicable and pass as a proven environment.
+            print(f"lifecycle worker: --kinds must name job kinds, got {args.kinds!r}", file=sys.stderr)
+            return 2
+        try:
+            worker_credentials.remove_ambient_token(read_platform_config(Path.cwd()), os.environ)
+            worker_preflight.run(worker_preflight.WorkerContext(
+                Path.cwd(), args.repo, kinds, tuple(args.provider),
+                args.writer is not None, "worker-preflight"))
+        except RuntimeError as exc:  # a refusal, or the trusted contract itself cannot be read
+            print(f"lifecycle worker: {exc}", file=sys.stderr)
+            return ENVIRONMENT_EXIT
+        return 0
     if args.command != "work-next":
         return hosted_workers.run_command(args, Path.cwd())
     repo = args.repo
@@ -1502,9 +1608,6 @@ def main(argv: list[str] | None = None) -> int:
             if "repair" in kinds:
                 args.repair_provider = "claude"
             args.llm_command, writer_launch = sandboxed_claude_writer(Path.cwd())
-        repair_launch = writer_launch
-        if args.run and writer_launch is None and args.llm_command and kinds & WRITE_KINDS:
-            repair_launch = plain_writer_launch(Path.cwd(), args.provider)
         if "repair" in kinds and (args.run or args.providers) and not args.repair_provider:
             raise WorkerError("claiming repair jobs with --run or --providers needs --repair-provider (the provider behind --llm-command)")
         if args.repair_provider and "repair" not in kinds:
@@ -1519,6 +1622,16 @@ def main(argv: list[str] | None = None) -> int:
             raise WorkerError("--run needs --llm-command for integration repair")
         if args.run and needs_writer and (not args.llm_command or not (args.allow or writer_launch)):
             raise WorkerError("--run needs --llm-command and at least one --allow path")
+        if args.run:
+            import worker_preflight
+
+            # Before the first claim or GitHub write; job-dependent providers are proven by the gate below.
+            worker_preflight.run(worker_preflight.WorkerContext(
+                Path.cwd(), repo, frozenset(kinds), tuple(dict.fromkeys(
+                    [*review_names, *filter(None, (args.provider, args.repair_provider))])), writer_launch is not None))
+        repair_launch = writer_launch
+        if args.run and writer_launch is None and args.llm_command and kinds & WRITE_KINDS:
+            repair_launch = plain_writer_launch(Path.cwd(), args.provider)
         if args.run:
             import publication_queue
 
@@ -1536,23 +1649,30 @@ def main(argv: list[str] | None = None) -> int:
         backlog_configured = bool(read_platform_config(Path.cwd()).get("development_backlog", {}).get("repository"))
         operator_node = operator_enabled(Path.cwd())
         refused: list[dict] = []
-        result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
-                           only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
-                           eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
-                                                             backlog_configured=backlog_configured,
-                                                             operator_node=operator_node, refused=refused),
-                           comments_for=comments_for, post_comment=post_comment, worker=args.worker,
-                           ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
-                           current_head=lambda n: pr_info(n)["head"]["sha"],
-                           settle=settle if include_merged and not args.dry_run else None,
-                           resolve_pr=lambda pr: resolve_candidate(repo, pr),
-                           **_coordinator_trust(Path.cwd(), repo))
-        if refused:
-            # A job this placement may not run is an explicit refusal, never a quiet skip.
-            result["refused"] = list({(item["number"], item["kind"]): item for item in refused}.values())
-            if result["status"] == "idle":
-                raise WorkerError("no job claimed; refused " + "; ".join(
-                    f"PR #{item['number']} {item['kind']}: {item['error']}" for item in result["refused"]))
+        with tempfile.TemporaryDirectory(prefix="lifecycle-preflight-") as gate_scratch:
+            provider_gate, gated = review_provider_gate(Path.cwd(), workdir=gate_scratch, home_files=args.llm_home_file,
+                                                        refused=refused)
+            gated_review = args.run and "review" in kinds and review_ready is None
+            result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
+                               only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
+                               eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
+                                                                 backlog_configured=backlog_configured,
+                                                                 operator_node=operator_node, refused=refused)
+                               and (not gated_review or provider_gate(job)),
+                               comments_for=comments_for, post_comment=post_comment, worker=args.worker,
+                               ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
+                               current_head=lambda n: pr_info(n)["head"]["sha"],
+                               settle=settle if include_merged and not args.dry_run else None,
+                               resolve_pr=lambda pr: resolve_candidate(repo, pr),
+                               **_coordinator_trust(Path.cwd(), repo))
+            if refused:
+                # A job this placement may not run is an explicit refusal, never a quiet skip.
+                result["refused"] = list({(item["number"], item["kind"]): item for item in refused}.values())
+                if result["status"] == "idle":
+                    raise WorkerError("no job claimed; refused " + "; ".join(
+                        f"PR #{item['number']} {item['kind']}: {item['error']}" for item in result["refused"]))
+        if gated_review and gated:
+            review_ready = frozenset(name for name, limitation in gated.items() if limitation is None)
         if args.run and result["status"] == "claimed":
             job = result["job"]
             # The platform writer is bounded by the candidate's own changed paths unless --allow narrows it.
@@ -1653,7 +1773,9 @@ def main(argv: list[str] | None = None) -> int:
                 # A failed run releases its claim at once (counted per job) instead of holding it until expiry.
                 trust = _coordinator_trust(Path.cwd(), repo)
                 releases = release_claim(job, args.worker, exc, comments_for=comments_for, post_comment=post_comment, **trust)
-                if releases is not None and releases >= MAX_RELEASES and job["kind"] in POST_MERGE_KINDS:
+                environment = isinstance(exc, EnvironmentFailure)
+                limit = MAX_ENVIRONMENT_RELEASES if environment else MAX_RELEASES
+                if releases is not None and releases >= limit and job["kind"] in POST_MERGE_KINDS:
                     import publication_queue
 
                     # The merged PR has no escalation state: its spent job raises the post-merge attention.
@@ -1661,19 +1783,21 @@ def main(argv: list[str] | None = None) -> int:
                         publication_queue.ensure_post_merge_attention(Path.cwd(), repo, job["number"])
                     except publication_queue.AttentionError as attention:
                         raise WorkerError(f"{attention}; the run itself failed with {type(exc).__name__}: {exc}") from exc
-                elif releases is not None and releases >= MAX_RELEASES:
+                elif releases is not None and releases >= limit:
                     import publication_queue
 
                     publication_queue._transition(
                         Path.cwd(), repo, job["number"], "blocked-escalation", job["head"], task_identity=job["task_identity"],
-                        red_gate={"name": job["kind"], "evidence": {"cause": CLAIM_RELEASE_CAUSE,
-                                                                "releases": releases, "last": f"{type(exc).__name__}: {exc}"[:POSTED_OUTCOME_LIMIT]}})
+                        red_gate={"name": job["kind"], "evidence": release_limit_evidence(exc, releases)})
                 raise
             result = {**result, "execution": outcome}
         if readiness is not None:
             result = {**result, "providers": {"ready": sorted(name for name, limitation in readiness.items() if limitation is None),
                                               "unavailable": {name: limitation for name, limitation in readiness.items() if limitation}}}
         result = {**result, "worker": args.worker}
+    except (EnvironmentFailure, PreflightRefused) as exc:
+        print(f"lifecycle worker: {exc}", file=sys.stderr)
+        return ENVIRONMENT_EXIT
     except (WorkerError, worker_credentials.CredentialError, ValueError, GithubReadCacheError) as exc:
         print(f"lifecycle worker: {exc}", file=sys.stderr)
         return 2
@@ -1682,4 +1806,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # Through the importable module: the executors import it, and one class identity must serve ``except`` and
+    # ``isinstance`` for their worker errors, which a second ``__main__`` copy of this file would not share.
+    import lifecycle_workers
+
+    raise SystemExit(lifecycle_workers.main())

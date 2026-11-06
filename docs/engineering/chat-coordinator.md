@@ -55,6 +55,13 @@ One cycle, repeated until the roadmap is done:
    python3 scripts/lifecycle_workers.py work-next --repo owner/repo --pr N --kinds review --run
    ```
 
+   `work-next --run` first proves its environment and refuses, with exit 3 and no claim,
+   naming every unmet condition; `python3 scripts/lifecycle_workers.py worker-preflight --kinds <kinds> --repo owner/repo`
+   prints the same conditions without reading a job. A registered condition that fails
+   after claim releases the claim as `released: environment: <condition>`: it spends none of the job's
+   three releases, attempts or finalize verdict. Five such releases of one job give an operational
+   block that `resume` lifts.
+
    Review and finalize are normally claimed by the hosted workers
    ([hosted-lifecycle-workers.md](hosted-lifecycle-workers.md)); check the overview
    before launching. Repair kinds take `--writer claude-sandboxed`, which names its

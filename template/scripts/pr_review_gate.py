@@ -345,7 +345,7 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
             clean.update(worker_credentials.llm_env(read_platform_config(trusted_root),
                                                     review_config["providers"], os.environ))
         except worker_credentials.CredentialError as exc:
-            raise workers.WorkerError(str(exc)) from exc
+            raise workers.EnvironmentFailure("provider-credential", str(exc)) from exc
         launcher = lambda argv, cwd, timeout: subprocess_launcher(argv, cwd, timeout, env=clean)
     reports = run_child_review(checkout, change, launcher=launcher, config=review_config,
                                base_ref=identity.get("contribution_base", "origin/main"))
@@ -570,17 +570,17 @@ def operational_escalation(red_gate: dict) -> bool:
     """Whether a review or repair red gate escalated for an operational reason rather than a finding.
 
     Operational means a repair outcome of ``OPERATIONAL_REPAIR_OUTCOMES`` or a job whose claim was
-    released after its failed runs (``CLAIM_RELEASE_CAUSE``) with no review findings in the evidence.
+    released after its failed runs (``CLAIM_RELEASE_CAUSE``, ``ENVIRONMENT_RELEASE_CAUSE``) with no review findings in the evidence.
     A rejected review, a proposed rejection, exhausted rounds or material findings stay finding-level.
     Shared by ``reoffer_plan``, queue supersession and the lifecycle overview so they never disagree.
     """
-    from lifecycle_workers import CLAIM_RELEASE_CAUSE
+    from lifecycle_workers import CLAIM_RELEASE_CAUSE, ENVIRONMENT_RELEASE_CAUSE
 
     name, evidence = red_gate.get("name"), red_gate.get("evidence")
     if name == "repair" and _repair_status(red_gate) in OPERATIONAL_REPAIR_OUTCOMES:
         return True
     return (name in {"review", "repair"} and isinstance(evidence, dict)
-            and evidence.get("cause") == CLAIM_RELEASE_CAUSE
+            and evidence.get("cause") in {CLAIM_RELEASE_CAUSE, ENVIRONMENT_RELEASE_CAUSE}
             and not any(isinstance(report, dict) and "findings" in report for report in evidence.values()))
 
 

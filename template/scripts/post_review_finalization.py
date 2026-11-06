@@ -346,6 +346,8 @@ def run_claimed_finalize(root: Path, repo: str, candidate: dict, job: dict, *, s
                                 red_gate={"name": "semantic-verification", "identity": identity, "evidence": str(exc)})
             post_result(workers.result_body(job, worker, "blocked: fresh semantic verification required"))
         return {"status": "blocked-retryable", "reason": str(exc)}
+    except workers.EnvironmentFailure:
+        raise  # released by the worker: an environment failure is no finalize verdict
     except workers.WorkerError as exc:
         return blocked(str(exc))
     if outcome["status"] == "discarded":

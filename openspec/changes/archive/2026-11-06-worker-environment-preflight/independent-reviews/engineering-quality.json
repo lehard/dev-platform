@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
+    "base_ref": "origin/main",
+    "candidate_head": "69b03d8494ad0b4467cb51715699941070da3fa5",
+    "diff_sha256": "ba8658a522506cf93bf1f44b65157c543cfa10e9095f12866be90731a92dcc8e"
+  },
+  "completed_at": "2026-11-06T05:03:44+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/worker_preflight.py, check_provider_credential: `if len(problems) == len(ctx.providers): raise PreflightRefusal(...)`. main() builds `providers` from `[*review_names, *filter(None, (args.provider, args.repair_provider))]`, which merges review and repair providers into one any-of check. A repair worker with a usable review provider and a broken `--repair-provider` credential therefore passes preflight. The failure then surfaces after claim, where only the review path (pr_review_gate.execute_review) converts CredentialError into a registered EnvironmentFailure. This cuts against the proposal's aim of stopping persistent environment defects before claim.",
+      "id": "provider-credential-any-of-passes-repair",
+      "severity": "advisory",
+      "summary": "The provider-credential preflight condition passes when at least one named provider has a credential. A repair provider with no credential is not caught before claim if a review provider is usable."
+    }
+  ],
+  "launched_at": "2026-11-06T05:03:25+00:00",
+  "output_sha256": "3cfa7e6cd81cc6317de39b2ed1e4a2d29c7137fa5a2f31b50e334329a3ee8017",
+  "perspective": "engineering-quality",
+  "request_id": "8acc98fb-0219-4c44-8cfb-371a65f5d240",
+  "reviewer": {
+    "context_id": "c7052ddb-139a-4682-8713-c1092e11ca86",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-58009912-2a2a-424e-80ee-b3960686914a",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 42498
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 52518
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17512
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17855
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1802
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "a0dcd44942c623667a69cd86a581e754b46bc8a97ad1251f1f33a3b7e6f3748e"
+}

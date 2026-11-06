@@ -276,13 +276,15 @@ def assess_candidate(candidate: dict, pr: dict, comments: list[dict], *, repo: s
         find("unknown-source", reason, url)
     elif state == "blocked-escalation":
         status = _repair_status(red) if red.get("name") == "repair" else None
-        operational = red.get("name") == "finalize" or operational_escalation(red)
+        evidence = red.get("evidence") if isinstance(red.get("evidence"), dict) else {}
+        condition = evidence.get("condition")
+        operational = red.get("name") == "finalize" or operational_escalation(red) or bool(condition)
         if red.get("name") in {"repair", "review"} and not operational:
             find("escalated-finding", reason or f"{red.get('name')} escalated for a finding-level reason ({status or 'review'})",
                  f"{url} ({red.get('name')} gate evidence in the latest lifecycle record)")
         elif operational:
-            cause = (red.get("evidence") or {}).get("cause") if isinstance(red.get("evidence"), dict) else None
-            label = "finalize" if red.get("name") == "finalize" else cause if status in {None, "None"} else status
+            label = "finalize" if red.get("name") == "finalize" else evidence.get("cause") if status in {None, "None"} else status
+            label = f"{label}: {condition}" if condition else label
             find("escalated-operational", reason or f"{red.get('name')} escalated for an operational reason ({label})",
                  f"{url} ({red.get('name')} gate evidence in the latest lifecycle record)")
         else:
