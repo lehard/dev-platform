@@ -134,7 +134,7 @@
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
     "scripts/task_content_identity.py": "b90ff2f0df76e9c120ab0c3d1946552dc397ad919c74a271d918187048f157c3",
-    "scripts/task_reconciliation.py": "c9e4b24219b228c3f56813727d52a492efa9bc936810521aa922f9d2c1c92994",
+    "scripts/task_reconciliation.py": "432eeddcef8a6ebbcd09ce1d4ab4735385595bb59f8d302727294a92de3901c5",
     "scripts/worker_credentials.py": "d5196c7fcccb689e54af18696c011be5e3baa07d629d0b39a992645049585325",
     "scripts/worktree_cleanup.py": "344fb2c94873473b3c31e0bbebe5436a4031dddd2503ac5386965a9728225524"
   },

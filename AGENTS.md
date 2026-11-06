@@ -69,7 +69,7 @@ python3 scripts/dogfood_task.py reconcile
 python3 scripts/dogfood_task.py finish
 ```
 
-`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable: it follows the armed PR to `MERGED`, and a failed required check stops it naming the check. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
+`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch after its auto-merge is disabled, or the push is refused; nothing merges until `finish` validates the new head and arms it. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable: it follows the armed PR to `MERGED`, and a failed required check stops it naming the check. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
 
 Minimum validation before finishing: `finish` runs it, and this command runs the same selection earlier. Locally that is the fast checks and the tests of the changed files; the full suite runs in the required `validate` PR check.
 ```bash
