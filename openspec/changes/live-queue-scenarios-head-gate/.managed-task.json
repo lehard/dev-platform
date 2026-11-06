@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/live-queue-scenarios/spec.md",
+    "tasks.md"
+  ],
+  "change": "live-queue-scenarios-head-gate",
+  "imported_at": "2026-11-05T21:53:12+00:00",
+  "package_revision": "d6c47a08dbd15ea05547b7b8bcec7f58b6fe63899bac113947f649a5d5e71297",
+  "prepared_against": "a7ec8c7ff7b035a5e063db5428207df6548f1e7b",
+  "private_lineage_handle": "pln_2315cb5f94534278714fbce873d8eae1",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "196e30bca077cbffb3889bbea86add003884c0b2b7054599a90f0ad7631d95f8",
+    "updated_at": "2026-11-05T14:03:24Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-993/T2"
+}

@@ -195,11 +195,24 @@ def status(args: argparse.Namespace) -> int:
     return 0
 
 
+def require_live_receipt(root: Path) -> None:
+    """Developer handoff of a queue or lifecycle change needs a live scenario receipt for its content."""
+    import live_scenario_gate
+
+    try:
+        # verify_source_contract has proven main_branch is main.
+        for known in live_scenario_gate.require_receipt(root, "main"):
+            print(known)
+    except live_scenario_gate.LiveGateError as error:
+        raise SystemExit(f"Live scenario gate blocked publication: {error}") from error
+
+
 def finish(args: argparse.Namespace) -> int:
     root = current_root()
     verify_source_contract(root)
     require_early_routing_gate(root)
     require_routing_gate(root)
+    require_live_receipt(root)
     command = ["python3", "scripts/finish_task.py", "--cleanup"]
     if args.title:
         command += ["--title", args.title]

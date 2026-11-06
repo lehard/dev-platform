@@ -103,7 +103,9 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         args = dogfood_task.argparse.Namespace(title="Central task", body="body")
         with mock.patch.object(dogfood_task, "current_root", return_value=self.root), mock.patch.object(dogfood_task, "run") as run:
             self.assertEqual(dogfood_task.status(args), 0)
-            self.assertEqual(dogfood_task.finish(args), 0)
+            with mock.patch.object(dogfood_task, "require_live_receipt") as live_gate:
+                self.assertEqual(dogfood_task.finish(args), 0)
+        live_gate.assert_called_once_with(self.root)
         self.assertEqual(
             [call.args[0] for call in run.call_args_list],
             [

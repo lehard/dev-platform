@@ -7,9 +7,11 @@ It never edits labels, lifecycle comments or queue records. See docs/engineering
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -23,6 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import live_scenario_gate
+
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 SANDBOX_DIR = SOURCE_ROOT / "dev-platform" / "live-sandbox"
 HEAD_MARKER = Path("dev-platform") / "live-sandbox-head.txt"
@@ -30,10 +34,26 @@ WORKDIR_MARKER = ".live-sandbox-workdir"
 LOCK_VARIABLE = "LIVE_SCENARIO_LOCK"
 LOCK_LEASE_SECONDS = 3 * 3600
 POLL_SECONDS = 15
+HANDOFF = "Developer handoff complete"
+CLAUDE_BIN_ENV = "DEV_PLATFORM_CLAUDE_BIN"
+VERIFICATION = """# Verification: {change}
+
+OpenSpec-Verify: PASS
+Verification-Method: scripted live scenario check of the fixture note against the delta spec.
+Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
+
+## Semantic assessment
+
+- The note file exists as the spec requires. Round {round}.
+"""
 QUEUED = "Publication queued; rerun finish after GitHub reports the exact PR MERGED."
 TOKEN_ANCHOR = "permission-pull-requests: write"
 OWNER_SECRET = "DEV_PLATFORM_APP_PRIVATE_KEY"
 OWNER_VARIABLE = "DEV_PLATFORM_APP_CLIENT_ID"
+PROJECT_LABEL = "project:dev-platform-sandbox"
+PROJECT_STATUSES = ("Backlog", "Ready", "In progress", "In review", "Blocked", "Done")
+BACKLOG_LABELS = (PROJECT_LABEL, "priority:P0", "priority:P1", "priority:P2", "priority:P3", "type:requirement", "type:internal-change")
 
 
 class SandboxError(RuntimeError):
@@ -58,6 +78,7 @@ class Config:
     kept_workflows: tuple[str, ...]
     dropped_paths: tuple[str, ...]
     token_read_permissions: tuple[str, ...]
+    project_title: str
 
 
 def load_config(path: Path = SANDBOX_DIR / "sandbox.toml") -> Config:
@@ -65,7 +86,7 @@ def load_config(path: Path = SANDBOX_DIR / "sandbox.toml") -> Config:
     try:
         return Config(data["repository"], data["coordinator_app"], data["coordinator_app_id"], data["required_check"],
                       data["hosted_kinds"], tuple(data["kept_workflows"]), tuple(data["dropped_paths"]),
-                      tuple(data["token_read_permissions"]))
+                      tuple(data["token_read_permissions"]), data["project_title"])
     except KeyError as missing:
         raise SandboxError(f"{path} lacks required key {missing}") from missing
 
@@ -75,8 +96,10 @@ def run(command: list[str], cwd: Path, env: dict[str, str] | None = None, *, inp
     done = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True, check=False, input=input_text,
                           stdin=None if input_text is not None else subprocess.DEVNULL)
     if done.returncode:
-        detail = "\n".join(part for part in (done.stderr.strip(), done.stdout.strip()) if part)[-2000:]
-        raise SandboxError(f"{' '.join(command[:4])} exited {done.returncode}: {detail}")
+        output = "\n".join(part for part in (done.stdout.strip(), done.stderr.strip()) if part)
+        error = SandboxError(f"{' '.join(command[:4])} exited {done.returncode}: {output[-2000:]}")
+        error.output = output
+        raise error
     return done.stdout
 
 
@@ -226,6 +249,7 @@ class Sandbox:
                if key not in {"CLAUDE_CODE_OAUTH_TOKEN", "DEV_PLATFORM_MACHINE_POOL", "DEV_PLATFORM_MACHINE_POOL_LEASE"}}
         env["GH_TOKEN"] = run(["gh", "auth", "token"], SOURCE_ROOT).strip()
         env["DEV_PLATFORM_OPERATOR_CONFIG"] = str(self.workdir / "operator.toml")
+        env[CLAUDE_BIN_ENV] = str(self.workdir / "executors" / "claude")
         return env
 
     def prepare_workdir(self) -> None:
@@ -289,11 +313,56 @@ class Sandbox:
         (self.checkout / ".dev-platform.toml").write_text(
             contract + '\n[operator]\nenabled = true\nconfig_env = "DEV_PLATFORM_OPERATOR_CONFIG"\n'
             f'\n[development_backlog]\nrepository = "{self.config.repository}"\n'
-            f'project_label = "project:dev-platform-sandbox"\ndefault_priority = "P2"\nproject_owner = "{owner}"\n'
+            f'project_label = "{PROJECT_LABEL}"\ndefault_priority = "P2"\nproject_owner = "{owner}"\n'
+            f'project_number = {self.ensure_project()}\n'
             f'\n[agent_sessions]\ndirectory = "{self.workdir / "agent-sessions"}"\nstale_after_seconds = 21600\nended_keep_seconds = 86400\n',
             encoding="utf-8")
         with (self.checkout / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
             handle.write(".dev-platform.toml\n.claude/\n")
+
+    def author_bundle(self, slug: str) -> Path:
+        """A managed bundle for one scenario: the change and capability carry its slug, so runs never collide."""
+        target = self.workdir / "bundles" / slug
+        shutil.copytree(SANDBOX_DIR / "managed-bundle", target)
+        (target / "specs" / "fixture-note").rename(target / "specs" / slug)
+        for path in target.rglob("*"):
+            if path.is_file():
+                path.write_text(path.read_text(encoding="utf-8").replace("fixture-note", slug), encoding="utf-8")
+        return target
+
+    def script_review(self, findings: list[dict[str, str]]) -> None:
+        """Set what the scripted reviewer answers from now on."""
+        (self.workdir / "executors" / "findings.json").write_text(json.dumps(findings), encoding="utf-8")
+
+    def scripted_writer(self, edits: dict[str, str]) -> str:
+        """The --llm-command of a repair that writes exactly ``edits``."""
+        control = self.workdir / "executors" / f"edits-{uuid.uuid4().hex[:8]}.json"
+        control.write_text(json.dumps(edits), encoding="utf-8")
+        return shlex.join(["python3", str(SANDBOX_DIR / "executors" / "scripted_writer.py"), str(control)])
+
+    def install_executors(self) -> None:
+        """The reviewer CLI the workers launch through the documented binary override."""
+        directory = self.workdir / "executors"
+        directory.mkdir()
+        self.script_review([])
+        claude = directory / "claude"
+        claude.write_text("#!/bin/sh\nexec " + shlex.join(["python3", str(SANDBOX_DIR / "executors" / "scripted_claude.py"),
+                                                           str(directory / "findings.json")]) + ' "$@"\n', encoding="utf-8")
+        claude.chmod(0o755)
+
+    def ensure_project(self) -> int:
+        """The sandbox's own Backlog Project with the platform statuses; created once, reconciled on every reset."""
+        owner, title = self.config.repository.split("/")[0], self.config.project_title
+        listed = gh_json(["project", "list", "--owner", owner, "--limit", "100", "--format", "json"], SOURCE_ROOT)["projects"]
+        found = [item["number"] for item in listed if item["title"] == title]
+        number = found[0] if found else gh_json(["project", "create", "--owner", owner, "--title", title, "--format", "json"], SOURCE_ROOT)["number"]
+        fields = gh_json(["project", "field-list", str(number), "--owner", owner, "--format", "json"], SOURCE_ROOT)["fields"]
+        status = next(field for field in fields if field["name"] == "Status")
+        if {option["name"] for option in status["options"]} != set(PROJECT_STATUSES):
+            options = ", ".join(f'{{name: "{name}", color: GRAY, description: ""}}' for name in PROJECT_STATUSES)
+            query = f'mutation {{ updateProjectV2Field(input: {{fieldId: "{status["id"]}", singleSelectOptions: [{options}]}}) {{ clientMutationId }} }}'
+            run(["gh", "api", "graphql", "-f", f"query={query}"], SOURCE_ROOT)
+        return number
 
     def apply_settings(self) -> None:
         """Idempotent repository settings matching production main, plus the admin path of the baseline write."""
@@ -303,6 +372,8 @@ class Sandbox:
             run(["gh", "api", "-X", "PATCH", f"repos/{repo}", "-F", "allow_squash_merge=true", "-F", "delete_branch_on_merge=false",
                  "--jq", ".name"], SOURCE_ROOT)
         run(["gh", "variable", "set", "DEV_PLATFORM_HOSTED_KINDS", "--repo", repo, "--body", config.hosted_kinds], SOURCE_ROOT)
+        for label in BACKLOG_LABELS:
+            run(["gh", "label", "create", label, "--repo", repo, "--force"], SOURCE_ROOT)
         protection = {"required_status_checks": {"strict": True, "contexts": [config.required_check]},
                       "enforce_admins": False, "required_pull_request_reviews": None, "restrictions": None}
         run(["gh", "api", "-X", "PUT", f"repos/{repo}/branches/main/protection", "--input", "-"], SOURCE_ROOT,
@@ -319,6 +390,7 @@ class Sandbox:
 
     def reset(self) -> None:
         self.prepare_workdir()
+        self.install_executors()
         self.close_open_work()
         self.install_baseline()
         self.apply_settings()
@@ -373,10 +445,84 @@ class Scenario:
             run(["python3", "scripts/dogfood_task.py", "finish", "--title", title, "--body", "Live scenario."],
                 worktree, self.sandbox.env())
         except SandboxError as error:
-            if QUEUED not in str(error):
+            if QUEUED not in getattr(error, "output", ""):
                 raise self.fail(str(error)) from error
         else:
             raise self.fail("finish returned without queueing the PR")
+
+    def start_managed(self, slug: str) -> Path:
+        """Author, list and start one managed task; returns its task worktree."""
+        bundle = self.sandbox.author_bundle(slug)
+        created = self.platform("managed_task.py", "create", "--bundle", str(bundle), "--confirm-distinct")
+        found = re.search(r"Managed task created: (\S+#\d+)", created)
+        if found is None:
+            raise self.fail(f"no managed Issue in: {created[-500:]}")
+        self.platform("managed_project_status.py", "ensure", "--issue", found.group(1))
+        self.platform("start_managed_task.py", found.group(1))
+        worktree = self.sandbox.checkout / ".claude" / "worktrees" / slug
+        if not worktree.is_dir():
+            raise self.fail("no task worktree after managed start")
+        self.platform("dogfood_task.py", "route-claude", "--tier", "R2", "--rationale", "Live scenario",
+                      "--evidence", "Fixture change", cwd=worktree)
+        return worktree
+
+    def hand_off(self, worktree: Path, slug: str, base: str, title: str, round_: int = 1) -> None:
+        """The developer path of a managed change after its file edits: receipt, evidence, friction, finish."""
+        change = worktree / "openspec" / "changes" / slug
+        tasks = change / "tasks.md"
+        tasks.write_text(tasks.read_text(encoding="utf-8").replace("- [ ]", "- [x]"), encoding="utf-8")
+        (change / "verification.md").write_text(VERIFICATION.format(change=slug, round=round_), encoding="utf-8")
+        run(["git", "add", "-A"], worktree)
+        run(["git", "commit", "-q", "-m", f"Implement {slug}, round {round_}"], worktree)
+        self.platform("select_checks.py", "--base", base, "--execute", "--evidence",
+                      f"openspec/changes/{slug}/automated-checks.json", cwd=worktree)
+        run(["git", "add", "-A"], worktree)
+        run(["git", "commit", "-q", "-m", f"Record evidence of {slug}, round {round_}"], worktree)
+        if round_ == 1:
+            self.platform("model_routing.py", "record-retained-execution", "--reason", "Live scenario", cwd=worktree)
+        self.platform("agent_friction.py", "checkpoint", "--result", "none", "--review-note", "Live scenario", cwd=worktree)
+        done = self.platform("dogfood_task.py", "finish", "--title", title, "--body", "Live scenario.", cwd=worktree)
+        if HANDOFF not in done:
+            raise self.fail(f"finish did not hand off: {done[-500:]}")
+
+    def worker(self, kind: str, number: int, *extra: str) -> None:
+        """One coordinator worker run through the documented entrypoint, with the scripted executors."""
+        self.platform("lifecycle_workers.py", "work-next", "--kinds", kind, "--repo", self.sandbox.config.repository,
+                      "--pr", str(number), "--provider", "claude", "--run", *extra)
+
+    def repair_worker(self, kind: str, number: int, edits: dict[str, str], allow: list[str]) -> None:
+        command = self.sandbox.scripted_writer(edits)
+        self.worker(kind, number, "--llm-command", command, *[item for path in allow for item in ("--allow", path)])
+
+    def queue_state(self, number: int) -> dict[str, Any]:
+        status = run(["python3", "template/scripts/publication_queue.py", "status", "--pr", str(number), "--json"],
+                     self.sandbox.checkout, self.sandbox.env())
+        return json.loads(status)
+
+    def wait_queue(self, number: int, states: set[str], limit: int) -> dict[str, Any]:
+        """Wait for one of ``states`` or the PR's merge; any other terminal escalation stops the scenario."""
+        def done(state: dict[str, Any]) -> bool:
+            if state["state"] == "blocked-escalation" and "blocked-escalation" not in states:
+                raise self.fail(f"escalated: {str(state.get('red_gate'))[:800]}")
+            return state["state"] in states
+        return self.wait(lambda: self.queue_state(number), done, limit)
+
+    def expect_merged(self, branch: str, limit: int = 1200) -> dict[str, Any]:
+        def done(pr: dict[str, Any]) -> bool:
+            if "lifecycle:blocked-escalation" in {label["name"] for label in pr.get("labels", [])}:
+                raise self.fail(f"escalated: {str(self.queue_state(pr['number']).get('red_gate'))[:800]}")
+            return pr.get("state") == "MERGED"
+        final = self.wait(lambda: self.pr_state(branch), done, limit)
+        merger = (final.get("mergedBy") or {}).get("login", "")
+        if self.sandbox.config.coordinator_app not in merger:
+            raise self.fail(f"merged by {merger!r}, not the coordinator App")
+        return final
+
+    def expect_on_main(self, path: str, text: str) -> None:
+        repo = self.sandbox.config.repository
+        content = gh_json(["api", f"repos/{repo}/contents/{path}?ref=main"], SOURCE_ROOT)
+        if text not in base64.b64decode(content["content"]).decode("utf-8"):
+            raise self.fail(f"{path} on main does not hold {text!r}")
 
     def wait(self, read: Callable[[], Any], done: Callable[[Any], bool], limit: int) -> Any:
         deadline = time.monotonic() + limit
@@ -394,37 +540,102 @@ class Scenario:
         return prs[0] if prs else {}
 
 
-def scenario_quick_task(scenario: Scenario) -> None:
-    sandbox = scenario.sandbox
-    slug = f"quick-{uuid.uuid4().hex[:8]}"
-    scenario.step("start")
-    output = scenario.platform("dogfood_task.py", "start", slug, "--task", "Live scenario quick task")
-    worktree = sandbox.checkout / ".claude" / "worktrees" / slug
+def quick_change(scenario: Scenario, slug: str, edits: dict[str, str]) -> tuple[Path, str]:
+    """Start a quick task and commit ``edits`` through the developer entrypoints, up to the friction checkpoint."""
+    output = scenario.platform("dogfood_task.py", "start", slug, "--task", f"Live scenario {slug}")
+    worktree = scenario.sandbox.checkout / ".claude" / "worktrees" / slug
     if not worktree.is_dir():
         raise scenario.fail(f"no task worktree after start: {output[-500:]}")
-    scenario.step("change")
-    (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
+    for relative, content in edits.items():
+        (worktree / relative).write_text(content, encoding="utf-8")
     run(["git", "add", "-A"], worktree)
-    run(["git", "commit", "-q", "-m", f"Add {slug}"], worktree)
-    scenario.step("friction checkpoint")
+    run(["git", "commit", "-q", "-m", f"Change {slug}"], worktree)
     scenario.platform("agent_friction.py", "checkpoint", "--result", "none", "--review-note", "Live scenario", cwd=worktree)
+    return worktree, run(["git", "branch", "--show-current"], worktree).strip()
+
+
+def scenario_quick_task(scenario: Scenario) -> None:
+    slug = f"quick-{uuid.uuid4().hex[:8]}"
+    scenario.step("start, change and friction checkpoint")
+    worktree, branch = quick_change(scenario, slug, {f"fixture/{slug}.txt": slug + "\n"})
     scenario.step("finish")
-    branch = run(["git", "branch", "--show-current"], worktree).strip()
     scenario.finish_until_queued(worktree, f"Quick {slug}")
     scenario.step("queue merges")
-    final = scenario.wait(lambda: scenario.pr_state(branch), lambda pr: pr.get("state") == "MERGED", 900)
+    scenario.expect_merged(branch, 900)
     scenario.step("finish after merge")
     scenario.platform("dogfood_task.py", "finish", cwd=worktree)
     scenario.step("final state")
-    merger = (final.get("mergedBy") or {}).get("login", "")
-    if sandbox.config.coordinator_app not in merger:
-        raise scenario.fail(f"merged by {merger!r}, not the coordinator App")
-    content = gh_json(["api", f"repos/{sandbox.config.repository}/contents/fixture/{slug}.txt?ref=main"], SOURCE_ROOT)
-    if not content.get("sha"):
-        raise scenario.fail("the change is not on main")
+    scenario.expect_on_main(f"fixture/{slug}.txt", slug)
 
 
-SCENARIOS: dict[str, Callable[[Scenario], None]] = {"quick-task": scenario_quick_task}
+def scenario_red_ci(scenario: Scenario) -> None:
+    """Required CI fails on the admitted head; the queue's own exit brings the candidate to MERGED."""
+    slug = f"red-{uuid.uuid4().hex[:8]}"
+    scenario.step("start, change and friction checkpoint")
+    worktree, branch = quick_change(scenario, slug, {f"fixture/{slug}.txt": slug + "\n", "fixture/ci-verdict.txt": "red\n"})
+    scenario.step("finish")
+    scenario.finish_until_queued(worktree, f"Red {slug}")
+    number = scenario.pr_state(branch)["number"]
+    scenario.step("queue offers repair of the red check")
+    scenario.wait_queue(number, {"integration-repair-pending"}, 600)
+    scenario.step("integration repair")
+    scenario.repair_worker("integration-repair", number, {"fixture/ci-verdict.txt": "green\n"}, ["fixture"])
+    scenario.step("queue merges")
+    scenario.expect_merged(branch, 900)
+    scenario.step("final state")
+    scenario.expect_on_main("fixture/ci-verdict.txt", "green")
+    scenario.expect_on_main(f"fixture/{slug}.txt", slug)
+
+
+def scenario_conflict(scenario: Scenario) -> None:
+    """Main moves with a conflicting line after admission; the queue offers integration repair."""
+    sandbox, slug = scenario.sandbox, f"conflict-{uuid.uuid4().hex[:8]}"
+    repo, path = sandbox.config.repository, "fixture/shared.txt"
+    scenario.step("start, change and friction checkpoint")
+    worktree, branch = quick_change(scenario, slug, {path: f"{slug} candidate\n"})
+    scenario.step("finish")
+    scenario.finish_until_queued(worktree, f"Conflict {slug}")
+    number = scenario.pr_state(branch)["number"]
+    scenario.step("main moves with a conflicting change")
+    current = gh_json(["api", f"repos/{repo}/contents/{path}?ref=main"], SOURCE_ROOT)
+    moved = base64.b64encode(f"{slug} main\n".encode()).decode()
+    run(["gh", "api", "-X", "PUT", f"repos/{repo}/contents/{path}", "-f", f"message=Move main for {slug}", "-f", f"content={moved}",
+         "-f", f"sha={current['sha']}", "-f", "branch=main", "--jq", ".commit.sha"], SOURCE_ROOT)
+    scenario.step("queue offers integration repair")
+    scenario.wait_queue(number, {"integration-repair-pending"}, 600)
+    scenario.step("integration repair")
+    resolved = f"{slug} main\n{slug} candidate\n"
+    scenario.repair_worker("integration-repair", number, {path: resolved}, ["fixture"])
+    scenario.step("queue merges the repaired head")
+    scenario.expect_merged(branch, 900)
+    scenario.step("final state")
+    scenario.expect_on_main(path, resolved)
+
+
+def scenario_managed_task(scenario: Scenario) -> None:
+    sandbox = scenario.sandbox
+    slug = f"managed-{uuid.uuid4().hex[:8]}"
+    scenario.step("start")
+    worktree = scenario.start_managed(slug)
+    base = run(["git", "merge-base", "HEAD", "origin/main"], worktree).strip()
+    scenario.step("change and handoff")
+    (worktree / "fixture" / f"{slug}.txt").write_text(slug + "\n", encoding="utf-8")
+    scenario.hand_off(worktree, slug, base, f"Managed {slug}")
+    branch = run(["git", "branch", "--show-current"], worktree).strip()
+    number = scenario.pr_state(branch)["number"]
+    scenario.step("review")
+    sandbox.script_review([])
+    scenario.worker("review", number)
+    scenario.step("hosted finalize and queue merge")
+    scenario.expect_merged(branch)
+    scenario.step("final state")
+    scenario.expect_on_main(f"fixture/{slug}.txt", slug)
+
+
+SCENARIOS: dict[str, Callable[[Scenario], None]] = {
+    "quick-task": scenario_quick_task, "managed-task": scenario_managed_task,
+    "red-ci": scenario_red_ci, "conflict": scenario_conflict,
+}
 
 
 def resolve_head(value: str) -> str:
@@ -434,18 +645,20 @@ def resolve_head(value: str) -> str:
     return head
 
 
-def run_scenarios(sandbox: Sandbox, selected: list[str]) -> list[dict[str, str]]:
-    results: list[dict[str, str]] = []
+def run_scenarios(sandbox: Sandbox, selected: list[str]) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
     for name in selected:
         scenario = Scenario(name, sandbox)
+        started = time.monotonic()
         try:
             SCENARIOS[name](scenario)
         except StepFailure as failure:
-            results.append({"scenario": name, "result": "failed", "step": failure.step, "observed": failure.observed})
+            outcome = {"result": "failed", "step": failure.step, "observed": failure.observed}
         except SandboxError as error:
-            results.append({"scenario": name, "result": "failed", "step": scenario.current, "observed": str(error)})
+            outcome = {"result": "failed", "step": scenario.current, "observed": str(error)}
         else:
-            results.append({"scenario": name, "result": "passed"})
+            outcome = {"result": "passed"}
+        results.append({"scenario": name, **outcome, "seconds": round(time.monotonic() - started)})
     return results
 
 
@@ -474,6 +687,7 @@ def main() -> int:
         print(f"live scenarios: {error}", file=sys.stderr)
         return 1
     print(json.dumps({"head": sandbox.head, "results": results}, indent=2))
+    print(f"receipt: {live_scenario_gate.write_receipt(SOURCE_ROOT, sandbox.head, results)}")
     return 1 if any(item["result"] != "passed" for item in results) else 0
 
 

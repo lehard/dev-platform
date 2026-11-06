@@ -1,0 +1,26 @@
+# Queue and lifecycle code whose change needs a live scenario receipt on its head at developer handoff.
+paths = [
+  "template/scripts/candidate_lifecycle.py",
+  "template/scripts/execute_requirement.py",
+  "template/scripts/finish_task.py",
+  "template/scripts/integration_contour.py",
+  "template/scripts/integration_state.py",
+  "template/scripts/lifecycle_preflight.py",
+  "template/scripts/lifecycle_workers.py",
+  "template/scripts/post_review_finalization.py",
+  "template/scripts/pr_review_gate.py",
+  "template/scripts/publication_queue.py",
+  "template/scripts/requirement_composition.py",
+  "template/scripts/requirement_contributions.py",
+  "template/scripts/requirement_integration.py",
+  "template/scripts/requirement_merge_recovery.py",
+  "template/scripts/requirement_target_lifecycle.py",
+  "template/scripts/requirement_terminal.py",
+  ".github/workflows/publication-queue.yml",
+  ".github/workflows/lifecycle-workers.yml",
+]
+# Scenarios a receipt must hold.
+scenarios = ["conflict", "managed-task", "quick-task", "red-ci"]
+
+# A red scenario listed here names its defect and does not block handoff.
+[known_failures]
