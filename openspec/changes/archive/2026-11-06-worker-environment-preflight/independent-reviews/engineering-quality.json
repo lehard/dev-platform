@@ -3,36 +3,42 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "795e2ee7e0840d5aabc43bf92ac3d4ae3e4bcfe3",
-    "diff_sha256": "63e478283ed7a0459e2838ce721fca40911a865819753a8130b8e61e54152cac"
+    "candidate_head": "2d078d286a387f5595a7ee4225dcf05a58e7b2f6",
+    "diff_sha256": "cffe63529c370dc58c1087b9275feb0abb159c3401c098c02c20edf0dc4d83f7"
   },
-  "completed_at": "2026-11-06T02:13:28+00:00",
+  "completed_at": "2026-11-06T04:19:02+00:00",
   "findings": [
     {
-      "evidence": "In template/scripts/lifecycle_workers.py, `gate_scratch = tempfile.TemporaryDirectory(...)` is created before `work_next`, and `gate_scratch.cleanup()` runs only after the idle/refused check. If `work_next` raises, or the `WorkerError` for an idle result with refusals is raised first, cleanup is skipped. The directory then depends on garbage-collection finalization. A try/finally or a context manager would be safer.",
-      "id": "preflight-scratch-dir-leak",
+      "evidence": "template/scripts/lifecycle_workers.py (diff ~L504-515): `frozenset(k for k in args.kinds.split(\",\") if k)` goes straight into WorkerContext with no check against the known job kinds. The spec says an unevaluable condition SHALL refuse. The `work-next` path does validate kinds elsewhere.",
+      "id": "standalone-preflight-unvalidated-kinds",
       "severity": "advisory",
-      "summary": "The provider-gate scratch directory is only removed on the straight-line path, so exceptions leave it behind."
+      "summary": "`worker-preflight` accepts any `--kinds` string. A typo such as `reveiw` makes every condition not-applicable, and the command exits 0 as if the environment were proven."
     },
     {
-      "evidence": "design.md says \"only a registered condition raises it\". EnvironmentFailure.__init__ in lifecycle_workers.py accepts any string. The `environment_condition` decorator, `sandboxed_claude_writer` and pr_review_gate pass literals (\"github-credential\", \"writer-runtime\", \"provider-credential\"). A typo or an unregistered id would be released free of charge, which defeats the no-budget invariant. worker_preflight.CONDITION_IDS exists but is not checked at raise time.",
-      "id": "environment-condition-registry-not-enforced",
+      "evidence": "scripts/post_merge_runner.py adds `ENVIRONMENT_EXIT = 3  # lifecycle_workers.ENVIRONMENT_EXIT`. tests/test_worker_preflight.py::RunnerTests only greps the source text for the literal. A different failure that also exits 3 would be recorded as outcome \"environment\" and end the round with no job-failure accounting.",
+      "id": "runner-exit-code-duplicated-constant",
       "severity": "advisory",
-      "summary": "The design says only a registered condition id may be carried by EnvironmentFailure, but nothing enforces it."
+      "summary": "`ENVIRONMENT_EXIT = 3` is hand-copied into scripts/post_merge_runner.py. Exit 3 is also the only signal the runner uses to tell an environment stop from a job failure."
+    },
+    {
+      "evidence": "template/scripts/lifecycle_workers.py:849-859: `active_gh_token` raises only for the failed `gh auth token`. The decorator wraps all `WorkerError`s, so any WorkerError added later would be released as environment, outside MAX_RELEASES, with a bound of 5.",
+      "id": "gh-token-decorator-blanket-mapping",
+      "severity": "advisory",
+      "summary": "`@environment_condition(\"github-credential\")` turns every `WorkerError` from `active_gh_token` into a free-of-charge EnvironmentFailure. That is safe today only because the function has a single raise site."
     }
   ],
-  "launched_at": "2026-11-06T02:13:13+00:00",
-  "output_sha256": "5be7afcb01131d67e03dc017658bd65534b51df4b0e76c8fa072a6b4dbecdf2c",
+  "launched_at": "2026-11-06T04:18:29+00:00",
+  "output_sha256": "d6b7ad583024f9325dc4f310af4690227c772bea3f561ae2c2684ea8c7e95c79",
   "perspective": "engineering-quality",
-  "request_id": "b3b80264-45f6-4832-851f-ebd830ee9760",
+  "request_id": "b97156f9-8095-4ecf-9aff-af9bec5315d6",
   "reviewer": {
-    "context_id": "b0385f6e-8a17-47fc-9474-2031533da426",
+    "context_id": "803bfba8-e961-4930-8aa2-83834931cc6b",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-53955f46-b432-4394-91a9-e576ebe2da38",
+    "launch_id": "platform-launch-4fc8069b-8c70-453b-867a-2efdda5a9af5",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,41 +54,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 32035
+        "value": 46785
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52701
+        "value": 198942
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13492
+        "value": 32825
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 13764
+        "value": 33168
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 12
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 4
+        "value": 8
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1455
+        "value": 3715
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "e374e8619d62c8ad0680a6b8093b5f8ba43ac8b5f7a79e07bc30af0cb4a6354e"
+  "task_content_digest": "f17774c3a5be67387db6cb57db943d441c096b9e3171d1583f0e7716baa61c59"
 }

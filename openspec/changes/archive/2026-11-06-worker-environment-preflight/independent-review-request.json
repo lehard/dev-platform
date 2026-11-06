@@ -2,8 +2,8 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "795e2ee7e0840d5aabc43bf92ac3d4ae3e4bcfe3",
-    "diff_sha256": "63e478283ed7a0459e2838ce721fca40911a865819753a8130b8e61e54152cac"
+    "candidate_head": "2d078d286a387f5595a7ee4225dcf05a58e7b2f6",
+    "diff_sha256": "cffe63529c370dc58c1087b9275feb0abb159c3401c098c02c20edf0dc4d83f7"
   },
   "change": "openspec/changes/archive/2026-11-06-worker-environment-preflight",
   "excluded_lifecycle_paths": [
@@ -39,7 +39,7 @@
       ]
     }
   },
-  "prepared_at": "2026-11-06T02:12:54+00:00",
+  "prepared_at": "2026-11-06T04:18:05+00:00",
   "report_contract": {
     "output_directory": "openspec/changes/archive/2026-11-06-worker-environment-preflight/independent-reviews",
     "required_perspectives": [
@@ -48,7 +48,7 @@
     ],
     "schema_version": 1
   },
-  "request_id": "b3b80264-45f6-4832-851f-ebd830ee9760",
+  "request_id": "b97156f9-8095-4ecf-9aff-af9bec5315d6",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -61,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
-    "digest": "e374e8619d62c8ad0680a6b8093b5f8ba43ac8b5f7a79e07bc30af0cb4a6354e",
+    "digest": "f17774c3a5be67387db6cb57db943d441c096b9e3171d1583f0e7716baa61c59",
     "paths": {
       "dev-platform/checks.toml": "0866453784b29bf033edda24a22710e6a1cccc51",
       "docs/engineering/chat-coordinator.md": "9b609bc332a0425590fa901730da0f37e8c9e24d",
@@ -76,7 +76,7 @@
       "template/dev-platform/protected-surface.toml": "e5411c53815a401828443f0bbfa6502d3eaf4607",
       "template/scripts/candidate_lifecycle.py": "4f4493ca866820e106037393b6d9b4af71edd11c",
       "template/scripts/integration_contour.py": "f3ab94d21e145854725df171ec879c6131df04d7",
-      "template/scripts/lifecycle_workers.py": "ba20b715cc40ba1a32d2304ffa66b5a6e42d2b85",
+      "template/scripts/lifecycle_workers.py": "6d1de33d3878dd9c9488021c1233b9b4301a2092",
       "template/scripts/post_review_finalization.py": "6f694bd20bcec39350decb4aa9aafb4f45365131",
       "template/scripts/pr_review_gate.py": "1172e5d68cf4fbb9ed809d8d45bc355324179ec2",
       "template/scripts/worker_preflight.py": "2b1a2fc92ea08dee34e57f15d74e9dce8d6177be",
@@ -84,7 +84,7 @@
       "tests/test_lifecycle_workers.py": "cb6706889481a6cbd6d6f1befc7dfe3f3c7f684d",
       "tests/test_post_merge_runner.py": "65bbe0934356686bf56e7f9b69a2d92ae2a8e90b",
       "tests/test_worker_credentials.py": "d3c48b785b69897eb2af22a4450c6f33fe797530",
-      "tests/test_worker_preflight.py": "429ff54f1b0d0bb2e58e350eb21f4bfa5b4fac9d"
+      "tests/test_worker_preflight.py": "c003aa17beef9720807981db637cbc7c6cb600af"
     },
     "scope": "independent-review-v1",
     "version": 1

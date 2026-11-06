@@ -3,30 +3,30 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "795e2ee7e0840d5aabc43bf92ac3d4ae3e4bcfe3",
-    "diff_sha256": "63e478283ed7a0459e2838ce721fca40911a865819753a8130b8e61e54152cac"
+    "candidate_head": "2d078d286a387f5595a7ee4225dcf05a58e7b2f6",
+    "diff_sha256": "cffe63529c370dc58c1087b9275feb0abb159c3401c098c02c20edf0dc4d83f7"
   },
-  "completed_at": "2026-11-06T02:13:13+00:00",
+  "completed_at": "2026-11-06T04:18:29+00:00",
   "findings": [
     {
-      "evidence": "design.md says \"`EnvironmentFailure(WorkerError)` carries a condition id from the registry, and only a registered condition raises it\". In template/scripts/lifecycle_workers.py, `EnvironmentFailure.__init__(self, condition, message)` stores any string. worker_preflight.CONDITION_IDS is not consulted. Call sites such as `PostMergeEnvironmentError(\"process-tool\", ...)` and `@environment_condition(\"github-credential\")` use correct ids only by convention. A typo, or a future caller passing an unregistered id, would silently get free-of-charge release treatment.",
-      "id": "environment-failure-unregistered-condition",
-      "severity": "advisory",
-      "summary": "The design says only a registered condition raises EnvironmentFailure, but the constructor does not check that rule. This weakens the guarantee that any other failure stays an ordinary failed run."
+      "evidence": "spec.md \"Bound reached\": THEN the overview reports an operational escalation naming the condition. lifecycle_overview.py:283-287 builds the finding from `reason` or from the label `cause`. For the environment bound, `cause` is the constant ENVIRONMENT_RELEASE_CAUSE (\"claim released after environment failures\"). The condition id appears only in the evidence field `last` (`EnvironmentFailure: <condition>: ...`), which the overview does not read. The diff has no lifecycle_overview.py hunk, although design.md and tasks.md 2.3 say the overview handles the class. tests/test_worker_preflight.py only asserts `gate.operational_escalation(...)`, not the overview output. The scenario's second clause, that `resume` offers the job with attempts unchanged, is also untested.",
+      "id": "overview-does-not-name-environment-condition",
+      "severity": "material",
+      "summary": "The spec scenario \"Bound reached\" requires the overview to report an operational escalation naming the condition. The candidate does not change lifecycle_overview.py, so the overview does not name it, and no test covers this."
     }
   ],
-  "launched_at": "2026-11-06T02:12:57+00:00",
-  "output_sha256": "a82b18e6ef6bb79228a54674f24085e43bf86ab13d0e27ed7d6ef51d95dedb30",
+  "launched_at": "2026-11-06T04:18:09+00:00",
+  "output_sha256": "74ac7a6ab5f197a61ca0b9967f40b31025dc86196e2f71f55d364c6797b7284a",
   "perspective": "spec-fidelity",
-  "request_id": "b3b80264-45f6-4832-851f-ebd830ee9760",
+  "request_id": "b97156f9-8095-4ecf-9aff-af9bec5315d6",
   "reviewer": {
-    "context_id": "badd6261-4819-4566-ab20-e1b39baec4fb",
+    "context_id": "df7e40b7-1b48-4730-a995-d37835f46318",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-a2a55888-6ed8-42eb-8acf-a1ad50824c43",
+    "launch_id": "platform-launch-b0bbebb2-b403-4edf-bb1e-f18ad08c569e",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -42,41 +42,41 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 35131
+        "value": 48056
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52275
+        "value": 141313
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15332
+        "value": 19006
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 15487
+        "value": 19171
       },
       "input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 10
       },
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 5
+        "value": 7
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 1779
+        "value": 2038
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "e374e8619d62c8ad0680a6b8093b5f8ba43ac8b5f7a79e07bc30af0cb4a6354e"
+  "task_content_digest": "f17774c3a5be67387db6cb57db943d441c096b9e3171d1583f0e7716baa61c59"
 }
