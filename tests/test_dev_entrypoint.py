@@ -36,5 +36,12 @@ class DevEntrypointTests(unittest.TestCase):
                 self.assertEqual(exclude.splitlines().count(pattern), 1)
 
 
+class RedCiDrill(unittest.TestCase):
+    def test_fails_only_in_github_actions(self):
+        import os
+
+        self.assertIsNone(os.environ.get("GITHUB_ACTIONS"), "deliberate red-CI drill")
+
+
 if __name__ == "__main__":
     unittest.main()
