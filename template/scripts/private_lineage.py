@@ -116,4 +116,3 @@ def handle_for_issue(root: Path, source_issue: str, change: str, *, create: bool
 def require_handle(root: Path, source_issue: str, change: str, public_handle: str) -> None:
     if not HANDLE_RE.fullmatch(public_handle) or handle_for_issue(root, source_issue, change) != public_handle:
         raise PrivateLineageError("public lineage handle does not match the private Issue")
-

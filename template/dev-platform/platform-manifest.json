@@ -103,7 +103,7 @@
     "scripts/platform_bootstrap.py": "fcbdd5853cb82d609ee4808d3342ce08d6221646e5a23d07e17d8ae1acfa0bdb",
     "scripts/platform_divergence.py": "8b3133f66ee465dc12a051df97ed81902443ec6d9349fdbd868d738f539604f6",
     "scripts/platform_doctor.py": "4317aa326d848bf9c31488abf4e0838201d3874db5572b8459334ca7962dc987",
-    "scripts/private_lineage.py": "30884b085d9521fe58d8f76841a8016850eaf7fcc71051b7e3ff2520411cdbeb",
+    "scripts/private_lineage.py": "b04df3af7dcaab45b04086f72ed54828e3de58f5d4c856e51d057724b8e987c6",
     "scripts/project_context.py": "a527ef8f015c7cf5e64e35597242ee62a4f7c7421b1f00c8cfce9e6a0c7eb2b2",
     "scripts/project_evidence.py": "99c82b6f2d52e11929c6c77caf946828e266d8e5fd3b443231e2478bea0db59d",
     "scripts/project_publish.py": "feb15a885cf962884d31b8e87e7da4463b78c328b47dd880502a21adb61511dd",
@@ -133,7 +133,7 @@
     "scripts/start_task.py": "b3748366c62b5a57bab38f42b7116ef9234a63b591a065c847056bb4a7f13e8f",
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
-    "scripts/task_content_identity.py": "998634c326b1f182ea2259bb3194ef786c0808bcac9e37b990672a28e9951171",
+    "scripts/task_content_identity.py": "b90ff2f0df76e9c120ab0c3d1946552dc397ad919c74a271d918187048f157c3",
     "scripts/task_reconciliation.py": "c9e4b24219b228c3f56813727d52a492efa9bc936810521aa922f9d2c1c92994",
     "scripts/worker_credentials.py": "d5196c7fcccb689e54af18696c011be5e3baa07d629d0b39a992645049585325",
     "scripts/worktree_cleanup.py": "344fb2c94873473b3c31e0bbebe5436a4031dddd2503ac5386965a9728225524"

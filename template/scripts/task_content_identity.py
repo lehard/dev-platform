@@ -339,4 +339,3 @@ def equivalent_proofs(root: Path, recorded: object, current: object) -> bool:
 
 class IntegrationProofError(RuntimeError):
     """Git could not evaluate a main-only integration proof (for example a missing object)."""
-
