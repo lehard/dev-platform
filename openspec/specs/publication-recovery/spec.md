@@ -32,7 +32,7 @@ For `harness_mode=platform` and `publish_mode=pr`, the platform SHALL derive pub
 
 ### Requirement: Native GitHub merge orchestration is armed before long local waiting when supported
 
-For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platform SHALL ask GitHub to persist the protected merge intent through native auto-merge: one `gh pr merge --auto --squash --match-head-commit <head>` request, refused when no required check gates the head. A rejected request SHALL stop publication with GitHub's reason; no other merge form and no local check wait follow.
+For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platform SHALL ask GitHub to persist the protected merge intent through native auto-merge: one `gh pr merge --auto --squash --match-head-commit <head>` request, refused when no required check gates the head. A rejected request SHALL stop publication with GitHub's reason; no other merge form follows. An accepted request SHALL be followed to its outcome.
 
 #### Scenario: Native auto-merge accepts the exact task head
 

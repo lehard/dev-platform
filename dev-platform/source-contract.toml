@@ -17,6 +17,8 @@ protected_main = true
 publish_mode = "pr"
 pr_merge_mode = "auto"
 scm_provider = "github"
+# Longer than the validate job's timeout-minutes in .github/workflows/ci.yml plus GitHub's merge time.
+ci_completion_minutes = 60
 agent_tools = "claude,codex"
 
 [capabilities]

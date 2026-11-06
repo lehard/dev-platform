@@ -22,6 +22,7 @@ PLATFORM_CONFIG_TOP: dict[str, Any] = {
     "publish_mode": "pr",
     "pr_merge_mode": "auto",
     "scm_provider": "github",
+    "ci_completion_minutes": 60,
     "agent_tools": "claude,codex",
 }
 PLATFORM_CONFIG_CAPABILITIES: dict[str, bool] = {

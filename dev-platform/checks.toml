@@ -15,13 +15,16 @@ preflight_commands = [
 ]
 full_evidence_types = ["syntax", "syntax", "syntax", "configuration", "test", "configuration"]
 full_required_evidence_types = ["test"]
-# Early feedback before the full set: run only test modules that directly
-# reference changed Python paths (see run_test_groups.py --changed-file).
-# Never a substitute for the full or protected validation set.
+# The required PR check `validate` runs these in .github/workflows/ci.yml on every head, so a local run
+# leaves them to it (tests/test_ci_guardrails.py pins that). Every other full command stays local.
+ci_only_commands = ["python3 scripts/run_test_groups.py --all"]
+# The local tests: only test modules that directly reference changed Python
+# paths (see run_test_groups.py --changed-file). Never a substitute for the
+# protected validation set, which the required PR check runs.
 affected_precheck = true
 affected_source_roots = ["template/scripts", "scripts"]
 # control-plane: unknown/ambiguous paths and selector/CI/lifecycle surfaces stay
-# full-suite triggers (see [checks.*] below for the narrower risk classes).
+# full-set triggers, minus ci_only_commands (see [checks.*] below for the narrower risk classes).
 full_trigger_patterns = [
   ".dev-platform.toml",
   "dev-platform/checks.toml",

@@ -48,6 +48,14 @@ strings).
 | --- | --- |
 | `paths.pending_completed_worktree_cleanup` | `.claude/pending-completed-worktree-cleanup.json` |
 
+### Keys required by a publication mode
+
+| Key | Type | Required when |
+| --- | --- | --- |
+| `ci_completion_minutes` | positive integer | `scm_provider=github`, `publish_mode=pr`, `pr_merge_mode=auto` |
+
+`ci_completion_minutes` is the only bound on how long `finish` follows an armed PR. It has no default, because only the project knows its CI: keep it longer than the required job's `timeout-minutes` plus GitHub's merge time. The template renders 120 for its 90-minute `platform-ci` job. It stays outside the required set, so scripts that do not publish keep working in a project that lacks it, and `finish` stops before validation naming the line to add.
+
 Optional tables such as `[operator]`, `[development_backlog]`,
 `[private_lineage]`, `[model_routing]` and `[tools.*]` are read by their own
 features and are not part of this schema.

@@ -10,6 +10,9 @@ protected_main = {{ 'true' if protected_main else 'false' }}
 publish_mode = "{{ publish_mode }}"
 pr_merge_mode = "{{ pr_merge_mode }}"
 scm_provider = "{{ scm_provider }}"
+# finish follows an armed PR to its outcome; this is the only bound on that wait. Keep it longer than
+# the required CI job's timeout-minutes plus GitHub's merge time.
+ci_completion_minutes = 120
 agent_tools = "{{ agent_tools }}"
 project_required_files = []
 

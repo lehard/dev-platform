@@ -37,6 +37,7 @@ The adoption planner derives these automatically; they matter when rendering wit
 | `publish_mode` | `pr`, `direct` (`direct` for `light`, else `pr`) | How completed work reaches the SCM. `light` rejects `pr`; `protected_main=true` rejects `direct`. |
 | `pr_merge_mode` | `auto` (default), `manual` | Whether task PRs merge automatically after required checks or stop for manual review. |
 | `scm_provider` | `github` (default), `gitlab` | Delivery adapter; both share the standard lifecycle. |
+| `ci_completion_minutes` | rendered as `120` in `.dev-platform.toml`, not a Copier question | The only bound on how long `finish` follows an armed PR. See [project-owned-config.md](project-owned-config.md). |
 | `agent_tools` | `claude,codex` | Comma-separated OpenSpec tool IDs. |
 | `platform_ci_ref` | legacy | Schema-v2 compatibility metadata only; generated CI does not execute it. |
 | `operator_config_path`, `operator_integration` | blank / `false` | Opt in to operator-owned configuration or the generic environment-backed operator integration; leave unset for ordinary project work. |

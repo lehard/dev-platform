@@ -87,7 +87,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
         destination = self.root / ".claude" / "worktrees" / "central-task" / "openspec" / "changes" / "central-task"
         self.assertFalse(source.exists())
         self.assertTrue((destination / ".managed-task.json").exists())
-        self.assertEqual(run.call_count, 2)
+        self.assertEqual(run.call_count, 1, "start_task runs the doctor; the adapter must not run it again")
         self.assertEqual(subprocess.run(["git", "status", "--porcelain"], cwd=self.root, text=True, capture_output=True, check=True).stdout, "")
 
     def test_start_refuses_unrelated_integration_mutation(self) -> None:

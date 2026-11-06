@@ -91,7 +91,57 @@ def behavioral_evidence_commands(config: dict[str, Any], runtime: str) -> list[s
     return list(commands) if isinstance(commands, list) else []
 
 
+def ci_only_commands(config: dict[str, Any]) -> list[str]:
+    """The full-set commands a local run leaves to the required PR check; each must be in ``full_commands``."""
+    settings = config.get("settings", {})
+    commands = list(settings.get("ci_only_commands", []))
+    unknown = [command for command in commands if command not in settings.get("full_commands", [])]
+    if unknown:
+        raise SystemExit("settings.ci_only_commands must name settings.full_commands entries, which the required "
+                         f"PR check runs; not there: {unknown}")
+    return commands
+
+
+def require_ci_runs_the_full_set(config: dict[str, Any]) -> None:
+    """Refuse ``ci_only_commands`` unless a required PR check gates every merge: nothing else would run them."""
+    gated = (config["harness_mode"] == "platform" and config["scm_provider"] == "github" and config["protected_main"]
+             and config["publish_mode"] == "pr" and config["pr_merge_mode"] == "auto")
+    if not gated:
+        raise SystemExit(
+            "settings.ci_only_commands needs a required PR check on every merge, but this repository has "
+            f"harness_mode={config['harness_mode']!r}, scm_provider={config['scm_provider']!r}, "
+            f"protected_main={config['protected_main']!r}, publish_mode={config['publish_mode']!r}, "
+            f"pr_merge_mode={config['pr_merge_mode']!r}. Remove the setting; the full set then runs locally."
+        )
+
+
+def leave_to_required_ci(config: dict[str, Any], checks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Drop ``ci_only_commands`` from a local selection and record them on each check that lost one.
+
+    An unproven behavior declaration keeps its full set: that selection is a refusal to trust, not a cost.
+    """
+    leave = ci_only_commands(config)
+    for check in checks:
+        commands = check["commands"]
+        left = [command for command in commands if command in leave]
+        if not left or check.get("selection_reason") == "behavior-declaration-unproven":
+            continue
+        kinds = check.get("evidence_types", [])
+        if len(kinds) == len(commands):
+            check["evidence_types"] = [kind for command, kind in zip(commands, kinds) if command not in leave]
+        check["commands"] = [command for command in commands if command not in leave]
+        if "required_evidence_types" in check:
+            check["required_evidence_types"] = [kind for kind in check["required_evidence_types"]
+                                                if kind in check.get("evidence_types", [])]
+        check["left_to_required_ci"] = left
+    return checks
+
+
 def select(config: dict[str, Any], paths: list[str], *, declare_behavior_change: str | None = None) -> list[dict[str, Any]]:
+    return leave_to_required_ci(config, select_mapped(config, paths, declare_behavior_change=declare_behavior_change))
+
+
+def select_mapped(config: dict[str, Any], paths: list[str], *, declare_behavior_change: str | None = None) -> list[dict[str, Any]]:
     settings = config.get("settings", {})
     checks = config.get("checks", {})
     full_trigger_patterns = list(settings.get("full_trigger_patterns", []))
@@ -123,7 +173,7 @@ def select(config: dict[str, Any], paths: list[str], *, declare_behavior_change:
                 "selection_reason": "instruction-behavior-change",
             }
             remaining = [path for path in paths if path not in behavior_paths]
-            return [behavior_check] + select(config, remaining, declare_behavior_change=None)
+            return [behavior_check] + select_mapped(config, remaining, declare_behavior_change=None)
 
     selected: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -187,12 +237,12 @@ def precheck_outcome(result: subprocess.CompletedProcess[str]) -> str:
 
 
 def precheck_paths(config: dict[str, Any], checks: list[dict[str, Any]]) -> list[str]:
-    """Changed Python paths eligible for the affected-test precheck before a full run."""
+    """Changed Python paths eligible for the affected-test precheck: before a full run, or instead of the tests left to CI."""
     if not config.get("settings", {}).get("affected_precheck") or not config.get("test_groups"):
         return []
     paths: list[str] = []
     for check in checks:
-        if str(check.get("selection_reason", "")) in PRECHECK_REASONS:
+        if str(check.get("selection_reason", "")) in PRECHECK_REASONS or check.get("left_to_required_ci"):
             paths.extend(path for path in check.get("paths", []) if path.endswith(".py") and path not in paths)
     return paths
 
@@ -645,7 +695,10 @@ def main() -> int:
         if args.mode == "protected-full"
         else select(config, paths, declare_behavior_change=args.declare_behavior_change)
     )
-    harness = read_platform_config(root)["harness_mode"]
+    platform_config = read_platform_config(root)
+    if args.mode == "local-affected" and ci_only_commands(config):
+        require_ci_runs_the_full_set(platform_config)
+    harness = platform_config["harness_mode"]
     status = validate_platform_selection(checks, harness)
 
     payload = {"files": paths, "checks": checks, "selection": status, "mode": args.mode}
@@ -659,6 +712,9 @@ def main() -> int:
         if checks:
             reasons = sorted({str(check.get("selection_reason", "mapped")) for check in checks})
             print(f"Validation mode: {args.mode}; reason: {', '.join(reasons)}; selection: {status['state']}; commands: {status['command_count']}")
+            left = sorted({command for check in checks for command in check.get("left_to_required_ci", [])})
+            if left:
+                print("Left to the required PR check: " + "; ".join(left))
         else:
             print(f"Validation mode: {args.mode}; selection: not-applicable; no commands selected.")
     print("DEV_PLATFORM_CHECK_SELECTION: " + json.dumps(status, ensure_ascii=False, sort_keys=True), flush=True)

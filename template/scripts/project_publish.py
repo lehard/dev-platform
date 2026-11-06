@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Callable, ContextManager
 
 from _platform_common import (
+    FINISH_COMMAND,
+    ci_completion_seconds,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -22,6 +24,7 @@ from _platform_common import (
     relation,
     require_origin,
     run_git,
+    run_github_with_retry,
     preflight,
 )
 from integration_state import guard_before_protected_merge
@@ -39,8 +42,8 @@ from managed_task import ManagedTaskError, require_delivery_provenance
 
 
 DIRECT_PUBLISH_GUARD = "DEV_PLATFORM_VALIDATED_DIRECT_PUBLISH"
-MERGE_CONFIRM_TIMEOUT_SECONDS = 600.0
-MERGE_CONFIRM_INTERVAL_SECONDS = 2.0
+MERGE_POLL_INTERVAL_SECONDS = 20.0
+MERGE_SNAPSHOT_FIELDS = "state,headRefOid,autoMergeRequest,mergeStateStatus"
 PRE_MERGE_GUARD_TIMEOUT_SECONDS = 60.0
 
 
@@ -276,14 +279,73 @@ def exact_merged_state(root: Path, env: dict[str, str], pr: PrRef, expected_head
     )
 
 
-def wait_for_pr_merged(root: Path, env: dict[str, str], pr: PrRef, expected_head: str, *, timeout_seconds: float) -> bool:
-    deadline = time.monotonic() + max(timeout_seconds, 0.0)
+def _merge_snapshot(root: Path, env: dict[str, str], pr: PrRef, expected_head: str) -> dict:
+    result = run_github_with_retry(["gh", "pr", "view", pr.ref, "--json", MERGE_SNAPSHOT_FIELDS], cwd=root, env=env)
+    detail = (result.stderr or result.stdout).strip()[:200] or f"exit {result.returncode}"
+    if result.returncode:
+        raise SystemExit(f"PR {pr.ref} cannot be read while following auto-merge: {detail}. "
+                         f"Local main was not changed; continue with: {FINISH_COMMAND}")
+    try:
+        snapshot = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"PR {pr.ref} state is not JSON: {detail}. Local main was not changed; "
+                         f"continue with: {FINISH_COMMAND}") from exc
+    if not isinstance(snapshot, dict):
+        raise SystemExit(f"PR {pr.ref} state is not a JSON object: {detail}. Local main was not changed; "
+                         f"continue with: {FINISH_COMMAND}")
+    observed = str(snapshot.get("headRefOid", "")).strip()
+    if observed != expected_head:
+        raise SystemExit(f"PR {pr.ref} head is {observed or 'unknown'}, not the validated head {expected_head}; "
+                         "this publication no longer applies. Local main was not changed.")
+    return snapshot
+
+
+def wait_for_merge_outcome(root: Path, env: dict[str, str], pr: PrRef, expected_head: str, *, timeout_seconds: float) -> None:
+    """Follow armed auto-merge to MERGED; every other outcome is a refusal that names its cause.
+
+    ``timeout_seconds`` is the configured time in which required CI has certainly finished, so reaching it
+    means something is wrong, not that the PR is slow. GitHub keeps the request after any refusal here.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    reported = None
     while True:
-        if exact_merged_state(root, env, pr, expected_head):
-            return True
+        snapshot = _merge_snapshot(root, env, pr, expected_head)
+        state = str(snapshot.get("state", "")).upper()
+        if state == "MERGED":
+            return
+        if state != "OPEN":
+            raise SystemExit(f"PR {pr.ref} is {state or 'unknown'}, not merged. Local main was not changed.")
+        checks = required_check_state_for_ref(root, env, pr.ref, expected_head)
+        if checks.kind == "failed":
+            raise SystemExit(f"Required check failed for head {expected_head}: {checks.detail}. The PR stays open; "
+                             "local main was not changed. Fix the cause, commit and rerun finish.")
+        if checks.kind not in {"pending", "passed"}:
+            raise SystemExit(f"GitHub required-check state is {checks.kind} ({checks.cause}): {checks.detail}. "
+                             f"Local main was not changed; continue with: {FINISH_COMMAND}")
+        merge_state = str(snapshot.get("mergeStateStatus", "")).upper()
+        if merge_state in {"BEHIND", "DIRTY"}:
+            raise SystemExit(f"PR {pr.ref} cannot merge: GitHub reports it {merge_state} against its base. Local main "
+                             "was not changed. Reconcile with python3 scripts/finish_task.py --reconcile, rerun finish.")
+        if snapshot.get("autoMergeRequest") is None:
+            raise SystemExit(f"PR {pr.ref} no longer has auto-merge armed, so nothing will merge it. "
+                             f"Local main was not changed; arm it again with: {FINISH_COMMAND}")
         if time.monotonic() >= deadline:
-            return False
-        time.sleep(MERGE_CONFIRM_INTERVAL_SECONDS)
+            raise SystemExit(f"PR {pr.ref} did not merge within ci_completion_minutes ({timeout_seconds / 60:g} min) "
+                             f"although required CI must have finished by then; last required-check state: "
+                             f"{checks.kind}, merge state: {merge_state or 'unknown'}. Inspect the PR; auto-merge stays "
+                             f"armed and local main was not changed. Continue with: {FINISH_COMMAND}")
+        if checks.kind != reported:
+            print(f"Following PR {pr.ref}: required checks {checks.kind}, waiting for MERGED.", flush=True)
+            reported = checks.kind
+        time.sleep(MERGE_POLL_INTERVAL_SECONDS)
+
+
+def follow_armed_merge(root: Path, env: dict[str, str], current: str, pr: PrRef, remote: str, expected_head: str,
+                       *, timeout_seconds: float) -> None:
+    """Wait out one armed exact-head PR and drop its remote branch; shared by first publication and a rerun."""
+    wait_for_merge_outcome(root, env, pr, expected_head, timeout_seconds=timeout_seconds)
+    delete_remote_branch(root, remote, current)
+    print(f"Merged PR for {current} through GitHub.")
 
 
 def delete_remote_branch(root: Path, remote: str, current: str) -> None:
@@ -328,13 +390,14 @@ def request_protected_merge(
     remote: str,
     expected_head: str,
     *,
+    timeout_seconds: float,
     merge_guard: Callable[[], ContextManager[None]] | None = None,
 ) -> None:
-    """Arm GitHub auto-merge for the exact validated head; the one merge action.
+    """Arm GitHub auto-merge for the exact validated head, the one merge action, and follow it to its outcome.
 
     `--match-head-commit` makes GitHub itself refuse any other head. A rejected request stops the
-    publication with GitHub's reason. An accepted request survives this process, so a merge that is
-    not confirmed within the bounded wait is left to a later finish, which reconciles it.
+    publication with GitHub's reason. An accepted request survives this process, so a stop while
+    following it leaves a rerun of finish to pick the same PR up.
     """
     require_mergeable_checks(root, env, pr, expected_head)
     with merge_guard() if merge_guard is not None else nullcontext():
@@ -348,14 +411,7 @@ def request_protected_merge(
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
         raise SystemExit(f"GitHub refused auto-merge for exact head {expected_head}: {detail}. Local main was not changed.")
     print(f"GitHub accepted auto-merge with squash for exact validated head {expected_head}.")
-    if not wait_for_pr_merged(root, env, pr, expected_head, timeout_seconds=MERGE_CONFIRM_TIMEOUT_SECONDS):
-        raise SystemExit(
-            f"Auto-merge is armed for exact head {expected_head}, but the PR did not reach MERGED within this bounded "
-            "local wait. GitHub keeps the request independently of this process; rerun finish or finish --status "
-            "later to reconcile it. Local main was not changed."
-        )
-    delete_remote_branch(root, remote, current)
-    print(f"Merged PR for {current} through GitHub.")
+    follow_armed_merge(root, env, current, pr, remote, expected_head, timeout_seconds=timeout_seconds)
 
 
 def validate_shared_manifest(root: Path, path: Path) -> dict:
@@ -535,7 +591,8 @@ def publish_pr(
             integration, config, remote, main_branch, PRE_MERGE_GUARD_TIMEOUT_SECONDS
         )
 
-    request_protected_merge(root, env, current, pr, remote, expected_head, merge_guard=merge_guard)
+    request_protected_merge(root, env, current, pr, remote, expected_head,
+                            timeout_seconds=ci_completion_seconds(config, SystemExit), merge_guard=merge_guard)
     return 0
 
 
