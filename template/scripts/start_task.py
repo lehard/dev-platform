@@ -17,7 +17,6 @@ from _platform_common import (
     require_fresh_task_base,
     run_git,
 )
-from agent_board import SCOPE_HELP, require_scope_paths
 from rollout_preflight import LAG_BEHIND, observe_platform_lag
 from start_worktree import StartedWorktree, create_worktree
 
@@ -118,6 +117,8 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
         raise RuntimeError("harness_mode=project: use the repository-owned task/worktree entrypoint described by its AGENTS.md.")
     prof = profile(config)
     if prof == "multi-agent":
+        from agent_board import require_scope_paths  # the board ships only with this profile
+
         require_scope_paths(scope, root)
     main_branch = config["main_branch"]
     doctor = subprocess.run(["python3", str(root / "scripts" / "agent_doctor.py")], cwd=root, stdin=subprocess.DEVNULL)
@@ -186,7 +187,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Start work using the configured dev-platform workflow profile.")
     parser.add_argument("slug", type=slug)
     parser.add_argument("--task", required=True)
-    parser.add_argument("--scope", default="", help=SCOPE_HELP)
+    parser.add_argument("--scope", default="", help="repository paths separated by commas or newlines")
     parser.add_argument("--acknowledge-overlap", metavar="REASON", help="Record this reason for a hard overlap verified safe and admit the task.")
     args = parser.parse_args()
     try:
