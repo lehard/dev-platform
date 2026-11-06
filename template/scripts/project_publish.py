@@ -355,6 +355,10 @@ def delete_remote_branch(root: Path, remote: str, current: str) -> None:
         return
     deleted = run_git(["push", remote, "--delete", current], cwd=root, check=False)
     if deleted.returncode != 0:
+        # GitHub's own delete-on-merge can win the race after the first observation; exit 2 proves the ref is gone.
+        if run_git(["ls-remote", "--exit-code", "--heads", remote, current], cwd=root, check=False).returncode == 2:
+            print(f"Remote feature branch {remote}/{current} is already absent.")
+            return
         detail = deleted.stderr.strip() or deleted.stdout.strip() or f"exit {deleted.returncode}"
         print(f"WARNING: PR is merged, but remote branch cleanup failed for {remote}/{current}: {detail}")
         return
