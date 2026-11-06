@@ -50,6 +50,8 @@ Each run starts with a reset, so a failed run is not inherited: open PRs and Iss
 | `managed-task` | Managed Issue, start, developer handoff, review, hosted finalize with the real archive and `openspec validate`, queue, MERGED. |
 | `red-ci` | Required CI fails only on GitHub through `fixture/ci-verdict.txt`, the queue offers integration repair, the operator reads the failed log, the repaired head merges. |
 | `conflict` | After admission the runner moves main with a conflicting commit, the queue offers integration repair, the repaired head merges. |
+| `requirement` | Pre-authoring chain, two children through contributions, main moves and `absorb-main` runs between them, composition review, local finalize with full checks and real `npx`, queue MERGED, post-merge with late friction, terminal closes the sandbox Requirement. |
+| `contribution-conflict` | Two children run in parallel, the first merges into the requirement branch, the queue offers integration repair of the second, the repaired head passes review again and merges. |
 
 The model is scripted, GitHub is not. `dev-platform/live-sandbox/executors/` holds a reviewer behind `DEV_PLATFORM_CLAUDE_BIN` and a repair writer behind `--llm-command`, so a finding or repair reproduces on every run and no provider token is needed. A real model, the sandboxed writer and hosted review are outside these scenarios.
 
@@ -64,6 +66,32 @@ Run the scenarios on the commit you hand off: `run --workdir <directory>`, witho
 ## Cost
 
 Measured on one full run of four scenarios: 16 minutes of wall time, 79 Actions runs, about 38 minutes of runner time, of which the fixture CI is under 2. Most runs are queue and worker wake-ups that find nothing to do. Scenarios run one after another, each about 4 minutes; `managed-task` and `red-ci` are the longest. No model tokens are spent. Runs need Actions minutes of the private repository. No shorter set is defined: a full run fits the gate at this duration.
+
+## Coverage
+
+Items that recent delivery reports left unverified on live GitHub. This is a map, not a backlog: a found defect is filed on its own.
+
+| Item | Source | Status |
+| --- | --- | --- |
+| Hosted queue run of integration repair | `conflicting-candidate-integration-repair`, `receipt-main-only-integration` | `conflict`, `red-ci`, `contribution-conflict` |
+| Target ref of `select_checks.py` and `finish_task.py` on a contribution | `contribution-integration-contract` | `requirement`, `contribution-conflict` |
+| `RequiredChecksWait` in `work-next` | `contribution-integration-contract` | `requirement`, `contribution-conflict`, when a worker meets running checks; not forced |
+| Live contribution path and its queue side | `contribution-integration-contract` | `requirement`, `contribution-conflict` |
+| Live terminal job | `terminal-direct-lineage` | `requirement` |
+| Retrospective refresh after late friction | `requirement-retrospective-refresh` | `requirement` |
+| Owner-declared sequential Requirement | `sequential-child-delivery` | Not covered: `requirement` delivers children in turn but declares no sequence |
+| Post-merge finish of a merged contribution | `merged-finish-reconcile` | Not covered: no scenario calls it, since post-merge jobs carry a handed-off contribution |
+| `npx` in composition full checks | BR acceptance | `requirement`, through the archive rehearsal |
+| Older installed `pre-merge-commit` hook | `contribution-integration-contract` | Not covered: the sandbox checkout always installs the current hook |
+| Deleted child context of a contribution | `contribution-integration-contract` | Not covered: reported follow-up, needs a broken checkout |
+| Exhausted retrospective refresh | `requirement-retrospective-refresh` | Not covered: no scenario spends the attempts |
+| Main merge touching a child's task path under a Requirement | `receipt-main-only-integration` | Not covered: `absorb-main` here moves an unrelated path |
+| Hosted refusal of composition finalize | composition dead-end report | Not asserted: the hosted class runs during `requirement` but the scenario reads no refusal |
+| Failed full checks of a composition and `resume` on finalize | composition dead-end report | Not covered: resuming it is a known dead end, filed as a defect |
+| Red CI on a composition with enqueue | composition dead-end report | Not covered: no scenario fails CI there |
+| Portable developer archive | `archive-finalize-function` | Not covered: the sandbox runs in source mode |
+| Leftover state in a standalone downstream checkout | `sequential-child-housekeeping` | Not covered: downstream checkouts are outside the sandbox |
+| `close-abandoned-delegation`, `route-codex` output, other users' processes through `lsof` | `delegation-abandon-recovery` | Not covered: Codex only, and Codex scenarios are excluded |
 
 ## Results
 

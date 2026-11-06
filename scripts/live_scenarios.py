@@ -649,10 +649,13 @@ class Scenario:
         return final
 
     def expect_on_main(self, path: str, text: str) -> None:
+        self.expect_on_ref("main", path, text)
+
+    def expect_on_ref(self, ref: str, path: str, text: str) -> None:
         repo = self.sandbox.config.repository
-        content = gh_json(["api", f"repos/{repo}/contents/{path}?ref=main"], SOURCE_ROOT)
+        content = gh_json(["api", f"repos/{repo}/contents/{path}?ref={ref}"], SOURCE_ROOT)
         if text not in base64.b64decode(content["content"]).decode("utf-8"):
-            raise self.fail(f"{path} on main does not hold {text!r}")
+            raise self.fail(f"{path} on {ref} does not hold {text!r}")
 
     def wait(self, read: Callable[[], Any], done: Callable[[Any], bool], limit: int) -> Any:
         deadline = time.monotonic() + limit
@@ -818,8 +821,13 @@ def scenario_contribution_conflict(scenario: Scenario) -> None:
     scenario.wait_queue(numbers[1], {"integration-repair-pending"}, 600)
     scenario.step("integration repair")
     scenario.repair_worker("integration-repair", numbers[1], {path: f"{first}\n{second}\n"}, ["fixture"])
+    scenario.step("review of the repaired head")
+    scenario.wait_queue(numbers[1], {"review-pending"}, 600)
+    scenario.worker("review", numbers[1])
     scenario.step("the repaired contribution merges")
     scenario.expect_merged(branches[1])
+    scenario.step("final state")
+    scenario.expect_on_ref(f"requirement/BR-{requirement.rsplit('#', 1)[1]}", path, f"{first}\n{second}\n")
 
 
 SCENARIOS: dict[str, Callable[[Scenario], None]] = {
