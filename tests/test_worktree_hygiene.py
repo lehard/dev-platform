@@ -846,7 +846,7 @@ class AgentBoardRegistrationTests(WorktreeHarnessCase):
             agent_board.enforce_scope_gate(self.root, worktree, f"agent/{worktree.name}")
 
     def test_space_separated_scope_is_refused_before_it_can_claim_a_nonexistent_path(self) -> None:
-        worktree = self.add_worktree("scope-spaces", "agent/scope-spaces")
+        worktree = self.add_worktree("scope-spaces")
         board = self.register_board(self.board_item("scope-spaces", "task", worktree, scope="a.py"))
 
         with self.assertRaises(SystemExit) as refused:
