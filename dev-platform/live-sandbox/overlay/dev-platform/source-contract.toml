@@ -70,4 +70,5 @@ complex_model = "opus"
 enabled = true
 
 [independent_review]
+provider = "claude"
 enabled = true

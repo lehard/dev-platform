@@ -262,7 +262,7 @@ class Sandbox:
         self.workdir.mkdir(parents=True)
         marker.write_text(self.config.repository + "\n", encoding="utf-8")
         (self.workdir / "managed-projects.json").write_text(json.dumps({
-            "version": 1, "projects": [{"repository": self.config.repository, "state": "managed", "default_branch": "main",
+            "schema_version": 1, "projects": [{"repository": self.config.repository, "state": "managed", "default_branch": "main",
                                         "note": "Live scenario sandbox; private to this runner."}]}), encoding="utf-8")
         (self.workdir / "operator.toml").write_text(
             f'[rollout]\nregistry_path = "{self.workdir / "managed-projects.json"}"\n\n'
@@ -556,6 +556,19 @@ class Scenario:
         self.worker("review", self.pr_state(branch)["number"])
         self.expect_merged(branch)
 
+    def drive_post_merge(self, number: int, requirement: str) -> None:
+        """The kinds the post-merge runner claims, run until the Requirement closes."""
+        issue = requirement.rsplit("#", 1)[1]
+        deadline = time.monotonic() + 900
+        while time.monotonic() < deadline:
+            state = gh_json(["issue", "view", issue, "--repo", self.sandbox.config.repository, "--json", "state"], SOURCE_ROOT)
+            if state["state"] == "CLOSED":
+                return
+            run(["python3", "scripts/lifecycle_workers.py", "work-next", "--kinds", "retrospective,terminal-reconciliation,cleanup",
+                 "--repo", self.sandbox.config.repository, "--pr", str(number), "--run"], self.sandbox.checkout, self.sandbox.env())
+            time.sleep(POLL_SECONDS)
+        raise self.fail(f"{requirement} is still open after post-merge: {str(self.queue_state(number))[:600]}")
+
     def worker(self, kind: str, number: int, *extra: str) -> None:
         """One coordinator worker run through the documented entrypoint, with the scripted executors."""
         self.platform("lifecycle_workers.py", "work-next", "--kinds", kind, "--repo", self.sandbox.config.repository,
@@ -719,7 +732,21 @@ def scenario_requirement(scenario: Scenario) -> None:
         scenario.deliver_child(actions[0])
     scenario.step("advance to composition")
     result = scenario.advance(requirement)
-    raise scenario.fail(f"composition path pending: {json.dumps(result)[:1500]}")
+    draft = result.get("shared_draft") or {}
+    if result.get("status") != "draft-published" or not draft.get("pr"):
+        raise scenario.fail(f"no composition after the last child: {json.dumps(result)[:800]}")
+    number, branch = int(draft["pr"].rsplit("/", 1)[1]), draft["branch"]
+    scenario.step("composition review")
+    scenario.worker("review", number)
+    scenario.step("composition finalize and full checks")
+    scenario.worker("finalize", number)
+    scenario.step("queue merges the composition")
+    scenario.expect_merged(branch)
+    scenario.step("post-merge to terminal")
+    scenario.drive_post_merge(number, requirement)
+    scenario.step("final state")
+    for change in changes:
+        scenario.expect_on_main(f"fixture/{change}.txt", change)
 
 
 SCENARIOS: dict[str, Callable[[Scenario], None]] = {
