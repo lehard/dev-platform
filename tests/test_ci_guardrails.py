@@ -23,6 +23,25 @@ WORKFLOW_TIMEOUTS = {
 
 
 class CiGuardrailTests(unittest.TestCase):
+    def test_every_command_left_to_ci_runs_in_the_required_validate_job(self) -> None:
+        settings = tomllib.loads((ROOT / "dev-platform" / "checks.toml").read_text(encoding="utf-8"))["settings"]
+        validate = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8").split("  validate:\n", 1)[1]
+        self.assertTrue(settings["ci_only_commands"])
+        for command in settings["ci_only_commands"]:
+            self.assertIn(command, settings["full_commands"])
+            self.assertIn(command, validate, f"{command} left local validation but validate does not run it")
+
+    def test_project_ci_runs_every_full_command_on_a_pull_request(self) -> None:
+        for path in (".github/workflows/project-ci.yml", "template/.github/workflows/dev-platform.yml.jinja"):
+            workflow = (ROOT / path).read_text(encoding="utf-8")
+            self.assertRegex(workflow, r"if: github\.event_name == 'pull_request'\n\s+(shell: bash\n\s+)?run: python3 "
+                                       r"scripts/select_checks\.py .*--mode protected-full --execute", path)
+
+    def test_ci_completion_bound_outlasts_the_validate_job(self) -> None:
+        contract = tomllib.loads((ROOT / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"))
+        job = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8").split("  validate:\n", 1)[1]
+        self.assertGreater(contract["ci_completion_minutes"], int(job.split("timeout-minutes: ", 1)[1].split()[0]))
+
     def test_ruff_gate_is_narrow_and_locally_selectable(self) -> None:
         config = tomllib.loads((ROOT / "ruff.toml").read_text(encoding="utf-8"))
         self.assertEqual(config["lint"]["select"], ["E9", "F811", "F821", "F822", "F823"])

@@ -814,25 +814,44 @@ class GitLifecycleTests(unittest.TestCase):
 
 
 class CheapPublicationResumeTests(unittest.TestCase):
-    def test_exact_armed_pr_is_a_cheap_resumable_state(self) -> None:
-        pr = {"number": 7, "url": "https://example.invalid/pr/7", "headRefOid": "a" * 40, "autoMergeRequest": {"enabledBy": "bot"}}
-        lookup = finish_task.publication_state.ExactHeadPrLookup(available=True, exact_open=pr)
-        with (
-            mock.patch.object(finish_task, "github_cli_env", return_value={}),
-            mock.patch.object(finish_task.publication_state, "find_exact_local_branch_pr", return_value=lookup),
-            mock.patch.object(finish_task.publication_state, "required_check_state_for_ref", return_value=finish_task.publication_state.RequiredCheckState("pending")),
-        ):
-            self.assertEqual(finish_task.resumable_remote_armed_pr(Path("/task"), "agent/task", "main"), pr)
+    PR = {"number": 7, "url": "https://example.invalid/pr/7", "headRefOid": "a" * 40, "autoMergeRequest": {"enabledBy": "bot"}}
 
-    def test_changed_remote_intent_fails_closed_from_cheap_resume(self) -> None:
-        pr = {"number": 7, "url": "https://example.invalid/pr/7", "headRefOid": "a" * 40, "autoMergeRequest": {"enabledBy": "bot"}}
+    def armed(self, pr: dict) -> dict | None:
         lookup = finish_task.publication_state.ExactHeadPrLookup(available=True, exact_open=pr)
         with (
             mock.patch.object(finish_task, "github_cli_env", return_value={}),
             mock.patch.object(finish_task.publication_state, "find_exact_local_branch_pr", return_value=lookup),
-            mock.patch.object(finish_task.publication_state, "required_check_state_for_ref", return_value=finish_task.publication_state.RequiredCheckState("failed")),
         ):
-            self.assertIsNone(finish_task.resumable_remote_armed_pr(Path("/task"), "agent/task", "main"))
+            return finish_task.remote_armed_pr(Path("/task"), "agent/task", "main")
+
+    def test_exact_armed_pr_is_a_cheap_resumable_state(self) -> None:
+        self.assertEqual(self.armed(self.PR), self.PR)
+
+    def test_pr_without_armed_merge_is_not_resumed(self) -> None:
+        self.assertIsNone(self.armed({**self.PR, "autoMergeRequest": None}))
+
+    def test_resume_follows_the_exact_pr_with_the_configured_bound(self) -> None:
+        import project_publish
+
+        with (
+            mock.patch.object(finish_task, "github_cli_env", return_value={"GH_TOKEN": "x"}),
+            mock.patch.object(project_publish, "follow_armed_merge") as follow,
+        ):
+            finish_task.follow_remote_armed_pr(Path("/task"), {"ci_completion_minutes": 60}, "agent/task", self.PR)
+        follow.assert_called_once_with(Path("/task"), {"GH_TOKEN": "x"}, "agent/task", project_publish.PrRef(7, self.PR["url"]),
+                                       "origin", "a" * 40, timeout_seconds=3600.0)
+
+    def test_resume_without_the_configured_bound_is_refused(self) -> None:
+        with mock.patch.object(finish_task, "github_cli_env", return_value={}):
+            with self.assertRaisesRegex(SystemExit, "ci_completion_minutes must be a positive integer"):
+                finish_task.follow_remote_armed_pr(Path("/task"), {}, "agent/task", self.PR)
+
+    def test_auto_merge_publication_config_needs_the_bound_before_validation(self) -> None:
+        config = {"pr_merge_mode": "auto", "scm_provider": "github", "protected_main": True}
+        with self.assertRaisesRegex(SystemExit, "add `ci_completion_minutes = <minutes>`"):
+            finish_task.validate_publication_config(Path("/task"), config, "multi-agent", "pr")
+        with mock.patch.object(finish_task, "github_cli_env", return_value={}):
+            finish_task.validate_publication_config(Path("/task"), {**config, "pr_merge_mode": "manual"}, "multi-agent", "pr")
 
 
 if __name__ == "__main__": unittest.main()

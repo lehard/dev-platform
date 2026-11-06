@@ -29,6 +29,70 @@ def setUpModule() -> None:
     isolate_machine_pool_environment()
 
 
+class CiOnlyCommandsTests(unittest.TestCase):
+    FULL = ["ruff", "tests --all", "openspec"]
+    CONFIG = {
+        "settings": {
+            "full_commands": FULL,
+            "full_evidence_types": ["syntax", "test", "configuration"],
+            "full_required_evidence_types": ["test"],
+            "full_trigger_patterns": ["scripts/**"],
+            "ci_only_commands": ["tests --all"],
+        },
+        "checks": {"python": {"patterns": ["lib/*.py"], "commands": ["ruff", "tests --all"],
+                              "evidence_types": ["syntax", "test"], "required_evidence_types": ["test"]}},
+    }
+    GATED = {"harness_mode": "platform", "scm_provider": "github", "protected_main": True,
+             "publish_mode": "pr", "pr_merge_mode": "auto"}
+
+    def test_a_high_impact_path_keeps_the_fast_commands_and_records_what_ci_runs(self) -> None:
+        [check] = select_checks.select(self.CONFIG, ["scripts/a.py"])
+        self.assertEqual(check["selection_reason"], "high-impact-path")
+        self.assertEqual(check["commands"], ["ruff", "openspec"])
+        self.assertEqual(check["evidence_types"], ["syntax", "configuration"])
+        self.assertEqual(check["required_evidence_types"], [])
+        self.assertEqual(check["left_to_required_ci"], ["tests --all"])
+        self.assertEqual(select_checks.selection_status([check])["state"], "ready")
+
+    def test_a_mapped_and_an_unknown_path_leave_the_same_command(self) -> None:
+        for path in ("lib/a.py", "unknown.bin"):
+            with self.subTest(path=path):
+                [check] = select_checks.select(self.CONFIG, [path])
+                self.assertNotIn("tests --all", check["commands"])
+                self.assertEqual(check["left_to_required_ci"], ["tests --all"])
+
+    def test_protected_full_keeps_every_command(self) -> None:
+        [check] = select_checks.full_checks(self.CONFIG)
+        self.assertEqual(check["commands"], self.FULL)
+
+    def test_without_the_setting_the_full_set_stays_local(self) -> None:
+        settings = {key: value for key, value in self.CONFIG["settings"].items() if key != "ci_only_commands"}
+        [check] = select_checks.select({**self.CONFIG, "settings": settings}, ["scripts/a.py"])
+        self.assertEqual(check["commands"], self.FULL)
+        self.assertNotIn("left_to_required_ci", check)
+
+    def test_an_unproven_behavior_declaration_keeps_the_full_set(self) -> None:
+        settings = {**self.CONFIG["settings"], "instruction_behavior_surface_patterns": ["AGENTS.md"]}
+        [check] = select_checks.select({**self.CONFIG, "settings": settings}, ["AGENTS.md"], declare_behavior_change="claude")
+        self.assertEqual(check["commands"], self.FULL)
+
+    def test_a_command_outside_the_full_set_is_refused(self) -> None:
+        settings = {**self.CONFIG["settings"], "ci_only_commands": ["pytest"]}
+        with self.assertRaisesRegex(SystemExit, r"not there: \['pytest'\]"):
+            select_checks.select({**self.CONFIG, "settings": settings}, ["scripts/a.py"])
+
+    def test_precheck_runs_the_affected_tests_for_every_check_that_left_the_suite(self) -> None:
+        config = {**self.CONFIG, "settings": {**self.CONFIG["settings"], "affected_precheck": True}, "test_groups": {"g": {}}}
+        self.assertEqual(select_checks.precheck_paths(config, select_checks.select(config, ["lib/a.py"])), ["lib/a.py"])
+
+    def test_only_a_merge_gated_by_required_ci_may_leave_commands_to_it(self) -> None:
+        select_checks.require_ci_runs_the_full_set(self.GATED)
+        for key, value in (("publish_mode", "direct"), ("pr_merge_mode", "manual"), ("scm_provider", "gitlab"),
+                           ("protected_main", False), ("harness_mode", "project")):
+            with self.subTest(key=key), self.assertRaisesRegex(SystemExit, f"{key}={value!r}"):
+                select_checks.require_ci_runs_the_full_set({**self.GATED, key: value})
+
+
 class SelectChecksTests(unittest.TestCase):
     def test_match_any_supports_recursive_glob(self) -> None:
         self.assertTrue(select_checks.match_any("backend/app/service.py", ["**/*.py"]))

@@ -9,7 +9,9 @@ import sys
 from pathlib import Path
 
 from _platform_common import (
+    FINISH_COMMAND,
     GitCommandError,
+    ci_completion_seconds,
     current_worktree_root,
     fetch_main,
     github_cli_env,
@@ -214,6 +216,8 @@ def validate_publication_config(root: Path, config: dict, prof: str, mode: str) 
         raise SystemExit("protected_main=true is incompatible with publish_mode=direct. Use publish_mode=pr so required checks can gate the merge.")
     if mode == "pr" and prof == "light":
         raise SystemExit("publish_mode=pr requires a feature-capable profile. Use standard/multi-agent or a reviewed project-owned harness.")
+    if provider == "github" and mode == "pr" and merge_mode == "auto":
+        ci_completion_seconds(config, SystemExit)
     if provider == "github" and mode == "pr" and github_cli_env(root) is None:
         raise SystemExit(
             "publish_mode=pr requires authenticated GitHub CLI/API access. Provide a valid GH_TOKEN/GITHUB_TOKEN, a persistent gh login, or reusable GitHub HTTPS credentials before finishing the task."
@@ -245,8 +249,8 @@ def find_existing_exact_open_pr(root: Path, branch: str, main_branch: str) -> di
     return lookup.exact_open if lookup.available else None
 
 
-def resumable_remote_armed_pr(root: Path, branch: str, main_branch: str) -> dict | None:
-    """Return only a durably armed exact-head PR; unknown state fails closed."""
+def remote_armed_pr(root: Path, branch: str, main_branch: str) -> dict | None:
+    """Return the exact-head PR with auto-merge armed; following it classifies its checks."""
     env = github_cli_env(root)
     if env is None:
         return None
@@ -254,10 +258,19 @@ def resumable_remote_armed_pr(root: Path, branch: str, main_branch: str) -> dict
     if not lookup.available or lookup.exact_open is None:
         return None
     pr = lookup.exact_open
-    if pr.get("autoMergeRequest") is None:
-        return None
-    checks = publication_state.required_check_state_for_ref(root, env, publication_state.stable_pr_ref(pr), str(pr.get("headRefOid", "")))
-    return pr if checks.kind in {"pending", "passed", "not_registered"} else None
+    return pr if pr.get("autoMergeRequest") is not None else None
+
+
+def follow_remote_armed_pr(work: Path, config: dict, branch: str, pr: dict) -> None:
+    """Resume an armed PR: wait for its outcome without repeating validation or publication."""
+    # Imported here: a harness_mode=project repository owns its project_publish.py and never gets this far.
+    import project_publish
+
+    print(f"Exact-head PR {pr.get('url')} has auto-merge armed: following it to MERGED.", flush=True)
+    project_publish.follow_armed_merge(
+        work, github_cli_env(work), branch, project_publish._pr_ref(pr), "origin", str(pr.get("headRefOid", "")),
+        timeout_seconds=ci_completion_seconds(config, SystemExit),
+    )
 
 
 def observe_independent_review(work: Path) -> dict:
@@ -318,6 +331,9 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
         freshness = task_reconciliation.status_payload(work)
     except Exception as exc:
         freshness = {"task_freshness": "unavailable", "reconcile_required": False, "freshness_detail": str(exc)}
+    if obs.remote_merged:
+        # The merged task's head is behind main by construction: finish reconciles it, a merge into it would not.
+        freshness.update(reconcile_required=False, reconcile_command=None)
     try:
         drift = observe_source_issue_drift(work)
     except Exception:
@@ -374,6 +390,8 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
                 if freshness.get("freshness_detail"):
                     print(f"task freshness detail: {freshness['freshness_detail']}")
                 print(f"reconcile required before expensive validation: {RECONCILE_COMMAND}")
+            elif obs.remote_merged and payload["status"] != publication_state.COMPLETE:
+                print(f"local reconciliation of the merged PR: {FINISH_COMMAND}")
         provenance = freshness.get("managed_provenance")
         if provenance:
             print(f"managed provenance: {provenance}")
@@ -904,17 +922,19 @@ def main() -> int:
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc
 
-    # Durable remote auto-merge is its own resumable phase. Observe it before
-    # local completion evidence/validation/publication so a bounded prior wait
-    # never repeats expensive local work or a publish mutation.
+    # Durable remote auto-merge is its own resumable phase. Follow it before local
+    # completion evidence/validation/publication so an earlier stop never repeats
+    # expensive local work or a publish mutation.
     if mode == "pr" and branch != main_branch and pr_merge_mode(config) == "auto":
-        armed = resumable_remote_armed_pr(work, branch, main_branch)
+        armed = remote_armed_pr(work, branch, main_branch)
         if armed is not None:
-            print(
-                f"Publication remains nonterminal: exact-head PR {armed.get('url')} has auto-merge armed. "
-                "Run `python3 scripts/finish_task.py --status` to observe required checks or rerun finish after GitHub reports MERGED."
+            follow_remote_armed_pr(work, config, branch, armed)
+            reconcile_confirmed_remote_pr_merge(
+                work, integration, config, branch, main_branch, prof, cleanup=args.cleanup, timeout_seconds=args.merge_timeout
             )
-            return 2
+            print("Task PR passed required checks, merged through GitHub, and local main was synchronized.")
+            emit_finish_stage("complete")
+            return 0
 
     try:
         if delivery is not None:
@@ -1041,13 +1061,6 @@ def main() -> int:
                 )
                 emit_finish_stage("complete")
                 return 0
-            armed = resumable_remote_armed_pr(work, branch, main_branch) if pr_merge_mode(config) == "auto" else None
-            if armed is not None:
-                print(
-                    f"Publication remains nonterminal: exact-head PR {armed.get('url')} has auto-merge armed. "
-                    "Run `python3 scripts/finish_task.py --status` and retry finish after GitHub reports MERGED."
-                )
-                return 2
             raise SystemExit(
                 f"Project publication stopped with exit {published.returncode}. "
                 "Run `python3 scripts/finish_task.py --status` to inspect the existing PR before retrying."

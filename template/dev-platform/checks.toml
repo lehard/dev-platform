@@ -3,6 +3,11 @@
 
 [settings]
 full_commands = ["git diff --check", "python3 scripts/openspec_lifecycle.py check"]
+# Optional, for a slow entry of full_commands. Listed commands leave local runs of a high-impact or
+# unknown path and run only in the required PR check, which executes every full command. The selector
+# refuses this unless publish_mode=pr, pr_merge_mode=auto, protected_main=true and scm_provider=github;
+# the required check on main must be platform-ci, the job that runs the full set.
+# ci_only_commands = ["python3 -m pytest"]
 # These files can change dependency resolution, build behavior, schema/runtime
 # startup, or CI policy. Unknown paths and these control-plane paths both run
 # full_commands. Mature projects should keep full_commands representative of

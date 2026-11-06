@@ -157,7 +157,7 @@ def start(root: Path, args: argparse.Namespace) -> int:
         staged_parent = Path(tempfile.mkdtemp(prefix="dev-platform-managed-change-"))
         shutil.move(str(change_path), str(staged_parent / args.change))
     try:
-        run(["python3", "scripts/agent_doctor.py"], root)
+        # start_task runs the doctor before it creates anything.
         run(
             ["python3", "scripts/start_task.py", args.slug, "--task", args.task, "--scope", args.scope],
             root,

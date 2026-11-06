@@ -105,7 +105,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
         stack.enter_context(mock.patch.object(project_publish, "main_root", return_value=root))
         with stack:
             result = project_publish.publish_pr(root, "origin", "main", None, None, "auto",
-                                                config={"platform_version": "x"}, shared_manifest=manifest)
+                                                config={"platform_version": "x", "ci_completion_minutes": 60}, shared_manifest=manifest)
         return result, mocks
 
     def test_incomplete_shared_candidate_publishes_draft_without_ready_or_merge(self) -> None:
@@ -356,6 +356,40 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                 managed_project_status.derive_resume_status(root)
 
 
+class MergedTaskStatusTests(unittest.TestCase):
+    def status(self, *, as_json: bool) -> list[str]:
+        observation = finish_task.publication_state.PublicationObservation(branch="agent/x", base_branch="main", remote_merged=True)
+        freshness = {"task_freshness": "diverged", "freshness_target": "main", "reconcile_required": True,
+                     "reconcile_command": finish_task.RECONCILE_COMMAND}
+        payload = {"status": finish_task.publication_state.REMOTE_MERGED_LOCAL_PENDING}
+        outputs: list[str] = []
+        with (
+            mock.patch.object(finish_task, "current_branch", return_value="agent/x"),
+            mock.patch.object(finish_task, "require_managed_checkout_identity", return_value=None),
+            mock.patch.object(finish_task, "observe_independent_review", return_value={}),
+            mock.patch.object(finish_task, "print_independent_review"),
+            mock.patch.object(finish_task, "github_cli_env", return_value={}),
+            mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
+            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=observation),
+            mock.patch.object(finish_task.publication_state, "merge_durability_capability", return_value="remote_armed_capable"),
+            mock.patch.object(finish_task.publication_state, "status_payload", side_effect=lambda *_a: dict(payload)),
+            mock.patch.object(finish_task.task_reconciliation, "status_payload", return_value=freshness),
+            mock.patch("builtins.print", side_effect=lambda *a, **_k: outputs.append(" ".join(map(str, a)))),
+        ):
+            finish_task.run_status(Path("/task"), Path("/task"), {"main_branch": "main", "harness_mode": "platform", "publish_mode": "pr"}, as_json=as_json)
+        return outputs
+
+    def test_a_merged_task_is_sent_to_finish_not_to_reconcile(self) -> None:
+        text = "\n".join(self.status(as_json=False))
+        self.assertIn("python3 scripts/finish_task.py --cleanup", text)
+        self.assertNotIn("--reconcile", text)
+
+    def test_json_status_of_a_merged_task_requires_no_reconcile(self) -> None:
+        payload = json.loads(self.status(as_json=True)[0])
+        self.assertFalse(payload["reconcile_required"])
+        self.assertIsNone(payload["reconcile_command"])
+
+
 class SourceIssueDriftStatusTests(unittest.TestCase):
     """--status surfaces bounded source-Issue drift evidence without ever blocking."""
 
@@ -370,7 +404,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
         with (
             mock.patch.object(finish_task, "current_branch", return_value="agent/managed"),
             mock.patch.object(finish_task, "github_cli_env", return_value={}),
-            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=SimpleNamespace()),
+            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=SimpleNamespace(remote_merged=False)),
             mock.patch.object(finish_task.publication_state, "merge_durability_capability", return_value="full"),
             mock.patch.object(finish_task.publication_state, "status_payload", return_value={"status": "in_review"}),
             mock.patch.object(finish_task.publication_state, "status_text", return_value="status: in_review"),
@@ -418,7 +452,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
             mock.patch.object(finish_task, "current_branch", return_value="agent/managed"),
             mock.patch.object(finish_task, "require_managed_checkout_identity", side_effect=finish_task.ManagedTaskError("expected task checkout")),
             mock.patch.object(finish_task, "github_cli_env", return_value={}),
-            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=SimpleNamespace()),
+            mock.patch.object(finish_task.publication_state, "observe_publication", return_value=SimpleNamespace(remote_merged=False)),
             mock.patch.object(finish_task.publication_state, "merge_durability_capability", return_value="full"),
             mock.patch.object(finish_task.publication_state, "status_payload", return_value={"status": "in_review"}),
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),

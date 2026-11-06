@@ -253,6 +253,8 @@ if sys.excepthook is sys.__excepthook__:
 
 
 PLATFORM_CONFIG_FILE = ".dev-platform.toml"
+# The rendered entrypoint that resumes a publication: it follows an armed PR and reconciles a merged one.
+FINISH_COMMAND = "python3 scripts/finish_task.py --cleanup"
 # The one platform configuration schema. Required keys are those every managed
 # project's rendered configuration carries; rollout never adds keys to an
 # existing project (Copier ``_skip_if_exists``), so a key joins the required set
@@ -883,6 +885,22 @@ def require_main_branch(config: dict[str, Any], exception_type: type[BaseExcepti
     if not isinstance(main_branch, str) or not main_branch:
         raise exception_type("main_branch must be a non-empty string in .dev-platform.toml")
     return main_branch
+
+
+def ci_completion_seconds(config: dict[str, Any], exception_type: type[BaseException] = PlatformConfigError) -> float:
+    """The time in which the required PR checks have certainly finished; the only bound on waiting for a merge.
+
+    Required only where finish waits for GitHub, so it stays outside the schema's required keys. No default is
+    substituted: it must exceed the CI job timeout, which only the project knows.
+    """
+    minutes = config.get("ci_completion_minutes")
+    if type(minutes) is not int or minutes <= 0:
+        raise exception_type(
+            f"ci_completion_minutes must be a positive integer in .dev-platform.toml, got {minutes!r}: "
+            "add `ci_completion_minutes = <minutes>` above the first table, longer than the required CI job's "
+            "timeout plus GitHub's merge time."
+        )
+    return minutes * 60.0
 
 
 def protected_main(config: dict[str, Any]) -> bool:

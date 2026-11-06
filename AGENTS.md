@@ -57,6 +57,7 @@ Goal refinement is a selective layer before authoring, used only for explicit go
 Ordinary work in this repository uses the committed source contract `dev-platform/source-contract.toml` (installed as the untracked local `.dev-platform.toml`, which also carries operator-only sections) and its lifecycle adapter. Do not assemble a manual branch/worktree/PR flow.
 
 ```bash
+python3 scripts/dogfood_task.py start <slug> --task "..." --scope "..."
 python3 scripts/requirement_intake.py start --requirement owner/repo#N
 python3 scripts/execute_requirement.py advance --requirement owner/repo#N
 python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
@@ -68,18 +69,11 @@ python3 scripts/dogfood_task.py reconcile
 python3 scripts/dogfood_task.py finish
 ```
 
-`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
+`status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable: it follows the armed PR to `MERGED`, and a failed required check stops it naming the check. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
 
-Minimum validation before finishing:
+Minimum validation before finishing: `finish` runs it, and this command runs the same selection earlier. Locally that is the fast checks and the tests of the changed files; the full suite runs in the required `validate` PR check.
 ```bash
-python3 -m compileall -q template/scripts scripts
-python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests
-python3 -m ruff check scripts template/scripts tests
-python3 scripts/generate_platform_manifest.py --check
-python3 scripts/managed_projects.py validate
-python3 scripts/run_test_groups.py --all
-python3 template/scripts/openspec_lifecycle.py check
-npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive
+python3 scripts/select_checks.py --base origin/main --execute --task-evidence
 ```
 
 ## Where the detailed contract lives

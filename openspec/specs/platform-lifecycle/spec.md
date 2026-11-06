@@ -535,7 +535,7 @@ The platform SHALL distinguish a conservative `local affected` feedback policy f
 #### Scenario: Local path is unknown or high impact
 
 - **WHEN** a changed path is unknown, ambiguously classified, or affects selector/check configuration, CI workflow, OpenSpec/lifecycle control-plane code or another explicitly high-impact surface
-- **THEN** local affected validation selects the full authoritative set
+- **THEN** local affected validation selects the full authoritative set, without the commands the repository left to its required PR check
 - **AND** reports that the fallback was safety-driven
 
 #### Scenario: Protected-main PR is evaluated
@@ -546,7 +546,7 @@ The platform SHALL distinguish a conservative `local affected` feedback policy f
 
 ### Requirement: Validation selection fails closed
 
-The validation selector SHALL choose the full authoritative set whenever a changed path is unknown, ambiguously classified, or affects selector/configuration, workflow, OpenSpec, lifecycle, or other explicitly high-impact control-plane code.
+The validation selector SHALL choose the full authoritative set whenever a changed path is unknown, ambiguously classified, or affects selector/configuration, workflow, OpenSpec, lifecycle, or other explicitly high-impact control-plane code. Commands a repository left to its required PR check SHALL be dropped from that local selection.
 
 #### Scenario: Changed path has no proven selector mapping
 
@@ -558,6 +558,30 @@ The validation selector SHALL choose the full authoritative set whenever a chang
 
 - **WHEN** a change touches validation selection/configuration, CI workflow, OpenSpec, or lifecycle control-plane code
 - **THEN** local affected validation selects the full validation set
+
+### Requirement: A required PR check can own slow full-set commands
+
+A repository MAY list entries of `full_commands` in `ci_only_commands`. A local selection SHALL then drop them, record them as left to required CI and run the affected tests of changed Python paths; protected-full mode SHALL keep every command. The selector SHALL refuse the setting unless a required PR check gates every merge, and SHALL refuse an entry that is not in `full_commands`.
+
+#### Scenario: A script changes in a repository with the setting
+
+- **GIVEN** `ci_only_commands` lists the full test suite
+- **WHEN** a local run selects validation for a changed script
+- **THEN** it runs the remaining full commands and the affected tests
+- **AND** the evidence names the suite as left to required CI
+- **AND** the required PR check still runs the suite on the exact head
+
+#### Scenario: A merge has no required PR check
+
+- **GIVEN** `ci_only_commands` is set
+- **AND** the repository lacks any of `harness_mode=platform`, `scm_provider=github`, `protected_main=true`, `publish_mode=pr`, `pr_merge_mode=auto`
+- **WHEN** a local run selects validation
+- **THEN** the selector stops and names the settings that refuse it
+
+#### Scenario: The setting is absent
+
+- **WHEN** a repository does not set `ci_only_commands`
+- **THEN** local selection keeps the full authoritative set
 
 ### Requirement: Parallel validation preserves resource isolation and aggregate authority
 
@@ -1526,7 +1550,7 @@ A shared Requirement candidate manifest SHALL list the expected mandatory change
 
 ### Requirement: Affected-group precheck precedes full validation
 
-When a project opts in, for changed Python paths that trigger full validation the lifecycle SHALL first execute, within their canonical groups, the test modules that directly reference those paths according to a tested static mapping, and SHALL stop before the full set when the precheck fails. Paths without a mapping SHALL proceed directly to full validation.
+When a project opts in, for changed Python paths that trigger full validation or whose selection left commands to required CI the lifecycle SHALL first execute, within their canonical groups, the test modules that directly reference those paths according to a tested static mapping, and SHALL stop before the full set when the precheck fails. Paths without a mapping SHALL proceed directly to full validation.
 
 #### Scenario: Precheck fails
 - **GIVEN** a change to a template script referenced by test modules in two canonical groups
@@ -1540,7 +1564,7 @@ When a project opts in, for changed Python paths that trigger full validation th
 
 #### Scenario: Precheck passes
 - **WHEN** the mapped test modules pass
-- **THEN** the full validation set still runs completely
+- **THEN** the full validation set still runs completely, locally apart from the commands left to required CI
 - **AND** evidence distinguishes precheck feedback from full validation results
 
 #### Scenario: Unmapped control-plane path

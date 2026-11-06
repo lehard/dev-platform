@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import shutil
 import subprocess
@@ -365,15 +366,16 @@ class ProtectedMergeRequestTests(unittest.TestCase):
         self.state = publication_state.RequiredCheckState
         self.pr = project_publish.PrRef(8, "https://example.invalid/pr/8")
 
-    def request(self, state, *, merge_exit: int = 0, stderr: str = "", merged: bool = True):
+    def request(self, state, *, merge_exit: int = 0, stderr: str = "", wait_error: SystemExit | None = None):
         """Run one merge request; return the recorded gh commands, the merge wait and the branch cleanup."""
         done = subprocess.CompletedProcess([], merge_exit, "", stderr)
         with mock.patch.object(self.publish, "required_check_state_for_ref", return_value=state) as checks, \
                 mock.patch.object(self.publish.subprocess, "run", return_value=done) as run, \
-                mock.patch.object(self.publish, "wait_for_pr_merged", return_value=merged) as wait, \
+                mock.patch.object(self.publish, "wait_for_merge_outcome", side_effect=wait_error) as wait, \
                 mock.patch.object(self.publish, "delete_remote_branch") as cleanup:
             try:
-                self.publish.request_protected_merge(Path("/unused"), {}, "agent/guard", self.pr, "origin", self.HEAD)
+                self.publish.request_protected_merge(Path("/unused"), {}, "agent/guard", self.pr, "origin", self.HEAD,
+                                                     timeout_seconds=3600.0)
             finally:
                 self.calls = [call.args[0] for call in run.call_args_list]
                 self.wait, self.cleanup = wait, cleanup
@@ -384,7 +386,7 @@ class ProtectedMergeRequestTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 self.request(self.state(kind))
                 self.assertEqual(self.calls, [self.MERGE])
-                self.wait.assert_called_once()
+                self.wait.assert_called_once_with(Path("/unused"), {}, self.pr, self.HEAD, timeout_seconds=3600.0)
                 self.cleanup.assert_called_once_with(Path("/unused"), "origin", "agent/guard")
 
     def test_no_required_checks_is_a_refusal_not_a_pass(self) -> None:
@@ -415,9 +417,9 @@ class ProtectedMergeRequestTests(unittest.TestCase):
         for name in ("wait_for_pr_checks", "CHECK_COMPLETION_TIMEOUT_SECONDS", "MERGE_FAILURE_CONFIRM_TIMEOUT_SECONDS"):
             self.assertFalse(hasattr(self.publish, name), name)
 
-    def test_armed_merge_not_confirmed_in_time_stays_resumable_without_cleanup(self) -> None:
-        with self.assertRaisesRegex(SystemExit, "Auto-merge is armed.*rerun finish"):
-            self.request(self.state("pending"), merged=False)
+    def test_a_stop_while_following_the_merge_keeps_the_branch(self) -> None:
+        with self.assertRaisesRegex(SystemExit, "platform-ci"):
+            self.request(self.state("pending"), wait_error=SystemExit("Required check failed: platform-ci"))
         self.assertEqual(self.calls, [self.MERGE])
         self.cleanup.assert_not_called()
 
@@ -437,10 +439,76 @@ class ProtectedMergeRequestTests(unittest.TestCase):
         with mock.patch.object(self.publish, "required_check_state_for_ref",
                                side_effect=lambda *_a: events.append("checks") or self.state("passed")), \
                 mock.patch.object(self.publish.subprocess, "run", side_effect=run), \
-                mock.patch.object(self.publish, "wait_for_pr_merged", return_value=True), \
+                mock.patch.object(self.publish, "wait_for_merge_outcome"), \
                 mock.patch.object(self.publish, "delete_remote_branch"):
-            self.publish.request_protected_merge(Path("/unused"), {}, "agent/guard", self.pr, "origin", self.HEAD, merge_guard=guard)
+            self.publish.request_protected_merge(Path("/unused"), {}, "agent/guard", self.pr, "origin", self.HEAD,
+                                                 timeout_seconds=3600.0, merge_guard=guard)
         self.assertEqual(events, ["checks", "guard-enter", "merge", "guard-exit"])
+
+
+class MergeOutcomeTests(unittest.TestCase):
+    """project_publish.wait_for_merge_outcome: MERGED returns, every other outcome is a named refusal."""
+
+    HEAD = "a" * 40
+    OPEN = {"state": "OPEN", "headRefOid": HEAD, "autoMergeRequest": {"enabledBy": "bot"}, "mergeStateStatus": "BLOCKED"}
+    MERGED = {**OPEN, "state": "MERGED", "autoMergeRequest": None, "mergeStateStatus": "UNKNOWN"}
+
+    def setUp(self) -> None:
+        import project_publish
+        import publication_state
+
+        self.publish = project_publish
+        self.state = publication_state.RequiredCheckState
+        self.pr = project_publish.PrRef(8, "https://example.invalid/pr/8")
+
+    def follow(self, snapshots: list, checks=None, *, clock=None) -> mock.Mock:
+        """Run the wait over scripted PR reads; return the sleep mock."""
+        reads = [subprocess.CompletedProcess([], 0, json.dumps(item), "") if isinstance(item, dict) else item for item in snapshots]
+        with mock.patch.object(self.publish, "run_github_with_retry", side_effect=reads), \
+                mock.patch.object(self.publish, "required_check_state_for_ref", return_value=checks or self.state("pending")), \
+                mock.patch.object(self.publish.time, "monotonic", side_effect=clock or (lambda: 0.0)), \
+                mock.patch.object(self.publish.time, "sleep") as pause:
+            self.publish.wait_for_merge_outcome(Path("/unused"), {}, self.pr, self.HEAD, timeout_seconds=3600.0)
+        return pause
+
+    def test_green_pr_is_followed_past_the_old_local_timer_to_merged(self) -> None:
+        pause = self.follow([self.OPEN, self.OPEN, self.MERGED], self.state("passed"),
+                            clock=iter([0.0, 700.0, 1400.0]).__next__)
+        self.assertEqual(pause.call_count, 2)
+
+    def test_failed_required_check_stops_naming_the_check(self) -> None:
+        with self.assertRaisesRegex(SystemExit, f"Required check failed for head {self.HEAD}: validate"):
+            self.follow([self.OPEN], self.state("failed", detail="validate"))
+
+    def test_the_configured_bound_stops_with_the_exact_command_to_continue(self) -> None:
+        with self.assertRaisesRegex(SystemExit, r"ci_completion_minutes \(60 min\).*python3 scripts/finish_task\.py --cleanup"):
+            self.follow([self.OPEN], clock=iter([0.0, 3600.0]).__next__)
+
+    def test_outcomes_that_can_never_merge_stop_at_once(self) -> None:
+        for snapshot, message in (
+            ({**self.OPEN, "state": "CLOSED"}, "is CLOSED, not merged"),
+            ({**self.OPEN, "mergeStateStatus": "BEHIND"}, "BEHIND against its base.*--reconcile"),
+            ({**self.OPEN, "mergeStateStatus": "DIRTY"}, "DIRTY against its base"),
+            ({**self.OPEN, "autoMergeRequest": None}, "no longer has auto-merge armed"),
+            ({**self.OPEN, "headRefOid": "b" * 40}, "not the validated head"),
+        ):
+            with self.subTest(message=message), self.assertRaisesRegex(SystemExit, message):
+                self.follow([snapshot])
+
+    def test_unusable_observations_stop_with_the_command_to_continue(self) -> None:
+        unreadable = subprocess.CompletedProcess([], 1, "", "HTTP 502")
+        with self.assertRaisesRegex(SystemExit, "HTTP 502.*finish_task.py --cleanup"):
+            self.follow([unreadable])
+        with self.assertRaisesRegex(SystemExit, "not JSON.*finish_task.py --cleanup"):
+            self.follow([subprocess.CompletedProcess([], 0, "<html>", "")])
+        with self.assertRaisesRegex(SystemExit, r"state is unknown \(transport\).*finish_task.py --cleanup"):
+            self.follow([self.OPEN], self.state("unknown", detail="gh failed", cause="transport"))
+
+    def test_following_drops_the_remote_branch_only_after_merged(self) -> None:
+        with mock.patch.object(self.publish, "wait_for_merge_outcome", side_effect=SystemExit("stop")), \
+                mock.patch.object(self.publish, "delete_remote_branch") as cleanup, self.assertRaises(SystemExit):
+            self.publish.follow_armed_merge(Path("/unused"), {}, "agent/x", self.pr, "origin", self.HEAD, timeout_seconds=1.0)
+        cleanup.assert_not_called()
 
 
 class BoundedTestDeadlineHelperTests(unittest.TestCase):

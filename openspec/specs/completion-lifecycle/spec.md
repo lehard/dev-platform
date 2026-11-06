@@ -334,17 +334,42 @@ Managed completion evidence SHALL NOT become stale solely because HEAD changed t
 - **THEN** evidence reuse is refused
 - **AND** the task follows the required revalidation path.
 
-### Requirement: Armed exact-head publication resumes through status before republishing
+### Requirement: Completion follows armed exact-head publication to its outcome
 
-After the platform has proven an existing PR for the exact task head and a durable auto-merge/remote merge intent, a subsequent completion invocation SHALL first observe and reconcile that existing publication state. It SHALL NOT rerun first-publication push/create logic or expensive validation solely because the prior bounded local wait ended before GitHub reported `MERGED`.
+Completion SHALL follow a proven exact-head PR with durable auto-merge intent until GitHub reports `MERGED`, whether it armed the merge or found it armed. It SHALL NOT rerun push/create logic or expensive validation for an armed PR, and a pending or green PR SHALL NOT end it with a nonterminal exit. The only bound on the wait SHALL be the configured `ci_completion_minutes`, which has no default.
 
-#### Scenario: Auto-merge is armed but merge is still pending
+#### Scenario: Auto-merge is armed and required checks pass
 
 - **GIVEN** an exact-head PR exists and auto-merge intent is durably verified
 - **AND** required checks or GitHub merge processing are still pending
-- **WHEN** local bounded waiting ends or completion is invoked again
-- **THEN** the platform reports a resumable nonterminal state with an actionable status path
-- **AND** does not repeat full validation or republish the same head solely because merge is not yet terminal.
+- **WHEN** completion publishes the head or is invoked again
+- **THEN** it waits until the PR is `MERGED` and reconciles local state in the same invocation
+- **AND** does not repeat validation or republish the same head.
+
+#### Scenario: A required check fails while completion follows the PR
+
+- **GIVEN** completion follows an armed exact-head PR
+- **WHEN** a required check fails
+- **THEN** completion stops at once with a non-zero exit naming the failed check
+- **AND** local main is unchanged.
+
+#### Scenario: The PR can no longer merge
+
+- **GIVEN** completion follows an armed exact-head PR
+- **WHEN** the PR is closed, its head changes, it falls behind or conflicts with its base, or auto-merge is disarmed
+- **THEN** completion stops at once with a non-zero exit naming that cause.
+
+#### Scenario: The configured CI completion time passes
+
+- **GIVEN** completion follows an armed exact-head PR
+- **WHEN** `ci_completion_minutes` pass without an outcome
+- **THEN** completion stops with a non-zero exit and prints the exact command that continues it.
+
+#### Scenario: The CI completion time is not configured
+
+- **GIVEN** a GitHub project with `publish_mode=pr` and `pr_merge_mode=auto`
+- **WHEN** `ci_completion_minutes` is missing or is not a positive integer
+- **THEN** completion stops before validation, naming the key and the line to add.
 
 #### Scenario: Existing remote intent materially changed
 
@@ -354,17 +379,17 @@ After the platform has proven an existing PR for the exact task head and a durab
 - **THEN** the cheap resume path fails closed
 - **AND** routes to explicit reconciliation/revalidation appropriate to the observed change.
 
-### Requirement: Expected nonterminal publication states are bounded diagnostics
+### Requirement: Stopped publication outcomes are bounded diagnostics
 
-Expected resumable states in the protected-main completion flow SHALL be surfaced as structured actionable outcomes rather than uncaught Python subprocess tracebacks. This classification SHALL NOT convert an actual publication failure into success.
+A stop in the protected-main completion flow SHALL be surfaced as a structured actionable outcome rather than an uncaught Python subprocess traceback. This classification SHALL NOT convert an actual publication failure into success.
 
-#### Scenario: Project publish reports accepted auto-merge without terminal merge
+#### Scenario: Project publish stops after accepted auto-merge
 
 - **GIVEN** GitHub accepted the exact-head auto-merge intent
-- **BUT** the local bounded wait ended before the PR reached `MERGED`
-- **WHEN** the finish wrapper receives that nonterminal outcome
-- **THEN** it reports the existing PR/status and next action without a raw traceback
-- **AND** preserves nonterminal state so the caller does not mistake it for completed delivery.
+- **BUT** following the PR stopped before it reached `MERGED`
+- **WHEN** the finish wrapper receives that outcome
+- **THEN** it reports the cause and the next action without a raw traceback
+- **AND** exits non-zero so the caller does not mistake it for completed delivery.
 
 ### Requirement: Task checklist counting matches upstream OpenSpec markers
 
