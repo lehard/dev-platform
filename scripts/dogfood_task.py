@@ -158,10 +158,10 @@ def start(root: Path, args: argparse.Namespace) -> int:
         shutil.move(str(change_path), str(staged_parent / args.change))
     try:
         # start_task runs the doctor before it creates anything.
-        run(
-            ["python3", "scripts/start_task.py", args.slug, "--task", args.task, "--scope", args.scope],
-            root,
-        )
+        command = ["python3", "scripts/start_task.py", args.slug, "--task", args.task, "--scope", args.scope]
+        if args.acknowledge_overlap:
+            command += ["--acknowledge-overlap", args.acknowledge_overlap]
+        run(command, root)
         if change_path is not None and staged_parent is not None:
             destination = worktree_path(root, args.slug) / "openspec" / "changes" / args.change
             if destination.exists():
@@ -371,6 +371,7 @@ def main() -> int:
     start_parser.add_argument("slug")
     start_parser.add_argument("--task", required=True)
     start_parser.add_argument("--scope", default="")
+    start_parser.add_argument("--acknowledge-overlap", metavar="REASON", help="Record this reason for a hard overlap verified safe and admit the task.")
     start_parser.add_argument("--change", help="Transfer this already-imported managed OpenSpec package into the new worktree.")
     start_parser.set_defaults(func=lambda args: start(integration_root(Path.cwd()), args))
     status_parser = sub.add_parser("status", help="Read the authoritative publication state without mutation.")

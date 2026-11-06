@@ -75,7 +75,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
 
     def test_start_transfers_only_validated_import_into_isolated_worktree(self) -> None:
         source = self.add_managed_change()
-        args = dogfood_task.argparse.Namespace(slug="central-task", task="Backlog #2", scope="scripts", change="central-task")
+        args = dogfood_task.argparse.Namespace(slug="central-task", task="Backlog #2", scope="scripts", change="central-task", acknowledge_overlap=None)
 
         def fake_run(command: list[str], root: Path) -> None:
             if command[1:] == ["scripts/start_task.py", "central-task", "--task", "Backlog #2", "--scope", "scripts"]:
@@ -93,7 +93,7 @@ class CentralDogfoodLifecycleTests(unittest.TestCase):
     def test_start_refuses_unrelated_integration_mutation(self) -> None:
         self.add_managed_change()
         (self.root / "foreign.txt").write_text("do not move\n", encoding="utf-8")
-        args = dogfood_task.argparse.Namespace(slug="central-task", task="Backlog #2", scope="scripts", change="central-task")
+        args = dogfood_task.argparse.Namespace(slug="central-task", task="Backlog #2", scope="scripts", change="central-task", acknowledge_overlap=None)
         with mock.patch.object(dogfood_task, "run") as run:
             with self.assertRaisesRegex(SystemExit, "dirty outside managed change"):
                 dogfood_task.start(self.root, args)

@@ -855,3 +855,48 @@ class CheapPublicationResumeTests(unittest.TestCase):
 
 
 if __name__ == "__main__": unittest.main()
+
+
+class StartOverlapExitTests(unittest.TestCase):
+    """A refused start removes its worktree, so its one exit must not need that worktree."""
+
+    WAIT = {"decision": "WAIT", "conflicts": [["abc", "Sibling", "x.py"], ["abc", "Sibling", "y.py"]]}
+
+    def start(self, decisions: list[dict], *, reason: str | None, board_exit: int = 0) -> tuple[mock.Mock, mock.Mock, str]:
+        import start_task
+
+        started = start_task.StartedTask(profile="multi-agent", branch="agent/t", task_root=Path("/w"), board_id="me")
+        board = mock.Mock(return_value=subprocess.CompletedProcess([], board_exit, "", "board refused"))
+        cleanup = mock.Mock()
+        refusal = ""
+        with (
+            mock.patch.object(start_task, "admit_task", side_effect=decisions),
+            mock.patch.object(start_task, "cleanup_started_task", cleanup),
+            mock.patch.object(start_task.subprocess, "run", board),
+        ):
+            try:
+                start_task.admit_or_remove(Path("/r"), started, "x.py y.py", reason)
+            except RuntimeError as exc:
+                refusal = str(exc)
+        return board, cleanup, refusal
+
+    def test_wait_names_the_rerun_and_not_the_worktree_bound_acknowledge(self) -> None:
+        _calls, cleanup, refusal = self.start([self.WAIT], reason=None)
+        self.assertIn("--acknowledge-overlap", refusal)
+        self.assertNotIn("agent_board.py acknowledge", refusal)
+        cleanup.assert_called_once()
+
+    def test_acknowledged_overlap_is_recorded_per_task_and_admitted(self) -> None:
+        board, cleanup, refusal = self.start([self.WAIT, {"decision": "RUN", "claims": []}], reason="verified safe")
+        self.assertEqual(refusal, "")
+        board.assert_called_once()
+        command = board.call_args.args[0]
+        self.assertEqual(command[command.index("--with-id") + 1], "abc")
+        self.assertEqual([command[i + 1] for i, value in enumerate(command) if value == "--path"], ["x.py", "y.py"])
+        self.assertEqual(command[command.index("--reason") + 1], "verified safe")
+        cleanup.assert_not_called()
+
+    def test_failed_acknowledgment_removes_the_task_and_says_why(self) -> None:
+        _calls, cleanup, refusal = self.start([self.WAIT], reason="verified safe", board_exit=1)
+        self.assertIn("overlap acknowledgment failed: board refused", refusal)
+        cleanup.assert_called_once()
