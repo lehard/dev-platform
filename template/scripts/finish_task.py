@@ -865,7 +865,7 @@ def main() -> int:
     parser.add_argument("--cleanup", action="store_true")
     parser.add_argument("--title")
     parser.add_argument("--body")
-    parser.add_argument("--integration-lock-timeout", type=float, default=60.0, help="Seconds to wait for the local integration lock; it does not bound the wait for the PR to merge.")
+    parser.add_argument("--integration-lock-timeout", metavar="SECONDS", type=float, default=60.0, help="Seconds to wait for the local integration lock; it does not bound the wait for the PR to merge.")
     parser.add_argument("--status", action="store_true", help="Read-only publication status; makes no mutations.")
     parser.add_argument("--reconcile", action="store_true", help="Safely merge authoritative main into the current quick or managed task before validation.")
     parser.add_argument("--json", action="store_true", help="Emit --status output as JSON.")
