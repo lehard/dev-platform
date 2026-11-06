@@ -68,7 +68,31 @@ def admit_task(root: Path, started: StartedTask, scope: str | None = None) -> di
     return payload
 
 
-def admission_reason(decision: dict[str, object]) -> str:
+ACKNOWLEDGE_ON_BOARD = (
+    "record `agent_board.py acknowledge --with-id <id> --path <path> --reason <bounded reason>` "
+    "for the conflicting id/path(s) above, then retry"
+)
+# A refused start removes its worktree, which `agent_board.py acknowledge` needs: the rerun acknowledges instead.
+ACKNOWLEDGE_ON_RESTART = "rerun this start with --acknowledge-overlap <bounded reason>"
+
+
+def acknowledge_conflicts(root: Path, started: StartedTask, decision: dict[str, object], reason: str) -> None:
+    """Record the operator's verified-safe decision for exactly the conflicts this admission reported."""
+    paths_by_id: dict[str, list[str]] = {}
+    for other_id, _task, path in decision["conflicts"]:
+        paths_by_id.setdefault(other_id, []).append(path)
+    for other_id, paths in paths_by_id.items():
+        command = ["python3", str(root / "scripts" / "agent_board.py"), "acknowledge", "--branch", started.branch,
+                   "--worktree", str(started.task_root), "--with-id", other_id, "--reason", reason]
+        for path in paths:
+            command += ["--path", path]
+        result = subprocess.run(command, cwd=root, text=True, capture_output=True, check=False)
+        if result.returncode:
+            detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
+            raise RuntimeError(f"overlap acknowledgment failed: {detail}")
+
+
+def admission_reason(decision: dict[str, object], safe_exit: str = ACKNOWLEDGE_ON_BOARD) -> str:
     conflicts = decision.get("conflicts", [])
     if not isinstance(conflicts, list) or not conflicts:
         return "hard overlap with another active task"
@@ -81,13 +105,11 @@ def admission_reason(decision: dict[str, object]) -> str:
     return (
         "hard overlap with "
         + "; ".join(rendered)
-        + ". If the overlap is verified safe, record `agent_board.py acknowledge --with-id <id> --path <path> "
-        "--reason <bounded reason>` for the conflicting id/path(s) above, then retry; otherwise wait for the "
-        "sibling task to finish."
+        + f". If the overlap is verified safe, {safe_exit}; otherwise wait for the sibling task to finish."
     )
 
 
-def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True, branch_name: str | None = None, base_ref: str | None = None) -> StartedTask:
+def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admission: bool = True, branch_name: str | None = None, base_ref: str | None = None, acknowledge_overlap: str | None = None) -> StartedTask:
     root = root.resolve()
     preflight(root)
     config = read_platform_config(root)
@@ -123,12 +145,23 @@ def start_task(root: Path, slug_value: str, task: str, scope: str = "", *, admis
         started: StartedWorktree = create_worktree(root, slug_value, task, scope, sync=False, **({"base": base_ref} if base_ref else {}), **({"branch_name": branch_name} if branch_name else {}))
         task_started = StartedTask(profile=prof, branch=started.branch, task_root=started.worktree, board_id=started.board_id)
         if admission:
-            decision = admit_task(root, task_started, scope)
-            if decision["decision"] == "WAIT":
-                cleanup_started_task(root, task_started)
-                raise TaskAdmissionWait(admission_reason(decision))
+            admit_or_remove(root, task_started, scope, acknowledge_overlap)
         return task_started
     raise RuntimeError(f"Unknown workflow_profile: {prof}")
+
+
+def admit_or_remove(root: Path, started: StartedTask, scope: str, acknowledge_overlap: str | None) -> None:
+    """Admit a just-created task, acknowledging its overlap when asked; a task that stays unadmitted is removed."""
+    try:
+        decision = admit_task(root, started, scope)
+        if decision["decision"] == "WAIT" and acknowledge_overlap:
+            acknowledge_conflicts(root, started, decision, acknowledge_overlap)
+            decision = admit_task(root, started, scope)
+        if decision["decision"] == "WAIT":
+            raise TaskAdmissionWait(admission_reason(decision, ACKNOWLEDGE_ON_RESTART))
+    except RuntimeError:
+        cleanup_started_task(root, started)
+        raise
 
 
 def cleanup_started_task(root: Path, started: StartedTask) -> None:
@@ -151,9 +184,10 @@ def main() -> int:
     parser.add_argument("slug", type=slug)
     parser.add_argument("--task", required=True)
     parser.add_argument("--scope", default="")
+    parser.add_argument("--acknowledge-overlap", metavar="REASON", help="Record this reason for a hard overlap verified safe and admit the task.")
     args = parser.parse_args()
     try:
-        started = start_task(current_worktree_root(), args.slug, args.task, args.scope)
+        started = start_task(current_worktree_root(), args.slug, args.task, args.scope, acknowledge_overlap=args.acknowledge_overlap)
     except (RuntimeError, subprocess.CalledProcessError) as exc:
         raise SystemExit(str(exc)) from exc
     if started.profile == "light":

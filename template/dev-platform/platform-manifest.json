@@ -130,7 +130,7 @@
     "scripts/select_checks.py": "6500b6eca9ea2bc39d44fe13456d8b7492f8955a0de069d6e6a5d0657da50b67",
     "scripts/shared_workspace.py": "0745d4ba9478f9b949c75b7ab4cd7d16be84cbff857c19cfc5b37ac3ce645593",
     "scripts/start_managed_task.py": "333ca0e24dc4bca415e4cdbd9ccd8106c55836d349a0f70f43db878de8e83f88",
-    "scripts/start_task.py": "b3748366c62b5a57bab38f42b7116ef9234a63b591a065c847056bb4a7f13e8f",
+    "scripts/start_task.py": "3c6157f7a2d47b56699292ec46655350743c66607fd21a35e934b2b3e718be95",
     "scripts/start_tier_routing.py": "d5a272beb0d339eed0770dfd7674e405c0d761fbcce16c09d868ab5f6de54f65",
     "scripts/start_worktree.py": "21056b38dfa4f60f0ffb6aac3910468ae4a690a047fc9e2b4f48e789b312d96a",
     "scripts/task_content_identity.py": "b90ff2f0df76e9c120ab0c3d1946552dc397ad919c74a271d918187048f157c3",
