@@ -10,6 +10,7 @@ from _platform_common import (
     TaskFreshnessError,
     current_worktree_root,
     fetch_main,
+    generated_files,
     github_cli_env,
     harness_mode,
     observe_task_base_freshness,
@@ -247,6 +248,20 @@ def _conflict_paths(root: Path) -> list[str]:
     return sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
 
 
+def _conflict_steps(root: Path, conflicts: list[str]) -> str:
+    """Every step from a stopped merge to a reconciled task, in order; a generated file is regenerated, not merged by hand."""
+    declared = generated_files(root, "HEAD")
+    staged = sorted({*conflicts, *(item.path for item in declared)})
+    steps = [
+        "edit the conflicting files",
+        *(" ".join(item.regenerate).replace("{tree}", ".") for item in declared),
+        "git add " + " ".join(staged),
+        "git commit --no-edit",
+        RECONCILE_COMMAND,
+    ]
+    return " Then: " + "; ".join(f"{number}) {step}" for number, step in enumerate(steps, start=1)) + "."
+
+
 def reconcile(root: Path | None = None) -> Freshness:
     """Incorporate main by normal merge only; never reset, stash, or rebase."""
     root = (root or current_worktree_root()).resolve()
@@ -261,7 +276,7 @@ def reconcile(root: Path | None = None) -> Freshness:
         raise SystemExit("Task reconciliation requires a checked-out feature branch.")
     if run_git(["rev-parse", "-q", "--verify", "MERGE_HEAD"], cwd=root, check=False).returncode == 0:
         conflicts = _conflict_paths(root)
-        suffix = (" Conflicting paths: " + ", ".join(conflicts) + ".") if conflicts else ""
+        suffix = (" Conflicting paths: " + ", ".join(conflicts) + "." + _conflict_steps(root, conflicts)) if conflicts else ""
         raise SystemExit("Task reconciliation has an unfinished merge; resolve it or explicitly abort it before rerunning reconcile." + suffix)
     if not clean(root):
         raise SystemExit("Task reconciliation blocked: the task worktree is dirty. Commit or resolve it explicitly; automatic stash/reset is forbidden.")
@@ -297,8 +312,8 @@ def reconcile(root: Path | None = None) -> Freshness:
         conflicts = _conflict_paths(root)
         if conflicts:
             raise SystemExit(
-                "Task reconciliation stopped at merge conflicts. Resolve explicitly, then commit the merge; conflicting paths: "
-                + ", ".join(conflicts)
+                "Task reconciliation stopped at merge conflicts; conflicting paths: " + ", ".join(conflicts) + "."
+                + _conflict_steps(root, conflicts)
             )
         detail = result.stderr.strip() or result.stdout.strip() or f"exit {result.returncode}"
         raise SystemExit("Task reconciliation failed without rewriting task history: " + detail)
