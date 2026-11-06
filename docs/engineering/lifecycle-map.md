@@ -32,7 +32,7 @@ The platform and every project take the same path. No project has a publication 
 
 A quick task runs `dogfood_task.py start --task` → `finish` here (`start_task.py` in a project) and skips stages 1–3 and 5.
 
-Publication refuses when no required check gates the merge, and it never falls back to another merge form. Independent review is optional and runs in stage 7 only with `[independent_review] enabled = true`; `scripts/independent_review.py` runs it by hand.
+Publication refuses when no required check gates the merge, and it never falls back to another merge form. With `[independent_review] enabled = true`, independent review runs in stage 7 for a change that touches the protected surface and for no other; `scripts/independent_review.py` runs it by hand.
 
 ## Where state lives
 

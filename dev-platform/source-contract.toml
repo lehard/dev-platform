@@ -29,6 +29,12 @@ worktrees = true
 agent_board = true
 platform_git_lifecycle = true
 
+[independent_review]
+# Finish reviews every change that touches the protected surface (DEC-0010). A quick
+# task has no route to take a provider from, so it is named here.
+enabled = true
+provider = "claude"
+
 [paths]
 worktrees = ".claude/worktrees"
 agent_board = ".claude/agents-board.json"

@@ -64,9 +64,10 @@ min_bytes = 8000
 enabled = false
 
 [independent_review]
-# Opt in to require independent review for managed changes. When enabled,
-# archive launches a fresh read-only reviewer through the task route's provider
-# (or an explicit `provider = "codex"|"claude"`) and finish re-validates it.
+# Opt in to independent review of risky changes: finish launches a fresh read-only
+# reviewer for a quick or managed task whose diff touches a protected path of
+# dev-platform/protected-surface.toml, and for no other task. A managed task can
+# take the provider from its route; a quick task needs `provider = "codex"|"claude"`.
 enabled = false
 
 {% if operator_config_path %}

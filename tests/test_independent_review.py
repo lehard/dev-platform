@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import re
@@ -90,6 +92,152 @@ class FakeLauncher:
         return runner.LaunchResult(self.returncode, stdout)
 
 
+class RiskyChangeTests(unittest.TestCase):
+    """The risk rule, the required predicate and a quick task's review, against a real repository."""
+
+    def setUp(self) -> None:
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name).resolve()
+        git(self.root, "init", "-q", "-b", "main")
+        git(self.root, "config", "user.email", "review@example.test")
+        git(self.root, "config", "user.name", "Review Test")
+        write_platform_config(self.root, platform_version="customer", extra='[independent_review]\nenabled = true\nprovider = "codex"\n')
+        (self.root / "dev-platform").mkdir()
+        (self.root / "dev-platform/checks.toml").write_text('[settings]\nfull_commands = ["true"]\n\n[[generated_files]]\npath = "scripts/made.py"\nregenerate = ["true", "{tree}"]\ncheck = ["true"]\n', encoding="utf-8")
+        self.surface = self.root / "dev-platform/protected-surface.toml"
+        self.surface.write_text('[[protected]]\npath = "scripts/gate*.py"\n\n[[protected]]\npath = "scripts/made.py"\n', encoding="utf-8")
+        (self.root / "scripts").mkdir()
+        (self.root / "scripts/gate.py").write_text("base\n", encoding="utf-8")
+        (self.root / "other.py").write_text("base\n", encoding="utf-8")
+        self.commit("base")
+        git(self.root, "update-ref", "refs/remotes/origin/main", "main")
+        git(self.root, "checkout", "-qb", "feature")
+        self.which = mock.patch.object(runner.shutil, "which", side_effect=lambda name: f"/fake/bin/{name}")
+        self.which.start()
+        self.addCleanup(self.which.stop)
+
+    def commit(self, message: str) -> None:
+        git(self.root, "add", "-A")
+        git(self.root, "commit", "-qm", message)
+
+    def edit(self, path: str, text: str = "changed\n") -> None:
+        target = self.root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+        self.commit(f"edit {path}")
+
+    def quick(self) -> Path:
+        from task_content_identity import ensure_quick_review_directory
+
+        return ensure_quick_review_directory(self.root)
+
+    def finish_review(self, launcher: FakeLauncher) -> str:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            review.ensure_review_evidence(self.root, self.quick(), launcher=launcher)
+        return output.getvalue()
+
+    def test_a_protected_path_is_risky_and_any_other_is_not(self) -> None:
+        self.edit("other.py")
+        self.assertEqual(review.risky_paths(self.root), [])
+        self.assertFalse(review.review_is_required(self.root, self.root))
+        self.edit("scripts/gate_two.py")
+        self.assertEqual(review.risky_paths(self.root), ["scripts/gate_two.py"])
+        self.assertTrue(review.review_is_required(self.root, self.root))
+
+    def test_a_declared_generated_file_alone_is_not_risky(self) -> None:
+        self.edit("scripts/made.py")
+        self.assertEqual(review.risky_paths(self.root), [])
+
+    def test_a_disabled_repository_requires_nothing_and_reads_no_surface(self) -> None:
+        write_platform_config(self.root, platform_version="customer", extra="")
+        self.surface.unlink()
+        self.commit("drop surface")
+        self.assertFalse(review.review_is_required(self.root, self.root))
+
+    def test_source_layout_compares_rendered_paths_only_under_template(self) -> None:
+        (self.root / "template/dev-platform").mkdir(parents=True)
+        git(self.root, "mv", "dev-platform/protected-surface.toml", "template/dev-platform/protected-surface.toml")
+        self.commit("source layout")
+        self.assertEqual(review.risky_paths(self.root), [])
+        self.edit("template/scripts/gate.py.jinja")
+        self.assertEqual(review.risky_paths(self.root), ["template/scripts/gate.py.jinja"])
+
+    def test_a_missing_ambiguous_or_empty_surface_is_an_error_and_never_non_risky(self) -> None:
+        self.surface.write_text("hotfixable = []\n", encoding="utf-8")
+        with self.assertRaisesRegex(review.IndependentReviewError, "no valid"):
+            review.risky_paths(self.root)
+        (self.root / "template/dev-platform").mkdir(parents=True)
+        (self.root / "template/dev-platform/protected-surface.toml").write_text("", encoding="utf-8")
+        with self.assertRaisesRegex(review.IndependentReviewError, "found 2"):
+            review.risky_paths(self.root)
+        self.surface.unlink()
+        (self.root / "template/dev-platform/protected-surface.toml").unlink()
+        with self.assertRaisesRegex(review.IndependentReviewError, "found 0"):
+            review.risky_paths(self.root)
+        with self.assertRaises(SystemExit) as stopped:
+            review.ensure_review_evidence(self.root, self.quick(), launcher=FakeLauncher())
+        self.assertIn("could not start", str(stopped.exception))
+
+    def test_a_non_risky_quick_task_launches_nothing_and_says_so(self) -> None:
+        self.edit("other.py")
+        launcher = FakeLauncher()
+        self.assertIn("no reviewer launched", self.finish_review(launcher))
+        self.assertEqual(launcher.calls, [])
+
+    def test_a_clean_risky_quick_task_passes_and_a_rerun_launches_nothing(self) -> None:
+        self.edit("scripts/gate.py")
+        launcher = FakeLauncher()
+        self.assertIn("1 protected path(s) changed: scripts/gate.py", self.finish_review(launcher))
+        launched = len(launcher.calls)
+        self.assertGreater(launched, 0)
+        request = json.loads(review.request_path(self.quick()).read_text(encoding="utf-8"))
+        self.assertEqual(request["change"], review.QUICK_TARGET)
+        self.assertIn("a quick task with no OpenSpec change", runner.build_prompt(request, "spec-fidelity", Path("/tmp/d")))
+        self.assertEqual(git(self.root, "status", "--porcelain"), "")
+        self.finish_review(launcher)
+        self.assertEqual(len(launcher.calls), launched)
+
+    def test_a_changed_quick_task_gets_a_new_review(self) -> None:
+        self.edit("scripts/gate.py")
+        launcher = FakeLauncher()
+        self.finish_review(launcher)
+        launched = len(launcher.calls)
+        self.edit("scripts/gate.py", "changed again\n")
+        self.finish_review(launcher)
+        self.assertGreater(len(launcher.calls), launched)
+
+    def test_a_material_finding_stops_with_the_finding_and_next_commands(self) -> None:
+        self.edit("scripts/gate.py")
+        with self.assertRaises(SystemExit) as stopped:
+            self.finish_review(FakeLauncher([material("bad-gate")]))
+        message = str(stopped.exception)
+        self.assertIn("material finding spec-fidelity:bad-gate", message)
+        self.assertIn("independent_review.py dispose quick-task", message)
+        self.assertIn("independent_review.py run quick-task", message)
+        report = review.report_path(self.quick(), "spec-fidelity")
+        self.assertTrue(report.is_file())
+        review.dispose(self.root, self.quick(), perspective="spec-fidelity", finding="bad-gate", status="rejected", rationale="does not apply")
+        review.dispose(self.root, self.quick(), perspective="engineering-quality", finding="bad-gate", status="rejected", rationale="does not apply")
+        self.finish_review(FakeLauncher())
+
+    def test_a_reviewer_that_cannot_run_stops_naming_the_cause(self) -> None:
+        self.edit("scripts/gate.py")
+        with self.assertRaises(SystemExit) as stopped:
+            self.finish_review(FakeLauncher(returncode=3))
+        self.assertIn("unavailable", str(stopped.exception))
+
+    def test_status_shows_a_required_quick_review_and_an_undecidable_one(self) -> None:
+        from task_content_identity import quick_review_path
+
+        self.edit("scripts/gate.py")
+        state = review.review_state(self.root, quick_review_path(self.root))
+        self.assertEqual((state["state"], state["next"]), ("missing", "python3 scripts/independent_review.py run quick-task"))
+        self.surface.unlink()
+        self.assertEqual(review.review_state(self.root, quick_review_path(self.root))["state"], "unknown")
+
+
 class IndependentReviewTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
@@ -101,6 +249,7 @@ class IndependentReviewTests(unittest.TestCase):
         self.write_config()
         (self.root / "dev-platform").mkdir()
         (self.root / "dev-platform/checks.toml").write_text("# no generated files\n", encoding="utf-8")
+        (self.root / "dev-platform/protected-surface.toml").write_text('[[protected]]\npath = "*.py"\ncategory = "x"\n', encoding="utf-8")
         git(self.root, "add", "-A")
         git(self.root, "commit", "-qm", "base")
         git(self.root, "update-ref", "refs/remotes/origin/main", "main")
@@ -735,6 +884,8 @@ class IndependentReviewTests(unittest.TestCase):
                 runner._kill_process_group(Reviewer(OSError("EIO")))
 
     def test_main_merge_touching_task_path_is_not_accepted(self) -> None:
+        (self.root / "second.py").write_text("value = 2\n", encoding="utf-8")
+        self.commit("second risky path stays in the task diff")
         self.run_review()
         self.commit("review evidence")
         git(self.root, "checkout", "-q", "main")
@@ -859,15 +1010,6 @@ class IndependentReviewTests(unittest.TestCase):
             finish,
         )
 
-    def test_quick_task_without_managed_provenance_is_never_reviewed(self) -> None:
-        (self.change / ".managed-task.json").unlink()
-        self.commit("quick task")
-        self.assertFalse(review.review_is_required(self.root, self.change))
-        self.assertEqual(self.state()["state"], "not-required")
-        launcher = FakeLauncher()
-        with mock.patch.object(runner, "subprocess_launcher", launcher):
-            review.ensure_review_evidence(self.root, self.change)
-        self.assertEqual(launcher.calls, [])
 
     def test_portable_required_stage_runs_when_optional_review_is_disabled(self) -> None:
         self.write_config('provider = "codex"\n', enabled="false")

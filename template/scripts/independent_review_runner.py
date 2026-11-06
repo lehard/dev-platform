@@ -409,10 +409,11 @@ def build_prompt(request: dict[str, Any], perspective: str, diff_path: Path) -> 
     candidate = request["candidate"]
     content = request.get("task_content") or {}
     paths = "\n".join(f"- {path}" for path in inputs.get("paths", [])) or "- (none)"
+    subject = "a quick task with no OpenSpec change" if request.get("change") == review.QUICK_TARGET else f"OpenSpec change {request.get('change')}"
     excluded = request.get("excluded_lifecycle_paths")
     lifecycle = "\n".join(f"- {path}" for path in excluded) if isinstance(excluded, list) and excluded else "- (none)"
     return (
-        f"You are an independent {perspective} reviewer for OpenSpec change {request.get('change')}.\n"
+        f"You are an independent {perspective} reviewer for {subject}.\n"
         "You are read-only: do not modify files, run commands that change state, publish, archive, or record completion.\n"
         f"Objective: {inputs['objective']}\n\n"
         f"Candidate: base {candidate['base_ref']} ({candidate['base_head']}), head {candidate['candidate_head']}, "
