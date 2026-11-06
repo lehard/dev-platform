@@ -3,36 +3,30 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "1c75df6368359348e78a88087810024eff6322f1",
-    "diff_sha256": "ef7f8ae0af91987acc7ccbbe66bec88164088953ff00d543bf71f40dcfcc7f79"
+    "candidate_head": "795e2ee7e0840d5aabc43bf92ac3d4ae3e4bcfe3",
+    "diff_sha256": "63e478283ed7a0459e2838ce721fca40911a865819753a8130b8e61e54152cac"
   },
-  "completed_at": "2026-11-06T02:01:53+00:00",
+  "completed_at": "2026-11-06T02:13:13+00:00",
   "findings": [
     {
-      "evidence": "template/scripts/lifecycle_workers.py: `ENVIRONMENT_RELEASE = RELEASED + \": environment: \"`; `is_environment_release` tests `outcome.startswith(...)`. The posted body is `result_body(job, worker, cause)` with no separate class field. design.md, 'Environment class': \"The `released` result records `class: environment` and the condition.\"",
-      "id": "release-class-encoding-differs-from-design",
+      "evidence": "design.md says \"`EnvironmentFailure(WorkerError)` carries a condition id from the registry, and only a registered condition raises it\". In template/scripts/lifecycle_workers.py, `EnvironmentFailure.__init__(self, condition, message)` stores any string. worker_preflight.CONDITION_IDS is not consulted. Call sites such as `PostMergeEnvironmentError(\"process-tool\", ...)` and `@environment_condition(\"github-credential\")` use correct ids only by convention. A typo, or a future caller passing an unregistered id, would silently get free-of-charge release treatment.",
+      "id": "environment-failure-unregistered-condition",
       "severity": "advisory",
-      "summary": "design.md says the `released` result records `class: environment` and the condition as fields. The candidate instead encodes the class as an outcome-string prefix, `released: environment: <condition>: ...`. Counting, the exit code and the spec behave as required, so this is a design/implementation wording mismatch only."
-    },
-    {
-      "evidence": "tests/test_worker_preflight.py `test_environment_bound_is_an_operational_escalation` asserts only `gate.operational_escalation(red)`. The `red_gate` evidence written in lifecycle_workers.py carries `cause`, `releases` and `last`, and there is no resume or overview test. The diff I read contains no change to `template/scripts/lifecycle_overview.py`.",
-      "id": "resume-after-environment-bound-untested",
-      "severity": "advisory",
-      "summary": "The spec scenario 'Bound reached' also requires that `resume` offers the job again with its attempts unchanged. The added tests check only that `operational_escalation` recognizes the new cause. They do not exercise `resume` or `reoffer_plan` for an environment-bound block, and they do not exercise the overview report that names the condition. `lifecycle_overview.py` is listed in the proposal's Impact but does not appear in the diff."
+      "summary": "The design says only a registered condition raises EnvironmentFailure, but the constructor does not check that rule. This weakens the guarantee that any other failure stays an ordinary failed run."
     }
   ],
-  "launched_at": "2026-11-06T02:01:34+00:00",
-  "output_sha256": "69c2b93cb29d0afe078be363ca6f36a580095e3cd75b967f15881c4fc62488a8",
+  "launched_at": "2026-11-06T02:12:57+00:00",
+  "output_sha256": "a82b18e6ef6bb79228a54674f24085e43bf86ab13d0e27ed7d6ef51d95dedb30",
   "perspective": "spec-fidelity",
-  "request_id": "124d4a05-a287-4fff-b47d-e718a3c75fa6",
+  "request_id": "b3b80264-45f6-4832-851f-ebd830ee9760",
   "reviewer": {
-    "context_id": "87f3458d-10b6-49b1-884d-8fc787d727ef",
+    "context_id": "badd6261-4819-4566-ab20-e1b39baec4fb",
     "context_id_source": "runtime",
     "executed_provider": "claude",
     "fallback_reason": null,
     "fresh_context": true,
     "launch_evidence": "platform-observed",
-    "launch_id": "platform-launch-120af4ae-8de8-43ff-9ab9-06aa17321946",
+    "launch_id": "platform-launch-a2a55888-6ed8-42eb-8acf-a1ad50824c43",
     "model": {
       "source": "selected",
       "value": "sonnet"
@@ -48,22 +42,22 @@
       "cache_creation_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 41783
+        "value": 35131
       },
       "cache_read_input_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 52715
+        "value": 52275
       },
       "duration_api_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17770
+        "value": 15332
       },
       "duration_ms": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 17933
+        "value": 15487
       },
       "input_tokens": {
         "source": "runtime-confirmed",
@@ -73,16 +67,16 @@
       "num_turns": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 6
+        "value": 5
       },
       "output_tokens": {
         "source": "runtime-confirmed",
         "status": "measured",
-        "value": 2116
+        "value": 1779
       }
     },
     "runtime": "claude-code-print"
   },
   "schema_version": 1,
-  "task_content_digest": "2771c2b08d95ea3503afb076d58d9e3ecb7cf860b5270910522977ab1c7d03b9"
+  "task_content_digest": "e374e8619d62c8ad0680a6b8093b5f8ba43ac8b5f7a79e07bc30af0cb4a6354e"
 }

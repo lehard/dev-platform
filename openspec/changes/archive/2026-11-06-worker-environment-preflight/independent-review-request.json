@@ -2,13 +2,17 @@
   "candidate": {
     "base_head": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
     "base_ref": "origin/main",
-    "candidate_head": "1c75df6368359348e78a88087810024eff6322f1",
-    "diff_sha256": "ef7f8ae0af91987acc7ccbbe66bec88164088953ff00d543bf71f40dcfcc7f79"
+    "candidate_head": "795e2ee7e0840d5aabc43bf92ac3d4ae3e4bcfe3",
+    "diff_sha256": "63e478283ed7a0459e2838ce721fca40911a865819753a8130b8e61e54152cac"
   },
-  "change": "openspec/changes/worker-environment-preflight",
+  "change": "openspec/changes/archive/2026-11-06-worker-environment-preflight",
   "excluded_lifecycle_paths": [
-    "openspec/changes/worker-environment-preflight/automated-checks.json",
-    "openspec/changes/worker-environment-preflight/verification.md",
+    "openspec/changes/archive/2026-11-06-worker-environment-preflight/automated-checks.json",
+    "openspec/changes/archive/2026-11-06-worker-environment-preflight/independent-review-request.json",
+    "openspec/changes/archive/2026-11-06-worker-environment-preflight/independent-reviews/engineering-quality.json",
+    "openspec/changes/archive/2026-11-06-worker-environment-preflight/independent-reviews/spec-fidelity.json",
+    "openspec/changes/archive/2026-11-06-worker-environment-preflight/verification.md",
+    "openspec/specs/lifecycle-workers/spec.md",
     "template/dev-platform/platform-manifest.json"
   ],
   "fresh_context_required": true,
@@ -19,32 +23,32 @@
         "AGENTS.md",
         "docs/engineering/agent-workflow.md",
         "docs/engineering/openspec-workflow.md",
-        "openspec/changes/worker-environment-preflight/design.md",
-        "openspec/changes/worker-environment-preflight/proposal.md",
-        "openspec/changes/worker-environment-preflight/specs/lifecycle-workers/spec.md",
-        "openspec/changes/worker-environment-preflight/tasks.md"
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/design.md",
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/proposal.md",
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/specs/lifecycle-workers/spec.md",
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/tasks.md"
       ]
     },
     "spec-fidelity": {
       "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
       "paths": [
-        "openspec/changes/worker-environment-preflight/proposal.md",
-        "openspec/changes/worker-environment-preflight/design.md",
-        "openspec/changes/worker-environment-preflight/tasks.md",
-        "openspec/changes/worker-environment-preflight/specs/lifecycle-workers/spec.md"
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/proposal.md",
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/design.md",
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/tasks.md",
+        "openspec/changes/archive/2026-11-06-worker-environment-preflight/specs/lifecycle-workers/spec.md"
       ]
     }
   },
-  "prepared_at": "2026-11-06T02:01:32+00:00",
+  "prepared_at": "2026-11-06T02:12:54+00:00",
   "report_contract": {
-    "output_directory": "openspec/changes/worker-environment-preflight/independent-reviews",
+    "output_directory": "openspec/changes/archive/2026-11-06-worker-environment-preflight/independent-reviews",
     "required_perspectives": [
       "spec-fidelity",
       "engineering-quality"
     ],
     "schema_version": 1
   },
-  "request_id": "124d4a05-a287-4fff-b47d-e718a3c75fa6",
+  "request_id": "b3b80264-45f6-4832-851f-ebd830ee9760",
   "reviewer_constraints": {
     "forbidden_actions": [
       "publish code",
@@ -57,7 +61,7 @@
   "schema_version": 1,
   "task_content": {
     "base": "23f91b5e465d335f3b85f578bdf079ceeb1be868",
-    "digest": "2771c2b08d95ea3503afb076d58d9e3ecb7cf860b5270910522977ab1c7d03b9",
+    "digest": "e374e8619d62c8ad0680a6b8093b5f8ba43ac8b5f7a79e07bc30af0cb4a6354e",
     "paths": {
       "dev-platform/checks.toml": "0866453784b29bf033edda24a22710e6a1cccc51",
       "docs/engineering/chat-coordinator.md": "9b609bc332a0425590fa901730da0f37e8c9e24d",
@@ -77,7 +81,7 @@
       "template/scripts/pr_review_gate.py": "1172e5d68cf4fbb9ed809d8d45bc355324179ec2",
       "template/scripts/worker_preflight.py": "2b1a2fc92ea08dee34e57f15d74e9dce8d6177be",
       "tests/test_autonomous_integration_contour.py": "6e41bd8cb4c7636b33a4b285b686379113558e14",
-      "tests/test_lifecycle_workers.py": "4fd8f564c66cbde2569cc867406d0f2ff1202a09",
+      "tests/test_lifecycle_workers.py": "cb6706889481a6cbd6d6f1befc7dfe3f3c7f684d",
       "tests/test_post_merge_runner.py": "65bbe0934356686bf56e7f9b69a2d92ae2a8e90b",
       "tests/test_worker_credentials.py": "d3c48b785b69897eb2af22a4450c6f33fe797530",
       "tests/test_worker_preflight.py": "429ff54f1b0d0bb2e58e350eb21f4bfa5b4fac9d"
