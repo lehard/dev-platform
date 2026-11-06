@@ -197,7 +197,6 @@ def status(args: argparse.Namespace) -> int:
 
 def require_live_receipt(root: Path) -> None:
     """Developer handoff of a queue or lifecycle change needs a live scenario receipt for its content."""
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
     import live_scenario_gate
 
     try:

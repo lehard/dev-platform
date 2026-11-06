@@ -25,8 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import live_scenario_gate  # noqa: E402
+import live_scenario_gate
 
 SOURCE_ROOT = Path(__file__).resolve().parents[1]
 SANDBOX_DIR = SOURCE_ROOT / "dev-platform" / "live-sandbox"

@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 from _platform_modules import load_platform_module  # noqa: E402
 
+load_platform_module("live_scenario_gate", ROOT / "scripts" / "live_scenario_gate.py")
 live = load_platform_module("live_scenarios", ROOT / "scripts" / "live_scenarios.py")
 
 # The real sandbox.toml is operator state and absent from public snapshots.
