@@ -169,6 +169,24 @@ class CliTests(Base):
                              workers.ENVIRONMENT_EXIT)
 
 
+class ExecutedScriptTests(Base):
+    def test_a_refusal_of_the_real_script_exits_3_without_a_traceback(self):
+        import subprocess
+
+        bin_dir = self.tmp / "bin"
+        bin_dir.mkdir()
+        done = subprocess.run([sys.executable, str(ROOT / "scripts" / "lifecycle_workers.py"), "worker-preflight",
+                               "--kinds", "finalize", "--repo", "o/r"], cwd=ROOT, capture_output=True, text=True,
+                              env={"PATH": str(bin_dir), "HOME": str(self.tmp)}, check=False)
+        self.assertEqual(done.returncode, workers.ENVIRONMENT_EXIT, done.stderr)
+        self.assertIn("[finalize-tools]", done.stderr)
+        self.assertNotIn("Traceback", done.stderr)
+
+    def test_the_script_runs_through_the_importable_module(self):
+        source = (ROOT / "template" / "scripts" / "lifecycle_workers.py").read_text()
+        self.assertIn("raise SystemExit(lifecycle_workers.main())", source)
+
+
 class ProviderGateTests(Base):
     JOB = {"kind": "review", "number": 7, "head": HEAD, "providers": ["claude"]}
 

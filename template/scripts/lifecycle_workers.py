@@ -1534,12 +1534,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "worker-preflight":
         import worker_preflight
 
-        worker_credentials.remove_ambient_token(read_platform_config(Path.cwd()), os.environ)
         try:
+            worker_credentials.remove_ambient_token(read_platform_config(Path.cwd()), os.environ)
             worker_preflight.run(worker_preflight.WorkerContext(
                 Path.cwd(), args.repo, frozenset(k for k in args.kinds.split(",") if k), tuple(args.provider),
                 args.writer is not None, "worker-preflight"))
-        except PreflightRefused as exc:
+        except RuntimeError as exc:  # a refusal, or the trusted contract itself cannot be read
             print(f"lifecycle worker: {exc}", file=sys.stderr)
             return ENVIRONMENT_EXIT
         return 0
@@ -1791,4 +1791,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    # Through the importable module: the executors import it, and one class identity must serve ``except`` and
+    # ``isinstance`` for their worker errors, which a second ``__main__`` copy of this file would not share.
+    import lifecycle_workers
+
+    raise SystemExit(lifecycle_workers.main())
