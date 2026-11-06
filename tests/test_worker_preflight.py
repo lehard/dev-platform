@@ -131,6 +131,10 @@ class ConditionTests(Base):
         for condition in ("github-credential", "provider-credential", "writer-runtime", "process-tool"):
             self.assertIn(condition, wp.CONDITION_IDS)
 
+    def test_an_unregistered_condition_is_no_environment_failure(self):
+        with self.assertRaisesRegex(ValueError, "unregistered environment condition: typo"):
+            workers.EnvironmentFailure("typo", "gone")
+
 
 class CliTests(Base):
     def test_refusal_exits_3_and_posts_no_claim(self):
@@ -151,6 +155,24 @@ class CliTests(Base):
                 contextlib.redirect_stdout(io.StringIO()):
             workers.main(["work-next", "--kinds", "finalize", "--repo", "o/r", "--dry-run"])
         run.assert_not_called()
+
+    def test_gate_scratch_is_removed_when_job_selection_fails(self):
+        seen = []
+
+        def gate(root, *, workdir, home_files, refused):
+            seen.append(Path(workdir))
+            self.assertTrue(seen[0].is_dir())
+            return (lambda job: True), {}
+
+        with mock.patch("worker_preflight.run"), \
+                mock.patch.object(workers, "read_platform_config", return_value={}), \
+                mock.patch.object(workers, "review_provider_gate", side_effect=gate), \
+                mock.patch.object(workers, "work_next", side_effect=RuntimeError("selection failed")), \
+                mock.patch.object(workers, "_coordinator_trust", return_value={}):
+            with self.assertRaisesRegex(RuntimeError, "selection failed"):
+                workers.main(["work-next", "--kinds", "finalize", "--repo", "o/r", "--dry-run"])
+        self.assertEqual(len(seen), 1)
+        self.assertFalse(seen[0].exists())
 
     def test_standalone_command_reads_no_job(self):
         with mock.patch("worker_preflight.run") as run, \

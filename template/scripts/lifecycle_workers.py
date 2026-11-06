@@ -85,6 +85,10 @@ class EnvironmentFailure(WorkerError):
     """A condition of the ``worker_preflight`` registry failed after claim: operational, it spends no budget."""
 
     def __init__(self, condition: str, message: str):
+        from worker_preflight import CONDITION_IDS
+
+        if condition not in CONDITION_IDS:
+            raise ValueError(f"unregistered environment condition: {condition}")
         super().__init__(f"{condition}: {message}")
         self.condition = condition
 
@@ -1632,29 +1636,28 @@ def main(argv: list[str] | None = None) -> int:
         backlog_configured = bool(read_platform_config(Path.cwd()).get("development_backlog", {}).get("repository"))
         operator_node = operator_enabled(Path.cwd())
         refused: list[dict] = []
-        gate_scratch = tempfile.TemporaryDirectory(prefix="lifecycle-preflight-")
-        provider_gate, gated = review_provider_gate(Path.cwd(), workdir=gate_scratch.name, home_files=args.llm_home_file,
-                                                    refused=refused)
-        gated_review = args.run and "review" in kinds and review_ready is None
-        result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
-                           only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
-                           eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
-                                                             backlog_configured=backlog_configured,
-                                                             operator_node=operator_node, refused=refused)
-                           and (not gated_review or provider_gate(job)),
-                           comments_for=comments_for, post_comment=post_comment, worker=args.worker,
-                           ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
-                           current_head=lambda n: pr_info(n)["head"]["sha"],
-                           settle=settle if include_merged and not args.dry_run else None,
-                           resolve_pr=lambda pr: resolve_candidate(repo, pr),
-                           **_coordinator_trust(Path.cwd(), repo))
-        if refused:
-            # A job this placement may not run is an explicit refusal, never a quiet skip.
-            result["refused"] = list({(item["number"], item["kind"]): item for item in refused}.values())
-            if result["status"] == "idle":
-                raise WorkerError("no job claimed; refused " + "; ".join(
-                    f"PR #{item['number']} {item['kind']}: {item['error']}" for item in result["refused"]))
-        gate_scratch.cleanup()
+        with tempfile.TemporaryDirectory(prefix="lifecycle-preflight-") as gate_scratch:
+            provider_gate, gated = review_provider_gate(Path.cwd(), workdir=gate_scratch, home_files=args.llm_home_file,
+                                                        refused=refused)
+            gated_review = args.run and "review" in kinds and review_ready is None
+            result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
+                               only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
+                               eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
+                                                                 backlog_configured=backlog_configured,
+                                                                 operator_node=operator_node, refused=refused)
+                               and (not gated_review or provider_gate(job)),
+                               comments_for=comments_for, post_comment=post_comment, worker=args.worker,
+                               ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
+                               current_head=lambda n: pr_info(n)["head"]["sha"],
+                               settle=settle if include_merged and not args.dry_run else None,
+                               resolve_pr=lambda pr: resolve_candidate(repo, pr),
+                               **_coordinator_trust(Path.cwd(), repo))
+            if refused:
+                # A job this placement may not run is an explicit refusal, never a quiet skip.
+                result["refused"] = list({(item["number"], item["kind"]): item for item in refused}.values())
+                if result["status"] == "idle":
+                    raise WorkerError("no job claimed; refused " + "; ".join(
+                        f"PR #{item['number']} {item['kind']}: {item['error']}" for item in result["refused"]))
         if gated_review and gated:
             review_ready = frozenset(name for name, limitation in gated.items() if limitation is None)
         if args.run and result["status"] == "claimed":
