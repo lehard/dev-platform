@@ -1,0 +1,94 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "6ce2245faa736958682d457f615dfc2ecefda37f",
+    "base_ref": "6ce2245faa736958682d457f615dfc2ecefda37f",
+    "candidate_head": "cf20e5a5199f59f505549912797fa963a2bed1e1",
+    "diff_sha256": "6170b9cc78daeb0619cac27e0586fec3db9ee10fa6d030a6251dd9835faf6777"
+  },
+  "completed_at": "2026-11-06T01:46:50+00:00",
+  "findings": [
+    {
+      "evidence": "scripts/live_scenario_gate.py write_receipt writes `{digest}.json` unconditionally. scripts/live_scenarios.py main calls it after every run, including failed runs. docs/engineering/live-scenarios.md admits 'A partial run replaces the receipt of that content'. This is a footgun: a debug run can silently un-green a valid handoff.",
+      "id": "partial-or-failed-run-overwrites-green-receipt",
+      "severity": "advisory",
+      "summary": "The receipt file is keyed only by the content digest, and every run overwrites it. A partial run (`--scenario X`) or a run that fails for a sandbox reason replaces an earlier complete green receipt for the same content."
+    },
+    {
+      "evidence": "dev-platform/live-scenario-gate.toml lists only template/scripts/*.py and two workflows. content_digest hashes `git ls-tree -r <rev> -- <paths>` only. changed_paths filters on `path in gate.paths`. load_gate reads the gate file from the working tree, not from the tested head.",
+      "id": "gate-surface-hand-curated-and-self-unbound",
+      "severity": "advisory",
+      "summary": "The receipt digest covers only the 18 listed paths. Helpers they import, the gate declaration itself (live-scenario-gate.toml), the scenario runner, the executors and the sandbox overlay are outside it. Editing them, or removing a path or scenario from the declaration, needs no new receipt."
+    },
+    {
+      "evidence": "scripts/live_scenario_gate.py write_receipt: `gate = load_gate(root)` followed by `content_digest(root, gate, head)`. scripts/live_scenarios.py main passes SOURCE_ROOT with sandbox.head.",
+      "id": "receipt-digest-uses-worktree-gate-not-head-gate",
+      "severity": "advisory",
+      "summary": "write_receipt loads the declaration from SOURCE_ROOT's working tree but computes the digest at `head` in SOURCE_ROOT. The path set used at write time can differ from the one at check time, which reads the task worktree's gate file. Receipts are then silently unmatched or wrongly matched. The head commit must also exist in SOURCE_ROOT's object store."
+    }
+  ],
+  "launched_at": "2026-11-06T01:46:21+00:00",
+  "output_sha256": "c87956c5bdd81b5fd83757f37002a27f9120e0560adfe3496c5600dba913c855",
+  "perspective": "engineering-quality",
+  "request_id": "27a9fac6-3fcf-4829-bf56-dc242942be01",
+  "reviewer": {
+    "context_id": "c67075db-6d7b-4fce-bdf3-5d6c4435ba38",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-bc18d06d-bfcf-4056-b97a-f76380e114a9",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 38002
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 92497
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 28867
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 29131
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 3395
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "aa506b8a175f1d2320fb38cc7d97230b89646ff81c0a7be7bc2cf92742eb64a7"
+}

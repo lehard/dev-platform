@@ -1,0 +1,92 @@
+{
+  "candidate": {
+    "base_head": "6ce2245faa736958682d457f615dfc2ecefda37f",
+    "base_ref": "6ce2245faa736958682d457f615dfc2ecefda37f",
+    "candidate_head": "cf20e5a5199f59f505549912797fa963a2bed1e1",
+    "diff_sha256": "6170b9cc78daeb0619cac27e0586fec3db9ee10fa6d030a6251dd9835faf6777"
+  },
+  "change": "openspec/changes/live-queue-scenarios-head-gate",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/live-queue-scenarios-head-gate/automated-checks.json",
+    "openspec/changes/live-queue-scenarios-head-gate/verification.md"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/live-queue-scenarios-head-gate/design.md",
+        "openspec/changes/live-queue-scenarios-head-gate/proposal.md",
+        "openspec/changes/live-queue-scenarios-head-gate/specs/live-queue-scenarios/spec.md",
+        "openspec/changes/live-queue-scenarios-head-gate/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/live-queue-scenarios-head-gate/proposal.md",
+        "openspec/changes/live-queue-scenarios-head-gate/design.md",
+        "openspec/changes/live-queue-scenarios-head-gate/tasks.md",
+        "openspec/changes/live-queue-scenarios-head-gate/specs/live-queue-scenarios/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-06T01:46:00+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/live-queue-scenarios-head-gate/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "27a9fac6-3fcf-4829-bf56-dc242942be01",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "6ce2245faa736958682d457f615dfc2ecefda37f",
+    "digest": "aa506b8a175f1d2320fb38cc7d97230b89646ff81c0a7be7bc2cf92742eb64a7",
+    "paths": {
+      "dev-platform/checks.toml": "f1d8aaa5555e23587335ab397d68cf8511bd8440",
+      "dev-platform/live-sandbox/executors/scripted_claude.py": "2e6c0bc5c81b8fc25cb3b4c7f496f8468cf02f0e",
+      "dev-platform/live-sandbox/executors/scripted_writer.py": "5524b1dccb7dfdaa04543257dc61f1fb6ef12452",
+      "dev-platform/live-sandbox/managed-bundle/design.md": "654ff85b6597ce3ee634cd364b09ca6421cd03ca",
+      "dev-platform/live-sandbox/managed-bundle/issue.md": "0d3dd6874eab4d68dea7ffca35c7dc7c92c30aa3",
+      "dev-platform/live-sandbox/managed-bundle/manifest.json": "2fb7ddfb16b506797c27e5606eaaac50f5baa9bd",
+      "dev-platform/live-sandbox/managed-bundle/proposal.md": "477edc3b1ad1cfc4c312e2a948ddac06a3a26ebe",
+      "dev-platform/live-sandbox/managed-bundle/specs/fixture-note/spec.md": "bc259314e4ab410484708c4af510b55b8f242b3c",
+      "dev-platform/live-sandbox/managed-bundle/tasks.md": "d81d7f9e3435fa3c4f40dc04b5257a4cae05ec29",
+      "dev-platform/live-sandbox/overlay/fixture/check.py": "17b94befb7d66c8a2880054d8f2f410c34039319",
+      "dev-platform/live-sandbox/overlay/fixture/ci-verdict.txt": "a5b73ed2e94dafd12d02ab7b3ba3506cf8e642a2",
+      "dev-platform/live-sandbox/overlay/fixture/shared.txt": "df967b96a579e45a18b8251732d16804b2e56a55",
+      "dev-platform/live-sandbox/sandbox.toml": "8fe843bc82273aecd7cdabdaa5bc3725939b8da5",
+      "dev-platform/live-scenario-gate.toml": "5b72d619ccb363c359134d4272e30483c39af599",
+      "docs/engineering/live-scenarios.md": "a237845828c47b4f221afeb8fb91894583f04d68",
+      "openspec/changes/live-queue-scenarios-head-gate/.managed-task.json": "b412d17ad2e7420a2d5e5dc8825bbc2e911da393",
+      "openspec/changes/live-queue-scenarios-head-gate/.openspec.yaml": "8a94d769474a3542b8ac7f989d45e99fac30e0a8",
+      "openspec/changes/live-queue-scenarios-head-gate/design.md": "0beef74885fded5f6e85da5dd14979729875ee3a",
+      "openspec/changes/live-queue-scenarios-head-gate/proposal.md": "8751fb05cf8607ebf2a0ff2d9ffc73c502943499",
+      "openspec/changes/live-queue-scenarios-head-gate/specs/live-queue-scenarios/spec.md": "8f3183a8336298c7fa7ffd43dcc0dd4068bbcfbd",
+      "openspec/changes/live-queue-scenarios-head-gate/tasks.md": "fdbbfaac3933c24eefe7cc780fa7374f87e4c29e",
+      "scripts/dogfood_task.py": "a708d141402f7e9b1b43e017ede575c5cd5e08b4",
+      "scripts/live_scenario_gate.py": "3471beeb7ee41b5e23747ea991ea1feabf32f42b",
+      "scripts/live_scenarios.py": "1fd24049a4cff5ad3cab70a4607cfd404e62a73d",
+      "tests/test_central_dogfood_lifecycle.py": "3627947129d86716e7e0162de9ac83eccf691f4d",
+      "tests/test_live_scenario_gate.py": "432f2b2a4c0555caad98df49db68b229d27e9c03",
+      "tests/test_live_scenarios.py": "307f711beefcb1ba63df4c90df5065579b896d88"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
