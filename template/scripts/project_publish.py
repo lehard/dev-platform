@@ -318,7 +318,8 @@ def wait_for_merge_outcome(root: Path, env: dict[str, str], pr: PrRef, expected_
         checks = required_check_state_for_ref(root, env, pr.ref, expected_head)
         if checks.kind == "failed":
             raise SystemExit(f"Required check failed for head {expected_head}: {checks.detail}. The PR stays open; "
-                             "local main was not changed. Fix the cause, commit, refresh the friction checkpoint and rerun finish.")
+                             f"local main was not changed. Inspect it with: gh pr checks {pr.ref}. Fix the cause, commit, "
+                             "refresh the friction checkpoint and rerun finish.")
         if checks.kind not in {"pending", "passed"}:
             raise SystemExit(f"GitHub required-check state is {checks.kind} ({checks.cause}): {checks.detail}. "
                              f"Local main was not changed; continue with: {FINISH_COMMAND}")
