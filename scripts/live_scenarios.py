@@ -509,7 +509,13 @@ class Scenario:
     def advance(self, requirement: str) -> dict[str, Any]:
         """Advance once. GitHub's Project auto-add has no API, so new children enter the sandbox Project through `ensure`."""
         def once() -> dict[str, Any]:
-            output = self.platform("execute_requirement.py", "advance", "--requirement", requirement, "--confirm-distinct")
+            try:
+                output = run(["python3", "scripts/execute_requirement.py", "advance", "--requirement", requirement,
+                              "--confirm-distinct"], self.sandbox.checkout, self.sandbox.env())
+            except SandboxError as error:  # advance reports a blocked state as JSON and exits 2
+                output = getattr(error, "output", "")
+                if '{"status": "blocked"' not in output:
+                    raise self.fail(str(error)) from error
             return json.loads(output[output.index('{"status"') if '{"status"' in output else output.rindex("\n{"):])
 
         result = once()
@@ -754,7 +760,8 @@ def main() -> int:
         print(f"live scenarios: {error}", file=sys.stderr)
         return 1
     print(json.dumps({"head": sandbox.head, "results": results}, indent=2))
-    print(f"receipt: {live_scenario_gate.write_receipt(SOURCE_ROOT, sandbox.head, results)}")
+    if not args.scenario:  # a partial run never replaces the receipt of a full one
+        print(f"receipt: {live_scenario_gate.write_receipt(SOURCE_ROOT, sandbox.head, results)}")
     return 1 if any(item["result"] != "passed" for item in results) else 0
 
 

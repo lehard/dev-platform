@@ -59,7 +59,7 @@ The model is scripted, GitHub is not. `dev-platform/live-sandbox/executors/` hol
 
 `dogfood_task.py finish` refuses a change touching a declared path when the receipt is missing, lacks a scenario or holds a red scenario that is not a known failure. A known failure is printed with its defect and does not block. An unavailable sandbox stops the runner, so there is no receipt and the handoff stays refused; the coordinator resolves that.
 
-Run the scenarios on the commit you hand off: `run --workdir <directory>`, without `--scenario`. A partial run replaces the receipt of that content and the gate then names what it lacks.
+Run the scenarios on the commit you hand off: `run --workdir <directory>`, without `--scenario`. A partial run writes no receipt.
 
 ## Cost
 
