@@ -14,6 +14,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
+import tomllib
 import uuid
 from pathlib import Path
 from typing import Any
@@ -47,10 +49,22 @@ STATE_MISSING = "missing"
 STATE_STALE = "stale"
 STATE_BLOCKED = "blocked"
 STATE_READY = "ready"
+STATE_UNKNOWN = "unknown"
+# The review target of a quick task: it has no OpenSpec change, so this reserved name stands for its git directory.
+QUICK_TARGET = "quick-task"
+SURFACE_PATH = "dev-platform/protected-surface.toml"
+SOURCE_LAYOUT_PREFIX = "template/"
 
 
 class IndependentReviewError(RuntimeError):
     """A review request or report cannot be trusted as lifecycle evidence."""
+
+
+def is_quick(change: Path) -> bool:
+    """Whether ``change`` is a quick task's review directory: an OpenSpec change is never in a git directory."""
+    from task_content_identity import QUICK_REVIEW_GIT_PATH
+
+    return change.as_posix().endswith("/" + QUICK_REVIEW_GIT_PATH)
 
 
 def request_path(change: Path) -> Path:
@@ -111,6 +125,8 @@ def _candidate_field(value: Any) -> dict[str, str] | None:
 
 def canonical_change_name(change: Path) -> str:
     """The OpenSpec change name, also for a dated archive directory."""
+    if is_quick(change):
+        return QUICK_TARGET
     provenance = change / ".managed-task.json"
     if provenance.is_file():
         try:
@@ -126,6 +142,10 @@ def canonical_change_name(change: Path) -> str:
 
 def resolve_change(root: Path, name: str) -> Path:
     """Locate a change whether it is still active or already archived."""
+    if name == QUICK_TARGET:
+        from task_content_identity import quick_review_path
+
+        return quick_review_path(root)
     active = root / "openspec" / "changes" / name
     if active.is_dir():
         return active
@@ -159,9 +179,12 @@ def candidate_identity(root: Path, base_ref: str) -> dict[str, str]:
 
 def task_content(root: Path, change: Path, base_ref: str) -> dict[str, Any]:
     """Review-scoped task-content identity for the committed candidate."""
-    from task_content_identity import review_content_identity
+    from task_content_identity import quick_content_identity, review_content_identity
 
-    proof = review_content_identity(root, canonical_change_name(change), base_ref)
+    if is_quick(change):
+        proof = quick_content_identity(root, base_ref)
+    else:
+        proof = review_content_identity(root, canonical_change_name(change), base_ref)
     if proof is None:
         raise IndependentReviewError(f"cannot calculate independent-review task-content identity against {base_ref!r}")
     return proof
@@ -174,9 +197,12 @@ def lifecycle_path_partition(root: Path, change: Path, base_ref: str, merge_base
     binds; lifecycle receipts, review evidence and archive-derived spec
     materialization are excluded so a reviewer never reviews its own evidence.
     """
-    from task_content_identity import review_path_partition
+    from task_content_identity import quick_path_partition, review_path_partition
 
-    partition = review_path_partition(root, canonical_change_name(change), base_ref, merge_base)
+    if is_quick(change):
+        partition = quick_path_partition(root, merge_base)
+    else:
+        partition = review_path_partition(root, canonical_change_name(change), base_ref, merge_base)
     if partition is None:
         raise IndependentReviewError(f"cannot list the independent-review candidate paths against {base_ref!r}")
     return partition
@@ -192,15 +218,20 @@ def review_inputs(root: Path, change: Path, perspective: str) -> dict[str, Any]:
         [change / name for name in ("proposal.md", "design.md", "tasks.md")]
         + sorted((change / "specs").glob("**/*.md")),
     )
+    guidance_paths = _existing_paths(
+        root,
+        [root / "AGENTS.md", root / "docs" / "engineering" / "agent-workflow.md", root / "docs" / "engineering" / "openspec-workflow.md", root / "docs" / "engineering" / "project-rules.md"],
+    )
+    if perspective == "spec-fidelity" and is_quick(change):
+        return {
+            "paths": guidance_paths,
+            "objective": "This quick task has no active delta. Compare the exact candidate with the accepted specs under openspec/specs that cover the changed files. Report behavior they contradict.",
+        }
     if perspective == "spec-fidelity":
         return {
             "paths": contract_paths,
             "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
         }
-    guidance_paths = _existing_paths(
-        root,
-        [root / "AGENTS.md", root / "docs" / "engineering" / "agent-workflow.md", root / "docs" / "engineering" / "openspec-workflow.md", root / "docs" / "engineering" / "project-rules.md"],
-    )
     return {
         "paths": sorted(set(contract_paths + guidance_paths)),
         "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
@@ -217,7 +248,7 @@ def prepare_request(root: Path, change: Path, base_ref: str) -> dict[str, Any]:
         "schema_version": SCHEMA_VERSION,
         "request_id": str(uuid.uuid4()),
         "prepared_at": utc_now(),
-        "change": str(change.relative_to(root)),
+        "change": QUICK_TARGET if is_quick(change) else str(change.relative_to(root)),
         "candidate": candidate,
         "task_content": content,
         # Additive audit field: lifecycle evidence withheld from the reviewer.
@@ -230,7 +261,7 @@ def prepare_request(root: Path, change: Path, base_ref: str) -> dict[str, Any]:
         "perspectives": {perspective: review_inputs(root, change, perspective) for perspective in PERSPECTIVES},
         "report_contract": {
             "schema_version": SCHEMA_VERSION,
-            "output_directory": str(reports_dir(change).relative_to(root)),
+            "output_directory": str(reports_dir(change)) if is_quick(change) else str(reports_dir(change).relative_to(root)),
             "required_perspectives": list(PERSPECTIVES),
         },
     }
@@ -526,9 +557,56 @@ def validate_evidence(root: Path, change: Path, *, required: bool | None = None)
     return {"request_id": result["request_id"], "candidate": result["candidate"], "perspectives": list(PERSPECTIVES)}
 
 
-def review_is_required(root: Path, change: Path) -> bool:
+def review_enabled(root: Path) -> bool:
     settings = read_platform_config(root).get("independent_review", {})
-    return isinstance(settings, dict) and settings.get("enabled") is True and (change / ".managed-task.json").is_file()
+    return isinstance(settings, dict) and settings.get("enabled") is True
+
+
+def protected_patterns(root: Path) -> tuple[list[Any], str]:
+    """The ``[[protected]]`` globs and the prefix of the source layout (empty in a rendered project)."""
+    from platform_divergence import glob_regex
+
+    found = [prefix for prefix in ("", SOURCE_LAYOUT_PREFIX) if (root / prefix / SURFACE_PATH).is_file()]
+    if len(found) != 1:
+        raise IndependentReviewError(
+            f"cannot decide whether this change is risky: expected exactly one of {SURFACE_PATH} and "
+            f"{SOURCE_LAYOUT_PREFIX}{SURFACE_PATH}, found {len(found)}"
+        )
+    path = root / found[0] / SURFACE_PATH
+    try:
+        entries = tomllib.loads(path.read_text(encoding="utf-8")).get("protected")
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
+        raise IndependentReviewError(f"cannot read the protected surface {path}: {exc}") from exc
+    if not isinstance(entries, list) or not entries or not all(isinstance(item, dict) and _nonempty_string(item.get("path")) for item in entries):
+        raise IndependentReviewError(f"the protected surface {path} has no valid [[protected]] entries")
+    return [glob_regex(item["path"]) for item in entries], found[0]
+
+
+def rendered_path(path: str, prefix: str) -> str:
+    """The project path of a source-layout template file; any other path is compared as it is."""
+    if prefix and path.startswith(prefix):
+        return path[len(prefix):].removesuffix(".jinja")
+    return path
+
+
+def risky_paths(root: Path) -> list[str]:
+    """Paths of the task's own diff, without declared generated files, that the protected surface lists."""
+    from task_content_identity import quick_path_partition
+
+    patterns, prefix = protected_patterns(root)
+    base_ref = f"origin/{read_platform_config(root)['main_branch']}"
+    base = run_git(["merge-base", "HEAD", base_ref], cwd=root, check=False)
+    if base.returncode or not base.stdout.strip():
+        raise IndependentReviewError(f"cannot decide whether this change is risky: no merge base of HEAD and {base_ref}")
+    partition = quick_path_partition(root, base.stdout.strip())
+    if partition is None:
+        raise IndependentReviewError(f"cannot decide whether this change is risky: cannot list the diff against {base_ref}")
+    return [path for path in partition[0] if any(pattern.match(rendered_path(path, prefix)) for pattern in patterns)]
+
+
+def review_is_required(root: Path, change: Path) -> bool:
+    """Required when enabled and the change is risky; ``change`` only locates the evidence and decides nothing."""
+    return review_enabled(root) and bool(risky_paths(root))
 
 
 def _next_command(change: Path, result: dict[str, Any]) -> str | None:
@@ -545,7 +623,13 @@ def _next_command(change: Path, result: dict[str, Any]) -> str | None:
 
 def review_state(root: Path, change: Path | None) -> dict[str, Any]:
     """Derived, file-backed review state and next command for status surfaces."""
-    if change is None or not change.is_dir() or not review_is_required(root, change):
+    if change is None or not (change.is_dir() or is_quick(change)):
+        return {"state": STATE_NOT_REQUIRED, "next": None, "detail": None}
+    try:
+        required = review_is_required(root, change)
+    except RuntimeError as exc:  # finish stops on this; a status view reports it.
+        return {"state": STATE_UNKNOWN, "next": None, "detail": str(exc)}
+    if not required:
         return {"state": STATE_NOT_REQUIRED, "next": None, "detail": None}
     try:
         result = evaluate(root, change, required=True)
@@ -597,16 +681,27 @@ def require_review_evidence(root: Path, change: Path) -> None:
 
 
 def ensure_review_evidence(root: Path, change: Path, *, launcher: Any = None, required: bool = False) -> None:
-    """Review stage: run missing/stale/unavailable evidence, then enforce it."""
-    if not required and not review_is_required(root, change):
+    """Review stage: run missing/stale/unavailable evidence, then enforce it, and say what was decided."""
+    if not review_enabled(root) and not required:
+        print("Independent review: not enabled, no reviewer launched.", flush=True)
         return
+    try:
+        risky = risky_paths(root)
+    except RuntimeError as exc:
+        raise SystemExit(f"{canonical_change_name(change)}: independent review could not start: {exc}") from exc
+    if not required and not risky:
+        print("Independent review: no protected path changed, no reviewer launched.", flush=True)
+        return
+    print(f"Independent review: required, {len(risky)} protected path(s) changed: " + ", ".join(risky[:5]), flush=True)
     result = evaluate(root, change, required=True)
     if result["state"] in {STATE_MISSING, STATE_STALE} or (result["state"] == STATE_BLOCKED and result["unavailable"] and not result["blockers"]):
         import independent_review_runner
 
         print(f"Running platform-launched independent review for {canonical_change_name(change)} ({result['state']} evidence).", flush=True)
+        started = time.monotonic()
         try:
-            independent_review_runner.run_review(root, change, launcher=launcher)
+            reports = independent_review_runner.run_review(root, change, launcher=launcher)
+            print(f"Independent review ran {len(reports)} perspective(s) in {time.monotonic() - started:.0f}s.", flush=True)
         except IndependentReviewError as exc:
             raise SystemExit(
                 f"{canonical_change_name(change)}: independent review could not run: {exc}\n"
@@ -680,10 +775,10 @@ def main() -> int:
     readiness = subparsers.add_parser(
         "preflight", help="prove the selected reviewer runtime and exact model are usable; writes no review evidence",
     )
-    readiness.add_argument("change", nargs="?", help="OpenSpec change name (optional; active or archived)")
+    readiness.add_argument("change", nargs="?", help=f"OpenSpec change name (optional; active or archived), or {QUICK_TARGET}")
     for name in ("prepare", "check", "record", "run", "dispose", "status"):
         command = subparsers.add_parser(name)
-        command.add_argument("change", help="OpenSpec change name (active or archived)")
+        command.add_argument("change", help=f"OpenSpec change name (active or archived), or {QUICK_TARGET} for the current quick task")
         if name in {"prepare", "run"}:
             command.add_argument("--base", default=None, help="immutable base ref to review against (default: origin/<main_branch>)")
         if name == "record":
@@ -699,7 +794,7 @@ def main() -> int:
         if args.command == "preflight":
             import independent_review_runner
 
-            if args.change and not resolve_change(root, args.change).is_dir():
+            if args.change and args.change != QUICK_TARGET and not resolve_change(root, args.change).is_dir():
                 raise IndependentReviewError(f"OpenSpec change not found: {args.change}")
             readiness = independent_review_runner.preflight(root)
             if args.change:
@@ -707,6 +802,10 @@ def main() -> int:
             print(json.dumps(readiness, indent=2, sort_keys=True))
             return 0 if readiness["ready"] else 2
         change = resolve_change(root, args.change)
+        if args.change == QUICK_TARGET and args.command in {"prepare", "run"}:
+            from task_content_identity import ensure_quick_review_directory
+
+            ensure_quick_review_directory(root)
         base = getattr(args, "base", None) or f"origin/{read_platform_config(root)['main_branch']}"
         if args.command == "prepare":
             request = prepare_request(root, change, base)
@@ -723,7 +822,7 @@ def main() -> int:
             return 0 if state["state"] in {STATE_READY, STATE_NOT_REQUIRED} else 2
         elif args.command == "dispose":
             path = dispose(root, change, perspective=args.perspective, finding=args.finding, status=args.status, rationale=args.rationale)
-            print(f"Recorded {args.status} disposition for {args.perspective}:{args.finding} in {path.relative_to(root)}")
+            print(f"Recorded {args.status} disposition for {args.perspective}:{args.finding} in {path}")
         elif args.command == "record":
             destination = record_report(root, change, args.report)
             print(f"Recorded independent review report: {destination.relative_to(root)}")

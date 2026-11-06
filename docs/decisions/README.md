@@ -13,6 +13,7 @@ This registry preserves the reasons behind consequential Dev Platform decisions 
 | [DEC-0007](0007-openspec-requirement-length.md) | Meet the OpenSpec requirement-length limit by splitting requirements | OpenSpec version and requirement form | Current |
 | [DEC-0008](0008-target-task-lifecycle.md) | One actor, one entry and one state owner for every lifecycle stage | End-to-end task lifecycle | Superseded by DEC-0009 |
 | [DEC-0009](0009-single-stream-core.md) | One stream, one writer: the platform takes the project path, queue and hosted workers removed | Platform core and delivery | Current |
+| [DEC-0010](0010-review-risky-changes.md) | Finish reviews risky changes and skips all others | Independent review in finish | Current |
 
 ## Record contract
 

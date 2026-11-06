@@ -366,7 +366,7 @@ Every mandatory signal (high-signal `lifecycle-*` failure, or a recorded workaro
 
 ## Completion
 
-Commit the verified active change and run finish. Finish runs the independent review when `[independent_review] enabled = true`, calls shared `finalize_change`, commits the archive, and then publishes. Requirement advance uses the same executor for a ready child before recording its ready receipt. Developers do not run an archive command. Finalization reuses selected-check evidence by the finish rule and prints the decision.
+Commit the verified active change and run finish. Finish runs the independent review when `[independent_review] enabled = true` and the change is risky, calls shared `finalize_change`, commits the archive, and then publishes. Requirement advance uses the same executor for a ready child before recording its ready receipt. Developers do not run an archive command. Finalization reuses selected-check evidence by the finish rule and prints the decision.
 
 Before reporting a non-trivial platform task as complete:
 

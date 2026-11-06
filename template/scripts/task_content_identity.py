@@ -92,6 +92,7 @@ REVIEW_SCOPE = "independent-review-v1"
 QUICK_SCOPE = "quick-task-v1"
 CHECKPOINT_SCOPE = "friction-checkpoint-v1"
 QUICK_EVIDENCE_GIT_PATH = "dev-platform/check-evidence.json"
+QUICK_REVIEW_GIT_PATH = "dev-platform/independent-review"
 
 
 def _declared_generated_at_base(root: Path) -> set[str]:
@@ -114,6 +115,16 @@ def quick_content_identity(root: Path, base_ref: str = "origin/main") -> dict[st
     return content_identity(root, [], base_ref, exclude=lambda canonical, raw: canonical in generated, scope=QUICK_SCOPE)
 
 
+def quick_path_partition(root: Path, merge_base: str) -> tuple[list[str], list[str]] | None:
+    """``(reviewed, excluded_generated)`` raw paths of a quick task, or ``None`` when the diff cannot be listed."""
+    changed = run_git(["diff", "--name-only", "--no-renames", "-z", f"{merge_base}...HEAD"], cwd=root, check=False)
+    if changed.returncode != 0:
+        return None
+    generated = _declared_generated_at_base(root)
+    paths = sorted(item for item in changed.stdout.split("\0") if item)
+    return [path for path in paths if path not in generated], [path for path in paths if path in generated]
+
+
 def checkpoint_content_identity(root: Path, change: str, base_ref: str = "origin/main") -> dict[str, object] | None:
     """Content proof binding a managed task's friction checkpoint: declared generated files excluded (BR-940).
 
@@ -131,6 +142,22 @@ def quick_task_evidence_path(root: Path) -> Path:
     if result.returncode or not result.stdout.strip():
         raise TaskFreshnessError(f"cannot locate the git directory of {root} for quick-task check evidence: {result.stderr.strip()}")
     return Path(result.stdout.strip())
+
+
+def quick_review_path(root: Path) -> Path:
+    """Machine-local review directory of the quick task checked out at ``root``: in its own git directory."""
+    return quick_task_evidence_path(root).parent / Path(QUICK_REVIEW_GIT_PATH).name
+
+
+def ensure_quick_review_directory(root: Path) -> Path:
+    """Create the quick review directory under the same shared contract as the check evidence."""
+    import shared_workspace
+
+    ensure_quick_evidence_directory(root)
+    directory = quick_review_path(root)
+    directory.mkdir(exist_ok=True)
+    shared_workspace.ensure_shared_path(directory)
+    return directory
 
 
 def ensure_quick_evidence_directory(root: Path) -> Path:

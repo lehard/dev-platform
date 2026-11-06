@@ -20,6 +20,8 @@ This document tells an agent which kind of change it is making when it touches a
 
 Classification fails closed: every plain-copied platform-owned file is either protected or listed `hotfixable`, there is no default class, and the platform's own validation fails on a file that is neither. A file that is project-owned (kept by Copier updates) is class (a), not (b) or (c).
 
+With `[independent_review] enabled = true`, a diff that touches a `[[protected]]` path is a risky change: `finish` runs the independent review for it and for no other change.
+
 ## What an agent never does
 
 - Never reclassify a file or a rule, and never edit `protected-surface.toml`: neither the protected list nor the `hotfixable` list changes downstream.

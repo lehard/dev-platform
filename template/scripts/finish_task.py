@@ -278,12 +278,14 @@ def observe_independent_review(work: Path) -> dict:
     """Derived, file-backed independent review state for the current managed change."""
     from independent_review import review_state
     from managed_task import resolve_canonical_provenance
+    from task_content_identity import quick_review_path
 
     try:
         provenance = resolve_canonical_provenance(work)
+        change = provenance.path if provenance is not None else quick_review_path(work)
     except Exception as exc:
         return {"state": "unknown", "next": None, "detail": str(exc)}
-    return review_state(work, provenance.path if provenance is not None else None)
+    return review_state(work, change)
 
 
 def print_independent_review(state: dict) -> None:
@@ -818,6 +820,14 @@ def finalize_portable_change(work: Path) -> None:
     run_git(["commit", "-m", f"Finalize verified OpenSpec change {canonical.change}"], cwd=work)
 
 
+def review_quick_task(work: Path) -> None:
+    """A risky quick task is reviewed after validation and before any publication."""
+    from independent_review import ensure_review_evidence
+    from task_content_identity import ensure_quick_review_directory
+
+    ensure_review_evidence(work, ensure_quick_review_directory(work))
+
+
 def validate_or_reuse(
     work: Path, remote_main: str, no_checks: bool, checked_delivery: object | None, *, quick_task: bool
 ) -> None:
@@ -967,6 +977,8 @@ def main() -> int:
             raise SystemExit(f"{branch} is stale relative to {remote_main}. Reconcile explicitly, rerun checks, then finish.")
         emit_finish_stage("preflight clear: starting required validation")
         run_checks(work, remote_main, args.no_checks)
+        if delivery is None:
+            review_quick_task(work)
         emit_finish_stage("validation clear: publishing GitLab merge request")
         command = ["python3", str(work / "scripts" / "gitlab_delivery.py"), "publish"]
         if args.title:
@@ -1022,6 +1034,8 @@ def main() -> int:
         raise SystemExit(1)
 
     validate_or_reuse(work, remote_main, args.no_checks, delivery, quick_task=delivery is None)
+    if delivery is None:
+        review_quick_task(work)
 
     # A checkout with private lineage enabled has a public distribution
     # boundary and a private Backlog. Check the exact candidate immediately

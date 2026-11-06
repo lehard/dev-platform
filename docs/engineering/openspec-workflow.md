@@ -65,10 +65,14 @@ Before archiving a non-trivial platform change, run relevant tests plus semantic
 
 ### Independent review evidence
 
-Independent review is optional. With `[independent_review] enabled = true` finish and
-Requirement advance require it for managed changes; without that setting it runs only by
-hand through `scripts/independent_review.py`, and the template default is `false`.
-Quick tasks without managed provenance are never reviewed.
+Independent review is opt-in per repository. With `[independent_review] enabled = true`
+finish reviews a risky change and no other, for quick and managed tasks alike. A change is
+risky exactly when the task's own diff, without declared generated files, touches a
+`[[protected]]` path of `dev-platform/protected-surface.toml`. Without that setting it runs
+only by hand through `scripts/independent_review.py`, and the template default is `false`.
+A quick task has no change directory: its review files live in its own git directory, the
+target name is `quick-task`, and `provider` must be set because it has no route.
+A finding or a reviewer that could not run stops finish; nothing repairs or retries.
 
 The platform launches the reviewer itself. Each of the two perspectives
 (`spec-fidelity` and `engineering-quality`) runs as a fresh, non-resumable
@@ -151,7 +155,7 @@ blocker, or a material finding without a current rejection blocks archive and
 publication rather than letting passing deterministic tests claim independent
 verification.
 
-Archive never launches review. Finish runs the independent review when `[independent_review] enabled = true` before shared finalization; finalization then requires its evidence. Archive evaluates every precondition
+Archive never launches review. Finish runs the independent review when `[independent_review] enabled = true` and the change is risky before shared finalization; finalization then requires its evidence. Archive evaluates every precondition
 (tasks, receipt, review evidence, routing, automated-check evidence, committed
 package, private lineage, checkout identity) before any archive work and fails
 once listing each unmet one with its fix. `finish` re-validates the evidence
@@ -171,7 +175,7 @@ A platform change is not done merely because its task checkboxes are complete. A
 
 1. record `OpenSpec-Verify: PASS` and `Verification-Method: <method>` in the active change's `verification.md`;
 2. commit the package (tasks, delta specs, receipt);
-3. run finish, which runs the independent review when it is enabled, invokes shared finalization, commits the archive and publishes.
+3. run finish, which runs the independent review when it is enabled and the change is risky, invokes shared finalization, commits the archive and publishes.
 
 A delta that creates a capability absent from `openspec/specs` must carry an
 authored `## Purpose` section before its `## ADDED Requirements`. OpenSpec reads
