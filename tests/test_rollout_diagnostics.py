@@ -8,14 +8,24 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "rollout.yml"
 GENERATED_GATE = ROOT / "template" / ".github" / "workflows" / "dev-platform.yml.jinja"
 SELECTOR = ROOT / "template" / "scripts" / "select_checks.py"
+PINNED_NODE_VERSION = "24.22.2"
+NODE_PINNED_WORKFLOWS = (
+    ROOT / ".github" / "workflows" / "ci.yml",
+    WORKFLOW,
+    ROOT / ".github" / "workflows" / "adopt-project.yml",
+    ROOT / ".github" / "workflows" / "project-ci.yml",
+    GENERATED_GATE,
+)
 sys.path.insert(0, str(ROOT / "scripts"))
 
 
-def node_version(path: Path) -> str:
-    match = re.search(r'node-version: "([^"]+)"', path.read_text(encoding="utf-8"))
-    if not match:
+def node_versions(path: Path) -> list[str]:
+    if not path.is_file():
+        raise AssertionError(f"Node-pinned workflow is missing: {path}")
+    versions = re.findall(r"""node-version:\s*["']?([^"'\s]+)""", path.read_text(encoding="utf-8"))
+    if not versions:
         raise AssertionError(f"node-version not found in {path}")
-    return match.group(1)
+    return versions
 
 
 class RolloutDiagnosticsTests(unittest.TestCase):
@@ -40,9 +50,15 @@ class RolloutDiagnosticsTests(unittest.TestCase):
         self.assertNotIn("grep -E '^\\+ '", text)
         self.assertNotIn("\\[fail\\]|Error:|ERROR:", text)
 
-    def test_rollout_node_matches_generated_platform_gate(self) -> None:
-        self.assertEqual(node_version(WORKFLOW), node_version(GENERATED_GATE))
-        self.assertEqual(node_version(WORKFLOW), "24.22.2")
+    def test_every_workflow_pins_the_same_node_version(self) -> None:
+        for path in NODE_PINNED_WORKFLOWS:
+            with self.subTest(workflow=path.relative_to(ROOT).as_posix()):
+                self.assertEqual(set(node_versions(path)), {PINNED_NODE_VERSION})
+
+    def test_missing_node_pinned_workflow_fails_explicitly(self) -> None:
+        missing = ROOT / ".github" / "workflows" / "absent.yml"
+        with self.assertRaisesRegex(AssertionError, "Node-pinned workflow is missing"):
+            node_versions(missing)
 
     def test_failed_prepare_cannot_push_or_open_pr(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
