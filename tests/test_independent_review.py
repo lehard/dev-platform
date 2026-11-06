@@ -180,6 +180,14 @@ class RiskyChangeTests(unittest.TestCase):
             review.ensure_review_evidence(self.root, self.quick(), launcher=FakeLauncher())
         self.assertIn("could not start", str(stopped.exception))
 
+    def test_a_missing_main_branch_is_named_and_status_reports_it(self) -> None:
+        from task_content_identity import quick_review_path
+
+        with mock.patch.object(review, "read_platform_config", return_value={"independent_review": {"enabled": True}}):
+            with self.assertRaisesRegex(review.IndependentReviewError, "main_branch is required"):
+                review.risky_paths(self.root)
+            self.assertEqual(review.review_state(self.root, quick_review_path(self.root))["state"], "unknown")
+
     def test_a_non_risky_quick_task_launches_nothing_and_says_so(self) -> None:
         self.edit("other.py")
         launcher = FakeLauncher()

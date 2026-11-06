@@ -594,7 +594,10 @@ def risky_paths(root: Path) -> list[str]:
     from task_content_identity import quick_path_partition
 
     patterns, prefix = protected_patterns(root)
-    base_ref = f"origin/{read_platform_config(root)['main_branch']}"
+    main_branch = read_platform_config(root).get("main_branch")
+    if not _nonempty_string(main_branch):
+        raise IndependentReviewError("cannot decide whether this change is risky: .dev-platform.toml main_branch is required")
+    base_ref = f"origin/{main_branch}"
     base = run_git(["merge-base", "HEAD", base_ref], cwd=root, check=False)
     if base.returncode or not base.stdout.strip():
         raise IndependentReviewError(f"cannot decide whether this change is risky: no merge base of HEAD and {base_ref}")
