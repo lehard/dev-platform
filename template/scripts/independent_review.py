@@ -829,7 +829,7 @@ def main() -> int:
             print(f"Recorded {args.status} disposition for {args.perspective}:{args.finding} in {path}")
         elif args.command == "record":
             destination = record_report(root, change, args.report)
-            print(f"Recorded independent review report: {destination.relative_to(root)}")
+            print(f"Recorded independent review report: {destination}")
         elif args.command == "status":
             print(json.dumps(review_state(root, change), indent=2, sort_keys=True))
         else:

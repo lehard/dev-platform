@@ -24,6 +24,14 @@ When independent review is required, a missing or stale review of a managed chan
 - **WHEN** it completes
 - **THEN** no independent review is required
 
+### Requirement: Finish finalizes the change
+
+Finish SHALL run the independent review when `[independent_review] enabled = true` and the change is risky, and then the shared finalize function on the verified active change before publication, and Requirement advance SHALL finalize a ready multi-child child the same way. Without that setting the review stays optional and can be run by hand with `scripts/independent_review.py`.
+
+#### Scenario: Project finishes
+- **WHEN** finish runs on a verified active change
+- **THEN** the change is archived through finalize and committed before publication
+
 ## REMOVED Requirements
 
 ### Requirement: Independent review applies only to managed changes in enabling repositories
