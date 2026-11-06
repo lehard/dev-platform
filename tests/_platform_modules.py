@@ -19,6 +19,17 @@ ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_SOURCE_ROOTS = (ROOT / "template" / "scripts", ROOT / "scripts")
 
 
+def write_trusted_contract(root: Path) -> None:
+    """Give a fixture's trusted root the public contract review and repair jobs install; git never sees it."""
+    target = root / "dev-platform" / "source-contract.toml"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text((ROOT / "dev-platform" / "source-contract.toml").read_text(encoding="utf-8"), encoding="utf-8")
+    exclude = root / ".git" / "info" / "exclude"
+    if exclude.parent.is_dir():
+        with exclude.open("a", encoding="utf-8") as handle:
+            handle.write("\ndev-platform/source-contract.toml\n")
+
+
 def _source(module: ModuleType) -> Path | None:
     filename = getattr(module, "__file__", None)
     return Path(filename).resolve() if filename else None

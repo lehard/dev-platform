@@ -296,6 +296,7 @@ def execute_integration_repair(job: dict, brief: dict, *, source_repo: str, bran
     result_head = workers.harness_git(harness, "rev-parse", "HEAD").strip()
     if trusted_root is None:
         raise workers.WorkerError("integration repair needs the trusted default-branch checkout to regenerate generated files")
+    workers.install_source_contract(harness)  # from here on the harness reads the merged head's contract
     try:
         # As for a repair writer: the integrated result ships with its declared generated files current.
         result_head = workers.regenerate_declared_files(harness, trusted_root, result_head)

@@ -246,6 +246,14 @@ a fresh attempt budget. Completed obligations are not re-run, and a cleanup that
 finds no worktree of the branch completes as `already-clean`. It refuses before
 any write for an open PR, another head, nothing exhausted or a live claim.
 
+Each job kind fixes where it reads the platform contract. Review and repair
+receive the worker's trusted `dev-platform/source-contract.toml`. An integration
+harness reads the contract of its merged head. Finalize reads the candidate's
+contract: if it is invalid or unreadable at the exact head, the job is refused
+before claim and appears under `refused` with the key. No attempt or release is
+spent. The exit is to reconcile the candidate with main and run `finish`, which
+re-admits the head from `finalize-pending`.
+
 A candidate in `finalize-pending`, `review-pending` or `blocked-retryable` whose
 admission gates were lost across the harness's own review-evidence pushes (for
 example finalization stops at "fresh semantic verification required" although

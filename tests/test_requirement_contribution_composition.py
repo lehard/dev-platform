@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
 if str(ROOT / "tests") not in sys.path:
     sys.path.insert(0, str(ROOT / "tests"))
-from _platform_modules import isolate_machine_pool_environment  # noqa: E402
+from _platform_modules import isolate_machine_pool_environment, write_trusted_contract  # noqa: E402
 from _platform_config import platform_config_text  # noqa: E402
 import requirement_contributions as contributions
 import requirement_composition as composition
@@ -1230,6 +1230,7 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(seed, fixture.manifest)
             remote = root / "remote.git"
             git(root, "clone", "--bare", str(seed), str(remote))
+            write_trusted_contract(seed)
             checkout = workers.prepare_checkout(remote.as_uri(), str(root), "llm", head)
             launched = False
             originals = (workers.harness_git, workers._git, _platform_common.run_git)
@@ -1281,6 +1282,7 @@ class CompositionTests(unittest.TestCase):
         git(root, "clone", "--bare", str(seed), str(remote))
         checkout = workers.prepare_checkout(remote.as_uri(), str(root), "llm", head)
         trusted = root / "trusted"; (trusted / "scripts").mkdir(parents=True)
+        write_trusted_contract(trusted)
         (trusted / "scripts/check_private_backlog_refs.py").write_text(
             (Path(__file__).resolve().parents[1] / "scripts/check_private_backlog_refs.py").read_text())
         (trusted / ".dev-platform.toml").write_text(platform_config_text(extra='[development_backlog]\nrepository = "acme/private-backlog"'))
@@ -1336,6 +1338,7 @@ class CompositionTests(unittest.TestCase):
             identity = composition.composition_identity(seed, fixture.manifest)
             remote = root / "remote.git"
             git(root, "clone", "--bare", str(seed), str(remote))
+            write_trusted_contract(seed)
             job = {"kind": "review", "number": 11, "head": head, "attempt": 1, "task_identity": identity}
             posted = []
             (root / "work").mkdir()
@@ -1347,7 +1350,8 @@ class CompositionTests(unittest.TestCase):
                     current_head=lambda: head, post_result=posted.append, workdir=str(root / "work"), worker="w",
                     review_handler=lambda checkout: composition.execute_composition_review(
                         checkout, job, source_repo=remote.as_uri(), branch="requirement/BR-7",
-                        current_head=lambda: head, trusted_root=seed, review_config={}, launcher=mock.Mock()))
+                        current_head=lambda: head, trusted_root=seed, review_config={}, launcher=mock.Mock()),
+                    trusted_root=seed)
             self.assertEqual(outcome["status"], "failed")
             self.assertIn("needs configured Backlog", outcome["cause"])
             self.assertEqual(len(posted), 1)
@@ -1685,6 +1689,7 @@ class CompositionRepairTests(unittest.TestCase):
             return subprocess.CompletedProcess([], 0, "", "")
 
         workdir.mkdir()
+        write_trusted_contract(fixture.root)
         with mock.patch("_platform_common.generated_files", return_value=declared), \
                 mock.patch.object(workers, "push_validated") as push:
             result = workers.execute_job(job, source_repo=str(fixture.root), branch="requirement/BR-7",

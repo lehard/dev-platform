@@ -661,6 +661,42 @@ def review_provider_gate(root: Path, *, workdir: str, home_files, refused: list[
     return gate, readiness
 
 
+def candidate_contract_problem(source_repo: str, workdir: str, head: str) -> str | None:
+    """Why the contract finalize would read at ``head`` cannot be used, or ``None``; it names the key and the exit."""
+    from _platform_common import read_project_config
+
+    try:
+        with tempfile.TemporaryDirectory(dir=workdir) as scratch:
+            try:
+                checkout = prepare_checkout(source_repo, scratch, "contract-checkout", head)
+                read_project_config(checkout)
+            except (WorkerError, RuntimeError, ValueError, OSError) as exc:
+                problem = str(exc).replace(f"{scratch}/contract-checkout/", "")
+                return (f"candidate contract at {head[:12]} is invalid or unreadable: {problem}; "
+                        "reconcile the candidate with main and run finish")
+    except OSError as exc:
+        raise WorkerError(f"cannot prepare the contract check of {head[:12]}: {exc}") from exc
+    return None
+
+
+def finalize_contract_gate(source_repo: str, *, workdir: str, refused: list[dict]) -> Callable[[dict], bool]:
+    """A finalize job is claimed only when the candidate contract at its exact head passes the schema."""
+    problems: dict[str, str | None] = {}
+
+    def gate(job: dict) -> bool:
+        if job["kind"] != "finalize":
+            return True
+        if job["head"] not in problems:
+            problems[job["head"]] = candidate_contract_problem(source_repo, workdir, job["head"])
+        problem = problems[job["head"]]
+        if problem is None:
+            return True
+        refused.append({"number": job["number"], "kind": job["kind"], "error": problem[:POSTED_OUTCOME_LIMIT]})
+        return False
+
+    return gate
+
+
 def needs_private_backlog(job: dict) -> bool:
     """A composition review of an opaque (private-lineage) Requirement resolves its parent through the Backlog."""
     from requirement_integration import ISSUE_RE
@@ -713,8 +749,8 @@ def job_eligible(job: dict, *, review_ready=None, repair_ready=None, backlog_con
 def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_from: Path | None = None) -> Path:
     """Disposable checkout detached at the exact head (local sources reuse the sandbox helper).
 
-    ``contract_from`` names the trusted installed contract to give a checkout that commits
-    none, instead of the head's own public contract (a historical head may predate it).
+    ``contract_from`` names the trusted contract to give a checkout that commits none, instead of
+    the head's own public contract (a historical head may predate it, a stale one may fail the schema).
     """
     if Path(source).is_absolute() and Path(source).is_dir():
         create = disposable_repository_sandbox.create
@@ -742,14 +778,15 @@ def prepare_checkout(source: str, root: str, name: str, head: str, *, contract_f
 SOURCE_CONTRACT = Path("dev-platform") / "source-contract.toml"
 
 
-def checkout_harness(harness: Path, head: str) -> None:
+def checkout_harness(harness: Path, head: str, contract_from: Path | None = None) -> None:
     """Detach a harness-owned clone at ``head`` and install its platform contract before any config read.
 
     ``prepare_harness`` clones without a checkout, so the contract can only be installed once the
-    head is checked out; it is excluded locally and never becomes candidate content.
+    head is checked out; it is excluded locally and never becomes candidate content. Without
+    ``contract_from`` the installed copy is always the committed contract of ``head``.
     """
     _git(harness, "checkout", "--detach", head)
-    install_source_contract(harness)
+    install_source_contract(harness, contract_from)
 
 
 def install_source_contract(checkout: Path, contract_from: Path | None = None) -> None:
@@ -759,11 +796,12 @@ def install_source_contract(checkout: Path, contract_from: Path | None = None) -
     contract carries operator-only sections) and commits its public part as
     `dev-platform/source-contract.toml` instead. A checkout with neither has no contract.
     With ``contract_from``, a checkout that commits no contract gets exactly that file.
+    An earlier installed copy is replaced: it may belong to another head. A committed one is never touched.
     """
     if contract_from is not None and not contract_from.is_file():
         raise WorkerError(f"trusted platform contract {contract_from} is missing; cannot install it into {checkout}")
     contract = checkout / ".dev-platform.toml"
-    if contract.exists():
+    if _git(checkout, "ls-files", "--", contract.name).strip():
         return
     if contract_from is not None:
         public = contract_from
@@ -773,8 +811,10 @@ def install_source_contract(checkout: Path, contract_from: Path | None = None) -
             raise WorkerError(f"checkout {checkout} has neither .dev-platform.toml nor {SOURCE_CONTRACT}; no platform contract")
     shutil.copyfile(public, contract)
     # Installed, never candidate content: the source repository excludes it only locally.
-    with (checkout / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
-        handle.write("\n.dev-platform.toml\n")
+    exclude = checkout / ".git" / "info" / "exclude"
+    if ".dev-platform.toml" not in exclude.read_text(encoding="utf-8").splitlines():
+        with exclude.open("a", encoding="utf-8") as handle:
+            handle.write("\n.dev-platform.toml\n")
 
 
 # ---- harness validation and push -------------------------------------------
@@ -1307,8 +1347,11 @@ def execute_job(job: dict, *, source_repo: str, branch: str, allowed_paths, llm_
     command = shlex.split(llm_command) if isinstance(llm_command, str) else list(llm_command)
     if kind in WRITE_KINDS and (not command or not str(command[-1]).strip()):
         raise WorkerError(f"PR #{job['number']} {kind} job has an empty writer task: the final llm command argument is blank")
+    if trusted_root is None:
+        raise WorkerError(f"{kind} job needs the trusted default-branch checkout: its contract comes from there")
     root = Path(workdir).resolve()
-    checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"])
+    # The job kind fixes the contract source: these jobs run no candidate check, so a stale candidate contract is no input.
+    checkout = prepare_checkout(source_repo, str(root), "llm-checkout", job["head"], contract_from=trusted_root / SOURCE_CONTRACT)
 
     writer_output: dict[str, str] = {}
 
@@ -1653,12 +1696,15 @@ def main(argv: list[str] | None = None) -> int:
             provider_gate, gated = review_provider_gate(Path.cwd(), workdir=gate_scratch, home_files=args.llm_home_file,
                                                         refused=refused)
             gated_review = args.run and "review" in kinds and review_ready is None
+            contract_gate = finalize_contract_gate(args.source or f"https://github.com/{repo}.git",
+                                                   workdir=gate_scratch, refused=refused)
             result = work_next(frozenset(k for k in args.kinds.split(",") if k), list_prs=list_prs,
                                only_prs=frozenset(args.pr) if args.pr else None, exclude_prs=frozenset(args.exclude_pr),
                                eligible=lambda job: job_eligible(job, review_ready=review_ready, repair_ready=repair_ready,
                                                                  backlog_configured=backlog_configured,
                                                                  operator_node=operator_node, refused=refused)
-                               and (not gated_review or provider_gate(job)),
+                               and (not gated_review or provider_gate(job))
+                               and (not args.run or contract_gate(job)),
                                comments_for=comments_for, post_comment=post_comment, worker=args.worker,
                                ttl_seconds=args.ttl, dry_run=args.dry_run, provider=args.provider,
                                current_head=lambda n: pr_info(n)["head"]["sha"],

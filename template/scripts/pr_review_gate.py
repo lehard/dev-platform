@@ -362,7 +362,8 @@ def execute_review(checkout: Path, job: dict, *, source_repo: str, branch: str,
     prefix = change.relative_to(checkout).as_posix() + "/"
     # The reviewer's checkout is data only: its files are imported into a harness-owned clone and every
     # git command below runs there without credentials, never against configuration the reviewer could plant.
-    harness = workers.prepare_checkout(source_repo, str(checkout.parent), "harness", job["head"])
+    harness = workers.prepare_checkout(source_repo, str(checkout.parent), "harness", job["head"],
+                                       contract_from=trusted_root / workers.SOURCE_CONTRACT)
     workers.import_worktree(checkout, harness)
     evidence = [prefix + "independent-review-request.json", prefix + "independent-reviews"]
     touched = [p for p in workers.harness_git(harness, "diff", "--name-only", "-z").split("\0") if p]
@@ -469,7 +470,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
     def before_push(harness, head):
         if not claim_current():
             return
-        workers.checkout_harness(harness, head)
+        workers.checkout_harness(harness, head, root / workers.SOURCE_CONTRACT)
         fresh = refresh_identity(harness, identity)
         post_result(workers.result_body(job, worker, "validated-push", head, task_identity=fresh,
                                         provider=provider if kind == "repair" else None))
@@ -515,7 +516,7 @@ def run_claimed(root: Path, repo: str, candidate: dict, job: dict, *, source_rep
                         rejected=outcome.get("rejected", False), adapter=adapter)
     elif kind == "repair" and outcome["status"] == "pushed":
         harness = Path(workdir) / "harness"
-        workers.checkout_harness(harness, head)
+        workers.checkout_harness(harness, head, root / workers.SOURCE_CONTRACT)
         fresh = refresh_identity(harness, identity)
         # Every changed identity must repeat review and checks; retain only proven gates.
         gates = {name: gate for name, gate in running["gates"].items() if reusable(harness, gate, fresh)}

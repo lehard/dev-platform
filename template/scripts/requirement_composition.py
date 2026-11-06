@@ -100,7 +100,7 @@ def prepare_repaired_composition(stage: Path, trusted_root: Path, job: dict, bra
 
     requirement = job["task_identity"]["requirement"]
     try:
-        workers.install_source_contract(stage)
+        workers.install_source_contract(stage, trusted_root / workers.SOURCE_CONTRACT)
         original = contributions.read_manifest(stage, requirement, job["head"])
         manifest = candidate_manifest(stage, requirement)
         contributions.validate(manifest, original)
@@ -354,7 +354,8 @@ def _execute_composition_review(checkout: Path, job: dict, *, source_repo: str, 
         raise workers.WorkerError("composition reviewers reused a context")
     if current_head() != job["head"] or not claim_current():
         return {"status": "discarded"}
-    harness = workers.prepare_checkout(source_repo, str(checkout.parent), "harness", job["head"])
+    harness = workers.prepare_checkout(source_repo, str(checkout.parent), "harness", job["head"],
+                                       contract_from=trusted_root / workers.SOURCE_CONTRACT)
     directory = harness / evidence_directory(identity["requirement"])
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "request.json").write_text(json.dumps(request, indent=2, sort_keys=True) + "\n", encoding="utf-8")

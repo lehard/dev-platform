@@ -1,0 +1,29 @@
+{
+  "artifacts": [
+    "proposal.md",
+    "design.md",
+    "specs/lifecycle-workers/spec.md",
+    "tasks.md"
+  ],
+  "change": "stale-candidate-contract",
+  "imported_at": "2026-11-06T05:29:18+00:00",
+  "package_revision": "dabf419cab587d00a6d17f7833c58fa69b2bd3b04d915109408cc8c166b2fa5f",
+  "prepared_against": "e01fe7eea5b4a7fac0e6c440c44b164aa2a405bf",
+  "private_lineage_handle": "pln_a4da2d9684fef4a7f6c0a9dfd2234ba4",
+  "routing_receipt": {
+    "assurance": "standard",
+    "effort_hint": "medium",
+    "recommended_start_tier": "R2",
+    "routing_confidence": "medium",
+    "rubric_version": "v1",
+    "strong_trigger": null,
+    "task_family": "general"
+  },
+  "source_issue_evidence": {
+    "body_sha256": "bedefda88075fe5afbc748ceb056b759f6490774210d08ef5dacae07763aa6fa",
+    "updated_at": "2026-11-05T23:05:05Z"
+  },
+  "target_repository": "lehard/dev-platform",
+  "version": 1,
+  "work_identity": "BR-995/T3"
+}

@@ -14,7 +14,7 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "template" / "scripts"))
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import load_platform_module, write_trusted_contract  # noqa: E402
 from _platform_config import platform_config_text  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
 
@@ -1149,6 +1149,7 @@ class ExecuteJobTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         # The trusted default-branch checkout declares no generated files unless a test sets them.
         self.trusted = Path(self.tmp.name)
+        write_trusted_contract(self.trusted)
         self.declared: tuple = ()
         declared = mock.patch("_platform_common.generated_files", side_effect=lambda *_a: self.declared)
         declared.start()
@@ -1431,7 +1432,7 @@ class ExecuteJobTests(unittest.TestCase):
                 self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
                 llm_command=[sys.executable, str(self.script)], current_head=lambda: self.head,
                 post_result=self.posted.append, workdir=str(workdir), worker="w1", provider="codex", env={**os.environ},
-                runtime_check=check)
+                runtime_check=check, trusted_root=self.trusted)
         usable = run(lambda: None)
         self.assertEqual(usable["status"], "failed")  # a usable runtime keeps the failure real
         limited = run(lambda: "codex usage limit reached")
@@ -1445,7 +1446,7 @@ class ExecuteJobTests(unittest.TestCase):
         result = workers.execute_job(
             self.job, source_repo=str(self.src), branch="task", allowed_paths=["src/"],
             llm_command=["/nonexistent/writer"], current_head=lambda: self.head, post_result=self.posted.append,
-            workdir=str(self.work), worker="w1", provider="codex", env={**os.environ}, runtime_check=lambda: None)
+            workdir=str(self.work), worker="w1", provider="codex", env={**os.environ}, runtime_check=lambda: None, trusted_root=self.trusted)
         self.assertEqual(result["status"], "unavailable")
         self.assertIn("cannot start", self.posted[-1])
 
@@ -1454,7 +1455,7 @@ class ExecuteJobTests(unittest.TestCase):
             workers.execute_job(
                 dict(self.job, kind="integration-repair"), source_repo=str(self.src), branch="task",
                 allowed_paths=["src/"], llm_command=["/nonexistent/writer"], current_head=lambda: self.head,
-                post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex", env={**os.environ})
+                post_result=self.posted.append, workdir=str(self.work), worker="w1", provider="codex", env={**os.environ}, trusted_root=self.trusted)
 
     def test_head_moved_discards_result(self):
         result = self.run_job("commit", head=NEW)

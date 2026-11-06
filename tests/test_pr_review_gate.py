@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template/scripts"
 sys.path.insert(0, str(SCRIPTS))
 from _platform_config import write_platform_config  # noqa: E402
-from _platform_modules import load_platform_module  # noqa: E402
+from _platform_modules import load_platform_module, write_trusted_contract  # noqa: E402
 
 gate = load_platform_module("pr_review_gate", SCRIPTS / "pr_review_gate.py")
 queue = load_platform_module("publication_queue", SCRIPTS / "publication_queue.py")
@@ -1770,6 +1770,8 @@ class EndToEndTests(unittest.TestCase):
         self.remote = Path(self.tmp.name) / "remote.git"
         git(self.root, "clone", "--bare", str(self.root), str(self.remote))
         git(self.root, "remote", "add", "origin", str(self.remote))
+        write_trusted_contract(self.root)
+        write_trusted_contract(Path(self.tmp.name))
 
     def remote_head(self):
         return git(self.remote, "rev-parse", "refs/heads/agent/example")
