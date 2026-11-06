@@ -24,9 +24,8 @@
 # gate ahead of the expensive run) or `no_preflight` (why the gate cannot be checked ahead) is required.
 #
 # Known gaps / follow-ups (recorded, not redesigned here):
-#  1. The Python gates in model_routing.py and publication_queue.py now fail through gate_failure/
-#     gate_message (migrated = true). Gates in lifecycle_workers.py and finish_task.py other than
-#     the migrated scope-overlap text are not inventoried yet.
+#  1. The Python gates in model_routing.py now fail through gate_failure/gate_message (migrated = true).
+#     Gates in finish_task.py other than the migrated scope-overlap text are not inventoried yet.
 #  2. delegated-write-containment: an integration head move that no integration-advance receipt
 #     explains stays a hard stop. The only exit that exists, `model_routing.py
 #     recover-external-advance --owner-approval`, is a historical recovery that is refused once
@@ -45,15 +44,14 @@
 #  6. No inventoried gate currently reports itself as platform-defect; the class and its tests exist
 #     for gates that detect their own contradictory contract.
 #  7. The inventory covers the gates named in the Requirement and the ones verified by reading code.
-#     Other blocking checks (for example in finish_task.py, pr_review_gate.py, openspec_lifecycle.py)
+#     Other blocking checks (for example in finish_task.py, openspec_lifecycle.py)
 #     are not yet cataloged; completeness is reported here, not asserted. A new or changed blocking
 #     check must be added here and fail through the helper (enforced by review).
 #  8. merge-commit-hook stays migrated = false: a shell script cannot call the helper and editing a
 #     git hook is a protected-surface change reserved for an explicit owner decision.
-# 10. Named checks mapping: the Requirement's "finalize freshness" is the proven-base-freshness entry
-#     (select_checks.py --proven-base); the task-freshness entry covers the developer preflight
-#     freshness that reconcile_task.py restores. Refusals raised inside reconcile_task.py itself are
-#     not inventoried yet (follow-up).
+# 10. Named checks mapping: the task-freshness entry covers the developer preflight freshness that
+#     reconcile_task.py restores. Refusals raised inside reconcile_task.py itself are not inventoried
+#     yet (follow-up).
 # 11. A missing or malformed catalog makes gate_failure/gate_message raise BlockingGateCatalogError
 #     instead of the gate's own exception type: an explicit, loud failure (no default message), at the
 #     cost of a different exception type than the uncataloged gate raised.
@@ -126,36 +124,6 @@ recovery_tests = [
 ]
 
 [[gate]]
-id = "contribution-base-freshness"
-script = "scripts/select_checks.py"
-class = "hard-stop"
-summary = "Validation of a Requirement contribution is refused because HEAD does not contain the contribution's exact base."
-justification = "The contribution identity binds the exact base commit, so the platform must not validate content that is not built on it. Rebuild the contribution on its recorded base; a started child whose base moved is restarted from the current Requirement head."
-migrated = true
-no_preflight = "select_checks.py evaluates it at its --execute entry before any command in the coordinator-declared contribution mode; the developer-side preflight condition task-base is declared not applicable there, so this entry is the early check."
-rejection_tests = [
-  "tests/test_task_freshness.py::TaskFreshnessTests::test_contribution_missing_its_exact_base_stops_before_validation",
-]
-
-# The justification stays short on purpose: consumers such as post_review_finalization.py keep only the
-# last 400 characters of check output, and a long second line would push the gate's own message out of it.
-# Fuller rationale: only the coordinator finalization contract may validate on a proven base (refused
-# outside coordinator lifecycle mode); that base comes from reviewed lifecycle evidence, never from the
-# checkout, so a mismatch means the head does not descend from the evidence and no agent-side step may repair it.
-[[gate]]
-id = "proven-base-freshness"
-script = "scripts/select_checks.py"
-class = "hard-stop"
-summary = "Coordinator finalization checks are refused because HEAD does not fork from its proven base on authoritative main."
-justification = "intentional: the proven base comes from reviewed evidence; no agent-side repair"
-migrated = true
-no_preflight = "select_checks.py evaluates it at its --execute entry before any command in the coordinator finalization mode; the developer-side preflight condition task-base is declared not applicable there, so this entry is the early check."
-rejection_tests = [
-  "tests/test_select_checks.py::ProvenBaseContractTests::test_misuse_is_refused_before_any_command_starts",
-  "tests/test_post_review_finalization.py::PlantedLegacyContextTests::test_planted_legacy_dependent_context_makes_proven_base_refuse_and_finalize_escalate",
-]
-
-[[gate]]
 id = "shared-workspace-admission"
 script = "scripts/shared_workspace.py"
 class = "recoverable"
@@ -184,21 +152,6 @@ rejection_tests = [
   "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_admits_no_other_merge",
   "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_of_another_worktree_admits_nothing",
   "tests/test_blocking_gates.py::MergeCommitHookTests::test_reconcile_intent_does_not_admit_a_merge_commit_in_the_integration_copy",
-]
-
-[[gate]]
-id = "publication-preflight"
-script = "scripts/publication_queue.py"
-class = "recoverable"
-summary = "Coordinator configuration preflight stops at the first missing or contradictory input, names it, and exits 2."
-recovery = "supply or correct the named input (tool, token, slug or trust configuration), then rerun `python3 scripts/publication_queue.py preflight --mode <ci|local> --phase <inputs|runtime|all>`"
-migrated = true
-no_preflight = "It is the coordinator's own configuration preflight (publication_queue.py preflight), a cheap early check run by coordinator workers and CI, not a gate reached after a developer validation run."
-rejection_tests = [
-  "tests/test_coordinator_preflight.py::CiPreflightTests::test_each_missing_input_is_named",
-]
-recovery_tests = [
-  "tests/test_coordinator_preflight.py::CiPreflightTests::test_valid_configuration_passes_all_phases",
 ]
 
 [[gate]]

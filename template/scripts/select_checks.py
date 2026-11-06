@@ -13,19 +13,13 @@ from typing import Any
 
 import machine_pool
 from _platform_common import (
-    TASK_BASE_FRESH,
-    PlatformConfigError,
     TaskFreshnessError,
     current_worktree_root,
     gate_failure,
-    lifecycle_mode,
     main_root,
     read_platform_config,
     require_fresh_task_base,
-    require_handoff_task_base,
-    task_freshness_branch,
     require_main_branch,
-    require_proven_task_base,
     resolve_changed_file_base,
     run_git,
     validation_subprocess_env,
@@ -349,7 +343,6 @@ def execute(
     evidence_path: Path | None = None,
     managed_checkout: object | None = None,
     precheck: list[str] | None = None,
-    base_contract: dict[str, Any] | None = None,
     quick_gate: dict[str, Any] | None = None,
 ) -> int:
     commands = commands_for(checks)
@@ -357,7 +350,7 @@ def execute(
         print("No applicable commands selected.")
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), [], "not-applicable", managed_checkout,
-                           base_contract=base_contract, quick_gate=quick_gate)
+                           quick_gate=quick_gate)
         return 0
 
     from run_test_groups import TestGroupError, require_early_routing_gate, resolve_jobs
@@ -376,7 +369,7 @@ def execute(
         with machine_pool.lease(weight=lease_weight(checks, precheck, resolve_jobs()[0]), purpose="select_checks",
                                 bounded=True, root=root) as pool_lease:
             return _execute_commands(root, checks, commands, evidence_path, managed_checkout, precheck, pool_lease.fds,
-                                     base_contract, quick_gate)
+                                     quick_gate)
     except machine_pool.PoolError as exc:
         print(f"Machine pool blocked validation before any command started: {exc}", file=sys.stderr, flush=True)
         return 2
@@ -390,7 +383,6 @@ def _execute_commands(
     managed_checkout: object | None,
     precheck: list[str] | None,
     pass_fds: tuple[int, ...],
-    base_contract: dict[str, Any] | None,
     quick_gate: dict[str, Any] | None,
 ) -> int:
     records: list[dict[str, Any]] = []
@@ -402,7 +394,7 @@ def _execute_commands(
     if precheck_record is not None and precheck_record["outcome"] in {"failure", "unavailable"}:
         if evidence_path is not None:
             write_evidence(evidence_path, checks, selection_status(checks), records, "failure", managed_checkout, precheck_record,
-                           base_contract=base_contract, quick_gate=quick_gate)
+                           quick_gate=quick_gate)
         descriptor = failure_descriptor(checks, precheck_record["command"], result)
         descriptor["phase"] = "affected-precheck"
         if precheck_record["outcome"] == "unavailable":
@@ -438,7 +430,7 @@ def _execute_commands(
             outcome = "failure"
             if evidence_path is not None:
                 write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record,
-                           base_contract=base_contract, quick_gate=quick_gate)
+                           quick_gate=quick_gate)
             print("DEV_PLATFORM_CHECK_FAILURE: " + json.dumps(failure_descriptor(checks, command, result), ensure_ascii=False, sort_keys=True), flush=True)
             detail = diagnostic_tail((result.stdout or "") + (result.stderr or ""))
             if detail:
@@ -446,7 +438,7 @@ def _execute_commands(
             return result.returncode
     if evidence_path is not None:
         write_evidence(evidence_path, checks, selection_status(checks), records, outcome, managed_checkout, precheck_record,
-                           base_contract=base_contract, quick_gate=quick_gate)
+                           quick_gate=quick_gate)
     return 0
 
 
@@ -459,7 +451,6 @@ def write_evidence(
     managed_checkout: object | None = None,
     precheck: dict[str, Any] | None = None,
     *,
-    base_contract: dict[str, Any] | None = None,
     quick_gate: dict[str, Any] | None = None,
 ) -> None:
     payload = {
@@ -485,47 +476,9 @@ def write_evidence(
         payload["gate_task_content"] = quick_gate["proof"]
     if precheck is not None:
         payload["affected_precheck"] = precheck
-    if base_contract is not None:
-        # The head did not contain main: a reviewer of the evidence sees which contract passed it.
-        payload["task_base"] = base_contract
     # Publication admission walks the task git dir that holds quick evidence: publish the file and its
     # directory under the shared group contract, never with the process umask or inherited bits.
     shared_workspace.atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
-
-
-def coordinator_contract(root: Path) -> bool:
-    """Whether the committed contract is the coordinator one; an undeterminable contract stops."""
-    try:
-        return lifecycle_mode(read_platform_config(root)) == "coordinator"
-    except PlatformConfigError as exc:
-        raise SystemExit(f"Task freshness gate blocked: lifecycle mode is not determinable: {exc}") from exc
-
-
-def require_proven_base_contract(root: Path, args: argparse.Namespace) -> str:
-    """Validate the bounded coordinator-finalization freshness contract before any command starts."""
-    refused = "Proven-base freshness contract refused before any command started: "
-    if not args.execute:
-        raise SystemExit(refused + "--proven-base requires --execute")
-    if args.evidence is not None:
-        raise SystemExit(refused + "--proven-base never produces handoff evidence and is refused with --evidence")
-    if args.contribution_base is not None:
-        raise SystemExit(refused + "--proven-base is refused with --contribution-base")
-    if args.mode == "protected-full":
-        raise SystemExit(refused + "--proven-base is refused in protected-full mode")
-    platform = read_platform_config(root)
-    try:
-        mode = lifecycle_mode(platform)
-    except PlatformConfigError as exc:
-        raise SystemExit(refused + f"lifecycle mode is not determinable: {exc}") from exc
-    if mode != "coordinator":
-        raise SystemExit(refused + f"--proven-base is accepted only in coordinator lifecycle mode (found {mode})")
-    main_branch = platform.get("main_branch")
-    if not isinstance(main_branch, str) or not main_branch:
-        raise SystemExit(refused + "main_branch must be a non-empty string in .dev-platform.toml")
-    try:
-        return require_proven_task_base(root, args.proven_base, "origin", main_branch)
-    except TaskFreshnessError as exc:
-        raise gate_failure("proven-base-freshness", refused + str(exc), SystemExit) from exc
 
 
 def require_active_change_ready(root: Path, change: str, evidence_requested: bool) -> None:
@@ -614,8 +567,6 @@ def require_committed_task_content(root: Path, exclude: Callable[[str, str], boo
 
 def selector_scope_waiver(root: Path, args: argparse.Namespace, expensive: bool) -> str | None:
     """The declared reason the board claim and scope condition does not apply to this run, or ``None``."""
-    if args.proven_base is not None or args.contribution_base is not None:
-        return "coordinator disposable checkout (--proven-base/--contribution-base)"
     if args.scope_gate == "not-applicable":
         require_disposable_checkout(root, "--scope-gate not-applicable")
         return "declared by --scope-gate not-applicable (disposable checkout without a machine-local board)"
@@ -626,8 +577,7 @@ def selector_scope_waiver(root: Path, args: argparse.Namespace, expensive: bool)
 
 def run_selector_preflight(root: Path, args: argparse.Namespace, checks: list[dict[str, Any]], evidence_path: Path | None) -> None:
     """Refuse, before any expensive operation, on every condition the later gates would stop on."""
-    handoff_evidence = bool(checks) and evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root)
-    expensive = requires_task_freshness(checks) or handoff_evidence
+    expensive = requires_task_freshness(checks)
     # The selector's own task freshness gate above ran the same classification (and records its contract in the evidence).
     base_waiver = "checked by the task freshness gate that ran before this preflight"
     scope_waiver = selector_scope_waiver(root, args, expensive)
@@ -647,25 +597,6 @@ def run_selector_preflight(root: Path, args: argparse.Namespace, checks: list[di
 def main() -> int:
     parser = argparse.ArgumentParser(description="Select conservative project checks from changed files.")
     parser.add_argument("--base", help="Git base ref, e.g. origin/main")
-    parser.add_argument(
-        "--contribution-base",
-        metavar="SHA",
-        help=(
-            "Requirement contribution candidate: its freshness is the exact recorded integration "
-            "base it contributes onto (HEAD must contain this commit), not current main. Current "
-            "main is validated later by the Requirement composition candidate."
-        ),
-    )
-    parser.add_argument(
-        "--proven-base",
-        metavar="SHA",
-        help=(
-            "Coordinator finalization only: HEAD must fork from exactly this commit on origin/<main> "
-            "(merge-base(HEAD, origin/<main>) == SHA) instead of containing current main. Requires "
-            "--execute in coordinator lifecycle mode; refused with --evidence, --contribution-base "
-            "and protected-full."
-        ),
-    )
     parser.add_argument("--changed-file", action="append", default=[])
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--execute", action="store_true")
@@ -686,8 +617,7 @@ def main() -> int:
             "enforce (default): the multi-agent scope gate is required whenever [capabilities] agent_board is true and "
             "every unmet precondition stops the run. not-applicable: declare a disposable checkout with no machine-local "
             "board (CI); the run prints that the gate was not applied, and the flag is refused in a linked task worktree "
-            "or a checkout with managed task state. --proven-base and --contribution-base "
-            "(coordinator disposable checkouts) declare the same by their mode."
+            "or a checkout with managed task state."
         ),
     )
     parser.add_argument(
@@ -707,7 +637,6 @@ def main() -> int:
         args.mode = "protected-full"
 
     root = current_worktree_root()
-    proven_description = require_proven_base_contract(root, args) if args.proven_base is not None else None
     config = load_config(root)
     paths = ([] if args.mode == "protected-full"
              else changed_files(root, resolve_changed_file_base(root, args.base, args.changed_file), args.changed_file))
@@ -734,11 +663,9 @@ def main() -> int:
             print(f"Validation mode: {args.mode}; selection: not-applicable; no commands selected.")
     print("DEV_PLATFORM_CHECK_SELECTION: " + json.dumps(status, ensure_ascii=False, sort_keys=True), flush=True)
 
-    if args.task_evidence and (not args.execute or args.evidence or args.proven_base or args.contribution_base):
-        raise SystemExit("--task-evidence requires --execute and is refused with --evidence, --proven-base and --contribution-base")
+    if args.task_evidence and (not args.execute or args.evidence):
+        raise SystemExit("--task-evidence requires --execute and is refused with --evidence")
     if args.execute:
-        if args.contribution_base is not None:
-            require_disposable_checkout(root, "--contribution-base")
         evidence_path = (root / args.evidence).resolve() if args.evidence else None
         # Managed task state makes this a protected evidence-producing path,
         # even if the selected group is narrower than protected-full.  The
@@ -783,60 +710,20 @@ def main() -> int:
             require_committed_task_content(root, lambda canonical, raw: is_lifecycle_receipt(change, raw))
         if quick_gate is not None or (managed_checkout is not None and evidence_path is not None):
             refuse_repeated_run(root, managed_checkout.change if managed_checkout is not None else None, quick_gate is not None)
-        base_contract = None
-        # Narrow mapped selections that produce coordinator handoff evidence need the
-        # same currency classification as full selections.
-        handoff_evidence = bool(checks) and evidence_path is not None and args.mode == "local-affected" and coordinator_contract(root)
-        if harness == "platform" and (requires_task_freshness(checks) or handoff_evidence):
-            if proven_description is not None:
-                print(
-                    "Task freshness gate passed (coordinator-finalization proven-base contract): "
-                    f"proven base {args.proven_base} is the {proven_description}."
-                )
-            elif args.contribution_base:
-                if run_git(["merge-base", "--is-ancestor", args.contribution_base, "HEAD"], cwd=root, check=False).returncode:
-                    raise gate_failure(
-                        "contribution-base-freshness",
-                        "Task freshness gate blocked full/protected validation before any expensive command started: "
-                        f"HEAD does not contain its exact contribution base {args.contribution_base}",
-                        SystemExit,
-                    )
-                print(f"Task freshness gate passed: HEAD contains its exact contribution base ({args.contribution_base}).")
-            elif args.mode == "local-affected" and coordinator_contract(root):
-                # Under the coordinator contract a task the queue integrates (a coordinator
-                # candidate or a quick task) behind a mergeable target passes; the queue merges
-                # it and gates on the integrated head. Any other head keeps the fresh-base rule.
-                # The target is main, or the recorded requirement branch of a contribution.
-                main_branch = require_main_branch(read_platform_config(root), SystemExit)
-                try:
-                    main_branch = task_freshness_branch(root, main_branch)
-                    currency = require_handoff_task_base(root, "origin", main_branch)
-                except TaskFreshnessError as exc:
-                    raise SystemExit(
-                        "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc)
-                    ) from exc
-                if currency.state == TASK_BASE_FRESH:
-                    print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({currency.main}).")
-                else:
-                    base_contract = currency.evidence() if evidence_path is not None else None
-                    print(
-                        "Task freshness gate passed (queue-integrated behind-mergeable contract): "
-                        f"{currency.describe('origin/' + main_branch)}; merge base {currency.base}."
-                    )
-            else:
-                main_branch = require_main_branch(read_platform_config(root), SystemExit)
-                try:
-                    observed = require_fresh_task_base(root, "origin", main_branch)
-                except TaskFreshnessError as exc:
-                    raise gate_failure(
-                        "task-freshness",
-                        "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc),
-                        SystemExit,
-                    ) from exc
-                print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({observed}).")
+        if harness == "platform" and requires_task_freshness(checks):
+            main_branch = require_main_branch(read_platform_config(root), SystemExit)
+            try:
+                observed = require_fresh_task_base(root, "origin", main_branch)
+            except TaskFreshnessError as exc:
+                raise gate_failure(
+                    "task-freshness",
+                    "Task freshness gate blocked full/protected validation before any expensive command started: " + str(exc),
+                    SystemExit,
+                ) from exc
+            print(f"Task freshness gate passed: HEAD contains freshly observed origin/{main_branch} ({observed}).")
         if harness == "platform":
             run_selector_preflight(root, args, checks, evidence_path)
-        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), base_contract, quick_gate)
+        return execute(root, checks, evidence_path, managed_checkout, precheck_paths(config, checks), quick_gate)
     return 0
 
 

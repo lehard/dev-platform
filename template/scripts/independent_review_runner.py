@@ -143,7 +143,7 @@ def _kill_process_group(process: subprocess.Popen) -> None:
     except ProcessLookupError:
         pass  # no member is left
     except PermissionError as exc:
-        from lifecycle_workers import live_group_members
+        from sandbox_harness import live_group_members
 
         live = live_group_members(process.pid)
         if live:
@@ -774,7 +774,7 @@ def run_review(
 def run_review_stage(root: Path, request: dict[str, Any], *, config: dict[str, Any],
                      launcher: Launcher | None, diff: str, limitation: str | None,
                      watched: list[Path]) -> dict[str, dict[str, Any]]:
-    """Shared portable/queue review stage: runtime preflight and independent perspectives.
+    """Review stage: runtime preflight and independent perspectives.
 
     Callers own candidate preparation, containment and evidence persistence. No archive
     executor invokes this function: review remains a required stage before finalization.

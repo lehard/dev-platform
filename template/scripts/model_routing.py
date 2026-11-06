@@ -2132,9 +2132,9 @@ def claude_sandboxed_argv(route: Route, prompt: str) -> list[str]:
 
 def _trusted_git(repo: Path, *args: str) -> str:
     """Git in the supervisor's own task worktree only, never in the writer checkout."""
-    import lifecycle_workers
+    import sandbox_harness
 
-    done = subprocess.run(["git", *lifecycle_workers.SAFE_GIT, *args], cwd=repo, text=True, capture_output=True,
+    done = subprocess.run(["git", *sandbox_harness.SAFE_GIT, *args], cwd=repo, text=True, capture_output=True,
                           check=False, stdin=subprocess.DEVNULL)
     if done.returncode:
         raise RoutingError(f"git {' '.join(args[:2])} failed in {repo}: {done.stderr.strip()[:300]}")
@@ -2157,11 +2157,11 @@ def prepare_sandboxed_checkout(task: Path, root: Path) -> tuple[Path, str]:
     The harness commits the baseline before the writer starts, so the writer's result is measured
     against exactly the task content it was given and the patch carries only the writer's change.
     """
-    import lifecycle_workers
+    import sandbox_harness
 
     head = _trusted_git(task, "rev-parse", "HEAD").strip()
     # The task worktree's installed contract is the trusted one this task already runs under.
-    checkout = lifecycle_workers.prepare_checkout(str(task), str(root), "llm-checkout", head,
+    checkout = sandbox_harness.prepare_checkout(str(task), str(root), "llm-checkout", head,
                                                   contract_from=task / ".dev-platform.toml")
     present, deleted = _uncommitted_paths(task)
     for relative in present:
@@ -2175,20 +2175,20 @@ def prepare_sandboxed_checkout(task: Path, root: Path) -> tuple[Path, str]:
             shutil.copy2(source, target)
     for relative in deleted:
         (checkout / relative).unlink()
-    lifecycle_workers.harness_git(checkout, "add", "-A")
-    lifecycle_workers.harness_git(checkout, *lifecycle_workers.HARNESS_IDENTITY, "commit", "-q", "--no-verify",
+    sandbox_harness.harness_git(checkout, "add", "-A")
+    sandbox_harness.harness_git(checkout, *sandbox_harness.HARNESS_IDENTITY, "commit", "-q", "--no-verify",
                                   "--allow-empty", "-m", "Sandboxed writer baseline")
-    return checkout, lifecycle_workers.harness_git(checkout, "rev-parse", "HEAD").strip()
+    return checkout, sandbox_harness.harness_git(checkout, "rev-parse", "HEAD").strip()
 
 
 def _refuse_sandboxed_paths(changed: list[str]) -> None:
-    import lifecycle_workers
+    import sandbox_harness
 
     refused = [path for path in changed
-               if lifecycle_workers._forbidden(path) or Path(path).name in SANDBOXED_REFUSED_NAMES
+               if sandbox_harness._forbidden(path) or Path(path).name in SANDBOXED_REFUSED_NAMES
                or path.split("/", 1)[0] in {".claude", ".git"}]
     if refused:
-        raise lifecycle_workers._refusal("sandboxed writer changed lifecycle state", refused)
+        raise sandbox_harness._refusal("sandboxed writer changed lifecycle state", refused)
 
 
 def collect_sandboxed_patch(task: Path, checkout: Path, root: Path, baseline: str) -> tuple[str, list[str]]:
@@ -2197,32 +2197,30 @@ def collect_sandboxed_patch(task: Path, checkout: Path, root: Path, baseline: st
     The writer checkout stays data: only its result commit is fetched and its files are imported by plain
     copies (``import_worktree``), so hooks, attributes drivers or config planted there never execute.
     """
-    import lifecycle_workers
+    import sandbox_harness
 
-    result_head = lifecycle_workers.harness_git(checkout, "rev-parse", "HEAD").strip()
-    stage = lifecycle_workers.prepare_harness(str(task), checkout, root, result_head, name="writer-stage")
-    lifecycle_workers.harness_git(stage, "checkout", "-q", "--detach", result_head)
+    result_head = sandbox_harness.harness_git(checkout, "rev-parse", "HEAD").strip()
+    stage = sandbox_harness.prepare_harness(str(task), checkout, root, result_head, name="writer-stage")
+    sandbox_harness.harness_git(stage, "checkout", "-q", "--detach", result_head)
     with (stage / ".git" / "info" / "exclude").open("a", encoding="utf-8") as handle:
-        handle.write("".join(f"\n/{name}" for name in lifecycle_workers.INSTALLED_FILES) + "\n")
-    lifecycle_workers.import_worktree(checkout, stage)
-    leftover = lifecycle_workers.worktree_changes(stage)
+        handle.write("".join(f"\n/{name}" for name in sandbox_harness.INSTALLED_FILES) + "\n")
+    sandbox_harness.import_worktree(checkout, stage)
+    leftover = sandbox_harness.worktree_changes(stage)
     if leftover and result_head != baseline:
-        raise lifecycle_workers._refusal("writer committed and also left uncommitted changes", leftover)
+        raise sandbox_harness._refusal("writer committed and also left uncommitted changes", leftover)
     if leftover:
         _refuse_sandboxed_paths(leftover)
-        lifecycle_workers.harness_git(stage, "--literal-pathspecs", "add", "--", *leftover)
-        lifecycle_workers.harness_git(stage, *lifecycle_workers.HARNESS_IDENTITY, "commit", "-q", "--no-verify",
+        sandbox_harness.harness_git(stage, "--literal-pathspecs", "add", "--", *leftover)
+        sandbox_harness.harness_git(stage, *sandbox_harness.HARNESS_IDENTITY, "commit", "-q", "--no-verify",
                                       "-m", "Sandboxed writer edits")
-    final = lifecycle_workers.harness_git(stage, "rev-parse", "HEAD").strip()
+    final = sandbox_harness.harness_git(stage, "rev-parse", "HEAD").strip()
     if final == baseline:
         return "", []
-    names = [name for name in lifecycle_workers.harness_git(
-        stage, "diff", "--name-only", "--no-renames", "-z", baseline, final).split("\0") if name]
-    # The writer's scope is the whole task; validate_worker_result still proves the fast-forward,
+    # The writer's scope is the whole task; validate_writer_result still proves the fast-forward,
     # refuses gitlinks, workflow and lifecycle-evidence edits.
-    changed = lifecycle_workers.validate_worker_result(stage, baseline, final, names, kind="repair")
+    changed = sandbox_harness.validate_writer_result(stage, baseline, final)
     _refuse_sandboxed_paths(changed)
-    return lifecycle_workers.harness_git(stage, "diff", "--binary", "--no-renames", baseline, final), changed
+    return sandbox_harness.harness_git(stage, "diff", "--binary", "--no-renames", baseline, final), changed
 
 
 def _claude_result(stdout: str) -> dict[str, Any] | None:
@@ -2240,7 +2238,7 @@ def run_claude_sandboxed(route: Route, prompt: str, *, launch_hook: Callable[[],
     Pre-launch refusals (platform, runtime, CLI, token, profile) raise ``RoutingError`` before any process
     exists. ``launch_hook`` runs only once the writer process exists.
     """
-    import lifecycle_workers
+    import sandbox_harness
     import sandboxed_writer
 
     launch = sandboxed_writer.launch_sandboxed_writer if launcher is None else launcher
@@ -2250,10 +2248,10 @@ def run_claude_sandboxed(route: Route, prompt: str, *, launch_hook: Callable[[],
     root = workdir.resolve()
     try:
         checkout, baseline = prepare_sandboxed_checkout(task, root)
-    except lifecycle_workers.WorkerError as exc:
+    except sandbox_harness.WorkerError as exc:
         raise RoutingError(f"cannot prepare the sandboxed writer checkout: {exc}") from exc
-    tmp = lifecycle_workers.writer_tmp(root)
-    home = lifecycle_workers.scratch_home(root)
+    tmp = sandbox_harness.writer_tmp(root)
+    home = sandbox_harness.scratch_home(root)
     started_at = _platform_timestamp()
     started_tick = time.perf_counter_ns()
     launched = {"value": False}
@@ -2262,7 +2260,7 @@ def run_claude_sandboxed(route: Route, prompt: str, *, launch_hook: Callable[[],
         def started() -> None:
             launched["value"] = True
             launch_hook()
-        return lifecycle_workers.run_in_session(command, on_start=started, **kwargs)
+        return sandbox_harness.run_in_session(command, on_start=started, **kwargs)
 
     try:
         done = launch(argv, checkout, integration_root=Path(route.integration_root),
@@ -2292,7 +2290,7 @@ def run_claude_sandboxed(route: Route, prompt: str, *, launch_hook: Callable[[],
         return {"execution": output, "patch": "", "changed": [], "workdir": str(root)}
     try:
         patch, changed = collect_sandboxed_patch(task, checkout, root, baseline)
-    except lifecycle_workers.WorkerError as exc:
+    except sandbox_harness.WorkerError as exc:
         output["outcome"] = "rejected"
         output["error"] = str(exc)[:300]
         return {"execution": output, "patch": "", "changed": [], "workdir": str(root)}

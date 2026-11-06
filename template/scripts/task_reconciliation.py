@@ -7,12 +7,8 @@ from pathlib import Path
 from _platform_common import (
     atomic_write_text,
     RECONCILE_COMMAND,
-    TASK_BASE_BEHIND_MERGEABLE,
     TaskFreshnessError,
-    classify_task_base_currency,
-    queue_integrated,
     current_worktree_root,
-    fetch_commit_objects,
     fetch_main,
     github_cli_env,
     harness_mode,
@@ -22,16 +18,8 @@ from _platform_common import (
     read_platform_config,
     relation,
     run_git,
-    task_freshness_branch,
 )
-try:
-    from managed_task import ManagedTaskError, resolve_canonical_provenance
-except ModuleNotFoundError:  # Compatibility while older renders are upgraded.
-    class ManagedTaskError(RuntimeError):
-        pass
-
-    def resolve_canonical_provenance(root: Path):
-        return None
+from managed_task import ManagedTaskError, resolve_canonical_provenance
 import publication_state
 
 
@@ -43,20 +31,12 @@ MANAGED_PROVENANCE_FILE = ".managed-task.json"
 # names the current branch and the commit origin/<main_branch> still points to,
 # and the merge is exactly ``merge origin/<main_branch>``.
 RECONCILE_MERGE_INTENT = "dev-platform-reconcile-merge"
-HELD_HEAD_NOTE = ("The publication queue holds the admitted head of this quick task, so nothing was pushed: "
-                  "finish pushes this head and records the transition once the queue accepts a new head.")
-
-
 @dataclass(frozen=True)
 class Freshness:
     state: str
     authoritative_sha: str
-    # The branch this was measured against: main, or the recorded target of a contribution.
+    # The branch this was measured against: main.
     target: str
-    # Set for a coordinator candidate's head that does not contain main: the
-    # merge base of ``behind-mergeable``, or why reconciliation is required.
-    merge_base: str | None = None
-    detail: str | None = None
 
     @property
     def reconcile_required(self) -> bool:
@@ -71,47 +51,19 @@ def current_branch(root: Path) -> str:
     return run_git(["branch", "--show-current"], cwd=root).stdout.strip()
 
 
-def freshness_branch(root: Path) -> str:
-    """The recorded target branch of a contribution, or main for any other task."""
-    main_branch = read_platform_config(root).get("main_branch")
-    if not isinstance(main_branch, str) or not main_branch:
-        raise TaskFreshnessError("main_branch must be a non-empty string in .dev-platform.toml")
-    return task_freshness_branch(root, main_branch)
-
-
 def observe(root: Path, *, read_only: bool = False) -> Freshness:
-    """Fetch the authoritative freshness branch and classify the exact checked-out task head."""
+    """Fetch authoritative main and classify the exact checked-out task head."""
     helper = observe_task_base_freshness_readonly if read_only else observe_task_base_freshness
-    target = freshness_branch(root)
+    target = read_platform_config(root).get("main_branch")
+    if not isinstance(target, str) or not target:
+        raise TaskFreshnessError("main_branch must be a non-empty string in .dev-platform.toml")
     state, authoritative_sha = helper(root, "origin", target)
     return Freshness(state=state, authoritative_sha=authoritative_sha, target=target)
 
 
-def observe_candidate(root: Path, *, read_only: bool = False) -> Freshness:
-    """``observe``, where a coordinator candidate behind a mergeable main is ``behind-mergeable``.
-
-    The publication queue merges main into a coordinator candidate and gates on
-    the integrated head, so such a head needs no reconcile. Candidacy is read
-    only for a head that does not contain main. ``reconcile`` keeps ``observe``:
-    an explicit reconcile still merges main into any head behind it.
-    """
-    freshness = observe(root, read_only=read_only)
-    if not freshness.reconcile_required or not queue_integrated(root):
-        return freshness
-    target = freshness.target
-    if read_only:
-        fetch_commit_objects(root, "origin", target, freshness.authoritative_sha)
-    currency = classify_task_base_currency(root, freshness.authoritative_sha)
-    if currency.state == TASK_BASE_BEHIND_MERGEABLE:
-        return Freshness(state=TASK_BASE_BEHIND_MERGEABLE, authoritative_sha=currency.main, target=target, merge_base=currency.base)
-    # Main's objects are now present, so the exact relation replaces a read-only "behind".
-    return Freshness(state=relation(root, "HEAD", currency.main), authoritative_sha=currency.main, target=target,
-                     merge_base=currency.base, detail=currency.describe(f"origin/{target}"))
-
-
 def status_payload(root: Path) -> dict[str, object]:
     """Return bounded freshness evidence for status/preflight callers."""
-    freshness = observe_candidate(root, read_only=True)
+    freshness = observe(root, read_only=True)
     payload: dict[str, object] = {
         "task_freshness": freshness.state,
         "freshness_target": freshness.target,
@@ -119,10 +71,6 @@ def status_payload(root: Path) -> dict[str, object]:
         "reconcile_required": freshness.reconcile_required,
         "reconcile_command": RECONCILE_COMMAND if freshness.reconcile_required else None,
     }
-    if freshness.merge_base is not None:
-        payload["task_merge_base"] = freshness.merge_base
-    if freshness.detail is not None:
-        payload["freshness_detail"] = freshness.detail
     try:
         provenance = resolve_canonical_provenance(root)
     except ManagedTaskError as exc:
@@ -272,42 +220,13 @@ def _continue_exact_pr_from_local_descendant(
     )
 
 
-def _queue_holds_head(root: Path, branch: str, kind: str) -> bool:
-    """Whether the queue holds this quick task's admitted head: then only ``finish`` may move it."""
-    if kind != TASK_KIND_QUICK or not queue_integrated(root):
-        return False
-    from publication_queue import holds_admitted_head
-
-    return holds_admitted_head(root, branch)
-
-
 def _conflict_paths(root: Path) -> list[str]:
     result = run_git(["diff", "--name-only", "--diff-filter=U"], cwd=root, check=False)
     return sorted({line.strip() for line in result.stdout.splitlines() if line.strip()})
 
 
-def _require_contribution_base(root: Path) -> None:
-    """Refuse before any merge a contribution whose target is proven but whose base record is lost."""
-    from requirement_child_context import cached_contribution
-
-    try:
-        cached_contribution(root, resolve_canonical_provenance(root).change)
-    except ManagedTaskError as exc:
-        raise SystemExit(f"Task reconciliation blocked: {exc}") from exc
-
-
-def _move_base_to_target(root: Path, target_head: str) -> None:
-    from requirement_child_context import move_contribution_base
-
-    move_contribution_base(root, resolve_canonical_provenance(root).change, target_head)
-
-
 def reconcile(root: Path | None = None) -> Freshness:
-    """Incorporate the freshness branch by normal merge only; never reset, stash, or rebase.
-
-    That branch is main, or the recorded target of a contribution, whose base then moves to the merged
-    target head so later review sees only the child's own content.
-    """
+    """Incorporate main by normal merge only; never reset, stash, or rebase."""
     root = (root or current_worktree_root()).resolve()
     config = read_platform_config(root)
     if harness_mode(config) != "platform" or publish_mode(config) != "pr":
@@ -325,23 +244,15 @@ def reconcile(root: Path | None = None) -> Freshness:
     if not clean(root):
         raise SystemExit("Task reconciliation blocked: the task worktree is dirty. Commit or resolve it explicitly; automatic stash/reset is forbidden.")
 
-    target_branch = freshness_branch(root)
-    if target_branch != main_branch:
-        _require_contribution_base(root)
+    target_branch = main_branch
     _require_exact_merged_is_terminal(root, branch, target_branch)
 
     before = observe(root)
     local_head = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
     remote_branch_head = _remote_branch_head(root, branch)
     published = remote_branch_head is not None
-    # An admitted quick head moves only with its recorded transition, which finish writes.
-    held = published and _queue_holds_head(root, branch, kind)
     if published:
-        if held:
-            if remote_branch_head != local_head and relation(root, remote_branch_head, local_head) != "behind":
-                raise SystemExit("Task reconciliation blocked: remote task branch head differs from the local exact task head.")
-            _require_exact_open_pr(root, branch, target_branch, remote_branch_head)
-        elif remote_branch_head != local_head:
+        if remote_branch_head != local_head:
             _continue_exact_pr_from_local_descendant(
                 root, branch, target_branch, remote_branch_head, local_head
             )
@@ -350,12 +261,7 @@ def reconcile(root: Path | None = None) -> Freshness:
             _require_exact_open_pr(root, branch, target_branch, local_head)
 
     if not before.reconcile_required:
-        # A conflicted reconcile ends with the developer's merge commit, so its base moves on this rerun.
-        if target_branch != main_branch:
-            _move_base_to_target(root, before.authoritative_sha)
         print(f"Task branch is already current relative to origin/{target_branch} ({before.state}); reconcile is a no-op.")
-        if held:
-            print(HELD_HEAD_NOTE)
         return before
 
     intent = Path(run_git(["rev-parse", "--path-format=absolute", "--git-dir"], cwd=root).stdout.strip()) / RECONCILE_MERGE_INTENT
@@ -382,21 +288,16 @@ def reconcile(root: Path | None = None) -> Freshness:
         raise SystemExit(f"Authoritative {target_branch} changed during reconciliation; rerun reconcile against the newly observed head before validation.")
     if after.reconcile_required:
         raise SystemExit(f"Task is still behind authoritative {target_branch} after reconciliation; rerun reconcile before validation.")
-    if target_branch != main_branch:
-        _move_base_to_target(root, after.authoritative_sha)
     if published:
         if _remote_branch_head(root, branch) != remote_branch_head:
             raise SystemExit("Remote task branch head changed during reconciliation; refusing to publish the new descendant automatically.")
         _require_exact_open_pr(root, branch, target_branch, remote_branch_head)
-        if held:
-            print(HELD_HEAD_NOTE)
-        else:
-            pushed = run_git(["push", "origin", branch], cwd=root, check=False)
-            if pushed.returncode != 0:
-                detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
-                raise SystemExit(
-                    "Reconciled task head was retained locally but not pushed because the remote branch may have changed: " + detail
-                )
+        pushed = run_git(["push", "origin", branch], cwd=root, check=False)
+        if pushed.returncode != 0:
+            detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
+            raise SystemExit(
+                "Reconciled task head was retained locally but not pushed because the remote branch may have changed: " + detail
+            )
     print(
         f"Reconciled {branch} with origin/{target_branch} at {after.authoritative_sha} using normal Git history. "
         "The resulting head is new execution state: rerun validation and then resume the existing exact-head publication flow."
@@ -411,7 +312,7 @@ def require_committed_evidence_current(root: Path) -> None:
 
     state, detail = stale_committed_evidence(root)
     if state == "stale":
-        raise SystemExit(f"Task reconciliation merged {freshness_branch(root)}, but " + detail)
+        raise SystemExit("Task reconciliation merged main, but " + detail)
     print(f"Committed selected-check evidence: {state}: {detail}")
 
 

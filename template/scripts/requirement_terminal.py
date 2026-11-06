@@ -15,7 +15,7 @@ import managed_task
 import requirement_intake
 import requirement_retrospective
 import requirement_target_lifecycle
-from _platform_common import current_worktree_root, github_cli_env, lifecycle_mode, read_platform_config
+from _platform_common import current_worktree_root, github_cli_env
 
 
 class RequirementTerminalError(RuntimeError):
@@ -98,18 +98,6 @@ def open_acceptance_items(root: Path, requirement: str, parent: dict[str, Any]) 
     return [item["id"] for item in items if item["id"] not in decisions]
 
 
-def post_merge_closes(root: Path) -> bool:
-    """With the coordinator queue only the post-merge jobs record the Requirement retrospective and close it (BR-950).
-
-    Without the queue (portable lifecycle) no runner exists, so the developer session closes through the same
-    ``reconcile_parent``.
-    """
-    if lifecycle_mode(read_platform_config(root)) != "coordinator":
-        return False
-    import publication_queue
-    return publication_queue.enabled(root)
-
-
 def parent_for_child(root: Path, child: str) -> str | None:
     issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(child))
     parents = re.findall(r"^Requirement: (\S+/\S+#\d+)\s*$", str(issue.get("body") or ""), re.MULTILINE)
@@ -146,7 +134,6 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     fast-forwarded never hides a merged archive and is never advanced here.
     """
     root = root.resolve()
-    lifecycle_mode(read_platform_config(root))
     if subprocess.run(["git", "branch", "--show-current"], cwd=root, text=True, capture_output=True).stdout.strip() != "main":
         raise RequirementTerminalError("Requirement terminal reconciliation requires integration main")
     parent = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(requirement))

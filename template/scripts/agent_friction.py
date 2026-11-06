@@ -331,27 +331,6 @@ def task_aliases(task: str) -> set[str]:
 
 
 REQUIREMENT_REF = re.compile(r"[^/\s#]+/[^/\s#]+#[0-9]+")
-_tolerate_durable_gap: contextvars.ContextVar[bool] = contextvars.ContextVar("tolerate_durable_gap", default=False)
-
-
-class DurableEvidenceError(RuntimeError):
-    """The durable coordinator evidence of a Requirement cannot be read in full."""
-
-
-@contextlib.contextmanager
-def tolerate_durable_gap() -> Iterator[None]:
-    """Explicitly continue with local events only when durable evidence is unreadable.
-
-    Used only where the gap is reported (review-path) or was explicitly accepted
-    (``--accept-gap coordinator-evidence``); everywhere else an unreadable source raises.
-    """
-    token = _tolerate_durable_gap.set(True)
-    try:
-        yield
-    finally:
-        _tolerate_durable_gap.reset(token)
-
-
 _tolerate_local_gap: contextvars.ContextVar[bool] = contextvars.ContextVar("tolerate_local_gap", default=False)
 
 
@@ -376,16 +355,6 @@ def tolerate_local_gap() -> Iterator[None]:
 def local_gap_scope(accepted_gaps: Sequence[str]) -> contextlib.AbstractContextManager:
     """The local-log tolerance context when ``friction-log`` was explicitly accepted, else a no-op context."""
     return tolerate_local_gap() if "friction-log" in accepted_gaps else contextlib.nullcontext()
-
-
-def read_durable_events(requirement: str, children: Sequence[str] = ()) -> list[dict]:
-    """Durable coordinator events of a Requirement from its candidate PRs, or a named error."""
-    import publication_queue
-
-    try:
-        return publication_queue.requirement_evidence(current_worktree_root(), requirement, children)
-    except (publication_queue.QueueError, OSError) as exc:
-        raise DurableEvidenceError(f"coordinator-evidence is unreadable for {requirement}: {exc}") from exc
 
 
 def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
@@ -418,18 +387,7 @@ def events_for_task(task: str, children: Sequence[str] = ()) -> list[dict]:
         event for event in read_events(None)
         if attributed(event) or (not event.get("task") and event_identities(event) & identities)
     ]
-    if not REQUIREMENT_REF.fullmatch(task):
-        return local
-    try:
-        durable = read_durable_events(task, children)
-    except DurableEvidenceError:
-        if _tolerate_durable_gap.get():
-            return local
-        raise
-    for event in durable:
-        event["run"] = _unknown_run_provenance("unknown")
-    durable_ids = {event["id"] for event in durable}
-    return [event for event in local if event.get("id") not in durable_ids] + durable
+    return local
 
 
 def inferred_event_ids(task: str) -> list[str]:
@@ -490,18 +448,7 @@ def ambiguous_attribution_instruction(events: list[dict]) -> str:
 
 
 def evidence_source_status(requirement: str | None = None) -> dict[str, str]:
-    """Readability of each evidence source; a Requirement adds its durable coordinator evidence."""
-    sources = _local_source_status()
-    if requirement is not None:
-        try:
-            read_durable_events(requirement)
-            sources["coordinator-evidence"] = "available"
-        except DurableEvidenceError:
-            sources["coordinator-evidence"] = "unreadable"
-    return sources
-
-
-def _local_source_status() -> dict[str, str]:
+    """Readability of each evidence source."""
     path = log_path()
     if not path.exists():
         return {"friction-log": "available"}
@@ -636,54 +583,6 @@ def cmd_record(args: argparse.Namespace) -> int:
     else:
         print(f"Routed friction candidate {event['id']} to {result['repository']}#{result['issue_number']}")
     return 0
-
-
-def append_coordinator_event(
-    *, task: str, requirement: str | None, category: str, triggers: Sequence[str], severity: str,
-    observation: str, evidence: str, hypothesis: str, proposal: str, dedupe_key: str,
-    reason: str, candidate: dict, scope: str = "platform", event_id: str | None = None,
-    work_identity: str | None = None,
-) -> dict:
-    """Idempotently record one coordinator-observed lifecycle event in the local log.
-
-    The durable record lives on the candidate PR (``publication_queue.post_evidence``);
-    ``event_id`` lets this mirror share that record's deterministic id.
-
-    The event is attributed to the candidate ``task`` and, when known, its parent
-    ``requirement`` so both retrospectives see it. ``dedupe_key`` makes an
-    interrupted or repeated coordinator run record the same observation once.
-    Coordinator events are never routed to GitHub from here; the retrospective
-    job links them and a human-visible finding is promoted through the usual path.
-    """
-    if severity not in SEVERITIES or any(trigger not in TRIGGERS for trigger in triggers):
-        raise SystemExit("coordinator friction event has an unknown severity or trigger")
-    reason = normalize_text(reason, "reason", REASON_MAX)
-    candidate = normalize_candidate(candidate)
-    path = log_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with friction_lock():
-        for existing in read_events(None):
-            if existing.get("dedupe_key") == dedupe_key:
-                return existing
-        event = {
-            "id": event_id or uuid.uuid4().hex[:12], "at": utc_now(), "branch": task, "task": task,
-            "requirement": requirement, "attribution": "coordinator", "dedupe_key": dedupe_key,
-            **({"work_identity": work_identity} if work_identity else {}),
-            "category": normalize_text(category, "category", 100), "triggers": sorted(set(triggers)),
-            "severity": severity, "reason": reason, "candidate": candidate,
-            "observation": normalize_text(observation, "observation"),
-            "evidence": normalize_text(evidence, "evidence"), "hypothesis": normalize_text(hypothesis, "hypothesis"),
-            "scope": scope, "proposal": normalize_text(proposal, "proposal"),
-            "run": _unknown_run_provenance("unknown"), "classification": "process-friction", "context": None,
-        }
-        if path.exists():
-            ensure_shared_path(path)
-        with path.open("a", encoding="utf-8") as fh:
-            ensure_shared_path(path)
-            fh.write(json.dumps(event, ensure_ascii=False, sort_keys=True) + "\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-    return event
 
 
 def legacy_content_id(line: str) -> str:

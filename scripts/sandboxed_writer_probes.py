@@ -21,7 +21,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "template" / "scripts"))
 
 import disposable_repository_sandbox  # noqa: E402
-import lifecycle_workers  # noqa: E402
+import sandbox_harness  # noqa: E402
 import sandboxed_writer  # noqa: E402
 import worker_credentials  # noqa: E402
 from _platform_common import read_platform_config  # noqa: E402
@@ -78,7 +78,7 @@ def writer_argv(prompt: str) -> list[str]:
 
 
 def git(cwd: Path, *args: str) -> str:
-    done = subprocess.run(["git", *lifecycle_workers.SAFE_GIT, "-C", str(cwd), *args], text=True,
+    done = subprocess.run(["git", *sandbox_harness.SAFE_GIT, "-C", str(cwd), *args], text=True,
                           capture_output=True, check=False, stdin=subprocess.DEVNULL,
                           env={**os.environ, **IDENTITY_ENV})
     if done.returncode:
@@ -104,8 +104,8 @@ def build_repositories(work: Path) -> tuple[Path, Path, Path, str]:
 
 
 def snapshot(integration: Path, linked: Path, remote: Path) -> dict[str, str]:
-    return {"integration_tree": lifecycle_workers.tree_snapshot(integration),
-            "linked_worktree_tree": lifecycle_workers.tree_snapshot(linked),
+    return {"integration_tree": sandbox_harness.tree_snapshot(integration),
+            "linked_worktree_tree": sandbox_harness.tree_snapshot(linked),
             "integration_refs": git(integration, "for-each-ref"),
             "remote_refs": git(remote, "for-each-ref")}
 
@@ -185,9 +185,9 @@ def run(keep: bool) -> int:
         integration, linked, remote, head = build_repositories(work / "repos")
         sandbox = work / "sandbox"
         sandbox.mkdir()
-        checkout = lifecycle_workers.prepare_checkout(str(integration), str(sandbox), "llm-checkout", head)
-        tmp = lifecycle_workers.writer_tmp(sandbox)
-        home = lifecycle_workers.scratch_home(sandbox)
+        checkout = sandbox_harness.prepare_checkout(str(integration), str(sandbox), "llm-checkout", head)
+        tmp = sandbox_harness.writer_tmp(sandbox)
+        home = sandbox_harness.scratch_home(sandbox)
         before = snapshot(integration, linked, remote)
         operator_home = sandboxed_writer.operator_home()
         token_file = worker_credentials.claude_token_file(config)
@@ -217,7 +217,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return run(args.keep)
-    except (ProbeError, sandboxed_writer.SandboxedWriterError, lifecycle_workers.WorkerError,
+    except (ProbeError, sandboxed_writer.SandboxedWriterError, sandbox_harness.WorkerError,
             disposable_repository_sandbox.SandboxError) as error:
         print(f"sandboxed writer probes could not run: {error}", file=sys.stderr)
         return 1

@@ -98,15 +98,9 @@ required_tools = ["npx"]
 # order, so long groups starting early keep them off the critical path.
 [test_groups.fast-b]
 targets = [
-  "test_candidate_lifecycle",
-  "test_coordinator_preflight",
   "test_coordinator_evidence",
   "test_coordinator_event_routing",
-  "test_hosted_review_continuity",
-  "test_pr_review_gate",
-  "test_post_review_finalization",
   "test_worker_checkout_contract",
-  "test_autonomous_integration_contour",
   "test_independent_review",
   "test_docs_semantic_checks",
   "test_capability_manager",
@@ -135,7 +129,6 @@ targets = [
   "test_platform_doctor",
   "test_managed_project_promotion",
   "test_requirement_execution",
-  "test_requirement_contribution_composition",
   "test_requirement_board",
   "test_private_backlog_guard",
   "test_early_private_reference_guard",
@@ -155,7 +148,6 @@ targets = [
   "test_add_intents",
   "test_orchestrate_pre_authoring",
   "test_br_publication_identity",
-  "test_requirement_flow_e2e",
   "test_requirement_card_claim",
   "test_build_explorer",
   "test_build_explorer_editorial",
@@ -187,20 +179,15 @@ targets = [
   "test_rollout_failure_streak",
   "test_rollout_failure_streak_workflow",
   "test_rollout_alarm",
-  "test_post_merge_runner",
   "test_agent_sessions",
   "test_overview_agent_sessions",
   "test_agent_signal",
   "test_run_test_groups",
   "test_root_guidance_contract",
   "test_platform_module_identity",
-  "test_lifecycle_workers",
   "test_sandboxed_writer",
-  "test_worker_credentials",
-  "test_worker_preflight",
-  "test_lifecycle_overview",
+  "test_sandbox_harness",
   "test_github_read_cache",
-  "test_hosted_workers",
 ]
 mode = "parallel"
 
@@ -221,7 +208,6 @@ targets = [
   "test_shared_writer_guard",
   "test_lifecycle_preflight",
   "test_task_freshness",
-  "test_task_base_matrix",
   "test_template_contract",
   "test_protected_surface",
   "test_platform_manifest",
@@ -244,12 +230,8 @@ mode = "parallel"
 targets = ["test_publication_state"]
 mode = "parallel"
 
-[test_groups.publication_queue]
-targets = ["test_publication_queue", "test_publication_queue_workflow", "test_queue_archived_readmission"]
-mode = "parallel"
-
 [test_groups.merge_lifecycle_resilience]
-targets = ["test_merge_lifecycle_resilience", "test_finish_merged_queue"]
+targets = ["test_merge_lifecycle_resilience"]
 mode = "parallel"
 
 [test_groups.delegated_write_guard]
@@ -305,10 +287,8 @@ targets = [
 ]
 mode = "parallel"
 
-# Files regenerated from other sources. A trial merge that conflicts only in
-# these (as read from the observed main) does not block a coordinator handoff;
-# the queue-side integration regenerates them. `{tree}` is replaced by the
-# checkout to regenerate.
+# Files regenerated from other sources. Task content identity and the scope gate
+# ignore them. `{tree}` is replaced by the checkout to regenerate.
 [[generated_files]]
 path = "template/dev-platform/platform-manifest.json"
 regenerate = ["python3", "scripts/generate_platform_manifest.py", "--write", "--root", "{tree}"]

@@ -120,8 +120,7 @@ def _active_board_paths(root: Path, config: dict) -> set[Path]:
     active: set[Path] = set()
     for item in payload.get("items", []):
         raw = item.get("worktree")
-        # A claim handed off to the coordinator (BR-965) is not active; it never blocks cleanup.
-        if raw and not item.get("handed_off"):
+        if raw:
             active.add(Path(raw).expanduser().resolve())
     return active
 

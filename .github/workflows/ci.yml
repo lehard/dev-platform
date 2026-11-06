@@ -93,10 +93,7 @@ jobs:
       # contract this depends on: any failed group -> non-zero exit.
 
       - name: Enforce OpenSpec lifecycle hygiene
-        # The central checkout's .dev-platform.toml is untracked, so CI cannot infer
-        # the candidate context: a pull request is a coordinator-managed candidate,
-        # any other event is checked at the strict integration stage.
-        run: python3 template/scripts/openspec_lifecycle.py check --stage "${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}"
+        run: python3 template/scripts/openspec_lifecycle.py check
 
       - name: Strict-validate OpenSpec
         run: npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive
@@ -162,4 +159,4 @@ jobs:
       # .managed-task.json, and candidate hygiene already runs on the real checkout
       # in the hygiene step above. Pushes keep strict integration hygiene in the snapshot.
       - name: Smoke-test public distribution snapshot completeness
-        run: python3 tests/public_distribution_snapshot_smoke.py --lifecycle-stage "${{ github.event_name == 'pull_request' && 'candidate' || 'integration' }}"
+        run: python3 tests/public_distribution_snapshot_smoke.py
