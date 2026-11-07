@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "4ae5f9a2ab4d072b59b4954e902d8fe87106b28d",
+    "base_ref": "origin/main",
+    "candidate_head": "944f19398f60416ededa7540c75d63b9b584a8b7",
+    "diff_sha256": "03a2de6687d6eca8c872566c8e4e2a3264e4d56133b0bb77547838651ff5ed43"
+  },
+  "completed_at": "2026-11-07T09:44:00+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/delivery_trace.py:425 `_git(root, \"commit\", \"--allow-empty\", \"-m\", subject, \"-m\", ...)` has no check that the index is clean, and the trailer value is the tree of HEAD read before the commit (line 424). Staged content would make the committed tree differ from the traced tree, so the guard would refuse the head afterwards. It would fail loudly, but only in CI. Failing early in stamp() when `git diff --cached --quiet` is non-zero would catch it locally.",
+      "id": "stamp-commits-staged-changes",
+      "severity": "advisory",
+      "summary": "stamp() is documented and specified as adding an empty commit, but `git commit --allow-empty` also commits anything already staged. If the index is not clean when publish_pr calls ensure, that content would be committed under the trace without any gate having covered it."
+    }
+  ],
+  "launched_at": "2026-11-07T09:43:30+00:00",
+  "output_sha256": "0bbf14229c871532645d187c69eba13bc352bd4e88a7ec6f8c70cdb8db0166ae",
+  "perspective": "engineering-quality",
+  "request_id": "bf82add4-c5c2-4be6-9477-03da1e86ff92",
+  "reviewer": {
+    "context_id": "f5b74b05-707f-495b-89eb-65108da178cb",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-9910edfa-b55c-4766-a83d-ab4c3c2aa2cd",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 39388
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 106704
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 25508
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 27170
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 8
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 5
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 2116
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "9fcb4baaae01d80b7ca146f7995af3742e60b3910c7e155d3a25470fb35fc738"
+}

@@ -43,6 +43,10 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
         guard = mock.patch.object(project_publish, "_private_reference_guard", return_value=None)
         guard.start()
         self.addCleanup(guard.stop)
+        # ... nor a check configuration; the delivery trace is covered in test_delivery_trace.
+        trace = mock.patch.object(project_publish.delivery_trace, "ensure")
+        trace.start()
+        self.addCleanup(trace.stop)
 
     def test_shared_manifest_is_exact_committed_candidate_identity(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
