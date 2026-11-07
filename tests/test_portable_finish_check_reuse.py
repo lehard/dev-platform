@@ -266,9 +266,11 @@ class CheckpointOverFinalizeTests(ProjectTestCase):
         project.validate_for_archive()
         git(project.worktree, "add", "-A")
         git(project.worktree, "commit", "-qm", "evidence")
-        patcher = mock.patch.object(agent_friction, "local_path", side_effect=lambda name: self.base / f"{name}.json")
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for patcher in (mock.patch.object(agent_friction, "local_path", side_effect=lambda name: self.base / f"{name}.json"),
+                        # A temporary directory is not a shared workspace path on every CI runner.
+                        mock.patch.object(agent_friction, "ensure_shared_path")):
+            patcher.start()
+            self.addCleanup(patcher.stop)
         state = {"checkpoints": {self.BRANCH: {
             "result": "none", "review_note": "reviewed", "head": git(project.worktree, "rev-parse", "HEAD"),
             "task_content": agent_friction.current_task_content(project.worktree)}}}
