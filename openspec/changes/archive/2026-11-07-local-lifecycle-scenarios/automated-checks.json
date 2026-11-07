@@ -1,0 +1,117 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.145,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 0.434,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.154,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.148,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 3.587,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "tests/test_lifecycle_scenarios.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "configuration"
+      ],
+      "required_evidence_types": [],
+      "left_to_required_ci": [
+        "python3 scripts/run_test_groups.py --all"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_e78823f828a1a6ad8a8f61ee9fa29754",
+    "change": "local-lifecycle-scenarios",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/local-lifecycle-scenarios",
+    "branch": "agent/br-1013-t1-local-lifecycle-scenarios",
+    "head": "103f6dafecffc3187ad90594098d09d946a0d966",
+    "task_content": {
+      "version": 1,
+      "digest": "7f436705f6c776e385f8b50168b33947bda72999f384e5da72a9419edc3832e0",
+      "paths": {
+        "dev-platform/checks.toml": "98ca658a0838711ca1a03450b6f4600095c83e29",
+        "openspec/changes/local-lifecycle-scenarios/.managed-task.json": "95511cac599a9ae556bb1c8f9d2b566d932c4c46",
+        "openspec/changes/local-lifecycle-scenarios/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+        "openspec/changes/local-lifecycle-scenarios/automated-checks.json": "cda13a55ecf2fd524a205e561b819665d2334fb6",
+        "openspec/changes/local-lifecycle-scenarios/design.md": "6c8331eade722bbbb83fb468f90cf7e42a496f1c",
+        "openspec/changes/local-lifecycle-scenarios/proposal.md": "80dcf16db163291fce29ed962c2606cacb0718fc",
+        "openspec/changes/local-lifecycle-scenarios/specs/platform-ci/spec.md": "c19a2c2ea481467ace3b7786638795e6a390a974",
+        "openspec/changes/local-lifecycle-scenarios/tasks.md": "cda0a621d10a460b7ddac846707ee4833f42fdc0",
+        "openspec/changes/local-lifecycle-scenarios/verification.md": "8bfa32e0c931d8bf0058250100fe5e606c091573",
+        "openspec/specs/platform-ci/spec.md": "09977d0edfc06f26113302a7c3590cf19895afce",
+        "tests/test_lifecycle_scenarios.py": "e6a49566f77e2cb2f749b25bf40c27a9910ef545"
+      },
+      "base": "42a2f48f7fcd8ba995ee1606c13964e623ea1b5b"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "4c4b49f0e08817e4776309203669b87ae8a87a79a7d604d6aadb349d57181c18",
+    "paths": {
+      "dev-platform/checks.toml": "98ca658a0838711ca1a03450b6f4600095c83e29",
+      "openspec/changes/local-lifecycle-scenarios/.managed-task.json": "95511cac599a9ae556bb1c8f9d2b566d932c4c46",
+      "openspec/changes/local-lifecycle-scenarios/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+      "openspec/changes/local-lifecycle-scenarios/design.md": "6c8331eade722bbbb83fb468f90cf7e42a496f1c",
+      "openspec/changes/local-lifecycle-scenarios/proposal.md": "80dcf16db163291fce29ed962c2606cacb0718fc",
+      "openspec/changes/local-lifecycle-scenarios/specs/platform-ci/spec.md": "c19a2c2ea481467ace3b7786638795e6a390a974",
+      "openspec/changes/local-lifecycle-scenarios/tasks.md": "cda0a621d10a460b7ddac846707ee4833f42fdc0",
+      "tests/test_lifecycle_scenarios.py": "e6a49566f77e2cb2f749b25bf40c27a9910ef545"
+    },
+    "base": "42a2f48f7fcd8ba995ee1606c13964e623ea1b5b",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file tests/test_lifecycle_scenarios.py",
+    "duration_seconds": 9.044,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
