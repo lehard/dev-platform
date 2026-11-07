@@ -381,6 +381,8 @@ Before reporting a non-trivial platform task as complete:
 - temporary machine-local artifacts are not tracked;
 - the post-task retrospective ran and the friction checkpoint reflects its current result.
 
+In this repository `finish` also adds an empty commit with a `Dev-Platform-Finish` trailer right before publication, and an early `validate` step refuses a PR head without a valid one. A red step names the reason and the next command, usually `python3 scripts/dogfood_task.py finish`. [DEC-0011](../decisions/0011-finish-bypass-guard.md) has the rule and the way out when the guard itself is wrong.
+
 The final report states that the retrospective ran and either lists its findings or says explicitly that none were found. If any required completion step is blocked, report the blocker instead of saying the task is done.
 
 Whenever `finish` would run the selected checks it first decides, by one rule, whether recorded evidence already covers them and prints `DEV_PLATFORM_CHECK_REUSE` with the decision and reason: the evidence succeeded, every command of the selection required now ran successfully, and its task-content proof is equivalent to the current one (equal own diff; across a base move the old base is an ancestor of the new one and main touched no task path). A clean merge or rebase on an advanced `main` therefore does not repeat the local run; required CI on the exact PR head stays the merge gate. A managed task reuses its archive evidence; a quick task reuses machine-local evidence that `select_checks.py --execute --task-evidence` writes to its worktree's git directory (`finish` passes `--task-evidence` when it runs a quick task's checks).

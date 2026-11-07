@@ -1,4 +1,7 @@
 [settings]
+# Finish leaves a trace on the head it publishes, and the validate step in .github/workflows/ci.yml
+# refuses a head without one (DEC-0011). Projects have neither.
+delivery_trace = true
 full_commands = [
   "python3 -m compileall -q template/scripts scripts",
   "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
@@ -116,6 +119,7 @@ targets = [
   "test_public_distribution",
   "test_requirement_child_context",
   "test_managed_status_lifecycle",
+  "test_delivery_trace",
   "test_finish_closes_requirement",
   "test_managed_rollout",
   "test_managed_project_status",
