@@ -1,0 +1,95 @@
+{
+  "candidate": {
+    "base_head": "4ae5f9a2ab4d072b59b4954e902d8fe87106b28d",
+    "base_ref": "origin/main",
+    "candidate_head": "944f19398f60416ededa7540c75d63b9b584a8b7",
+    "diff_sha256": "03a2de6687d6eca8c872566c8e4e2a3264e4d56133b0bb77547838651ff5ed43"
+  },
+  "change": "openspec/changes/finish-bypass-guard",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/finish-bypass-guard/automated-checks.json",
+    "openspec/changes/finish-bypass-guard/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/finish-bypass-guard/design.md",
+        "openspec/changes/finish-bypass-guard/proposal.md",
+        "openspec/changes/finish-bypass-guard/specs/platform-ci/spec.md",
+        "openspec/changes/finish-bypass-guard/specs/publication-recovery/spec.md",
+        "openspec/changes/finish-bypass-guard/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/finish-bypass-guard/proposal.md",
+        "openspec/changes/finish-bypass-guard/design.md",
+        "openspec/changes/finish-bypass-guard/tasks.md",
+        "openspec/changes/finish-bypass-guard/specs/platform-ci/spec.md",
+        "openspec/changes/finish-bypass-guard/specs/publication-recovery/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-07T09:42:46+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/finish-bypass-guard/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "bf82add4-c5c2-4be6-9477-03da1e86ff92",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "4ae5f9a2ab4d072b59b4954e902d8fe87106b28d",
+    "digest": "9fcb4baaae01d80b7ca146f7995af3742e60b3910c7e155d3a25470fb35fc738",
+    "paths": {
+      ".github/workflows/ci.yml": "2f3f8dea2564c8396b270a014966b4120f90ae98",
+      "dev-platform/checks.toml": "a86590c47e544431bf179c35bd77f97f1adbadfb",
+      "docs/decisions/0011-finish-bypass-guard.md": "4f20daa9fcd777e1f2ef4f89925caea823868c52",
+      "docs/decisions/README.md": "2f88630bc17da56bf2e3321a40c8da25264fb2ab",
+      "docs/engineering/agent-workflow.md": "0f2b6be7ba0e9507587ee9e15b074bc448007a57",
+      "docs/engineering/lifecycle-map.md": "0139215fafe47e11b91910a9e6a1a8eaadc96cd0",
+      "openspec/changes/finish-bypass-guard/.managed-task.json": "ca9b5348178fffe4560fa93d6e13269159866839",
+      "openspec/changes/finish-bypass-guard/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+      "openspec/changes/finish-bypass-guard/design.md": "e241c2dd488fb25b1aeef855b1fd560cb76e76ab",
+      "openspec/changes/finish-bypass-guard/proposal.md": "6bf38f107f17d946570fa096e632183964fdc1bd",
+      "openspec/changes/finish-bypass-guard/specs/platform-ci/spec.md": "527d3146e7f74aa0b7f04fd9be3722426b08cd9d",
+      "openspec/changes/finish-bypass-guard/specs/publication-recovery/spec.md": "7cf1eb5aa4a770eb7ea6db1382acacd309663744",
+      "openspec/changes/finish-bypass-guard/tasks.md": "5e556ffc29428e59607071b80c67e33491c7150f",
+      "scripts/delivery_trace.py": "b569a9cfcb9d2b81b8fef90b20c4a43c13c7a56c",
+      "template/dev-platform/protected-surface.toml": "5c04e7c2061d44da972c052786a45adfb586e77a",
+      "template/scripts/delivery_trace.py": "7b64cc20f647d614adee7961237dcfeb2d7ec6b4",
+      "template/scripts/project_publish.py": "775dcf5a8a34f19f02e250b5f80a11560fcf4767",
+      "template/scripts/task_reconciliation.py": "7b4005753499783bb3df8456153c6a03d8cf56c7",
+      "tests/test_delivery_trace.py": "59aefdeb16ca09eae8b4cde0f18a58298b9fad8f",
+      "tests/test_git_lifecycle.py": "99f4639f3b0fc316a1204ff385ad670a0899c9b2",
+      "tests/test_independent_review.py": "56ae0cec37f1523f8f06630d3f835da839925093",
+      "tests/test_managed_status_lifecycle.py": "3b448d3f9012b91e1e1f07fee203f27e50f2c6ae",
+      "tests/test_merge_lifecycle_resilience.py": "427427f3b97c62ba524b546b4f76d7e8a8e23d21",
+      "tests/test_portable_finish_check_reuse.py": "77b8820103cacc867071a7bd4db680850961faf9",
+      "tests/test_protected_main_zero_handoff.py": "e7628a025a137897be931e86fe6ee6b83cb2e222",
+      "tests/test_publication_recovery_cli.py": "d72f3dbf5156cc628c07a6f0f7d9c23da8fe9d4a",
+      "tests/test_task_reconciliation.py": "ed4fd70f683ddac14735f0cdd891b1de478e7c6e"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
