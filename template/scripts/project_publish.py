@@ -38,7 +38,6 @@ from publication_state import (
 )
 from managed_project_status import ManagedProjectStatusError, reconcile as reconcile_managed_project
 from requirement_integration import RequirementIntegrationError, require_independent_publication_exception
-import delivery_trace
 import requirement_integration
 from managed_task import ManagedTaskError, require_delivery_provenance
 
@@ -533,7 +532,6 @@ def publish_pr(
          stdin=subprocess.DEVNULL)
     current = _validate_feature_branch(root, remote, main_branch)
     env = require_gh_environment(root)
-    delivery_trace.ensure(root)
     expected_head = run_git(["rev-parse", current], cwd=root).stdout.strip()
 
     # An already-open (or already-merged) exact-head PR is a resumable remote

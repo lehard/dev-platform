@@ -26,7 +26,6 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-import delivery_trace  # noqa: E402
 from _platform_config import platform_config_text  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 
@@ -608,11 +607,6 @@ class ReuseMatrixTests(ProjectTestCase):
 
     def test_clean_rebase_with_unchanged_own_diff(self) -> None:
         self.merge_main("other.txt", "other\n")
-        self.assertAnswer("reused")
-
-    def test_the_delivery_trace_commit_keeps_the_evidence(self) -> None:
-        for worktree in (self.p.worktree, self.quick):
-            delivery_trace.stamp(worktree)
         self.assertAnswer("reused")
 
     def test_main_changed_a_task_path(self) -> None:

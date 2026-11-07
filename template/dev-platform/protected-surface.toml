@@ -77,7 +77,6 @@ hotfixable = [
   "scripts/capability_evals.py",
   "scripts/capability_manager.py",
   "scripts/check_docs_links.py",
-  "scripts/delivery_trace.py",
   "scripts/harness_replay.py",
   "scripts/github_read_cache.py",
   "scripts/lifecycle_overview.py",
