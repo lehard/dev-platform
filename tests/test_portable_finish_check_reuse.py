@@ -254,6 +254,83 @@ class PortableFinalizationTests(ProjectTestCase):
         self.assertEqual(git(project.worktree, "rev-parse", "HEAD"), before)
 
 
+class CheckpointOverFinalizeTests(ProjectTestCase):
+    """Finish's own archive commit keeps a fresh friction checkpoint; any other change does not."""
+
+    BRANCH = f"agent/{CHANGE}"
+
+    def checkpointed(self) -> tuple[PortableProject, object]:
+        import agent_friction
+        project = self.project()
+        project.implement()
+        project.validate_for_archive()
+        git(project.worktree, "add", "-A")
+        git(project.worktree, "commit", "-qm", "evidence")
+        for patcher in (mock.patch.object(agent_friction, "local_path", side_effect=lambda name: self.base / f"{name}.json"),
+                        # A temporary directory is not a shared workspace path on every CI runner.
+                        mock.patch.object(agent_friction, "ensure_shared_path")):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        state = {"checkpoints": {self.BRANCH: {
+            "result": "none", "review_note": "reviewed", "head": git(project.worktree, "rev-parse", "HEAD"),
+            "task_content": agent_friction.current_task_content(project.worktree)}}}
+        agent_friction.atomic_write_json(agent_friction.state_path(), state)
+        return project, agent_friction
+
+    def proof_holds(self, project: PortableProject, friction: object) -> bool:
+        from task_content_identity import equivalent_proofs
+        recorded = friction.read_state()["checkpoints"][self.BRANCH]["task_content"]
+        return equivalent_proofs(project.worktree, recorded, friction.current_task_content(project.worktree))
+
+    def finalize(self, project: PortableProject, side_effect) -> None:
+        with mock.patch.object(finish_task, "observe_friction_checkpoint_blocker", return_value=None), \
+                mock.patch.object(finish_task, "finalize_portable_change", side_effect=side_effect):
+            finish_task.finalize_keeping_checkpoint(project.worktree, self.BRANCH)
+
+    def test_the_archive_alone_would_stale_it_and_finish_carries_it_over(self) -> None:
+        project, friction = self.checkpointed()
+        candidate = git(project.worktree, "rev-parse", "HEAD")
+        self.finalize(project, lambda work: project.archive())
+        self.assertTrue(self.proof_holds(project, friction))
+        recorded = friction.read_state()["checkpoints"][self.BRANCH]
+        self.assertEqual(recorded["head"], git(project.worktree, "rev-parse", "HEAD"))
+        self.assertEqual(recorded["finalized_from"], candidate)
+
+    def test_the_archive_changes_the_proof_so_carrying_is_what_keeps_it(self) -> None:
+        project, friction = self.checkpointed()
+        project.archive()
+        self.assertFalse(self.proof_holds(project, friction))
+
+    def test_a_task_edit_after_the_carried_checkpoint_is_stale(self) -> None:
+        project, friction = self.checkpointed()
+        self.finalize(project, lambda work: project.archive())
+        (project.worktree / "feature.txt").write_text("edited after the checkpoint\n", encoding="utf-8")
+        git(project.worktree, "commit", "-qam", "real edit")
+        self.assertFalse(self.proof_holds(project, friction))
+
+    def test_a_commit_besides_the_archive_is_not_carried(self) -> None:
+        project, friction = self.checkpointed()
+
+        def edit_then_archive(work: Path) -> None:
+            (project.worktree / "feature.txt").write_text("rides along\n", encoding="utf-8")
+            git(project.worktree, "commit", "-qam", "rides along")
+            project.archive()
+
+        with self.assertRaisesRegex(SystemExit, "not the checked candidate"):
+            self.finalize(project, edit_then_archive)
+        self.assertFalse(self.proof_holds(project, friction))
+
+    def test_a_stale_checkpoint_stops_before_review_and_archive(self) -> None:
+        project = self.project()
+        with mock.patch.object(finish_task, "observe_friction_checkpoint_blocker", return_value="stale"), \
+                mock.patch.object(finish_task, "finalize_portable_change") as finalize, \
+                contextlib.redirect_stdout(io.StringIO()) as output:
+            with self.assertRaises(SystemExit):
+                finish_task.finalize_keeping_checkpoint(project.worktree, self.BRANCH)
+        finalize.assert_not_called()
+        self.assertIn("[friction-checkpoint] stale", output.getvalue())
+
+
 class ReuseDecisionTests(ProjectTestCase):
     def test_reused_for_unchanged_archived_content_without_running_any_command(self) -> None:
         project = self.project()

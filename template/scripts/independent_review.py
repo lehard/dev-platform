@@ -708,7 +708,9 @@ def ensure_review_evidence(root: Path, change: Path, *, launcher: Any = None, re
         started = time.monotonic()
         try:
             reports = independent_review_runner.run_review(root, change, launcher=launcher)
-            print(f"Independent review ran {len(reports)} perspective(s) in {time.monotonic() - started:.0f}s.", flush=True)
+            answered = sum(report["availability"] == "available" for report in reports.values())
+            print(f"Independent review: {answered} of {len(reports)} perspective(s) returned a review "
+                  f"in {time.monotonic() - started:.0f}s.", flush=True)
         except IndependentReviewError as exc:
             raise SystemExit(
                 f"{canonical_change_name(change)}: independent review could not run: {exc}\n"

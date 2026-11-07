@@ -23,7 +23,7 @@ try:
 except ImportError:  # pragma: no cover - Windows fallback
     fcntl = None
 
-from _platform_common import atomic_write_text, cooperative_umask, current_worktree_root, ensure_shared_path, main_root, read_operator_config, read_platform_config, utc_now
+from _platform_common import atomic_write_text, cooperative_umask, current_worktree_root, ensure_shared_path, main_root, read_operator_config, read_platform_config, run_git, utc_now
 
 
 DEFAULT_MIN_EVENTS = 5
@@ -1536,6 +1536,27 @@ def _record_checkpoint(branch: str, root: Path, *, event_ids: list[str], review_
         state["checkpoints"][branch] = checkpoint
         atomic_write_json(state_path(), state)
     return checkpoint
+
+
+def carry_checkpoint_over_finalize(branch: str, root: Path, candidate: str) -> None:
+    """Rebind a checkpoint just proven fresh at ``candidate`` to the archive commit finish made on top of it.
+
+    Finish calls this only after its own finalize commit, the sole child of ``candidate``, so no
+    task edit can ride along; any other change after the checkpoint stays stale.
+    """
+    parent = run_git(["rev-parse", "HEAD~1"], cwd=root).stdout.strip()
+    if parent != candidate:
+        raise SystemExit(f"Cannot carry the friction checkpoint of {branch}: HEAD~1 is {parent}, not the checked candidate {candidate}.")
+    proof = current_task_content(root)
+    if proof is None:
+        raise SystemExit(f"Cannot carry the friction checkpoint of {branch}: the task content proof could not be computed.")
+    with friction_lock():
+        state = read_state()
+        checkpoint = state.get("checkpoints", {}).get(branch)
+        if not isinstance(checkpoint, dict):
+            raise SystemExit(f"Cannot carry the friction checkpoint of {branch}: no checkpoint is recorded.")
+        checkpoint.update({"head": current_head(root), "task_content": proof, "finalized_from": candidate})
+        atomic_write_json(state_path(), state)
 
 
 def cmd_assert_checkpoint(args: argparse.Namespace) -> int:
