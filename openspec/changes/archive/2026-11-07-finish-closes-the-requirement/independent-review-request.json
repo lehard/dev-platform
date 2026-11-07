@@ -1,0 +1,85 @@
+{
+  "candidate": {
+    "base_head": "8ea915ca11e46f006359ccef57095934b6577c51",
+    "base_ref": "origin/main",
+    "candidate_head": "7d9ab82f1a2e9d34be93b3566738504688665ff2",
+    "diff_sha256": "d39e0b1087d19218c79612ac7bf22b22b3b8851a2586b65da61ad813fcda9881"
+  },
+  "change": "openspec/changes/finish-closes-the-requirement",
+  "excluded_lifecycle_paths": [
+    "openspec/changes/finish-closes-the-requirement/automated-checks.json",
+    "openspec/changes/finish-closes-the-requirement/verification.md",
+    "template/dev-platform/platform-manifest.json"
+  ],
+  "fresh_context_required": true,
+  "perspectives": {
+    "engineering-quality": {
+      "objective": "Review correctness, maintainability, safety, and architecture risks that are not necessarily expressed by the active delta.",
+      "paths": [
+        "AGENTS.md",
+        "docs/engineering/agent-workflow.md",
+        "docs/engineering/openspec-workflow.md",
+        "openspec/changes/finish-closes-the-requirement/design.md",
+        "openspec/changes/finish-closes-the-requirement/proposal.md",
+        "openspec/changes/finish-closes-the-requirement/specs/agent-workflow/spec.md",
+        "openspec/changes/finish-closes-the-requirement/specs/completion-lifecycle/spec.md",
+        "openspec/changes/finish-closes-the-requirement/tasks.md"
+      ]
+    },
+    "spec-fidelity": {
+      "objective": "Compare the exact candidate with the accepted current specs and active delta. Report missing, incorrect, or contradictory contract behavior.",
+      "paths": [
+        "openspec/changes/finish-closes-the-requirement/proposal.md",
+        "openspec/changes/finish-closes-the-requirement/design.md",
+        "openspec/changes/finish-closes-the-requirement/tasks.md",
+        "openspec/changes/finish-closes-the-requirement/specs/agent-workflow/spec.md",
+        "openspec/changes/finish-closes-the-requirement/specs/completion-lifecycle/spec.md"
+      ]
+    }
+  },
+  "prepared_at": "2026-11-07T07:28:49+00:00",
+  "report_contract": {
+    "output_directory": "openspec/changes/finish-closes-the-requirement/independent-reviews",
+    "required_perspectives": [
+      "spec-fidelity",
+      "engineering-quality"
+    ],
+    "schema_version": 1
+  },
+  "request_id": "c9468a1c-93db-4896-9d69-eca0a8dfe078",
+  "reviewer_constraints": {
+    "forbidden_actions": [
+      "publish code",
+      "mutate Development Backlog or Project state",
+      "archive the change",
+      "set completion state"
+    ],
+    "write_access": false
+  },
+  "schema_version": 1,
+  "task_content": {
+    "base": "8ea915ca11e46f006359ccef57095934b6577c51",
+    "digest": "3528f917a5f14a7764db9c9c65774cf4f96902073dd1d393e84d0ff8065b85e5",
+    "paths": {
+      "AGENTS.md": "82f9e772194962a7c3e1e4ee4e51930615530e41",
+      "dev-platform/checks.toml": "706269581c0e10d171d51b56d7e6fe32ea63f8ba",
+      "docs/engineering/agent-workflow.md": "f1fc4e3591ddc23c7550846041e95cfdfd096b39",
+      "docs/engineering/chat-coordinator.md": "4ec4023c9c4acc4b6d476ed17f458a462ff4ca39",
+      "openspec/changes/finish-closes-the-requirement/.managed-task.json": "9b0db851778ac1b1da5ae2b43362c755ff0e0316",
+      "openspec/changes/finish-closes-the-requirement/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+      "openspec/changes/finish-closes-the-requirement/design.md": "716a0bc592ad85b223ea42851c8542ad76c58a8e",
+      "openspec/changes/finish-closes-the-requirement/proposal.md": "5f407bb471a1f0ec2521a6e15c83b9bfc5b071ca",
+      "openspec/changes/finish-closes-the-requirement/specs/agent-workflow/spec.md": "1a5c25c55aa5acd51c4cc3cdaeafc4cb83650f65",
+      "openspec/changes/finish-closes-the-requirement/specs/completion-lifecycle/spec.md": "011d6d70d2cfccfaa14a5a96335340e82cffa1b0",
+      "openspec/changes/finish-closes-the-requirement/tasks.md": "ef77fcad79b0540f427330403e38b16207243b3d",
+      "template/scripts/finish_task.py": "f5588fd3ecf8e99e61a8e67b5c8af37df3d58d87",
+      "template/scripts/requirement_terminal.py": "f2e72d2b04889f9999f333f54e4df8f06e7f1ad1",
+      "template/scripts/worktree_cleanup.py": "667658c7cc416d855152eb4093174bbac3ecad54",
+      "tests/test_finish_closes_requirement.py": "fbd33364e2f38b86dbc2c77320de5e1b0e64c5ca",
+      "tests/test_managed_status_lifecycle.py": "6ce507f42520e50a764a358a8050cf891567c425",
+      "tests/test_worktree_hygiene.py": "f9dd4bac42ab0a745908970297e2d20dbbad257f"
+    },
+    "scope": "independent-review-v1",
+    "version": 1
+  }
+}
