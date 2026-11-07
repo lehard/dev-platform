@@ -244,6 +244,7 @@ class ManagedStatusLifecycleTests(unittest.TestCase):
                 ),
                 mock.patch.object(finish_task, "finish_board", side_effect=lambda *args: events.append("board")),
                 mock.patch.object(finish_task, "cleanup_completed_task", side_effect=lambda *args, **kwargs: events.append("cleanup")),
+                mock.patch.object(finish_task, "cleanup_earlier_tasks"),
             ):
                 finish_task.reconcile_confirmed_remote_pr_merge(
                     root,
@@ -498,6 +499,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
             mock.patch.object(finish_task, "profile", return_value="standard"),
             mock.patch.object(finish_task, "require_managed_checkout_identity", return_value=None),
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
+            mock.patch("requirement_terminal.parent_closure", return_value=None),
             mock.patch("builtins.print") as printed,
         ):
             self.assertEqual(0, finish_task.run_status(root, root, platform_config(), as_json=True))
@@ -522,6 +524,7 @@ class SourceIssueDriftStatusTests(unittest.TestCase):
             mock.patch.object(finish_task, "profile", return_value="multi-agent"),
             mock.patch.object(finish_task, "require_managed_checkout_identity", return_value=None),
             mock.patch.object(finish_task, "observe_source_issue_drift", return_value=None),
+            mock.patch("requirement_terminal.parent_closure", return_value=None),
         )
         with ExitStack() as stack:
             for context in common:

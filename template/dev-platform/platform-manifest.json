@@ -80,7 +80,7 @@
     "scripts/disposable_repository_sandbox.py": "290b29ff670fb03f4bc84282a7e3f780d5fdda642611f7423dec550fa8afe1e3",
     "scripts/execute_managed_task.py": "1a4ac1ebccc14cc787279e3cf829e866e989e4d460b4c93f41218aa4d315a5c5",
     "scripts/execute_requirement.py": "f574f50fd827e8ca0150232ef68c50f0d6559d97c2ecec9653d9b4839e49b7de",
-    "scripts/finish_task.py": "218de1ab879f109df81c14de62acb8e711c991438e26cf8c4c9c0fe3319b0bb5",
+    "scripts/finish_task.py": "6b6de41c361459d123f241043b9cbb9749883ee615a180a299c1939bca9d0c1e",
     "scripts/git_hooks/pre-commit": "b2719741841aa0fa5f3f73b57a10f7527158680f99c0e5fa4ff0b156babacbd2",
     "scripts/git_hooks/pre-merge-commit": "1069b370d8645e0c71eeb04afea64f26b9b1960cde8462537675546875622703",
     "scripts/github_read_cache.py": "7094fbe8dbf4df6fa1ef18c7e28446e499ebcb05af2e040d74d1771d57eb15c1",
@@ -121,7 +121,7 @@
     "scripts/requirement_metrics.py": "abce6789f61338e9d5fab1e3fb197abce0ebb13207808092bddeff3f1a26981c",
     "scripts/requirement_retrospective.py": "bf31afa87fff2b5c481c14f8a9462cf4b5faddb639131b04853cb190430b8a8d",
     "scripts/requirement_target_lifecycle.py": "e15370e7649765616a0e57e8a41e32d5409b0ad5a657bec58066e709df58be9a",
-    "scripts/requirement_terminal.py": "86fcc890fcb75174b70a92a29401176cf67627c1c9138f69985460077eacc224",
+    "scripts/requirement_terminal.py": "6c7a9e510fd18391e43b6c0a98382f5f5325d3c14b0534374db8b1e3e7be479d",
     "scripts/rollout_identity.py": "62699b613b1e29a83baf6195c205085fe93a09920f51231e78686c66004dd779",
     "scripts/rollout_preflight.py": "d260212c682ea12c20f0ff6d3b428effdc987b0c500c99e0027f26d58a87d3ae",
     "scripts/run_test_groups.py": "b071ee0327b5997ec023df427fc8fbc0fc47b32f533e47072d1337cdab9f7586",
@@ -136,7 +136,7 @@
     "scripts/task_content_identity.py": "d5cb6e225cb01ab713856f8454390f084d665ef4ab7d70ba4cf53f13c204c142",
     "scripts/task_reconciliation.py": "28f7794670e45d283b8db96f2c5d0cab8504b8fe9a91bc31cc9a2f001c30d754",
     "scripts/worker_credentials.py": "d5196c7fcccb689e54af18696c011be5e3baa07d629d0b39a992645049585325",
-    "scripts/worktree_cleanup.py": "344fb2c94873473b3c31e0bbebe5436a4031dddd2503ac5386965a9728225524"
+    "scripts/worktree_cleanup.py": "8ed46d58cd4477b94ded4523963934c979bf05568c2c14e1a8737ca7b9a67a16"
   },
   "project_harness_owned": [
     "docs/engineering/openspec-workflow.md",

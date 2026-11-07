@@ -49,7 +49,7 @@ from managed_project_status import (
     reconcile as reconcile_managed_project,
     resume_from_scope_conflict,
 )
-from worktree_cleanup import _read_deferred_cleanup, defer_completed_task, targeted_cleanup_command
+from worktree_cleanup import _read_deferred_cleanup, cleanup_earlier_deferred, defer_completed_task, targeted_cleanup_command
 from agent_board import HardScopeOverlap, enforce_scope_gate, warn_current_worktree_scope_overlap
 from managed_task import (
     ManagedTaskError,
@@ -355,6 +355,13 @@ def run_status(work: Path, integration: Path, config: dict, *, as_json: bool) ->
                 for evidence in observe_process_evidence_obligations(work, identity):
                     if evidence["state"] not in {"fulfilled", "disposed"}:
                         obligations.append({"kind": "process-evidence", **evidence})
+                from requirement_terminal import parent_closure
+                closure = parent_closure(integration, identity.source_issue)
+                if closure is not None and closure["state"] != "closed":
+                    obligations.append({
+                        "kind": "requirement", "state": "warning" if closure["state"] == "waiting" else "pending",
+                        "detail": f"{closure['parent']} is open: " + ("; ".join(closure["missing"]) or "rerun finish to close it"),
+                    })
             if profile(config) == "multi-agent":
                 records = _read_deferred_cleanup(integration, config)
                 deferred = any(item["path"] == str(work.resolve()) and item["branch"] == branch
@@ -606,24 +613,47 @@ def cleanup_completed_task(work: Path, integration: Path, branch: str, *, squash
     print(f"Removed completed worktree and local branch {branch}.")
 
 
-def reconcile_linked_parent(integration: Path, identity: object | None) -> None:
+def cleanup_earlier_tasks(integration: Path, work: Path) -> None:
+    """Consume earlier deferred cleanup records; delivery already stands, so a failure here is only a warning."""
+    try:
+        removed, kept = cleanup_earlier_deferred(integration, work)
+    except (OSError, SystemExit) as exc:
+        print(f"WARNING: task is integrated, but deferred cleanup of earlier tasks failed: {exc}")
+        return
+    for path in removed:
+        print(f"Removed deferred worktree of an earlier task: {path}")
+    for item in kept:
+        print(f"WARNING: deferred worktree {item['path']} kept ({item['error']}); after resolving it, run from the integration checkout: {item['command']}")
+
+
+def reconcile_linked_parent(integration: Path, identity: object | None, work: Path) -> None:
+    """Close the parent of a merged child, or stop naming what is missing; the merge stands either way."""
     if identity is None:
         return
-    from requirement_terminal import parent_for_child, reconcile_parent
-    import requirement_intake
+    from requirement_terminal import close_after_delivery
     child = identity.source_issue
     try:
-        parent = parent_for_child(integration, child)
-        if parent is not None:
-            parent_issue = requirement_intake.fetch_issue(integration, *requirement_intake.issue_ref(parent))
-            children = requirement_intake.parse_requirement_body(str(parent_issue.get("body") or ""))["children"]
-            if len(children) > 1:
-                progress = requirement_intake.aggregate(integration, requirement=parent)
-                if progress["status"] != "Done":
-                    return
-            reconcile_parent(integration, requirement=parent, merged_children={child})
+        outcome = close_after_delivery(integration, child=child)
     except Exception as exc:
-        raise SystemExit("Managed child delivered, but parent Requirement terminal reconciliation is pending: " + str(exc)) from exc
+        raise SystemExit(
+            f"{child} is merged and stays merged, but its Requirement was not closed: {exc}\n"
+            f"After resolving it, retry from {work}: python3 scripts/finish_task.py --cleanup"
+        ) from exc
+    if outcome is not None:
+        print(outcome)
+
+
+def notice_closure_gaps(integration: Path, work: Path) -> None:
+    """Say before publication what closure would miss; this is a notice and never stops publication."""
+    from requirement_terminal import parent_closure
+    try:
+        identity = delivery_identity(work)
+        closure = parent_closure(integration, identity.source_issue) if identity is not None else None
+    except Exception as exc:
+        print(f"WARNING: could not check before publication what closing the parent Requirement needs: {exc}")
+        return
+    if closure is not None and closure["state"] == "blocked":
+        print(f"After the merge {closure['parent']} will not close: " + "; ".join(closure["missing"]))
 
 
 def reconcile_confirmed_remote_pr_merge(
@@ -661,7 +691,7 @@ def reconcile_confirmed_remote_pr_merge(
                 f"Managed Project status {'updated' if project.changed else 'already current'}: "
                 f"{project.source_issue} -> Done"
             )
-        reconcile_linked_parent(integration, identity)
+        reconcile_linked_parent(integration, identity, work)
         if getattr(identity, "process_evidence", ()):
             try:
                 implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
@@ -675,6 +705,7 @@ def reconcile_confirmed_remote_pr_merge(
             finish_board(integration, work, config)
         if cleanup:
             cleanup_completed_task(work, integration, branch, squash_merged=True)
+            cleanup_earlier_tasks(integration, work)
 
 
 def observe_completion_blockers(
@@ -1066,6 +1097,7 @@ def main() -> int:
         block_for_scope_conflict(work, str(exc))
         raise SystemExit(str(exc)) from exc
     resume_from_scope_conflict(work)
+    notice_closure_gaps(integration, work)
     emit_finish_stage("validation clear: starting publication/integration")
     if mode == "pr":
         if branch == main_branch:
@@ -1130,7 +1162,7 @@ def main() -> int:
                 f"Managed Project status {'updated' if project.changed else 'already current'}: "
                 f"{project.source_issue} -> Done"
             )
-        reconcile_linked_parent(integration, identity)
+        reconcile_linked_parent(integration, identity, work)
         if getattr(identity, "process_evidence", ()):
             try:
                 implementation_sha = run_git(["rev-parse", "HEAD"], cwd=integration).stdout.strip()
@@ -1143,6 +1175,7 @@ def main() -> int:
             finish_board(integration, work, config)
     if args.cleanup:
         cleanup_completed_task(work, integration, branch, squash_merged=False)
+        cleanup_earlier_tasks(integration, work)
     print("Task published directly. OpenSpec lifecycle hygiene passed.")
     emit_finish_stage("complete")
     return 0

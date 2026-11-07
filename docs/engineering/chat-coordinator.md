@@ -29,7 +29,7 @@ One cycle, repeated until the roadmap is done:
 1. **Read the state.** `python3 scripts/lifecycle_overview.py` shows open Requirements, owner signals and sessions. `gh pr list` shows open PRs.
 2. **Start the stream.** One session takes the next task through the entrypoints in `AGENTS.md`.
 3. **Follow it.** The session ends at `finish`: it reviews when review is enabled, archives, publishes the PR and arms auto-merge. GitHub merges on green required checks.
-4. **Close.** A rerun of `finish` after the merge reconciles local main, the Project card and the parent Requirement.
+4. **Close.** The `finish` of the last child closes the Requirement after the merge, when every child is terminal and the Requirement retrospective is current, so record the retrospective before that `finish`. When something is missing, `finish` names it, the Requirement stays open, and a rerun of `finish` closes it.
 5. **Report** to the owner in plain words: what merged, what waits and on whom.
 
 Independent review runs inside `finish` for a change that touches the protected surface, with `[independent_review] enabled = true` (DEC-0010); by hand, run `python3 scripts/independent_review.py run <change>` and commit its evidence, or `run quick-task` for a quick task. The reviewer uses the Claude CLI login of the shell that runs `finish`; when that login has expired, `finish` stops and names it, and the operator logs in or exports `CLAUDE_CODE_OAUTH_TOKEN` for that shell.

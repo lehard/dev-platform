@@ -424,6 +424,24 @@ class DeferredCompletedWorktreeCleanupTests(WorktreeHarnessCase):
         self.assertEqual(repeated["removed"], [])
         self.assertEqual(repeated["status"], "already-cleaned")
 
+    def test_a_later_finish_consumes_earlier_records_and_keeps_its_own_and_the_unsafe_one(self) -> None:
+        earlier = self._merged_task("earlier-deferred")
+        busy = self._merged_task("busy-deferred")
+        running = self._merged_task("running-deferred")
+        for path, branch in ((earlier, "earlier"), (busy, "busy"), (running, "running")):
+            worktree_cleanup.defer_completed_task(self.root, path, f"agent/{branch}-deferred")
+        with mock.patch.object(worktree_cleanup, "_active_cwds", return_value={busy}):
+            removed, kept = worktree_cleanup.cleanup_earlier_deferred(self.root, running)
+        self.assertEqual(removed, [str(earlier.resolve())])
+        self.assertFalse(earlier.exists())
+        self.assertTrue(busy.exists())
+        self.assertTrue(running.exists())
+        self.assertEqual([(item["path"], item["error"]) for item in kept], [(str(busy.resolve()), "active-process")])
+        self.assertIn(f"--worktree {busy.resolve()}", kept[0]["command"])
+        config = worktree_cleanup.read_platform_config(self.root)
+        self.assertEqual({entry["path"] for entry in worktree_cleanup._read_deferred_cleanup(self.root, config)},
+                         {str(busy.resolve()), str(running.resolve())})
+
     def test_targeted_cleanup_cannot_remove_another_deferred_worktree(self) -> None:
         first = self._merged_task("first-deferred")
         second = self._merged_task("second-deferred")

@@ -152,7 +152,7 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
     pending = open_acceptance_items(root, requirement, parent)
     if pending:
         raise OwnerAcceptancePending(pending)
-    requirement_retrospective.require_checkpoint(root, requirement=requirement, parent=parent)
+    retrospective = requirement_retrospective.require_checkpoint(root, requirement=requirement, parent=parent)
     commit = managed_task.target_main(root)
     for child in children:
         issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(child))
@@ -174,7 +174,51 @@ def reconcile_parent(root: Path, *, requirement: str, merged_children: set[str] 
         raise RequirementTerminalError("parent Project Done reconciliation failed")
     if issue_state(parent, requirement) != "CLOSED":
         _close_issue(root, requirement)
-    return {"status": "done", "requirement": requirement, "children": children}
+    return {"status": "done", "requirement": requirement, "children": children, "retrospective": retrospective["result"]}
+
+
+def parent_closure(root: Path, child: str) -> dict[str, Any] | None:
+    """Read-only: what closing the parent of ``child`` still needs, counting ``child`` itself as delivered."""
+    parent = parent_for_child(root, child)
+    if parent is None:
+        return None
+    issue = requirement_intake.fetch_issue(root, *requirement_intake.issue_ref(parent))
+    if issue_state(issue, parent) == "CLOSED":
+        return {"parent": parent, "state": "closed", "missing": []}
+    open_children = []
+    for other in requirement_intake.parse_requirement_body(str(issue.get("body") or ""))["children"]:
+        if other == child:
+            continue
+        observed = managed_project_status.observe(root, source_issue=other)
+        if observed is None or not observed.current_status:
+            raise RequirementTerminalError(f"{other} has no readable Project status")
+        if observed.current_status != "Done":
+            open_children.append(f"{other} ({observed.current_status})")
+    if open_children:
+        return {"parent": parent, "state": "waiting", "missing": open_children}
+    missing = []
+    pending = open_acceptance_items(root, parent, issue)
+    if pending:
+        missing.append(str(OwnerAcceptancePending(pending)))
+    try:
+        requirement_retrospective.require_checkpoint(root, requirement=parent, parent=issue)
+    except requirement_retrospective.RequirementRetrospectiveError as exc:
+        missing.append(str(exc))
+    return {"parent": parent, "state": "blocked" if missing else "closable", "missing": missing}
+
+
+def close_after_delivery(root: Path, *, child: str) -> str | None:
+    """Close the parent of a merged ``child`` when proven; return what ``finish`` reports, or raise what stops it."""
+    closure = parent_closure(root, child)
+    if closure is None:
+        return None
+    parent = closure["parent"]
+    if closure["state"] == "closed":
+        return f"Requirement {parent}: the Issue is already closed."
+    if closure["state"] == "waiting":
+        return f"Requirement {parent} stays open, waiting for: {', '.join(closure['missing'])}. The finish of the last child closes it."
+    result = reconcile_parent(root, requirement=parent, merged_children={child})
+    return f"Requirement {parent} closed: {len(result['children'])} child(ren) delivered, retrospective {result['retrospective']}."
 
 
 def _acting_login(root: Path) -> str:
