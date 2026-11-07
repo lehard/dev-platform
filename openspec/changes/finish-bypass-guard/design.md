@@ -6,7 +6,7 @@
 
 **Carrier.** A commit trailer on the head. The commit hash covers the message, so the trace is bound to the head with no store, no token right and no API call at check time. The trailer value is the tree of that commit, which catches an amend or rebase that keeps the message. A PR body was rejected: editing it does not rerun the check. A separate ref was rejected: it is not in the PR and needs cleanup.
 
-**One module.** `delivery_trace.py` holds `enabled`, `valid`, `ensure` and the `check` entrypoint. `ensure` commits with `--allow-empty` and the subject of the current head, because the default PR title is the head subject. It does nothing for a head that is already valid. A non-boolean setting stops with an error naming it.
+**One module.** `delivery_trace.py` holds `enabled`, `refusal`, `stamp`, `ensure` and the `check` entrypoint. `ensure` commits with `--allow-empty` and the subject of the current head, because the default PR title is the head subject. It does nothing for a head that is already valid. A non-boolean setting stops with an error naming it.
 
 **Publication.** `publish_pr` calls `ensure` before it reads `expected_head`, so the lookup, the push and `--match-head-commit` all use the traced head.
 
