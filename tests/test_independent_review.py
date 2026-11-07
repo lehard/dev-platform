@@ -20,6 +20,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS = ROOT / "template" / "scripts"
 sys.path.insert(0, str(SCRIPTS))
+import delivery_trace  # noqa: E402
 from _platform_modules import load_platform_module  # noqa: E402
 from _platform_config import write_platform_config  # noqa: E402
 from _concurrent_lifecycle import process_deadline_seconds  # noqa: E402
@@ -137,6 +138,16 @@ class RiskyChangeTests(unittest.TestCase):
         with contextlib.redirect_stdout(output):
             review.ensure_review_evidence(self.root, self.quick(), launcher=launcher)
         return output.getvalue()
+
+    def test_the_delivery_trace_commit_needs_no_second_review(self) -> None:
+        self.edit("scripts/gate_two.py")
+        launcher = FakeLauncher()
+        self.finish_review(launcher)
+        launched = len(launcher.calls)
+        self.assertGreater(launched, 0)
+        delivery_trace.stamp(self.root)
+        self.finish_review(launcher)
+        self.assertEqual(len(launcher.calls), launched)
 
     def test_the_run_line_counts_only_perspectives_that_returned_a_review(self) -> None:
         self.edit("scripts/gate_two.py")

@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT / "tests"))
 import json  # noqa: E402
 
 import _platform_common  # noqa: E402
+import delivery_trace  # noqa: E402
 import finish_task  # noqa: E402
 from _platform_config import write_platform_config  # noqa: E402
 import managed_task  # noqa: E402
@@ -209,6 +210,38 @@ class TaskReconciliationTests(unittest.TestCase):
 
         self.assertEqual(result.state, "ahead")
         self.assertEqual(git("rev-parse", "origin/agent/task", cwd=self.task).stdout.strip(), git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
+
+    def reconcile_published(self) -> None:
+        exact = publication_state.ExactHeadPrLookup(
+            available=True,
+            exact_open={"number": 190, "url": "https://example.invalid/pr/190", "baseRefName": "main", "headRepositoryOwner": "owner"},
+        )
+        with (
+            mock.patch.object(task_reconciliation, "task_kind", return_value="managed"),
+            mock.patch.object(task_reconciliation, "github_cli_env", return_value={}),
+            mock.patch.object(task_reconciliation.publication_state, "find_exact_head_pr", return_value=exact),
+            mock.patch.object(task_reconciliation.publication_state, "github_repo_name", return_value="owner/repo"),
+        ):
+            task_reconciliation.reconcile(self.task)
+
+    def test_a_traced_published_head_keeps_its_trace_across_reconcile(self) -> None:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        delivery_trace.stamp(self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        self.advance_main()
+        self.reconcile_published()
+        pushed = git("rev-parse", "origin/agent/task", cwd=self.task).stdout.strip()
+        self.assertEqual(pushed, git("rev-parse", "HEAD", cwd=self.task).stdout.strip())
+        self.assertIsNone(delivery_trace.refusal(self.task, pushed))
+
+    def test_reconcile_gives_no_trace_to_a_head_that_had_none(self) -> None:
+        (self.task / "task.txt").write_text("task\n", encoding="utf-8")
+        git("add", "task.txt", cwd=self.task); git("commit", "-m", "task work", cwd=self.task)
+        git("push", "-u", "origin", "agent/task", cwd=self.task)
+        self.advance_main()
+        self.reconcile_published()
+        self.assertIsNotNone(delivery_trace.refusal(self.task, "origin/agent/task"))
 
     def test_issue_97_local_ci_fix_descendant_continues_same_exact_pr_after_main_advance(self) -> None:
         (self.task / "task.txt").write_text("task\n", encoding="utf-8")
@@ -541,6 +574,9 @@ class TaskReconciliationTests(unittest.TestCase):
 
             merged = agent_friction.current_task_content(self.task)
             self.assertTrue(task_content_identity.equivalent_proofs(self.task, recorded, merged))
+
+            delivery_trace.stamp(self.task)
+            self.assertEqual(agent_friction.current_task_content(self.task)["digest"], merged["digest"], "the trace commit changes no task content")
 
             (self.task / "task.txt").write_text("task edited\n", encoding="utf-8")
             git("add", "task.txt", cwd=self.task); git("commit", "-m", "edit", cwd=self.task)

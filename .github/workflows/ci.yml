@@ -31,6 +31,13 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Refuse a head that bypassed finish
+        # Checkout is the merge commit, so the exact PR head comes from the event. See DEC-0011.
+        if: github.event_name == 'pull_request'
+        env:
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 scripts/delivery_trace.py check --head "$PR_HEAD_SHA"
+
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24.22.2"

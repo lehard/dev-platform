@@ -22,6 +22,7 @@ from _platform_common import (
     run_github_with_retry,
 )
 from managed_task import ManagedTaskError, resolve_canonical_provenance
+import delivery_trace
 import publication_state
 
 
@@ -329,6 +330,8 @@ def reconcile(root: Path | None = None) -> Freshness:
         if _remote_branch_head(root, branch) != remote_branch_head:
             raise SystemExit("Remote task branch head changed during reconciliation; refusing to publish the new descendant automatically.")
         _disarm_before_new_head(root, branch, target_branch, remote_branch_head)
+        if delivery_trace.refusal(root, remote_branch_head) is None:
+            delivery_trace.stamp(root)
         pushed = run_git(["push", "origin", branch], cwd=root, check=False)
         if pushed.returncode != 0:
             detail = pushed.stderr.strip() or pushed.stdout.strip() or f"exit {pushed.returncode}"
