@@ -820,6 +820,19 @@ def finalize_portable_change(work: Path) -> None:
     run_git(["commit", "-m", f"Finalize verified OpenSpec change {canonical.change}"], cwd=work)
 
 
+def finalize_keeping_checkpoint(work: Path, branch: str) -> None:
+    """Refuse a stale friction checkpoint before review, then carry it over finish's own archive commit."""
+    checkpoint_detail = observe_friction_checkpoint_blocker(work, branch)
+    if checkpoint_detail is not None:
+        report_completion_blockers([("friction-checkpoint", checkpoint_detail)])
+        raise SystemExit(1)
+    candidate = run_git(["rev-parse", "HEAD"], cwd=work).stdout.strip()
+    finalize_portable_change(work)
+    import agent_friction
+
+    agent_friction.carry_checkpoint_over_finalize(branch, work, candidate)
+
+
 def review_quick_task(work: Path) -> None:
     """A risky quick task is reviewed after validation and before any publication."""
     from independent_review import ensure_review_evidence
@@ -921,7 +934,7 @@ def main() -> int:
         canonical = resolve_canonical_provenance(work)
         if canonical is not None and canonical.lifecycle == "active":
             run_finish_preflight(work, integration, branch, consolidated=False)
-            finalize_portable_change(work)
+            finalize_keeping_checkpoint(work, branch)
         delivery = require_delivery_provenance(work)
     except (ManagedTaskError, RequirementIntegrationError) as exc:
         raise SystemExit("Managed task publication blocked: " + str(exc)) from exc

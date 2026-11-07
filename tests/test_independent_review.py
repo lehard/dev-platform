@@ -138,6 +138,15 @@ class RiskyChangeTests(unittest.TestCase):
             review.ensure_review_evidence(self.root, self.quick(), launcher=launcher)
         return output.getvalue()
 
+    def test_the_run_line_counts_only_perspectives_that_returned_a_review(self) -> None:
+        self.edit("scripts/gate_two.py")
+        self.assertIn("2 of 2 perspective(s) returned a review", self.finish_review(FakeLauncher()))
+        self.edit("scripts/gate_two.py", "changed again\n")
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+            review.ensure_review_evidence(self.root, self.quick(), launcher=FakeLauncher(probe=runner.LaunchUnavailable("not logged in")))
+        self.assertIn("0 of 2 perspective(s) returned a review", output.getvalue())
+
     def test_a_protected_path_is_risky_and_any_other_is_not(self) -> None:
         self.edit("other.py")
         self.assertEqual(review.risky_paths(self.root), [])
