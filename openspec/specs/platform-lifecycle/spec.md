@@ -1845,7 +1845,7 @@ When a task starts in a managed downstream project, the platform SHALL compare t
 
 ### Requirement: The friction checkpoint proof ignores declared generated files
 
-The content proof that binds a managed task's friction checkpoint SHALL exclude files declared in `[[generated_files]]` at the merge base of the task and main, so a merge-only reconcile that changes only such files keeps the checkpoint valid. A change to any other task-owned path SHALL still make the checkpoint stale.
+The content proof that binds a managed task's friction checkpoint SHALL exclude files declared in `[[generated_files]]` at the merge base of the task and main, so a merge-only reconcile that changes only such files keeps the checkpoint valid. `finish` SHALL carry a checkpoint it has just proven fresh over its own archive commit, only when that commit is the sole child of the proven candidate. Any other change to a task-owned path SHALL still make the checkpoint stale.
 
 #### Scenario: Merge-only reconcile touches only a generated file
 
@@ -1857,6 +1857,18 @@ The content proof that binds a managed task's friction checkpoint SHALL exclude 
 
 - **WHEN** a task-owned file other than a declared generated file changes after the checkpoint
 - **THEN** `assert-checkpoint` fails naming the checkpoint command
+
+#### Scenario: Finish archives a task with a fresh checkpoint
+
+- **GIVEN** `finish` has proven the checkpoint fresh on candidate A
+- **WHEN** its archive commit, the sole child of A, changes the task content
+- **THEN** `finish` rebinds the checkpoint to that commit and continues
+
+#### Scenario: Finish cannot prove its archive commit is the sole child
+
+- **GIVEN** the parent of the current head is not the proven candidate
+- **WHEN** `finish` tries to carry the checkpoint
+- **THEN** it stops naming both commits and the checkpoint stays as recorded
 
 ### Requirement: Friction routing sanitizes, deduplicates and keeps a local fallback
 

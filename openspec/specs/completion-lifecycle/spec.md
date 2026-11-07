@@ -1554,7 +1554,7 @@ For a risky quick task `finish` SHALL run the review after validation and before
 
 ### Requirement: A later finish consumes earlier deferred cleanup records
 
-A `finish` that completes terminal reconciliation SHALL process the deferred worktree records of earlier tasks, excluding its own, through the existing safety and identity checks, and SHALL name each removed worktree and each kept record with its reason.
+A `finish` that completes terminal reconciliation SHALL process the deferred worktree records of earlier tasks, excluding its own, through the existing safety and identity checks, and SHALL name each removed worktree and each kept record with its reason. An operating-system failure or a stop raised by those checks SHALL be a warning; an unexpected error SHALL NOT be caught, so it ends `finish` with a traceback and a non-zero exit after delivery, and the delivery result stands.
 
 #### Scenario: A later finish consumes earlier records
 
@@ -1563,4 +1563,11 @@ A `finish` that completes terminal reconciliation SHALL process the deferred wor
 - **THEN** each record passing the safety and identity checks is removed and named
 - **AND** each other record is kept and named with its reason and exact command
 - **AND** the record of the running task is kept and ordinary non-deferred candidates are untouched
-- **AND** a failure of this cleanup is a warning and does not change the delivery result
+- **AND** an operating-system failure or a stop raised by the checks is a warning and does not change the delivery result
+
+#### Scenario: Cleanup of earlier records hits an unexpected error
+
+- **GIVEN** the task is delivered and terminal reconciliation is complete
+- **WHEN** processing earlier records raises an error that is neither an operating-system failure nor a stop raised by the checks
+- **THEN** `finish` exits non-zero with a traceback
+- **AND** the delivery stays merged and a rerun of `finish` is safe
