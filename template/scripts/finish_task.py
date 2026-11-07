@@ -645,10 +645,12 @@ def reconcile_linked_parent(integration: Path, identity: object | None, work: Pa
 
 def notice_closure_gaps(integration: Path, work: Path) -> None:
     """Say before publication what closure would miss; this is a notice and never stops publication."""
-    from requirement_terminal import parent_closure
     try:
         identity = delivery_identity(work)
-        closure = parent_closure(integration, identity.source_issue) if identity is not None else None
+        if identity is None:
+            return
+        from requirement_terminal import parent_closure
+        closure = parent_closure(integration, identity.source_issue)
     except Exception as exc:
         print(f"WARNING: could not check before publication what closing the parent Requirement needs: {exc}")
         return
