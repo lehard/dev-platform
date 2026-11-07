@@ -3,6 +3,7 @@
 OpenSpec-Verify: PASS
 Verification-Method: Manual walk of every scenario in the delta against the code and tests/test_finish_closes_requirement.py and tests/test_worktree_hygiene.py; selected checks and strict `openspec validate` ran locally.
 Automated-Checks-Evidence: automated-checks.json
+Independent-Review-Evidence: independent-review-request.json
 
 ## What was checked
 
