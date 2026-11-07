@@ -90,6 +90,9 @@ class ReconcileConflictHintScenario(unittest.TestCase):
         run("git", "init", "-q", "-b", "main", str(seed), cwd=self.base)
         configure(seed)
         copy_lifecycle_scripts(seed)
+        # Running the scripts writes bytecode; a real repository ignores it, and without this the
+        # task looks dirty wherever no global ignore or PYTHONDONTWRITEBYTECODE hides it (CI).
+        (seed / ".gitignore").write_text("__pycache__/\n", encoding="utf-8")
         (seed / "scripts" / "gen.py").write_text(GENERATOR, encoding="utf-8")
         (seed / "src").mkdir()
         (seed / "src" / "base.txt").write_text("base\n", encoding="utf-8")
