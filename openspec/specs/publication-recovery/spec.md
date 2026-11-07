@@ -47,8 +47,8 @@ For `pr_merge_mode=auto`, after an exact-head PR is created or reused, the platf
 
 - **GIVEN** the repository does not support or has not enabled native auto-merge for this PR
 - **WHEN** the platform cannot persist remote merge intent before checks complete
-- **THEN** it retains the existing bounded foreground check/merge fallback
-- **AND** reports that remote durability is degraded rather than fabricating a local durable executor
+- **THEN** publication stops with GitHub's reason and no other merge form follows
+- **AND** no local executor stands in for the remote merge intent
 - **AND** the exact branch/PR remains resumable by a later finish invocation
 
 #### Scenario: PR head changes before merge request
@@ -312,14 +312,14 @@ Task publication status SHALL report concise sanitized facts sufficient to disti
 
 ### Requirement: Publication status exposes head, PR and merge capability
 
-Task publication status SHALL include the exact task SHA and PR URL/number when available and SHALL expose whether native remote auto-merge capability is available or the task is using foreground fallback.
+Task publication status SHALL include the exact task SHA and PR URL/number when available and SHALL expose the repository's merge durability: `remote_armed_capable` when native remote auto-merge is available, `auto_merge_disabled` when it is not, `manual` when the merge mode is not automatic, and `unknown` when the capability cannot be read.
 
-#### Scenario: Task uses foreground fallback
+#### Scenario: Native auto-merge is disabled for the repository
 
 - **GIVEN** a task PR exists and native remote auto-merge capability is unavailable
 - **WHEN** task publication status is read
 - **THEN** it includes the exact task SHA and the PR URL/number
-- **AND** it exposes that the task is using foreground fallback
+- **AND** it exposes `merge_durability: auto_merge_disabled`
 
 ### Requirement: Publication status exposes task freshness against authoritative main
 
