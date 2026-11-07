@@ -1,0 +1,167 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.796,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.587,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.226,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.236,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 3.502,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        ".github/workflows/ci.yml",
+        "dev-platform/checks.toml",
+        "scripts/delivery_trace.py",
+        "template/scripts/delivery_trace.py",
+        "template/scripts/project_publish.py",
+        "template/scripts/task_reconciliation.py",
+        "tests/test_delivery_trace.py",
+        "tests/test_git_lifecycle.py",
+        "tests/test_independent_review.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_merge_lifecycle_resilience.py",
+        "tests/test_portable_finish_check_reuse.py",
+        "tests/test_protected_main_zero_handoff.py",
+        "tests/test_publication_recovery_cli.py",
+        "tests/test_task_reconciliation.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "configuration"
+      ],
+      "required_evidence_types": [],
+      "left_to_required_ci": [
+        "python3 scripts/run_test_groups.py --all"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_edd05b7d78b031775c37a335876c8844",
+    "change": "finish-bypass-guard",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/finish-bypass-guard",
+    "branch": "agent/br-1011-t1-finish-bypass-guard",
+    "head": "8cbf6fbd60ba84b9fca645afcf7de9d8051e50e9",
+    "task_content": {
+      "version": 1,
+      "digest": "5811b18bf94adc1ecb80b1b98323e1be0d19a319d8e269a514aec14deaef7eb2",
+      "paths": {
+        ".github/workflows/ci.yml": "2f3f8dea2564c8396b270a014966b4120f90ae98",
+        "dev-platform/checks.toml": "a86590c47e544431bf179c35bd77f97f1adbadfb",
+        "docs/decisions/0011-finish-bypass-guard.md": "4f20daa9fcd777e1f2ef4f89925caea823868c52",
+        "docs/decisions/README.md": "2f88630bc17da56bf2e3321a40c8da25264fb2ab",
+        "docs/engineering/agent-workflow.md": "0f2b6be7ba0e9507587ee9e15b074bc448007a57",
+        "docs/engineering/lifecycle-map.md": "0139215fafe47e11b91910a9e6a1a8eaadc96cd0",
+        "openspec/changes/finish-bypass-guard/.managed-task.json": "ca9b5348178fffe4560fa93d6e13269159866839",
+        "openspec/changes/finish-bypass-guard/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+        "openspec/changes/finish-bypass-guard/design.md": "e241c2dd488fb25b1aeef855b1fd560cb76e76ab",
+        "openspec/changes/finish-bypass-guard/proposal.md": "6bf38f107f17d946570fa096e632183964fdc1bd",
+        "openspec/changes/finish-bypass-guard/specs/platform-ci/spec.md": "527d3146e7f74aa0b7f04fd9be3722426b08cd9d",
+        "openspec/changes/finish-bypass-guard/specs/publication-recovery/spec.md": "7cf1eb5aa4a770eb7ea6db1382acacd309663744",
+        "openspec/changes/finish-bypass-guard/tasks.md": "5e556ffc29428e59607071b80c67e33491c7150f",
+        "openspec/changes/finish-bypass-guard/verification.md": "c5d72cce15be4957e75ec261116d0cdf3b3b4156",
+        "scripts/delivery_trace.py": "b569a9cfcb9d2b81b8fef90b20c4a43c13c7a56c",
+        "template/dev-platform/platform-manifest.json": "a337daf50236c4e9c44b4c1d01b4a802333add77",
+        "template/dev-platform/protected-surface.toml": "5c04e7c2061d44da972c052786a45adfb586e77a",
+        "template/scripts/delivery_trace.py": "7b64cc20f647d614adee7961237dcfeb2d7ec6b4",
+        "template/scripts/project_publish.py": "775dcf5a8a34f19f02e250b5f80a11560fcf4767",
+        "template/scripts/task_reconciliation.py": "7b4005753499783bb3df8456153c6a03d8cf56c7",
+        "tests/test_delivery_trace.py": "59aefdeb16ca09eae8b4cde0f18a58298b9fad8f",
+        "tests/test_git_lifecycle.py": "99f4639f3b0fc316a1204ff385ad670a0899c9b2",
+        "tests/test_independent_review.py": "56ae0cec37f1523f8f06630d3f835da839925093",
+        "tests/test_managed_status_lifecycle.py": "3b448d3f9012b91e1e1f07fee203f27e50f2c6ae",
+        "tests/test_merge_lifecycle_resilience.py": "427427f3b97c62ba524b546b4f76d7e8a8e23d21",
+        "tests/test_portable_finish_check_reuse.py": "77b8820103cacc867071a7bd4db680850961faf9",
+        "tests/test_protected_main_zero_handoff.py": "e7628a025a137897be931e86fe6ee6b83cb2e222",
+        "tests/test_publication_recovery_cli.py": "d72f3dbf5156cc628c07a6f0f7d9c23da8fe9d4a",
+        "tests/test_task_reconciliation.py": "ed4fd70f683ddac14735f0cdd891b1de478e7c6e"
+      },
+      "base": "4ae5f9a2ab4d072b59b4954e902d8fe87106b28d"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "9fcb4baaae01d80b7ca146f7995af3742e60b3910c7e155d3a25470fb35fc738",
+    "paths": {
+      ".github/workflows/ci.yml": "2f3f8dea2564c8396b270a014966b4120f90ae98",
+      "dev-platform/checks.toml": "a86590c47e544431bf179c35bd77f97f1adbadfb",
+      "docs/decisions/0011-finish-bypass-guard.md": "4f20daa9fcd777e1f2ef4f89925caea823868c52",
+      "docs/decisions/README.md": "2f88630bc17da56bf2e3321a40c8da25264fb2ab",
+      "docs/engineering/agent-workflow.md": "0f2b6be7ba0e9507587ee9e15b074bc448007a57",
+      "docs/engineering/lifecycle-map.md": "0139215fafe47e11b91910a9e6a1a8eaadc96cd0",
+      "openspec/changes/finish-bypass-guard/.managed-task.json": "ca9b5348178fffe4560fa93d6e13269159866839",
+      "openspec/changes/finish-bypass-guard/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+      "openspec/changes/finish-bypass-guard/design.md": "e241c2dd488fb25b1aeef855b1fd560cb76e76ab",
+      "openspec/changes/finish-bypass-guard/proposal.md": "6bf38f107f17d946570fa096e632183964fdc1bd",
+      "openspec/changes/finish-bypass-guard/specs/platform-ci/spec.md": "527d3146e7f74aa0b7f04fd9be3722426b08cd9d",
+      "openspec/changes/finish-bypass-guard/specs/publication-recovery/spec.md": "7cf1eb5aa4a770eb7ea6db1382acacd309663744",
+      "openspec/changes/finish-bypass-guard/tasks.md": "5e556ffc29428e59607071b80c67e33491c7150f",
+      "scripts/delivery_trace.py": "b569a9cfcb9d2b81b8fef90b20c4a43c13c7a56c",
+      "template/dev-platform/protected-surface.toml": "5c04e7c2061d44da972c052786a45adfb586e77a",
+      "template/scripts/delivery_trace.py": "7b64cc20f647d614adee7961237dcfeb2d7ec6b4",
+      "template/scripts/project_publish.py": "775dcf5a8a34f19f02e250b5f80a11560fcf4767",
+      "template/scripts/task_reconciliation.py": "7b4005753499783bb3df8456153c6a03d8cf56c7",
+      "tests/test_delivery_trace.py": "59aefdeb16ca09eae8b4cde0f18a58298b9fad8f",
+      "tests/test_git_lifecycle.py": "99f4639f3b0fc316a1204ff385ad670a0899c9b2",
+      "tests/test_independent_review.py": "56ae0cec37f1523f8f06630d3f835da839925093",
+      "tests/test_managed_status_lifecycle.py": "3b448d3f9012b91e1e1f07fee203f27e50f2c6ae",
+      "tests/test_merge_lifecycle_resilience.py": "427427f3b97c62ba524b546b4f76d7e8a8e23d21",
+      "tests/test_portable_finish_check_reuse.py": "77b8820103cacc867071a7bd4db680850961faf9",
+      "tests/test_protected_main_zero_handoff.py": "e7628a025a137897be931e86fe6ee6b83cb2e222",
+      "tests/test_publication_recovery_cli.py": "d72f3dbf5156cc628c07a6f0f7d9c23da8fe9d4a",
+      "tests/test_task_reconciliation.py": "ed4fd70f683ddac14735f0cdd891b1de478e7c6e"
+    },
+    "base": "4ae5f9a2ab4d072b59b4954e902d8fe87106b28d",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file scripts/delivery_trace.py --changed-file template/scripts/delivery_trace.py --changed-file template/scripts/project_publish.py --changed-file template/scripts/task_reconciliation.py --changed-file tests/test_delivery_trace.py --changed-file tests/test_git_lifecycle.py --changed-file tests/test_independent_review.py --changed-file tests/test_managed_status_lifecycle.py --changed-file tests/test_merge_lifecycle_resilience.py --changed-file tests/test_portable_finish_check_reuse.py --changed-file tests/test_protected_main_zero_handoff.py --changed-file tests/test_publication_recovery_cli.py --changed-file tests/test_task_reconciliation.py",
+    "duration_seconds": 195.357,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}
