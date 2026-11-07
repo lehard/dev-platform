@@ -24,7 +24,7 @@ Keep these intents distinct:
 - **Discuss** a change: inspect, design and compare options; a substantial discussion does not by itself create Backlog state.
 - **Fix/add to Backlog** when the user explicitly asks to record accepted non-trivial work ("зафиксируй", "добавь в бэклог", "создай задачу", "отправь в бэклог" or equivalent): create or reuse a human-facing Business Requirement through `python3 scripts/requirement_intake.py create ...` and stop. Fixation creates no OpenSpec package and performs no technical decomposition or implementation.
 - **Quick execution**: a small direct request, including a regression repair that restores behavior unambiguously established by an accepted contract, remains a quick task and uses the existing task/check/finish workflow with no Requirement, backlog issue, or ceremonial OpenSpec. Retain proportionate regression evidence; if it becomes material, stop and enter requirement-first or explicit technical managed intake before broadening scope.
-- **Fresh non-trivial execution**: by default create/reuse a Business Requirement, run `requirement_intake.py start`, drive `orchestrate_pre_authoring.py` through evidence -> ADD -> intents -> handoff, author the resulting internal managed OpenSpec change(s), link each with `requirement_intake.py link-child`, start those managed tasks, and only then implement.
+- **Fresh non-trivial execution**: by default create/reuse a Business Requirement, run `requirement_intake.py start`, drive `orchestrate_pre_authoring.py` to its handoff (a `deterministic` or `bounded-evidence` depth writes `direct-handoff.json` at once, with no ADD or intents; `material-design` goes through evidence -> ADD -> intents -> handoff), author the resulting internal managed OpenSpec change(s), run `requirement_intake.py materialize-handoff` for each, which creates the managed child and links it to the Requirement, start those managed tasks, and only then implement. Before `finish`, record the routed outcome: a supervisor-retained route (the Claude `R1`/`R2` default) runs `python3 scripts/model_routing.py record-retained-execution --reason "..."`, or `finish` refuses with "routing evidence has no completed execution outcome".
 - **Execute an existing Business Requirement**: an explicitly supplied `type:requirement` Issue enters through `python3 scripts/requirement_intake.py start --requirement owner/repo#N`; after fresh authored handoffs, resume its children through `python3 scripts/execute_requirement.py advance --requirement owner/repo#N`. The `finish` of the last child closes the Requirement; `advance` stays the recovery.
 - **Direct technical managed/OpenSpec path**: when the user explicitly supplies an existing managed Issue/OpenSpec task or explicitly asks to create a technical managed task, preserve the existing `managed_task.py create` / `execute_managed_task.py` / `start_managed_task.py` path. This is not the default meaning of "зафиксируй".
 
@@ -64,16 +64,20 @@ python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 python3 scripts/start_managed_task.py owner/repo#N
 python3 scripts/execute_managed_task.py --bundle <directory>
 python3 scripts/dogfood_task.py route-claude --tier <R1|R2|R3> --rationale "..." --evidence "..."
+python3 scripts/model_routing.py record-retained-execution --reason "..."
 python3 scripts/dogfood_task.py status
 python3 scripts/dogfood_task.py reconcile
-python3 scripts/dogfood_task.py finish
+python3 scripts/dogfood_task.py finish --title "..."
 ```
+
+`finish --title` sets the PR title. Without it the title is the head commit's subject, which for a managed task is the archive commit `Finalize verified OpenSpec change <change>`.
 
 `status` is read-only and reports task freshness before expensive validation. If it requires reconciliation, run `python3 scripts/dogfood_task.py reconcile`; it refuses dirty or ambiguous state, merges current main without history rewrite, and a published exact PR is fast-forward pushed on the same branch after its auto-merge is disabled, or the push is refused; nothing merges until `finish` validates the new head and arms it. Rerun validation before `finish`, which delegates to the authoritative GitHub-backed publication lifecycle and is resumable: it follows the armed PR to `MERGED`, and a failed required check stops it naming the check. Do not report terminal source delivery complete until GitHub reports the exact PR `MERGED` and local `main` has been reconciled.
 
-Minimum validation before finishing: `finish` runs it, and this command runs the same selection earlier. Locally that is the fast checks and the tests of the changed files; the full suite runs in the required `validate` PR check.
+Minimum validation before finishing: `finish` runs it, and these commands run the same selection earlier, the first for a quick task and the second for a managed task (`--task-evidence` is refused for a managed task and together with `--evidence`). Locally that is the fast checks and the tests of the changed files; the full suite runs in the required `validate` PR check.
 ```bash
 python3 scripts/select_checks.py --base origin/main --execute --task-evidence
+python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json
 ```
 
 ## Where the detailed contract lives

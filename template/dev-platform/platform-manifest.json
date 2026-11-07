@@ -63,7 +63,7 @@
     "docs/engineering/model-routing.md": "29b2b83ada2338d4982b5cd3af308c7d2f8a9e4712c8c6c8a5362a5d2f2a16b5",
     "docs/engineering/openspec-workflow.md": "11e6e5966d01781cdc42660c1e1899d3beb952447ca488729632d073b1fa56b1",
     "scripts/_platform_common.py": "796476ccae9451b8e3a24807b357afd8996aa5c2f0621d4666736d09897d3939",
-    "scripts/add_intents.py": "e63c7da5f1f4bb2c067d23a5f8b1a1a38fd9c3208a5f6aa737849f888f341a2e",
+    "scripts/add_intents.py": "2d7b2b72857408b44b27506f4a146df504504b15690e9e25cabe065833d594d6",
     "scripts/affected_test_groups.py": "e4ae3bff616d0b83a9771c842d4db0422f5918b9579b8c3a3f8dd42c6766b196",
     "scripts/agent_board.py": "317289d10dd04df43915fa2d0cac1b0f3900d823078ff360652826b86736cdf4",
     "scripts/agent_doctor.py": "b0e30f84c36bce511f4be313b15773c1ad93325b6a221d7b77b7eecde4ddcc8c",

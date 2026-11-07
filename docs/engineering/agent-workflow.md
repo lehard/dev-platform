@@ -54,18 +54,21 @@ python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 ```
 
 Drive the orchestrator resumably through a recorded depth selection. A
-deterministic result goes directly to a handoff; bounded evidence requests only
-scoped routine read-only projections; a material design delta continues through
+deterministic result writes `direct-handoff.json` at once, with no ADD or
+intents; bounded evidence requests only scoped routine read-only projections
+and also ends in that direct handoff; a material design delta continues through
 snapshot -> ADD -> intents -> handoff. Surface a human question only when the
 orchestrator reports a consequential unresolved choice.
-For each ready handoff, author the resulting internal technical managed change
-through the existing managed/OpenSpec path, then immediately link it:
+For each ready handoff, author the managed bundle of the resulting internal
+technical change and materialize it. `materialize-handoff` creates (or exactly
+reuses) the managed child and links it to the Requirement in both directions,
+so no separate `managed_task.py create` or `link-child` step follows:
 
 ```bash
-python3 scripts/managed_task.py create --bundle <directory>
-python3 scripts/requirement_intake.py link-child \
+python3 scripts/requirement_intake.py materialize-handoff \
   --requirement owner/repo#N \
-  --child owner/repo#M
+  --handoff <ready-envelope.json> \
+  --bundle <authored-bundle-directory>
 python3 scripts/start_managed_task.py owner/repo#M
 ```
 
@@ -242,10 +245,11 @@ The shared lifecycle is composable. `light`, `standard`, and `multi-agent` profi
 
 ## Validation
 
-`finish` selects and runs the local checks; run the same selection earlier with:
+`finish` selects and runs the local checks; run the same selection earlier with the first command for a quick task and the second for a managed task. `--task-evidence` is refused for a managed task and together with `--evidence`:
 
 ```bash
 python3 scripts/select_checks.py --base origin/main --execute --task-evidence
+python3 scripts/select_checks.py --base origin/main --execute --evidence openspec/changes/<change>/automated-checks.json
 ```
 
 The required `validate` job in `.github/workflows/ci.yml` runs the complete set on every PR head, and only it is merge authority. For a change to the managed registry also run `python3 scripts/managed_projects.py validate`.
@@ -368,7 +372,7 @@ Every mandatory signal (high-signal `lifecycle-*` failure, or a recorded workaro
 
 ## Completion
 
-Commit the verified active change and run finish. Finish runs the independent review when `[independent_review] enabled = true` and the change is risky, calls shared `finalize_change`, commits the archive, and then publishes. Requirement advance uses the same executor for a ready child before recording its ready receipt. Developers do not run an archive command. Finalization reuses selected-check evidence by the finish rule and prints the decision.
+Commit the verified active change and run finish. Finish runs the independent review when `[independent_review] enabled = true` and the change is risky, calls shared `finalize_change`, commits the archive, and then publishes. Name the PR with `python3 scripts/dogfood_task.py finish --title "..."` (and `--body` for its description): without `--title` the PR title is the head commit's subject, which for a managed task is the archive commit `Finalize verified OpenSpec change <change>`. A supervisor-retained route records its outcome before finish with `python3 scripts/model_routing.py record-retained-execution --reason "..."`; without it finish refuses with "routing evidence has no completed execution outcome". Requirement advance uses the same executor for a ready child before recording its ready receipt. Developers do not run an archive command. Finalization reuses selected-check evidence by the finish rule and prints the decision.
 
 Before reporting a non-trivial platform task as complete:
 

@@ -88,7 +88,7 @@ def _valid_add(**overrides: object) -> dict[str, object]:
     document: dict[str, object] = {
         "version": 1,
         "add_id": "add-tiered-pricing",
-        "requirement": {"digest": "a" * 64, "summary": ""},
+        "requirement": {"digest": "a" * 64, "summary": "Billing gains a tier boundary so pricing can grow by usage."},
         "target_repository": "acme/billing",
         "prepared_against": "0" * 40,
         "prepared_by": "author",
@@ -137,6 +137,42 @@ class ValidateAddTests(unittest.TestCase):
         self._write(_valid_add())
         report = add_intents.validate_add(self.root, self.path, check_freshness=False)
         self.assertTrue(report.ok, report.errors)
+
+    def test_empty_summary_is_refused_when_the_add_records_elements(self) -> None:
+        for summary in ("", "   "):
+            self._write(_valid_add(requirement={"digest": "a" * 64, "summary": summary}))
+            report = add_intents.validate_add(self.root, self.path, check_freshness=False)
+            self.assertFalse(report.ok)
+            self.assertTrue(any("requirement.summary" in error for error in report.errors), report.errors)
+
+    def test_missing_summary_is_refused_when_the_add_records_a_choice(self) -> None:
+        self._write(_valid_add(
+            requirement={"digest": "a" * 64}, elements=[],
+            unresolved_choices=[{"question": "Do tiers stack with per-seat pricing?", "status": "open"}],
+        ))
+        report = add_intents.validate_add(self.root, self.path, check_freshness=False)
+        self.assertFalse(report.ok)
+        self.assertTrue(any("requirement.summary" in error for error in report.errors), report.errors)
+
+    def test_non_string_summary_is_refused(self) -> None:
+        self._write(_valid_add(requirement={"digest": "a" * 64, "summary": ["not", "text"]}))
+        report = add_intents.validate_add(self.root, self.path, check_freshness=False)
+        self.assertFalse(report.ok)
+        self.assertIn("requirement.summary must be a string", report.errors)
+
+    def test_empty_summary_is_allowed_while_the_add_has_no_content(self) -> None:
+        self._write(_valid_add(requirement={"digest": "a" * 64, "summary": ""}, elements=[]))
+        report = add_intents.validate_add(self.root, self.path, check_freshness=False)
+        self.assertTrue(report.ok, report.errors)
+
+    def test_cli_validate_add_names_the_empty_summary(self) -> None:
+        self._write(_valid_add(requirement={"digest": "a" * 64, "summary": ""}))
+        result = subprocess.run(
+            [sys.executable, str(TEMPLATE_SCRIPTS / "add_intents.py"), "validate-add", str(self.path), "--no-freshness-check"],
+            cwd=self.root, text=True, capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requirement.summary", result.stdout + result.stderr)
 
     def test_freshness_detects_stale_revision(self) -> None:
         self._write(_valid_add())
@@ -793,6 +829,7 @@ class HandoffTests(unittest.TestCase):
             target_repository="acme/billing", out=self.add_path,
         )
         document = json.loads(self.add_path.read_text(encoding="utf-8"))
+        document["requirement"]["summary"] = "Billing gains a tier boundary so pricing can grow by usage."
         document["evidence"] = [self.snapshot_entry]
         document["reused_constraints"] = [
             {"source": "openspec/specs/billing/spec.md", "statement": "Billing already uses USD; unchanged by this delta."}
@@ -1012,6 +1049,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
         document = json.loads(add_path.read_text(encoding="utf-8"))
+        document["requirement"]["summary"] = "Billing gains a tier boundary so pricing can grow by usage."
         document["elements"] = [
             {"id": "element-tier-boundary", "category": "boundary", "status": "new", "statement": "New pricing tier boundary."},
         ]
