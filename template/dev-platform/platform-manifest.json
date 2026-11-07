@@ -76,7 +76,7 @@
     "scripts/check_docs_links.py": "112e027ce1dc8799e766bff8cc339b0976378093a3a60d10c2a1e0b4b71298e6",
     "scripts/delegated_write_guard.py": "b061a6d5bf114df4564ebf55a2e2bf73e2da28004903c9acc7b2ac93532888c2",
     "scripts/delegation_containment.py": "f4ee773ddf817f10593fbf8144846b09d92ec1a4e63fde54953c027f183da7fc",
-    "scripts/delivery_trace.py": "56d1ee0bc5f622806d13e4e214593ad94cf29a0ce46d39114a3e8abb22531352",
+    "scripts/delivery_trace.py": "68a36b5e2888e24814a2eb6559e016e265b4197bebca1da6b28184a5973b0b53",
     "scripts/dev.py": "4aa3e237c0cdbcf85192de3df7f82dd49cfba48af32e1c143b02bae2a3224f92",
     "scripts/disposable_repository_sandbox.py": "290b29ff670fb03f4bc84282a7e3f780d5fdda642611f7423dec550fa8afe1e3",
     "scripts/execute_managed_task.py": "1a4ac1ebccc14cc787279e3cf829e866e989e4d460b4c93f41218aa4d315a5c5",

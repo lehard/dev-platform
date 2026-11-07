@@ -8,7 +8,7 @@ Independent-Review-Evidence: independent-review-request.json
 ## What was checked
 
 - First publication adds an empty commit with a valid trace and the same subject, and publication binds that head: `EnsureTests`.
-- A traced head gets no second commit; a project without the setting gets none; a non-boolean setting stops naming it: `EnsureTests`.
+- A traced head gets no second commit; a project without the setting or without a check configuration file gets none; a non-boolean setting stops naming it: `EnsureTests`.
 - The trace commit keeps the checkpoint proof (`test_quick_checkpoint_proof_survives_a_merge_only_reconcile_but_not_an_edit`), the selected-check evidence for quick and managed tasks (`test_the_delivery_trace_commit_keeps_the_evidence`) and the review evidence (`test_the_delivery_trace_commit_needs_no_second_review`).
 - Reconcile keeps the trace of a traced published head and gives none to a head without one: `test_a_traced_published_head_keeps_its_trace_across_reconcile`, `test_reconcile_gives_no_trace_to_a_head_that_had_none`.
 - The guard passes a traced head, refuses a missing, repeated or mismatched trailer with the reason and the next command, stops on an unknown head, and reads the named head rather than the merge commit: `CheckTests`.

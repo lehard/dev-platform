@@ -25,11 +25,19 @@ def _git(root: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-def enabled(root: Path) -> bool:
-    """Whether this repository writes the trace; a project without the setting does not."""
+def _settings(root: Path) -> dict:
+    """``[settings]`` of the check configuration; a project without that file has none, as for its cheap gates."""
+    from _platform_common import read_platform_config
     from lifecycle_preflight import load_checks_config
 
-    value = load_checks_config(root).get("settings", {}).get("delivery_trace", False)
+    if not (root / read_platform_config(root)["paths"]["checks"]).exists():
+        return {}
+    return load_checks_config(root).get("settings", {})
+
+
+def enabled(root: Path) -> bool:
+    """Whether this repository writes the trace; a project without the setting does not."""
+    value = _settings(root).get("delivery_trace", False)
     if not isinstance(value, bool):
         raise SystemExit(f"[settings] delivery_trace must be a boolean, got {value!r}.")
     return value

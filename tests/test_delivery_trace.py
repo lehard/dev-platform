@@ -112,7 +112,7 @@ class CheckTests(TraceRepository):
 
 class EnsureTests(TraceRepository):
     def setting(self, value: object) -> mock._patch:
-        return mock.patch("lifecycle_preflight.load_checks_config", return_value={"settings": value})
+        return mock.patch.object(delivery_trace, "_settings", return_value=value)
 
     def ensure(self) -> None:
         with contextlib.redirect_stdout(io.StringIO()):
@@ -137,6 +137,12 @@ class EnsureTests(TraceRepository):
     def test_a_project_without_the_setting_gets_no_commit(self) -> None:
         head = self.head()
         with self.setting({}):
+            self.ensure()
+        self.assertEqual(self.head(), head)
+
+    def test_a_project_without_a_check_configuration_gets_no_commit(self) -> None:
+        head = self.head()
+        with mock.patch("_platform_common.read_platform_config", return_value={"paths": {"checks": "dev-platform/checks.toml"}}):
             self.ensure()
         self.assertEqual(self.head(), head)
 
