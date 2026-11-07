@@ -116,6 +116,7 @@ targets = [
   "test_public_distribution",
   "test_requirement_child_context",
   "test_managed_status_lifecycle",
+  "test_finish_closes_requirement",
   "test_managed_rollout",
   "test_managed_project_status",
   "test_browser_verification",
