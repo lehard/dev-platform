@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8ea915ca11e46f006359ccef57095934b6577c51",
+    "base_ref": "origin/main",
+    "candidate_head": "7d9ab82f1a2e9d34be93b3566738504688665ff2",
+    "diff_sha256": "d39e0b1087d19218c79612ac7bf22b22b3b8851a2586b65da61ad813fcda9881"
+  },
+  "completed_at": "2026-11-07T07:29:34+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py: `except (OSError, SystemExit) as exc` in cleanup_earlier_tasks. cleanup_earlier_deferred in template/scripts/worktree_cleanup.py can raise other exceptions: `DeferredCleanupTarget.from_entry(entry)` on a malformed record, `commands[error[\"path\"]]` (KeyError if an error path differs from the entry path), and git subprocess errors. The spec says: \"a failure of this cleanup is a warning and does not change the delivery result\". The call also runs after the merge and after closure, so an unexpected exception there makes a successful delivery look failed.",
+      "id": "earlier-cleanup-warning-catch-too-narrow",
+      "severity": "advisory",
+      "summary": "cleanup_earlier_tasks promises that any failure of earlier-task cleanup is only a warning. It catches only OSError and SystemExit, so other errors still turn a delivered finish into a traceback and non-zero exit."
+    }
+  ],
+  "launched_at": "2026-11-07T07:29:14+00:00",
+  "output_sha256": "fce673525a6e693dda089b4e50a9bff9fe475f3fbfe298da72e6cc909df43a10",
+  "perspective": "engineering-quality",
+  "request_id": "c9468a1c-93db-4896-9d69-eca0a8dfe078",
+  "reviewer": {
+    "context_id": "5b0497ae-bcb0-470c-aea3-43409cebc2d9",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-d293768e-a72d-49dd-887c-aad859e45ded",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 36233
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 62330
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 16826
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 18221
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1584
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3528f917a5f14a7764db9c9c65774cf4f96902073dd1d393e84d0ff8065b85e5"
+}

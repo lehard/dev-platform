@@ -478,8 +478,9 @@ def _cleanup_deferred_completed_tasks(
     *,
     target: DeferredCleanupTarget | None = None,
     prune: bool = False,
+    skip: str | None = None,
 ) -> tuple[list[str], list[dict[str, str]], bool]:
-    entries = _read_deferred_cleanup(root, config)
+    entries = [entry for entry in _read_deferred_cleanup(root, config) if entry["path"] != skip]
     if target is not None:
         entries = [entry for entry in entries if entry == target.as_entry()]
         if not entries:
@@ -525,6 +526,15 @@ def _cleanup_deferred_completed_tasks(
     if removed and prune:
         run_git(["worktree", "prune"], cwd=root, check=False)
     return removed, errors, True
+
+
+def cleanup_earlier_deferred(root: Path, running: Path) -> tuple[list[str], list[dict[str, str]]]:
+    """Consume the deferred records of earlier tasks; each kept record carries its reason and exact command."""
+    config = read_platform_config(root)
+    commands = {entry["path"]: targeted_cleanup_command(DeferredCleanupTarget.from_entry(entry))
+                for entry in _read_deferred_cleanup(root, config)}
+    removed, errors, _ = _cleanup_deferred_completed_tasks(root, config, prune=True, skip=str(running.resolve()))
+    return removed, [{**error, "command": commands[error["path"]]} for error in errors]
 
 
 def write_pending_report(root: Path, decisions: Sequence[Decision]) -> Path:

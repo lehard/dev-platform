@@ -1,0 +1,140 @@
+{
+  "version": 2,
+  "selection": {
+    "state": "ready",
+    "command_count": 5,
+    "check_count": 1
+  },
+  "outcome": "success",
+  "executed_commands": [
+    {
+      "command": "python3 -m compileall -q template/scripts scripts",
+      "duration_seconds": 0.813,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+      "duration_seconds": 1.455,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 -m ruff check scripts template/scripts tests",
+      "duration_seconds": 0.206,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/generate_platform_manifest.py --check",
+      "duration_seconds": 0.175,
+      "outcome": "success",
+      "exit_code": 0
+    },
+    {
+      "command": "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive",
+      "duration_seconds": 3.951,
+      "outcome": "success",
+      "exit_code": 0
+    }
+  ],
+  "selected_checks": [
+    {
+      "id": "full-trigger",
+      "paths": [
+        "dev-platform/checks.toml",
+        "template/scripts/finish_task.py",
+        "template/scripts/requirement_terminal.py",
+        "template/scripts/worktree_cleanup.py",
+        "tests/test_finish_closes_requirement.py",
+        "tests/test_managed_status_lifecycle.py",
+        "tests/test_worktree_hygiene.py"
+      ],
+      "commands": [
+        "python3 -m compileall -q template/scripts scripts",
+        "python3 scripts/check_ci_python.py --workflow .github/workflows/ci.yml --job validate --compile template/scripts --compile scripts --compile tests",
+        "python3 -m ruff check scripts template/scripts tests",
+        "python3 scripts/generate_platform_manifest.py --check",
+        "npx --yes @fission-ai/openspec@1.15.0 validate --all --strict --no-interactive"
+      ],
+      "selection_reason": "high-impact-path",
+      "evidence_types": [
+        "syntax",
+        "syntax",
+        "syntax",
+        "configuration",
+        "configuration"
+      ],
+      "required_evidence_types": [],
+      "left_to_required_ci": [
+        "python3 scripts/run_test_groups.py --all"
+      ]
+    }
+  ],
+  "managed_checkout": {
+    "private_lineage_handle": "pln_395e0e4a0c6cf184e3f1a95a0d9871ec",
+    "change": "finish-closes-the-requirement",
+    "worktree": "/Users/Shared/Workspace/dev-platform/.claude/worktrees/finish-closes-the-requirement",
+    "branch": "agent/br-1009-t1-finish-closes-the-requirement",
+    "head": "fc82500e8c248aab86e181f7bccff865df45e719",
+    "task_content": {
+      "version": 1,
+      "digest": "fe2dfc61b0f1c5619f1306b24c77cc44498bd014aedbb3cf4602c5ea288ef507",
+      "paths": {
+        "AGENTS.md": "82f9e772194962a7c3e1e4ee4e51930615530e41",
+        "dev-platform/checks.toml": "706269581c0e10d171d51b56d7e6fe32ea63f8ba",
+        "docs/engineering/agent-workflow.md": "f1fc4e3591ddc23c7550846041e95cfdfd096b39",
+        "docs/engineering/chat-coordinator.md": "4ec4023c9c4acc4b6d476ed17f458a462ff4ca39",
+        "openspec/changes/finish-closes-the-requirement/.managed-task.json": "9b0db851778ac1b1da5ae2b43362c755ff0e0316",
+        "openspec/changes/finish-closes-the-requirement/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+        "openspec/changes/finish-closes-the-requirement/automated-checks.json": "5d4f86c52fa896729dc7fe155d5b709c2dcb4a81",
+        "openspec/changes/finish-closes-the-requirement/design.md": "716a0bc592ad85b223ea42851c8542ad76c58a8e",
+        "openspec/changes/finish-closes-the-requirement/proposal.md": "5f407bb471a1f0ec2521a6e15c83b9bfc5b071ca",
+        "openspec/changes/finish-closes-the-requirement/specs/agent-workflow/spec.md": "1a5c25c55aa5acd51c4cc3cdaeafc4cb83650f65",
+        "openspec/changes/finish-closes-the-requirement/specs/completion-lifecycle/spec.md": "011d6d70d2cfccfaa14a5a96335340e82cffa1b0",
+        "openspec/changes/finish-closes-the-requirement/tasks.md": "ef77fcad79b0540f427330403e38b16207243b3d",
+        "openspec/changes/finish-closes-the-requirement/verification.md": "f8120298756a440d92ee0706160b684b8ffabab5",
+        "template/dev-platform/platform-manifest.json": "7358ee9032a2ab646018ba85931d119873066878",
+        "template/scripts/finish_task.py": "f5588fd3ecf8e99e61a8e67b5c8af37df3d58d87",
+        "template/scripts/requirement_terminal.py": "f2e72d2b04889f9999f333f54e4df8f06e7f1ad1",
+        "template/scripts/worktree_cleanup.py": "667658c7cc416d855152eb4093174bbac3ecad54",
+        "tests/test_finish_closes_requirement.py": "fbd33364e2f38b86dbc2c77320de5e1b0e64c5ca",
+        "tests/test_managed_status_lifecycle.py": "6ce507f42520e50a764a358a8050cf891567c425",
+        "tests/test_worktree_hygiene.py": "f9dd4bac42ab0a745908970297e2d20dbbad257f"
+      },
+      "base": "8ea915ca11e46f006359ccef57095934b6577c51"
+    }
+  },
+  "gate_task_content": {
+    "version": 1,
+    "digest": "3528f917a5f14a7764db9c9c65774cf4f96902073dd1d393e84d0ff8065b85e5",
+    "paths": {
+      "AGENTS.md": "82f9e772194962a7c3e1e4ee4e51930615530e41",
+      "dev-platform/checks.toml": "706269581c0e10d171d51b56d7e6fe32ea63f8ba",
+      "docs/engineering/agent-workflow.md": "f1fc4e3591ddc23c7550846041e95cfdfd096b39",
+      "docs/engineering/chat-coordinator.md": "4ec4023c9c4acc4b6d476ed17f458a462ff4ca39",
+      "openspec/changes/finish-closes-the-requirement/.managed-task.json": "9b0db851778ac1b1da5ae2b43362c755ff0e0316",
+      "openspec/changes/finish-closes-the-requirement/.openspec.yaml": "e582ee4a2c22919eed558b194fa58fb923e0f359",
+      "openspec/changes/finish-closes-the-requirement/design.md": "716a0bc592ad85b223ea42851c8542ad76c58a8e",
+      "openspec/changes/finish-closes-the-requirement/proposal.md": "5f407bb471a1f0ec2521a6e15c83b9bfc5b071ca",
+      "openspec/changes/finish-closes-the-requirement/specs/agent-workflow/spec.md": "1a5c25c55aa5acd51c4cc3cdaeafc4cb83650f65",
+      "openspec/changes/finish-closes-the-requirement/specs/completion-lifecycle/spec.md": "011d6d70d2cfccfaa14a5a96335340e82cffa1b0",
+      "openspec/changes/finish-closes-the-requirement/tasks.md": "ef77fcad79b0540f427330403e38b16207243b3d",
+      "template/scripts/finish_task.py": "f5588fd3ecf8e99e61a8e67b5c8af37df3d58d87",
+      "template/scripts/requirement_terminal.py": "f2e72d2b04889f9999f333f54e4df8f06e7f1ad1",
+      "template/scripts/worktree_cleanup.py": "667658c7cc416d855152eb4093174bbac3ecad54",
+      "tests/test_finish_closes_requirement.py": "fbd33364e2f38b86dbc2c77320de5e1b0e64c5ca",
+      "tests/test_managed_status_lifecycle.py": "6ce507f42520e50a764a358a8050cf891567c425",
+      "tests/test_worktree_hygiene.py": "f9dd4bac42ab0a745908970297e2d20dbbad257f"
+    },
+    "base": "8ea915ca11e46f006359ccef57095934b6577c51",
+    "scope": "independent-review-v1"
+  },
+  "affected_precheck": {
+    "command": "python3 scripts/run_test_groups.py --quiet --changed-file template/scripts/finish_task.py --changed-file template/scripts/requirement_terminal.py --changed-file template/scripts/worktree_cleanup.py --changed-file tests/test_finish_closes_requirement.py --changed-file tests/test_managed_status_lifecycle.py --changed-file tests/test_worktree_hygiene.py",
+    "duration_seconds": 325.919,
+    "outcome": "success",
+    "exit_code": 0,
+    "role": "affected-precheck feedback; not validation coverage"
+  }
+}

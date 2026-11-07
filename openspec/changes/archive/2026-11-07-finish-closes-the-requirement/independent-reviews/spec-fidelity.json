@@ -1,0 +1,82 @@
+{
+  "availability": "available",
+  "candidate": {
+    "base_head": "8ea915ca11e46f006359ccef57095934b6577c51",
+    "base_ref": "origin/main",
+    "candidate_head": "7d9ab82f1a2e9d34be93b3566738504688665ff2",
+    "diff_sha256": "d39e0b1087d19218c79612ac7bf22b22b3b8851a2586b65da61ad813fcda9881"
+  },
+  "completed_at": "2026-11-07T07:29:14+00:00",
+  "findings": [
+    {
+      "evidence": "template/scripts/finish_task.py, cleanup_earlier_tasks: `except (OSError, SystemExit) as exc:`. completion-lifecycle spec: \"a failure of this cleanup is a warning and does not change the delivery result\".",
+      "id": "earlier-cleanup-warning-too-narrow",
+      "severity": "advisory",
+      "summary": "The spec says any failure of the earlier-record cleanup is only a warning and does not change the delivery result. `cleanup_earlier_tasks` catches only OSError and SystemExit, so any other exception (for example KeyError, a subprocess error or JSON decode) would propagate after the merge and turn a delivered task into a failure."
+    }
+  ],
+  "launched_at": "2026-11-07T07:28:57+00:00",
+  "output_sha256": "b872b25ef7e79a00e547128bc504593261264cb0ee4336b047af94bb54669bee",
+  "perspective": "spec-fidelity",
+  "request_id": "c9468a1c-93db-4896-9d69-eca0a8dfe078",
+  "reviewer": {
+    "context_id": "8f132ef3-8f0d-4f24-ba22-65d51a18d07a",
+    "context_id_source": "runtime",
+    "executed_provider": "claude",
+    "fallback_reason": null,
+    "fresh_context": true,
+    "launch_evidence": "platform-observed",
+    "launch_id": "platform-launch-f7a0659c-8cc2-4801-8dc2-b4ae0a5f6ec5",
+    "model": {
+      "source": "selected",
+      "value": "sonnet"
+    },
+    "provider": "claude",
+    "read_only_mechanism": "claude -p --tools Read,Grep,Glob --permission-mode dontAsk --no-session-persistence --strict-mcp-config",
+    "requested_provider": "claude",
+    "runtime": "claude-code-print",
+    "write_access": false
+  },
+  "runtime_usage": {
+    "fields": {
+      "cache_creation_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 41747
+      },
+      "cache_read_input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 17973
+      },
+      "duration_api_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 13591
+      },
+      "duration_ms": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 14374
+      },
+      "input_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 4
+      },
+      "num_turns": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 6
+      },
+      "output_tokens": {
+        "source": "runtime-confirmed",
+        "status": "measured",
+        "value": 1637
+      }
+    },
+    "runtime": "claude-code-print"
+  },
+  "schema_version": 1,
+  "task_content_digest": "3528f917a5f14a7764db9c9c65774cf4f96902073dd1d393e84d0ff8065b85e5"
+}
