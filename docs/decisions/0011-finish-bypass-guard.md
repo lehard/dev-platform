@@ -42,5 +42,3 @@ BR-1011. Every PR of this repository was opened by its owner; no bot opens PRs h
 - A bot or another legitimate source starts opening PRs here.
 - The guard refuses a legitimate delivery.
 - The empty commit breaks a gate that binds the head hash instead of task content.
-
-Probe edit after finish.
