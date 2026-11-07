@@ -97,9 +97,10 @@ def snapshot_evidence_entry(root: Path, snapshot_path: Path, snapshot: dict, con
 
 
 def approve_prepared_add(root: Path, add_file: Path) -> None:
-    """Approve a fixture ADD the way the workflow does: its preparer recorded, a different approver named."""
+    """Approve a fixture ADD the way the workflow does: its preparer recorded with a summary, a different approver named."""
     document = json.loads(add_file.read_text(encoding="utf-8"))
     document["prepared_by"] = "author"
+    document["requirement"]["summary"] = "The fixture system changes for the Requirement's stated reason."
     add_file.write_text(json.dumps(document), encoding="utf-8")
     add_intents.approve_add(root, add_file, approved_by="owner")
 
@@ -281,10 +282,11 @@ class OrchestratorFlowTests(unittest.TestCase):
         self.assertEqual(result["current_stage"], "add")
         self.assertEqual(result["stages"]["add"]["state"], "needs-drafting")
 
-        # ADD stage: a design worker fills elements/evidence with no open choice.
+        # ADD stage: a design worker fills summary/elements/evidence with no open choice.
         add_file = orch.add_path(directory)
         add_document = json.loads(add_file.read_text(encoding="utf-8"))
         evidence_entry = snapshot_evidence_entry(self.root, orch.snapshot_path(directory), snapshot)
+        add_document["requirement"]["summary"] = "Billing gains a tier boundary so pricing can grow by usage."
         add_document["evidence"] = [evidence_entry]
         add_document["elements"] = [
             {"id": "element-tier-boundary", "category": "boundary", "status": "new", "statement": "New pricing tier boundary."},

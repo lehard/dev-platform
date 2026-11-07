@@ -294,16 +294,21 @@ python3 scripts/orchestrate_pre_authoring.py --id requirement-N status
 ```
 
 Follow the orchestrator's bounded next action until handoff is complete. Author
-each resulting **internal** technical managed change through the existing
-managed-task path, then link it immediately:
+the managed bundle of each ready **internal** technical change and materialize
+it; `materialize-handoff` creates (or exactly reuses) the managed child and
+links it to the Requirement in both directions, so no separate
+`managed_task.py create` or `link-child` step follows:
 
 ```bash
-python3 scripts/managed_task.py create --bundle <directory>
-python3 scripts/requirement_intake.py link-child \
+python3 scripts/requirement_intake.py materialize-handoff \
   --requirement owner/repo#N \
-  --child owner/repo#M
+  --handoff <ready-envelope.json> \
+  --bundle <authored-bundle-directory>
 python3 scripts/start_managed_task.py owner/repo#M
 ```
+
+`link-child` alone attaches an already existing internal managed Issue to its
+Requirement.
 
 The composed direct execution helper remains valid only for an explicitly
 technical managed task:

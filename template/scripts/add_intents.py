@@ -488,6 +488,17 @@ def _validate_add_document(root: Path, document: dict[str, Any], *, check_freshn
         elif item["resolved"] is False:
             unresolved_contradictions += 1
 
+    # render-add presents an ADD with elements or choices only with its summary,
+    # so an ADD it would refuse to show is not valid either.
+    summary = requirement.get("summary") if isinstance(requirement, dict) else None
+    if summary is not None and not isinstance(summary, str):
+        errors.append("requirement.summary must be a string")
+    elif (elements or unresolved) and not (summary or "").strip():
+        errors.append(
+            "requirement.summary must be a non-empty string (2-4 sentences on the system changes and why) "
+            "when the ADD records elements or unresolved choices"
+        )
+
     approval = document.get("approval")
     if approval is not None and not isinstance(approval, dict):
         errors.append("approval must be an object or null")
@@ -650,10 +661,8 @@ def render_add(root: Path, path: Path, *, requirement: str) -> str:
     else:
         state, next_step = STATE_READY, "Согласуйте ADD в текущем виде или дайте замечания; открытых вопросов нет."
 
-    summary = document["requirement"].get("summary")
-    summary = summary.strip() if isinstance(summary, str) else ""
-    if (elements or choices) and not summary:
-        raise AddIntentsError("cannot render ADD: requirement.summary (2-4 sentences on the system changes and why) is required")
+    # validation above already refused a missing summary where one is shown
+    summary = (document["requirement"].get("summary") or "").strip()
 
     out = [
         f"# ADD {document['add_id']}",

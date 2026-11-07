@@ -56,9 +56,10 @@ def intents_for(order: list[str] | None, *, ready: bool = True, dependencies: di
 
 
 def approve_prepared_add(root: Path, add_file: Path) -> None:
-    """Approve a fixture ADD the way the workflow does: its preparer recorded, a different approver named."""
+    """Approve a fixture ADD the way the workflow does: its preparer recorded with a summary, a different approver named."""
     document = json.loads(add_file.read_text(encoding="utf-8"))
     document["prepared_by"] = "author"
+    document["requirement"]["summary"] = "The fixture system changes for the Requirement's stated reason."
     add_file.write_text(json.dumps(document), encoding="utf-8")
     add_intents.approve_add(root, add_file, approved_by="owner")
 
